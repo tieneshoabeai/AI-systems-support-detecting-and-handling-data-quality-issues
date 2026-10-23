@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Secrets & Environment
+.env
+.env.*
+*.env
+!*.env.example
+Neo4j-*.txt
+*credentials*
+
+# Build Outputs
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local fallback storage
+storage/
+
+# Logs
+*.log
