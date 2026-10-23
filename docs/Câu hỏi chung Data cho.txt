@@ -1,0 +1,32 @@
+Câu hỏi chung: 
+- Data cho hệ thống là gì, structure/ semi-structure/ unstructure ?
+- AI sử dụng tự train hay kéo api model ai? 
+- Cả hệ thống là một tính năng AI để hỗ trợ hay là hệ thống quản lý dữ liệu và AI chỉ là hỗ trợ cho phần xử lý? 
+- Nghiệp vụ cốt lõi là gì? 
+- Đặt giới hạn cho dữ liệu?
+- Các vấn đề là gì? Liệt kê đủ, nếu vấn đề đó k xử lý được thì sao? 
+
+
+Tài: 
+- chuẩn hóa: tên cột/ datatype/ missingvalue
+- user upload data: tạo dashboard về raw data
+- kiểm tra data: dulicate/ missing/ outliers/đưa ra vị trí lỗi -> đưa ra đề xuất hướng xử lý
+- AI ML: thống kê không hiệu quả thì dùng AI để hỗ trợ
+Sau khi xử lý thì đưa các phần đã xử lý
+Có lưu lịch sử, log
+Lưu data trước và sau (AI ML:phát hiện vấn đề, AI chatbox: trả về câu trả lời, AI agent: thực thi)
+
+Câu hỏi: 
+Loại dữ liệu là gì? có nhãn, không nhãn, ...
+AI tự train hay dùng các model bên ngoài
+
+
+Toàn: 
+tự tạo data sau đó phá rồi làm việc với nó
+Tại sao chỉ lấy dữ liệu e-commerce
+Hệ thống là một phần nhỏ trong một dự án 
+Dữ liệu chỉ kết nối với mỗi data (giả sử database là phần data sinh ra trong hệ thống lớn)
+
+Dũng: 
+Phát hiện nhập bất thường ? tại sao lại lập, hệ thộng có input là bộ data chứ 
+Nghiệp vụ cốt lõi là hỗ trợ người dùng phát hiện và xử lý khi nhập dữ liệu

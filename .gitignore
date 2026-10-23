@@ -1,0 +1,63 @@
+# ==============================================================================
+# GITIGNORE - NỀN TẢNG GIÁM SÁT & QUẢN LÝ CHẤT LƯỢNG DỮ LIỆU CÓ AI HỖ TRỢ
+# ==============================================================================
+
+# Dependencies
+node_modules/
+**/node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# Environment & Credentials (Security Rule 6 - Tuyệt đối không commit secrets)
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+**/*.env
+!**/.env.example
+*.pem
+*.key
+*.cert
+Neo4j-*.txt
+**/Neo4j-*.txt
+*credentials*
+**/*credentials*
+
+# Build & Compilation Outputs
+dist/
+**/dist/
+build/
+**/build/
+coverage/
+**/coverage/
+*.tsbuildinfo
+
+# Local Storage Fallback & Binary Data
+storage/
+**/storage/
+local_storage/
+temp/
+scratch/
+*.csv.enc
+*.enc
+
+# IDE, Editors & OS Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs & Debuggers
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+build_env.md
+.agent/
+remember/
