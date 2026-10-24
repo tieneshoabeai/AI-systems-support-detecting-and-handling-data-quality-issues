@@ -16,7 +16,8 @@ coverage/
 *.tsbuildinfo
 
 # Local fallback storage
-storage/
+/storage/
+!src/shared/storage/
 
 # Logs
 *.log

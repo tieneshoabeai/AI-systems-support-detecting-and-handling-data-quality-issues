@@ -34,13 +34,13 @@ coverage/
 *.tsbuildinfo
 
 # Local Storage Fallback & Binary Data
-storage/
-**/storage/
+/storage/
 local_storage/
 temp/
 scratch/
 *.csv.enc
 *.enc
+!src/backend/src/shared/storage/
 
 # IDE, Editors & OS Files
 .DS_Store
