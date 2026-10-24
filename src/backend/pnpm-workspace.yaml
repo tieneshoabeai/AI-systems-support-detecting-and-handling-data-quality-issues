@@ -1,3 +1,6 @@
 allowBuilds:
   '@nestjs/core': true
+  '@parcel/watcher': set this to true or false
+  '@scarf/scarf': set this to true or false
   bcrypt: true
+  unrs-resolver: set this to true or false

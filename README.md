@@ -1,8 +1,8 @@
 # NỀN TẢNG FULL-STACK QUẢN LÝ & GIÁM SÁT CHẤT LƯỢNG DỮ LIỆU CÓ AI HỖ TRỢ
 ### (AI Systems Support Detecting and Handling Data Quality Issues)
 
-[![TypeScript Strict](https://img.shields.io/badge/TypeScript-5.9_Strict-blue.svg)](https://www.typescriptlang.org/)
-[![NestJS](https://img.shields.io/badge/Backend-NestJS_10-red.svg)](https://nestjs.com/)
+[![TypeScript Strict](https://img.shields.io/badge/TypeScript-5.6+_Strict-blue.svg)](https://www.typescriptlang.org/)
+[![NestJS](https://img.shields.io/badge/Backend-NestJS_11-red.svg)](https://nestjs.com/)
 [![Database](https://img.shields.io/badge/Database-MongoDB_Atlas_%7C_Neo4j_AuraDB_%7C_Cloudflare_R2-green.svg)](#4-công-nghệ--hạ-tầng-đám-mây-tech-stack)
 [![Zero Any](https://img.shields.io/badge/Type_Safety-Zero_Any_Policy-success.svg)](#5-ràng-buộc-chất-lượng--tiêu-chuẩn-bất-biến-quality--safety-invariants)
 [![License](https://img.shields.io/badge/License-Academic_Project_UTH-orange.svg)](#)
@@ -100,8 +100,8 @@ Hệ thống backend được phân rã thành các phân hệ nghiệp vụ đ�
 ## 4. Công nghệ & Hạ tầng Đám mây (Tech Stack)
 
 ### Backend & Công nghệ Lập trình
-- **Ngôn ngữ:** TypeScript 5.9 (Chế độ `strict: true`, kích hoạt bắt buộc **Zero Any Policy**).
-- **Khung ứng dụng (Framework):** NestJS 10 (Kiến trúc Modular Monolith, Dependency Injection, Pipes, Interceptors, Guards).
+- **Ngôn ngữ:** TypeScript 5.6+ (`^5.6.3` trong `package.json`, chế độ `strict: true`, kích hoạt bắt buộc **Zero Any Policy**).
+- **Khung ứng dụng (Framework):** NestJS 11 (`^11.1.21`, Kiến trúc Modular Monolith, Dependency Injection, Pipes, Interceptors, Guards).
 - **Kiểm thực Dữ liệu (Validation):** Zod 3 + `zod-to-json-schema` (Tự động sinh đặc tả Swagger OpenAPI 3.0).
 - **Bảo mật & Phân quyền:** Passport JWT, `@casl/ability` (Attribute-based Access Control), Bcrypt (Salt 12).
 - **Mật mã học & Xử lý Luồng:** Node.js Native Crypto (AES-256-GCM, PBKDF2 100.000 vòng, SHA-256), `busboy`, `fast-csv`.

@@ -1,7 +1,6 @@
 import {
   Model,
   Document,
-  FilterQuery,
   UpdateQuery,
   QueryOptions,
   Types,
@@ -17,6 +16,8 @@ export interface BaseEntity {
   updated_at?: Date;
 }
 
+export type MongoFilter<T = unknown> = Record<string, unknown>;
+
 /**
  * Base Repository tự động áp dụng ràng buộc xóa mềm { deleted_at: null }
  * và tự động gia nhập vào ambient MongoDB transaction session.
@@ -27,7 +28,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
   /**
    * Tự động bổ sung điều kiện deleted_at: null vào bộ lọc
    */
-  private applySoftDeleteFilter(filter: FilterQuery<T>): FilterQuery<T> {
+  private applySoftDeleteFilter(filter: MongoFilter<T>): MongoFilter<T> {
     return {
       ...filter,
       deleted_at: null,
@@ -42,7 +43,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
     const s = resolveMongoSession(session);
     return this.model
       .findOne(
-        this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) } as unknown as FilterQuery<T>),
+        this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) }),
         projection,
         { session: s }
       )
@@ -50,7 +51,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
   }
 
   async findOne(
-    filter: FilterQuery<T>,
+    filter: MongoFilter<T>,
     projection?: ProjectionType<T> | null,
     options?: QueryOptions,
     session?: ClientSession
@@ -62,7 +63,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
   }
 
   async find(
-    filter: FilterQuery<T> = {},
+    filter: MongoFilter<T> = {},
     projection?: ProjectionType<T> | null,
     options?: QueryOptions,
     session?: ClientSession
@@ -73,21 +74,21 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
       .exec();
   }
 
-  async count(filter: FilterQuery<T> = {}, session?: ClientSession): Promise<number> {
+  async count(filter: MongoFilter<T> = {}, session?: ClientSession): Promise<number> {
     const s = resolveMongoSession(session);
     return this.model.countDocuments(this.applySoftDeleteFilter(filter), { session: s }).exec();
   }
 
   async create(doc: Partial<T>, session?: ClientSession): Promise<T> {
     const s = resolveMongoSession(session);
-    const [created] = await this.model.create([{ ...doc, deleted_at: null }], { session: s });
-    return created;
+    const instance = new this.model({ ...doc, deleted_at: null });
+    return instance.save({ session: s }) as unknown as Promise<T>;
   }
 
   async softDelete(id: string | Types.ObjectId, session?: ClientSession): Promise<boolean> {
     const s = resolveMongoSession(session);
     const result = await this.model.updateOne(
-      this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) } as unknown as FilterQuery<T>),
+      this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) }),
       { $set: { deleted_at: new Date() } } as UpdateQuery<T>,
       { session: s }
     );
@@ -102,7 +103,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
     const s = resolveMongoSession(session);
     return this.model
       .findOneAndUpdate(
-        this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) } as unknown as FilterQuery<T>),
+        this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) }),
         update,
         { new: true, session: s }
       )

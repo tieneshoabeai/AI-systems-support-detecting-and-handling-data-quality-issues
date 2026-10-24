@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, FilterQuery } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { IDatasetRecord } from '../datasets/schemas/dataset-record.schema';
 import { DatasetsService } from '../datasets/datasets.service';
 import { QueryRecordsDto } from './dto/query-records.dto';
@@ -55,7 +55,7 @@ export class DataViewService {
       : null;
     const lastRowIndex = decoded?.row_index;
 
-    const filter: FilterQuery<IDatasetRecord> = {
+    const filter: Record<string, unknown> = {
       dataset_id: new Types.ObjectId(datasetId),
       deleted_at: null,
     };
