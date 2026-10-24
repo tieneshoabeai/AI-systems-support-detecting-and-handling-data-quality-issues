@@ -1,53 +1,84 @@
-# USERS MODULE SPECIFICATION & DOCUMENTATION
+# USERS MODULE SPECIFICATION & OVERVIEW
 
-## 1. Thông tin Phiên bản (Version Information)
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-10-20
-- **Module Path:** `src/backend/src/modules/users/`
-- **Tình trạng:** Sẵn sàng kiểm thử, tuân thủ 100% NestJS Modular Monolith & Zod Validation
+## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
+Module `users` chịu trách nhiệm quản lý thông tin tài khoản người dùng, hồ sơ cá nhân và vòng đời trạng thái hoạt động trong hệ thống. Module này cung cấp thực thể định danh cốt lõi cho mọi hành vi trong nền tảng: từ việc gán quyền trong Không gian làm việc (`workspaces`), ghi nhận tác giả tạo dự án (`projects`), cho đến truy vết ai đã áp dụng quy tắc làm sạch dữ liệu.
 
-## 2. Mục đích & Phạm vi Nghiệp vụ (Scope & Responsibility)
-- Quản lý thông tin hồ sơ tài khoản người dùng và các phiên hoạt động trong hệ thống.
-- Thực thi chuẩn hóa cơ chế xóa mềm (Soft Delete) theo đúng quy tắc kỹ thuật dự án: bắt buộc sử dụng `deleted_at: Date | null`, nghiêm cấm sử dụng cờ boolean `is_deleted`.
-- Duy trì chỉ mục duy nhất một phần (Partial Unique Index) cho trường `email` để cho phép đăng ký lại nếu tài khoản cũ đã bị xóa mềm.
+- **Vị trí trong hệ thống:**
+  - **Cung cấp Danh tính:** Cung cấp thông tin xác thực cho `AuthModule` và thông tin thành viên cho `WorkspacesModule`.
+  - **Hạ tầng lưu trữ:** Collection `users` trên **MongoDB Atlas** với cơ chế bảo vệ trường nhạy cảm và chỉ mục một phần (Partial Unique Index).
+  - **Ràng buộc Toàn vẹn:** Tự động đồng bộ trạng thái tài khoản với bảng quản lý phiên `user_sessions`.
 
-## 3. Nhật ký Prompting & Quyết định Kỹ thuật (Prompting Log & Rationale)
-- **User Prompt / Business Intent:**
-  - *"tinh chỉnh lại là dùng zod chứ không dùng class-validator + class-transformer"*
-  - *"thay vì dùng từ core, tôi đề xuất tinh chỉnh lại là shared/"*
-  - *"hoặc là at_deleted... được đồng bộ lại là deleted_at"*
-- **Technical Reasoning & Decisions:**
-  - Áp dụng nguyên tắc nhất quán: `deleted_at: { type: Date, default: null, index: true }`.
-  - Khi user bị xóa mềm (`deleted_at = new Date()`), tự động thu hồi toàn bộ session đang mở của user đó (`is_revoked = true`) để ngắt truy cập ngay lập tức.
-  - Sử dụng Partial Unique Index trên MongoDB Atlas:
-    `{ email: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }`.
-  - Thay thế `class-validator` bằng `UpdateUserSchema` (Zod) kèm pipe `ZodValidationPipe` bảo đảm type-safety tuyệt đối cho endpoint `PATCH /users/me`.
-- **Generated Artifacts:**
-  - `schemas/user.schema.ts`: Mongoose schema cho collection `users`.
-  - `schemas/user-session.schema.ts`: Mongoose schema cho collection `user_sessions`.
-  - `dto/update-user.dto.ts`: `UpdateUserSchema` (Zod) & `UpdateUserDto`.
-  - `users.service.ts`: Nghiệp vụ truy vấn user, tạo tài khoản, xóa mềm và quản lý session.
-  - `users.controller.ts`: Endpoints hồ sơ cá nhân với `ZodValidationPipe`.
-  - `users.module.ts`: NestJS Module binding.
+---
 
-## 4. Đặc tả Giao tiếp Kỹ thuật (Technical Contracts & API Specifications)
+## 2. Kiến trúc & Vòng đời Tài khoản Trực quan (Architecture & User Lifecycle)
+Sơ đồ trạng thái vòng đời của một tài khoản và cơ chế thu hồi phiên khi xóa mềm:
 
-| Method | Endpoint | Quyền hạn | Input DTO | Response | Mô tả |
+```mermaid
+stateDiagram-v2
+    [*] --> Active: Đăng ký thành công qua AuthModule
+    note right of Active: status = 'active'<br/>deleted_at = null
+
+    Active --> Updated: PATCH /users/me (Đổi họ tên, avatar)
+    Updated --> Active: Cập nhật thành công
+
+    Active --> Blocked: Quản trị viên khóa tài khoản
+    note right of Blocked: status = 'blocked'<br/>(Từ chối JWT ngay lập tức)
+
+    Blocked --> Active: Quản trị viên mở khóa
+
+    Active --> SoftDeleted: DELETE /users/me (Người dùng hủy tài khoản)
+    Blocked --> SoftDeleted: Xóa tài khoản
+
+    note right of SoftDeleted: deleted_at = new Date()<br/>Thu hồi toàn bộ user_sessions<br/>Giải phóng email trong Partial Unique Index
+    SoftDeleted --> [*]
+```
+
+---
+
+## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
+
+### 3.1. Bảo vệ Trường Nhạy cảm (Field-level Security)
+- **Ẩn Mật khẩu Mặc định (`select: false`):** Trường `password_hash` được cấu hình ẩn ở mức Schema của Mongoose. Mọi truy vấn lấy thông tin người dùng (`find`, `findById`) đều không bao gồm trường mật khẩu trừ khi hàm xác thực nội bộ gọi tường minh `.select('+password_hash')`.
+- **Phân tách Vai trò Hệ thống vs Vai trò Workspace:** Trường `role` trong User đại diện cho vai trò toàn hệ thống (`user`, `superadmin`), hoàn toàn độc lập với vai trò cục bộ trong từng Workspace (`owner`, `editor`, `viewer`).
+
+### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
+- **Chuẩn hóa Xóa mềm (`deleted_at`):** Tuyệt đối không sử dụng cờ boolean `is_deleted`. Bắt buộc dùng `deleted_at: Date | null`. Mọi truy vấn nghiệp vụ thông thường mặc định bắt buộc lọc `{ deleted_at: null }`.
+- **Tái Đăng ký Email nhờ Chỉ mục Một phần (Partial Unique Index):** Nếu một tài khoản bị xóa mềm, địa chỉ email đó có thể được sử dụng lại để đăng ký tài khoản mới. Chỉ mục MongoDB Atlas:
+  `{ email: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }`.
+- **Đồng bộ Thu hồi Phiên (Cascade Session Revocation):** Khi tài khoản bị xóa mềm hoặc khóa, toàn bộ các phiên làm việc đang mở trong bảng `user_sessions` đều bị đánh dấu vô hiệu lực (`is_revoked = true`) để chặn đứng phiên truy cập ngay tức khắc.
+
+---
+
+## 4. Ma trận Phân quyền (Access Control Matrix)
+
+| Hành động | Quyền tối thiểu | Cơ chế bảo vệ |
+| :--- | :---: | :--- |
+| **Xem hồ sơ của tôi (`/users/me`)** | Người dùng đã đăng nhập | `JwtAuthGuard` (Lấy thông tin từ `req.user.sub`) |
+| **Cập nhật hồ sơ (`PATCH /users/me`)** | Người dùng đã đăng nhập | `JwtAuthGuard` + `ZodValidationPipe` |
+| **Xóa mềm tài khoản (`DELETE /users/me`)** | Người dùng đã đăng nhập | `JwtAuthGuard` (Đánh dấu xóa mềm và hủy session) |
+
+---
+
+## 5. Đặc tả Giao tiếp API (API Specifications)
+
+| Method | Endpoint | Quyền hạn | Input DTO | Phản hồi Chính | Mô tả Nghiệp vụ |
 | :---: | :--- | :---: | :--- | :--- | :--- |
-| `GET` | `/api/v1/users/me` | Bearer JWT | N/A | `IUser` | Xem thông tin hồ sơ của tài khoản hiện tại |
-| `PATCH` | `/api/v1/users/me` | Bearer JWT | `UpdateUserDto` (Zod) | `IUser` | Cập nhật họ tên, avatar của tài khoản |
-| `DELETE` | `/api/v1/users/me` | Bearer JWT | N/A | `{ message }` | Xóa mềm tài khoản và thu hồi toàn bộ session |
+| `GET` | `/api/v1/users/me` | Bearer JWT | N/A | `IUser` (Không gồm password) | Lấy thông tin hồ sơ của tài khoản hiện tại |
+| `PATCH` | `/api/v1/users/me` | Bearer JWT | `UpdateUserDto` | `IUser` | Cập nhật họ, tên, thông tin hiển thị |
+| `DELETE` | `/api/v1/users/me` | Bearer JWT | N/A | `{ message }` | Xóa mềm tài khoản và thu hồi các phiên active |
 
-## 5. Ràng buộc & Tiêu chuẩn Bất biến (Invariants & Security Rules)
-- Tất cả các câu truy vấn tìm kiếm user mặc định phải có điều kiện: `{ deleted_at: null }`.
-- Mật khẩu (`password_hash`) được bảo vệ bằng `{ select: false }`, chỉ trích xuất khi được yêu cầu tường minh trong hàm xác thực login.
+---
 
-## 6. Lịch sử Thay đổi (Change Log & Version History)
-- `v1.1.0` / `2026-10-20`:
-  - *Thay đổi gì:* Chuyển đổi `UpdateUserDto` sang Zod schema (`UpdateUserSchema`), cập nhật `UsersController` với `ZodValidationPipe`, đổi import liên kết từ `core/` sang `shared/`.
-  - *Lý do:* Hoàn tất chuyển đổi Zod và hạ tầng `shared/` toàn diện.
-  - *Ảnh hưởng đến đâu:* Đảm bảo tính nhất quán trên toàn bộ backend.
-- `v1.0.0` / `2026-10-20`:
-  - *Thay đổi gì:* Thiết lập UserSchema, UserSessionSchema với chuẩn `deleted_at`, Partial Unique Index và hoàn thành UsersService, UsersController.
-  - *Lý do:* Khởi tạo Module người dùng cho Sprint B1.
-  - *Ảnh hưởng đến đâu:* Cung cấp dữ liệu người dùng cho AuthModule và các module sở hữu tài nguyên (Workspaces, Projects).
+## 6. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+
+### 6.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
+- **Xóa mềm kết hợp Partial Index:** Việc giữ lại bản ghi sau khi xóa giúp duy trì tính toàn vẹn khóa ngoại (Foreign Key Integrity) cho các bảng lịch sử audit log, nhưng yêu cầu mọi câu lệnh tìm kiếm đều phải có điều kiện lọc `{ deleted_at: null }`.
+
+### 6.2. Lịch sử Thay đổi (Change Log)
+- `v1.2.0` (2026-10-24):
+  - *Thay đổi gì:* Nâng cấp tài liệu sang chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid mô tả vòng đời tài khoản và giải thích cơ chế Partial Index.
+  - *Lý do:* Giúp người xem nắm bắt mô hình quản lý người dùng mà không cần đọc code.
+- `v1.1.0` (2026-10-20):
+  - *Thay đổi gì:* Chuyển đổi `UpdateUserDto` sang Zod schema, kết nối `ZodValidationPipe`.
+- `v1.0.0` (2026-10-20):
+  - *Thay đổi gì:* Khởi tạo schema User, UserSession và các endpoints hồ sơ cá nhân.

@@ -6,6 +6,7 @@ import { WorkspacesController } from '../src/modules/workspaces/workspaces.contr
 import { ProjectsController } from '../src/modules/projects/projects.controller';
 import { DatasetsController } from '../src/modules/datasets/datasets.controller';
 import { DataViewController } from '../src/modules/data-view/data-view.controller';
+import { LineageController } from '../src/modules/lineage/lineage.controller';
 import { IS_PUBLIC_KEY } from '../src/shared/decorators/public.decorator';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 
@@ -19,6 +20,7 @@ describe('Architectural Guard Coverage (Zero-Trust Security)', () => {
     ProjectsController,
     DatasetsController,
     DataViewController,
+    LineageController,
   ];
 
   it('every endpoint across all controllers must be explicitly guarded by JwtAuthGuard or decorated with @Public()', () => {

@@ -10,6 +10,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { DatasetsModule } from './modules/datasets/datasets.module';
 import { DataViewModule } from './modules/data-view/data-view.module';
+import { LineageModule } from './modules/lineage/lineage.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -28,6 +29,7 @@ import { AppController } from './app.controller';
     ProjectsModule,
     DatasetsModule,
     DataViewModule,
+    LineageModule,
   ],
   controllers: [AppController],
 })

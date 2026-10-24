@@ -1,59 +1,93 @@
-# AUTHENTICATION MODULE SPECIFICATION & DOCUMENTATION
+# AUTHENTICATION MODULE SPECIFICATION & OVERVIEW
 
-## 1. Thông tin Phiên bản (Version Information)
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-10-20
-- **Module Path:** `src/backend/src/modules/auth/`
-- **Tình trạng:** Sẵn sàng kiểm thử, tuân thủ 100% NestJS Modular Monolith & Zod Validation
+## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
+Module `auth` là vành đai bảo mật đầu tiên (Security Perimeter) và là nhà cung cấp danh tính (Identity Provider) của toàn bộ nền tảng Data Quality. Module này chịu trách nhiệm xác thực danh tính người dùng, cấp phát và quản lý vòng đời của mã xác thực (Tokens), duy trì các phiên đăng nhập bảo mật và ngăn chặn các hành vi xâm nhập trái phép.
 
-## 2. Mục đích & Phạm vi Nghiệp vụ (Scope & Responsibility)
-- Quản lý toàn bộ chu trình định danh và xác thực người dùng trong hệ thống (F1.1 $\rightarrow$ F1.10).
-- Đăng ký tài khoản mới với mật mã hóa `bcrypt` (Salt Rounds = 12).
-- Đăng nhập, cấp phát Access Token (JWT 15m) và Refresh Token ngẫu nhiên (7d).
-- Quản lý phiên đăng nhập (`user_sessions`), lưu mã băm `SHA-256` của refresh token để phát hiện rò rỉ token và hỗ trợ thu hồi từ xa (Revoke Session).
+- **Vị trí trong hệ thống:**
+  - **Cổng vào Hệ thống:** Mọi yêu cầu HTTP gửi đến API (ngoại trừ các endpoint công khai có đánh dấu `@Public()`) đều phải đi qua `JwtAuthGuard` do module này cung cấp để giải mã và kiểm thực Access Token.
+  - **Liên kết Dữ liệu:** Quản lý thông tin phiên làm việc trong collection `user_sessions` và đối chiếu thông tin người dùng trong collection `users` trên **MongoDB Atlas**.
+  - **Bảo mật Đa tầng:** Kết hợp mật mã hóa mật khẩu `bcrypt` (12 rounds) và băm một chiều `SHA-256` cho Refresh Token.
 
-## 3. Nhật ký Prompting & Quyết định Kỹ thuật (Prompting Log & Rationale)
-- **User Prompt / Business Intent:**
-  - *"tinh chỉnh lại là dùng zod chứ không dùng class-validator + class-transformer"*
-  - *"thay vì dùng từ core, tôi đề xuất tinh chỉnh lại là shared/"*
-  - *"vấn đề 1: chọn hướng 1, vấn đề 2: chọn hướng A"*
-- **Technical Reasoning & Decisions:**
-  - Chuyển toàn bộ DTO sang định dạng `ZodSchema` và kiểu dữ liệu suy diễn `z.infer<typeof Schema>`. Điều này loại bỏ runtime overhead của decorators và đảm bảo đồng nhất hoàn toàn giữa schema runtime và TypeScript type.
-  - Áp dụng `ZodValidationPipe` trực tiếp trên các route `@Body(new ZodValidationPipe(Schema))` để kiểm định nghiêm ngặt dữ liệu đầu vào.
-  - Sử dụng `@Public()` decorator trên các endpoint công khai (`/register`, `/login`, `/refresh`) để vượt qua `JwtAuthGuard` mà vẫn đạt tiêu chuẩn kiểm thử Zero-Trust Security.
-- **Generated Artifacts:**
-  - `dto/register.dto.ts`: `RegisterSchema` (Zod) & `RegisterDto`.
-  - `dto/login.dto.ts`: `LoginSchema` (Zod) & `LoginDto`.
-  - `dto/refresh-token.dto.ts`: `RefreshTokenSchema` (Zod) & `RefreshTokenDto`.
-  - `dto/password-reset.dto.ts`: `ForgotPasswordSchema`, `ResetPasswordSchema` (Zod).
-  - `strategies/jwt.strategy.ts`: Passport JWT Strategy liên kết `shared/decorators`.
-  - `auth.service.ts`: Xử lý logic xác thực, gọi `shared/crypto/crypto.util.ts`.
-  - `auth.controller.ts`: 6 Endpoints chuẩn RESTful với `ZodValidationPipe`.
-  - `auth.module.ts`: Tích hợp PassportModule, JwtModule và SharedModule.
+---
 
-## 4. Đặc tả Giao tiếp Kỹ thuật (Technical Contracts & API Specifications)
+## 2. Kiến trúc & Chu trình Xác thực Trực quan (Architecture & Auth Flow)
+Quy trình Đăng nhập, Duy trì Phiên làm việc và Cấp mới Token:
 
-| Method | Endpoint | Quyền hạn | Input DTO | Response | Mô tả |
-| :---: | :--- | :---: | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/register` | Public (`@Public()`) | `RegisterDto` (Zod) | `{ id, email, first_name, last_name, role }` | Đăng ký tài khoản (F1.1) |
-| `POST` | `/api/v1/auth/login` | Public (`@Public()`) | `LoginDto` (Zod) | `{ access_token, refresh_token, expires_in, user }` | Đăng nhập hệ thống (F1.2) |
-| `POST` | `/api/v1/auth/refresh` | Public (`@Public()`) | `RefreshTokenDto` (Zod) | `{ access_token, expires_in }` | Cấp mới Access Token (F1.3) |
-| `POST` | `/api/v1/auth/logout` | Bearer JWT | N/A | `{ message }` | Đăng xuất, thu hồi session (F1.4) |
-| `GET` | `/api/v1/auth/sessions` | Bearer JWT | N/A | `IUserSession[]` | Lấy danh sách session active (F1.8) |
-| `DELETE` | `/api/v1/auth/sessions/:id` | Bearer JWT | Param `id` | `{ message }` | Thu hồi session từ xa (F1.10) |
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Ứng dụng Client (Web/CLI)
+    participant Ctrl as AuthController
+    participant Svc as AuthService
+    participant Crypto as CryptoUtil
+    participant Mongo as MongoDB Atlas (users / user_sessions)
 
-## 5. Ràng buộc & Tiêu chuẩn Bất biến (Invariants & Security Rules)
-- Mật khẩu: Băm bằng `bcrypt` với `SALT_ROUNDS = 12`.
-- Refresh Token: Băm một chiều bằng `SHA-256`.
-- Access Token chứa: `{ sub: userId, email, role, sessionId }`.
-- Luôn kiểm tra tài khoản chưa bị xóa mềm (`deleted_at === null`) và không bị khóa (`status !== 'blocked'`) trong `JwtStrategy`.
+    rect rgb(240, 248, 255)
+        note right of Client: Luồng 1: Đăng nhập & Khởi tạo Phiên (Login)
+        Client->>Ctrl: POST /auth/login { email, password }
+        Ctrl->>Svc: login(dto)
+        Svc->>Mongo: Tìm User theo email (kiểm tra deleted_at = null, status = active)
+        Svc->>Crypto: bcrypt.compare(password, password_hash)
+        Crypto-->>Svc: Mật khẩu chính xác
+        Svc->>Svc: Sinh Access Token (JWT 15m) & Refresh Token ngẫu nhiên (7d)
+        Svc->>Crypto: SHA-256(refresh_token)
+        Svc->>Mongo: Lưu bản ghi phiên vào user_sessions { token_hash, user_agent, ip, expires_at }
+        Svc-->>Client: { access_token, refresh_token, expires_in, user }
+    end
 
-## 6. Lịch sử Thay đổi (Change Log & Version History)
-- `v1.1.0` / `2026-10-20`:
-  - *Thay đổi gì:* Refactor 100% DTO từ `class-validator` sang `Zod` (`RegisterSchema`, `LoginSchema`, `RefreshTokenSchema`), cập nhật controller sử dụng `ZodValidationPipe`, đổi import từ `core/` sang `shared/`.
-  - *Lý do:* Thực hiện tinh chỉnh kiến trúc validation theo chỉ thị của người dùng.
-  - *Ảnh hưởng đến đâu:* Module Auth hoạt động độc lập không còn phụ thuộc vào decorator-based validation.
-- `v1.0.0` / `2026-10-20`:
-  - *Thay đổi gì:* Khởi tạo toàn bộ module Auth với 6 endpoints chuẩn, kết nối `UsersService` và `crypto.util.ts`.
-  - *Lý do:* Hiện thực hóa Sprint B1 theo kế hoạch `backend_implementation_plan_v3.md`.
-  - *Ảnh hưởng đến đâu:* Cung cấp cơ chế bảo vệ token cho toàn bộ các module tiếp theo.
+    rect rgb(255, 250, 240)
+        note right of Client: Luồng 2: Cấp mới Token (Refresh Token Rotation)
+        Client->>Ctrl: POST /auth/refresh { refresh_token }
+        Ctrl->>Svc: refreshToken(token)
+        Svc->>Crypto: SHA-256(token)
+        Svc->>Mongo: Đối chiếu token_hash trong user_sessions
+        Mongo-->>Svc: Phiên hợp lệ & chưa hết hạn
+        Svc->>Svc: Sinh Access Token mới (JWT 15m)
+        Svc-->>Client: { access_token, expires_in }
+    end
+```
+
+---
+
+## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
+
+### 3.1. Mô hình Mã xác thực Kép (Dual Token Model)
+Nhằm cân bằng giữa tính bảo mật cao và trải nghiệm người dùng không bị gián đoạn:
+- **Access Token (Ngắn hạn - 15 phút):** Là JWT chứa thông tin định danh `{ sub: userId, email, role, sessionId }`, được ký bằng khóa bí mật `JWT_SECRET`. Client gửi token này trong header `Authorization: Bearer <token>` để truy cập API mà backend không cần query database mỗi lần kiểm tra.
+- **Refresh Token (Dài hạn - 7 ngày):** Là chuỗi ngẫu nhiên có độ entropy cao, được lưu trữ an toàn phía client và dùng để xin cấp lại Access Token mới khi token cũ hết hạn.
+
+### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
+- **Băm Một Chiều Refresh Token (Token Storage Invariant):** Backend tuyệt đối không lưu Refresh Token dưới dạng chuỗi thô (plain-text). Chỉ lưu mã băm **`SHA-256`** trong bảng `user_sessions`. Nếu database bị rò rỉ, kẻ tấn công cũng không thể sử dụng mã băm này để mạo danh phiên làm việc.
+- **Thu hồi Phiên từ xa (Remote Session Revocation):** Người dùng có thể xem danh sách các thiết bị đang đăng nhập và chủ động xóa phiên làm việc (`DELETE /auth/sessions/:id`). Khi bản ghi phiên trong DB bị xóa, Refresh Token tương ứng sẽ vô hiệu lực ngay lập tức.
+- **Tiêu chuẩn Băm Mật khẩu:** 100% mật khẩu được băm bằng thuật toán `bcrypt` với tham số an toàn cao `SALT_ROUNDS = 12`.
+- **Chặn Tài khoản Tức thì:** Ngay cả khi Access Token còn hạn, nếu tài khoản bị khóa (`status === 'blocked'`) hoặc đã bị xóa mềm (`deleted_at !== null`), yêu cầu sẽ bị `JwtStrategy` từ chối ngay lập tức.
+
+---
+
+## 4. Ma trận Phân quyền & Endpoint Protection
+
+| Endpoint | Quyền hạn | Cơ chế bảo vệ | Mục đích Nghiệp vụ |
+| :--- | :---: | :--- | :--- |
+| `POST /api/v1/auth/register` | Công khai | `@Public()` + `ZodValidationPipe` | Đăng ký tài khoản người dùng mới |
+| `POST /api/v1/auth/login` | Công khai | `@Public()` + `ZodValidationPipe` | Đăng nhập hệ thống, cấp cặp token |
+| `POST /api/v1/auth/refresh` | Công khai | `@Public()` + `ZodValidationPipe` | Cấp mới Access Token bằng Refresh Token |
+| `POST /api/v1/auth/logout` | Người dùng đã đăng nhập | `JwtAuthGuard` | Đăng xuất, hủy phiên làm việc hiện tại |
+| `GET /api/v1/auth/sessions` | Người dùng đã đăng nhập | `JwtAuthGuard` | Lấy danh sách các phiên thiết bị đang hoạt động |
+| `DELETE /api/v1/auth/sessions/:id` | Người dùng đã đăng nhập | `JwtAuthGuard` | Thu hồi từ xa một phiên làm việc chỉ định |
+
+---
+
+## 5. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+
+### 5.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
+- **Access Token 15 phút không lưu trạng thái (Stateless):** Để tối ưu hóa tốc độ và giảm tải truy vấn MongoDB Atlas, hệ thống không kiểm tra DB đối với từng request gửi Access Token hợp lệ. Đánh đổi: Nếu người dùng đổi mật khẩu hoặc bị thu hồi quyền, Access Token hiện tại vẫn có thể hoạt động tối đa 15 phút cho đến khi hết hạn.
+- **Lưu Session trong MongoDB thay vì Redis:** Lựa chọn MongoDB Atlas cho bảng `user_sessions` giúp tinh gọn hạ tầng trong giai đoạn MVP/Gói miễn phí, không phát sinh chi phí duy trì cụm Redis độc lập.
+
+### 5.2. Lịch sử Thay đổi (Change Log)
+- `v1.2.0` (2026-10-24):
+  - *Thay đổi gì:* Nâng cấp tài liệu sang chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid mô tả chu trình Dual Token và cơ chế băm SHA-256 cho session.
+  - *Lý do:* Giúp người xem nắm bắt cơ chế bảo mật mà không cần đọc code.
+- `v1.1.0` (2026-10-20):
+  - *Thay đổi gì:* Chuyển đổi toàn bộ DTO sang Zod Validation Pipe, tách biệt `shared/` module.
+- `v1.0.0` (2026-10-20):
+  - *Thay đổi gì:* Hoàn thành triển khai xác thực Bcrypt, Passport JWT và Session Management.
