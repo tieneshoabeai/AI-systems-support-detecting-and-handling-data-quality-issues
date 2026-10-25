@@ -52,7 +52,7 @@ Hệ thống được xây dựng trên một ngăn xếp công nghệ hiện đ
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       NGĂN XẾP CÔNG NGHỆ CHÍNH (TECH STACK)                 │
 ├────────────────────────────────┬────────────────────────────────────────────┤
-│ Ngôn ngữ & Nền tảng thực thi   │ TypeScript 5.7+ (Strict Mode), Node.js 22  │
+│ Ngôn ngữ & Nền tảng thực thi   │ TypeScript Native 7.0.2 / 6.0, Node.js 22  │
 │ Backend Framework              │ NestJS 11 (Express HTTP Engine)            │
 │ Cơ sở dữ liệu nghiệp vụ chính  │ MongoDB Atlas (Mongoose 8.x ODM)           │
 │ Cơ sở dữ liệu đồ thị tri thức  │ Neo4j AuraDB (Neo4j Driver 5.x)            │
