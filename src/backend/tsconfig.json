@@ -1,18 +1,21 @@
 {
   "compilerOptions": {
+    "rootDir": "src",
     "module": "commonjs",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2021",
+    "target": "ES2022",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "types": ["node", "jest"],
     "paths": {
-      "@/*": ["src/*"],
-      "@casl/ability": ["node_modules/@casl/ability/dist/types/index.d.ts"]
+      "@/*": ["./src/*"],
+      "@casl/ability": ["./node_modules/@casl/ability/dist/types/index.d.ts"]
     },
     "incremental": true,
     "skipLibCheck": true,
@@ -23,5 +26,6 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true
   },
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
