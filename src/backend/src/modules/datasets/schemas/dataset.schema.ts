@@ -75,4 +75,3 @@ export const DatasetSchema = new Schema<IDataset>(
 
 DatasetSchema.index({ project_id: 1, deleted_at: 1 });
 DatasetSchema.index({ workspace_id: 1, deleted_at: 1 });
-DatasetSchema.index({ file_checksum: 1 });
