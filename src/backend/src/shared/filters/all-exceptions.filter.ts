@@ -13,7 +13,7 @@ import { ZodError } from 'zod';
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -51,10 +51,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    this.logger.error(
-      `[${request.method}] ${request.url} - Status: ${status} - Error: ${JSON.stringify(message)}`,
-      exception instanceof Error ? exception.stack : undefined
-    );
+    // Chiến lược ghi log phân tầng theo chuẩn sgod-rental-management:
+    // 1. Lỗi 5xx (Server Error): Ghi log ERROR kèm Stack Trace
+    // 2. Lỗi 4xx (Client Error): Ghi log WARN gọn gàng, bỏ qua hoàn toàn request favicon.ico
+    const formattedMessage = typeof message === 'object' ? JSON.stringify(message) : String(message);
+
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        `[${request.method}] ${request.url} - Status: ${status} - Error: ${formattedMessage}`,
+        exception instanceof Error ? exception.stack : undefined
+      );
+    } else if (!request.url.includes('favicon.ico')) {
+      this.logger.warn(
+        `[${request.method}] ${request.url} - Status: ${status} - Client Error: ${formattedMessage}`
+      );
+    }
 
     response.status(status).json({
       success: false,

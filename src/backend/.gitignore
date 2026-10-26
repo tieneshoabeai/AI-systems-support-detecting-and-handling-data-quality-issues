@@ -7,6 +7,13 @@ node_modules/
 .env.*
 *.env
 !*.env.example
+*.pem
+*.key
+*.cert
+*.crt
+certs/
+bin/
+.cloudflared/
 Neo4j-*.txt
 *credentials*
 

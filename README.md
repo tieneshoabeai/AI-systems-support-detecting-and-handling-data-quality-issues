@@ -1,8 +1,9 @@
 # NỀN TẢNG FULL-STACK QUẢN LÝ & GIÁM SÁT CHẤT LƯỢNG DỮ LIỆU CÓ AI HỖ TRỢ
 ### (AI Systems Support Detecting and Handling Data Quality Issues)
 
-[![TypeScript Strict](https://img.shields.io/badge/TypeScript-5.6+_Strict-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript Strict](https://img.shields.io/badge/TypeScript-7.0.2_%7C_6.0_Strict-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/Backend-NestJS_11-red.svg)](https://nestjs.com/)
+[![Security](https://img.shields.io/badge/Security-Cloudflare_TLS_1.3_Port_443-blue.svg)](#4-công-nghệ--hạ-tầng-đám-mây-tech-stack)
 [![Database](https://img.shields.io/badge/Database-MongoDB_Atlas_%7C_Neo4j_AuraDB_%7C_Cloudflare_R2-green.svg)](#4-công-nghệ--hạ-tầng-đám-mây-tech-stack)
 [![Zero Any](https://img.shields.io/badge/Type_Safety-Zero_Any_Policy-success.svg)](#5-ràng-buộc-chất-lượng--tiêu-chuẩn-bất-biến-quality--safety-invariants)
 [![License](https://img.shields.io/badge/License-Academic_Project_UTH-orange.svg)](#)
@@ -44,7 +45,7 @@ graph TD
         ZOD["📋 ZodValidationPipe (Kiểm thực Schema & Zero Any)"]
         CTRL["🎛️ RESTful Controllers (32+ Endpoints)"]
         
-        UI -->|"HTTPS / REST API"| JWT
+        UI -->|"HTTPS (TLS 1.3 - Cổng 443) / Cloudflare Zero Trust Tunnel"| JWT
         JWT --> CASL --> ZOD --> CTRL
     end
 
@@ -112,6 +113,12 @@ Hệ thống backend được phân rã thành các phân hệ nghiệp vụ đ�
 - **Cloudflare R2 (Tương thích Amazon S3 API):** Lưu trữ tệp dữ liệu thô nguyên bản, tệp snapshot phục vụ khôi phục (Rollback) và tệp xuất dữ liệu mã hóa.
 - **Hệ thống Cảnh báo SRE:** `https://ntfy.sh/AI-SYSTEM-DATA-QUALITY` (Thông báo đẩy sự cố khẩn cấp P0 tới thiết bị di động).
 
+### Bảo mật Kênh truyền & Mạng (Transport Layer Security - TLS 1.3 & Cổng 443)
+- **Cloudflare Zero Trust Tunnel (`cloudflared`):** Tạo đường hầm outbound bảo mật qua giao thức QUIC/HTTP2 nối NestJS tới mạng lưới Cloudflare Edge; xuất bản địa chỉ **HTTPS Cổng 443 thực tế** có chứng chỉ CA quốc tế hợp lệ 100% (Google Trust Services / DigiCert), hiển thị ổ khóa xanh bảo mật trên mọi trình duyệt.
+- **Nhận diện Proxy Cloudflare (`trust proxy`):** Kích hoạt `app.set('trust proxy', 1)` trong NestJS, ưu tiên trích xuất IP thực từ tiêu đề `CF-Connecting-IP` và mã định danh luồng `CF-Ray` phục vụ Rate Limiting, Audit Logging và chống giả mạo IP.
+- **Bảo mật Cưỡng bức (HSTS via Helmet):** Kích hoạt tiêu đề `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, ngăn chặn hoàn toàn tấn công hạ cấp kết nối (SSL Stripping).
+- **Dynamic OpenAPI Gateway:** Swagger UI tự động nhận diện URL tunnel `https://*.trycloudflare.com` trên Cổng 443 để cho phép người dùng/người chấm kiểm thử trực tiếp API qua HTTPS.
+
 ---
 
 ## 5. Ràng buộc Chất lượng & Tiêu chuẩn Bất biến (Quality & Safety Invariants)
@@ -140,7 +147,8 @@ Hệ thống được phát triển tuân thủ nghiêm ngặt các nguyên tắ
    - Bắt buộc sử dụng `deleted_at: Date | null`. Nghiêm cấm dùng cờ boolean `is_deleted`.
    - Sử dụng MongoDB Partial Unique Index `{ partialFilterExpression: { deleted_at: null } }` để hỗ trợ tái đăng ký hoặc tái sử dụng tên tài nguyên khi bản ghi cũ đã bị xóa mềm.
 
----
+6. **Bảo mật Kênh truyền An toàn (Data in Transit TLS 1.3 Invariant):**
+   - 100% dữ liệu truyền qua mạng công cộng (gồm Access Token, mật khẩu, dữ liệu bảng chứa PII) bắt buộc phải được mã hóa bằng giao thức **TLS 1.3 trên Cổng 443** qua Cloudflare Edge. Cấm tuyệt đối truyền tải văn bản thô (Plaintext HTTP) trong môi trường sản phẩm.
 
 ## 6. Cấu trúc Thư mục Dự án (Project Directory Structure)
 

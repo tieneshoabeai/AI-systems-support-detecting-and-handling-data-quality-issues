@@ -54,6 +54,7 @@ Hệ thống được xây dựng trên một ngăn xếp công nghệ hiện đ
 ├────────────────────────────────┬────────────────────────────────────────────┤
 │ Ngôn ngữ & Nền tảng thực thi   │ TypeScript Native 7.0.2 / 6.0, Node.js 22  │
 │ Backend Framework              │ NestJS 11 (Express HTTP Engine)            │
+│ Hạ tầng Kênh truyền & Mạng     │ HTTPS (TLS 1.3 - Cổng 443), HSTS, Cloudflare│
 │ Cơ sở dữ liệu nghiệp vụ chính  │ MongoDB Atlas (Mongoose 8.x ODM)           │
 │ Cơ sở dữ liệu đồ thị tri thức  │ Neo4j AuraDB (Neo4j Driver 5.x)            │
 │ Lưu trữ tệp đối tượng đám mây  │ Cloudflare R2 / AWS S3 (@aws-sdk/client-s3)│
@@ -86,7 +87,7 @@ Hệ thống kết hợp 3 tầng lưu trữ chuyên biệt để phục vụ t�
 
 ```mermaid
 graph TD
-    Client[Client / Data Analyst] -->|HTTP RESTful API| Backend[NestJS Backend Gateway]
+    Client[Client / Data Analyst] -->|HTTPS TLS 1.3 - Cổng 443| Backend[NestJS Backend Gateway / Reverse Proxy]
     
     subgraph Storage Infrastructure
         Backend -->|Dữ liệu nghiệp vụ, Bảng dữ liệu, Phiên bản, Outbox| Mongo[(MongoDB Atlas)]
@@ -184,6 +185,31 @@ Tiện ích `src/backend/src/shared/crypto/mask-pii.ts` trang bị các biểu t
 - *Số Căn cước công dân / CMND:* `079*********`
 - *Thẻ tín dụng:* `****-****-****-1234`
 - *Địa chỉ IP:* `192.168.***.***`
+
+### 4.6. Kiến trúc Bảo mật Kênh truyền Cloudflare SSL/TLS 1.3 Cổng 443 (Data in Transit)
+Toàn bộ dữ liệu trao đổi giữa Client và Backend (gồm JWT Access Token, thông tin định danh người dùng, bảng dữ liệu chứa PII và các truy vấn phân tích chất lượng) được bảo vệ bằng giao thức mã hóa đường truyền **TLS 1.3 trên Cổng 443 chuẩn quốc tế thông qua hạ tầng Cloudflare**.
+
+Hệ thống áp dụng kiến trúc **Cloudflare Zero Trust Tunnel (`cloudflared`)** làm giải pháp vận hành chính thức, kết hợp các cơ chế bảo mật đa tầng:
+1. **Giải pháp Triển khai Chính thức — Cloudflare Zero Trust Tunnel:**
+   - Thay vì mở cổng 443 trực tiếp ra Internet trên máy chủ (dễ bị tấn công dò quét cổng hoặc vướng quyền root trên Linux), máy chủ kích hoạt daemon `cloudflared` tạo 4 đường hầm outbound bảo mật qua giao thức QUIC/HTTP2 tới mạng lưới 330+ trung tâm dữ liệu toàn cầu của Cloudflare Edge.
+   - Cloudflare Edge mở **Cổng 443 công khai** với chứng chỉ quốc tế hợp lệ 100% (cấp bởi Google Trust Services / DigiCert), đón nhận traffic an toàn và chuyển tiếp về ứng dụng NestJS nội bộ.
+   - **Lợi ích cốt lõi:**
+     - Người chấm hoặc người dùng truy cập trực tiếp qua địa chỉ HTTPS Cổng 443 chuẩn (`https://*.trycloudflare.com` hoặc custom domain) hiển thị ổ khóa xanh bảo mật, không có bất kỳ cảnh báo trình duyệt nào.
+     - Ẩn hoàn toàn địa chỉ IP thật của máy chủ Backend, loại bỏ triệt để rủi ro tấn công DDoS trực diện.
+     - Không cần mở bất kỳ cổng nào trên Firewall/Modem và không yêu cầu quyền root Linux.
+2. **Cơ chế Nhận diện Proxy & Header Cloudflare (`trust proxy`):**
+   - Ứng dụng NestJS kích hoạt `app.getHttpAdapter().getInstance().set('trust proxy', 1)`.
+   - Trang bị logic ưu tiên trích xuất địa chỉ IP thực của người dùng thông qua tiêu đề `CF-Connecting-IP` và mã định danh truy vết `CF-Ray` (phục vụ Rate Limiting, Audit Logging và chống giả mạo IP).
+3. **Cấu hình Dynamic Swagger Server & CORS:**
+   - OpenAPI Swagger tự động nhận diện URL Cloudflare Tunnel để thêm vào danh sách máy chủ khả dụng, cho phép kiểm thử trực tiếp API trên nền tảng HTTPS Cổng 443.
+   - CORS được mở rộng an toàn cho các tên miền `*.trycloudflare.com`.
+4. **Chính sách Bảo mật Kênh truyền Cưỡng bức (HSTS via Helmet):**
+   - Middleware `helmet` thiết lập tiêu đề phản hồi `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, bắt buộc trình duyệt luôn sử dụng giao thức HTTPS và cấm hạ cấp kết nối (SSL Stripping Attack).
+5. **Giải pháp Dự phòng (Native HTTPS với Cloudflare Origin CA):**
+   - Khi chạy độc lập không qua tunnel, máy chủ hỗ trợ nạp trực tiếp cặp chứng chỉ Cloudflare Origin CA (`certs/cloudflare_origin.key`, `certs/cloudflare_origin.pem`) hoặc chứng chỉ X.509 tự ký sinh bởi script `scripts/generate-ssl-certs.sh` để lắng nghe trên cổng 443/8443.
+6. **Tài liệu Hướng dẫn & Kế hoạch Chi tiết:**
+   - Xem tài liệu hướng dẫn vận hành Quick Tunnel & Named Tunnel tại: [`docs/cloudflare_tunnel_setup.md`](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/cloudflare_tunnel_setup.md).
+   - Xem kế hoạch kỹ thuật tại: [`docs/plan_ssl_tls_port_443.md`](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/plan_ssl_tls_port_443.md).
 
 ---
 
@@ -395,6 +421,7 @@ Dự án áp dụng quy trình kiểm thử tự động nghiêm ngặt nhằm b
 | **Kẻ gian giả mạo hoặc sửa trộm lịch sử dữ liệu** | Cao | Dữ liệu bị can thiệp trái phép mà không để lại dấu vết kiểm toán. | **Cây băm Merkle Chaining**: Mỗi phiên bản được băm liên kết với phiên bản trước; thay đổi bất kỳ bản ghi nào sẽ làm sai lệch `version_hash`. |
 | **Xung đột phiên bản khi nhiều người cùng làm sạch** | Trung bình | Ghi đè dữ liệu của nhau (Lost Updates). | Khóa lạc quan (Optimistic Concurrency Control) dựa trên `current_version` và Transaction Session qua `AsyncLocalStorage`. |
 | **Dung lượng lưu trữ đám mây vượt ngân sách** | Trung bình | Phát sinh chi phí đột biến trên Cloudflare R2 / AWS S3. | Triển khai **Storage Quota Guard**: Cảnh báo thời gian thực ở 90% dung lượng và chặn cứng ở 100% bằng mã lỗi HTTP 413. |
+| **Quyền truy cập Cổng đặc quyền 443 trên hệ điều hành Linux** | Trung bình | Lỗi `EACCES: permission denied` khi tiến trình Node.js không có quyền root cố gắng bind cổng < 1024. | Áp dụng mô hình **Hybrid SSL**: hỗ trợ cổng dự phòng `8443` cho dev thường, lệnh `setcap` không cần root, và khuyến nghị TLS Termination qua Cloudflare/Nginx trên Production. |
 
 ---
 
