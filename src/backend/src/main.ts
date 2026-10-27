@@ -87,7 +87,7 @@ async function bootstrap(): Promise<void> {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'CF-Connecting-IP', 'CF-Ray'],
   });
 
-  // 4. Global Prefix (/api/v1) - Loại trừ endpoint health check giống chuẩn sgod-rental-management
+  // 4. Global Prefix (/api/v1) - Loại trừ endpoint health check phục vụ monitoring
   app.setGlobalPrefix(apiPrefix, {
     exclude: [{ path: 'health', method: RequestMethod.GET }],
   });

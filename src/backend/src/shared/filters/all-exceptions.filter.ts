@@ -51,7 +51,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    // Chiến lược ghi log phân tầng theo chuẩn sgod-rental-management:
+    // Chiến lược ghi log phân tầng theo tiêu chuẩn Observability:
     // 1. Lỗi 5xx (Server Error): Ghi log ERROR kèm Stack Trace
     // 2. Lỗi 4xx (Client Error): Ghi log WARN gọn gàng, bỏ qua hoàn toàn request favicon.ico
     const formattedMessage = typeof message === 'object' ? JSON.stringify(message) : String(message);
