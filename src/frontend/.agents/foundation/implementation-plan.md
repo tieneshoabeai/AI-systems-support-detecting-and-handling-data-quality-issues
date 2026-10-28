@@ -1,6 +1,6 @@
 # Đợt nền tảng frontend — Implementation Plan
 
-Ngày: 26/10/2026. Trạng thái: ghi nhận quyết định và plan; **chưa triển khai chức năng**. Theo yêu cầu mới, tạm dừng batch code/login, đã setup folder .gitkeep và cài dependency cho cả nhóm. Theo [master plan](../frontend-delivery/master-plan.md) và [team workflow](../frontend-delivery/team-workflow.md) để phối hợp 2 người.
+Ngày cập nhật: 27/10/2026. Đã triển khai API Foundation và bộ quản lý phiên: types, đọc sub/exp, session-storage và TokenReader có thể truyền vào Axios. 88 test mô phỏng pass; chưa nối AuthProvider/login/router hoặc refresh/health. API thường timeout 30 giây; thiếu config chỉ chặn client. Các mục Auth đầy đủ bên dưới vẫn là plan cho batch sau. Theo [master plan](../frontend-delivery/master-plan.md) và [team workflow](../frontend-delivery/team-workflow.md) để phối hợp 2 người.
 
 Tham chiếu: [Frontend Architecture Plan](../Structure/frontend-architecture-plan.md). Tài liệu này mô tả batch nền tảng; không thay thế bảng 9 module và gate backend trong architecture.
 
@@ -42,7 +42,7 @@ Các đường dẫn dưới đây tương đối với frontend root; tên và 
 | `src/views/auth/login.view.tsx` | Email/password form tối giản, loading/error; không hardcode credential |
 | `src/services/auth/` | Login, refresh, logout theo contract thực tế |
 | `src/services/users/` | `GET /users/me` phục vụ bootstrap |
-| `src/lib/api-client.ts` | Axios instance, bearer, network/API error boundary |
+| `src/lib/axios-client.ts` | Factory Axios client, bearer, network/API error boundary |
 | `src/lib/query-client.ts` | QueryClient và quy tắc cache phiên |
 | `src/configs/api.config.ts` | Base URL công khai; chỉ tên config, không secret |
 | `src/types/auth/`, `src/types/api/` | DTO, session state, context contract, error model |
@@ -153,7 +153,7 @@ Service health chỉ trả model khả dụng tối thiểu, không đưa toàn 
 - Báo riêng static/build/lint, automated tests và API/browser thực chạy; không dùng build thành công để kết luận auth/runtime đúng.
 - Nếu chưa có backend/test account/base URL: báo rõ phần runtime chưa kiểm chứng, không fabricate response hoặc đăng nhập giả thành công.
 
-Test chính thức đặt tại `src/__tests__/`, dùng Vitest + React Testing Library + jsdom. Đề xuất script `yarn test` chạy `vitest run`; chỉ thêm khi batch code được duyệt. Mock network trong automated test phải được phân biệt với API thật. File hỗ trợ AI chỉ trong `.agents/foundation/` nếu thật sự cần; dọn file tạm sau dùng. Không tự commit/reset/revert, không đọc `.env`.
+Test chính thức đặt tại `src/__tests__/`, dùng Vitest + React Testing Library + jsdom. Đã thêm script `yarn test` chạy `vitest run`; 39 test API Foundation/UI startup pass bằng adapter giả và jsdom, chưa chứng minh API/browser thật. File hỗ trợ AI chỉ trong `.agents/foundation/` nếu thật sự cần; dọn file tạm sau dùng. Không tự commit/reset/revert, không đọc `.env`.
 
 ## 7. Các quyết định còn thiếu trước batch code
 

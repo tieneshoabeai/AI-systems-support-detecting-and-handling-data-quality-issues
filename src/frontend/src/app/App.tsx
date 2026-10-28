@@ -1,14 +1,6 @@
-import React from 'react'
+import { AppRouter } from './router/app-router'
+import { SessionRenewalDialog } from '../components/auth/session-renewal-dialog'
 
-const App = (): React.ReactElement => {
-  return (
-    <main className="app-shell">
-      <section className="startup-panel" aria-labelledby="app-title">
-        <h1 id="app-title">AI-systems-support-detecting-and-handling-data-quality-issues</h1>
-        <p>Ứng dụng đã khởi động</p>
-      </section>
-    </main>
-  )
-}
+const App = () => <><AppRouter /><SessionRenewalDialog /></>
 
 export default App

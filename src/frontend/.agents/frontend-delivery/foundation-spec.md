@@ -1,6 +1,6 @@
 # Foundation — Interface, quy tắc kỹ thuật và prompt
 
-Ngày: 26/10/2026. Đầu ra: đặc tả để 2 người FE dùng cùng nền tảng. **Chưa triển khai code**. Chính sách phiên/storage/health đã được người dùng duyệt; interface TypeScript dưới đây là thiết kế đề xuất cho batch code, không phải export đang tồn tại. Owner nền tảng FE A; FE B review và là bên tiêu thụ service/session/query boundary.
+Cập nhật 27/10/2026: đã triển khai API config/client/error và session-storage theo batch đã duyệt; 88 test mô phỏng pass. `src/types/auth/session.types.ts`, `src/utils/auth/access-token.ts`, `src/lib/session-storage.ts` là source thật. `createSessionStorage()` cung cấp read/write/clear/readToken; read trả empty/invalid/valid/expired, storage lỗi ném ApiError kind storage. Expired giữ phiên nhưng readToken trả null; invalid xóa riêng key phiên; không fallback storage. AuthProvider/login/router/health/consent/refresh chưa triển khai. Các interface Auth đầy đủ bên dưới vẫn là thiết kế cho batch sau. Owner nền tảng FE A; FE B review và là bên tiêu thụ service/session/query boundary.
 
 Đọc cùng [module Auth](modules/01-auth.md), [contract audit và kiểm kê DTO](modules/00-contract-audit.md), [screen flow](screen-flow.md), [shared UI](shared-ui.md), [foundation implementation plan](../foundation/implementation-plan.md).
 
@@ -33,11 +33,11 @@ FE không import trực tiếp Nest/Mongoose hoặc backend config vào bundle. 
 
 ### 4.1 Config công khai
 
-Tên biến **đề xuất chờ duyệt cho code**: `VITE_API_BASE_URL`; không đọc/ghi hoặc in nội dung file .env. Model `ApiConfig { baseUrl: string }`. Base URL bao gồm prefix API, không `/docs`; không default ngầm về localhost trong bản deploy. Kiểm tra URL/protocol, không chấp nhận embedded username/password/query/hash. Quy tắc deployment/proxy cụ thể chờ cấu hình môi trường được duyệt.
+Quyết định cập nhật: `VITE_API_BASE_URL` chỉ chứa origin server HTTP/HTTPS; `VITE_API_PREFIX` chứa đường dẫn API riêng. Config ghép một lần thành `ApiConfig.baseUrl` trước khi tạo client. Không đọc/ghi hoặc in nội dung file .env. Prefix phải có ít nhất một segment gồm chữ/số/gạch nối/gạch dưới; cho phép dấu `/` đầu/cuối, không traversal/query/hash/URL ngoài. Không `/docs`, không default ngầm về localhost. Thiếu/sai một trong hai biến báo lỗi config khi tạo client. Override `createAxiosClient({ baseUrl })` vẫn là URL API đầy đủ dành cho caller/test, không ghép thêm env prefix. Quy tắc deployment/proxy cụ thể chờ cấu hình môi trường được duyệt.
 
-`src/configs/api.config.ts` đọc `import.meta.env` một nơi; Vite type augmentation ở file declaration riêng khi batch được duyệt. Thiếu/sai config phải báo cấu hình chưa hợp lệ, không rơi sang backend khác. UI khởi động thuần vẫn có thể render mà chưa gọi API; policy block toàn app hay chỉ vùng API cần quyết định trước implementation config.
+`src/configs/api.config.ts` đọc `import.meta.env` một nơi; declaration tại `src/types/vite-env.d.ts`. Đã xác nhận và triển khai: thiếu/sai config chỉ chặn tạo/dùng client, UI khởi động vẫn render; không fallback backend khác.
 
-Không env riêng cho refresh token, MongoDB, JWT secret hoặc queue data. Health timeout 5.000 ms là policy đã chốt; timeout API thường/upload chưa chốt, không áp 5 giây cho tất cả request.
+Không env riêng cho refresh token, MongoDB, JWT secret hoặc queue data. API thường timeout 30.000 ms; health dùng override 5.000 ms. Upload chưa chốt chính sách riêng.
 
 ### 4.2 Interface HTTP/error nội bộ
 
@@ -69,7 +69,7 @@ type TokenReader = () => string | null;
 
 Không trả URL/token/raw Axios config trong AppError để UI log vô tình lộ dữ liệu. `fieldErrors` chỉ map được khi source message có field/message rõ; các lỗi khác giữ ở form/global error, không gán đoán cho password/name. Service trả T hoặc ném AppError đã chuẩn hóa; không lẫn vừa Result union vừa exception trong cùng boundary.
 
-- `lib/api-client.ts`: Axios instance dùng baseUrl; bearer lấy qua TokenReader chỉ với request auth=session và đúng API origin. Public login/register/health/refresh không tự gắn bearer cũ; refresh secret chỉ trong body theo contract và sau consent.
+- `lib/axios-client.ts`: factory tạo Axios client khi cần; bearer lấy qua TokenReader chỉ với request auth=session và trong API prefix. Public login/register/health/refresh không tự gắn bearer cũ. Thiếu token dừng trước transport; không tự refresh/retry/redirect. Auth consent và lưu phiên thuộc batch sau.
 - Service gọi relative endpoint đã kiểm kê; không nhận URL tùy ý từ form. JSON success unwrap envelope đúng một lần; T có `data` nghiệp vụ vẫn giữ nguyên. Binary Export tương lai có transport boundary riêng, chưa viết generic unwrap cho nó.
 - Interceptor không import React/AuthContext/router, không mở dialog, không refresh hoặc retry ghi. Auth coordinator được inject các port/service cần thiết ở app composition, tránh circular dependency lib → provider → service → lib.
 - 401 không luôn expired; chuyển error cho coordinator phân loại theo token/session context, không gọi refresh trên login sai. 403 là từ chối quyền; không coi outage để mở thao tác cục bộ rộng hơn.

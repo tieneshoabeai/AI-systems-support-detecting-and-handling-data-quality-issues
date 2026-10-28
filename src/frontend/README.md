@@ -2,7 +2,7 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại:** đã setup structure, dependency và UI khởi động tối giản. Các module nghiệp vụ, API client, auth, 3D và IndexedDB/sync mới có plan, chưa được tích hợp vào ứng dụng.
+**Trạng thái hiện tại:** đã setup structure, dependency, UI khởi động và Foundation API (config, types/error, Axios client và unit test). Client chưa nối vào UI; các module nghiệp vụ, auth, 3D và IndexedDB/sync chưa được tích hợp vào ứng dụng.
 
 ## 1. Project Overview
 
@@ -18,11 +18,11 @@ Frontend dùng **React + TypeScript + Vite**, quản lý package bằng **Yarn**
 |---|---|---|
 | React, TypeScript, Vite | UI, type checking, dev server và build | Đang dùng |
 | React Router | Điều hướng và layout | Đã cài, chưa tích hợp |
-| Axios | HTTP client dùng chung | Đã cài, chưa tích hợp |
+| Axios | HTTP client dùng chung | Đã có client Foundation, chưa nối UI |
 | TanStack Query | Dữ liệu server và cache | Đã cài, chưa tích hợp |
 | Three.js + React Three Fiber | Scene, camera và tương tác 3D | Đã cài, chưa tích hợp |
 | Dexie / IndexedDB | File, bản nháp và thao tác chờ | Đã cài, chưa tích hợp |
-| Vitest, Testing Library, jsdom | Kiểm thử logic và component | Đã cài, chưa cấu hình test nghiệp vụ |
+| Vitest, Testing Library, jsdom | Kiểm thử logic và component | 88 test Foundation/session/UI startup pass; chưa test nghiệp vụ |
 
 Version và script thực tế xem [package.json](package.json). Đã cài thư viện không đồng nghĩa chức năng tương ứng đã hoạt động.
 
@@ -167,13 +167,17 @@ Build chạy TypeScript build và Vite production build. Preview phục vụ b�
 
 ### Test
 
-Hiện [package.json](package.json) **chưa có script test**, chưa có test nghiệp vụ được triển khai. Vì vậy **yarn test chưa được hỗ trợ**. Vitest/Testing Library/jsdom mới được cài để chuẩn bị cho batch Foundation.
+Chạy **yarn test** để kiểm tra Foundation API và UI khởi động bằng Vitest/Testing Library/jsdom. Test HTTP dùng adapter giả, không gọi backend thật.
 
-Các test case trong plan là dự kiến, chưa phải test đã chạy hoặc kết quả pass. Build/lint không thay test hành vi, browser hoặc API integration.
+Các test nghiệp vụ trong plan chưa triển khai. Build/lint và test mô phỏng không thay browser hoặc API integration.
 
-### Cấu hình API
+### Quản lý phiên nền tảng
 
-UI khởi động hiện chưa gọi API và chưa đọc biến môi trường. Tên **VITE_API_BASE_URL** mới là đề xuất trong plan, chưa được code sử dụng; không dùng đường dẫn Swagger kết thúc bằng **/docs** làm API base URL.
+`src/lib/session-storage.ts` cung cấp factory `createSessionStorage()` với `read`, `write`, `clear`, `readToken`. Dữ liệu chỉ lưu tại key `data-quality.auth.v1`, gồm schemaVersion/accessToken/refreshToken/accountId; không lưu password/role. Đọc phiên trả `empty`, `invalid`, `valid` hoặc `expired`. Phiên hết hạn được giữ cho flow gia hạn sau nhưng `readToken()` trả null; dữ liệu hỏng bị xóa riêng key phiên. Lỗi storage được báo bằng error kind `storage`, không fallback sang nơi lưu khác. Truyền `readToken` vào `createAxiosClient({ readToken })` để client lấy token hiện tại. Chưa nối vào UI/AuthProvider, chưa refresh hoặc redirect. Đọc claim JWT chỉ phục vụ điều phối FE, không xác minh chữ ký/quyền.
+
+### Cấu hình địa chỉ API
+
+UI khởi động hiện chưa gọi API. **src/configs/api.config.ts** đọc **VITE_API_BASE_URL** (địa chỉ server HTTP/HTTPS, không kèm đường dẫn) và **VITE_API_PREFIX** (prefix API riêng) khi tạo client. Config ghép hai phần đúng một lần; service chỉ truyền endpoint. Prefix chấp nhận có/không dấu `/` đầu và một dấu `/` cuối; không nhận URL, query/hash hoặc traversal. Thiếu/sai cấu hình gây lỗi **config** ở vùng API, không chặn UI khởi động và không fallback sang backend khác. Không dùng đường dẫn Swagger làm prefix. Timeout mặc định 30 giây; caller health dùng 5 giây; upload cần chính sách riêng.
 
 Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin FE. Không đưa token, API key, password hoặc secret backend vào cấu hình FE; không in nội dung **.env** vào chat/tài liệu. Xem [AI usage](AI-usage.md).
 
@@ -218,7 +222,7 @@ AI-systems-support-detecting-and-handling-data-quality-issues
 - Chưa chốt toàn bộ UX, permission presentation, data 3D mapping và tiêu chí hiệu năng.
 - Chưa có schema/quota/retention IndexedDB hoặc replay đã kiểm chứng. Chống ghi trùng/xử lý conflict cần backend hỗ trợ.
 - Resilience không yêu cầu hỗ trợ khi mất Internet; chỉ cho thao tác đã duyệt khi token còn hạn. Phần này chưa triển khai.
-- Chưa cấu hình test runner, CI hoặc production deployment trong batch setup hiện tại.
+- Đã cấu hình test runner Foundation; chưa có CI hoặc production deployment.
 
 ## 10. Future Improvements
 
