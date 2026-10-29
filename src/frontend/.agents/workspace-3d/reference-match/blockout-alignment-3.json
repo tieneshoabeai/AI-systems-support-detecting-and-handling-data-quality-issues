@@ -1,0 +1,74 @@
+{
+  "workspace": {
+    "sourceRender": "workspace-blockout-3.png",
+    "reference": "workspace-masked-reference.png",
+    "rawBBox": [
+      103,
+      132,
+      497,
+      425
+    ],
+    "referenceBBox": [
+      0,
+      0,
+      191,
+      130
+    ],
+    "uniformScale": 0.44368600682593856,
+    "position": [
+      8,
+      0
+    ],
+    "rawAspect": 1.3447098976109215,
+    "referenceAspect": 1.4692307692307693,
+    "note": "Uniform scale and translation only"
+  },
+  "project": {
+    "sourceRender": "project-blockout-3.png",
+    "reference": "project-masked-reference.png",
+    "rawBBox": [
+      162,
+      78,
+      438,
+      404
+    ],
+    "referenceBBox": [
+      3,
+      0,
+      113,
+      128
+    ],
+    "uniformScale": 0.39263803680981596,
+    "position": [
+      4,
+      0
+    ],
+    "rawAspect": 0.8466257668711656,
+    "referenceAspect": 0.859375,
+    "note": "Uniform scale and translation only"
+  },
+  "dataset": {
+    "sourceRender": "dataset-blockout-3.png",
+    "reference": "dataset-masked-reference.png",
+    "rawBBox": [
+      70,
+      199,
+      530,
+      447
+    ],
+    "referenceBBox": [
+      1,
+      5,
+      129,
+      77
+    ],
+    "uniformScale": 0.2782608695652174,
+    "position": [
+      1,
+      6
+    ],
+    "rawAspect": 1.8548387096774193,
+    "referenceAspect": 1.7777777777777777,
+    "note": "Uniform scale and translation only"
+  }
+}

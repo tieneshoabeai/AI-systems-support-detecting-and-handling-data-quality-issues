@@ -1,0 +1,74 @@
+{
+  "workspace": {
+    "sourceRender": "workspace-blockout-2.png",
+    "reference": "workspace-masked-reference.png",
+    "rawBBox": [
+      103,
+      127,
+      497,
+      447
+    ],
+    "referenceBBox": [
+      0,
+      0,
+      191,
+      130
+    ],
+    "uniformScale": 0.40625,
+    "position": [
+      16,
+      0
+    ],
+    "rawAspect": 1.23125,
+    "referenceAspect": 1.4692307692307693,
+    "note": "Uniform scale/translation only for framing alignment; no silhouette warping or geometry modification"
+  },
+  "project": {
+    "sourceRender": "project-blockout-2.png",
+    "reference": "project-masked-reference.png",
+    "rawBBox": [
+      160,
+      68,
+      440,
+      417
+    ],
+    "referenceBBox": [
+      3,
+      0,
+      113,
+      128
+    ],
+    "uniformScale": 0.3667621776504298,
+    "position": [
+      6,
+      0
+    ],
+    "rawAspect": 0.8022922636103151,
+    "referenceAspect": 0.859375,
+    "note": "Uniform scale/translation only for framing alignment; no silhouette warping or geometry modification"
+  },
+  "dataset": {
+    "sourceRender": "dataset-blockout-2.png",
+    "reference": "dataset-masked-reference.png",
+    "rawBBox": [
+      68,
+      166,
+      532,
+      464
+    ],
+    "referenceBBox": [
+      1,
+      5,
+      129,
+      77
+    ],
+    "uniformScale": 0.24161073825503357,
+    "position": [
+      9,
+      5
+    ],
+    "rawAspect": 1.5570469798657718,
+    "referenceAspect": 1.7777777777777777,
+    "note": "Uniform scale/translation only for framing alignment; no silhouette warping or geometry modification"
+  }
+}

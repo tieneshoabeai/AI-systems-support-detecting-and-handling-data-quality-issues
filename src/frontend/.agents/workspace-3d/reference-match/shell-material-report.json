@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "verdict": "pass",
+  "confidence": 0.86,
+  "estimatedFidelity": 0.86,
+  "targetThreshold": 0.7,
+  "materialId": "shell",
+  "sourceImage": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/shell-material-region.png",
+  "outDir": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-shell-pbr",
+  "palette": [
+    "#B4B8B4",
+    "#F7F6F6",
+    "#D8D6D4",
+    "#3E4948",
+    "#8D9999"
+  ],
+  "maps": {
+    "albedo": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-shell-pbr/shell_albedo.png",
+      "url": "shell_albedo.png",
+      "channel": "albedo",
+      "source": "reference-pixel-extraction"
+    },
+    "roughness": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-shell-pbr/shell_roughness.png",
+      "url": "shell_roughness.png",
+      "channel": "roughness",
+      "source": "reference-pixel-extraction"
+    },
+    "height": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-shell-pbr/shell_height.png",
+      "url": "shell_height.png",
+      "channel": "height",
+      "source": "reference-pixel-extraction"
+    },
+    "normal": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-shell-pbr/shell_normal.png",
+      "url": "shell_normal.png",
+      "channel": "normal",
+      "source": "reference-pixel-extraction"
+    },
+    "ao": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-shell-pbr/shell_ao.png",
+      "url": "shell_ao.png",
+      "channel": "ao",
+      "source": "reference-pixel-extraction"
+    }
+  },
+  "diagnostics": {
+    "sourceWidth": 60,
+    "sourceHeight": 23,
+    "mapSize": 256,
+    "cropBBoxPixels": {
+      "x": 0,
+      "y": 0,
+      "width": 60,
+      "height": 23
+    },
+    "mask": {
+      "backgroundColor": "#B1BAB8",
+      "backgroundNoise": 118.672,
+      "transparentPixelFraction": 0.1174,
+      "foregroundCoverage": 0.8826
+    },
+    "mapStats": {
+      "valueRange": 0.764,
+      "heightP90Gradient": 0.0882,
+      "roughnessBase": 0.7,
+      "roughnessVariation": 0.165,
+      "normalStrength": 0.26,
+      "blurRadius": 5
+    },
+    "palette": [
+      "#B4B8B4",
+      "#F7F6F6",
+      "#D8D6D4",
+      "#3E4948",
+      "#8D9999"
+    ]
+  },
+  "warnings": [
+    "single-image inverse rendering cannot prove true physical PBR; confidence is capped"
+  ],
+  "limitation": "single-image PBR extraction is an estimate; 70%+ extraction confidence still needs render screenshot review"
+}

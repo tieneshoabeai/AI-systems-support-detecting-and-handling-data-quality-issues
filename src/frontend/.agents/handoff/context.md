@@ -2,6 +2,14 @@
 
 Cập nhật: 28/10/2026 (Asia/Ho_Chi_Minh).
 
+## Quyết định ưu tiên mới — Workspace preview
+
+Người dùng báo BE đang lỗi/chưa kết nối được: **tạm hoãn kiểm thử Auth với BE thật**, chuyển sang **UI danh sách Workspace qua route preview riêng, không cần đăng nhập**. Giữ Auth/guard ở route thật; không tạo phiên giả, không mở dữ liệu/cache/draft private hoặc gọi API private từ preview. Đường dẫn dự kiến `/preview/workspaces`, đề xuất dev-only; cần lập plan Workspace cụ thể trước implementation. Chưa sửa route/UI trong lượt ghi log này.
+
+Xem [decision log, mục 15](../auth-session/implementation-plan.md). Không coi Auth integration đã đạt; quay lại kiểm thử BE/CORS/login/refresh/revoke khi có môi trường hoạt động.
+
+Log đã được đưa về repository gốc trên branch `ThuongFEAI`; worktree `/private/tmp/data-quality-frontend-preview` đã dọn sau khi kiểm hash hai file log. Lockfile untracked từ dev được bảo toàn tại `.agents/git-recovery/package-lock.dev-untracked.json`, không ghi đè lockfile tracked của branch hiện tại. Không commit. Quyền chuyển branch không bao gồm tạo worktree: nếu cần làm khác phạm vi/cách xử lý đã duyệt, phải hỏi người dùng trước.
+
 Mục đích: giúp người dùng, FE thứ hai và chat mới nối công việc mà không phải đoán các quyết định trước. Đây là bản bàn giao có chọn lọc, không phải toàn bộ lịch sử chat hay bản sao trạng thái nội bộ của Codex. Khi source thay đổi, phải kiểm tra lại trước khi triển khai; nội dung ở đây không cấp quyền sửa các batch chưa được duyệt.
 
 ## Cập nhật sau batch UI auth, 28/10/2026

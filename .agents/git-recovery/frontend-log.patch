@@ -1,0 +1,50 @@
+--- a/src/frontend/.agents/auth-session/implementation-plan.md
++++ b/src/frontend/.agents/auth-session/implementation-plan.md
+@@ -485,1 +485,30 @@
+ - Đã có UI đăng nhập gọi service thật khi môi trường cấu hình hợp lệ; nghiệm thu login/refresh/logout backend thật cần tài khoản test được phép tại máy, không yêu cầu gửi password/token vào chat.
++
++## 15. Decision log — tạm hoãn Auth integration, chuyển sang Workspace preview
++
++Ngày: 28/10/2026. Nguồn: người dùng báo backend đang lỗi/chưa kết nối được và yêu cầu ghi log; sau đó xác nhận trang chính là **danh sách Workspace** và cách mở là **route preview riêng, không cần đăng nhập**.
++
++### Quyết định đã chốt
++
++1. Tạm hoãn nghiệm thu Auth với backend thật, không coi Auth đã được xác minh end-to-end. Chưa chẩn đoán nguyên nhân backend trong batch này.
++2. Giữ code AuthProvider/coordinator/timer/focus/login/dialog đã triển khai. Không xóa Auth, không tạo token/user/role giả và không sửa backend để làm demo.
++3. Chuyển ưu tiên công việc tiếp theo sang UI danh sách Workspace. Cho xem bằng route preview riêng, không bắt đăng nhập thành công để xem UI đó.
++4. Route thật `/workspaces` và các private route vẫn giữ guard. Không tạm bỏ guard, không cấp quyền nghiệp vụ hoặc mở dữ liệu private qua preview.
++5. Preview không đọc credential/cache/draft account cũ hoặc gọi API riêng tư. Nếu dùng dữ liệu mẫu khi lập UI, phải ghi rõ đó là dữ liệu mẫu, không mô tả như dữ liệu backend đã trả hoặc phiên đã xác thực.
++
++### Đề xuất kỹ thuật cho plan Workspace kế tiếp
++
++- Route dự kiến `/preview/workspaces`; đề xuất chỉ bật trong development, không thêm cờ env hoặc route public production một cách ngầm định.
++- Tách Workspace view khỏi router/auth/API. Preview cấp dữ liệu trình bày; route thật dùng service → hook/query → view sau khi backend sẵn sàng.
++- Trước implementation Workspace, đối chiếu module plan/backend/source và trình bày file/interface/UX/test để duyệt. Chưa chốt cấu trúc dữ liệu giả, các thao tác create/update/delete hoặc permission presentation chỉ từ quyết định mở preview.
++- Giữ brand/logo/font đã có; chưa thêm dữ liệu, endpoint hoặc feature ngoài danh sách Workspace được xác nhận.
++
++### Việc còn pending và điều kiện quay lại Auth
++
++- Khi backend khả dụng, chạy checklist login đúng/sai, reload me, expiry, consent accept/Hủy, refresh, logout/revoke, CORS và error handling bằng tài khoản test được phép.
++- Không công bố backend đã sửa hoặc API integration đạt chỉ vì preview render/test fixture pass. Kết quả 238 test/lint/build trước là lịch sử; lượt ghi log không chạy lại test sản phẩm vì chỉ sửa Markdown.
++- Bản ghi này chỉ lưu quyết định và hướng tiếp theo; chưa tạo preview route hoặc sửa source UI trong lượt hiện tại.
++
++### Vị trí checkout khi ghi log
++
++Checkout gốc đang ở branch `dev`; Git từ chối switch do `src/backend/package-lock.json` untracked trùng file trên branch đích. Người dùng cho phép chuyển sang `ThuongFEAI` để ghi log. Để giữ nguyên file backend, đã tạo worktree riêng tại `/private/tmp/data-quality-frontend-preview` trên branch `ThuongFEAI`; không di chuyển/xóa/stash/reset file backend, không commit. Giữ worktree để review log; khi tiếp tục phải dùng đúng checkout hoặc bàn giao thay đổi trước khi dọn.
+--- a/src/frontend/.agents/handoff/context.md
++++ b/src/frontend/.agents/handoff/context.md
+@@ -2,6 +2,14 @@
+ 
+ Cập nhật: 28/10/2026 (Asia/Ho_Chi_Minh).
+ 
++## Quyết định ưu tiên mới — Workspace preview
++
++Người dùng báo BE đang lỗi/chưa kết nối được: **tạm hoãn kiểm thử Auth với BE thật**, chuyển sang **UI danh sách Workspace qua route preview riêng, không cần đăng nhập**. Giữ Auth/guard ở route thật; không tạo phiên giả, không mở dữ liệu/cache/draft private hoặc gọi API private từ preview. Đường dẫn dự kiến `/preview/workspaces`, đề xuất dev-only; cần lập plan Workspace cụ thể trước implementation. Chưa sửa route/UI trong lượt ghi log này.
++
++Xem [decision log, mục 15](../auth-session/implementation-plan.md). Không coi Auth integration đã đạt; quay lại kiểm thử BE/CORS/login/refresh/revoke khi có môi trường hoạt động.
++
++Log được ghi trên branch `ThuongFEAI` ở worktree `/private/tmp/data-quality-frontend-preview` vì checkout gốc branch `dev` có lockfile backend untracked chặn switch. File backend gốc giữ nguyên; không commit. Kiểm tra checkout trước khi tiếp tục.
++
+ Mục đích: giúp người dùng, FE thứ hai và chat mới nối công việc mà không phải đoán các quyết định trước. Đây là bản bàn giao có chọn lọc, không phải toàn bộ lịch sử chat hay bản sao trạng thái nội bộ của Codex. Khi source thay đổi, phải kiểm tra lại trước khi triển khai; nội dung ở đây không cấp quyền sửa các batch chưa được duyệt.
+ 
+ ## Cập nhật sau batch UI auth, 28/10/2026

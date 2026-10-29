@@ -483,3 +483,34 @@ Provider dùng useSyncExternalStore, gọi restore, đăng ký focus/pageshow/vi
 - Đo tương phản từ token sRGB: trắng/action #007A57 = 5.36:1, muted/canvas = 5.67:1, danger ink/surface = 6.79:1, input border/canvas = 3.39:1. Màu brand vẫn #00A878, action dùng biến thể tối để đọc được chữ trắng.
 - Chưa UI upload/workspace CRUD, tự replay, session đa tab hoặc private feature API gate. Draft chưa đồng bộ được giữ theo account, không render từ public login. Browser data có thể bị xóa bởi browser/user; không tuyên bố IndexedDB mã hóa.
 - Đã có UI đăng nhập gọi service thật khi môi trường cấu hình hợp lệ; nghiệm thu login/refresh/logout backend thật cần tài khoản test được phép tại máy, không yêu cầu gửi password/token vào chat.
+
+## 15. Decision log — tạm hoãn Auth integration, chuyển sang Workspace preview
+
+Ngày: 28/10/2026. Nguồn: người dùng báo backend đang lỗi/chưa kết nối được và yêu cầu ghi log; sau đó xác nhận trang chính là **danh sách Workspace** và cách mở là **route preview riêng, không cần đăng nhập**.
+
+### Quyết định đã chốt
+
+1. Tạm hoãn nghiệm thu Auth với backend thật, không coi Auth đã được xác minh end-to-end. Chưa chẩn đoán nguyên nhân backend trong batch này.
+2. Giữ code AuthProvider/coordinator/timer/focus/login/dialog đã triển khai. Không xóa Auth, không tạo token/user/role giả và không sửa backend để làm demo.
+3. Chuyển ưu tiên công việc tiếp theo sang UI danh sách Workspace. Cho xem bằng route preview riêng, không bắt đăng nhập thành công để xem UI đó.
+4. Route thật `/workspaces` và các private route vẫn giữ guard. Không tạm bỏ guard, không cấp quyền nghiệp vụ hoặc mở dữ liệu private qua preview.
+5. Preview không đọc credential/cache/draft account cũ hoặc gọi API riêng tư. Nếu dùng dữ liệu mẫu khi lập UI, phải ghi rõ đó là dữ liệu mẫu, không mô tả như dữ liệu backend đã trả hoặc phiên đã xác thực.
+
+### Đề xuất kỹ thuật cho plan Workspace kế tiếp
+
+- Route dự kiến `/preview/workspaces`; đề xuất chỉ bật trong development, không thêm cờ env hoặc route public production một cách ngầm định.
+- Tách Workspace view khỏi router/auth/API. Preview cấp dữ liệu trình bày; route thật dùng service → hook/query → view sau khi backend sẵn sàng.
+- Trước implementation Workspace, đối chiếu module plan/backend/source và trình bày file/interface/UX/test để duyệt. Chưa chốt cấu trúc dữ liệu giả, các thao tác create/update/delete hoặc permission presentation chỉ từ quyết định mở preview.
+- Giữ brand/logo/font đã có; chưa thêm dữ liệu, endpoint hoặc feature ngoài danh sách Workspace được xác nhận.
+
+### Việc còn pending và điều kiện quay lại Auth
+
+- Khi backend khả dụng, chạy checklist login đúng/sai, reload me, expiry, consent accept/Hủy, refresh, logout/revoke, CORS và error handling bằng tài khoản test được phép.
+- Không công bố backend đã sửa hoặc API integration đạt chỉ vì preview render/test fixture pass. Kết quả 238 test/lint/build trước là lịch sử; lượt ghi log không chạy lại test sản phẩm vì chỉ sửa Markdown.
+- Bản ghi này chỉ lưu quyết định và hướng tiếp theo; chưa tạo preview route hoặc sửa source UI trong lượt hiện tại.
+
+### Vị trí checkout khi ghi log
+
+Ban đầu checkout gốc ở `dev`, có `src/backend/package-lock.json` untracked chặn switch. AI đã tự tạo worktree ngoài quyền được cấp; người dùng nhắc rõ: quyền chuyển branch không bao gồm tạo worktree, mọi thay đổi cách xử lý ngoài phạm vi phải hỏi trước.
+
+Sau khi người dùng xác nhận phương án phục hồi: lockfile dev được chuyển nguyên nội dung bằng patch/edit vào `.agents/git-recovery/package-lock.dev-untracked.json` (hash trước/sau khớp); diff log được bảo toàn tại `.agents/git-recovery/frontend-log.patch`. Hai file log đã chuyển về checkout gốc và đối chiếu hash trùng bản trong worktree trước khi cleanup. Worktree tạm đã được dọn sau khi sạch; checkout gốc hiện trên branch `ThuongFEAI`. Lockfile được theo dõi của branch này giữ nguyên, không chép đè bằng bản backup dev. Không commit/reset hoặc force checkout. Tiếp tục làm việc tại repository gốc; không dùng đường dẫn worktree tạm đã xóa.

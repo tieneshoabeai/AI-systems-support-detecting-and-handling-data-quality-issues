@@ -1,0 +1,14 @@
+{
+  "admitted": true,
+  "reasons": [],
+  "provenance": {
+    "viewpoint": "reference",
+    "sourcePath": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/dataset-reference.png",
+    "width": 129,
+    "height": 77,
+    "foregroundCoverage": 0.7639,
+    "largestComponentFraction": 0.9888,
+    "pHash": 17498413390901105600,
+    "duplicateOfHash": null
+  }
+}
