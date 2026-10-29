@@ -1,0 +1,11 @@
+{
+  "note": "Original RGB preserved; a 1px transparent sampling margin explicitly selects the material patch instead of allowing automatic foreground segmentation to discard neutral silver as background. Regions are inferred material evidence, never physical BRDF measurement.",
+  "rejectedEvidence": "Initial workspace-shell-crop includes a green pipe fitting. Its high automatic score selected the fitting instead of silver, so shell-pbr is not accepted as silver evidence.",
+  "regions": [
+    {"id":"shell", "source":"workspace-reference.png", "box":[85,84,145,107], "observation":"broad neutral silver front chassis band"},
+    {"id":"edge", "source":"workspace-reference.png", "box":[124,38,153,51], "observation":"polished raised rim segment"},
+    {"id":"dark", "source":"project-reference.png", "box":[90,44,103,85], "observation":"dark inset side ventilation grille"},
+    {"id":"signal", "source":"workspace-reference.png", "box":[94,35,103,65], "observation":"green luminous vertical core strip"},
+    {"id":"glass", "source":"workspace-reference.png", "box":[74,30,88,63], "observation":"green translucent core panel; optical parameters uncertain"}
+  ]
+}

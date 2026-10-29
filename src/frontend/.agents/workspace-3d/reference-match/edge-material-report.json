@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "verdict": "pass",
+  "confidence": 0.86,
+  "estimatedFidelity": 0.86,
+  "targetThreshold": 0.7,
+  "materialId": "edge",
+  "sourceImage": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/edge-material-region.png",
+  "outDir": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-edge-pbr",
+  "palette": [
+    "#AEBBB3",
+    "#3C5E51",
+    "#7EA999",
+    "#5B7F71",
+    "#154434"
+  ],
+  "maps": {
+    "albedo": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-edge-pbr/edge_albedo.png",
+      "url": "edge_albedo.png",
+      "channel": "albedo",
+      "source": "reference-pixel-extraction"
+    },
+    "roughness": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-edge-pbr/edge_roughness.png",
+      "url": "edge_roughness.png",
+      "channel": "roughness",
+      "source": "reference-pixel-extraction"
+    },
+    "height": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-edge-pbr/edge_height.png",
+      "url": "edge_height.png",
+      "channel": "height",
+      "source": "reference-pixel-extraction"
+    },
+    "normal": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-edge-pbr/edge_normal.png",
+      "url": "edge_normal.png",
+      "channel": "normal",
+      "source": "reference-pixel-extraction"
+    },
+    "ao": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-edge-pbr/edge_ao.png",
+      "url": "edge_ao.png",
+      "channel": "ao",
+      "source": "reference-pixel-extraction"
+    }
+  },
+  "diagnostics": {
+    "sourceWidth": 29,
+    "sourceHeight": 13,
+    "mapSize": 256,
+    "cropBBoxPixels": {
+      "x": 0,
+      "y": 0,
+      "width": 29,
+      "height": 13
+    },
+    "mask": {
+      "backgroundColor": "#314D3F",
+      "backgroundNoise": 55.723,
+      "transparentPixelFraction": 0.2122,
+      "foregroundCoverage": 0.7878
+    },
+    "mapStats": {
+      "valueRange": 0.5679,
+      "heightP90Gradient": 0.10968,
+      "roughnessBase": 0.757,
+      "roughnessVariation": 0.2,
+      "normalStrength": 0.285,
+      "blurRadius": 5
+    },
+    "palette": [
+      "#AEBBB3",
+      "#3C5E51",
+      "#7EA999",
+      "#5B7F71",
+      "#154434"
+    ]
+  },
+  "warnings": [
+    "single-image inverse rendering cannot prove true physical PBR; confidence is capped"
+  ],
+  "limitation": "single-image PBR extraction is an estimate; 70%+ extraction confidence still needs render screenshot review"
+}
