@@ -379,12 +379,13 @@ Khi máy chủ khởi chạy thành công, tài liệu đặc tả API tương t
 
 ## 7. BỘ TÀI LIỆU KỸ THUẬT THAM CHIẾU (TECHNICAL REPORTS)
 
-Để tìm hiểu sâu hơn về từng khía cạnh kiến trúc và thuật toán của hệ thống, vui lòng tham chiếu bộ 8 tệp báo cáo chuyên sâu tại thư mục [`docs/report/`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/):
-1. [`01_business_context_and_objectives.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/01_business_context_and_objectives.md): Bối cảnh dự án, bài toán kinh doanh, mục tiêu định lượng.
-2. [`02_system_architecture_and_tech_stack.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/02_system_architecture_and_tech_stack.md): Kiến trúc hệ thống, bản đồ Tech Stack, an ninh giao vận.
-3. [`03_polyglot_data_modeling_and_storage.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/03_polyglot_data_modeling_and_storage.md): 10 Collections MongoDB, Đồ thị phả hệ Neo4j AuraDB DAG, Cloudflare R2.
-4. [`04_modules_and_api_architecture.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/04_modules_and_api_architecture.md): Phân rã 11 Modules, danh mục 43 Endpoints, chính sách phân quyền CASL ABAC.
-5. [`05_core_mechanisms_and_cryptography.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/05_core_mechanisms_and_cryptography.md): Streaming $\le 50\text{MB}$ RAM, chuỗi băm Merkle DAG, mã hóa AES-256-GCM, Outbox Pattern.
-6. [`06_testing_and_quality_assurance.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/06_testing_and_quality_assurance.md): 16 bộ test suites tự động, kiểm thử tĩnh AST Zero Any, kiểm thử phân quyền ABAC.
-7. [`07_ai_integration_and_gemini_engine.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/07_ai_integration_and_gemini_engine.md): Thiết kế phân hệ AI Google Gemini, chuẩn hóa Semi-structured, phát hiện dị thường 3 tầng.
-8. [`08_risks_limitations_and_future_roadmap.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report/08_risks_limitations_and_future_roadmap.md): Ma trận rủi ro, điểm nghẽn hiệu năng, nợ kỹ thuật và lộ trình mở rộng tương lai.
+Để tìm hiểu sâu hơn về từng khía cạnh kiến trúc và thuật toán của hệ thống, vui lòng tham chiếu bộ 8 tệp báo cáo chuyên sâu tại thư mục [`docs/report/`]
+1. [`01_business_context_and_objectives.md`]
+2. [`02_system_architecture_and_tech_stack.md`]
+3. [`03_polyglot_data_modeling_and_storage.md`]
+4. [`04_modules_and_api_architecture.md`]
+5. [`05_core_mechanisms_and_cryptography.md`]
+6. [`06_testing_and_quality_assurance.md`]
+7. [`07_ai_integration_and_gemini_engine.md`] phát hiện dị thường 3 tầng.
+8. [`08_risks_limitations_and_future_roadmap.md`]
+s
