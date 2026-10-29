@@ -1,0 +1,13 @@
+{
+  "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/workspace-reference.png",
+  "type": "png",
+  "bytes": 52947,
+  "width": 191,
+  "height": 130,
+  "aspectRatio": 1.4692307692307693,
+  "technicalSuitability": "conditional",
+  "warnings": [
+    "low resolution; small geometry/material details may be unreliable"
+  ],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

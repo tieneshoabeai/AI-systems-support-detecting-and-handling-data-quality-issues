@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "verdict": "pass",
+  "confidence": 0.86,
+  "estimatedFidelity": 0.86,
+  "targetThreshold": 0.7,
+  "materialId": "dark",
+  "sourceImage": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/dark-material-region.png",
+  "outDir": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-dark-pbr",
+  "palette": [
+    "#494B4A",
+    "#5C5D5B",
+    "#B6B4B0",
+    "#2F3535",
+    "#77817B"
+  ],
+  "maps": {
+    "albedo": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-dark-pbr/dark_albedo.png",
+      "url": "dark_albedo.png",
+      "channel": "albedo",
+      "source": "reference-pixel-extraction"
+    },
+    "roughness": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-dark-pbr/dark_roughness.png",
+      "url": "dark_roughness.png",
+      "channel": "roughness",
+      "source": "reference-pixel-extraction"
+    },
+    "height": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-dark-pbr/dark_height.png",
+      "url": "dark_height.png",
+      "channel": "height",
+      "source": "reference-pixel-extraction"
+    },
+    "normal": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-dark-pbr/dark_normal.png",
+      "url": "dark_normal.png",
+      "channel": "normal",
+      "source": "reference-pixel-extraction"
+    },
+    "ao": {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/verified-dark-pbr/dark_ao.png",
+      "url": "dark_ao.png",
+      "channel": "ao",
+      "source": "reference-pixel-extraction"
+    }
+  },
+  "diagnostics": {
+    "sourceWidth": 13,
+    "sourceHeight": 41,
+    "mapSize": 256,
+    "cropBBoxPixels": {
+      "x": 0,
+      "y": 0,
+      "width": 13,
+      "height": 41
+    },
+    "mask": {
+      "backgroundColor": "#848180",
+      "backgroundNoise": 91.269,
+      "transparentPixelFraction": 0.1951,
+      "foregroundCoverage": 0.8049
+    },
+    "mapStats": {
+      "valueRange": 0.5315,
+      "heightP90Gradient": 0.13709,
+      "roughnessBase": 0.762,
+      "roughnessVariation": 0.21,
+      "normalStrength": 0.317,
+      "blurRadius": 5
+    },
+    "palette": [
+      "#494B4A",
+      "#5C5D5B",
+      "#B6B4B0",
+      "#2F3535",
+      "#77817B"
+    ]
+  },
+  "warnings": [
+    "single-image inverse rendering cannot prove true physical PBR; confidence is capped"
+  ],
+  "limitation": "single-image PBR extraction is an estimate; 70%+ extraction confidence still needs render screenshot review"
+}

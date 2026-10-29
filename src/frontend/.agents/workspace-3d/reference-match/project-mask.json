@@ -1,0 +1,7 @@
+{
+  "source": "project-reference.png",
+  "method": "agent-observed polygon alpha segmentation; RGB pixels unchanged",
+  "purpose": "Isolate contiguous silver enclosure from similarly gray background after automatic RGB foreground segmentation fragmented it",
+  "confidence": "conditional; outline is hand annotated at original low resolution, not a recovered depth map",
+  "polygon": [[25,10],[55,0],[87,1],[108,17],[112,99],[99,114],[37,127],[6,115],[3,103],[10,96],[12,30]]
+}

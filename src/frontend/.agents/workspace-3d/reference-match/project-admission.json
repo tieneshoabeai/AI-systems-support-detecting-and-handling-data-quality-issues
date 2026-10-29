@@ -1,0 +1,16 @@
+{
+  "admitted": false,
+  "reasons": [
+    "mask coherence: largest connected blob is 0.52 of foreground < 0.6 (fragmented/scattered subject — ambiguous)"
+  ],
+  "provenance": {
+    "viewpoint": "reference",
+    "sourcePath": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/workspace-3d/reference-match/project-reference.png",
+    "width": 118,
+    "height": 128,
+    "foregroundCoverage": 0.4035,
+    "largestComponentFraction": 0.5235,
+    "pHash": 18156525335578420096,
+    "duplicateOfHash": null
+  }
+}
