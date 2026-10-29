@@ -51,18 +51,6 @@ Khi dữ liệu bị làm sạch hoặc biến đổi, phần lớn các công c
 - Khi phát hiện một bước làm sạch bị lỗi, không có cơ chế quay lui (Rollback) an toàn tại chỗ mà phải làm lại từ đầu.
 - Thiếu bằng chứng kiểm toán độc lập để chứng minh dữ liệu không bị can thiệp trái phép trực tiếp vào database.
 
-### 2.4. So sánh với các giải pháp hiện hành
-
-| Tiêu chí so sánh | Microsoft Excel | OpenRefine | Great Expectations | Nền tảng của Dự án |
-|---|---|---|---|---|
-| **Giới hạn số dòng** | $1,048,576$ dòng | Bị giới hạn bởi RAM máy trạm | Không giới hạn (Code-first) | **Hàng triệu dòng (Streaming)** |
-| **Tiêu thụ RAM máy chủ** | Ngốn toàn bộ RAM máy khách | Tải toàn bộ vào RAM | Phụ thuộc runtime Python | **Cố định $\le 50\text{MB}$ RAM** |
-| **Giao diện người dùng** | Đồ họa trực quan bảng tính | Web cục bộ đơn người dùng | Không có UI (Chỉ cấu hình code) | **Virtual Grid Keyset Pagination** |
-| **Cộng tác nhóm (Multi-tenant)** | Không hỗ trợ phân quyền | Đơn người dùng cục bộ | Không có tích hợp sẵn | **CASL ABAC đa không gian làm việc** |
-| **Đồ thị Phả hệ (Lineage)** | Hoàn toàn không có | Lưu lịch sử biến đổi phẳng | Data Docs tĩnh | **Neo4j AuraDB DAG tương tác** |
-| **Kiểm toán Mật mã học** | Không có | Không có | Checksum tệp đơn giản | **Chuỗi băm Merkle DAG SHA-256** |
-| **Bảo mật đầu ra** | Đặt mật khẩu file zip thô | Xuất tệp không mã hóa | Lưu trữ raw tệp | **Mã hóa luồng AES-256-GCM PBKDF2** |
-
 ---
 
 ## 3. ĐỐI TƯỢNG SỬ DỤNG VÀ CHÂN DUNG NGHIỆP VỤ (PERSONAS)
@@ -114,17 +102,3 @@ Hệ thống đặt ra và đã đạt được các chỉ tiêu định lượn
 
 ---
 
-## 5. CHIẾN LƯỢC PHÂN KỲ TRIỂN KHAI (STAGED ROLLOUT ROADMAP)
-
-Hệ thống áp dụng triết lý kiến trúc **"Rock-Solid Core First, AI-Ready Always"**:
-
-```
-[ SPRINT B1 ] ──> [ SPRINT B2 ] ──> [ SPRINT B3 ] ──> [ SPRINT B4 ]
-Nền tảng & ABAC     Streaming & Lưới    Merkle & Phả hệ     AI Engine Copilot
-(Hoàn thành 100%)  (Hoàn thành 100%)  (Hoàn thành 100%)   (Kế hoạch chuẩn hóa)
-```
-
-- **Sprint B1 (Core Data Infrastructure & ABAC Security):** Thiết lập nền tảng NestJS 11, TypeScript Strict, MongoDB Atlas, hệ thống phiên làm việc tự động nhận diện thiết bị và ma trận phân quyền dựa trên thuộc tính CASL ABAC.
-- **Sprint B2 (Streaming Data Pipeline & Virtual Grid Engine):** Hiện thực hóa cơ chế nạp luồng Busboy, phân trang Keyset Virtual Grid, bộ lọc thống kê cột Histogram 10 khoảng và Động cơ luật làm sạch Dry-run Sandbox.
-- **Sprint B3 (Cryptographic Audit, Neo4j Lineage & Secure Export):** Xây dựng chuỗi băm mật mã học Merkle DAG, đồng bộ sự kiện Transactional Outbox sang đồ thị Neo4j AuraDB, và xuất dữ liệu mã hóa AES-256-GCM.
-- **Sprint B4 (AI Copilot & Multi-layer Anomaly Detection):** Tích hợp Trợ lý Trí tuệ Nhân tạo Google Gemini, chuẩn hóa dữ liệu bán cấu trúc (Semi-structured Flattener) và cơ chế phát hiện dị thường đa tầng phục vụ gợi ý quy tắc làm sạch tự động.
