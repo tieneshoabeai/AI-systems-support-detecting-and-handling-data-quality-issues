@@ -1,0 +1,16 @@
+{
+  "admitted": false,
+  "reasons": [
+    "foreground coverage 1.000 > 0.97 (no background to segment against — silhouette not isolable)"
+  ],
+  "provenance": {
+    "viewpoint": "support-rear",
+    "sourcePath": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/views/support-rear.png",
+    "width": 637,
+    "height": 392,
+    "foregroundCoverage": 1.0,
+    "largestComponentFraction": 1.0,
+    "pHash": 18350953223398918816,
+    "duplicateOfHash": null
+  }
+}

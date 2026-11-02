@@ -1,0 +1,206 @@
+{
+  "documentType": "holographic-material-applicability-and-representation-evidence",
+  "status": "specification-evidence-not-runtime-material-acceptance",
+  "reference": {
+    "image": "reference-original.png",
+    "analysisRoi": "reference-masked.png",
+    "widthPx": 468,
+    "heightPx": 360,
+    "exclusion": "mask-provenance.json#/excludedLabel",
+    "observationMethod": "agent visual review; no physical inverse rendering or exact RGB sampling"
+  },
+  "observations": [
+    {
+      "regionPx": [
+        174,
+        62,
+        299,
+        198
+      ],
+      "observation": "Core shows dense saturated blue area, cyan upper cap and regular horizontal/vertical marks.",
+      "confidence": "high",
+      "representation": "uniform blue carrier plus separate geometric meridians, horizontal paths and cyan cap"
+    },
+    {
+      "regionPx": [
+        95,
+        12,
+        349,
+        198
+      ],
+      "observation": "Straight cyan/blue frames vary in height; planar regions are faint and have sparse linework.",
+      "confidence": "high",
+      "representation": "faint uniform faces, cuboid edges and sparse planar geometric paths"
+    },
+    {
+      "regionPx": [
+        62,
+        136,
+        410,
+        281
+      ],
+      "observation": "Violet band has multiple nearby contours and local brightness changes.",
+      "confidence": "high",
+      "representation": "uniform annular face plus separate contour and accent arc geometry"
+    },
+    {
+      "regionPx": [
+        120,
+        250,
+        383,
+        334
+      ],
+      "observation": "Lower circular and radial marks and localized cyan bright points are visible; label-covered content is unknown.",
+      "confidence": "medium",
+      "representation": "separate low annuli, trace paths and anchored highlight geometry"
+    }
+  ],
+  "texturelessScope": {
+    "declaration": "Uniform colored mesh carriers do not contain an image texture or physical surface grain; the scene still contains all observed technical detail.",
+    "requiredGeometricDetail": [
+      "12 cuboid edge paths per frame",
+      "24 proposed core meridians",
+      "10 proposed core horizontal paths",
+      "sparse planar face grids",
+      "violet inner/outer/dim-adjacent contour paths",
+      "cyan lower contour paths",
+      "reference-anchored radial traces and bright node"
+    ],
+    "requiredScalarDetail": [
+      "main core density",
+      "rear frame fade",
+      "selected violet arc intensity"
+    ],
+    "noFabricatedData": [
+      "no roughness map",
+      "no normal/height map",
+      "no AO map",
+      "no fake texture resolution",
+      "no physical PBR extraction score",
+      "no inferred dirt/pores/scratches"
+    ],
+    "builtInAuthority": "forge/stage2_spec/validate_sculpt_spec.py::validate_textureless and is_textureless; forge/stage3_build/generate_threejs_factory.py::createSculptMaterial",
+    "condition": "If implementation puts grids or other reference detail into image maps or a sampled texture, this textureless carrier contract must be re-reviewed. No removal of pattern detail is allowed.",
+    "limitation": "This evidence defines an explicit geometric representation; it does not prove the paths or per-submesh overrides have been implemented."
+  },
+  "materialModel": {
+    "actualGenerator": "MeshPhysicalMaterial regardless of prior type=basic label",
+    "proposal": "Matte emission-dominant material, roughness scalar 0.85, metalness/transmission/clearcoat 0, low specularF0, environment intensity 0, alpha-separated submeshes.",
+    "why": "The actual material branch consumes these scalars and explicit emission. This avoids pretending basic/unlit is implemented and avoids physical-glass transmission.",
+    "colorValues": "Artistic starting values based on visible color families; not sampled albedo measurements.",
+    "uncertainty": "Brightness, alpha, tone mapping and line width require browser comparison; no current fidelity score."
+  },
+  "preservedQuality": {
+    "criticalFeatureThreshold": 0.8,
+    "comparisonRequired": true,
+    "bloomOffRequired": true,
+    "orbitChecksRequired": true,
+    "physicalMaps": "not applicable to textureless carriers; all applicable validator gates are unchanged"
+  },
+  "generatorAudit": [
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py",
+      "finding": "createSculptMaterial honors textureless and emits MeshPhysicalMaterial with emissive/emissiveIntensity/opacity/roughness/transmission."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py",
+      "finding": "lathe geometry reads geometryDescriptor.latheProfile; generic profile is ignored. Unit radius 0.5 and unit height 1 are scaled by component dimensions."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py",
+      "finding": "null parent falls back to factory root only while no component takes reserved ID root."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py",
+      "finding": "Cylinder attachments use localStart/localEnd and radii; cap endpoints have explicit height/radius."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py",
+      "finding": "No current proof of rendererIntent depthWrite/blending, custom frame edge paths or per-submesh overrides; all remain runtime acceptance requirements."
+    }
+  ],
+  "localSpecSearch": {
+    "query": "unlit emission opacity geometric contour no surface texture",
+    "collection": "core_3d",
+    "index": {
+      "status": "hit",
+      "reason": "current",
+      "fingerprint": "62f2831e1d52eeb6dbb94a87c44fa25b1f4926626a7b1f8c2bcadc63e04e9471",
+      "cache_path": "/Users/mac/.img2threejs/releases/a669e9a97cea4452b1c2310c5cca6aa0f6657c1f/img2threejs/.cache/spec-search/core_3d.json"
+    },
+    "matches": [
+      {
+        "record_id": "core.pbr-emission",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.material_pbr[7]",
+        "score": 8.829723591743,
+        "snippets": [
+          "Self-illuminating surface layer independent of scene lighting, used for glowing indicators or self-illum masks. Lớp bề mặt tự phát sáng độc lập với ánh sáng cảnh, dùng cho đèn báo phát sáng hoặc mặt nạ self-illum. Recognition cues: A region stays bright/colored regardless of light direction or shadow (e.g. StatTrak orange LED counter module); Often masked to a small, specific submesh rather than the whole surface Dấu hiệu nhận diện: Một vùng ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[7]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      },
+      {
+        "record_id": "core.pbr-opacity-alpha",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.material_pbr[8]",
+        "score": 6.87758098193,
+        "snippets": [
+          "... non-transparency data channel. Kiểm soát độ trong suốt và chế độ blend của vật liệu; trong quy trình CS2, kênh alpha của Base Color được tái sử dụng làm kênh dữ liệu, không phải độ trong suốt. Recognition cues: Standard opacity: soft edge fade or full transparency in glass/plastic parts; CS2-specific: alpha channel of the base color texture instead encodes a Wearness Mask, not visual transparency Dấu hiệu nhận diện: Opacity tiêu chuẩn: ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[8]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      },
+      {
+        "record_id": "core.pbr-normal-map",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.material_pbr[2]",
+        "score": 6.383008832462,
+        "snippets": [
+          "Tangent-space RGB texture that perturbs surface normals to simulate fine geometric detail (engravings, scratches, weave) without added polycount. Kết cấu RGB không gian tiếp tuyến làm lệch pháp tuyến bề mặt để mô phỏng chi tiết hình học nhỏ (khắc chữ, vết trầy, dệt vải) mà không tăng số đa giác. Recognition cues: Fine surface relief (engraving, stippling, fabric weave, edge chips) visible under raking light but absent from the silhouette; ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[2]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      }
+    ]
+  }
+}

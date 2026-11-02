@@ -1,0 +1,26 @@
+{
+  "referenceAreaFraction": 0.3869836182336182,
+  "angles": [
+    {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/right.png",
+      "areaFraction": 0.38754748338081674,
+      "ratio": 1.0014570775625393,
+      "degenerate": false
+    },
+    {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/rear.png",
+      "areaFraction": 0.40957383665717,
+      "ratio": 1.0583751284528904,
+      "degenerate": false
+    },
+    {
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/left.png",
+      "areaFraction": 0.41436965811965815,
+      "ratio": 1.0707679565637511,
+      "degenerate": false
+    }
+  ],
+  "degenerate": false,
+  "collapseRatio": 0.15,
+  "note": "deterministic; zero token; a flat-plane-faking-a-volume collapses in silhouette area when orbited"
+}

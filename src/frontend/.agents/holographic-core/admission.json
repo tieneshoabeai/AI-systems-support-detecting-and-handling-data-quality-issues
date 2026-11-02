@@ -1,0 +1,16 @@
+{
+  "admitted": false,
+  "reasons": [
+    "foreground coverage 1.000 > 0.97 (no background to segment against — silhouette not isolable)"
+  ],
+  "provenance": {
+    "viewpoint": "reference",
+    "sourcePath": "/private/var/folders/nn/24dlps6s57d4_9pm73p0q8_40000gn/T/codex-clipboard-04192a78-026c-4d70-a506-88528997fec3.png",
+    "width": 468,
+    "height": 360,
+    "foregroundCoverage": 1.0,
+    "largestComponentFraction": 1.0,
+    "pHash": 16919934098173758088,
+    "duplicateOfHash": null
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "documentType": "deterministic-crop-manifest",
+  "sourceImage": "reference-multiview.png",
+  "regions": [
+    {
+      "id": "support-top",
+      "imageRegion": {
+        "x": 0,
+        "y": 0.1,
+        "width": 0.581,
+        "height": 0.795,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 0,
+        "y": 102,
+        "width": 892,
+        "height": 814
+      },
+      "path": "views/support-top.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    },
+    {
+      "id": "support-front",
+      "imageRegion": {
+        "x": 0.585,
+        "y": 0,
+        "width": 0.415,
+        "height": 0.463,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 899,
+        "y": 0,
+        "width": 637,
+        "height": 474
+      },
+      "path": "views/support-front.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    },
+    {
+      "id": "support-rear",
+      "imageRegion": {
+        "x": 0.585,
+        "y": 0.54,
+        "width": 0.415,
+        "height": 0.383,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 899,
+        "y": 553,
+        "width": 637,
+        "height": 392
+      },
+      "path": "views/support-rear.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    }
+  ],
+  "semanticInventory": "reference-analysis.json#/detailInventory"
+}

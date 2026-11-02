@@ -1,0 +1,79 @@
+{
+  "documentType": "deterministic-crop-manifest",
+  "sourceImage": "reference-primary.png",
+  "regions": [
+    {
+      "id": "core-upper",
+      "imageRegion": {
+        "x": 0.35,
+        "y": 0.22,
+        "width": 0.29,
+        "height": 0.32,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 500,
+        "y": 242,
+        "width": 415,
+        "height": 352
+      },
+      "path": "zones/core-upper.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    },
+    {
+      "id": "core-lower",
+      "imageRegion": {
+        "x": 0.28,
+        "y": 0.42,
+        "width": 0.44,
+        "height": 0.32,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 400,
+        "y": 462,
+        "width": 629,
+        "height": 352
+      },
+      "path": "zones/core-lower.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    },
+    {
+      "id": "base",
+      "imageRegion": {
+        "x": 0.025,
+        "y": 0.4,
+        "width": 0.95,
+        "height": 0.57,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 36,
+        "y": 440,
+        "width": 1358,
+        "height": 627
+      },
+      "path": "zones/base.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    },
+    {
+      "id": "columns",
+      "imageRegion": {
+        "x": 0.15,
+        "y": 0.02,
+        "width": 0.7,
+        "height": 0.55,
+        "units": "normalized"
+      },
+      "sourceRectPx": {
+        "x": 214,
+        "y": 22,
+        "width": 1001,
+        "height": 605
+      },
+      "path": "zones/columns.png",
+      "role": "evidence crop, not semantic inventory or an independent source capture"
+    }
+  ],
+  "semanticInventory": "reference-analysis.json#/detailInventory"
+}

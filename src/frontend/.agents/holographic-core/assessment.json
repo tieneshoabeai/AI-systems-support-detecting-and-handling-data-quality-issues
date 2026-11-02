@@ -1,0 +1,687 @@
+{
+  "targetName": "Layered Holographic Data Core",
+  "sourceImage": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-masked.png",
+  "preSpecAssessment": {
+    "objectClass": {
+      "primaryType": "layered holographic data core",
+      "primaryDomain": "object",
+      "formLanguage": [
+        "geometric",
+        "architectural",
+        "transparent-like",
+        "emissive"
+      ],
+      "structureKind": [
+        "compound assembly",
+        "layered shells",
+        "stepped frames",
+        "concentric bands"
+      ],
+      "motionPotential": [
+        "static first review",
+        "whole-object transform"
+      ],
+      "materialFamilies": [
+        "colored emissive projection",
+        "translucent surface"
+      ],
+      "notes": "Approved reference-analysis.json governs structure. Physical glass and the previous evenly spaced disc tower are superseded. Counts and depth are proposals, not recovered measurements."
+    },
+    "complexity": {
+      "tier": "complex",
+      "scores": {
+        "silhouetteComplexity": 2,
+        "componentCount": 3,
+        "hierarchyDepth": 2,
+        "repetitionDensity": 2,
+        "materialLayerCount": 3,
+        "localDetailDensity": 2,
+        "occlusionRisk": 3,
+        "actionReadinessNeed": 1
+      },
+      "estimatedCounts": {
+        "macroComponents": 4,
+        "mesoComponents": 9,
+        "microFeatureGroups": 12,
+        "materialLayers": 4,
+        "repetitionSystems": 3
+      },
+      "reasoning": [
+        "Circular core and bands overlap stepped cuboid frames; their interior placement is identity-defining.",
+        "Grid density, contour brightness and blue volume fill vary by subsystem.",
+        "Transparent scene and excluded label make depth and exact counts uncertain."
+      ]
+    },
+    "specDepthDecision": {
+      "requiredDepth": "complex",
+      "minimumComponentLevels": [
+        "macro",
+        "meso",
+        "micro"
+      ],
+      "needsRepetitionSystems": true,
+      "needsMaterialLocalOverrides": true,
+      "needsMultipleReviewViews": true,
+      "needsActionReadyHierarchy": true,
+      "rationale": "Macro core/frames/orbits/platform, meso layers and boxes, micro grids and localized highlights require separate ownership."
+    },
+    "unknownsToResolveBeforeImplementation": [],
+    "detailInventory": {
+      "scanMethod": "grid-3x3",
+      "targetMinDetails": 12,
+      "note": "Enumerate every identity-defining small detail before authoring the spec. Each detail must map to a component.localFeatures entry or material.localOverrides entry, never prose only. Use forge/stage1_intake/build_detail_inventory.py to scan zones.",
+      "details": [
+        {
+          "id": "D01",
+          "kind": "emissive",
+          "description": "Cyan elliptical cap",
+          "region": {
+            "x": 0.37,
+            "y": 0.2,
+            "width": 0.27,
+            "height": 0.13,
+            "units": "normalized"
+          },
+          "scale": "meso",
+          "affects": "emission",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "core-cap.cap-contour"
+          },
+          "evidenceRef": "zones/zone-r0c1.png",
+          "confidence": 0.9,
+          "realization": "unreported"
+        },
+        {
+          "id": "D02",
+          "kind": "emissive",
+          "description": "Dense blue core fill",
+          "region": {
+            "x": 0.38,
+            "y": 0.29,
+            "width": 0.25,
+            "height": 0.25,
+            "units": "normalized"
+          },
+          "scale": "macro",
+          "affects": "color",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "core-body.blue-density"
+          },
+          "evidenceRef": "zones/zone-r1c1.png",
+          "confidence": 0.9,
+          "realization": "unreported"
+        },
+        {
+          "id": "D03",
+          "kind": "contour",
+          "description": "Tall rear box frames",
+          "region": {
+            "x": 0.43,
+            "y": 0.03,
+            "width": 0.15,
+            "height": 0.2,
+            "units": "normalized"
+          },
+          "scale": "meso",
+          "affects": "geometry",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "frame-rear.rear-outline"
+          },
+          "evidenceRef": "zones/zone-r0c1.png",
+          "confidence": 0.85,
+          "realization": "unreported"
+        },
+        {
+          "id": "D04",
+          "kind": "contour",
+          "description": "Stepped lateral box heights",
+          "region": {
+            "x": 0.2,
+            "y": 0.18,
+            "width": 0.17,
+            "height": 0.37,
+            "units": "normalized"
+          },
+          "scale": "meso",
+          "affects": "geometry",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "frame-left.step-outline"
+          },
+          "evidenceRef": "zones/zone-r1c0.png",
+          "confidence": 0.85,
+          "realization": "unreported"
+        },
+        {
+          "id": "D05",
+          "kind": "emissive",
+          "description": "Violet band with several contours",
+          "region": {
+            "x": 0.13,
+            "y": 0.39,
+            "width": 0.75,
+            "height": 0.38,
+            "units": "normalized"
+          },
+          "scale": "meso",
+          "affects": "color",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "orbit-violet.band-contours"
+          },
+          "evidenceRef": "zones/zone-r1c2.png",
+          "confidence": 0.9,
+          "realization": "unreported"
+        },
+        {
+          "id": "D06",
+          "kind": "contour",
+          "description": "Closely layered cyan rings",
+          "region": {
+            "x": 0.22,
+            "y": 0.65,
+            "width": 0.6,
+            "height": 0.22,
+            "units": "normalized"
+          },
+          "scale": "meso",
+          "affects": "geometry",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "orbit-cyan.lower-contours"
+          },
+          "evidenceRef": "zones/zone-r2c1.png",
+          "confidence": 0.75,
+          "realization": "unreported"
+        },
+        {
+          "id": "D07",
+          "kind": "linework",
+          "description": "Horizontal and vertical curved grid",
+          "region": {
+            "x": 0.38,
+            "y": 0.3,
+            "width": 0.25,
+            "height": 0.24,
+            "units": "normalized"
+          },
+          "scale": "micro",
+          "affects": "color",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "core-body.curved-grid"
+          },
+          "evidenceRef": "zones/zone-r1c1.png",
+          "confidence": 0.85,
+          "realization": "unreported"
+        },
+        {
+          "id": "D08",
+          "kind": "linework",
+          "description": "Sparse planar frame grid",
+          "region": {
+            "x": 0.65,
+            "y": 0.2,
+            "width": 0.1,
+            "height": 0.25,
+            "units": "normalized"
+          },
+          "scale": "micro",
+          "affects": "color",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "frame-right.planar-grid"
+          },
+          "evidenceRef": "zones/zone-r0c2.png",
+          "confidence": 0.7,
+          "realization": "unreported"
+        },
+        {
+          "id": "D09",
+          "kind": "contour",
+          "description": "Fainter rear edges",
+          "region": {
+            "x": 0.43,
+            "y": 0.03,
+            "width": 0.15,
+            "height": 0.2,
+            "units": "normalized"
+          },
+          "scale": "micro",
+          "affects": "color",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "frame-rear.depth-fade"
+          },
+          "evidenceRef": "zones/zone-r0c1.png",
+          "confidence": 0.75,
+          "realization": "unreported"
+        },
+        {
+          "id": "D10",
+          "kind": "emissive",
+          "description": "Localized lower cyan node",
+          "region": {
+            "x": 0.45,
+            "y": 0.69,
+            "width": 0.12,
+            "height": 0.12,
+            "units": "normalized"
+          },
+          "scale": "micro",
+          "affects": "emission",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "lower-node.node-glow"
+          },
+          "evidenceRef": "zones/zone-r2c1.png",
+          "confidence": 0.8,
+          "realization": "unreported"
+        },
+        {
+          "id": "D11",
+          "kind": "linework",
+          "description": "Lower outward technical traces",
+          "region": {
+            "x": 0.25,
+            "y": 0.79,
+            "width": 0.5,
+            "height": 0.15,
+            "units": "normalized"
+          },
+          "scale": "micro",
+          "affects": "geometry",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "platform.radial-traces"
+          },
+          "evidenceRef": "zones/zone-r2c1.png",
+          "confidence": 0.65,
+          "realization": "unreported"
+        },
+        {
+          "id": "D12",
+          "kind": "contour",
+          "description": "Dark separation between lower layers",
+          "region": {
+            "x": 0.29,
+            "y": 0.69,
+            "width": 0.45,
+            "height": 0.18,
+            "units": "normalized"
+          },
+          "scale": "meso",
+          "affects": "geometry",
+          "mapsTo": {
+            "type": "component.localFeatures",
+            "ref": "lower-shell.layer-gaps"
+          },
+          "evidenceRef": "zones/zone-r2c1.png",
+          "confidence": 0.7,
+          "realization": "unreported"
+        }
+      ]
+    },
+    "anatomy": {
+      "applies": false,
+      "styleHeads": 0,
+      "proportions": {
+        "headUnit": 0,
+        "torso": 0,
+        "legs": 0,
+        "shoulderWidth": 0,
+        "hipWidth": 0
+      },
+      "pose": {
+        "type": "unassessed",
+        "jointAngles": {}
+      },
+      "faceLandmarks": {
+        "eyeLine": 0,
+        "eyeSpacing": 0,
+        "noseBase": 0,
+        "mouthLine": 0,
+        "hairline": 0
+      },
+      "features": [],
+      "confidence": 0,
+      "note": "Only meaningful when objectClass.primaryDomain is character or hybrid. Set applies=true and fill from forge/stage1_intake/extract_landmarks.py. See grimoire/character/reconstruction.md and grimoire/character/likeness_maximization.md."
+    },
+    "sourceImage": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-masked.png",
+    "referenceLimitations": [
+      {
+        "id": "L1",
+        "description": "Camera is unsolved; proposed unit-space placements must be checked against the 468x360 reference.",
+        "status": "retained-unverified",
+        "handling": "Camera hypotheses are fully specified and will be calibrated during the blockout pass; not declared solved."
+      },
+      {
+        "id": "L2",
+        "description": "Exact frame and lower-layer counts are unresolved; initial counts are explicit blockout proposals for human review.",
+        "status": "retained-unverified",
+        "handling": "Initial counts and depth are explicitly reviewable trial parameters, not a claim of exact recovery."
+      },
+      {
+        "id": "L3",
+        "description": "Rear geometry is inferred only; no new reference view is available.",
+        "status": "retained-unverified",
+        "handling": "Only the reference camera is a fidelity target; rear/orbit views are structural checks, not source evidence."
+      },
+      {
+        "id": "L4",
+        "description": "Masked label region is an exclusion, never a hole to model.",
+        "status": "retained-unverified",
+        "handling": "Excluded label is excluded from comparison; no hidden pixels or hole geometry are invented."
+      },
+      {
+        "id": "L5",
+        "description": "Physical PBR recovery is not appropriate evidence of an emissive composited hologram; material evidence route requires documented applicability.",
+        "status": "retained-unverified",
+        "handling": "Emission-dominant geometric surface route is documented in material-evidence.json; physical PBR extraction is not claimed."
+      }
+    ],
+    "uncertaintyPolicy": "No missing input/behavior blocks authoring a trial spec. Reference uncertainties remain recorded above. Strict schema acceptance never approves trial counts, calibrates camera, or authorizes implementation; human review and render gates remain mandatory."
+  },
+  "qualityContract": {
+    "qualityBar": "complex",
+    "definitionOfDone": [
+      "Match the wide layered silhouette, blue core with luminous cap, stepped rectangular frames and multi-contour violet orbit at the reference camera.",
+      "Review a neutral structural blockout before colored surfaces or bloom; excluded label pixels do not count as empty object space.",
+      "At look-dev preserve dark gaps, denser blue core, subdued rear lines and selective cyan highlights; no polished-glass tower.",
+      "All 12 observed details remain explicit geometric or scalar material responsibilities; textureless carriers do not erase grids or contours."
+    ],
+    "minimumSpecDepth": {
+      "macroComponents": 3,
+      "mesoComponents": 8,
+      "microFeatureGroups": 5,
+      "materialLayers": 3,
+      "repetitionSystems": 1,
+      "reviewViewpoints": 4
+    },
+    "featureGroups": [
+      {
+        "id": "assembly-footprint",
+        "name": "Wide layered projected silhouette",
+        "required": true,
+        "qualityCriteria": [
+          "Match broad orbital footprint and upright stepped frames at 468x360 without using the coarse ROI polygon as exact silhouette."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "tall thin disc tower",
+          "frame outlines missing"
+        ]
+      },
+      {
+        "id": "capped-core",
+        "name": "Blue core and closed luminous cap",
+        "required": true,
+        "qualityCriteria": [
+          "Closed cap overlaps core geometrically by proposed 0.02; blue volume and cap rim remain distinguishable."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "dark hollow tube opening",
+          "colorless glass core"
+        ]
+      },
+      {
+        "id": "stepped-frame-system",
+        "name": "Independent rectangular projection frames",
+        "required": true,
+        "qualityCriteria": [
+          "Unequal-height cuboids are siblings of the core under factory root; edge paths and sparse face grids are required at structural pass."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "all boxes fused or equally tall",
+          "independent projections move when only the core is transformed"
+        ]
+      },
+      {
+        "id": "layered-orbits",
+        "name": "Violet annulus and nearby cyan layers",
+        "required": true,
+        "qualityCriteria": [
+          "Authored normalized latheProfile creates thin annuli; adjacent contour geometry preserves band width and unequal spacing."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "default lathe vase due to ignored profile field",
+          "thick torus instead of annular band"
+        ]
+      },
+      {
+        "id": "emissive-depth-system",
+        "name": "Colored projected volumes with localized detail",
+        "required": true,
+        "qualityCriteria": [
+          "Matte emissive carriers plus geometric contour/grid layers preserve blue/cyan/violet hierarchy and dark gaps; no invented PBR maps."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "uniform neon lines",
+          "studio glass appearance",
+          "bloom hides technical pattern"
+        ]
+      }
+    ],
+    "visualDeltaChecks": [
+      "projected silhouette and ellipse landmarks",
+      "frame height/depth ordering",
+      "cap and lower-layer spacing",
+      "geometric contour/grid density",
+      "blue/cyan/violet intensity hierarchy",
+      "dark gaps and occlusion exclusion"
+    ],
+    "antiShallowSpecRules": [
+      "Do not generate code before strict validation and human approval of the source implementation plan.",
+      "Preserve macro, meso and micro responsibilities; no one-mesh stand-in for this compound assembly.",
+      "All observed details must map to localFeatures, material localOverrides or geometric repetition responsibilities.",
+      "Physical attachment contracts apply only to the cap; independently projected layers must not invent sockets or positive overlap to satisfy a gate.",
+      "No material is labelled textureless unless its uniform carrier has evidence and every visible pattern remains assigned to separate geometry or per-submesh scalars.",
+      "Any later use of sampled texture detail invalidates that carrier's textureless declaration and requires re-review of applicable texture-channel gates.",
+      "Never infer physical PBR maps or extraction confidence from this synthetic composite.",
+      "Do not advance visual passes from schema validation alone; use reference camera evidence and critical feature scores.",
+      "A coarse ROI or label exclusion cannot be used as exact ground-truth silhouette."
+    ],
+    "mustNotDo": [
+      "Do not generate code before strict validation and human approval of the source implementation plan.",
+      "Preserve macro, meso and micro responsibilities; no one-mesh stand-in for this compound assembly.",
+      "All observed details must map to localFeatures, material localOverrides or geometric repetition responsibilities.",
+      "Physical attachment contracts apply only to the cap; independently projected layers must not invent sockets or positive overlap to satisfy a gate.",
+      "No material is labelled textureless unless its uniform carrier has evidence and every visible pattern remains assigned to separate geometry or per-submesh scalars.",
+      "Any later use of sampled texture detail invalidates that carrier's textureless declaration and requires re-review of applicable texture-channel gates.",
+      "Never infer physical PBR maps or extraction confidence from this synthetic composite.",
+      "Do not advance visual passes from schema validation alone; use reference camera evidence and critical feature scores.",
+      "A coarse ROI or label exclusion cannot be used as exact ground-truth silhouette."
+    ]
+  },
+  "authoringInstruction": "Fill observed object class, complexity reasoning, featureGroups, visualDeltaChecks, and unknowns before generating or implementing ObjectSculptSpec.",
+  "localSpecSearch": {
+    "collection": "core_3d",
+    "query": "Layered Holographic Data Core cylinder annular band cuboid edge frames layered transparent emissive surface grid hologram additive blending depth sorting bloom line geometry",
+    "index": {
+      "status": "hit",
+      "reason": "current",
+      "fingerprint": "62f2831e1d52eeb6dbb94a87c44fa25b1f4926626a7b1f8c2bcadc63e04e9471"
+    },
+    "matches": [
+      {
+        "record_id": "core.pbr-color-space-srgb-vs-linearnocolorspace",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.material_pbr[11]",
+        "score": 7.790095285419,
+        "snippets": [
+          "Distinction between human-viewable color data (needs gamma/sRGB) and mathematical data maps (must stay linear/uncorrected). Phân biệt giữa dữ liệu màu để người xem (cần gamma/sRGB) và các bản đồ dữ liệu toán học (phải giữ tuyến tính/không hiệu ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[11]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      },
+      {
+        "record_id": "core.pbr-opacity-alpha",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.material_pbr[8]",
+        "score": 7.224124862899,
+        "snippets": [
+          "... transparency and blend mode; in CS2 workflows the alpha channel of Base Color is repurposed as a non-transparency data channel. Kiểm soát độ trong suốt và chế độ blend của vật liệu; trong quy trình CS2, kênh alpha của Base Color được ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[8]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      },
+      {
+        "record_id": "core.topology-intent",
+        "file_path": "grimoire/glossary/3d_vocabulary.md",
+        "heading": "Geometry And Topology",
+        "key_path": null,
+        "score": 7.138843433937,
+        "snippets": [
+          "Topology intent classifies a surface as hard-surface blockout, subdivision-ready, low-poly prop, organic deformed mesh, or alpha-card cluster."
+        ],
+        "source_refs": [
+          {
+            "path": "grimoire/glossary/3d_vocabulary.md",
+            "heading": "Geometry And Topology",
+            "key_path": null
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "grimoire/glossary/3d_vocabulary.md"
+          },
+          {
+            "kind": "notebooklm-research",
+            "ref": "notebooklm:4b03c2f9-8393-411f-b5b4-039ab9532843",
+            "note": "Validated generic schema vocabulary; numeric claims remain backed by local source_refs."
+          }
+        ]
+      }
+    ],
+    "supplementalSearches": [
+      {
+        "query": "unlit emission opacity geometric contour no surface texture",
+        "collection": "core_3d",
+        "index": {
+          "status": "hit",
+          "reason": "current",
+          "fingerprint": "62f2831e1d52eeb6dbb94a87c44fa25b1f4926626a7b1f8c2bcadc63e04e9471",
+          "cache_path": "/Users/mac/.img2threejs/releases/a669e9a97cea4452b1c2310c5cca6aa0f6657c1f/img2threejs/.cache/spec-search/core_3d.json"
+        },
+        "matches": [
+          {
+            "record_id": "core.pbr-emission",
+            "file_path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[7]",
+            "score": 8.829723591743,
+            "snippets": [
+              "Self-illuminating surface layer independent of scene lighting, used for glowing indicators or self-illum masks. Lớp bề mặt tự phát sáng độc lập với ánh sáng cảnh, dùng cho đèn báo phát sáng hoặc mặt nạ self-illum. Recognition cues: A region stays bright/colored regardless of light direction or shadow (e.g. StatTrak orange LED counter module); Often masked to a small, specific submesh rather than the whole surface Dấu hiệu nhận diện: Một vùng ..."
+            ],
+            "source_refs": [
+              {
+                "path": "docs/raw/img2threejs-skill-dataset.json",
+                "heading": null,
+                "key_path": "categories.material_pbr[7]"
+              }
+            ],
+            "evidence_refs": [
+              {
+                "kind": "source",
+                "ref": "docs/raw/img2threejs-skill-dataset.json",
+                "note": "img2threejs NotebookLM research distillation"
+              }
+            ]
+          },
+          {
+            "record_id": "core.pbr-opacity-alpha",
+            "file_path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[8]",
+            "score": 6.87758098193,
+            "snippets": [
+              "... non-transparency data channel. Kiểm soát độ trong suốt và chế độ blend của vật liệu; trong quy trình CS2, kênh alpha của Base Color được tái sử dụng làm kênh dữ liệu, không phải độ trong suốt. Recognition cues: Standard opacity: soft edge fade or full transparency in glass/plastic parts; CS2-specific: alpha channel of the base color texture instead encodes a Wearness Mask, not visual transparency Dấu hiệu nhận diện: Opacity tiêu chuẩn: ..."
+            ],
+            "source_refs": [
+              {
+                "path": "docs/raw/img2threejs-skill-dataset.json",
+                "heading": null,
+                "key_path": "categories.material_pbr[8]"
+              }
+            ],
+            "evidence_refs": [
+              {
+                "kind": "source",
+                "ref": "docs/raw/img2threejs-skill-dataset.json",
+                "note": "img2threejs NotebookLM research distillation"
+              }
+            ]
+          },
+          {
+            "record_id": "core.pbr-normal-map",
+            "file_path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.material_pbr[2]",
+            "score": 6.383008832462,
+            "snippets": [
+              "Tangent-space RGB texture that perturbs surface normals to simulate fine geometric detail (engravings, scratches, weave) without added polycount. Kết cấu RGB không gian tiếp tuyến làm lệch pháp tuyến bề mặt để mô phỏng chi tiết hình học nhỏ (khắc chữ, vết trầy, dệt vải) mà không tăng số đa giác. Recognition cues: Fine surface relief (engraving, stippling, fabric weave, edge chips) visible under raking light but absent from the silhouette; ..."
+            ],
+            "source_refs": [
+              {
+                "path": "docs/raw/img2threejs-skill-dataset.json",
+                "heading": null,
+                "key_path": "categories.material_pbr[2]"
+              }
+            ],
+            "evidence_refs": [
+              {
+                "kind": "source",
+                "ref": "docs/raw/img2threejs-skill-dataset.json",
+                "note": "img2threejs NotebookLM research distillation"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

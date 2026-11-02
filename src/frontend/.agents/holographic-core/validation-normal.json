@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "targetName": "Layered Holographic Data Core",
+    "suitability": "conditional",
+    "components": 14,
+    "materials": 4
+  }
+}

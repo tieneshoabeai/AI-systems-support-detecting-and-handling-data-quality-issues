@@ -1,0 +1,385 @@
+{
+  "documentType": "geometry-proposal-not-ObjectSculptSpec",
+  "version": "2.0",
+  "status": "approved-as-initial-model-layout; not a measurement of source geometry",
+  "sourceAnalysis": "reference-analysis.json",
+  "notImplementationReady": true,
+  "coordinateFrame": {
+    "up": "+Y",
+    "front": "+Z",
+    "right": "+X",
+    "origin": "center of base at its bottom plane",
+    "angleRule": "theta=0 points +Z; x=radius*sin(theta), z=radius*cos(theta)",
+    "unit": "relative; upper-core radius=0.9",
+    "pixelMapping": "camera projection at 1430x1100 or aspect-preserving 468x360"
+  },
+  "coreStack": [
+    {
+      "id": "core-upper",
+      "kind": "cylinder",
+      "radius": 0.9,
+      "bottomY": 1.3,
+      "topY": 2.4,
+      "status": "proposal"
+    },
+    {
+      "id": "core-cap",
+      "kind": "thin-closed-cylinder",
+      "radius": 0.92,
+      "centerY": 2.4,
+      "height": 0.04,
+      "overlapWithUpper": 0.02,
+      "status": "proposal"
+    },
+    {
+      "id": "core-lower",
+      "kind": "cylinder",
+      "radius": 0.9,
+      "bottomY": 0.35,
+      "topY": 1.3,
+      "status": "proposal"
+    },
+    {
+      "id": "core-mid-collar",
+      "kind": "annular-collar",
+      "innerRadius": 0.915,
+      "outerRadius": 1.45,
+      "centerY": 1.18,
+      "height": 0.32,
+      "innerRadiusStatus": "proposal to avoid coincident surfaces; exact radial gap is not measured",
+      "status": "proposal"
+    },
+    {
+      "id": "core-lower-collar",
+      "kind": "annular-collar",
+      "innerRadius": 0.915,
+      "outerRadius": 1.32,
+      "centerY": 0.44,
+      "height": 0.1,
+      "status": "proposal"
+    },
+    {
+      "id": "core-foot",
+      "kind": "short-cylinder",
+      "radius": 0.96,
+      "bottomY": 0.1,
+      "topY": 0.35,
+      "status": "proposal"
+    }
+  ],
+  "towerLayout": {
+    "count": 9,
+    "countStatus": "user-approved initial design count, not a verified source count",
+    "placement": "explicit polar seeds, unequal heights; no equal-height ring of boxes",
+    "highestTowerId": "tower-01-back-high",
+    "columns": [
+      {
+        "id": "tower-01-back-high",
+        "angle": 225,
+        "radius": 2.05,
+        "width": 0.76,
+        "depth": 0.76,
+        "height": 3,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          -1.449569,
+          1.95,
+          -1.449569
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-02",
+        "angle": 180,
+        "radius": 1.93,
+        "width": 0.48,
+        "depth": 0.48,
+        "height": 2.15,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          0,
+          1.525,
+          -1.93
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-03",
+        "angle": 140,
+        "radius": 1.98,
+        "width": 0.45,
+        "depth": 0.45,
+        "height": 1.8,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          1.272719,
+          1.35,
+          -1.516768
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-04",
+        "angle": 95,
+        "radius": 2.02,
+        "width": 0.42,
+        "depth": 0.42,
+        "height": 1.2,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          2.012313,
+          1.05,
+          -0.176055
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-05",
+        "angle": 55,
+        "radius": 1.94,
+        "width": 0.36,
+        "depth": 0.36,
+        "height": 0.85,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          1.589155,
+          0.875,
+          1.112738
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-06",
+        "angle": 15,
+        "radius": 1.98,
+        "width": 0.4,
+        "depth": 0.4,
+        "height": 1,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          0.512462,
+          0.95,
+          1.912533
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-07",
+        "angle": 330,
+        "radius": 2.02,
+        "width": 0.42,
+        "depth": 0.42,
+        "height": 1.3,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          -1.01,
+          1.1,
+          1.749371
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-08",
+        "angle": 285,
+        "radius": 1.96,
+        "width": 0.46,
+        "depth": 0.46,
+        "height": 2,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          -1.893215,
+          1.45,
+          0.507285
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      },
+      {
+        "id": "tower-09",
+        "angle": 250,
+        "radius": 1.92,
+        "width": 0.46,
+        "depth": 0.46,
+        "height": 2.2,
+        "angleUnit": "degrees",
+        "bottomY": 0.45,
+        "center": [
+          -1.80421,
+          1.55,
+          -0.656679
+        ],
+        "status": "approved initial layout hypothesis; source geometry not measured",
+        "sourceSupport": "primary plus qualitative top view; exact cross-view correspondence is unverified"
+      }
+    ],
+    "interaction": "static first review",
+    "mechanicalAttachmentsClaimed": false,
+    "clearancePolicy": "Initial boxes avoid mutual XZ overlap and stay outside the widest core collar. This is a proposal consistency check, not recovered source geometry."
+  },
+  "baseAssembly": {
+    "shell": {
+      "kind": "annular-shell",
+      "innerRadius": 2.15,
+      "outerRadius": 3.1,
+      "bottomY": 0,
+      "topY": 0.45
+    },
+    "deck": {
+      "kind": "annular-surface",
+      "innerRadius": 2.15,
+      "outerRadius": 3.1,
+      "centerY": 0.45,
+      "thickness": 0.015
+    },
+    "sectors": {
+      "kind": "repeated-annular-sectors",
+      "count": 8,
+      "countStatus": "user-approved initial design count, not a verified source count",
+      "innerRadius": 2.15,
+      "outerRadius": 3.2,
+      "bottomY": 0,
+      "topY": 0.5,
+      "angularWidthDegrees": 24,
+      "angleCentersDegrees": [
+        0,
+        45,
+        90,
+        135,
+        180,
+        225,
+        270,
+        315
+      ],
+      "gapBetweenPanelAnglesDegrees": 21
+    },
+    "innerField": {
+      "kind": "open-grid-field",
+      "innerRadius": 0.96,
+      "outerRadius": 2.15,
+      "centerY": 0.45,
+      "opaqueDiskAllowed": false
+    },
+    "physicalThroughHoleEstablished": false
+  },
+  "orbitalSystem": {
+    "violet": {
+      "kind": "circular-path-and-faint-annular-band",
+      "radius": 2.53,
+      "centerY": 0.52,
+      "lineWidthProposal": 0.018,
+      "bandWidthProposal": 0.13
+    },
+    "cyanRims": {
+      "kind": "named-circular-paths",
+      "paths": [
+        {
+          "id": "outer-top",
+          "radius": 3.1,
+          "y": 0.45
+        },
+        {
+          "id": "outer-bottom",
+          "radius": 3.1,
+          "y": 0
+        },
+        {
+          "id": "inner-top",
+          "radius": 2.15,
+          "y": 0.455
+        }
+      ]
+    }
+  },
+  "repetitionProposals": [
+    {
+      "id": "upper-meridians",
+      "owner": "core-upper",
+      "count": 32,
+      "distribution": "angular",
+      "status": "proposal"
+    },
+    {
+      "id": "upper-horizontal-grid",
+      "owner": "core-upper",
+      "count": 8,
+      "distribution": "height",
+      "status": "proposal"
+    },
+    {
+      "id": "cap-concentric",
+      "owner": "core-cap",
+      "count": 12,
+      "distribution": "radius",
+      "status": "proposal"
+    },
+    {
+      "id": "cap-spokes",
+      "owner": "core-cap",
+      "count": 32,
+      "distribution": "angle",
+      "status": "proposal"
+    },
+    {
+      "id": "deck-radial",
+      "owner": "base-deck",
+      "count": 64,
+      "distribution": "angle",
+      "status": "proposal"
+    },
+    {
+      "id": "deck-concentric",
+      "owner": "base-deck",
+      "count": 10,
+      "distribution": "radius",
+      "status": "proposal"
+    },
+    {
+      "id": "column-face-grids",
+      "owner": "tower-assembly",
+      "distribution": "local face coordinates; denser on tall faces",
+      "count": null,
+      "countStatus": "choose after projected pixel size is reviewed"
+    },
+    {
+      "id": "data-glyph-clusters",
+      "owner": "tower-assembly/base-shell",
+      "distribution": "reference-region guided clusters",
+      "count": null,
+      "countStatus": "not measured; do not invent a fixed source glyph count"
+    }
+  ],
+  "rendererContracts": {
+    "factoryRootIdReserved": "root",
+    "scaleSource": "dimensions, not an explicit identity transform.scale that overrides generator dimensions",
+    "annuli": "normalized latheProfile is supported for full annuli",
+    "sectorPanels": "partial-angle annular sectors need an explicitly implemented Shape/Extrude or BufferGeometry path; stock full-lathe emission is not proof of support",
+    "frameFaces": "keep faint blue face carriers separate from edge paths in material pass",
+    "noBakedScreenshotProjection": true
+  },
+  "sourceCodeChangeAuthorized": false,
+  "proposedNextStep": "Author formal ObjectSculptSpec v2 and validate; source work and blockout revision require a separate approved plan.",
+  "approval": {
+    "source": "User confirmed the proposed 9 columns and 8 radial sectors in this chat.",
+    "counts": {
+      "columns": 9,
+      "sectors": 8
+    },
+    "scope": "Formal spec authoring only; initial proportions remain testable modeling hypotheses, not calibrated measurements.",
+    "sourceImplementationAuthorized": false
+  }
+}

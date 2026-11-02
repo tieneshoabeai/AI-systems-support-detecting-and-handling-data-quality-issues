@@ -1,0 +1,35 @@
+.dataset-3d-page { min-height: 100dvh; box-sizing: border-box; display: grid; grid-template-rows: auto auto auto; align-content: start; gap: 14px; padding: clamp(16px, 2.4vw, 34px); color: #d7edff; background: radial-gradient(circle at 50% 34%, #06182b 0%, #01060c 58%, #000000 100%); }
+.dataset-3d-header { display: flex; align-items: end; justify-content: space-between; gap: 24px; min-width: 0; }
+.dataset-3d-header h1 { margin: 8px 0 0; font-size: clamp(24px, 3vw, 38px); letter-spacing: -.04em; }
+.dataset-3d-header p, .dataset-3d-boundary { max-width: 430px; margin: 0; color: #90b7d4; font-size: 12px; line-height: 1.6; }
+.dataset-3d-back { color: #7be9ff; font-size: 12px; font-weight: 700; text-decoration: none; }
+.dataset-3d-back:hover { color: #d3faff; text-decoration: underline; }
+.dataset-3d-stage { position: relative; width: min(100%, 1500px, calc((100dvh - 210px) * 16 / 9)); aspect-ratio: 16 / 9; min-height: 0; margin-inline: auto; overflow: hidden; border: 1px solid rgb(116 231 255 / 26%); border-radius: 22px; background: #000; box-shadow: inset 0 1px 0 rgb(198 250 255 / 12%), 0 20px 70px rgb(0 0 0 / 30%); }
+.dataset-3d-canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; }
+.dataset-3d-overlay { position: absolute; inset: 0; pointer-events: none; }
+.dataset-3d-detach { pointer-events: auto; position: absolute; left: 18px; bottom: 18px; padding: 9px 16px; border: 1px solid rgb(119 234 255 / 55%); border-radius: 999px; color: #bdf4ff; background: rgb(4 16 32 / 72%); backdrop-filter: blur(8px); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; cursor: pointer; transition: background-color .18s ease, color .18s ease, border-color .18s ease; }
+.dataset-3d-detach:hover { border-color: #8ff1ff; color: #e6feff; }
+.dataset-3d-detach:focus-visible { outline: 2px solid #8ff1ff; outline-offset: 2px; }
+.dataset-3d-detach[aria-pressed="true"] { color: #031321; background: #7be9ff; border-color: #b7f7ff; }
+.dataset-3d-detach[aria-pressed="true"]:hover { background: #a5f2ff; color: #02101c; }
+.dataset-3d-detail { pointer-events: auto; position: absolute; top: 18px; right: 18px; width: min(320px, 38%); max-height: calc(100% - 36px); overflow: auto; box-sizing: border-box; padding: 14px 16px 16px; border: 1px solid rgb(116 231 255 / 30%); border-radius: 16px; background: rgb(4 12 26 / 84%); backdrop-filter: blur(12px); color: #d3f2ff; box-shadow: 0 18px 44px rgb(0 0 0 / 45%); }
+.dataset-3d-detail header { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.dataset-3d-detail header p { margin: 4px 0 0; color: #7be9ff; font-size: 10px; font-weight: 700; letter-spacing: .18em; }
+.dataset-3d-detail header button { flex: none; width: 26px; height: 26px; border: 1px solid rgb(119 234 255 / 30%); border-radius: 50%; color: #9fe3f6; background: transparent; font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
+.dataset-3d-detail header button:hover { color: #eafcff; border-color: #8ff1ff; }
+.dataset-3d-detail h2 { margin: 10px 0 12px; color: #eafbff; font-size: 18px; letter-spacing: -.01em; }
+.dataset-3d-detail dl { display: grid; grid-template-columns: 86px 1fr; gap: 7px 12px; margin: 0; font-size: 12px; line-height: 1.5; }
+.dataset-3d-detail dt { color: #6fa8c8; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.dataset-3d-detail dd { margin: 0; color: #d3f2ff; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dataset-3d-detail-empty { margin: 10px 0 0; color: #93bcd4; font-size: 12px; line-height: 1.6; }
+.dataset-3d-fallback { min-height: 360px; display: grid; place-content: center; gap: 8px; padding: 28px; text-align: center; color: #c9e7f6; background: #050a16; }
+.dataset-3d-fallback strong { color: #effbff; }
+.dataset-3d-fallback p { max-width: 360px; margin: 0; color: #90b7d4; font-size: 13px; line-height: 1.6; }
+.dataset-3d-boundary { max-width: none; }
+@media (max-width: 680px) {
+  .dataset-3d-page { min-height: 100dvh; grid-template-rows: auto minmax(360px, 1fr) auto; }
+  .dataset-3d-header { align-items: start; flex-direction: column; gap: 10px; }
+  .dataset-3d-stage { border-radius: 16px; }
+  .dataset-3d-detach { top: 12px; left: 12px; bottom: auto; }
+  .dataset-3d-detail { top: auto; right: 10px; bottom: 10px; left: 10px; width: auto; max-height: 44%; }
+}

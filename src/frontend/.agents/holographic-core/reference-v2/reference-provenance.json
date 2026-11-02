@@ -1,0 +1,73 @@
+{
+  "originalImages": [
+    {
+      "id": "primary",
+      "path": "reference-primary.png",
+      "role": "appearance-and-composition-authority",
+      "widthPx": 1430,
+      "heightPx": 1100,
+      "originalPath": "/Users/mac/Downloads/Neon Holographic Data City.png",
+      "sha256": "9374403b07ae9c2906b6f51af17d2b397dd57e88ca1afce21fee45229d510d14",
+      "admission": "admission-primary.json",
+      "quantitativeSilhouetteUse": true
+    },
+    {
+      "path": "reference-multiview.png",
+      "originalPath": "/Users/mac/Downloads/Holographic Orbital Energy Core Showcase.png",
+      "sha256": "e575b403643a34eda0392041e143f1ecf8548465b6cad549f12b3b191f57a561",
+      "widthPx": 1536,
+      "heightPx": 1024
+    }
+  ],
+  "copiesByteIdentical": true,
+  "cropMethod": "existing img2threejs build_detail_inventory.py component-zones; deterministic rectangular crops, no generated pixels, no upscaling or retouching",
+  "sheetViews": [
+    {
+      "id": "support-top",
+      "path": "views/support-top.png",
+      "role": "qualitative-high-angle-structure-support",
+      "widthPx": 892,
+      "heightPx": 814,
+      "sheetCropPx": {
+        "x": 0,
+        "y": 102,
+        "width": 892,
+        "height": 814
+      },
+      "admission": "admission-top.json",
+      "quantitativeSilhouetteUse": false
+    },
+    {
+      "id": "support-front",
+      "path": "views/support-front.png",
+      "role": "qualitative-front-oblique-structure-support",
+      "widthPx": 637,
+      "heightPx": 474,
+      "sheetCropPx": {
+        "x": 899,
+        "y": 0,
+        "width": 637,
+        "height": 474
+      },
+      "admission": "admission-front.json",
+      "quantitativeSilhouetteUse": false
+    },
+    {
+      "id": "support-rear",
+      "path": "views/support-rear.png",
+      "role": "qualitative-rear-structure-support",
+      "widthPx": 637,
+      "heightPx": 392,
+      "sheetCropPx": {
+        "x": 899,
+        "y": 553,
+        "width": 637,
+        "height": 392
+      },
+      "admission": "admission-rear.json",
+      "quantitativeSilhouetteUse": false
+    }
+  ],
+  "labelsExcluded": true,
+  "caveat": "Opaque source PNGs are cropped; no original pixels are reconstructed or AI-generated."
+}

@@ -1,0 +1,1393 @@
+{
+  "documentType": "reference-analysis",
+  "version": "2.0",
+  "status": "analysis accepted for initial model design; formal representation is object-sculpt-spec.json",
+  "userConfirmedDecisions": [
+    "primary image determines appearance/composition",
+    "three cropped sheet views provide structural context",
+    "update specification before modifying blockout"
+  ],
+  "scope": {
+    "include": [
+      "central coaxial core",
+      "radial column family",
+      "annular base with vertical curved wall",
+      "radial sector panels",
+      "base-registered violet loop",
+      "technical grids/data marks/highlight hierarchy"
+    ],
+    "exclude": [
+      "UI panels",
+      "dataset labels",
+      "API/auth",
+      "animation",
+      "implementation or regeneration of blockout in this batch"
+    ]
+  },
+  "referenceAuthority": {
+    "primary": {
+      "id": "primary",
+      "path": "reference-primary.png",
+      "role": "appearance-and-composition-authority",
+      "widthPx": 1430,
+      "heightPx": 1100,
+      "originalPath": "/Users/mac/Downloads/Neon Holographic Data City.png",
+      "sha256": "9374403b07ae9c2906b6f51af17d2b397dd57e88ca1afce21fee45229d510d14",
+      "admission": "admission-primary.json",
+      "quantitativeSilhouetteUse": true
+    },
+    "supportSheet": {
+      "path": "reference-multiview.png",
+      "widthPx": 1536,
+      "heightPx": 1024,
+      "originalPath": "/Users/mac/Downloads/Holographic Orbital Energy Core Showcase.png",
+      "sha256": "e575b403643a34eda0392041e143f1ecf8548465b6cad549f12b3b191f57a561"
+    },
+    "supportViews": [
+      {
+        "id": "support-top",
+        "path": "views/support-top.png",
+        "role": "qualitative-high-angle-structure-support",
+        "widthPx": 892,
+        "heightPx": 814,
+        "sheetCropPx": {
+          "x": 0,
+          "y": 102,
+          "width": 892,
+          "height": 814
+        },
+        "admission": "admission-top.json",
+        "quantitativeSilhouetteUse": false
+      },
+      {
+        "id": "support-front",
+        "path": "views/support-front.png",
+        "role": "qualitative-front-oblique-structure-support",
+        "widthPx": 637,
+        "heightPx": 474,
+        "sheetCropPx": {
+          "x": 899,
+          "y": 0,
+          "width": 637,
+          "height": 474
+        },
+        "admission": "admission-front.json",
+        "quantitativeSilhouetteUse": false
+      },
+      {
+        "id": "support-rear",
+        "path": "views/support-rear.png",
+        "role": "qualitative-rear-structure-support",
+        "widthPx": 637,
+        "heightPx": 392,
+        "sheetCropPx": {
+          "x": 899,
+          "y": 553,
+          "width": 637,
+          "height": 392
+        },
+        "admission": "admission-rear.json",
+        "quantitativeSilhouetteUse": false
+      }
+    ],
+    "conflictPolicy": "Primary image wins appearance/proportions; do not force every sheet feature into exact identical geometry.",
+    "semanticSuitability": "conditional: synthetic projection with partial transparency and unverified cross-view consistency",
+    "admissionCaveat": "Primary image passed. All three supporting crops were rejected for whole-frame foreground segmentation; they remain qualitative context only, never numeric silhouette truth."
+  },
+  "classification": {
+    "primaryDomain": "object",
+    "primaryType": "holographic orbital data assembly",
+    "formLanguage": [
+      "geometric",
+      "architectural",
+      "emissive",
+      "translucent-like"
+    ],
+    "structureKind": [
+      "coaxial sections",
+      "annular shells",
+      "radial repeated cuboids",
+      "segmented ring"
+    ],
+    "complexity": "complex",
+    "reason": "Identity depends on stepped/annular macro geometry, column distribution, several coordinate-specific grids and nonuniform emission."
+  },
+  "observationVsInference": {
+    "observed": [
+      "Closed radial-grid top cap",
+      "Blue central cylindrical surfaces with broad annular collars",
+      "Unequal-height cuboid projections surrounding the core",
+      "Finite-height curved base wall and annular-looking deck",
+      "Radial sector-like outer panels",
+      "Violet loop close to the base",
+      "Distinct grid systems and small data glyphs"
+    ],
+    "inferred": [
+      "Radial organization around a shared Y axis",
+      "Separating the core into two same-radius sections is a modeling choice; the image does not prove construction seams.",
+      "The visible outer base can be represented as an annular shell plus an inner projected field; its physical interior is not recovered."
+    ],
+    "proposed": [
+      "9 tower seeds",
+      "8 outer sector panels",
+      "initial unit-space dimensions and camera angles",
+      "specific line/glyph counts"
+    ],
+    "notEstablished": [
+      "exact tower count",
+      "exact sector count",
+      "calibrated source cameras",
+      "same mesh underlying every supplied view",
+      "physical glass/PBR parameters",
+      "exact hidden-side geometry"
+    ]
+  },
+  "screenSpace": {
+    "unit": "primary-image pixels",
+    "origin": "top-left",
+    "estimatedAssemblyBoundsPx": [
+      55,
+      35,
+      1363,
+      1055
+    ],
+    "estimatedCoreCapBoundsPx": [
+      528,
+      260,
+      893,
+      386
+    ],
+    "estimatedTallestTowerBoundsPx": [
+      588,
+      35,
+      817,
+      306
+    ],
+    "estimatedVioletLoopBoundsPx": [
+      170,
+      462,
+      1255,
+      860
+    ],
+    "measurementMethod": "manual visual estimates",
+    "nativeViewportPx": [
+      1430,
+      1100
+    ],
+    "thumbnailViewportPx": [
+      468,
+      360
+    ],
+    "thumbnailScale": 0.32727272727272727,
+    "aspectPreserved": true,
+    "oneWorldUnitEqualsOnePixel": false
+  },
+  "camera": {
+    "primaryView": "front elevated oblique",
+    "solved": false,
+    "projection": "perspective hypothesis; not recovered",
+    "supportTopView": "high-angle view, not assumed orthographic or exactly 90 degrees",
+    "initialProposal": {
+      "fovDegrees": 40,
+      "azimuthDegrees": 45,
+      "elevationDegrees": 20
+    },
+    "reason": "Visible top faces and ellipse flattening constrain a hypothesis but do not uniquely determine camera and geometry.",
+    "nextEvidence": "match projected cap, base ellipse and highest tower landmarks after a separately approved blockout revision"
+  },
+  "components": [
+    {
+      "id": "core-upper",
+      "parentAssembly": "core-stack",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Closed upper cylindrical volume with dense cyan/blue grid.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "cylinder",
+        "radius": 0.9,
+        "bottomY": 1.3,
+        "topY": 2.4
+      },
+      "localFeatures": [
+        {
+          "id": "core-upper.upper-grid",
+          "description": "Horizontal and vertical grid on a colored cylindrical carrier, dimmer than main contours.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "core-upper.blue-volume",
+          "description": "Saturated blue fill remains visible; no clear colorless glass.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "core-cap",
+      "parentAssembly": "core-stack",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Closed luminous top disk with concentric and radial markings.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "thin-closed-cylinder",
+        "radius": 0.92,
+        "centerY": 2.4,
+        "height": 0.04,
+        "overlapWithUpper": 0.02
+      },
+      "localFeatures": [
+        {
+          "id": "core-cap.cap-radial-grid",
+          "description": "Concentric circles and radial spokes, not an open cup.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "core-cap.cap-center-light",
+          "description": "Small intense cyan center with lower intensity toward the rim.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "core-lower",
+      "parentAssembly": "core-stack",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Lower curved core continues below the broad middle collar.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "cylinder",
+        "radius": 0.9,
+        "bottomY": 0.35,
+        "topY": 1.3
+      },
+      "localFeatures": [
+        {
+          "id": "core-lower.lower-grid",
+          "description": "Regular cylindrical grid and localized data blocks; no evenly spaced floating shelves.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "core-mid-collar",
+      "parentAssembly": "core-stack",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Broad annular extension wraps the narrower core at mid-height; front rim is bright cyan.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "annular-collar",
+        "innerRadius": 0.915,
+        "outerRadius": 1.45,
+        "centerY": 1.18,
+        "height": 0.32,
+        "innerRadiusStatus": "proposal to avoid coincident surfaces; exact radial gap is not measured"
+      },
+      "localFeatures": [
+        {
+          "id": "core-mid-collar.mid-annulus",
+          "description": "Preserve open center around the core; do not use a wider solid cylinder that hides the core.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "core-mid-collar.mid-rim",
+          "description": "Bright upper/front contour and subdued rear contour.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "core-lower-collar",
+      "parentAssembly": "core-stack",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "A separate lower cyan/violet circular collar is visible beneath the main body.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "annular-collar",
+        "innerRadius": 0.915,
+        "outerRadius": 1.32,
+        "centerY": 0.44,
+        "height": 0.1
+      },
+      "localFeatures": [
+        {
+          "id": "core-lower-collar.lower-rim",
+          "description": "Lower circular rim with cyan and restrained violet accents.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "core-foot",
+      "parentAssembly": "core-stack",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Lower core support volume is partly obscured by projected fields and collars.",
+      "confidence": "medium",
+      "geometryProposal": {
+        "kind": "short-cylinder",
+        "radius": 0.96,
+        "bottomY": 0.1,
+        "topY": 0.35
+      },
+      "localFeatures": [
+        {
+          "id": "core-foot.foot-uncertainty",
+          "description": "Approximate low volume only; do not invent mechanical housing or a broad solid pedestal.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "tower-assembly",
+      "parentAssembly": "holographic-assembly",
+      "level": "macro",
+      "topologyClass": "assembled-solid",
+      "observation": "Multiple unequal-height cuboid projections surround the core with gaps and partial occlusion.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "explicit-radial-layout",
+        "layoutRef": "geometry-proposal.json#/towerLayout",
+        "count": 9,
+        "countStatus": "initial proposed count; not a verified source count",
+        "faces": "colored translucent planes",
+        "edges": "separate thin contour paths"
+      },
+      "localFeatures": [
+        {
+          "id": "tower-assembly.tallest-rear",
+          "description": "One broad highest tower appears behind the core in the primary view.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "tower-assembly.height-hierarchy",
+          "description": "Unequal medium and low tower groups surround the core.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "tower-assembly.radial-order",
+          "description": "Place columns around the core, not as five boxes in a flat row.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "tower-assembly.tower-grid",
+          "description": "Face-aligned sparse grid follows each cuboid.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "tower-assembly.tower-data",
+          "description": "Localized vertical clusters of small luminous rectangles and ticks.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "base-shell",
+      "parentAssembly": "base-assembly",
+      "level": "macro",
+      "topologyClass": "assembled-solid",
+      "observation": "Curved outer drum wall has real projected height and layered contour boundaries.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "annular-shell",
+        "innerRadius": 2.15,
+        "outerRadius": 3.1,
+        "bottomY": 0,
+        "topY": 0.45
+      },
+      "localFeatures": [
+        {
+          "id": "base-shell.vertical-wall",
+          "description": "Preserve a curved wall with height; not a single flat disk.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "base-shell.wall-grid",
+          "description": "Cylindrical rows/meridians and localized data rectangles.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "base-deck",
+      "parentAssembly": "base-assembly",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Upper outer surface reads as an annular deck with radial and circular divisions.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "annular-surface",
+        "innerRadius": 2.15,
+        "outerRadius": 3.1,
+        "centerY": 0.45,
+        "thickness": 0.015
+      },
+      "localFeatures": [
+        {
+          "id": "base-deck.annular-deck",
+          "description": "Keep outer deck distinct from the inner projection field; no opaque full disk.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "base-deck.deck-grid",
+          "description": "Concentric paths and radial divisions on the deck.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "base-sector-panels",
+      "parentAssembly": "base-assembly",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "observation": "Bright radial panels/segments interrupt the outer ring and project slightly beyond its curved boundary.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "repeated-annular-sectors",
+        "count": 8,
+        "countStatus": "proposal, not exact counted source geometry",
+        "innerRadius": 2.15,
+        "outerRadius": 3.2,
+        "bottomY": 0,
+        "topY": 0.5,
+        "angularWidthDegrees": 24
+      },
+      "localFeatures": [
+        {
+          "id": "base-sector-panels.radial-sectors",
+          "description": "Preserve visible wedge-like sector footprints and local protrusions; not tangential rectangular tiles.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "orbit-violet",
+      "parentAssembly": "orbital-light-system",
+      "level": "macro",
+      "topologyClass": "fiber-strand",
+      "observation": "Continuous violet/cyan luminous contour lies close to and within the base-ring region.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "circular-path-and-faint-annular-band",
+        "radius": 2.53,
+        "centerY": 0.52,
+        "lineWidthProposal": 0.018,
+        "bandWidthProposal": 0.13
+      },
+      "localFeatures": [
+        {
+          "id": "orbit-violet.violet-loop",
+          "description": "One dominant violet loop registered to the base rather than an unrelated floating orbital halo.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "orbit-violet.orbit-contrast",
+          "description": "Selected cyan/white peaks with violet segments, not uniform white neon.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "base-rim-system",
+      "parentAssembly": "base-assembly",
+      "level": "meso",
+      "topologyClass": "fiber-strand",
+      "observation": "Distinct inner/outer and low circular contours reinforce the base volume.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "named-circular-paths",
+        "paths": [
+          {
+            "id": "outer-top",
+            "radius": 3.1,
+            "y": 0.45
+          },
+          {
+            "id": "outer-bottom",
+            "radius": 3.1,
+            "y": 0
+          },
+          {
+            "id": "inner-top",
+            "radius": 2.15,
+            "y": 0.455
+          }
+        ]
+      },
+      "localFeatures": [
+        {
+          "id": "base-rim-system.rim-layers",
+          "description": "Separate circular contours across different radii and heights.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "inner-projection-field",
+      "parentAssembly": "base-assembly",
+      "level": "meso",
+      "topologyClass": "material-only",
+      "observation": "Fine radial and circular paths remain visible inside the ring and between columns.",
+      "confidence": "medium",
+      "geometryProposal": {
+        "kind": "open-grid-field",
+        "innerRadius": 0.96,
+        "outerRadius": 2.15,
+        "centerY": 0.45,
+        "opaqueDiskAllowed": false
+      },
+      "localFeatures": [
+        {
+          "id": "inner-projection-field.inner-grid",
+          "description": "Keep the interior as a faint projected field; the reference does not prove an empty physical through-hole or a solid opaque floor.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    },
+    {
+      "id": "light-hierarchy",
+      "parentAssembly": "holographic-assembly",
+      "level": "micro",
+      "topologyClass": "material-only",
+      "observation": "Brightness varies with feature and depth; front cap/rims and a few nodes dominate.",
+      "confidence": "high",
+      "geometryProposal": {
+        "kind": "localized-emission-responsibilities",
+        "randomParticleFieldAllowed": false
+      },
+      "localFeatures": [
+        {
+          "id": "light-hierarchy.hotspots",
+          "description": "Reference-anchored cap-center and selected front ring intersections.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "light-hierarchy.depth-fade",
+          "description": "Rear grid and columns remain weaker than foreground contours.",
+          "status": "required-before-relevant-pass-acceptance"
+        },
+        {
+          "id": "light-hierarchy.blue-cyan-violet",
+          "description": "Blue fills, cyan structural lines and restrained violet accents remain separate roles.",
+          "status": "required-before-relevant-pass-acceptance"
+        }
+      ]
+    }
+  ],
+  "spatialRelationships": [
+    {
+      "subject": "core-cap",
+      "predicate": "caps",
+      "object": "core-upper",
+      "status": "observed closed top; 0.02 overlap is proposed"
+    },
+    {
+      "subject": "core-mid-collar",
+      "predicate": "encircles",
+      "object": "core-upper/core-lower transition",
+      "status": "observed projection; gap/inner radius unmeasured"
+    },
+    {
+      "subject": "tower-assembly",
+      "predicate": "surrounds-with-gaps",
+      "object": "core-stack",
+      "status": "inferred from primary plus qualitative support"
+    },
+    {
+      "subject": "base-deck",
+      "predicate": "above",
+      "object": "base-shell",
+      "status": "observed projected surfaces"
+    },
+    {
+      "subject": "base-sector-panels",
+      "predicate": "locally-protrudes-from",
+      "object": "base-assembly",
+      "status": "observed contour, exact thickness/count proposed"
+    },
+    {
+      "subject": "orbit-violet",
+      "predicate": "registered-to-upper-base-region",
+      "object": "base-deck",
+      "status": "observed projection, exact altitude proposed"
+    },
+    {
+      "subject": "inner-projection-field",
+      "predicate": "occupies-interior-region",
+      "object": "base-assembly",
+      "status": "observed grid, not proof of solid floor or empty through-hole"
+    }
+  ],
+  "materialAndLight": {
+    "appearance": "colored emissive holographic volume, not polished clear glass",
+    "roles": {
+      "blue": "volume and faint faces",
+      "cyan": "technical grids and structural contours",
+      "violet": "main base loop and selected lower accents",
+      "whiteCyan": "few peak highlights"
+    },
+    "numericPbrRecovered": false,
+    "physicalTransmissionRequired": false,
+    "gridFamilies": [
+      "cylindrical",
+      "planar cuboid",
+      "polar cap/deck"
+    ],
+    "dataGlyphs": "Sparse localized bright rectangles/ticks in vertical or curved-wall bands; not uniform random particles.",
+    "representationDecision": "Re-review after geometry approval: carrier fill, geometric lines and glyph instances are a proposal; no v1 textureless declaration is automatically inherited.",
+    "bloom": "later only; compare emission with bloom disabled first",
+    "avoid": [
+      "colorless glass",
+      "white studio reflections",
+      "uniform neon wireframe",
+      "all layers same opacity/intensity",
+      "fabricated physical roughness/AO maps"
+    ]
+  },
+  "detailInventory": {
+    "scanMethod": "component-zones",
+    "targetMinDetails": 25,
+    "details": [
+      {
+        "id": "D01",
+        "kind": "emissive",
+        "description": "Closed cap with radial/concentric pattern",
+        "region": {
+          "x": 0.36923076923076925,
+          "y": 0.23636363636363636,
+          "width": 0.25524475524475526,
+          "height": 0.11454545454545455,
+          "units": "normalized"
+        },
+        "regionPx": [
+          528,
+          260,
+          893,
+          386
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-cap.cap-radial-grid"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D02",
+        "kind": "emissive",
+        "description": "Small intense cyan cap-center",
+        "region": {
+          "x": 0.4727272727272727,
+          "y": 0.2727272727272727,
+          "width": 0.045454545454545456,
+          "height": 0.042727272727272725,
+          "units": "normalized"
+        },
+        "regionPx": [
+          676,
+          300,
+          741,
+          347
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-cap.cap-center-light"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D03",
+        "kind": "linework",
+        "description": "Cylindrical grid on upper core",
+        "region": {
+          "x": 0.36923076923076925,
+          "y": 0.3181818181818182,
+          "width": 0.25524475524475526,
+          "height": 0.2009090909090909,
+          "units": "normalized"
+        },
+        "regionPx": [
+          528,
+          350,
+          893,
+          571
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "surface-pattern",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-upper.upper-grid"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D04",
+        "kind": "emissive",
+        "description": "Saturated blue volume between grid lines",
+        "region": {
+          "x": 0.3776223776223776,
+          "y": 0.34545454545454546,
+          "width": 0.23776223776223776,
+          "height": 0.15454545454545454,
+          "units": "normalized"
+        },
+        "regionPx": [
+          540,
+          380,
+          880,
+          550
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-upper.blue-volume"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D05",
+        "kind": "contour",
+        "description": "Broad middle annular collar around narrow core",
+        "region": {
+          "x": 0.2937062937062937,
+          "y": 0.4090909090909091,
+          "width": 0.4125874125874126,
+          "height": 0.20363636363636364,
+          "units": "normalized"
+        },
+        "regionPx": [
+          420,
+          450,
+          1010,
+          674
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-mid-collar.mid-annulus"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D06",
+        "kind": "emissive",
+        "description": "Bright cyan middle front rim",
+        "region": {
+          "x": 0.3006993006993007,
+          "y": 0.4636363636363636,
+          "width": 0.3986013986013986,
+          "height": 0.08181818181818182,
+          "units": "normalized"
+        },
+        "regionPx": [
+          430,
+          510,
+          1000,
+          600
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-mid-collar.mid-rim"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D07",
+        "kind": "linework",
+        "description": "Lower cylindrical grid continues below middle collar",
+        "region": {
+          "x": 0.36363636363636365,
+          "y": 0.5136363636363637,
+          "width": 0.26573426573426573,
+          "height": 0.17,
+          "units": "normalized"
+        },
+        "regionPx": [
+          520,
+          565,
+          900,
+          752
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "surface-pattern",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-lower.lower-grid"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D08",
+        "kind": "contour",
+        "description": "Distinct lower cyan/violet collar",
+        "region": {
+          "x": 0.3062937062937063,
+          "y": 0.5545454545454546,
+          "width": 0.38181818181818183,
+          "height": 0.14727272727272728,
+          "units": "normalized"
+        },
+        "regionPx": [
+          438,
+          610,
+          984,
+          772
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "core-lower-collar.lower-rim"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D09",
+        "kind": "contour",
+        "description": "Highest broad rear tower",
+        "region": {
+          "x": 0.4111888111888112,
+          "y": 0.031818181818181815,
+          "width": 0.16013986013986015,
+          "height": 0.24636363636363637,
+          "units": "normalized"
+        },
+        "regionPx": [
+          588,
+          35,
+          817,
+          306
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "tower-assembly.tallest-rear"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D10",
+        "kind": "contour",
+        "description": "Medium and low tower height hierarchy",
+        "region": {
+          "x": 0.17482517482517482,
+          "y": 0.14363636363636365,
+          "width": 0.6489510489510489,
+          "height": 0.44727272727272727,
+          "units": "normalized"
+        },
+        "regionPx": [
+          250,
+          158,
+          1178,
+          650
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "tower-assembly.height-hierarchy"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D11",
+        "kind": "contour",
+        "description": "Columns surround the core with angular gaps",
+        "region": {
+          "x": 0.1681614349775785,
+          "y": 0.036855036855036855,
+          "width": 0.672645739910314,
+          "height": 0.8230958230958231,
+          "units": "normalized"
+        },
+        "regionPx": [
+          150,
+          30,
+          750,
+          700
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "tower-assembly.radial-order"
+        },
+        "evidenceRef": "views/support-top.png",
+        "evidenceRole": "qualitative-support-only-not-admitted-for-silhouette",
+        "confidence": 0.65
+      },
+      {
+        "id": "D12",
+        "kind": "linework",
+        "description": "Sparse cuboid face grids",
+        "region": {
+          "x": 0.25874125874125875,
+          "y": 0.16818181818181818,
+          "width": 0.08041958041958042,
+          "height": 0.36818181818181817,
+          "units": "normalized"
+        },
+        "regionPx": [
+          370,
+          185,
+          485,
+          590
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "surface-pattern",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "tower-assembly.tower-grid"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D13",
+        "kind": "emissive",
+        "description": "Vertical clusters of small data marks",
+        "region": {
+          "x": 0.26573426573426573,
+          "y": 0.20454545454545456,
+          "width": 0.06853146853146853,
+          "height": 0.29545454545454547,
+          "units": "normalized"
+        },
+        "regionPx": [
+          380,
+          225,
+          478,
+          550
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "tower-assembly.tower-data"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D14",
+        "kind": "contour",
+        "description": "Base has a curved wall with finite height",
+        "region": {
+          "x": 0.1048951048951049,
+          "y": 0.7272727272727273,
+          "width": 0.8251748251748252,
+          "height": 0.22727272727272727,
+          "units": "normalized"
+        },
+        "regionPx": [
+          150,
+          800,
+          1330,
+          1050
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "base-shell.vertical-wall"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D15",
+        "kind": "linework",
+        "description": "Base wall grid and data marks",
+        "region": {
+          "x": 0.16433566433566432,
+          "y": 0.75,
+          "width": 0.6678321678321678,
+          "height": 0.15636363636363637,
+          "units": "normalized"
+        },
+        "regionPx": [
+          235,
+          825,
+          1190,
+          997
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "surface-pattern",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "base-shell.wall-grid"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D16",
+        "kind": "contour",
+        "description": "Upper base surface is an annular region",
+        "region": {
+          "x": 0.033632286995515695,
+          "y": 0.036855036855036855,
+          "width": 0.9372197309417041,
+          "height": 0.9459459459459459,
+          "units": "normalized"
+        },
+        "regionPx": [
+          30,
+          30,
+          866,
+          800
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "base-deck.annular-deck"
+        },
+        "evidenceRef": "views/support-top.png",
+        "evidenceRole": "qualitative-support-only-not-admitted-for-silhouette",
+        "confidence": 0.65
+      },
+      {
+        "id": "D17",
+        "kind": "linework",
+        "description": "Radial and concentric deck divisions",
+        "region": {
+          "x": 0.07692307692307693,
+          "y": 0.42727272727272725,
+          "width": 0.8321678321678322,
+          "height": 0.43636363636363634,
+          "units": "normalized"
+        },
+        "regionPx": [
+          110,
+          470,
+          1300,
+          950
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "surface-pattern",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "base-deck.deck-grid"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D18",
+        "kind": "contour",
+        "description": "Outer radial sector panels with local protrusion",
+        "region": {
+          "x": 0.32167832167832167,
+          "y": 0.7909090909090909,
+          "width": 0.35664335664335667,
+          "height": 0.16818181818181818,
+          "units": "normalized"
+        },
+        "regionPx": [
+          460,
+          870,
+          970,
+          1055
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "base-sector-panels.radial-sectors"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D19",
+        "kind": "emissive",
+        "description": "Violet ring is registered to the base region",
+        "region": {
+          "x": 0.11888111888111888,
+          "y": 0.42,
+          "width": 0.7587412587412588,
+          "height": 0.3618181818181818,
+          "units": "normalized"
+        },
+        "regionPx": [
+          170,
+          462,
+          1255,
+          860
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "orbit-violet.violet-loop"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D20",
+        "kind": "emissive",
+        "description": "Color and brightness vary along the main loop",
+        "region": {
+          "x": 0.23076923076923078,
+          "y": 0.6454545454545455,
+          "width": 0.5384615384615384,
+          "height": 0.15,
+          "units": "normalized"
+        },
+        "regionPx": [
+          330,
+          710,
+          1100,
+          875
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "orbit-violet.orbit-contrast"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D21",
+        "kind": "contour",
+        "description": "Distinct inner, top and lower outer base rims",
+        "region": {
+          "x": 0.09090909090909091,
+          "y": 0.6954545454545454,
+          "width": 0.8531468531468531,
+          "height": 0.2636363636363636,
+          "units": "normalized"
+        },
+        "regionPx": [
+          130,
+          765,
+          1350,
+          1055
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "geometry",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "base-rim-system.rim-layers"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D22",
+        "kind": "linework",
+        "description": "Inner faint field between core and columns",
+        "region": {
+          "x": 0.1905829596412556,
+          "y": 0.257985257985258,
+          "width": 0.6614349775784754,
+          "height": 0.6326781326781327,
+          "units": "normalized"
+        },
+        "regionPx": [
+          170,
+          210,
+          760,
+          725
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "surface-pattern",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "inner-projection-field.inner-grid"
+        },
+        "evidenceRef": "views/support-top.png",
+        "evidenceRole": "qualitative-support-only-not-admitted-for-silhouette",
+        "confidence": 0.65
+      },
+      {
+        "id": "D23",
+        "kind": "emissive",
+        "description": "Selected bright cap/ring intersections",
+        "region": {
+          "x": 0.45454545454545453,
+          "y": 0.6772727272727272,
+          "width": 0.11188811188811189,
+          "height": 0.11545454545454545,
+          "units": "normalized"
+        },
+        "regionPx": [
+          650,
+          745,
+          810,
+          872
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "light-hierarchy.hotspots"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D24",
+        "kind": "emissive",
+        "description": "Rear structures are fainter than dominant front rims",
+        "region": {
+          "x": 0.17482517482517482,
+          "y": 0.18181818181818182,
+          "width": 0.6503496503496503,
+          "height": 0.5272727272727272,
+          "units": "normalized"
+        },
+        "regionPx": [
+          250,
+          200,
+          1180,
+          780
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "micro",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "light-hierarchy.depth-fade"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      },
+      {
+        "id": "D25",
+        "kind": "emissive",
+        "description": "Blue, cyan and violet serve different visual roles",
+        "region": {
+          "x": 0.038461538461538464,
+          "y": 0.031818181818181815,
+          "width": 0.9146853146853147,
+          "height": 0.9272727272727272,
+          "units": "normalized"
+        },
+        "regionPx": [
+          55,
+          35,
+          1363,
+          1055
+        ],
+        "regionMeasurement": "visual estimate, not segmentation",
+        "scale": "meso",
+        "affects": "emission",
+        "mapsTo": {
+          "type": "component.localFeatures",
+          "ref": "light-hierarchy.blue-cyan-violet"
+        },
+        "evidenceRef": "reference-primary.png",
+        "evidenceRole": "primary-image-observation",
+        "confidence": 0.85
+      }
+    ]
+  },
+  "changesFromV1": [
+    {
+      "system": "core",
+      "old": "one upper cylinder with generic low solid layers",
+      "new": "narrow coaxial sections plus broad annular collars; no solid widened drum hiding the central body"
+    },
+    {
+      "system": "columns",
+      "old": "five edge boxes",
+      "new": "radial unequal-height column family, initially proposed 9 with explicit polar seeds"
+    },
+    {
+      "system": "base",
+      "old": "broad thin full disk",
+      "new": "finite-height annular wall/deck plus radial sectors and a faint interior projection field"
+    },
+    {
+      "system": "orbit",
+      "old": "detached clean circles",
+      "new": "violet loop belongs to the base region and is accompanied by named base contours"
+    },
+    {
+      "system": "detail",
+      "old": "12 coarse features",
+      "new": "25 source-linked features including polar grids, sector panels and data glyphs"
+    }
+  ],
+  "uncertaintyPolicy": {
+    "doNotInventHiddenGeometry": true,
+    "sourceContradictionsRemainVisible": true,
+    "noNewFidelityScore": true,
+    "oldStrictPassAppliesToV2": false,
+    "exactReconstructionClaim": false
+  },
+  "reviewRequiredBeforeCode": [
+    "Source implementation plan blockout-v2-plan.md must be approved; 9-column/8-sector layout is already approved as an initial design."
+  ]
+}

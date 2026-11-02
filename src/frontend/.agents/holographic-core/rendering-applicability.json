@@ -1,0 +1,26 @@
+{
+  "status": "spec-applicability-recorded-not-runtime-acceptance",
+  "subject": "emissive holographic scene, not a photographed painted physical object",
+  "projectionRoute": {
+    "applicable": false,
+    "reason": "Projecting screenshot pixels onto transparent geometry would bake background, bloom, multiple overlapping structures and occlusion into one surface. It would misrepresent the scene from orbit views.",
+    "alternative": "Procedural geometry and localized grid/emission fields, compared at a matched reference camera.",
+    "limitation": "No exact hidden-side reconstruction or pixel-perfect fidelity claim."
+  },
+  "materialEvidence": {
+    "physicalPbrRecoveryApplicable": false,
+    "reason": "Synthetic emission and layered scene compositing do not provide separable physical albedo/roughness/normal/AO evidence.",
+    "physicalPbrConfidence": null,
+    "carrierRoute": "Evidence-backed textureless matte-emissive carrier materials; pattern detail is geometric, not removed.",
+    "support": "material-evidence.json",
+    "lookdevStatus": "pending-runtime-and-visual-review",
+    "colors": "Numeric palette, alpha and emission remain artistic proposals; only color families are observed.",
+    "requirement": "No bitmap surface detail may be added under a textureless declaration; revise applicability if representation changes."
+  },
+  "referenceAuthority": {
+    "original": "reference-original.png",
+    "analysisRoi": "reference-masked.png",
+    "excludedRegion": "mask-provenance.json#/excludedLabel",
+    "roiIsExactSilhouette": false
+  }
+}

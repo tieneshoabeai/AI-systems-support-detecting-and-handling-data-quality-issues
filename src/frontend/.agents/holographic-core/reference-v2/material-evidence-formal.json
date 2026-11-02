@@ -1,0 +1,175 @@
+{
+  "documentType": "v2-holographic-material-evidence-and-representation-contract",
+  "status": "specification evidence only; no look-dev or render acceptance",
+  "primaryReference": "reference-primary.png",
+  "referenceAuthority": {
+    "primaryAdmission": "admission-primary.json",
+    "supportViews": "qualitative-only; not quantitative silhouette authority",
+    "analysis": "reference-analysis.json"
+  },
+  "referenceObservations": [
+    {
+      "region": "zones/core-upper.png",
+      "signals": [
+        "colored blue cylindrical volume",
+        "closed cyan cap",
+        "radial/concentric and cylindrical grid"
+      ],
+      "notInferred": [
+        "physical glass transmission",
+        "surface roughness maps"
+      ]
+    },
+    {
+      "region": "zones/core-lower.png",
+      "signals": [
+        "open broad collar around narrow body",
+        "lower cyan/violet rim",
+        "localized data glyphs"
+      ],
+      "notInferred": [
+        "painted solid physical housing",
+        "exact emission strength"
+      ]
+    },
+    {
+      "region": "zones/base.png",
+      "signals": [
+        "curved wall with height",
+        "polar deck grid",
+        "radial sector highlights",
+        "base-registered violet loop"
+      ],
+      "notInferred": [
+        "solid opaque inner floor",
+        "uniform albedo texture"
+      ]
+    },
+    {
+      "region": "zones/columns.png",
+      "signals": [
+        "faint blue planar faces",
+        "edge contours",
+        "face-aligned grid and clustered ticks"
+      ],
+      "notInferred": [
+        "physical material grain or pores",
+        "exact glyph count"
+      ]
+    }
+  ],
+  "carrierMaterialReviews": [
+    {
+      "id": "blue-volume",
+      "role": "core cylindrical faces",
+      "texturelessAppliesTo": "uniform carrier only",
+      "patternResponsibility": "renderLayerContract + component localFeatures + repetitionSystems",
+      "evidence": [
+        "reference-primary.png and zones: no physical grain, scratches, pores, or tactile relief is resolved on this uniform luminous carrier.",
+        "material-evidence-formal.json: geometric grids, contour paths, glyph instances and per-submesh scalar changes carry the observed detail; this carrier declaration does not remove scene patterns.",
+        "All technical details remain assigned to localFeatures, repetitionSystems and renderLayerContract; if maps/shader sampling replace them, re-review material applicability."
+      ],
+      "physicalMapsRecovered": false,
+      "numericValues": "artistic starting values; must be inspected and visually reviewed at material pass"
+    },
+    {
+      "id": "cyan-contour",
+      "role": "caps, thin contour carriers and localized highlights",
+      "texturelessAppliesTo": "uniform carrier only",
+      "patternResponsibility": "renderLayerContract + component localFeatures + repetitionSystems",
+      "evidence": [
+        "reference-primary.png and zones: no physical grain, scratches, pores, or tactile relief is resolved on this uniform luminous carrier.",
+        "material-evidence-formal.json: geometric grids, contour paths, glyph instances and per-submesh scalar changes carry the observed detail; this carrier declaration does not remove scene patterns.",
+        "All technical details remain assigned to localFeatures, repetitionSystems and renderLayerContract; if maps/shader sampling replace them, re-review material applicability."
+      ],
+      "physicalMapsRecovered": false,
+      "numericValues": "artistic starting values; must be inspected and visually reviewed at material pass"
+    },
+    {
+      "id": "violet-band",
+      "role": "base-registered violet band and selected lower accents",
+      "texturelessAppliesTo": "uniform carrier only",
+      "patternResponsibility": "renderLayerContract + component localFeatures + repetitionSystems",
+      "evidence": [
+        "reference-primary.png and zones: no physical grain, scratches, pores, or tactile relief is resolved on this uniform luminous carrier.",
+        "material-evidence-formal.json: geometric grids, contour paths, glyph instances and per-submesh scalar changes carry the observed detail; this carrier declaration does not remove scene patterns.",
+        "All technical details remain assigned to localFeatures, repetitionSystems and renderLayerContract; if maps/shader sampling replace them, re-review material applicability."
+      ],
+      "physicalMapsRecovered": false,
+      "numericValues": "artistic starting values; must be inspected and visually reviewed at material pass"
+    },
+    {
+      "id": "blue-face",
+      "role": "tower faces, annular base wall and sector faces",
+      "texturelessAppliesTo": "uniform carrier only",
+      "patternResponsibility": "renderLayerContract + component localFeatures + repetitionSystems",
+      "evidence": [
+        "reference-primary.png and zones: no physical grain, scratches, pores, or tactile relief is resolved on this uniform luminous carrier.",
+        "material-evidence-formal.json: geometric grids, contour paths, glyph instances and per-submesh scalar changes carry the observed detail; this carrier declaration does not remove scene patterns.",
+        "All technical details remain assigned to localFeatures, repetitionSystems and renderLayerContract; if maps/shader sampling replace them, re-review material applicability."
+      ],
+      "physicalMapsRecovered": false,
+      "numericValues": "artistic starting values; must be inspected and visually reviewed at material pass"
+    },
+    {
+      "id": "field-fill",
+      "role": "very faint deck and inner projection carrier; no opaque interior floor",
+      "texturelessAppliesTo": "uniform carrier only",
+      "patternResponsibility": "renderLayerContract + component localFeatures + repetitionSystems",
+      "evidence": [
+        "reference-primary.png and zones: no physical grain, scratches, pores, or tactile relief is resolved on this uniform luminous carrier.",
+        "material-evidence-formal.json: geometric grids, contour paths, glyph instances and per-submesh scalar changes carry the observed detail; this carrier declaration does not remove scene patterns.",
+        "All technical details remain assigned to localFeatures, repetitionSystems and renderLayerContract; if maps/shader sampling replace them, re-review material applicability."
+      ],
+      "physicalMapsRecovered": false,
+      "numericValues": "artistic starting values; must be inspected and visually reviewed at material pass"
+    }
+  ],
+  "noDetailRemovalAllowed": true,
+  "noFabricatedFields": [
+    "no physical PBR extraction confidence",
+    "no fake bitmap map paths",
+    "no fake texture resolution",
+    "no albedo reused as roughness/normal/AO"
+  ],
+  "materialRoute": {
+    "generatorClass": "MeshPhysicalMaterial",
+    "shaderResponse": "matte emission-dominant, alpha carriers",
+    "transmission": 0,
+    "metalness": 0,
+    "clearcoat": 0,
+    "roughnessScalar": 0.85,
+    "roughnessIsActuallyConsumedByGenerator": true,
+    "perMaterialTexturelessBranch": "existing validate_textureless/is_textureless and createSculptMaterial branch",
+    "condition": "If sampled texture detail replaces geometric line/glyph responsibilities, textureless evidence and corresponding map requirements must be reviewed again."
+  },
+  "generatorAudit": [
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py::buildLatheGeometry",
+      "finding": "Full annuli read latheProfile and later receive dimension scaling."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py::buildExtrudeGeometry",
+      "finding": "profile2D is lineTo polygon + depth. Extrusion is local Z from 0 to depth, without automatic centering. Sector normalization, X rotation and bottom offset are explicit in spec."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py::scale_vector",
+      "finding": "Explicit transform.scale overrides dimensions. All component scale fields are omitted so authored dimensions are used once."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py::createSculptMaterial",
+      "finding": "textureless skips image maps; physical material class still consumes roughness, emission and opacity scalars."
+    },
+    {
+      "source": "forge/stage3_build/generate_threejs_factory.py",
+      "finding": "renderIntent, grid/glyph and per-submesh scalar responsibilities are NOT proven runtime implementation; no code emitted in this batch."
+    }
+  ],
+  "projectionApplicability": "projection-applicability.json",
+  "unresolvedEvidence": [
+    "source camera remains uncalibrated",
+    "exact opacity/emission and glyph density unmeasured",
+    "3 support crops not admitted as quantitative masks"
+  ],
+  "approvalBoundary": "User approved the initial geometry counts/layout. No source implementation, material render or fidelity score is approved by this evidence."
+}

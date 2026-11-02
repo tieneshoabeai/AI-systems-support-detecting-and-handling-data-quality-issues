@@ -1,0 +1,60 @@
+{
+  "size": [
+    1280,
+    900
+  ],
+  "before": {
+    "planCrop": {
+      "mean": 139.3,
+      "p95": 238.2,
+      "clippedPct": 0.79,
+      "clippedArcs": 0,
+      "clippedBelowArcs": 178,
+      "hueMedian": 211.4
+    },
+    "bodyCrop": {
+      "mean": 125.7,
+      "p95": 238.8,
+      "clippedPct": 0.97,
+      "clippedArcs": 0,
+      "clippedBelowArcs": 163,
+      "hueMedian": 209.4
+    }
+  },
+  "after": {
+    "planCrop": {
+      "mean": 132.1,
+      "p95": 240.7,
+      "clippedPct": 2.17,
+      "clippedArcs": 294,
+      "clippedBelowArcs": 194,
+      "hueMedian": 212.2
+    },
+    "bodyCrop": {
+      "mean": 107.2,
+      "p95": 211.7,
+      "clippedPct": 0.25,
+      "clippedArcs": 0,
+      "clippedBelowArcs": 42,
+      "hueMedian": 211.6
+    },
+    "cyan": {
+      "cyanSharePct": 73.6,
+      "hueP25": 196.0,
+      "hueP50": 207.2,
+      "hueP75": 215.8
+    },
+    "amberPx": {
+      "pathCrop": 583,
+      "pathCropBefore": 0,
+      "fullFrame": 13611
+    },
+    "tiers": {
+      "base": 48.8,
+      "tower": 76.1,
+      "core": 107.2
+    }
+  },
+  "reducedMotionChangedPct": 0.0,
+  "reducedMotionMaxDiff": 0
+}

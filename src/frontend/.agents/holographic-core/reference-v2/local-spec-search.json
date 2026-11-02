@@ -1,0 +1,126 @@
+{
+  "collection": "core_3d",
+  "searches": [
+    {
+      "query": "annular pedestal stepped cylinder radial cuboid columns emissive contours",
+      "collection": "core_3d",
+      "index": {
+        "status": "hit",
+        "reason": "current",
+        "fingerprint": "62f2831e1d52eeb6dbb94a87c44fa25b1f4926626a7b1f8c2bcadc63e04e9471",
+        "cache_path": "/Users/mac/.img2threejs/releases/a669e9a97cea4452b1c2310c5cca6aa0f6657c1f/img2threejs/.cache/spec-search/core_3d.json"
+      },
+      "matches": [
+        {
+          "record_id": "core.pbr-color-space-srgb-vs-linearnocolorspace",
+          "file_path": "docs/raw/img2threejs-skill-dataset.json",
+          "heading": null,
+          "key_path": "categories.material_pbr[11]",
+          "score": 4.606367423049,
+          "snippets": [
+            "... data maps (must stay linear/uncorrected). Phân biệt giữa dữ liệu màu để người xem (cần gamma/sRGB) và các bản đồ dữ liệu toán học (phải giữ tuyến tính/không hiệu chỉnh). Recognition cues: Base color/albedo and emissive textures are the only ones that should look like natural photographic color; Normal, roughness, metalness, and AO textures look like flat/desaturated data patterns and must never be gamma-corrected Dấu hiệu nhận ..."
+          ],
+          "source_refs": [
+            {
+              "path": "docs/raw/img2threejs-skill-dataset.json",
+              "heading": null,
+              "key_path": "categories.material_pbr[11]"
+            }
+          ],
+          "evidence_refs": [
+            {
+              "kind": "source",
+              "ref": "docs/raw/img2threejs-skill-dataset.json",
+              "note": "img2threejs NotebookLM research distillation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "query": "emission opacity instanced geometry",
+      "collection": "core_3d",
+      "index": {
+        "status": "hit",
+        "reason": "current",
+        "fingerprint": "62f2831e1d52eeb6dbb94a87c44fa25b1f4926626a7b1f8c2bcadc63e04e9471",
+        "cache_path": "/Users/mac/.img2threejs/releases/a669e9a97cea4452b1c2310c5cca6aa0f6657c1f/img2threejs/.cache/spec-search/core_3d.json"
+      },
+      "matches": [
+        {
+          "record_id": "core.pbr-emission",
+          "file_path": "docs/raw/img2threejs-skill-dataset.json",
+          "heading": null,
+          "key_path": "categories.material_pbr[7]",
+          "score": 5.745000147703,
+          "snippets": [
+            "Self-illuminating surface layer independent of scene lighting, used for glowing indicators or self-illum masks. Lớp bề mặt tự phát sáng độc lập với ánh sáng cảnh, dùng cho đèn báo phát sáng hoặc mặt nạ self-illum. Recognition cues: A region stays bright/colored regardless of light direction or shadow (e.g. StatTrak orange LED counter module); Often masked to a small, specific submesh rather than the whole surface Dấu hiệu nhận diện: Một vùng ..."
+          ],
+          "source_refs": [
+            {
+              "path": "docs/raw/img2threejs-skill-dataset.json",
+              "heading": null,
+              "key_path": "categories.material_pbr[7]"
+            }
+          ],
+          "evidence_refs": [
+            {
+              "kind": "source",
+              "ref": "docs/raw/img2threejs-skill-dataset.json",
+              "note": "img2threejs NotebookLM research distillation"
+            }
+          ]
+        },
+        {
+          "record_id": "core.pbr-opacity-alpha",
+          "file_path": "docs/raw/img2threejs-skill-dataset.json",
+          "heading": null,
+          "key_path": "categories.material_pbr[8]",
+          "score": 5.433936077825,
+          "snippets": [
+            "... non-transparency data channel. Kiểm soát độ trong suốt và chế độ blend của vật liệu; trong quy trình CS2, kênh alpha của Base Color được tái sử dụng làm kênh dữ liệu, không phải độ trong suốt. Recognition cues: Standard opacity: soft edge fade or full transparency in glass/plastic parts; CS2-specific: alpha channel of the base color texture instead encodes a Wearness Mask, not visual transparency Dấu hiệu nhận diện: Opacity tiêu chuẩn: ..."
+          ],
+          "source_refs": [
+            {
+              "path": "docs/raw/img2threejs-skill-dataset.json",
+              "heading": null,
+              "key_path": "categories.material_pbr[8]"
+            }
+          ],
+          "evidence_refs": [
+            {
+              "kind": "source",
+              "ref": "docs/raw/img2threejs-skill-dataset.json",
+              "note": "img2threejs NotebookLM research distillation"
+            }
+          ]
+        },
+        {
+          "record_id": "core.shader-mapping-reconstruction-metadata-schema",
+          "file_path": "docs/raw/img2threejs-skill-dataset.json",
+          "heading": null,
+          "key_path": "categories.rendering_shader_mapping[15]",
+          "score": 2.439172579366,
+          "snippets": [
+            "A structured metadata envelope (identity, extraction provenance, geometry stats, texture-slot mapping, rights) accompanying each reconstructed asset to drive and audit the pipeline. Một gói metadata có cấu trúc (định danh, nguồn gốc trích xuất, thống kê hình học, ánh xạ khe texture, quyền sở hữu) đi kèm mỗi tài sản tái tạo để điều khiển và kiểm tra pipeline. Recognition cues: Needed whenever an agent must trace a generated Three.js asset ..."
+          ],
+          "source_refs": [
+            {
+              "path": "docs/raw/img2threejs-skill-dataset.json",
+              "heading": null,
+              "key_path": "categories.rendering_shader_mapping[15]"
+            }
+          ],
+          "evidence_refs": [
+            {
+              "kind": "source",
+              "ref": "docs/raw/img2threejs-skill-dataset.json",
+              "note": "img2threejs NotebookLM research distillation"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limitation": "Retrieved material/color-space guidance is general. No result supplies measured dimensions or authoritative source layout; geometry proposals come from explicit image observations and remain reviewable."
+}

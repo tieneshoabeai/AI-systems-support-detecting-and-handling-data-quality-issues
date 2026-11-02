@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "scope": "formal data and analytic geometry contracts; not triangulation/render tests",
+  "checkCount": 149,
+  "groups": [
+    "identity/hierarchy",
+    "approved layout",
+    "cap endpoints",
+    "annular scaling",
+    "8 sector extrusion axes/world bounds",
+    "inventory/material evidence",
+    "review references",
+    "camera consistency",
+    "authorization boundaries"
+  ],
+  "components": 32,
+  "towerCount": 9,
+  "sectorCount": 8,
+  "details": 25,
+  "runtimeTested": false,
+  "cameraCalibrated": false,
+  "fidelityMeasured": false
+}

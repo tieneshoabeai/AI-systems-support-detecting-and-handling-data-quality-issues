@@ -1,0 +1,91 @@
+{
+  "documentType": "reference-analysis",
+  "version": "0.1",
+  "status": "analysis-approved-not-build-validated",
+  "scope": "central holographic assembly only; dataset label deferred",
+  "reference": {
+    "path": "/var/folders/nn/24dlps6s57d4_9pm73p0q8_40000gn/T/codex-clipboard-04192a78-026c-4d70-a506-88528997fec3.png",
+    "widthPx": 468,
+    "heightPx": 360,
+    "measurementMethod": "visual-estimation",
+    "localOriginalCopy": "reference-original.png",
+    "analysisImage": "reference-masked.png",
+    "maskProvenance": "mask-provenance.json",
+    "maskCaveat": "Manually authored coarse ROI; not an exact silhouette. Excluded label region is unknown geometry, not an object hole. Original failed automatic admission; masked ROI passed. Background inside transparent surfaces remains.",
+    "origin": "top-left",
+    "limitations": ["low resolution", "front label occlusion", "hidden rear geometry", "transparent layer ambiguity"]
+  },
+  "suitability": {
+    "verdict": "conditional-scene-extraction",
+    "reason": "Readable projected structure; exact rear geometry and layer counts unresolved",
+    "exactMeshRecovery": false
+  },
+  "classification": {
+    "primaryDomain": "object",
+    "primaryType": "layered holographic data core",
+    "complexity": "complex",
+    "formLanguage": ["geometric", "architectural", "emissive", "transparent-like"]
+  },
+  "screenSpace": {
+    "units": "reference pixels, not world units",
+    "estimatedAssemblyBounds": [18, 12, 433, 334],
+    "estimatedCoreBounds": [174, 62, 299, 263],
+    "estimatedOrbitBounds": [62, 136, 410, 281],
+    "targetViewportPx": null,
+    "camera": {"view": "elevated-oblique", "projection": "unresolved", "fov": null}
+  },
+  "components": [
+    {"id": "core-body", "topologyClass": "assembled-solid", "observation": "Saturated blue curved volume with horizontal and vertical grid", "confidence": "high", "proposal": "Separate cylindrical fill and grid layers"},
+    {"id": "luminous-cap", "topologyClass": "assembled-solid", "observation": "Bright cyan elliptical upper surface", "confidence": "high", "proposal": "Thin circular cap with concentric marks; not an open dark tube"},
+    {"id": "lower-core-layers", "topologyClass": "assembled-solid", "observation": "Overlapping curved layers below main core", "confidence": "medium", "proposal": "Short overlapping cylindrical layers; count unresolved; no evenly spaced three-disc template"},
+    {"id": "rear-frames", "topologyClass": "assembled-solid", "observation": "Tall box frames extend above and behind core", "confidence": "high", "proposal": "Cuboid contours and faint faces at different heights"},
+    {"id": "lateral-frames", "topologyClass": "assembled-solid", "observation": "Stepped box frames at both sides with gaps", "confidence": "high", "proposal": "Reference-positioned frame groups; actual 3D symmetry unresolved"},
+    {"id": "violet-orbit", "topologyClass": "assembled-solid", "observation": "Wide violet elliptical band with adjacent contours", "confidence": "high", "proposal": "Annular surface plus contour curves; not a thick polished torus"},
+    {"id": "cyan-orbits", "topologyClass": "assembled-solid", "observation": "Several cyan circular layers around lower core", "confidence": "medium", "proposal": "Thin rings with different radii and close heights; exact count unresolved"},
+    {"id": "lower-platform", "topologyClass": "assembled-solid", "observation": "Low circular layered structure", "confidence": "medium", "proposal": "Projection surfaces, not a thick glass pedestal"},
+    {"id": "radial-network", "topologyClass": "fiber-strand", "observation": "Technical lines extending toward lower region", "confidence": "medium", "proposal": "Sparse reference-positioned line segments"},
+    {"id": "surface-grid", "topologyClass": "material-only", "observation": "Fine lines follow curved and planar surfaces", "confidence": "high", "proposal": "Per-component grid masks"},
+    {"id": "light-nodes", "topologyClass": "material-only", "observation": "Localized brighter cyan points in central and lower areas", "confidence": "medium", "proposal": "Anchored emissive accents; no random scattering"}
+  ],
+  "relationships": [
+    ["luminous-cap", "caps", "core-body"],
+    ["rear-frames", "above-and-behind", "core-body"],
+    ["lateral-frames", "surrounds-with-gaps", "core-body"],
+    ["violet-orbit", "encircles", "core-body"],
+    ["cyan-orbits", "overlaps-in-projection", "lower-core-layers"]
+  ],
+  "materialRecipe": {
+    "observed": "Blue volume fill, cyan contours, violet orbit, navy depth",
+    "exactHex": null,
+    "proposedLayers": ["low-opacity colored surfaces", "fine subdued surface grids", "selectively bright contours", "violet annular gradient", "localized controlled bloom"],
+    "localOverrides": ["denser blue core", "fainter rear frames", "unequal edge brightness", "dark gaps between layers"],
+    "avoid": ["white studio glass reflections", "strong physical refraction", "colorless hollow tube", "uniform neon wireframe", "bloom hiding geometry"]
+  },
+  "criticalFeatures": ["layered wide silhouette", "blue core with luminous cap", "stepped rectangular frames", "multi-contour violet band", "nonuniform light and depth"],
+  "detailInventory": [
+    {"id": "D01", "feature": "elliptical luminous top", "component": "luminous-cap"},
+    {"id": "D02", "feature": "dense blue interior", "component": "core-body"},
+    {"id": "D03", "feature": "tall rear frames", "component": "rear-frames"},
+    {"id": "D04", "feature": "stepped lateral frames", "component": "lateral-frames"},
+    {"id": "D05", "feature": "wide violet band", "component": "violet-orbit"},
+    {"id": "D06", "feature": "adjacent cyan rings", "component": "cyan-orbits"},
+    {"id": "D07", "feature": "curved surface grid", "component": "surface-grid"},
+    {"id": "D08", "feature": "sparse box-face grid", "component": "lateral-frames"},
+    {"id": "D09", "feature": "front/rear brightness separation", "component": "rear-frames"},
+    {"id": "D10", "feature": "localized cyan highlights", "component": "light-nodes"},
+    {"id": "D11", "feature": "lower outward lines", "component": "radial-network"},
+    {"id": "D12", "feature": "dark inter-layer gaps", "component": "lower-core-layers"}
+  ],
+  "reviewContract": {
+    "firstPass": "static neutral blockout at reference camera",
+    "requiredViews": ["reference-matched", "side-orbit", "elevated-orbit"],
+    "comparison": ["mask excluded label and panels", "silhouette", "interior structure", "color distribution after geometry approval"],
+    "blockingFailures": ["missing box frames", "evenly spaced disc tower", "open glass tube", "uniform edge brightness", "glow hiding structure"],
+    "measuredSimilarity": null,
+    "formalValidationPassed": false
+  },
+  "motion": {"firstReview": "static", "deformation": false, "laterOptionsUnapproved": ["scan light", "orbit light travel", "slow layer rotation"]},
+  "unknowns": ["exact frame counts and dimensions", "independent discs versus projected layers", "rear structure", "final review viewport"],
+  "superseded": ["tall thin glass tower", "three evenly spaced shelves", "two simple clean rings", "thick reflective studio pedestal"],
+  "approvalBoundary": "Reference analysis approved in chat; no claim that this custom JSON passes ObjectSculptSpec validation"
+}

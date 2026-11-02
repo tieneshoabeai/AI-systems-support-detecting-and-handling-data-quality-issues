@@ -1,0 +1,13 @@
+{
+  "path": "/private/var/folders/nn/24dlps6s57d4_9pm73p0q8_40000gn/T/codex-clipboard-04192a78-026c-4d70-a506-88528997fec3.png",
+  "type": "png",
+  "bytes": 315344,
+  "width": 468,
+  "height": 360,
+  "aspectRatio": 1.3,
+  "technicalSuitability": "conditional",
+  "warnings": [
+    "low resolution; small geometry/material details may be unreliable"
+  ],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

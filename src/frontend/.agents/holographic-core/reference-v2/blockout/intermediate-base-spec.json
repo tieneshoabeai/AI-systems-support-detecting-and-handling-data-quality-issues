@@ -1,0 +1,15 @@
+{
+  "id": "base-intermediate",
+  "approvedByUser": true,
+  "parent": "base-shell",
+  "innerRadius": 2.15,
+  "outerRadius": 2.7,
+  "bottomY": 0.46,
+  "topY": 0.66,
+  "height": 0.20,
+  "units": "relative",
+  "violetOrbitCenterY": 0.769,
+  "violetOrbitBottomY": 0.76,
+  "violetOrbitGapAboveRing": 0.1,
+  "note": "Violet orbit sits above the intermediate ring. Ring still shares volume with sector panels up to Y=0.50."
+}

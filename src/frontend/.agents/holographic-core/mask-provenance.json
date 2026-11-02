@@ -1,0 +1,123 @@
+{
+  "method": "manual-polygon-roi-with-label-exclusion",
+  "source": "/var/folders/nn/24dlps6s57d4_9pm73p0q8_40000gn/T/codex-clipboard-04192a78-026c-4d70-a506-88528997fec3.png",
+  "width": 468,
+  "height": 360,
+  "polygon": [
+    [
+      18,
+      205
+    ],
+    [
+      18,
+      180
+    ],
+    [
+      95,
+      137
+    ],
+    [
+      98,
+      96
+    ],
+    [
+      137,
+      87
+    ],
+    [
+      137,
+      65
+    ],
+    [
+      202,
+      44
+    ],
+    [
+      202,
+      20
+    ],
+    [
+      236,
+      10
+    ],
+    [
+      270,
+      24
+    ],
+    [
+      271,
+      68
+    ],
+    [
+      310,
+      79
+    ],
+    [
+      315,
+      51
+    ],
+    [
+      347,
+      64
+    ],
+    [
+      348,
+      121
+    ],
+    [
+      389,
+      147
+    ],
+    [
+      410,
+      174
+    ],
+    [
+      418,
+      221
+    ],
+    [
+      433,
+      250
+    ],
+    [
+      430,
+      292
+    ],
+    [
+      370,
+      315
+    ],
+    [
+      290,
+      337
+    ],
+    [
+      153,
+      332
+    ],
+    [
+      85,
+      304
+    ],
+    [
+      64,
+      270
+    ],
+    [
+      64,
+      219
+    ]
+  ],
+  "excludedLabel": [
+    169,
+    198,
+    304,
+    249
+  ],
+  "retainedPixels": 81551,
+  "retainedFraction": 0.48403964862298193,
+  "rgbPreserved": true,
+  "generatedContent": false,
+  "limitation": "Coarse analysis ROI, not exact object silhouette; background visible through hologram is retained; occluded pixels are not reconstructed."
+}

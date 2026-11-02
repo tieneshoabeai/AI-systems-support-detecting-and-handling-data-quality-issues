@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Holographic Core — Blockout v2 review</title>
+    <link rel="stylesheet" href="./review.css" />
+  </head>
+  <body>
+    <main>
+      <header><p>REVIEW HÌNH KHỐI · BLOCKOUT</p><h1>Cụm dữ liệu trung tâm · v2</h1><p>Blockout xám đứng yên; Hologram mode chỉ quay các ring/grid đã đặc tả. Camera và tỷ lệ còn đang kiểm chứng.</p></header>
+      <p><a id="capture-png" download>Ảnh PNG của preset hiện tại</a> · <a id="capture-evidence" download="geometry-export.json">Bằng chứng của preset</a></p>
+      <nav aria-label="Chọn góc nhìn">
+        <button data-view="reference" aria-pressed="true">Góc tham chiếu</button>
+        <button data-view="front" aria-pressed="false">Mặt trước</button>
+        <button data-view="right" aria-pressed="false">Bên phải</button>
+        <button data-view="rear" aria-pressed="false">Mặt sau</button>
+        <button data-view="left" aria-pressed="false">Bên trái</button>
+        <button data-view="high" aria-pressed="false">Góc cao</button>
+      </nav>
+      <div class="comparison">
+        <section><h2>Blockout · 468 × 360 px</h2><div id="stage" aria-label="Mô hình blockout trung tính"></div></section>
+        <section><h2>Ảnh gốc · chỉ cụm trung tâm là mục tiêu</h2><img src="./reference-primary.png" width="468" height="360" alt="Ảnh tham chiếu hologram gốc" /></section>
+      </div>
+      <div class="actions">
+        <button id="toggle-material" aria-pressed="false">Chế độ vật liệu (Look-dev Hologram)</button>
+        <button id="export-png">Xuất PNG góc hiện tại</button>
+        <button id="export-evidence">Xuất bằng chứng hình học</button>
+        <button id="explode" aria-pressed="false">Tách bộ phận để kiểm tra</button>
+      </div>
+      <p id="status" role="status">Đang khởi tạo WebGL…</p>
+      <p id="selected" aria-live="polite">Bấm vào hình để chọn bộ phận. Kéo để xoay thủ công; không có tự xoay.</p>
+      <details><summary>Camera và bằng chứng hiện tại</summary><pre id="evidence"></pre></details>
+      <p class="note">9 cột và 8 mảng đế là số lượng thiết kế đã duyệt. Việc dựng xong blockout chưa xác nhận độ giống hoặc vật liệu hologram.</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

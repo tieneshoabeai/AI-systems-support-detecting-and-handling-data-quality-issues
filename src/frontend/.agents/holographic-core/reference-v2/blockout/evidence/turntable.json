@@ -1,0 +1,98 @@
+{
+  "angles": [
+    {
+      "azimuth": 0.0,
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/front.png",
+      "isReference": true,
+      "segmented": true,
+      "holed": true,
+      "interiorHolePixelCount": 14987,
+      "interiorHoleFraction": 0.2259732818672537,
+      "largestHolePixelCount": 3590,
+      "largestHoleBBox": {
+        "x": 132,
+        "y": 18,
+        "width": 39,
+        "height": 128
+      },
+      "areaFraction": 0.39364909781576446,
+      "ratio": 1.0,
+      "degenerate": false
+    },
+    {
+      "azimuth": 90.0,
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/right.png",
+      "isReference": false,
+      "segmented": true,
+      "holed": true,
+      "interiorHolePixelCount": 13927,
+      "interiorHoleFraction": 0.2132967807149202,
+      "largestHolePixelCount": 3893,
+      "largestHoleBBox": {
+        "x": 294,
+        "y": 18,
+        "width": 39,
+        "height": 131
+      },
+      "areaFraction": 0.38754748338081674,
+      "ratio": 0.984499864298423,
+      "degenerate": false
+    },
+    {
+      "azimuth": 180.0,
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/rear.png",
+      "isReference": false,
+      "segmented": true,
+      "holed": true,
+      "interiorHolePixelCount": 15093,
+      "interiorHoleFraction": 0.21872328092167234,
+      "largestHolePixelCount": 2455,
+      "largestHoleBBox": {
+        "x": 327,
+        "y": 27,
+        "width": 53,
+        "height": 128
+      },
+      "areaFraction": 0.40957383665717,
+      "ratio": 1.040454147944875,
+      "degenerate": false
+    },
+    {
+      "azimuth": 270.0,
+      "path": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/holographic-core/reference-v2/blockout/evidence/left.png",
+      "isReference": false,
+      "segmented": true,
+      "holed": true,
+      "interiorHolePixelCount": 15261,
+      "interiorHoleFraction": 0.21859825533926347,
+      "largestHolePixelCount": 2598,
+      "largestHoleBBox": {
+        "x": 90,
+        "y": 27,
+        "width": 49,
+        "height": 131
+      },
+      "areaFraction": 0.41436965811965815,
+      "ratio": 1.0526371339826905,
+      "degenerate": false
+    }
+  ],
+  "referenceAzimuth": 0.0,
+  "requiredAzimuths": [
+    0.0,
+    90.0,
+    180.0,
+    270.0
+  ],
+  "azimuthTolerance": 5.0,
+  "missingAzimuths": [],
+  "covered": true,
+  "collapseRatio": 0.15,
+  "degenerate": false,
+  "allowHoles": true,
+  "holed": true,
+  "unsegmentedAzimuths": [],
+  "segmentationReliable": true,
+  "passed": true,
+  "note": "deterministic; zero token; mandatory azimuth coverage catches off-axis-only defects, interior-hole flood fill catches silhouette-enclosed background that an area-only check misses"
+}

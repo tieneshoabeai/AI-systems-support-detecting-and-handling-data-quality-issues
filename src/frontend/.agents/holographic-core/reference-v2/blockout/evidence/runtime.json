@@ -1,0 +1,1369 @@
+{
+  "model": "holographic-orbital-data-core-v2",
+  "pass": "blockout",
+  "materialMode": "neutral-map-stripped",
+  "camera": {
+    "name": "reference",
+    "projection": "perspective",
+    "fovDegrees": 40,
+    "position": [
+      5.724717200369867,
+      3.734289596701875,
+      5.677578610873722
+    ],
+    "target": [
+      0.10771712726208711,
+      0.8430419282072912,
+      0.06057853776594042
+    ],
+    "viewportPx": [
+      468,
+      360
+    ],
+    "pixelRatio": 1,
+    "projectedBounds": {
+      "x": 39.83708105450895,
+      "y": 14.80626537832477,
+      "width": 384.23414368335625,
+      "height": 321.3383708521778
+    },
+    "calibrated": false,
+    "note": "Camera hypothesis fitted to approximate assembly bounds, not an exact source-camera solution."
+  },
+  "exploded": false,
+  "autoRotate": false,
+  "animationLoop": false,
+  "renderer": {
+    "revision": "186",
+    "calls": 54,
+    "triangles": 11152,
+    "lines": 4640,
+    "bloom": false,
+    "shadows": false
+  },
+  "parts": [
+    {
+      "name": "core-upper",
+      "componentId": "core-upper",
+      "kind": "part",
+      "module": "core-upper",
+      "representation": "neutral-carrier",
+      "triangles": 432,
+      "dimensions": [
+        1.7999999523162842,
+        1.100000023841858,
+        1.7999999523162842
+      ],
+      "measuredWorldCenter": [
+        0,
+        1.85,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -0.8999999761581421,
+          1.2999999880790711,
+          -0.8999999761581421
+        ],
+        "max": [
+          0.8999999761581421,
+          2.400000011920929,
+          0.8999999761581421
+        ]
+      },
+      "intendedDimensions": [
+        1.8,
+        1.0999999999999999,
+        1.8
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "core-cap",
+      "componentId": "core-cap",
+      "kind": "part",
+      "module": "core-cap",
+      "representation": "neutral-carrier",
+      "triangles": 224,
+      "dimensions": [
+        1.840000033378601,
+        0.03999999910593033,
+        1.840000033378601
+      ],
+      "measuredWorldCenter": [
+        0,
+        2.4,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -0.9200000166893005,
+          2.3800000004470347,
+          -0.9200000166893005
+        ],
+        "max": [
+          0.9200000166893005,
+          2.419999999552965,
+          0.9200000166893005
+        ]
+      },
+      "intendedDimensions": [
+        1.84,
+        0.04,
+        1.84
+      ],
+      "parentComponent": "core-upper"
+    },
+    {
+      "name": "core-lower",
+      "componentId": "core-lower",
+      "kind": "part",
+      "module": "core-lower",
+      "representation": "neutral-carrier",
+      "triangles": 432,
+      "dimensions": [
+        1.7999999523162842,
+        0.949999988079071,
+        1.7999999523162842
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.825,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -0.8999999761581421,
+          0.35000000596046443,
+          -0.8999999761581421
+        ],
+        "max": [
+          0.8999999761581421,
+          1.2999999940395355,
+          0.8999999761581421
+        ]
+      },
+      "intendedDimensions": [
+        1.8,
+        0.9500000000000001,
+        1.8
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "core-mid-collar",
+      "componentId": "core-mid-collar",
+      "kind": "part",
+      "module": "core-mid-collar",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        2.9000000953674316,
+        0.3199999928474426,
+        2.9000000953674316
+      ],
+      "measuredWorldCenter": [
+        0,
+        1.18,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -1.4500000476837158,
+          1.0200000035762786,
+          -1.4500000476837158
+        ],
+        "max": [
+          1.4500000476837158,
+          1.3399999964237213,
+          1.4500000476837158
+        ]
+      },
+      "intendedDimensions": [
+        2.9,
+        0.32,
+        2.9
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "core-lower-collar",
+      "componentId": "core-lower-collar",
+      "kind": "part",
+      "module": "core-lower-collar",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        2.640000104904175,
+        0.10000000149011612,
+        2.640000104904175
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.44,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -1.3200000524520874,
+          0.38999999925494194,
+          -1.3200000524520874
+        ],
+        "max": [
+          1.3200000524520874,
+          0.49000000074505806,
+          1.3200000524520874
+        ]
+      },
+      "intendedDimensions": [
+        2.64,
+        0.1,
+        2.64
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "core-foot",
+      "componentId": "core-foot",
+      "kind": "part",
+      "module": "core-foot",
+      "representation": "neutral-carrier",
+      "triangles": 432,
+      "dimensions": [
+        1.9199999570846558,
+        0.25,
+        1.9199999570846558
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.22499999999999998,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -0.9599999785423279,
+          0.09999999999999998,
+          -0.9599999785423279
+        ],
+        "max": [
+          0.9599999785423279,
+          0.35,
+          0.9599999785423279
+        ]
+      },
+      "intendedDimensions": [
+        1.92,
+        0.24999999999999997,
+        1.92
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-01-back-high",
+      "componentId": "tower-01-back-high",
+      "kind": "part",
+      "module": "tower-01-back-high",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.7599999904632568,
+        3,
+        0.7599999904632568
+      ],
+      "measuredWorldCenter": [
+        -1.449569,
+        1.95,
+        -1.449569
+      ],
+      "worldBounds": {
+        "min": [
+          -1.8295689952316285,
+          0.44999999999999996,
+          -1.8295689952316285
+        ],
+        "max": [
+          -1.0695690047683717,
+          3.45,
+          -1.0695690047683717
+        ]
+      },
+      "intendedDimensions": [
+        0.76,
+        3,
+        0.76
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-02",
+      "componentId": "tower-02",
+      "kind": "part",
+      "module": "tower-02",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.47999998927116394,
+        2.1500000953674316,
+        0.47999998927116394
+      ],
+      "measuredWorldCenter": [
+        0,
+        1.525,
+        -1.93
+      ],
+      "worldBounds": {
+        "min": [
+          -0.23999999463558197,
+          0.4499999523162841,
+          -2.1699999946355817
+        ],
+        "max": [
+          0.23999999463558197,
+          2.6000000476837157,
+          -1.690000005364418
+        ]
+      },
+      "intendedDimensions": [
+        0.48,
+        2.15,
+        0.48
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-03",
+      "componentId": "tower-03",
+      "kind": "part",
+      "module": "tower-03",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.44999998807907104,
+        1.7999999523162842,
+        0.44999998807907104
+      ],
+      "measuredWorldCenter": [
+        1.272719,
+        1.35,
+        -1.516768
+      ],
+      "worldBounds": {
+        "min": [
+          1.0477190059604644,
+          0.450000023841858,
+          -1.7417679940395354
+        ],
+        "max": [
+          1.4977189940395355,
+          2.249999976158142,
+          -1.2917680059604644
+        ]
+      },
+      "intendedDimensions": [
+        0.45,
+        1.8,
+        0.45
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-04",
+      "componentId": "tower-04",
+      "kind": "part",
+      "module": "tower-04",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.41999998688697815,
+        1.2000000476837158,
+        0.41999998688697815
+      ],
+      "measuredWorldCenter": [
+        2.012313,
+        1.05,
+        -0.176055
+      ],
+      "worldBounds": {
+        "min": [
+          1.8023130065565107,
+          0.44999997615814213,
+          -0.38605499344348904
+        ],
+        "max": [
+          2.222312993443489,
+          1.650000023841858,
+          0.033944993443489085
+        ]
+      },
+      "intendedDimensions": [
+        0.42,
+        1.2,
+        0.42
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-05",
+      "componentId": "tower-05",
+      "kind": "part",
+      "module": "tower-05",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.36000001430511475,
+        0.8500000238418579,
+        0.36000001430511475
+      ],
+      "measuredWorldCenter": [
+        1.589155,
+        0.875,
+        1.112738
+      ],
+      "worldBounds": {
+        "min": [
+          1.4091549928474427,
+          0.44999998807907104,
+          0.9327379928474426
+        ],
+        "max": [
+          1.7691550071525575,
+          1.300000011920929,
+          1.2927380071525574
+        ]
+      },
+      "intendedDimensions": [
+        0.36,
+        0.85,
+        0.36
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-06",
+      "componentId": "tower-06",
+      "kind": "part",
+      "module": "tower-06",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.4000000059604645,
+        1,
+        0.4000000059604645
+      ],
+      "measuredWorldCenter": [
+        0.512462,
+        0.95,
+        1.912533
+      ],
+      "worldBounds": {
+        "min": [
+          0.31246199701976773,
+          0.44999999999999996,
+          1.7125329970197678
+        ],
+        "max": [
+          0.7124620029802322,
+          1.45,
+          2.112533002980232
+        ]
+      },
+      "intendedDimensions": [
+        0.4,
+        1,
+        0.4
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-07",
+      "componentId": "tower-07",
+      "kind": "part",
+      "module": "tower-07",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.41999998688697815,
+        1.2999999523162842,
+        0.41999998688697815
+      ],
+      "measuredWorldCenter": [
+        -1.01,
+        1.1,
+        1.749371
+      ],
+      "worldBounds": {
+        "min": [
+          -1.219999993443489,
+          0.450000023841858,
+          1.539371006556511
+        ],
+        "max": [
+          -0.8000000065565109,
+          1.7499999761581422,
+          1.959370993443489
+        ]
+      },
+      "intendedDimensions": [
+        0.42,
+        1.3,
+        0.42
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-08",
+      "componentId": "tower-08",
+      "kind": "part",
+      "module": "tower-08",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.46000000834465027,
+        2,
+        0.46000000834465027
+      ],
+      "measuredWorldCenter": [
+        -1.893215,
+        1.45,
+        0.507285
+      ],
+      "worldBounds": {
+        "min": [
+          -2.1232150041723252,
+          0.44999999999999996,
+          0.27728499582767485
+        ],
+        "max": [
+          -1.663214995827675,
+          2.45,
+          0.7372850041723251
+        ]
+      },
+      "intendedDimensions": [
+        0.46,
+        2,
+        0.46
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "tower-09",
+      "componentId": "tower-09",
+      "kind": "part",
+      "module": "tower-09",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        0.46000000834465027,
+        2.200000047683716,
+        0.46000000834465027
+      ],
+      "measuredWorldCenter": [
+        -1.80421,
+        1.55,
+        -0.656679
+      ],
+      "worldBounds": {
+        "min": [
+          -2.0342100041723254,
+          0.44999997615814213,
+          -0.8866790041723251
+        ],
+        "max": [
+          -1.574209995827675,
+          2.6500000238418577,
+          -0.4266789958276749
+        ]
+      },
+      "intendedDimensions": [
+        0.46,
+        2.2,
+        0.46
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "base-shell",
+      "componentId": "base-shell",
+      "kind": "part",
+      "module": "base-shell",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        6.199999809265137,
+        0.44999998807907104,
+        6.199999809265137
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.225,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -3.0999999046325684,
+          5.960464483090178e-9,
+          -3.0999999046325684
+        ],
+        "max": [
+          3.0999999046325684,
+          0.4499999940395355,
+          3.0999999046325684
+        ]
+      },
+      "intendedDimensions": [
+        6.2,
+        0.45,
+        6.2
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "base-deck",
+      "componentId": "base-deck",
+      "kind": "part",
+      "module": "base-deck",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        6.199999809265137,
+        0.014999999664723873,
+        6.199999809265137
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.45,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -3.0999999046325684,
+          0.4425000001676381,
+          -3.0999999046325684
+        ],
+        "max": [
+          3.0999999046325684,
+          0.45749999983236195,
+          3.0999999046325684
+        ]
+      },
+      "intendedDimensions": [
+        6.2,
+        0.015,
+        6.2
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-01",
+      "componentId": "base-sector-01",
+      "kind": "part",
+      "module": "base-sector-01",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.3306348323822021,
+        1.096982717514038,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.25,
+        2.651508670788841
+      ],
+      "worldBounds": {
+        "min": [
+          -0.6653174161911011,
+          -1.217895470599959e-16,
+          2.103017312031822
+        ],
+        "max": [
+          0.6653174161911011,
+          0.5000000000000001,
+          3.20000002954586
+        ]
+      },
+      "intendedDimensions": [
+        1.3306348212336596,
+        1.0969826584223181,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-02",
+      "componentId": "base-sector-02",
+      "kind": "part",
+      "module": "base-sector-02",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.5127718448638916,
+        1.5127718448638916,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        1.9273598713538325,
+        0.25,
+        1.9273598713538327
+      ],
+      "worldBounds": {
+        "min": [
+          1.1709739489218867,
+          -1.6795141331725678e-16,
+          1.1709739489218869
+        ],
+        "max": [
+          2.6837457937857785,
+          0.5000000000000002,
+          2.6837457937857785
+        ]
+      },
+      "intendedDimensions": [
+        1.5127718921430486,
+        1.5127718921430489,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-03",
+      "componentId": "base-sector-03",
+      "kind": "part",
+      "module": "base-sector-03",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.096982717514038,
+        1.3306348323822021,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        2.651508670788841,
+        0.25,
+        5.551115123125783e-16
+      ],
+      "worldBounds": {
+        "min": [
+          2.103017312031822,
+          -1.4773014282789567e-16,
+          -0.6653174161911006
+        ],
+        "max": [
+          3.20000002954586,
+          0.5000000000000001,
+          0.6653174161911017
+        ]
+      },
+      "intendedDimensions": [
+        1.0969826584223181,
+        1.3306348212336596,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-04",
+      "componentId": "base-sector-04",
+      "kind": "part",
+      "module": "base-sector-04",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.5127718448638916,
+        1.5127718448638916,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        1.9273598713538322,
+        0.25,
+        -1.927359871353833
+      ],
+      "worldBounds": {
+        "min": [
+          1.1709739489218864,
+          -1.6795141331725678e-16,
+          -2.6837457937857785
+        ],
+        "max": [
+          2.683745793785778,
+          0.5000000000000002,
+          -1.1709739489218869
+        ]
+      },
+      "intendedDimensions": [
+        1.5127718921430489,
+        1.5127718921430495,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-05",
+      "componentId": "base-sector-05",
+      "kind": "part",
+      "module": "base-sector-05",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.3306348323822021,
+        1.096982717514038,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        3.885780586188048e-16,
+        0.25,
+        -2.651508670788841
+      ],
+      "worldBounds": {
+        "min": [
+          -0.6653174161911006,
+          -1.217895470599959e-16,
+          -3.20000002954586
+        ],
+        "max": [
+          0.6653174161911015,
+          0.5000000000000001,
+          -2.103017312031822
+        ]
+      },
+      "intendedDimensions": [
+        1.3306348212336587,
+        1.0969826584223181,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-06",
+      "componentId": "base-sector-06",
+      "kind": "part",
+      "module": "base-sector-06",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.5127718448638916,
+        1.5127718448638916,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        -1.9273598713538327,
+        0.25,
+        -1.9273598713538327
+      ],
+      "worldBounds": {
+        "min": [
+          -2.6837457937857785,
+          -1.6795141331725678e-16,
+          -2.6837457937857785
+        ],
+        "max": [
+          -1.1709739489218869,
+          0.5000000000000002,
+          -1.1709739489218869
+        ]
+      },
+      "intendedDimensions": [
+        1.512771892143049,
+        1.5127718921430493,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-07",
+      "componentId": "base-sector-07",
+      "kind": "part",
+      "module": "base-sector-07",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.096982717514038,
+        1.3306348323822021,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        -2.651508670788841,
+        0.25,
+        -1.887379141862766e-15
+      ],
+      "worldBounds": {
+        "min": [
+          -3.20000002954586,
+          -1.4773014282789567e-16,
+          -0.6653174161911031
+        ],
+        "max": [
+          -2.103017312031822,
+          0.5000000000000001,
+          0.6653174161910993
+        ]
+      },
+      "intendedDimensions": [
+        1.0969826584223181,
+        1.3306348212336587,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-sector-08",
+      "componentId": "base-sector-08",
+      "kind": "part",
+      "module": "base-sector-08",
+      "representation": "neutral-carrier",
+      "triangles": 132,
+      "dimensions": [
+        1.5127718448638916,
+        1.5127718448638916,
+        0.5
+      ],
+      "measuredWorldCenter": [
+        -1.9273598713538327,
+        0.25,
+        1.9273598713538322
+      ],
+      "worldBounds": {
+        "min": [
+          -2.6837457937857785,
+          -1.6795141331725678e-16,
+          1.1709739489218864
+        ],
+        "max": [
+          -1.1709739489218869,
+          0.5000000000000002,
+          2.683745793785778
+        ]
+      },
+      "intendedDimensions": [
+        1.5127718921430497,
+        1.51277189214305,
+        0.5
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "orbit-violet",
+      "componentId": "orbit-violet",
+      "kind": "part",
+      "module": "orbit-violet",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        5.190000057220459,
+        0.017999999225139618,
+        5.190000057220459
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.52,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -2.5950000286102295,
+          0.5110000003874302,
+          -2.5950000286102295
+        ],
+        "max": [
+          2.5950000286102295,
+          0.5289999996125698,
+          2.5950000286102295
+        ]
+      },
+      "intendedDimensions": [
+        5.1899999999999995,
+        0.018,
+        5.1899999999999995
+      ],
+      "parentComponent": null
+    },
+    {
+      "name": "base-rim-outer-top",
+      "componentId": "base-rim-outer-top",
+      "kind": "part",
+      "module": "base-rim-outer-top",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        6.2179999351501465,
+        0.017999999225139618,
+        6.2179999351501465
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.45,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -3.1089999675750732,
+          0.4410000003874302,
+          -3.1089999675750732
+        ],
+        "max": [
+          3.1089999675750732,
+          0.4589999996125698,
+          3.1089999675750732
+        ]
+      },
+      "intendedDimensions": [
+        6.218,
+        0.018,
+        6.218
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-rim-outer-bottom",
+      "componentId": "base-rim-outer-bottom",
+      "kind": "part",
+      "module": "base-rim-outer-bottom",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        6.2179999351501465,
+        0.017999999225139618,
+        6.2179999351501465
+      ],
+      "measuredWorldCenter": [
+        0,
+        0,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -3.1089999675750732,
+          -0.008999999612569809,
+          -3.1089999675750732
+        ],
+        "max": [
+          3.1089999675750732,
+          0.008999999612569809,
+          3.1089999675750732
+        ]
+      },
+      "intendedDimensions": [
+        6.218,
+        0.018,
+        6.218
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "base-rim-inner-top",
+      "componentId": "base-rim-inner-top",
+      "kind": "part",
+      "module": "base-rim-inner-top",
+      "representation": "neutral-carrier",
+      "triangles": 768,
+      "dimensions": [
+        4.317999839782715,
+        0.017999999225139618,
+        4.317999839782715
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.455,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -2.1589999198913574,
+          0.4460000003874302,
+          -2.1589999198913574
+        ],
+        "max": [
+          2.1589999198913574,
+          0.4639999996125698,
+          2.1589999198913574
+        ]
+      },
+      "intendedDimensions": [
+        4.318,
+        0.018,
+        4.318
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "inner-projection-field",
+      "componentId": "inner-projection-field",
+      "kind": "part",
+      "module": "inner-projection-field",
+      "representation": "3D-edge-cage",
+      "triangles": 0,
+      "dimensions": [
+        4.300000190734863,
+        0.006000000052154064,
+        4.300000190734863
+      ],
+      "measuredWorldCenter": [
+        0,
+        0.45,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -2.1500000953674316,
+          0.446999999973923,
+          -2.1500000953674316
+        ],
+        "max": [
+          2.1500000953674316,
+          0.45300000002607704,
+          2.1500000953674316
+        ]
+      },
+      "intendedDimensions": [
+        4.3,
+        0.006,
+        4.3
+      ],
+      "parentComponent": "base-shell"
+    },
+    {
+      "name": "cap-center-light",
+      "componentId": "cap-center-light",
+      "kind": "part",
+      "module": "cap-center-light",
+      "representation": "neutral-carrier",
+      "triangles": 1216,
+      "dimensions": [
+        0.03999999910593033,
+        0.03999999910593033,
+        0.03999999910593033
+      ],
+      "measuredWorldCenter": [
+        0,
+        2.4299999999999997,
+        0
+      ],
+      "worldBounds": {
+        "min": [
+          -0.019999999552965164,
+          2.4100000004470346,
+          -0.019999999552965164
+        ],
+        "max": [
+          0.019999999552965164,
+          2.449999999552965,
+          0.019999999552965164
+        ]
+      },
+      "intendedDimensions": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "parentComponent": "core-cap"
+    },
+    {
+      "name": "front-loop-light",
+      "componentId": "front-loop-light",
+      "kind": "part",
+      "module": "front-loop-light",
+      "representation": "neutral-carrier",
+      "triangles": 1216,
+      "dimensions": [
+        0.03999999910593033,
+        0.03999999910593033,
+        0.03999999910593033
+      ],
+      "measuredWorldCenter": [
+        1.788980156401965,
+        0.52,
+        1.788980156401965
+      ],
+      "worldBounds": {
+        "min": [
+          1.7689801568489998,
+          0.5000000004470349,
+          1.7689801568489998
+        ],
+        "max": [
+          1.8089801559549301,
+          0.5399999995529652,
+          1.8089801559549301
+        ]
+      },
+      "intendedDimensions": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "parentComponent": "orbit-violet"
+    }
+  ],
+  "unnamedMeshes": 0,
+  "integralMeshes": 32,
+  "measuredPositions": {
+    "core-upper": [
+      0,
+      1.85,
+      0
+    ],
+    "core-cap": [
+      0,
+      2.4,
+      0
+    ],
+    "core-lower": [
+      0,
+      0.825,
+      0
+    ],
+    "core-mid-collar": [
+      0,
+      1.18,
+      0
+    ],
+    "core-lower-collar": [
+      0,
+      0.44,
+      0
+    ],
+    "core-foot": [
+      0,
+      0.22499999999999998,
+      0
+    ],
+    "tower-01-back-high": [
+      -1.449569,
+      1.95,
+      -1.449569
+    ],
+    "tower-02": [
+      0,
+      1.525,
+      -1.93
+    ],
+    "tower-03": [
+      1.272719,
+      1.35,
+      -1.516768
+    ],
+    "tower-04": [
+      2.012313,
+      1.05,
+      -0.176055
+    ],
+    "tower-05": [
+      1.589155,
+      0.875,
+      1.112738
+    ],
+    "tower-06": [
+      0.512462,
+      0.95,
+      1.912533
+    ],
+    "tower-07": [
+      -1.01,
+      1.1,
+      1.749371
+    ],
+    "tower-08": [
+      -1.893215,
+      1.45,
+      0.507285
+    ],
+    "tower-09": [
+      -1.80421,
+      1.55,
+      -0.656679
+    ],
+    "base-shell": [
+      0,
+      0.225,
+      0
+    ],
+    "base-deck": [
+      0,
+      0.45,
+      0
+    ],
+    "base-sector-01": [
+      0,
+      0.25,
+      2.651508670788841
+    ],
+    "base-sector-02": [
+      1.9273598713538325,
+      0.25,
+      1.9273598713538327
+    ],
+    "base-sector-03": [
+      2.651508670788841,
+      0.25,
+      5.551115123125783e-16
+    ],
+    "base-sector-04": [
+      1.9273598713538322,
+      0.25,
+      -1.927359871353833
+    ],
+    "base-sector-05": [
+      3.885780586188048e-16,
+      0.25,
+      -2.651508670788841
+    ],
+    "base-sector-06": [
+      -1.9273598713538327,
+      0.25,
+      -1.9273598713538327
+    ],
+    "base-sector-07": [
+      -2.651508670788841,
+      0.25,
+      -1.887379141862766e-15
+    ],
+    "base-sector-08": [
+      -1.9273598713538327,
+      0.25,
+      1.9273598713538322
+    ],
+    "orbit-violet": [
+      0,
+      0.52,
+      0
+    ],
+    "base-rim-outer-top": [
+      0,
+      0.45,
+      0
+    ],
+    "base-rim-outer-bottom": [
+      0,
+      0,
+      0
+    ],
+    "base-rim-inner-top": [
+      0,
+      0.455,
+      0
+    ],
+    "inner-projection-field": [
+      0,
+      0.45,
+      0
+    ],
+    "cap-center-light": [
+      0,
+      2.4299999999999997,
+      0
+    ],
+    "front-loop-light": [
+      1.788980156401965,
+      0.52,
+      1.788980156401965
+    ]
+  },
+  "deferredDetails": [
+    "colored volume density",
+    "technical surface grids",
+    "violet arc brightness",
+    "localized emission"
+  ],
+  "visibleComponentCount": 32
+}

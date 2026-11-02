@@ -1,0 +1,15 @@
+{
+  "activeAnalysisRevision": "reference-v2",
+  "analysis": "reference-v2/reference-analysis.json",
+  "geometryProposal": "reference-v2/geometry-proposal.json",
+  "reviewDocument": "reference-v2/formal-spec-review.md",
+  "lastAuthoredFormalSpec": "reference-v2/object-sculpt-spec.json",
+  "lastAuthoredFormalSpecRevision": "reference-v2",
+  "lastBuiltPreview": "blockout/index.html",
+  "lastBuiltPreviewRevision": "reference-v1",
+  "lastBuiltPreviewStatus": "stale-for-active-reference; not accepted",
+  "activeRevisionHasFormalSpec": true,
+  "activeRevisionHasBuild": false,
+  "nextDecision": "Approve reference-v2/blockout-v2-plan.md before source implementation.",
+  "formalSpecStatus": "normal-and-strict-schema-pass; no render acceptance"
+}

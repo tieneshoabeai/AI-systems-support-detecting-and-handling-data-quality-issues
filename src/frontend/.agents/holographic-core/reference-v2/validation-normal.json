@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "targetName": "Holographic Orbital Data Core v2",
+    "suitability": "conditional",
+    "components": 32,
+    "materials": 5
+  }
+}

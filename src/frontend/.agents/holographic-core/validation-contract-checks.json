@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "checks": [
+    "JSON syntax",
+    "assessment/spec synchronization",
+    "reserved factory root and independent ownership",
+    "cap endpoint dimensions and 0.02 overlap",
+    "0.025 lower-layer gap",
+    "12 feature/evidence links",
+    "material and review references",
+    "textureless carriers retain geometric detail and declare no fake maps",
+    "3 normalized supported lathe profiles"
+  ],
+  "runtimeTested": false
+}

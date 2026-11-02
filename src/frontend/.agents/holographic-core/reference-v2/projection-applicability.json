@@ -1,0 +1,11 @@
+{
+  "route": "procedural-geometric-hologram",
+  "reference": "reference-primary.png",
+  "photoSurfaceProjectionApplicable": false,
+  "reason": "The source is a layered synthetic emissive projection. Baking screenshot pixels onto one mesh would also bake background, overlapping volumes and bloom, misrepresenting orbit views.",
+  "alternative": "Procedural carriers plus explicit geometric grids, contour paths, data-glyph instances and per-submesh alpha/emission responsibilities.",
+  "cameraSolved": false,
+  "exactPbrRecoveryClaimed": false,
+  "supportViews": "Qualitative only; not admitted as numeric silhouette references.",
+  "implementationAuthorized": false
+}

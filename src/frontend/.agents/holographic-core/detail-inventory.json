@@ -1,0 +1,8 @@
+{
+  "sourceImage": "reference-masked.png",
+  "scanMethod": "grid-3x3",
+  "zonesDir": "zones",
+  "authoritativeDetails": "assessment.json#/preSpecAssessment/detailInventory",
+  "detailCount": 12,
+  "note": "Filled inventory is stored once in assessment.json. Zone PNGs are inspection evidence, not additional reference views."
+}

@@ -1,0 +1,23 @@
+{
+  "revision": "reference-v2",
+  "status": "reference-intake-and-specification-only",
+  "supersedesAnalysis": "../reference-analysis.json",
+  "previousSpecPreserved": "../object-sculpt-spec.json",
+  "previousBlockout": "../blockout/reference.png",
+  "previousBlockoutStatus": "stale-for-new-reference; no visual pass accepted",
+  "authority": "User confirmed: primary front-oblique image is the appearance target; the three-view sheet is structural support.",
+  "implementationAuthorizedForThisRevision": true,
+  "referenceFiles": {
+    "primary": "reference-primary.png",
+    "supportSheet": "reference-multiview.png"
+  },
+  "rule": "Do not inherit old admission, strict-validation or visual-pass status for new evidence. Do not modify the previous blockout in this specification batch.",
+  "analysisCompleted": true,
+  "primaryReferenceAdmitted": true,
+  "supportViewsQuantitativelyAdmitted": false,
+  "dataContractChecks": "validation-data-contracts.json",
+  "formalSpecCreated": true,
+  "pendingHumanReview": [],
+  "formalSpec": "object-sculpt-spec.json",
+  "formalValidation": "validation-strict.json"
+}
