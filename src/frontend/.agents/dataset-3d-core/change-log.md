@@ -186,6 +186,9 @@ Kết quả 2026-11-02:
 
 ## 6. Rollback nhanh
 
+Checkpoint git: `1c71e16` — `feat(dataset-3d): add 3D workspace with neon modules and issue constellation`
+(`git show 1c71e16 --stat`, `git revert 1c71e16` để quay lại trạng thái trước checkpoint).
+
 ```bash
 # toàn bộ visual về trước concept C (giữ code mới nhưng tắt)
 #   src/graphics/holographic-core/core-visual-config.ts
