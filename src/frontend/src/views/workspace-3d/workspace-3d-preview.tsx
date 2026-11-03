@@ -42,7 +42,7 @@ export function Workspace3DPreview() {
       <label htmlFor="local-csv-files">Thử xem file CSV trên máy</label>
       <input id="local-csv-files" type="file" accept=".csv,text/csv" multiple disabled={busy} onChange={chooseFiles} />
       <p>Chọn một hoặc nhiều CSV UTF-8. Mỗi file có một Project và một Dataset thử nghiệm. Bấm khối, rồi bấm tên file hoặc “Xem dữ liệu”.</p>
-      <p>Chỉ giữ trong bộ nhớ tab; tải lại trang sẽ xóa lựa chọn. File không được gửi lên máy chủ hoặc lưu vào storage.</p>
+      <p>Chỉ giữ trong bộ nhớ tab; tải lại trang sẽ xóa lựa chọn.</p>
       {busy && <p role="status">Đang đọc file trên máy…</p>}
       {error && <p role="alert" className="feedback-error">{error}</p>}
     </section>

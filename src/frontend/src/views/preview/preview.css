@@ -1,0 +1,2392 @@
+/* Preview 2D — dark "DataVerse" theo UI-UX/structure_ui + UI-UX/home|workspaces|projects.
+   Scope [data-preview='2d'] để không ảnh hưởng login/dialog đang dùng theme sáng đã merge.
+   Chỉ route dev-only /preview/{home,workspaces,projects} nạp file này. */
+
+[data-preview='2d'] {
+  /* Dải nền đã nhấc lên một bậc so với bản đầu (bg-0 từng là #04070f) theo phản hồi
+     "nền hơi tối". Mọi cặp chữ/nền đã đo lại WCAG: thấp nhất là 5.41:1 (faint trên
+     surface-2), ink trên surface-2 vẫn 11.9:1 — sáng hơn nhưng không đổi chân lý. */
+  --pv-bg-0: #0a1120;
+  --pv-bg-1: #0d1728;
+  --pv-bg-2: #122033;
+  --pv-surface: #16263c;
+  --pv-surface-2: #1b2f48;
+  --pv-line: rgba(120, 170, 235, .2);
+  --pv-line-strong: rgba(120, 170, 235, .34);
+  --pv-ink: #e8f1fb;
+  --pv-muted: #a9bcd6;
+  /* #6e869f đo ra 4.20:1 trên --pv-surface-2, dưới ngưỡng 4.5 (brand-guidelines mục 5.5).
+     Nền đổi thì số này đổi theo: #8ea6c0 = 5.41:1 trên surface-2 mới. */
+  --pv-faint: #8ea6c0;
+  --pv-brand: #00a878;
+  --pv-brand-soft: color-mix(in srgb, var(--pv-brand) 22%, transparent);
+  --pv-blue: #2f7cf6;
+  /* Token _fill dùng cho nền đặc có chữ trắng. Đã đo WCAG tương phản với #fff:
+     #2f7cf6 = 3.94 (HỎNG 4.5) · #2a6ee6 = 4.70 · #2563eb = 5.17 · #1f5fd0 = 5.82.
+     --pv-blue vẫn dùng cho viền/độ phát sáng, không gánh chữ trắng. */
+  --pv-blue-fill: #2563eb;
+  --pv-blue-fill-hover: #2a6ee6;
+  --pv-violet-fill: #6b46e0;
+  --pv-blue-soft: rgba(47, 124, 246, .16);
+  --pv-violet: #7c5cff;
+  --pv-cyan: #22d3ee;
+  --pv-green: #34d399;
+  --pv-orange: #fbbf24;
+  --pv-pink: #f472b6;
+  --pv-danger: #ff6b6b;
+  /* ---------- Mực accent & các mốc gradient ----------
+     Trước đây 68 chỗ viết thẳng hex trong rule (#cfe3ff · #93c5fd · #fda4af…), nên đổi một
+     màu là phải dò lại từng dòng trong file 1.500 dòng — và brand-guidelines mục 5.6 bắt
+     màu mới phải đi qua nguồn chung. Toàn bộ chuyển vào đây KHÔNG đổi giá trị nào: audit
+     tương phản chạy trên trình duyệt thật (kể cả pixel nền tinh vân đứng sau chữ) vẫn 0 fail
+     trước và sau khi refactor. Test preview-constraints giữ cho không chỗ nào quay lại hex. */
+  --pv-on-fill: #fff;                 /* chữ trắng trên nền đặc (button · badge · avatar) */
+  --pv-ink-brand: #dff1ff;            /* logo mark trên khối gradient */
+  --pv-ink-accent: #cfe3ff;           /* nhãn sáng trên chip/đầu mục đang bật */
+  --pv-ink-accent-hi: #dbeafe;        /* hover của link/nhãn */
+  --pv-ink-accent-soft: #bcd8ff;      /* icon trong ô tint */
+  --pv-ink-eyebrow: #7fb4ff;          /* eyebrow 11px viết hoa */
+  --pv-ink-avatar: #eaf3ff;           /* chữ trên avatar chuyển gradient */
+  --pv-ink-link: #93c5fd;             /* link · dấu tick đang chọn */
+  --pv-ink-green: #6ee7b7;            /* trạng thái đạt */
+  --pv-ink-green-hi: #a7f3d0;         /* chữ trên badge định dạng tệp */
+  --pv-ink-green-glow: #7ff0cf;       /* icon thẻ số tone brand */
+  --pv-ink-amber: #fcd34d;            /* cảnh báo */
+  --pv-ink-rose: #fda4af;              /* lỗi · nút xóa */
+  --pv-ink-rose-hi: #ffe4e6;          /* chữ lỗi trên nền đỏ đặc */
+  --pv-ink-violet: #c4b5fd;           /* thông tin chung */
+  --pv-blue-deep: #1b4fb8;            /* đuôi gradient của logo */
+  --pv-blue-deeper: #123a7d;          /* đuôi gradient của viên bi tinh vân */
+  --pv-blue-edge: #4d92ff;            /* viền sáng trên nút đang bật */
+  --pv-fill-deep: #1f5fd0;            /* đuôi gradient nút primary · nav đang mở */
+  --pv-fill-deep-hover: #2160cf;
+  --pv-indigo-fill: #4f5ee8;          /* hero CTA: #4c7dff đo 3.69 với chữ trắng nên cặp này thay */
+  --pv-avatar-from: #2a527e;
+  --pv-panel-from: #0e1c31;
+  --pv-hc-edge: #8fb3d9;              /* prefers-contrast: viền đặc thay surface trong suốt */
+  --pv-hc-hover: #24455f;             /* prefers-contrast: nền hover đọc được trên nền đặc */
+  --pv-radius: 14px;
+  --pv-radius-lg: 20px;
+  /* Đường cong cũ cubic-bezier(.4,0,.2,1) KHỞI ĐỘNG CHẬM: 40% thời gian đầu gần như
+     bất động, nên bấm nút là thấy "trễ" một cái rồi mới chạy. Mọi phản hồi do thao tác
+     gây ra phải nhấc ngay lập tức → hai đường cong đầu dốc, đuôi đáp nhẹ.
+     --pv-ease cũ đã xoá hẳn để không chỗ nào còn lấy lại đường cong chậm đó. */
+  --pv-ease-out: cubic-bezier(0, .55, .2, 1);   /* hover · đổi nền/màu/viền */
+  --pv-ease-snap: cubic-bezier(.2, 0, 0, 1);    /* layout chrome: nhấc tức thì rồi đáp */
+  /* Ngân sách thời gian: cái gì người dùng bấm thì kết thúc trước lúc họ kịp nhìn;
+     hover chỉ cần đủ dài để mắt theo kịp, không cần "mượt". */
+  --pv-d-chrome: 140ms;
+  --pv-d-hover: 110ms;
+  --pv-d-press: 80ms;
+  /* Surface nổi (menu · popover · dialog · toast): đủ dài để thấy nó "đi tới", đủ ngắn
+     để không chặn người dùng bấm tiếp (mọi surface đều interruptible). */
+  --pv-d-surface: 130ms;
+  --pv-sidebar-w: 240px;
+  /* Chiều cao phần khung trên vùng cuộn: dải demo + topbar + dải lý do (~118px).
+     Dùng để giới hạn panel chi tiết đúng bằng vùng nhìn thấy của .preview-content. */
+  --pv-chrome: 118px;
+  --pv-shadow: 0 18px 40px rgba(2, 8, 20, .55);
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  /* Lớp nền ảnh bên dưới mang z-index:-1; không có stacking context ở đây thì nó bị
+     chính nền đặc của phần tử này che khuất (nền vẽ trước, phần tử z<0 vẽ sau). */
+  isolation: isolate;
+  background: var(--pv-bg-0);
+  color: var(--pv-ink);
+  /* Chữ: bỏ Plus Jakarta Sans trong frame 2D vì phản hồi "rối mắt". Font chữ hoa của nó
+     có 'a'/'g' hình học riêng, đứng dày ở cỡ 10–12px của dashboard thì khó đọc hơn một
+     mặt chữ trung tính (apple-design mục 15: mặc định lấy font hệ thống trước). Font hệ
+     thống Windows còn có hai bản optical-size riêng — Text cho cỡ nhỏ, Display cho cỡ lớn.
+     Plus Jakarta Sans vẫn sống ở design-tokens.css (app thật/login) — không đụng file đó.
+     Thang cỡ cũng dồn về bậc tối thiểu 11px: bản cũ có sáu cỡ nằm lọt giữa 9.5–12.5px (cách
+     nhau đúng 0.5px) — mắt quét cả màn hình chỉ thấy toàn chữ "gần bằng nhau" nhưng không
+     cái nào giống cái, đó chính là cái "rối".
+     Thang duy nhất hiện có: 11 (nhãn vi mô · chip · thời gian) · 12 (chữ phụ, note, bảng con)
+     · 14 (nội dung) · 16 (h3) · 18 (h2) · 21 (số thống kê) · 30 (h1) · 34 (s số lớn).
+     Không còn nửa bậc 11.5/12.5/13/13.5/15/17 — gate trong test/preview-constraints.spec.ts. */
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* Bảng biểu toàn số: chữ số cùng chiều rộng để các cột thẳng hàng, không "nhảy" khi
+   so hai dòng liên tiếp — đây là chỗ font hệ thống thắng font trình bày. */
+[data-preview='2d'] .preview-table,
+[data-preview='2d'] .pagination-info,
+[data-preview='2d'] .storage-ring,
+[data-preview='2d'] .stat-value { font-variant-numeric: tabular-nums; }
+
+[data-preview='2d'] *,
+[data-preview='2d'] *::before,
+[data-preview='2d'] *::after { box-sizing: border-box; }
+
+/* ---------- Nền vũ trụ ---------- */
+/* Đúng asset trong UI-UX/Global Application Shell (a_wide_high_resolution_abstract_sci_fi_
+   space_nebu.png) — copy vào src/assets để Vite hash; chỉ preview.css (dev-only) tham
+   chiếu nên không vào bundle production. z-index:-1 → đè trên nền đặc, nằm dưới mọi nội dung.
+   Layer này tĩnh: không animate blur/position của nó, vốn là cách nhanh nhất để một
+   "giao diện mượt" rơi xuống 30fps. */
+[data-preview='2d']::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* Scrim tối mạnh ở hai đầu (nơi có chữ nhỏ: dải demo · topbar · sidebar footer)
+       và để hở dải giữa cho tinh vân thật sự nhìn thấy được. Mỗi mức nhả .05–.08 so với
+       bản cũ để "sáng sáng chút" theo phản hồi; phần chữ nhỏ vẫn nằm trên surface đặc. */
+    linear-gradient(180deg, rgba(8, 14, 26, .88), rgba(8, 14, 26, .62) 28%, rgba(8, 14, 26, .7) 64%, rgba(8, 14, 26, .92)),
+    radial-gradient(120% 80% at 78% 12%, rgba(47, 124, 246, .2), transparent 60%),
+    url('../../assets/universe-backdrop.png') center / cover no-repeat;
+  /* Ảnh gốc sáng hơn nền app; hạ độ phát sáng vừa phải để tương phản chữ vẫn ≥ 4.5:1. */
+  filter: saturate(115%) brightness(.84);
+}
+
+[data-preview='2d'] h1,
+[data-preview='2d'] h2,
+[data-preview='2d'] h3 { font-family: 'Segoe UI Variable Display', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; }
+[data-preview='2d'] h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.6px; font-weight: 700; }
+[data-preview='2d'] h2 { font-size: 18px; line-height: 1.35; margin: 0; letter-spacing: -.2px; }
+[data-preview='2d'] h3 { font-size: 16px; margin: 0; }
+[data-preview='2d'] p { margin: 0; }
+[data-preview='2d'] ul { margin: 0; padding: 0; list-style: none; }
+[data-preview='2d'] dl { margin: 0; }
+[data-preview='2d'] small { color: var(--pv-muted); font-size: 12px; }
+[data-preview='2d'] button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+[data-preview='2d'] [disabled] { cursor: not-allowed; opacity: .45; }
+
+[data-preview='2d'] :focus-visible {
+  outline: 2px solid var(--pv-cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+[data-preview='2d'] .visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+[data-preview='2d'] .preview-icon { width: 18px; height: 18px; display: block; flex: none; }
+
+/* Thanh cuộn: ẩn hẳn thì mất dấu "còn nội dung bên dưới" nên giữ lại,
+   chỉ làm mảnh + đổi màu cho hợp nền tối (Firefox: scrollbar-*, Chromium: ::-webkit-*). */
+[data-preview='2d'] .preview-content,
+[data-preview='2d'] .preview-sidebar,
+[data-preview='2d'] .detail-panel,
+[data-preview='2d'] .table-scroll,
+[data-preview='2d'] .ws-tiles,
+[data-preview='2d'] .inbox-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 170, 235, .34) transparent;
+}
+[data-preview='2d'] .preview-content::-webkit-scrollbar,
+[data-preview='2d'] .preview-sidebar::-webkit-scrollbar,
+[data-preview='2d'] .detail-panel::-webkit-scrollbar,
+[data-preview='2d'] .table-scroll::-webkit-scrollbar,
+[data-preview='2d'] .ws-tiles::-webkit-scrollbar,
+[data-preview='2d'] .inbox-list::-webkit-scrollbar { width: 10px; height: 10px; }
+[data-preview='2d'] .preview-content::-webkit-scrollbar-track,
+[data-preview='2d'] .preview-sidebar::-webkit-scrollbar-track,
+[data-preview='2d'] .detail-panel::-webkit-scrollbar-track,
+[data-preview='2d'] .table-scroll::-webkit-scrollbar-track,
+[data-preview='2d'] .ws-tiles::-webkit-scrollbar-track,
+[data-preview='2d'] .inbox-list::-webkit-scrollbar-track { background: transparent; }
+[data-preview='2d'] .preview-content::-webkit-scrollbar-thumb,
+[data-preview='2d'] .preview-sidebar::-webkit-scrollbar-thumb,
+[data-preview='2d'] .detail-panel::-webkit-scrollbar-thumb,
+[data-preview='2d'] .table-scroll::-webkit-scrollbar-thumb,
+[data-preview='2d'] .ws-tiles::-webkit-scrollbar-thumb,
+[data-preview='2d'] .inbox-list::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(120, 170, 235, .3);
+  background-clip: padding-box;
+}
+[data-preview='2d'] .preview-content::-webkit-scrollbar-thumb:hover,
+[data-preview='2d'] .preview-sidebar::-webkit-scrollbar-thumb:hover,
+[data-preview='2d'] .detail-panel::-webkit-scrollbar-thumb:hover,
+[data-preview='2d'] .table-scroll::-webkit-scrollbar-thumb:hover,
+[data-preview='2d'] .ws-tiles::-webkit-scrollbar-thumb:hover,
+[data-preview='2d'] .inbox-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 170, 235, .55);
+  background-clip: padding-box;
+}
+
+/* ---------- Dải báo dữ liệu mẫu ---------- */
+[data-preview='2d'] .preview-demo-strip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 16px;
+  font-size: 12px; letter-spacing: .3px;
+  color: var(--pv-ink-accent);
+  background: linear-gradient(90deg, rgba(47, 124, 246, .28), rgba(124, 92, 255, .18), rgba(34, 211, 238, .16));
+  border-bottom: 1px solid var(--pv-line);
+}
+[data-preview='2d'] .demo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pv-orange); box-shadow: 0 0 10px var(--pv-orange); }
+
+/* ---------- Layout shell ---------- */
+[data-preview='2d'] .preview-root {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--pv-sidebar-w) minmax(0, 1fr);
+  min-height: 0;
+  /* Lưới đổi cỡ cột là layout animation — không compositor-friendly, mỗi frame là một
+     lần reflow toàn bộ nội dung. Vì vậy nó phải NGẮN và nhấc ngay (ease-snap); 300ms +
+     ease-in-out cũ là nguồn cảm giác "lag" khi bấm nút thu gọn sidebar. */
+  transition: grid-template-columns var(--pv-d-chrome) var(--pv-ease-snap);
+}
+[data-preview='2d'] .preview-root.is-compact { --pv-sidebar-w: 64px; }
+
+[data-preview='2d'] .preview-sidebar {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 16px 12px;
+  /* Vật liệu đặc hơn cho vùng cấu trúc (apple-design mục 12): sidebar là nền tối, mờ dần
+     để tinh vân phía sau thoáng nhẹ, nhưng KHÔNG backdrop-filter — blur sẽ biến nó thành
+     containing block của tooltip position:fixed bên dưới và kéo tooltip về sai chỗ. */
+  background: linear-gradient(180deg, rgba(13, 23, 40, .9), rgba(10, 17, 32, .94));
+  border-right: 1px solid var(--pv-line);
+  overflow: hidden auto;
+  scrollbar-width: thin;
+}
+
+[data-preview='2d'] .sidebar-brand { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+[data-preview='2d'] .brand-mark {
+  display: grid; place-items: center;
+  width: 34px; height: 34px; flex: none;
+  border-radius: 11px;
+  color: var(--pv-ink-brand);
+  background: linear-gradient(140deg, var(--pv-blue), var(--pv-blue-deep));
+  box-shadow: 0 0 18px rgba(47, 124, 246, .45);
+}
+[data-preview='2d'] .brand-text { display: flex; flex-direction: column; min-width: 0; overflow: hidden; white-space: nowrap; transition: opacity var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .brand-text strong { font-size: 16px; letter-spacing: .2px; }
+[data-preview='2d'] .brand-text small { font-size: 11px; color: var(--pv-faint); }
+
+[data-preview='2d'] .sidebar-nav { display: flex; flex-direction: column; gap: 3px; }
+
+/* Mục 5 trong structure_ui: default / hover / active / active+hover */
+[data-preview='2d'] .nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; min-height: 40px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  color: var(--pv-muted);
+  text-align: left;
+  white-space: nowrap;
+  /* Hover 180ms ease-in-out = hai phần ba thời gian đầu gần như không đổi → con trỏ
+     đi qua mà chưa thấy gì. Phản hồi hover đúng ra phải xong trong ~100ms. */
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .nav-item:hover { background: rgba(47, 124, 246, .1); color: var(--pv-ink); }
+[data-preview='2d'] .nav-item.is-active {
+  color: var(--pv-on-fill);
+  background: linear-gradient(90deg, var(--pv-blue-fill), var(--pv-fill-deep));
+  box-shadow: 0 8px 22px rgba(47, 124, 246, .35);
+}
+[data-preview='2d'] .nav-item.is-active:hover { background: linear-gradient(90deg, var(--pv-blue-fill-hover), var(--pv-fill-deep-hover)); }
+[data-preview='2d'] .nav-item:active { transform: translateY(1px); }
+[data-preview='2d'] .nav-icon { display: grid; place-items: center; width: 18px; flex: none; }
+[data-preview='2d'] .nav-label {
+  overflow: hidden; text-overflow: ellipsis;
+  transition: opacity var(--pv-d-hover) var(--pv-ease-out);
+}
+
+/* Dải "Đang mở" — trả lời trực tiếp phản hồi "vào trang thông báo thì thanh bar bên trái
+   cũng ở home". Màn Thông báo KHÔNG phải một module nav: cả hai ảnh shell lẫn Design Board
+   chỉ vẽ Home · Workspaces · Settings, và notification center mở ra từ chuông topbar
+   (Design Board 1.1 → 1.2). Thêm mục nav thứ tư là lệch thiết kế đã chốt 31/10, nên người
+   dùng vẫn thấy mình đang ở đâu bằng một dải ngữ cảnh dưới nav — không tranh chỗ ba module. */
+[data-preview='2d'] .nav-context {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 3px 8px;
+  margin-top: 4px; padding: 9px 11px;
+  border: 1px dashed var(--pv-line-strong); border-radius: 11px;
+  background: rgba(18, 32, 51, .6);
+}
+[data-preview='2d'] .nav-context-label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--pv-faint); }
+[data-preview='2d'] .nav-context strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+[data-preview='2d'] .nav-context .text-link { grid-column: 1 / -1; justify-self: start; margin-top: 2px; }
+[data-preview='2d'] .nav-context .text-link:hover { color: var(--pv-ink-accent-hi); background: var(--pv-blue-soft); }
+
+/* Mục 7: tooltip khi sidebar thu gọn.
+   Bản cũ là position:absolute nên KHÔNG BAO GIỜ hiện: .preview-sidebar là scroll
+   container (overflow-x: hidden tính ra auto) và .nav-item là position:relative → tooltip
+   bị chính sidebar cắt ngang. position:fixed lấy viewport làm containing block nên thoát
+   cắt, còn tọa độ Y lấy theo static position của .nav-item (flex align-items:center) nên
+   vẫn đúng hàng đang hover. Điều kiện sống còn: không ancestor nào được có transform /
+   filter / backdrop-filter / contain — đó là lý do sidebar và topbar ở trên chỉ mờ, không blur. */
+[data-preview='2d'] .preview-root.is-compact .nav-item::after {
+  content: attr(title);
+  position: fixed;
+  left: calc(var(--pv-sidebar-w) + 10px);
+  top: auto;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--pv-surface-2);
+  border: 1px solid var(--pv-line-strong);
+  color: var(--pv-ink);
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--pv-shadow);
+  opacity: 0;
+  pointer-events: none;
+  /* Mọc ra từ đúng mép sidebar (mục 7) thay vì co từ tâm. */
+  transform: scale(.97);
+  transform-origin: left center;
+  transition: opacity var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-hover) var(--pv-ease-out);
+  z-index: 30;
+}
+[data-preview='2d'] .preview-root.is-compact .nav-item:hover::after,
+[data-preview='2d'] .preview-root.is-compact .nav-item:focus-visible::after { opacity: 1; transform: none; }
+/* Thu gọn CHỈ đổi gap: padding 9px 11px được giữ nguyên nên icon đứng yên tại chỗ
+   (12px sidebar padding + 11px item padding + 9px nửa icon = đúng tâm cột 64px). Thêm
+   justify-content:center hoặc đổi padding thì icon sẽ nhảy ra giữa hàng đang còn rộng ở
+   frame đầu rồi mới trôi ngược lại — chuyển động hai chiều đó đọc là giật. */
+[data-preview='2d'] .preview-root.is-compact .nav-item { gap: 0; }
+[data-preview='2d'] .preview-root.is-compact .sidebar-brand { gap: 0; }
+/* Nhãn KHÔNG dùng display:none lẫn width:0: cả hai đều cắt phựt ở frame đầu trong khi cột
+   vẫn đang trượt → chữ nhấp nháy ngay chỗ người dùng đang nhìn. Để nguyên nhãn co dãn:
+   .nav-label có overflow:hidden nên min-width:auto về 0, nó bị cột đang hẹp dần cắt
+   theo đúng chuyển động (mở ra thì chữ hiện dần từ mép), còn opacity chỉ tắt/bật 110ms.
+   Máy đọc màn hình vẫn lấy được tên vì text + title nằm nguyên trong DOM. */
+/* Dải ngữ cảnh ẩn hẳn khi thu gọn: cột 64px không chứa nổi ba chữ, mà hiện một biểu tượng
+   không nhãn thì chỉ thêm nhiễu. Người cần biết mình đang ở đâu thì mở rộng sidebar (hoặc
+   nhìn page-head — vẫn còn nguyên tiêu đề màn hình). */
+[data-preview='2d'] .preview-root.is-compact .nav-context { display: none; }
+[data-preview='2d'] .preview-root.is-compact .nav-label,
+[data-preview='2d'] .preview-root.is-compact .brand-text { opacity: 0; }
+/* Footer (vành dung lượng + note) cao nên vẫn ẩn hẳn, nhưng bằng visibility có trễ:
+   nó biến mất SAU khi cột đã đóng và hiện lại NGAY khi cột mở, không cắt phựt. */
+[data-preview='2d'] .preview-root.is-compact .sidebar-footer,
+[data-preview='2d'] .preview-root.is-compact .preview-notice {
+  opacity: 0; visibility: hidden;
+  transition: opacity var(--pv-d-chrome) var(--pv-ease-out), visibility 0s linear var(--pv-d-chrome);
+}
+
+[data-preview='2d'] .sidebar-footer {
+  margin-top: auto; display: flex; flex-direction: column; gap: 12px;
+  transition: opacity var(--pv-d-chrome) var(--pv-ease-out), visibility 0s linear 0s;
+}
+[data-preview='2d'] .sidebar-workspace {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--pv-line);
+  border-radius: var(--pv-radius);
+  background: var(--pv-bg-2);
+}
+[data-preview='2d'] .sidebar-workspace-label { font-size: 11px; color: var(--pv-faint); text-transform: uppercase; letter-spacing: .6px; }
+[data-preview='2d'] .sidebar-workspace-value { font-weight: 600; }
+[data-preview='2d'] .sidebar-storage { display: flex; align-items: center; gap: 10px; }
+[data-preview='2d'] .storage-ring {
+  display: grid; place-items: center;
+  width: 42px; height: 42px; flex: none;
+  border-radius: 50%;
+  font-size: 11px; font-weight: 700;
+  background: conic-gradient(var(--pv-cyan) 0 42%, rgba(120, 170, 235, .18) 42% 100%);
+}
+[data-preview='2d'] .storage-text { display: flex; flex-direction: column; }
+[data-preview='2d'] .preview-notice { font-size: 11px; color: var(--pv-faint); }
+
+/* ---------- Topbar ---------- */
+[data-preview='2d'] .preview-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+[data-preview='2d'] .preview-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--pv-line);
+  /* Chrome mờ để tinh vân xuyên qua (mục 12), nhưng KHÔNG backdrop-filter: popover của
+     hai combobox + chuông + tài khoản được render ngay trong thanh này và là
+     position:fixed — thêm blur là thêm containing block, left/top đo theo viewport sẽ
+     bị lệch đúng bằng chiều cao dải demo. */
+  background: linear-gradient(180deg, rgba(13, 23, 40, .74), rgba(13, 23, 40, .88));
+}
+[data-preview='2d'] .sidebar-toggle {
+  display: grid; place-items: center;
+  width: 34px; height: 34px; flex: none;
+  border-radius: 10px;
+  border: 1px solid var(--pv-line-strong);
+  background: var(--pv-bg-2);
+  color: var(--pv-ink);
+  /* Nút bấm thì transform phải đáp trong ~80ms: đó là "phản hồi liên tục trong lúc
+     tương tác" (mục 1), còn phần đổi nền được phép chậm hơn một chút. */
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .sidebar-toggle:hover { background: var(--pv-blue-soft); border-color: var(--pv-blue); }
+[data-preview='2d'] .sidebar-toggle:active { transform: scale(.9); }
+
+[data-preview='2d'] .topbar-chips { display: flex; gap: 8px; min-width: 0; flex-wrap: nowrap; }
+[data-preview='2d'] .chip-select {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--pv-line);
+  border-radius: 10px;
+  background: var(--pv-bg-2);
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .chip-select:not(.is-off):hover { border-color: var(--pv-line-strong); }
+/* Chip có select tắt: cả nhãn + ô chọn cùng mờ để không trông như còn dùng được. */
+[data-preview='2d'] .chip-select.is-off { opacity: .55; }
+[data-preview='2d'] .chip-label { font-size: 11px; color: var(--pv-faint); text-transform: uppercase; letter-spacing: .5px; }
+[data-preview='2d'] .chip-select select {
+  background: transparent; border: 0; color: var(--pv-ink);
+  /* min-height 24px: WCAG 2.5.8 — ô chọn '8/16/32' ở phân trang chỉ cao 21px. */
+  font: inherit; font-weight: 600; cursor: pointer; min-height: 24px;
+}
+[data-preview='2d'] .chip-select select option { background: var(--pv-surface); color: var(--pv-ink); }
+[data-preview='2d'] .chip-select.inline { padding: 4px 8px; }
+
+/* Hai combobox phạm vi (mục 2–3 của Global Application Shell). Trước đây chúng là
+   <select> bị tắt vì chưa có API; nay chúng đổi PHẠM VI thật của frame nên phải trông
+   như control mở ra panel riêng (có label + giá trị + caret), không phải ô chọn native. */
+[data-preview='2d'] .scope-select {
+  display: flex; align-items: center; gap: 7px;
+  /* min-width:0 + flex-shrink: chip phải co lại bằng chữ cắt lửng chứ không được đẩy
+     cả topbar giãn ra khi người dùng chọn "Tất cả dự án trong không gian". */
+  flex: 0 1 auto; min-width: 0; max-width: 210px;
+  padding: 5px 9px;
+  border: 1px solid var(--pv-line);
+  border-radius: 11px;
+  background: var(--pv-bg-2);
+  text-align: left;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .scope-select:hover { border-color: var(--pv-line-strong); background: var(--pv-surface); }
+[data-preview='2d'] .scope-select:active { transform: scale(.985); }
+/* Trạng thái mở phải thấy ngay khi popover đã bật, không chỉ lúc con trỏ còn nằm trên nút. */
+[data-preview='2d'] .scope-select[aria-expanded='true'] { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .scope-label { flex: none; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--pv-faint); }
+[data-preview='2d'] .scope-value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 12px; }
+[data-preview='2d'] .scope-caret { flex: none; margin-left: auto; color: var(--pv-faint); display: grid; place-items: center; }
+[data-preview='2d'] .scope-caret .preview-icon { width: 14px; height: 14px; }
+[data-preview='2d'] .topbar-user.is-live { border-radius: 11px; padding: 3px 8px 3px 10px; transition: background-color var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .topbar-user.is-live:hover { background: var(--pv-blue-soft); }
+
+/* Ô tìm kiếm toàn cục ở topbar ĐÃ BỎ (chủ batch 03/11): mỗi trang có ô tìm của riêng nó
+   trong toolbar (Workspaces · khung Project của một Workspace). Vì vậy không còn khu
+   .topbar-search / .search-icon / kbd nào trong DOM nữa — giữ CSS là giữ mã chết. */
+
+[data-preview='2d'] .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+[data-preview='2d'] .icon-button {
+  position: relative;
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  color: var(--pv-muted);
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out);
+}
+/* Nút tắt (chưa có contract) không được phản hồi hover/active như nút sống. */
+[data-preview='2d'] .icon-button:not([disabled]):hover { background: var(--pv-blue-soft); color: var(--pv-ink); }
+[data-preview='2d'] .icon-button:not([disabled]):active { transform: scale(.94); }
+[data-preview='2d'] .icon-button.is-active { background: var(--pv-blue-fill); color: var(--pv-on-fill); }
+[data-preview='2d'] .icon-button.on-dark { color: var(--pv-ink-accent-hi); background: rgba(4, 7, 15, .55); }
+[data-preview='2d'] .icon-button.flip .preview-icon { transform: rotate(180deg); }
+[data-preview='2d'] .badge-dot { position: absolute; top: 7px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--pv-danger); }
+
+[data-preview='2d'] .topbar-user { display: flex; align-items: center; gap: 8px; padding-left: 10px; border-left: 1px solid var(--pv-line); }
+[data-preview='2d'] .user-text { display: flex; flex-direction: column; line-height: 1.25; }
+[data-preview='2d'] .avatar {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; flex: none;
+  border-radius: 50%;
+  font-size: 12px; font-weight: 700;
+  color: var(--pv-ink-avatar);
+  background: linear-gradient(140deg, var(--pv-avatar-from), var(--pv-surface-2));
+  border: 1px solid var(--pv-line-strong);
+}
+[data-preview='2d'] .avatar-md { width: 32px; height: 32px; font-size: 12px; }
+[data-preview='2d'] .avatar-sm { width: 24px; height: 24px; font-size: 11px; }
+/* Avatar trong phần đầu dropdown tài khoản (mục 8 shell) lớn hơn để tạo phân cấp. */
+[data-preview='2d'] .avatar-lg { width: 44px; height: 44px; font-size: 14px; }
+[data-preview='2d'] .avatar-stack { display: flex; align-items: center; }
+[data-preview='2d'] .avatar-stack .avatar { margin-right: -7px; }
+[data-preview='2d'] .avatar-more {
+  display: grid; place-items: center;
+  min-width: 24px; height: 24px; padding: 0 5px;
+  border-radius: 12px;
+  font-size: 11px; font-weight: 700;
+  color: var(--pv-ink-accent); background: var(--pv-bg-2);
+  border: 1px solid var(--pv-line-strong);
+}
+
+/* Lý do bằng text cho control đang tắt (shared-ui: không chỉ tooltip khi hover).
+   Nền và chữ đều trung tính, không dùng màu cảnh báo để tránh gợi ý lỗi dữ liệu. */
+[data-preview='2d'] .action-note {
+  margin: 10px 0 0;
+  padding: 8px 11px;
+  border-left: 2px solid var(--pv-line-strong);
+  border-radius: 0 10px 10px 0;
+  background: var(--pv-bg-2);
+  color: var(--pv-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 88ch;
+}
+/* Note của shell nằm trực tiếp trong cột phải → dải ngang đầy rộng, không bo góc. */
+[data-preview='2d'] .preview-main > .action-note {
+  margin: 0;
+  padding: 7px 18px;
+  border-left: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--pv-line);
+  background: var(--pv-bg-1);
+  max-width: none;
+}
+
+[data-preview='2d'] .preview-content { flex: 1; overflow: auto; padding: 20px 22px 32px; }
+
+/* ---------- Nội dung trang ---------- */
+[data-preview='2d'] .page-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start;
+  margin-bottom: 16px;
+}
+[data-preview='2d'] .page-head-text p { color: var(--pv-muted); max-width: 62ch; }
+[data-preview='2d'] .page-head-text .page-eyebrow {
+  display: block; margin-bottom: 2px;
+  font-size: 11px; letter-spacing: .9px; text-transform: uppercase; color: var(--pv-ink-eyebrow);
+}
+[data-preview='2d'] .page-head-art { width: 420px; height: 132px; border-radius: var(--pv-radius-lg); overflow: hidden; }
+[data-preview='2d'] .page-head-art .cover-art { height: 100%; }
+
+[data-preview='2d'] .button-primary,
+[data-preview='2d'] .button-secondary,
+[data-preview='2d'] .ghost-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px 15px;
+  border-radius: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .button-primary {
+  color: var(--pv-on-fill);
+  background: linear-gradient(120deg, var(--pv-blue-fill), var(--pv-fill-deep));
+  box-shadow: 0 10px 24px rgba(47, 124, 246, .3);
+}
+[data-preview='2d'] .button-primary:not([disabled]):hover { background: linear-gradient(120deg, var(--pv-blue-fill-hover), var(--pv-fill-deep-hover)); box-shadow: 0 12px 28px rgba(47, 124, 246, .42); }
+[data-preview='2d'] .button-primary:not([disabled]):active { transform: translateY(1px) scale(.99); box-shadow: 0 6px 16px rgba(47, 124, 246, .3); }
+[data-preview='2d'] .button-secondary {
+  color: var(--pv-ink);
+  border: 1px solid var(--pv-line-strong);
+  background: var(--pv-bg-2);
+}
+[data-preview='2d'] .button-secondary:not([disabled]):hover { background: var(--pv-blue-soft); border-color: var(--pv-blue); }
+[data-preview='2d'] .button-secondary:not([disabled]):active { transform: translateY(1px); }
+[data-preview='2d'] .ghost-button { padding: 6px 10px; font-size: 12px; color: var(--pv-muted); border-radius: 9px; }
+[data-preview='2d'] .ghost-button:not([disabled]):hover { color: var(--pv-ink); background: var(--pv-blue-soft); }
+[data-preview='2d'] .full-width { width: 100%; }
+/* Chip mờ cả khối rồi, select bên trong không được nhân opacity thêm lần nữa. */
+[data-preview='2d'] .chip-select select[disabled] { opacity: 1; cursor: not-allowed; }
+
+/* ---------- Stat cards ---------- */
+[data-preview='2d'] .stat-row {
+  display: grid; gap: 12px; margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+[data-preview='2d'] .stat-card {
+  position: relative;
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center;
+  padding: 14px;
+  border: 1px solid var(--pv-line);
+  border-radius: var(--pv-radius);
+  background: linear-gradient(150deg, var(--pv-surface), var(--pv-bg-2));
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .stat-card:hover { border-color: var(--pv-line-strong); transform: translateY(-2px); box-shadow: var(--pv-shadow); }
+[data-preview='2d'] .stat-icon { display: grid; place-items: center; width: 34px; height: 34px; grid-row: span 2; border-radius: 10px; background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .stat-value { font-size: 21px; font-weight: 700; letter-spacing: -.3px; }
+[data-preview='2d'] .stat-label { grid-column: 2; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .stat-delta { position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 700; color: var(--pv-green); }
+[data-preview='2d'] .stat-tone-violet .stat-icon { background: rgba(124, 92, 255, .18); }
+[data-preview='2d'] .stat-tone-cyan .stat-icon { background: rgba(34, 211, 238, .16); }
+[data-preview='2d'] .stat-tone-green .stat-icon { background: rgba(52, 211, 153, .16); }
+[data-preview='2d'] .stat-tone-orange .stat-icon { background: rgba(251, 191, 36, .16); }
+[data-preview='2d'] .stat-tone-brand .stat-icon { background: var(--pv-brand-soft); color: var(--pv-ink-green-glow); }
+[data-preview='2d'] .stat-tone-accent .stat-icon { background: rgba(244, 114, 182, .16); }
+
+/* ---------- Toolbar + tabs ---------- */
+[data-preview='2d'] .toolbar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+[data-preview='2d'] .toolbar-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Ô tìm trong toolbar (trang Workspaces · khung Project của một Workspace). Cùng hình với
+   .members-search trong modal để icon và chữ thụt đầu vào giống nhau khắp frame; nó đứng ĐẦU
+   hàng vì tìm là việc làm đầu tiên trước khi thu hẹp danh sách bằng bộ lọc. */
+[data-preview='2d'] .toolbar-search {
+  position: relative; display: flex; align-items: center;
+  flex: 1 1 200px; min-width: 170px; max-width: 340px;
+}
+[data-preview='2d'] .toolbar-search .preview-icon {
+  position: absolute; left: 11px; width: 16px; height: 16px;
+  color: var(--pv-faint); pointer-events: none;
+}
+[data-preview='2d'] .toolbar-search input {
+  /* 24px tối thiểu cho vùng bấm (WCAG 2.5.8). */
+  width: 100%; min-height: 24px; padding: 9px 12px 9px 34px; border-radius: 11px;
+  border: 1px solid var(--pv-line-strong); background: var(--pv-bg-2); color: var(--pv-ink);
+  font: inherit; font-size: 12px;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .toolbar-search input::placeholder { color: var(--pv-faint); }
+[data-preview='2d'] .toolbar-search input:focus { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); outline: none; }
+[data-preview='2d'] .filter-tabs,
+[data-preview='2d'] .detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+[data-preview='2d'] .filter-tab,
+[data-preview='2d'] .detail-tab {
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--pv-muted);
+  font-size: 12px; font-weight: 600;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .filter-tab:hover,
+[data-preview='2d'] .detail-tab:hover { color: var(--pv-ink); background: rgba(47, 124, 246, .12); }
+[data-preview='2d'] .filter-tab.is-active { color: var(--pv-on-fill); background: var(--pv-blue-fill); border-color: var(--pv-blue-edge); }
+[data-preview='2d'] .detail-tabs { border-bottom: 1px solid var(--pv-line); gap: 2px; }
+[data-preview='2d'] .detail-tab { border-radius: 9px 9px 0 0; }
+[data-preview='2d'] .detail-tab.is-active { color: var(--pv-ink-accent); background: var(--pv-blue-soft); border-color: transparent; box-shadow: inset 0 -2px 0 var(--pv-blue); }
+[data-preview='2d'] .view-toggle { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--pv-line); border-radius: 11px; background: var(--pv-bg-2); }
+
+/* ---------- Layout 2 cột ---------- */
+[data-preview='2d'] .split-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+[data-preview='2d'] .card-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); }
+[data-preview='2d'] .card-grid.is-list { grid-template-columns: 1fr; }
+
+/* ---------- Resource card ---------- */
+[data-preview='2d'] .resource-card {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--pv-line);
+  border-radius: var(--pv-radius-lg);
+  background: linear-gradient(170deg, var(--pv-surface), var(--pv-bg-2) 70%);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .resource-card:hover { transform: translateY(-3px); border-color: var(--pv-line-strong); box-shadow: var(--pv-shadow); }
+[data-preview='2d'] .resource-card:active { transform: translateY(-1px) scale(.995); }
+[data-preview='2d'] .resource-card.is-selected { border-color: var(--pv-blue); box-shadow: 0 0 0 1px var(--pv-blue), var(--pv-shadow); }
+[data-preview='2d'] .resource-card.is-list { flex-direction: row; }
+[data-preview='2d'] .resource-card.is-list .card-cover { width: 168px; flex: none; height: auto; }
+[data-preview='2d'] .card-cover { position: relative; height: 104px; }
+[data-preview='2d'] .card-top-actions { position: absolute; inset: 8px 8px auto auto; display: flex; align-items: center; gap: 6px; }
+[data-preview='2d'] .card-body { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; }
+[data-preview='2d'] .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+[data-preview='2d'] .card-desc { font-size: 12px; color: var(--pv-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+[data-preview='2d'] .card-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 9px 0; border-top: 1px solid var(--pv-line); border-bottom: 1px solid var(--pv-line); }
+[data-preview='2d'] .card-metrics div { display: flex; flex-direction: column; }
+[data-preview='2d'] .card-metrics dt { font-size: 14px; font-weight: 700; }
+[data-preview='2d'] .card-metrics dd { margin: 0; font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+[data-preview='2d'] .card-updated { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .card-title { font-size: 16px; }
+
+/* Thẻ đang chọn (ảnh projects) — check tròn trên ảnh, và nút ⋯ ở hàng tiêu đề (ảnh workspaces). */
+[data-preview='2d'] .card-select-check {
+  position: absolute; z-index: 1; top: 9px; left: 9px;
+  display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  color: var(--pv-on-fill); background: var(--pv-blue-fill);
+  border: 2px solid var(--pv-ink-accent-hi);
+  box-shadow: 0 6px 16px rgba(47, 124, 246, .45);
+}
+[data-preview='2d'] .card-select-check .preview-icon { width: 13px; height: 13px; }
+[data-preview='2d'] .card-menu { width: 26px; height: 26px; margin-right: -4px; }
+[data-preview='2d'] .card-updated { display: inline-flex; align-items: center; gap: 5px; }
+[data-preview='2d'] .card-updated .preview-icon { width: 13px; height: 13px; }
+
+[data-preview='2d'] .fav-button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: var(--pv-ink-accent); background: rgba(4, 7, 15, .55); transition: color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out); }
+[data-preview='2d'] .fav-button:not([disabled]):hover { background: rgba(4, 7, 15, .8); transform: scale(1.06); }
+[data-preview='2d'] .fav-button.is-on { color: var(--pv-orange); }
+[data-preview='2d'] .fav { margin-left: 6px; color: var(--pv-orange); font-size: 12px; }
+
+/* ---------- Cover art (CSS thay ảnh mockup) ---------- */
+[data-preview='2d'] .cover-art {
+  position: relative; display: block; width: 100%; height: 100%; overflow: hidden;
+  background: radial-gradient(120% 130% at 20% 0%, rgba(47, 124, 246, .35), transparent 60%), var(--pv-bg-1);
+}
+[data-preview='2d'] .cover-art::after {
+  content: '';
+  position: absolute; inset: -20% -10% auto;
+  height: 70%;
+  background:
+    radial-gradient(60% 60% at 30% 40%, rgba(255, 255, 255, .1), transparent 70%),
+    repeating-linear-gradient(115deg, rgba(140, 190, 255, .07) 0 2px, transparent 2px 9px);
+}
+[data-preview='2d'] .cover-violet { background: radial-gradient(120% 130% at 25% 0%, rgba(124, 92, 255, .4), transparent 60%), var(--pv-bg-1); }
+[data-preview='2d'] .cover-green { background: radial-gradient(120% 130% at 25% 0%, rgba(52, 211, 153, .34), transparent 60%), var(--pv-bg-1); }
+[data-preview='2d'] .cover-pink { background: radial-gradient(120% 130% at 25% 0%, rgba(244, 114, 182, .34), transparent 60%), var(--pv-bg-1); }
+[data-preview='2d'] .cover-orange { background: radial-gradient(120% 130% at 25% 0%, rgba(251, 191, 36, .32), transparent 60%), var(--pv-bg-1); }
+[data-preview='2d'] .cover-cyan { background: radial-gradient(120% 130% at 25% 0%, rgba(34, 211, 238, .34), transparent 60%), var(--pv-bg-1); }
+[data-preview='2d'] .cover-orbit {
+  position: absolute; left: -10%; right: -10%; bottom: -46%;
+  height: 90%; border-radius: 50%;
+  border: 1px solid rgba(150, 200, 255, .28);
+  box-shadow: 0 0 30px rgba(47, 124, 246, .2) inset;
+}
+[data-preview='2d'] .cover-cube { position: absolute; border-radius: 4px; border: 1px solid rgba(200, 230, 255, .5); background: linear-gradient(150deg, rgba(255, 255, 255, .28), rgba(47, 124, 246, .55)); box-shadow: 0 0 18px rgba(47, 124, 246, .5); }
+[data-preview='2d'] .cover-violet .cover-cube, [data-preview='2d'] .cover-pink .cover-cube { background: linear-gradient(150deg, rgba(255, 255, 255, .26), rgba(124, 92, 255, .6)); box-shadow: 0 0 18px rgba(124, 92, 255, .5); }
+[data-preview='2d'] .cover-green .cover-cube, [data-preview='2d'] .cover-cyan .cover-cube { background: linear-gradient(150deg, rgba(255, 255, 255, .26), rgba(34, 211, 238, .55)); box-shadow: 0 0 18px rgba(34, 211, 238, .45); }
+[data-preview='2d'] .cover-orange .cover-cube { background: linear-gradient(150deg, rgba(255, 255, 255, .28), rgba(251, 147, 36, .6)); box-shadow: 0 0 18px rgba(251, 147, 36, .45); }
+[data-preview='2d'] .cover-cube-lg { width: 42px; height: 42px; left: 50%; top: 34%; transform: translateX(-50%) rotate(8deg); }
+[data-preview='2d'] .cover-cube-md { width: 26px; height: 26px; left: 26%; bottom: 22%; transform: rotate(-6deg); opacity: .9; }
+[data-preview='2d'] .cover-cube-sm { width: 18px; height: 18px; right: 20%; bottom: 30%; transform: rotate(12deg); opacity: .8; }
+
+/* ---------- Panel / detail ---------- */
+[data-preview='2d'] .panel {
+  border: 1px solid var(--pv-line);
+  border-radius: var(--pv-radius-lg);
+  background: linear-gradient(170deg, rgba(14, 28, 48, .9), rgba(7, 13, 26, .9));
+  padding: 16px;
+  margin-bottom: 14px;
+}
+[data-preview='2d'] .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+[data-preview='2d'] .panel-sub { font-size: 12px; color: var(--pv-faint); margin-bottom: 12px; }
+[data-preview='2d'] .range-select select {
+  padding: 6px 10px; border-radius: 9px; font: inherit; font-size: 12px;
+  color: var(--pv-ink); background: var(--pv-bg-2); border: 1px solid var(--pv-line);
+  cursor: pointer; transition: border-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .range-select select:hover { border-color: var(--pv-blue); }
+
+[data-preview='2d'] .detail-panel {
+  position: sticky; top: 0;
+  border: 1px solid var(--pv-line-strong);
+  border-radius: var(--pv-radius-lg);
+  background: linear-gradient(170deg, var(--pv-surface), var(--pv-bg-1));
+  /* Panel thường cao hơn màn hình. Nếu chỉ sticky mà không giới hạn cao thì nó bị ghim
+     ở đỉnh, phần dưới bị cắt và phải cuộn hết danh sách thẻ mới đọc được.
+     --pv-viewport-h do PreviewShell đo bằng ResizeObserver (chính xác cả khi có toast);
+     fallback bằng dvh cho lần vẽ đầu khi JS chưa chạy. */
+  max-height: var(--pv-viewport-h, calc(100dvh - var(--pv-chrome)));
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+[data-preview='2d'] .detail-cover { position: relative; height: 118px; }
+[data-preview='2d'] .detail-cover .card-menu,
+[data-preview='2d'] .detail-cover .icon-button { position: absolute; top: 8px; right: 8px; }
+[data-preview='2d'] .detail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 0; }
+[data-preview='2d'] .detail-head-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+[data-preview='2d'] .detail-kind {
+  flex: none;
+  padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--pv-line-strong);
+  font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--pv-faint);
+}
+[data-preview='2d'] .detail-desc { padding: 6px 14px 0; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .detail-actions { display: flex; gap: 8px; padding: 12px 14px; }
+[data-preview='2d'] .detail-actions .button-primary { flex: 1; }
+[data-preview='2d'] .detail-tabs { padding: 0 8px; }
+[data-preview='2d'] .detail-body { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+[data-preview='2d'] .detail-block h3,
+[data-preview='2d'] .detail-body h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--pv-faint); }
+[data-preview='2d'] .detail-block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+[data-preview='2d'] .member-strip { padding: 4px 0 10px; }
+[data-preview='2d'] .activity-list.compact { margin-bottom: 2px; }
+[data-preview='2d'] .activity-list.compact li { align-items: center; padding: 6px 0; }
+[data-preview='2d'] .detail-meta dd .status-badge { vertical-align: middle; }
+[data-preview='2d'] .preview-table td.row-action, [data-preview='2d'] .preview-table th.row-action { width: 42px; text-align: right; }
+[data-preview='2d'] .row-menu { width: 28px; height: 28px; }
+/* Hai nút ★ và ⋯ của thẻ Không gian nằm dọc mép phải, mỗi nút một góc để không đè nhau.
+   Bản cũ khai báo `padding-right: 34px` ở rule .mini-card riêng rồi bị rule .mini-card
+   phía dưới ghi đè bằng shorthand `padding: 10px` (đặc tính như nhau, rule sau thắng) →
+   phần thân card GiÀN ra tới mép và nút ⋯ vẽ đè lên dòng "3 dự án gần đây". */
+[data-preview='2d'] .mini-card-menu { position: absolute; right: 8px; bottom: 8px; width: 26px; height: 26px; }
+[data-preview='2d'] .mini-card .fav-button { position: absolute; right: 7px; top: 8px; }
+
+[data-preview='2d'] .detail-meta { display: grid; gap: 8px; }
+[data-preview='2d'] .detail-meta div { display: grid; grid-template-columns: 1fr 1.1fr; gap: 8px; align-items: center; }
+[data-preview='2d'] .detail-meta dt { font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .detail-meta dd { margin: 0; font-size: 12px; font-weight: 600; text-align: right; }
+[data-preview='2d'] .meta-person { display: inline-flex; align-items: center; justify-content: flex-end; gap: 7px; }
+[data-preview='2d'] .detail-note { font-size: 12px; color: var(--pv-faint); }
+[data-preview='2d'] .note-list li { padding: 6px 0; border-bottom: 1px dashed var(--pv-line); font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .meter { height: 6px; border-radius: 999px; background: rgba(120, 170, 235, .18); overflow: hidden; }
+[data-preview='2d'] .meter-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--pv-cyan), var(--pv-blue)); }
+[data-preview='2d'] .member-rows { display: flex; flex-direction: column; gap: 8px; }
+[data-preview='2d'] .member-rows li { display: flex; align-items: center; gap: 9px; }
+[data-preview='2d'] .member-name { display: flex; flex-direction: column; margin-right: auto; }
+[data-preview='2d'] .member-list li { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--pv-line); }
+[data-preview='2d'] .member-list span { display: flex; flex-direction: column; margin-right: auto; }
+
+/* ---------- Badge trạng thái ---------- */
+[data-preview='2d'] .status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+[data-preview='2d'] .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+[data-preview='2d'] .status-ok { color: var(--pv-ink-green); background: rgba(52, 211, 153, .12); border-color: rgba(52, 211, 153, .34); }
+[data-preview='2d'] .status-warn { color: var(--pv-ink-amber); background: rgba(251, 191, 36, .12); border-color: rgba(251, 191, 36, .32); }
+[data-preview='2d'] .status-done { color: var(--pv-ink-link); background: rgba(47, 124, 246, .14); border-color: rgba(47, 124, 246, .36); }
+[data-preview='2d'] .status-muted { color: var(--pv-muted); background: rgba(120, 170, 235, .1); border-color: var(--pv-line); }
+[data-preview='2d'] .status-danger { color: var(--pv-ink-rose); background: rgba(255, 107, 107, .14); border-color: rgba(255, 107, 107, .36); }
+
+/* ---------- Bảng / danh sách ngắn ---------- */
+[data-preview='2d'] .table-scroll { overflow-x: auto; }
+[data-preview='2d'] .preview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+[data-preview='2d'] .preview-table th,
+[data-preview='2d'] .preview-table td { padding: 10px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--pv-line); }
+[data-preview='2d'] .preview-table thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--pv-faint); }
+[data-preview='2d'] .preview-table tbody tr { transition: background-color var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .preview-table tbody tr:hover { background: rgba(47, 124, 246, .08); }
+[data-preview='2d'] .preview-table tbody th { font-weight: 600; }
+[data-preview='2d'] .row-name { display: block; }
+[data-preview='2d'] .row-sub { display: block; font-size: 11px; font-weight: 400; color: var(--pv-faint); }
+[data-preview='2d'] .file-chip { display: inline-flex; align-items: center; gap: 7px; }
+[data-preview='2d'] .file-row { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2); }
+[data-preview='2d'] .file-badge { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 9px; font-size: 11px; font-weight: 700; color: var(--pv-ink-green-hi); background: rgba(52, 211, 153, .16); border: 1px solid rgba(52, 211, 153, .3); }
+[data-preview='2d'] .file-text { display: flex; flex-direction: column; margin-right: auto; min-width: 0; }
+[data-preview='2d'] .file-text strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .file-missing { font-size: 12px; color: var(--pv-faint); border: 1px dashed var(--pv-line-strong); border-radius: var(--pv-radius); padding: 10px; }
+[data-preview='2d'] .text-link { color: var(--pv-ink-link); font-size: 12px; font-weight: 600; padding: 4px 6px; border-radius: 8px; transition: color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .text-link:not([disabled]):hover { color: var(--pv-ink-accent-hi); background: var(--pv-blue-soft); }
+[data-preview='2d'] .empty-hint { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; padding: 34px 16px; border: 1px dashed var(--pv-line-strong); border-radius: var(--pv-radius-lg); color: var(--pv-muted); }
+[data-preview='2d'] .empty-title { font-weight: 700; color: var(--pv-ink); }
+
+/* ---------- Home: hero + columns ---------- */
+[data-preview='2d'] .hero {
+  position: relative;
+  display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 18px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--pv-line);
+  border-radius: 24px;
+  background:
+    radial-gradient(80% 120% at 80% 10%, rgba(47, 124, 246, .28), transparent 60%),
+    radial-gradient(60% 90% at 10% 90%, rgba(124, 92, 255, .2), transparent 60%),
+    linear-gradient(160deg, var(--pv-panel-from), var(--pv-bg-0));
+  overflow: hidden;
+}
+[data-preview='2d'] .hero::before {
+  content: '';
+  position: absolute; inset: auto -30% -60% -30%;
+  height: 70%;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 0%, rgba(147, 197, 253, .18), transparent 70%);
+  border-top: 1px solid rgba(147, 197, 253, .22);
+}
+[data-preview='2d'] .hero-copy { position: relative; z-index: 1; align-self: center; }
+[data-preview='2d'] .eyebrow { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--pv-ink-eyebrow); }
+[data-preview='2d'] .hero-copy h1 { font-size: 34px; margin: 8px 0 10px; }
+[data-preview='2d'] .hero-copy p { color: var(--pv-muted); max-width: 44ch; margin-bottom: 14px; }
+[data-preview='2d'] .hero-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 18px; border-radius: 12px; font-weight: 700; color: var(--pv-on-fill);
+  /* #4c7dff/#7c5cff đo được 3.69/4.35 với chữ trắng → thay bằng cặp đạt 4.5. */
+  background: linear-gradient(120deg, var(--pv-indigo-fill), var(--pv-violet-fill));
+  box-shadow: 0 12px 30px rgba(124, 92, 255, .4);
+  transition: transform var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .hero-cta:not([disabled]):hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(124, 92, 255, .55); }
+[data-preview='2d'] .hero-cta:not([disabled]):active { transform: translateY(0) scale(.99); }
+
+[data-preview='2d'] .hero-stage { position: relative; z-index: 1; min-height: 260px; }
+[data-preview='2d'] .hero-stage-placeholder {
+  position: relative;
+  display: grid; place-items: center;
+  min-height: 240px;
+  border: 1px dashed rgba(147, 197, 253, .3);
+  border-radius: 20px;
+  /* Viền nét đứt + ảnh thật phía sau: placeholder 2D giúp người duyệt THẤY cảnh mà T sẽ
+     dựng, còn đường viền nét đứt nói đúng sự thật rằng nó chưa kéo/cuộn được.
+     Cùng một asset với nền frame nên trình duyệt chỉ giải mã một lần. */
+  background:
+    radial-gradient(50% 50% at 50% 50%, rgba(47, 124, 246, .28), transparent 70%),
+    url('../../assets/universe-backdrop.png') center / cover no-repeat;
+}
+[data-preview='2d'] .stage-core {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--pv-ink-accent), var(--pv-blue) 55%, var(--pv-blue-deeper));
+  box-shadow: 0 0 46px rgba(47, 124, 246, .6);
+}
+[data-preview='2d'] .stage-satellite {
+  position: absolute;
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--pv-line-strong);
+  background: rgba(7, 13, 26, .82);
+  font-size: 11px;
+  /* Vòng tròn quanh core: 7 module chia đều 360deg. */
+  transform: rotate(calc(var(--orbit-step) * 51.4deg)) translate(112px) rotate(calc(var(--orbit-step) * -51.4deg));
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .stage-satellite:hover { border-color: var(--pv-blue); background: rgba(47, 124, 246, .18); }
+[data-preview='2d'] .satellite-text { display: flex; flex-direction: column; line-height: 1.2; }
+[data-preview='2d'] .stage-tag {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: var(--pv-faint);
+  padding: 3px 9px; border-radius: 999px; background: rgba(4, 7, 15, .7);
+}
+[data-preview='2d'] .stage-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+[data-preview='2d'] .stage-controls span {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px; font-size: 11px; color: var(--pv-muted);
+  border: 1px solid var(--pv-line); background: rgba(4, 7, 15, .5);
+}
+
+[data-preview='2d'] .hero-card {
+  position: absolute; z-index: 2; top: 16px; right: 16px;
+  width: 250px; padding: 12px 14px;
+  border: 1px solid var(--pv-line-strong);
+  border-radius: var(--pv-radius);
+  background: rgba(7, 13, 26, .88);
+  backdrop-filter: blur(6px);
+}
+[data-preview='2d'] .hero-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+[data-preview='2d'] .hero-card p { font-size: 11px; color: var(--pv-faint); margin: 4px 0 10px; }
+[data-preview='2d'] .hero-card dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+[data-preview='2d'] .hero-card div { display: flex; flex-direction: column; }
+[data-preview='2d'] .hero-card dt { font-size: 16px; font-weight: 700; }
+[data-preview='2d'] .hero-card dd { margin: 0; font-size: 11px; color: var(--pv-muted); }
+[data-preview='2d'] .live-dot { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pv-ink-green); }
+[data-preview='2d'] .live-dot span { width: 6px; height: 6px; border-radius: 50%; background: var(--pv-green); box-shadow: 0 0 8px var(--pv-green); }
+[data-preview='2d'] .hero-module-list { position: absolute; z-index: 2; right: 16px; bottom: 14px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 320px; }
+[data-preview='2d'] .hero-module-list button { font-size: 11px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--pv-line); color: var(--pv-muted); background: rgba(4, 7, 15, .6); }
+[data-preview='2d'] .hero-module-list button:hover { color: var(--pv-ink); border-color: var(--pv-blue); }
+
+[data-preview='2d'] .home-columns { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+[data-preview='2d'] .home-main,
+[data-preview='2d'] .home-side { min-width: 0; }
+[data-preview='2d'] .mini-cards {
+  /* minmax 240px thay cho 200px: với 200px, hai cột vẫn chen vào nhau trong khoảng ~416px,
+     mỗi thẻ 203px trừ 46 (cover) 20 (padding) 10 (gap) → thân thẻ chỉ còn 79px, tên dự án
+     dài 133px bị cắt giữa chữ mà không có chỗ cho dấu ba chấm. */
+  display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+[data-preview='2d'] .mini-card {
+  position: relative;
+  display: flex; gap: 10px; align-items: flex-start;
+  /* 42px bên phải = chỗ hai nút ★/⋯ đã absolute; đặt trong chính shorthand này để không
+     bị ghi đè kiểu rule cũ. */
+  padding: 10px 42px 10px 10px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius);
+  background: var(--pv-bg-2);
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .mini-card:hover { border-color: var(--pv-blue); transform: translateY(-2px); }
+[data-preview='2d'] .mini-card .cover-art { width: 46px; height: 46px; flex: none; border-radius: 10px; }
+[data-preview='2d'] .mini-card-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* Tên không gian: h3 gốc 16px không xử lý tràn → trong cột hẹp nó tự xuống hàng và
+   đẩy thẻ cao thêm một dòng. Hạ xuống bậc 14px (đúng thang) + một dòng ellipsis. */
+[data-preview='2d'] .mini-card-body h3 {
+  font-size: 14px; line-height: 1.3;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Mô tả: bản cũ để thoải mái không clamp → một thẻ cao 319px trong khi thân thẻ rộng 79px.
+   Hai dòng rồi cắt bằng dấu ba chấm; toàn văn vẫn đọc được ở trang Workspaces. */
+[data-preview='2d'] .mini-card-body p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px; line-height: 1.45; color: var(--pv-muted);
+}
+[data-preview='2d'] .mini-card-body small {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-preview='2d'] .quick-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+[data-preview='2d'] .quick-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 10px; border-radius: var(--pv-radius);
+  border: 1px solid var(--pv-line); background: var(--pv-bg-2);
+  font-size: 12px; text-align: center;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .quick-card:not([disabled]):hover { transform: translateY(-2px); border-color: var(--pv-blue); background: var(--pv-blue-soft); }
+[data-preview='2d'] .quick-card:not([disabled]):active { transform: translateY(0); }
+[data-preview='2d'] .quick-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .activity-list li { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--pv-line); }
+[data-preview='2d'] .activity-icon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 9px; background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .activity-body { display: flex; flex-direction: column; min-width: 0; margin-right: auto; font-size: 12px; }
+[data-preview='2d'] .activity-body small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .activity-at { font-size: 11px; color: var(--pv-faint); white-space: nowrap; }
+[data-preview='2d'] .share-chart { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+[data-preview='2d'] .donut { position: relative; display: grid; place-items: center; width: 120px; height: 120px; flex: none; border-radius: 50%; }
+[data-preview='2d'] .donut-hole { display: grid; place-items: center; width: 78px; height: 78px; border-radius: 50%; background: var(--pv-bg-0); text-align: center; line-height: 1.15; }
+[data-preview='2d'] .donut-hole strong { font-size: 18px; }
+[data-preview='2d'] .legend { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 6px; }
+[data-preview='2d'] .legend li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .legend li span:nth-child(2) { margin-right: auto; }
+[data-preview='2d'] .legend-value { color: var(--pv-ink); font-weight: 600; }
+[data-preview='2d'] .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(140deg, var(--pv-blue), var(--pv-violet)); }
+
+/* ---------- Trang chi tiết workspace (Design Board "workspaces detail") ----------
+   Màn riêng reached từ #/preview/workspaces/<id>: breadcrumb + header (bìa, tên, chủ sở
+   hữu, meta) + 4 stat card + bar + donut + bảng project. Tái dùng panel/table/stat đã có;
+   chỉ thêm lớp cho phần đầu + breadcrumb + biểu đồ cột. */
+[data-preview='2d'] .ws-crumb { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; color: var(--pv-faint); }
+[data-preview='2d'] .crumb-link { padding: 0; border: 0; background: none; font: inherit; color: var(--pv-ink-link); cursor: pointer; transition: color var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .crumb-link:hover { color: var(--pv-ink-accent-hi); text-decoration: underline; }
+[data-preview='2d'] .crumb-sep { color: var(--pv-faint); }
+[data-preview='2d'] .crumb-current { color: var(--pv-muted); }
+[data-preview='2d'] .ws-detail-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: start; margin-bottom: 16px; }
+[data-preview='2d'] .ws-detail-cover { width: 84px; height: 84px; flex: none; border-radius: var(--pv-radius); overflow: hidden; }
+[data-preview='2d'] .ws-detail-cover .cover-art { height: 100%; }
+[data-preview='2d'] .ws-detail-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+[data-preview='2d'] .ws-detail-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+[data-preview='2d'] .ws-detail-name h1 { margin: 0; }
+[data-preview='2d'] .ws-detail-desc { margin: 0; color: var(--pv-muted); max-width: 70ch; }
+[data-preview='2d'] .ws-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+[data-preview='2d'] .ws-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--pv-line); background: var(--pv-bg-2); font-size: 11px; color: var(--pv-muted); }
+[data-preview='2d'] .owner-chip { color: var(--pv-ink); }
+[data-preview='2d'] .ws-detail-menu { align-self: start; flex: none; }
+[data-preview='2d'] .detail-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+[data-preview='2d'] .detail-charts .panel { margin-bottom: 0; }
+/* Bar "Tiến độ Project theo thời gian" — cột CSS thuần._track cao flex:1 nên chiều cao
+   cột tính theo % không tràn khỏi khung (giá trị + nhãn nằm ngoài vùng vẽ). */
+[data-preview='2d'] .pv-bars { display: flex; align-items: stretch; gap: 10px; height: 150px; }
+[data-preview='2d'] .pv-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+[data-preview='2d'] .pv-bar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+[data-preview='2d'] .pv-bar { width: 100%; max-width: 34px; min-height: 2px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--pv-blue), var(--pv-violet)); }
+[data-preview='2d'] .pv-bar-value { font-size: 11px; color: var(--pv-muted); }
+[data-preview='2d'] .pv-bar-label { font-size: 11px; color: var(--pv-faint); text-align: center; }
+
+/* ---------- Home: hàng tổng quan (3 panel) + dải giá trị hero ----------
+   ĐÚNG ba khối ảnh home: Activity Overview (rộng hơn) + Projects by Status + Projects per
+   Workspace. Hàng tự gom về 1 cột trên màn hẹp để không bóp biểu đồ. */
+[data-preview='2d'] .home-overview {
+  display: grid; gap: 14px; align-items: start;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+[data-preview='2d'] .home-overview .panel { margin-bottom: 0; }
+[data-preview='2d'] .panel-overview .stat-row { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); margin-bottom: 0; }
+@media (max-width: 960px) { [data-preview='2d'] .home-overview { grid-template-columns: minmax(0, 1fr); } }
+
+[data-preview='2d'] .hero-values {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin: 6px 0 0; padding: 0; list-style: none;
+}
+[data-preview='2d'] .hero-values li { display: flex; align-items: center; gap: 10px; flex: 1 1 200px; min-width: 0; }
+[data-preview='2d'] .hero-value-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 11px; background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .hero-value-text { display: flex; flex-direction: column; min-width: 0; }
+[data-preview='2d'] .hero-value-text strong { font-size: 12px; }
+[data-preview='2d'] .hero-value-text small { font-size: 11px; color: var(--pv-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Trang Project Workspace Overview (ảnh UI-UX/projects/DataVerse_Project_Workspace_Overview_v1) ----------
+   Vùng trống sau topbar + sidebar trái chia thành BA dải đúng như ảnh: dải đầu (tên + mô tả project
+   | thẻ dataset kèm ⋯), khoang giữa (nền tinh vân + mô hình 3D của T: một khối tâm và bốn khối quanh
+   tâm), thanh đáy (bốn module).
+   Bốn tone trong ảnh (tím · xanh lơ · xanh lá · cam) lấy lại từ token --pv-violet/cyan/green/orange đã
+   có, gán vào biến --pj-tone MỘT LẦN cho cả khối trong scene lẫn nút dưới thanh: hai chỗ đó là cùng
+   một danh sách `projectModules`, nên màu của chúng cũng phải là một định nghĩa. Chữ luôn dùng
+   --pv-ink/--pv-muted (tone chỉ gánh viền/nền/icon — tương phản của nó không phụ thuộc vào màu accent). */
+[data-preview='2d'] .pj-head-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+[data-preview='2d'] .pj-head-row .ws-crumb { margin-bottom: 0; }
+[data-preview='2d'] .back-button { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+
+/* Dải đầu. Nền gần đặc (`.86`) vì nó chở chữ 21px + mô tả 12px: để tinh vân xuyên qua nhiều hơn thì
+   tương phản tụt theo, và đây là dải có nhiều chữ nhỏ nhất trong ba dải. */
+[data-preview='2d'] .pj-band {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  padding: 12px 14px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius);
+  background: rgba(9, 17, 31, .86);
+}
+[data-preview='2d'] .pj-band-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+[data-preview='2d'] .pj-band-icon {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px;
+  border-radius: 13px; border: 1px solid var(--pv-line-strong);
+  background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft);
+}
+[data-preview='2d'] .pj-band-text { min-width: 0; }
+/* Tên project và badge trạng thái là hai thứ ĐỨNG CẠNH nhau theo ảnh, không phải một tiêu đề:
+   để badge trong <h1> thì screen reader đọc "Sales Analytics Đang hoạt động" như một cái tên. */
+[data-preview='2d'] .pj-band-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+[data-preview='2d'] .pj-band-name { margin: 0; font-size: 21px; overflow-wrap: anywhere; }
+[data-preview='2d'] .pj-band-desc { margin-top: 2px; max-width: 70ch; color: var(--pv-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Thẻ dataset: tên tệp + 'dung lượng bao gồm luôn shape()' (124.6 MB | 1,250,000 dòng | 24 cột). */
+[data-preview='2d'] .pj-dataset {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  max-width: 460px; padding: 8px 10px;
+  border: 1px solid var(--pv-line-strong); border-radius: 12px; background: rgba(6, 12, 24, .8);
+}
+[data-preview='2d'] .pj-dataset-icon { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--pv-bg-2); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .pj-dataset-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+[data-preview='2d'] .pj-dataset-text strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .pj-dataset-text span { font-size: 11px; color: var(--pv-muted); }
+[data-preview='2d'] .pj-dataset-menu { align-self: center; }
+
+/* Khoang giữa: placeholder 2D của scene T — cùng khuôn `.hero-stage-placeholder` trang Home
+   (viền nét đứt nói đúng "chưa kéo/cuộn được", ảnh tinh vân thật đứng sau). */
+[data-preview='2d'] .pj-stage { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+[data-preview='2d'] .pj-universe {
+  position: relative;
+  display: grid; place-items: center;
+  min-height: 400px; padding: 24px;
+  border: 1px dashed rgba(147, 197, 253, .3); border-radius: var(--pv-radius-lg);
+  background:
+    radial-gradient(58% 58% at 50% 50%, rgba(47, 124, 246, .22), transparent 70%),
+    url('../../assets/universe-backdrop.png') center / cover no-repeat;
+}
+/* Hai vòng quỹ đạo: trang trí thuần, không tương tác (placeholder thì không quay được — nói dối
+   bằng một vòng quay CSS là cách nhanh nhất để người xem tưởng scene đã chạy). */
+[data-preview='2d'] .pj-orbit {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  aspect-ratio: 1; border-radius: 50%; border: 1px solid rgba(147, 197, 253, .16); pointer-events: none;
+}
+[data-preview='2d'] .pj-orbit-outer { width: min(380px, 94%); }
+[data-preview='2d'] .pj-orbit-inner { width: min(250px, 66%); border-color: rgba(147, 197, 253, .26); }
+/* Khối tâm = tập dữ liệu (ảnh ghi tên tệp + 'dòng · cột' ngay dưới quả cầu). */
+[data-preview='2d'] .pj-core { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+[data-preview='2d'] .pj-core-cube {
+  display: grid; place-items: center; width: 104px; height: 104px; border-radius: 50%;
+  color: var(--pv-ink-accent);
+  background: radial-gradient(circle at 35% 30%, var(--pv-ink-accent), var(--pv-blue) 55%, var(--pv-blue-deeper));
+  box-shadow: 0 0 46px rgba(47, 124, 246, .6);
+}
+[data-preview='2d'] .pj-core-cube .preview-icon { width: 34px; height: 34px; }
+[data-preview='2d'] .pj-core-name { max-width: 250px; font-size: 12px; font-weight: 700; color: var(--pv-ink); text-shadow: 0 1px 8px rgba(2, 8, 20, .95); }
+[data-preview='2d'] .pj-core-meta { font-size: 11px; color: var(--pv-ink-accent); text-shadow: 0 1px 8px rgba(2, 8, 20, .95); }
+/* Project chưa có dataset: tâm không có gì để vẽ, nên nó ngả xám + nét đứt thay vì phát sáng. */
+[data-preview='2d'] .pj-core.is-empty .pj-core-cube {
+  border: 1px dashed var(--pv-line-strong); background: var(--pv-bg-2);
+  color: var(--pv-faint); box-shadow: none;
+}
+/* Bốn khối quanh tâm = bốn ô của lưới 2×2, theo ĐÚNG thứ tự `projectModules` (trên-trái ·
+   trên-phải · dưới-trái · dưới-phải) như ảnh vẽ. Vị trí nằm ở đây chứ không trong JSX: thêm module
+   thứ năm là chuyện của dữ liệu + một dòng lưới, không phải sửa view. */
+[data-preview='2d'] .pj-blocks {
+  position: absolute; inset: 24px; z-index: 1;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+[data-preview='2d'] .pj-block {
+  position: relative;
+  display: flex; align-items: center; gap: 9px; align-self: center; justify-self: center;
+  max-width: 230px; padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--pj-tone) 42%, transparent); border-radius: 12px;
+  background: rgba(6, 12, 24, .82);
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .pj-block-icon {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+  color: var(--pj-tone); background: color-mix(in srgb, var(--pj-tone) 20%, transparent);
+}
+[data-preview='2d'] .pj-block-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+[data-preview='2d'] .pj-block-text strong { font-size: 12px; color: var(--pv-ink); }
+[data-preview='2d'] .pj-block-text small { font-size: 11px; color: var(--pv-muted); }
+/* "Chân" nối khối vào tâm — ảnh vẽ mỗi khối có một gờ đứng riêng. */
+[data-preview='2d'] .pj-block-stand {
+  position: absolute; left: 50%; bottom: -13px; width: 1px; height: 13px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pj-tone) 70%, transparent), transparent);
+}
+/* Hàng DƯỚI nằm dưới tâm nên chân phải mọc lên trên, hướng vào tâm. */
+[data-preview='2d'] .pj-blocks > .pj-block:nth-child(n + 3) .pj-block-stand { top: -13px; bottom: auto; transform: scaleY(-1); }
+/* Khối sáng lên theo nút được chọn dưới thanh đáy — đó là bằng chứng thị giác cho
+   "bấm nút dưới cũng như bấm khối 3D" mà đặc tả UI-UX/projects/đặc tả.txt yêu cầu. */
+[data-preview='2d'] .pj-block.is-active {
+  border-color: var(--pj-tone);
+  background: color-mix(in srgb, var(--pj-tone) 16%, rgba(6, 12, 24, .82));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pj-tone) 45%, transparent), 0 10px 26px rgba(2, 8, 20, .5);
+}
+[data-preview='2d'] .pj-stage-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+[data-preview='2d'] .pj-stage-foot .action-note { flex: 1 1 340px; min-width: 0; margin: 0; }
+
+/* Thanh đáy: bốn module. Nút nào đang chọn thì khối cùng id trong scene sáng lên (cùng `selected`). */
+[data-preview='2d'] .pj-modules {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+  margin-top: 16px; padding: 10px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius-lg); background: rgba(9, 17, 31, .86);
+}
+[data-preview='2d'] .pj-module {
+  display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 11px;
+  border: 1px solid transparent; border-radius: 12px; text-align: left; color: var(--pv-muted);
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .pj-module:hover { background: rgba(47, 124, 246, .12); color: var(--pv-ink); }
+[data-preview='2d'] .pj-module:active { transform: scale(.99); }
+[data-preview='2d'] .pj-module.is-active {
+  color: var(--pv-ink); border-color: color-mix(in srgb, var(--pj-tone) 55%, transparent);
+  background: color-mix(in srgb, var(--pj-tone) 16%, transparent);
+}
+[data-preview='2d'] .pj-module-icon {
+  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  color: var(--pj-tone); background: color-mix(in srgb, var(--pj-tone) 20%, transparent);
+}
+[data-preview='2d'] .pj-module-label { min-width: 0; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Một tone cho cả hai chỗ — khai báo một lần, không viết lại ở từng rule. */
+[data-preview='2d'] .pj-block[data-tone='violet'], [data-preview='2d'] .pj-module[data-tone='violet'] { --pj-tone: var(--pv-violet); }
+[data-preview='2d'] .pj-block[data-tone='cyan'], [data-preview='2d'] .pj-module[data-tone='cyan'] { --pj-tone: var(--pv-cyan); }
+[data-preview='2d'] .pj-block[data-tone='teal'], [data-preview='2d'] .pj-module[data-tone='teal'] { --pj-tone: var(--pv-green); }
+[data-preview='2d'] .pj-block[data-tone='amber'], [data-preview='2d'] .pj-module[data-tone='amber'] { --pj-tone: var(--pv-orange); }
+
+/* Màn hẹp: hai cột 1fr × khối 230px sẽ chồng lên khối tâm, nên thả bốn khối xuống DƯỚI tâm theo
+   dòng chảy thường và bó dải đầu về một cột (ảnh là layout desktop 16:9 — đây là chỗ nó tự co lại). */
+@media (max-width: 900px) {
+  [data-preview='2d'] .pj-band { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .pj-dataset { max-width: none; }
+  [data-preview='2d'] .pj-universe { display: flex; flex-direction: column; gap: 18px; }
+  [data-preview='2d'] .pj-blocks { position: static; grid-template-rows: none; }
+  [data-preview='2d'] .pj-orbit { display: none; }
+  [data-preview='2d'] .pj-modules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- Tương tác chuột trên ba trang ----------
+   Thẻ và dòng bảng giờ là control click-được nên phải trông như control: con trỏ,
+   hover nâng lên, và một trạng thái "đang chọn" rõ ràng (một lần click là chọn). */
+[data-preview='2d'] .preview-table tbody tr[tabindex] { cursor: pointer; }
+[data-preview='2d'] .preview-table tbody tr.is-selected { background: rgba(47, 124, 246, .14); box-shadow: inset 3px 0 0 var(--pv-blue); }
+[data-preview='2d'] .mini-card { cursor: pointer; }
+[data-preview='2d'] .mini-card.is-selected { border-color: var(--pv-blue); box-shadow: 0 0 0 1px var(--pv-blue); }
+[data-preview='2d'] .mini-card:active { transform: translateY(0) scale(.995); }
+[data-preview='2d'] .mini-card-projects { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+/* Tên dự án + ngày. Bản cũ: li là flex và `li span { flex: none }` áp cho CẢ HAI span →
+   cột tên không được co lại, tên dài tràn khỏi thẻ và bị cắt mất không có dấu ba chấm. */
+[data-preview='2d'] .mini-card-projects li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: baseline;
+  color: var(--pv-muted);
+}
+[data-preview='2d'] .mini-card-name {
+  min-width: 0; font-size: 12px; color: var(--pv-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-preview='2d'] .mini-card-at { font-size: 11px; color: var(--pv-faint); white-space: nowrap; }
+
+/* ---------- Home: "nút lớn" Workspace (đặc tả home: 3 cột, phân trang trong khung) ----------
+   Tile giữ class `.mini-card` (định vị test + hover/focus gốc) nhưng đổi thân thành
+   "pill" nằm ngang: ô màu + tên + số project. `.cover-*` là gradient độc lập nên tái dùng
+   được cho ô icon, không cần `.cover-art`. */
+[data-preview='2d'] .ws-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Khung "Workspace gần đây" lướt NGAY TRONG KHUNG (chủ sở hữu batch duyệt): một trang là 24
+   nút nhưng khung chỉ hé đúng 4 hàng × 3 cột = 12. 278px = 4 × 62px thẻ (60 nội dung + 2 viền)
+   + 3 × 10px gap. Tên và dòng nhỏ đã nowrap một dòng nên chiều cao thẻ không đổi → số hàng
+   nhìn thấy là số chắc định, không phải xấp xỉ. Scrollbar để hở theo lệ của frame: người đọc
+   phải thấy còn hàng dưới, nếu khất hẳn thì họ tin là danh sách đã hết. */
+[data-preview='2d'] .ws-tiles {
+  max-height: 278px; overflow-y: auto; overscroll-behavior: contain;
+  padding-right: 4px;
+}
+[data-preview='2d'] .ws-tile { align-items: center; }
+[data-preview='2d'] .ws-tile-icon {
+  flex: none; display: grid; place-items: center;
+  width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--pv-line);
+}
+[data-preview='2d'] .ws-tile-icon .preview-icon { width: 20px; height: 20px; color: var(--pv-ink); }
+[data-preview='2d'] .ws-tile-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+[data-preview='2d'] .ws-tile-body h3 {
+  font-size: 14px; line-height: 1.3; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-preview='2d'] .ws-tile-body small {
+  font-size: 11px; color: var(--pv-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 3 cột cứng tràn trên màn hẹp → thu dần về 2 rồi 1 cột (minmax 0 để tên dài vẫn ellipsis). */
+@media (max-width: 640px) {
+  [data-preview='2d'] .ws-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 460px) {
+  [data-preview='2d'] .ws-tiles { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Cột # của bảng Project: số thứ tự theo trang, tabular-nums để cột không giật khi đổi trang. */
+[data-preview='2d'] .row-index { color: var(--pv-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Bảng Project Home: cuộn dọc trong khung. Một trang là 10 dòng nhưng khung chỉ hé 5 dòng
+   (360px ≈ 5 dòng × 72px), lướt xuống hết 10 ngay tại khung (đặc tả: "5 cái có lướt xuống"). */
+[data-preview='2d'] .home-table { max-height: 360px; overflow-y: auto; }
+
+/* "Dự án gần đây" trong panel chi tiết Workspaces. */
+[data-preview='2d'] .mini-rows { display: flex; flex-direction: column; gap: 4px; }
+[data-preview='2d'] .mini-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 9px; align-items: center;
+  width: 100%; padding: 8px 9px;
+  border: 1px solid var(--pv-line); border-radius: 10px; background: var(--pv-bg-2);
+  text-align: left;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .mini-row:hover { border-color: var(--pv-blue); background: var(--pv-blue-soft); }
+[data-preview='2d'] .mini-row:active { transform: translateY(1px); }
+[data-preview='2d'] .mini-row-main { display: flex; flex-direction: column; min-width: 0; }
+[data-preview='2d'] .mini-row-main strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .mini-row-at { font-size: 11px; color: var(--pv-faint); white-space: nowrap; }
+
+/* Nút xếp chồng trong tab Cài đặt (khác hàng ngang ở đầu panel). */
+[data-preview='2d'] .detail-actions.stacked { flex-direction: column; align-items: stretch; }
+[data-preview='2d'] .detail-actions.stacked .button-primary { flex: none; }
+[data-preview='2d'] .button-danger {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px 15px; border-radius: 11px; font-weight: 600;
+  color: var(--pv-ink-rose-hi);
+  border: 1px solid rgba(255, 107, 107, .42);
+  background: rgba(255, 107, 107, .16);
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .button-danger:not([disabled]):hover { background: rgba(255, 107, 107, .26); border-color: rgba(255, 107, 107, .6); }
+[data-preview='2d'] .button-danger:not([disabled]):active { transform: translateY(1px); }
+
+/* Home: bảng Dự án + "thanh chi tiết kế bên" trong cùng một panel. */
+[data-preview='2d'] .home-split { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 12px; align-items: start; }
+[data-preview='2d'] .project-rail {
+  position: sticky; top: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--pv-line-strong); border-radius: var(--pv-radius);
+  background: linear-gradient(170deg, var(--pv-surface), var(--pv-bg-1));
+  max-height: 400px; overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+[data-preview='2d'] .project-rail header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: start; }
+[data-preview='2d'] .project-rail .detail-kind { justify-self: start; }
+[data-preview='2d'] .project-rail header .icon-button { grid-column: 2; grid-row: span 2; width: 26px; height: 26px; }
+[data-preview='2d'] .project-rail dl { display: grid; gap: 7px; }
+[data-preview='2d'] .project-rail dl div { display: grid; grid-template-columns: .9fr 1.1fr; gap: 8px; align-items: center; }
+[data-preview='2d'] .project-rail dt { font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .project-rail dd { margin: 0; font-size: 12px; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+[data-preview='2d'] .rail-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+[data-preview='2d'] .rail-actions .button-primary { flex: 1 1 100%; }
+[data-preview='2d'] .rail-actions .button-secondary { flex: 1 1 auto; padding: 8px 10px; font-size: 12px; }
+
+/* ---------- Phân trang ---------- */
+[data-preview='2d'] .pagination {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 16px; padding: 12px 14px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius);
+  background: var(--pv-bg-2);
+}
+[data-preview='2d'] .pagination-info { font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .pagination-controls { display: flex; align-items: center; gap: 6px; }
+[data-preview='2d'] .page-button {
+  min-width: 32px; height: 32px; border-radius: 9px;
+  border: 1px solid transparent; color: var(--pv-muted); font-weight: 600;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .page-button:hover { background: var(--pv-blue-soft); color: var(--pv-ink); }
+[data-preview='2d'] .page-button.is-active { background: var(--pv-blue-fill); color: var(--pv-on-fill); border-color: var(--pv-blue-edge); }
+
+/* ---------- Màn Thông báo (Design Board 1.2 danh sách · 1.3 chi tiết) ---------- */
+[data-preview='2d'] .back-row { display: flex; margin-bottom: 12px; }
+/* Nút Quay lại là lối ra duy nhất của hai màn Thông báo, nên nó phải là NÚT: một dòng
+   text-link 12px kẹp giữa trang rất khó thấy khi người dùng đang muốn rút lui. Có viền +
+   nền đặc nên trông vẫn là nhóm phụ (muted), không giành sóng với nút chính bên dưới. */
+[data-preview='2d'] .back-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 32px; padding: 5px 12px 5px 9px;
+  border: 1px solid var(--pv-line); border-radius: 10px;
+  background: var(--pv-bg-2); color: var(--pv-muted);
+  font: inherit; font-size: 12px; font-weight: 600;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .back-link:hover { background: var(--pv-blue-soft); border-color: var(--pv-blue); color: var(--pv-ink); }
+[data-preview='2d'] .back-link:active { transform: translateX(-2px); }
+[data-preview='2d'] .back-link .back-arrow { font-size: 14px; line-height: 1; }
+
+/* Ô kiểm: accent-color đổi màu đúng thương hiệu mà vẫn giữ nguyên hình gốc của
+   trình duyệt. Tự vẽ lại input[type=checkbox] là mất trạng thái indeterminate — chính là
+   thứ màn danh sách này cần cho ô "chọn tất cả". */
+[data-preview='2d'] input[type='checkbox'] { width: 16px; height: 16px; margin: 0; accent-color: var(--pv-blue); cursor: pointer; }
+/* Vùng bấm của ô kiểm: WCAG 2.5.8 (AA) bắt mọi target tối thiểu 24×24 CSS px, mà hình
+   vuông 16px thì đầu ngón tay bấm trúng hay trệch là may rủi. Không phóng to CHÍNH nó
+   (sẽ lệch cỡ so với chữ xung quanh) mà bọc vào <label> 24×24: label cũng là vùng bấm hợp
+   lệ của control nó chứa, nên không cần thêm JS. */
+[data-preview='2d'] .check-target { display: grid; place-items: center; min-width: 24px; min-height: 24px; cursor: pointer; }
+[data-preview='2d'] .notice-table .check-cell { width: 40px; text-align: center; vertical-align: middle; }
+/* .row-link (tên dòng) là button một dòng chữ 12px → cao đúng 21px, cũng dưới 24px.
+   min-height 24 + padding âm để vùng bấm phủ sát mép ô mà không nới chiều cao hàng. */
+[data-preview='2d'] .row-link {
+  display: flex; align-items: center; min-height: 24px;
+  margin: -3px -6px; padding: 3px 6px; border-radius: 8px;
+  font: inherit; font-weight: 600; text-align: left; color: var(--pv-ink);
+  transition: color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .row-link:hover { color: var(--pv-ink-link); background: var(--pv-blue-soft); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Cột "Loại": hình theo LOẠI, màu theo TONE (Xem notificationIcon). */
+[data-preview='2d'] .notice-kind { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--pv-muted); white-space: nowrap; }
+[data-preview='2d'] .notice-kind .preview-icon { width: 14px; height: 14px; flex: none; }
+[data-preview='2d'] .notice-kind.tone-ok { color: var(--pv-ink-green); }
+[data-preview='2d'] .notice-kind.tone-warn { color: var(--pv-ink-amber); }
+[data-preview='2d'] .notice-kind.tone-upload { color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .notice-kind.tone-info { color: var(--pv-ink-violet); }
+
+[data-preview='2d'] .bulk-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 12px; padding: 9px 12px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2);
+}
+[data-preview='2d'] .bulk-count { font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+[data-preview='2d'] .notice-desc-head { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--pv-faint); }
+/* 72ch: dòng chữ quá dài trên màn rộng làm mắt mệt; đoạn mô tả là chỗ duy nhất trong
+   frame này cần giới hạn bề ngang, mấy bảng thì phải đủ rộng để so được số. */
+[data-preview='2d'] .notice-desc { margin: 0; font-size: 14px; line-height: 1.6; color: var(--pv-muted); max-width: 72ch; }
+
+/* ---------- Surface nổi: menu ngữ cảnh · popover · toast · dialog ----------
+   Vật liệu trong suốt xếp theo mức ưu tiên (apple-design mục 12): toast nhẹ hơn menu,
+   menu nhẹ hơn dialog. Dialog đặc nhất vì nó kèm scrim và cắt tương tác với nền.
+   left/top do preview-surface.ts đo theo viewport → bắt buộc position: fixed.
+   Z-index: toast 800 < menu/popover 900 < dialog 1000 (thao tác đang mở đè thông báo). */
+[data-preview='2d'] .preview-menu,
+[data-preview='2d'] .preview-popover {
+  position: fixed;
+  z-index: 900;
+  min-width: 218px;
+  /* width: max-content — KHÔNG phải để rộng hơn, mà để bề rộng KHÔNG phụ thuộc left.
+     Để auto, surface fixed co theo fit-content = min(chỗ còn lại bên phải left, nội dung),
+     mà chỗ còn lại lại do left quyết: layout effect đo được 218 (min-width, vì left tạm
+     = mép trigger sát thành phải), đặt left = right - 218, rồi box nở ra 359 -> popover
+     lệch 141px qua khỏi trigger (đo thật trên chuông thông báo). max-content là số đo
+     nội tại, không đọc chỗ còn lại; đã clamp bằng max-width theo 100vw nên không tràn màn. */
+  width: max-content;
+  max-width: min(360px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: hidden auto;
+  padding: 6px;
+  border: 1px solid var(--pv-line-strong);
+  /* Cạnh trên sáng hơn các cạnh còn lại = ánh sáng rơi lên mép vật liệu. */
+  border-top-color: rgba(180, 214, 255, .38);
+  border-radius: 14px;
+  background: rgba(22, 38, 60, .86);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 26px 60px rgba(2, 8, 20, .66), 0 2px 8px rgba(2, 8, 20, .5);
+  /* Neo gốc co giãn vào đúng phía trigger (mục 7) thay vì co từ tâm. */
+  transform-origin: top left;
+  /* Materialize bằng scale + opacity THÔI. Bản cũ animate cả backdrop-filter từ 6px lên
+     24px: mỗi frame là một lần re-blur toàn bộ vùng đứng sau (giờ còn là ảnh tinh vân) —
+     chính cái "mượt" đó làm menu mở ra bị trễ một hai frame. */
+  animation: pv-materialize var(--pv-d-surface) var(--pv-ease-out);
+}
+[data-preview='2d'] .preview-popover.is-end { transform-origin: top right; }
+[data-preview='2d'] .preview-menu[data-side='top'],
+[data-preview='2d'] .preview-popover[data-side='top'] { transform-origin: bottom left; }
+[data-preview='2d'] .preview-popover.is-end[data-side='top'] { transform-origin: bottom right; }
+/* Popover tài khoản có NHÃN + GIÁ TRỊ + chip trên cùng một hàng. Với trần 360px của popover
+   chung, "Cài đặt tài khoản" + "Users API" dồn chữ vào nhau — đúng chỗ người dùng báo
+   "các thông tin hiện ra bị chen lấn". Một cỡ riêng rộng hơn, nội dung không phải đổi. */
+/* Surface rộng cho popover tài khoản. PHẢI đặt width chứ không chỉ min-width: popover là
+   position:fixed nên co theo fit-content, còn .account-row lại width:100% -> vòng tròn tự
+   tham chiếu khiến trình duyệt bỏ qua intrinsic width và hạ đúng min-width (đo thật: 319px,
+   cột nhãn chỉ còn 174px trong khi 'Hồ sơ cá nhân' cần 180px -> vẫn bị cắt dấu ba chấm,
+   tức vẫn chen lấn). Clamp theo 100vw để màn rất hẹp không tràn ngang. */
+[data-preview='2d'] .preview-popover.is-lg {
+  width: min(380px, calc(100vw - 16px));
+  min-width: min(320px, calc(100vw - 16px));
+  max-width: min(420px, calc(100vw - 16px));
+}
+
+/* Trung tâm thông báo "trong ô" (đặc tả Shell dòng 5). Rộng hơn popover tài khoản vì nó tự
+   chứa tab lọc + tìm kiếm + danh sách có ô chọn + footer hàng loạt + phân trang. Popover đã có
+   max-height:100vh-16px + overflow:hidden auto (khai báo ở .preview-popover), nên danh sách dài
+   thì cả ô cuộn — footer không bao giờ bị cắt mất lối ra. */
+[data-preview='2d'] .preview-popover.is-inbox {
+  width: min(440px, calc(100vw - 16px));
+  min-width: min(320px, calc(100vw - 16px));
+  max-width: min(460px, calc(100vw - 16px));
+}
+
+/* Thẻ "Xem thông tin" của project — surface thứ tư của khung, mọc theo CON TRỎ khi đưa chuột
+   vào một dòng ở khung Projects gần đây (và từ item 'Xem thông tin' trong menu ⋯).
+   pointer-events: none là BẮT BUỘC: thẻ mà nhận chuột thì nó chắn ngay chỗ con trỏ đang đứng,
+   dòng mất :hover → thẻ tắt → con trỏ lại rơi vào dòng → thẻ bật, nháy liên tục. Vì không nhận
+   chuột, mọi cú bấm đều tính là "bấm ra ngoài" nên useSurfaceDismiss đóng nó đúng một lối.
+   Z-index 900 cùng menu: openMenu() đóng thẻ trước khi mở menu nên hai surface không chồng nhau.
+   width: max-content + max-width kẹp theo 100vw — cùng lý do với .preview-menu ở trên (surface
+   fixed để width auto sẽ co theo chỗ còn lại bên trái, đo lần hai là lệch neo). */
+[data-preview='2d'] .pv-info-card {
+  position: fixed;
+  z-index: 900;
+  pointer-events: none;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 12px;
+  border: 1px solid var(--pv-line-strong);
+  border-top-color: rgba(180, 214, 255, .38);
+  border-radius: 14px;
+  background: rgba(22, 38, 60, .92);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 26px 60px rgba(2, 8, 20, .66), 0 2px 8px rgba(2, 8, 20, .5);
+  transform-origin: top left;
+  animation: pv-materialize var(--pv-d-surface) var(--pv-ease-out);
+}
+[data-preview='2d'] .pv-info-card[data-side='top'] { transform-origin: bottom left; }
+/* Tên dài đẩy badge trạng thái ra khỏi thẻ nếu không cho phép sang hàng; badge thì không
+   được vỡ dòng (flex: none) — hai thứ phải nhường nhau là tên và bề rộng thẻ, không phải badge. */
+[data-preview='2d'] .info-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+[data-preview='2d'] .info-card-head .status-badge { flex: none; }
+[data-preview='2d'] .info-card-name { min-width: 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+[data-preview='2d'] .info-card-code { margin: 3px 0 0; font-size: 11px; color: var(--pv-faint); overflow-wrap: anywhere; }
+/* Cột nhãn tự nhiên, cột giá trị nhận phần còn lại: minmax(0, 1fr) chứ không 1fr, vì 1fr
+   vẫn cho phép nội dung đẩy cột rộng ra (min-width: auto) và tên tệp dài sẽ tràn thẻ. */
+[data-preview='2d'] .info-card-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 10px 0 0; }
+[data-preview='2d'] .info-card-facts dt { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .info-card-facts dd {
+  margin: 0; font-size: 12px; line-height: 1.45; color: var(--pv-muted);
+  /* Số dòng/dung lượng/cột phải thẳng cột nhau khi thẻ đổi nội dung (tabular-nums), và tên
+     tệp không có dấu cách nào ('BaoCao_TaiChinh_QuyIV_2026_ban_final_v12.xlsx') nên cần
+     break-opportunity thật sự: anywhere chỉ ngắt khi buộc phải ngắt. */
+  overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
+}
+[data-preview='2d'] .info-card-desc {
+  margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--pv-line);
+  font-size: 12px; line-height: 1.45; color: var(--pv-muted); overflow-wrap: anywhere;
+  /* Kẹp 3 dòng: mô tả dài nhất 500 ký tự mà thẻ xem nhanh thì cao tối đa theo màn hình.
+     Bản đầy đủ nằm trong trang Project, không phải đây. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
+[data-preview='2d'] .info-card-hint { margin: 8px 0 0; font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .notice-center { display: flex; flex-direction: column; gap: 6px; }
+[data-preview='2d'] .center-head-actions { display: flex; align-items: center; gap: 10px; }
+[data-preview='2d'] .center-chip {
+  padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  border: 1px solid var(--pv-blue-edge); background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft);
+}
+[data-preview='2d'] .notice-empty { margin: 4px 6px; padding: 14px 10px; font-size: 12px; color: var(--pv-faint); text-align: center; }
+
+/* Dòng danh sách trong ô: thêm cột ô vuông chọn so với dropdown nhanh. Ô vuông và nút mở là
+   hai control rời — tích ô không mở chi tiết, bấm dòng không tích (tránh một click hai việc). */
+[data-preview='2d'] .inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+/* Danh sách trong ô "Xem tất cả thông báo" có vùng cuộn RIÊNG, footer + phân trang nằm ngoài
+   nên luôn nhìn thấy. Để cả ô cuộn thì khi bấm sang trang 2, ô giữ nguyên chỗ đã cuộn: danh
+   sách đổi ở phía trên tầm mắt và người dùng tưởng không có gì xảy ra. 46vh để ô cao nhất
+   vẫn còn head + tab + tìm kiếm + footer trong màn hình. */
+[data-preview='2d'] .inbox-list {
+  max-height: min(46vh, 470px); overflow-y: auto; overscroll-behavior: contain;
+}
+[data-preview='2d'] .inbox-row {
+  display: grid; grid-template-columns: 24px 28px minmax(0, 1fr) auto auto; gap: 9px; align-items: center;
+  width: 100%; padding: 7px 9px; border-radius: 10px;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .inbox-row:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .inbox-row.is-unread { background: rgba(47, 124, 246, .08); }
+[data-preview='2d'] .inbox-row.is-picked { background: rgba(47, 124, 246, .16); box-shadow: inset 3px 0 0 var(--pv-blue); }
+[data-preview='2d'] .inbox-open { display: block; min-width: 0; text-align: left; color: inherit; }
+
+[data-preview='2d'] .center-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--pv-line);
+}
+[data-preview='2d'] .detail-body { display: flex; flex-direction: column; gap: 6px; padding: 0 2px; }
+[data-preview='2d'] .detail-hero { display: flex; align-items: center; gap: 10px; padding: 4px 2px 8px; }
+[data-preview='2d'] .detail-hero .notice-icon { width: 34px; height: 34px; }
+[data-preview='2d'] .detail-hero strong { font-size: 14px; }
+
+/* ---------- Trung tâm báo cáo (Design Board 02–03, đặc tả Shell dòng 7) ----------
+   Bốn khung 02/3.1/3.2/3.3 là bốn VIEW nội bộ của cùng một popover 'inbox' (440px), không
+   phải bốn trang — nên nó đi theo họ .notice-center (cột flex, gap 6) và dùng lại mọi primitive
+   đã có: .popover-head/.back-link, .filter-tabs, .popover-search, .pagination, .detail-body,
+   .detail-meta, .notice-desc. Chỉ thêm các lớp .report-* riêng cho hero · form · dòng · chip. */
+
+/* Hero màn landing (02): icon trong ô bo góc + tiêu đề + một dòng mô tả, hai nút xếp chồng
+   toàn bề rộng như ảnh. Căn giữa vì đây là điểm vào, không phải danh sách để quét. */
+[data-preview='2d'] .report-hero {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 10px 12px; text-align: center;
+}
+[data-preview='2d'] .report-hero-icon {
+  display: grid; place-items: center; width: 46px; height: 46px;
+  border-radius: 14px; color: var(--pv-ink-accent-soft);
+  background: var(--pv-blue-soft); border: 1px solid var(--pv-blue-edge);
+}
+[data-preview='2d'] .report-hero-icon .preview-icon { width: 24px; height: 24px; }
+[data-preview='2d'] .report-hero strong { font-size: 14px; }
+[data-preview='2d'] .report-hero p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--pv-muted); max-width: 34ch; }
+[data-preview='2d'] .report-hero-actions { display: flex; flex-direction: column; gap: 8px; padding: 2px 6px 6px; }
+[data-preview='2d'] .report-hero-actions .button-primary,
+[data-preview='2d'] .report-hero-actions .button-secondary { width: 100%; }
+
+/* Dòng danh sách (3.2): ô chỉ ~440px nên bảng 5 cột của ảnh dồn thành hai phần — trái là
+   tiêu đề + mã·loại (min-width:0 để chữ dài cắt ellipsis, bản đầy đủ xem ở chi tiết),
+   phải là chip trạng thái + thời gian cập nhật (flex:none để không bị đẩy off-screen). */
+[data-preview='2d'] .report-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+[data-preview='2d'] .report-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  width: 100%; padding: 8px 9px; border-radius: 10px; text-align: left;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .report-row:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .report-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-preview='2d'] .report-row-main strong { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .report-row-main small { font-size: 11px; color: var(--pv-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .report-row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+[data-preview='2d'] .report-row-at { font-size: 11px; color: var(--pv-faint); }
+
+/* Chip trạng thái xử lý (3.4). Bốn tone khớp bốn màu trong ảnh (brand/warn/ok/muted) nhưng
+   dùng đúng cặp mực-tối + nền tint của họ .status-badge đã được đo WCAG ≥4.5:1 — KHÔNG lấy
+   --pv-green/orange nguyên bản (quá sáng trên nền tinh vân, trượt tương phản). */
+[data-preview='2d'] .report-chip {
+  display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid transparent;
+}
+[data-preview='2d'] .report-chip.tone-brand { color: var(--pv-ink-link); background: rgba(47, 124, 246, .14); border-color: rgba(47, 124, 246, .36); }
+[data-preview='2d'] .report-chip.tone-warn { color: var(--pv-ink-amber); background: rgba(251, 191, 36, .12); border-color: rgba(251, 191, 36, .32); }
+[data-preview='2d'] .report-chip.tone-ok { color: var(--pv-ink-green); background: rgba(52, 211, 153, .12); border-color: rgba(52, 211, 153, .34); }
+[data-preview='2d'] .report-chip.tone-muted { color: var(--pv-muted); background: rgba(120, 170, 235, .1); border-color: var(--pv-line); }
+
+/* Form tạo (3.1). Ảnh vẽ nhãn-trái/trường-phải cho trang đầy đủ; trong ô 440px thì xếp chồng
+   dọc để trường dùng hết bề ngang. Nút gửi luôn bật (validate khi bấm) nên không có control
+   tắt không lý do — thiếu trường thì .form-error nói ngay trong form. */
+[data-preview='2d'] .report-form { display: flex; flex-direction: column; gap: 10px; padding: 2px 6px 4px; }
+[data-preview='2d'] .report-form .field { display: flex; flex-direction: column; gap: 5px; }
+[data-preview='2d'] .field-label { font-size: 12px; font-weight: 600; color: var(--pv-ink); }
+[data-preview='2d'] .req { color: var(--pv-ink-rose); }
+[data-preview='2d'] .report-form select,
+[data-preview='2d'] .report-form input,
+[data-preview='2d'] .report-form textarea {
+  width: 100%; padding: 8px 10px; font: inherit; font-size: 12px;
+  color: var(--pv-ink); background: var(--pv-bg-2);
+  border: 1px solid var(--pv-line); border-radius: 10px;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .report-form textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+[data-preview='2d'] .report-form select:focus-visible,
+[data-preview='2d'] .report-form input:focus-visible,
+[data-preview='2d'] .report-form textarea:focus-visible { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); outline: none; }
+[data-preview='2d'] .report-form ::placeholder { color: var(--pv-faint); }
+
+/* Vùng kéo/Chọn tệp: nhãn bọc <input type=file> ẩn, nên cả khối là một vùng bấm. dashed để
+   phân biệt với field đặc; hover tô nền + viền brand cho thấy nó nhận chuột. */
+[data-preview='2d'] .dropzone {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px;
+  text-align: center; cursor: pointer; background: var(--pv-bg-2);
+  border: 1px dashed var(--pv-line-strong); border-radius: 10px;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .dropzone:hover { border-color: var(--pv-blue); background: var(--pv-blue-soft); }
+[data-preview='2d'] .dropzone-text { font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .dropzone-pick { font-weight: 600; color: var(--pv-ink-link); }
+[data-preview='2d'] .dropzone small { font-size: 11px; color: var(--pv-faint); }
+
+/* Tệp đã chọn / hiển thị ở chi tiết. Tên tệp dài thì overflow-wrap:anywhere để không tràn
+   mép ô (chưa có API nên không cắt giữ giữa — chỉ cần nó không đè lên nút bỏ). */
+[data-preview='2d'] .attachment {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  background: var(--pv-bg-2); border: 1px solid var(--pv-line); border-radius: 10px;
+}
+[data-preview='2d'] .attachment-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; margin-right: auto; font-size: 12px; overflow-wrap: anywhere; }
+[data-preview='2d'] .attachment-name .preview-icon { flex: none; color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .attachment.static .attachment-name { margin-right: 0; }
+[data-preview='2d'] .icon-button.sm { width: 26px; height: 26px; border-radius: 8px; flex: none; }
+
+[data-preview='2d'] .form-error {
+  margin: 0; padding: 8px 10px; font-size: 12px; color: var(--pv-ink-rose);
+  background: rgba(255, 107, 107, .12); border: 1px solid rgba(255, 107, 107, .36); border-radius: 10px;
+}
+[data-preview='2d'] .form-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+
+/* Đầu màn chi tiết (3.3): mã báo cáo trong chip nhẹ + chip trạng thái bên phải, tiêu đề đầy đủ
+   bên dưới (wrap được vì đây là chỗ người đọc cần thấy nguyên văn). */
+[data-preview='2d'] .report-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 2px 8px; }
+[data-preview='2d'] .report-code {
+  padding: 2px 8px; font-size: 12px; font-weight: 700; letter-spacing: .3px;
+  color: var(--pv-ink-accent-soft); background: var(--pv-blue-soft); border: 1px solid var(--pv-blue-edge); border-radius: 8px;
+}
+[data-preview='2d'] .report-detail-title { display: block; margin: 2px 2px 8px; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ---------- Settings / nhánh Accounts (Design Board 04, đặc tả Shell dòng 9) ----------
+   Khác chuông + báo cáo (chạy "trong ô"), Settings là MÀN THẬT có hash riêng
+   '#/preview/settings/<mục>'. Bố cục hai cột: sidebar phụ "Accounts" trái + vùng nội dung
+   phải, dùng lại mọi primitive đã có (.panel/.panel-head, .field-label/.req, .form-error,
+   .form-actions, .detail-meta, .report-chip, .button-primary/secondary, .avatar-lg,
+   .notice-empty). Chỉ thêm các lớp settings / profile / security / session / pref / switch
+   cho riêng màn này. Cỡ chữ lấy đúng thang đã chốt (11 nhãn · 12 phụ · 14 nội dung), không
+   thêm bậc mới → gate preview-constraints không đỏ. */
+
+/* Đầu màn 4.2/4.3: một hàng "← <tên màn>" gọn, KHÔNG phải hero 30px — ảnh vẽ tiêu đề
+   Settings nhỏ hơn h1 trang chủ. Cỡ 18px đã có trong thang → không thêm bậc. */
+[data-preview='2d'] .settings-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+[data-preview='2d'] .settings-head h1 { font-size: 18px; margin: 0; letter-spacing: -.2px; }
+/* Ảnh 4.4: hành động của màn ("Đăng xuất tất cả các phiên khác") dạt về góc trên phải, ngang
+   hàng tiêu đề. margin-left:auto đẩy nó khỏi cụm back + h1 mà không cần justify-content. */
+[data-preview='2d'] .settings-head-action { margin-left: auto; flex: none; }
+[data-preview='2d'] .page-back { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 9px;
+  color: var(--pv-muted); background: transparent; border: 1px solid var(--pv-line);
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .page-back:hover { background: var(--pv-blue-soft); color: var(--pv-ink); border-color: var(--pv-blue); }
+[data-preview='2d'] .page-back:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .back-arrow { font-size: 16px; line-height: 1; }
+
+/* Lưới hai cột. minmax(0,1fr) cho cột phải để chữ dài cắt ellipsis thay vì đẩy layout; ở
+   <900px sidebar thành một hàng ngang cuộn dọc (mọi mục hàng đầu luôn thấy). */
+[data-preview='2d'] .settings-layout {
+  display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 20px; align-items: start;
+}
+
+/* Sidebar phụ: một cột nút điều hướng, KHÔNG phải card nổi → nền trong suốt, tách bằng viền. */
+[data-preview='2d'] .settings-nav {
+  position: sticky; top: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 8px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius-lg);
+}
+[data-preview='2d'] .settings-nav-title {
+  padding: 0 10px 8px; font-size: 11px; font-weight: 700; letter-spacing: .6px;
+  text-transform: uppercase; color: var(--pv-faint);
+}
+[data-preview='2d'] .settings-nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px;
+  text-align: left; font-size: 14px; color: var(--pv-muted);
+  border: 1px solid transparent; border-radius: 10px;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .settings-nav-item:hover { background: var(--pv-blue-soft); color: var(--pv-ink); }
+[data-preview='2d'] .settings-nav-item.is-active {
+  color: var(--pv-ink-accent); background: var(--pv-blue-soft); border-color: var(--pv-blue-edge);
+}
+[data-preview='2d'] .settings-nav-icon { display: grid; place-items: center; width: 18px; height: 18px; flex: none; }
+/* .settings-nav-empty ĐÃ XÓA cùng ô tìm ở topbar: rail Settings không còn lọc theo từ khóa
+   nên không có trạng thái "không mục nào khớp" để hiển thị. */
+/* Cây một nhánh "Accounts": mục con lồng thêm một cấp (đặc tả dòng 9). Nhóm cha đậm hơn
+   một bậc để phân cấp; dấu › xoay khi mở. */
+[data-preview='2d'] .settings-nav-sub { display: flex; flex-direction: column; gap: 2px; padding-left: 14px; }
+[data-preview='2d'] .settings-nav-item.is-group { color: var(--pv-ink); font-weight: 600; }
+[data-preview='2d'] .settings-nav-caret { margin-left: auto; display: grid; place-items: center; color: var(--pv-faint);
+  transition: transform var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .settings-nav-caret.is-open { transform: rotate(90deg); }
+
+[data-preview='2d'] .settings-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+[data-preview='2d'] .settings-crumb { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--pv-ink-eyebrow); }
+[data-preview='2d'] .settings-screen { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+[data-preview='2d'] .settings-hint { margin: 10px 2px 2px; font-size: 12px; color: var(--pv-faint); }
+
+/* Màn TỔNG QUAN Settings ('#/preview/settings' trần): mỗi module một dòng "tên · liệt kê mục
+   con". Không có nút nào ở đây — rail trái là lối vào duy nhất, vẽ thêm nút trong thân trang
+   là hai control cho một việc (và hai chỗ phải sửa khi thêm module). */
+[data-preview='2d'] .settings-overview { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; margin: 8px 0 2px; }
+[data-preview='2d'] .settings-overview dt { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; color: var(--pv-ink); }
+[data-preview='2d'] .settings-overview dd { margin: 0; font-size: 12px; line-height: 1.6; color: var(--pv-muted); }
+
+/* 4.2 Hồ sơ: khối nhận dạng (avatar lớn + tên + chức vụ) rồi tới biểu mẫu một cột. */
+[data-preview='2d'] .profile-grid { display: flex; flex-direction: column; gap: 16px; }
+[data-preview='2d'] .profile-id { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px; }
+[data-preview='2d'] .profile-id strong { font-size: 14px; max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+[data-preview='2d'] .profile-role { font-size: 11px; color: var(--pv-faint); }
+
+/* Biểu mẫu hồ sơ: mỗi .field một khối dọc; .field-control đặt input tràn lề phải, mép phải
+   chừa chỗ cho affordance (bút = sửa được, khóa = chỉ đọc). Styled ở đây vì kiểu input cũ
+   đang scope vào .report-form — cùng font-size 14px đã có trong thang nên không thêm bậc. */
+[data-preview='2d'] .settings-form { display: flex; flex-direction: column; gap: 12px; }
+[data-preview='2d'] .settings-form .field { display: flex; flex-direction: column; gap: 5px; }
+[data-preview='2d'] .settings-form input,
+[data-preview='2d'] .settings-form textarea {
+  width: 100%; padding: 9px 34px 9px 11px; font: inherit; font-size: 14px; color: var(--pv-ink);
+  background: var(--pv-bg-2); border: 1px solid var(--pv-line); border-radius: 10px;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .settings-form textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
+[data-preview='2d'] .settings-form input:focus-visible,
+[data-preview='2d'] .settings-form textarea:focus-visible { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); outline: none; }
+[data-preview='2d'] .field-control { position: relative; display: flex; align-items: center; }
+[data-preview='2d'] .field-affordance { position: absolute; right: 10px; display: grid; place-items: center; width: 16px; height: 16px; color: var(--pv-ink-accent-soft); pointer-events: none; }
+[data-preview='2d'] .field-control.is-readonly input { color: var(--pv-muted); background: var(--pv-bg-1); cursor: default; }
+[data-preview='2d'] .field-control.is-readonly .field-affordance { color: var(--pv-faint); }
+
+/* 4.3 Bảo mật: một hàngDisclosure mở rộng thành form đổi mật khẩu (khớp dấu › trong ảnh). */
+[data-preview='2d'] .security-list { display: flex; flex-direction: column; gap: 8px; }
+[data-preview='2d'] .security-row {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; padding: 12px; text-align: left; border: 1px solid var(--pv-line); border-radius: 12px;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .security-row:hover { background: var(--pv-blue-soft); border-color: var(--pv-blue); }
+[data-preview='2d'] .security-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--pv-ink-accent-soft); background: var(--pv-blue-soft); border: 1px solid var(--pv-blue-edge); }
+[data-preview='2d'] .security-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-preview='2d'] .security-text strong { font-size: 14px; }
+[data-preview='2d'] .security-text small { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .security-caret { display: grid; place-items: center; width: 18px; height: 18px; color: var(--pv-faint); }
+[data-preview='2d'] .password-form {
+  display: grid; gap: 10px; padding: 12px; border: 1px solid var(--pv-line); border-radius: 12px;
+  background: var(--pv-bg-1);
+  animation: pv-settings-disclose var(--pv-d-surface) var(--pv-ease-snap);
+}
+[data-preview='2d'] .password-form .field { display: flex; flex-direction: column; gap: 5px; }
+[data-preview='2d'] .password-form input {
+  width: 100%; padding: 9px 11px; font: inherit; font-size: 14px; color: var(--pv-ink);
+  background: var(--pv-bg-2); border: 1px solid var(--pv-line); border-radius: 10px;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .password-form input:focus-visible { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); outline: none; }
+@keyframes pv-settings-disclose { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* 4.4 Phiên: danh sách phiên đăng nhập, mỗi hàng icon + thiết bị/địa điểm + chip/trạng thái + ⋮. */
+[data-preview='2d'] .session-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+[data-preview='2d'] .session-item { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--pv-line); border-radius: 12px; background: var(--pv-bg-1); overflow: hidden; }
+[data-preview='2d'] .session-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 12px; }
+[data-preview='2d'] .session-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--pv-ink-link); background: var(--pv-blue-soft); }
+[data-preview='2d'] .session-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-preview='2d'] .session-main strong { font-size: 14px; overflow-wrap: anywhere; }
+[data-preview='2d'] .session-main small { font-size: 11px; color: var(--pv-faint); }
+/* "Phiên hiện tại" là chữ inline sau vị trí (ảnh 4.4), không phải chip riêng ở mép phải. */
+[data-preview='2d'] .session-current { color: var(--pv-ink-link); font-weight: 600; }
+[data-preview='2d'] .session-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
+[data-preview='2d'] .session-at { font-size: 11px; color: var(--pv-faint); text-align: right; }
+[data-preview='2d'] .session-menu { display: flex; flex-direction: column; gap: 1px; padding: 6px; border-top: 1px solid var(--pv-line); background: var(--pv-bg-2); animation: pv-materialize var(--pv-d-surface) var(--pv-ease-out); }
+[data-preview='2d'] .session-menu-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; font-size: 12px; text-align: left; color: var(--pv-ink); border-radius: 8px; transition: background-color var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .session-menu-item:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .session-menu-item.is-danger { color: var(--pv-ink-rose); }
+[data-preview='2d'] .session-detail { padding: 10px 14px 14px; border-top: 1px solid var(--pv-line); }
+
+/* 4.5 Tùy chọn thông báo: mỗi dòng icon + nhãn + caption + một công tắc role="switch". */
+[data-preview='2d'] .pref-list { display: flex; flex-direction: column; gap: 8px; }
+[data-preview='2d'] .pref-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--pv-line); border-radius: 12px; }
+[data-preview='2d'] .pref-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--pv-ink-amber); background: rgba(251, 191, 36, .12); }
+[data-preview='2d'] .pref-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-preview='2d'] .pref-text strong { font-size: 14px; }
+[data-preview='2d'] .pref-text small { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .switch {
+  position: relative; flex: none; width: 42px; height: 24px; padding: 0; cursor: pointer;
+  border: 1px solid var(--pv-line-strong); border-radius: 999px; background: var(--pv-bg-2);
+  transition: background-color var(--pv-d-surface) var(--pv-ease-out), border-color var(--pv-d-surface) var(--pv-ease-out);
+}
+[data-preview='2d'] .switch.is-on { background: linear-gradient(120deg, var(--pv-blue-fill), var(--pv-fill-deep)); border-color: var(--pv-blue-edge); }
+[data-preview='2d'] .switch:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--pv-on-fill); box-shadow: var(--pv-shadow);
+  transition: transform var(--pv-d-surface) var(--pv-ease-snap);
+}
+[data-preview='2d'] .switch.is-on .switch-knob { transform: translateX(18px); }
+
+@media (max-width: 900px) {
+  [data-preview='2d'] .settings-layout { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .settings-nav { position: static; }
+}
+
+/* Materialize, không chỉ fade: surface co nhẹ từ mép trigger rồi đặc lại trong 130ms,
+   đọc như "một lớp vật liệu đang tới" thay vì một khối bật lên bằng opacity. */
+@keyframes pv-materialize {
+  from { opacity: 0; transform: scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Mũi tên nhỏ chỉ về nút đã mở ra surface. data-side nói cho CSS biết trigger nằm
+   trên hay dưới (menu bị lật lên khi sát đáy màn hình thì mũi tên phải ở mép dưới). */
+[data-preview='2d'] .preview-menu[data-trigger='anchor']::before,
+[data-preview='2d'] .preview-popover::before {
+  content: '';
+  position: absolute; top: -5px; left: 18px;
+  width: 9px; height: 9px;
+  transform: rotate(45deg);
+  background: rgba(22, 38, 60, .9);
+  border-left: 1px solid rgba(180, 214, 255, .38);
+  border-top: 1px solid rgba(180, 214, 255, .38);
+}
+[data-preview='2d'] .preview-menu[data-side='top'][data-trigger='anchor']::before,
+[data-preview='2d'] .preview-popover[data-side='top']::before {
+  top: auto; bottom: -5px;
+  border-left: 0; border-top: 0;
+  border-right: 1px solid var(--pv-line-strong);
+  border-bottom: 1px solid var(--pv-line-strong);
+}
+[data-preview='2d'] .preview-popover.is-end::before { left: auto; right: 18px; }
+
+/* Menu ngữ cảnh */
+[data-preview='2d'] .menu-title {
+  padding: 5px 8px 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  color: var(--pv-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-preview='2d'] .menu-list { display: flex; flex-direction: column; gap: 1px; }
+[data-preview='2d'] .menu-item {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 9px; align-items: center;
+  width: 100%; padding: 8px 9px; border-radius: 9px;
+  color: var(--pv-ink); text-align: left;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .menu-item:not([disabled]):hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .menu-item:not([disabled]):active { transform: scale(.99); }
+[data-preview='2d'] .menu-icon { display: grid; place-items: center; color: var(--pv-muted); }
+[data-preview='2d'] .menu-text { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .menu-hint { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .menu-item.is-danger { color: var(--pv-ink-rose); }
+[data-preview='2d'] .menu-item.is-danger .menu-icon { color: var(--pv-ink-rose); }
+[data-preview='2d'] .menu-item.is-danger:not([disabled]):hover { background: rgba(255, 107, 107, .16); }
+[data-preview='2d'] .menu-separator { height: 1px; margin: 5px 6px; background: var(--pv-line); }
+/* Item tắt phải tự giải thích trong chính surface: người bấm chuột phải chưa chắc
+   đã nhìn thấy dải note cuối trang. */
+[data-preview='2d'] .menu-note {
+  margin: 6px 4px 2px; padding-top: 7px;
+  border-top: 1px dashed var(--pv-line);
+  font-size: 12px; line-height: 1.45; color: var(--pv-faint);
+}
+
+/* Popover topbar (combobox · thông báo · tài khoản) */
+[data-preview='2d'] .popover-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 8px 8px; }
+[data-preview='2d'] .popover-head strong { font-size: 12px; }
+[data-preview='2d'] .popover-search {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 2px 6px; padding: 6px 9px;
+  border: 1px solid var(--pv-line); border-radius: 10px; background: var(--pv-bg-2);
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .popover-search span { display: grid; place-items: center; color: var(--pv-faint); flex: none; }
+[data-preview='2d'] .popover-search:focus-within { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .popover-search input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--pv-ink); font: inherit; font-size: 12px; }
+[data-preview='2d'] .popover-search input::placeholder { color: var(--pv-faint); }
+[data-preview='2d'] .option-list { display: flex; flex-direction: column; gap: 1px; max-height: 260px; overflow: hidden auto; }
+[data-preview='2d'] .option-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 9px; align-items: center;
+  width: 100%; padding: 8px 9px; border-radius: 9px; text-align: left;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .option-row:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .option-row.is-current { background: rgba(47, 124, 246, .13); }
+[data-preview='2d'] .option-label { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .option-meta { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .option-check { display: grid; place-items: center; color: var(--pv-ink-link); }
+[data-preview='2d'] .option-empty { padding: 12px 9px; font-size: 12px; color: var(--pv-faint); }
+[data-preview='2d'] .popover-note {
+  margin: 6px 4px 2px; padding-top: 8px; border-top: 1px solid var(--pv-line);
+  font-size: 12px; line-height: 1.45; color: var(--pv-faint); max-width: 48ch;
+}
+
+/* Thông báo trong popover chuông */
+[data-preview='2d'] .notice-list { display: flex; flex-direction: column; }
+[data-preview='2d'] .notice-row {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; gap: 9px; align-items: center;
+  width: 100%; padding: 8px 9px; border-radius: 10px; text-align: left;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .notice-row:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .notice-row.is-unread { background: rgba(47, 124, 246, .08); }
+[data-preview='2d'] .notice-row.is-unread:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .notice-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: rgba(124, 92, 255, .16); color: var(--pv-ink-violet); }
+[data-preview='2d'] .notice-icon.tone-warn { background: rgba(251, 191, 36, .16); color: var(--pv-ink-amber); }
+[data-preview='2d'] .notice-icon.tone-ok { background: rgba(52, 211, 153, .16); color: var(--pv-ink-green); }
+[data-preview='2d'] .notice-icon.tone-upload { background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .notice-body { display: flex; flex-direction: column; min-width: 0; }
+[data-preview='2d'] .notice-body strong { font-size: 12px; }
+[data-preview='2d'] .notice-body small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .notice-at { font-size: 11px; color: var(--pv-faint); white-space: nowrap; }
+[data-preview='2d'] .notice-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pv-blue); box-shadow: 0 0 8px var(--pv-blue); }
+[data-preview='2d'] .notice-icon.tone-info { background: rgba(124, 92, 255, .16); color: var(--pv-ink-violet); }
+/* Chân popover chuông: link vào màn Thông báo đầy đủ. */
+[data-preview='2d'] .popover-foot { display: flex; justify-content: center; padding: 6px 4px 2px; }
+
+/* Dropdown tài khoản */
+/* Bản cũ xếp "Ngôn ngữ · Tiếng Việt" thành MỘT nhãn 12.5px rồi đặt "i18n" hoa 9.5px+dãn
+   rộng ngay bên cạnh: hai thông tin khác loại tranh nhau trên một hàng 32px → người dùng
+   đọc và báo "chữ chen lấn". Nay mỗi hàng là NHÃN (việc muốn làm) + GIÁ TRỊ (hiện ra
+   sao) + chip nguồn (còn thiếu gì), tách theo chiều dọc và theo cỡ chữ. */
+[data-preview='2d'] .account-head { display: flex; align-items: center; gap: 12px; padding: 8px 8px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--pv-line); }
+[data-preview='2d'] .account-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+[data-preview='2d'] .account-id strong { font-size: 14px; }
+[data-preview='2d'] .account-id small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Dòng thứ ba (chức danh) lùi một cỡ và mờ hơn email: ba dòng cùng cỡ/dùng được xếp chồng
+   lên nhau đọc như một khối chữ, không còn "tên + hai thông tin phụ". */
+[data-preview='2d'] .account-id small + small { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .account-list { display: flex; flex-direction: column; gap: 2px; padding-bottom: 2px; }
+[data-preview='2d'] .account-row {
+  /* Hai cột: icon + nhãn. Ảnh 4.1 vẽ thêm cột chip "Settings" bên phải nhưng chủ batch yêu cầu
+     bỏ, nên grid không còn cột max-content thứ ba — để lại thì mỗi dòng thừa 10px khoảng trống
+     cuối hàng mà không chứa gì. */
+  display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: center;
+  width: 100%; min-height: 38px; padding: 7px 9px; border-radius: 10px; text-align: left;
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .account-row:not([disabled]):hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .account-row:not([disabled]):active { transform: scale(.99); }
+[data-preview='2d'] .account-row.is-danger { color: var(--pv-ink-rose); }
+[data-preview='2d'] .account-row.is-danger .menu-icon { color: var(--pv-ink-rose); }
+[data-preview='2d'] .account-text { display: flex; flex-direction: column; min-width: 0; }
+[data-preview='2d'] .account-label { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Toaster ---------- */
+/* Region luôn nằm trong DOM (live region duy nhất của frame) nên không chiếm chỗ và
+   không chặn click khi chưa có toast nào.
+   z-index PHẢI cao hơn .preview-dialog-scrim (1000): mọi mutation của frame đều cam kết
+   "Hoàn tác" trong toast, mà toast nằm dưới scrim thì vừa không thấy vừa bấm không tới —
+   cam kết vỡ ngay trong modal vừa gây ra nó (báo cáo chạy thử thật, mục Thêm thành viên). */
+[data-preview='2d'] .preview-toaster {
+  position: fixed; z-index: 1100; right: 18px; bottom: 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(400px, calc(100vw - 36px));
+  pointer-events: none;
+}
+[data-preview='2d'] .toast {
+  pointer-events: auto;
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto; gap: 9px; align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--pv-line-strong); border-radius: 13px;
+  background: rgba(14, 28, 48, .9);
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 18px 44px rgba(2, 8, 20, .6);
+  animation: pv-toast-in var(--pv-d-surface) var(--pv-ease-out);
+}
+/* Toast đi từ góc nó xuất hiện (mục 7: vào và ra theo cùng một đường). */
+@keyframes pv-toast-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+[data-preview='2d'] .toast-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: rgba(52, 211, 153, .16); color: var(--pv-ink-green); }
+[data-preview='2d'] .toast-text { font-size: 12px; line-height: 1.4; }
+[data-preview='2d'] .toast-info { border-color: rgba(47, 124, 246, .34); }
+[data-preview='2d'] .toast-info .toast-icon { background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
+[data-preview='2d'] .toast-success { border-color: rgba(52, 211, 153, .34); }
+[data-preview='2d'] .toast-danger { border-color: rgba(255, 107, 107, .4); }
+[data-preview='2d'] .toast-danger .toast-icon { background: rgba(255, 107, 107, .16); color: var(--pv-ink-rose); }
+[data-preview='2d'] .toast-action {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 9px;
+  border: 1px solid var(--pv-line-strong); background: var(--pv-bg-2);
+  font-size: 12px; font-weight: 700; color: var(--pv-ink-accent);
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .toast-action:hover { border-color: var(--pv-blue); background: var(--pv-blue-soft); }
+[data-preview='2d'] .toast-action:active { transform: translateY(1px); }
+[data-preview='2d'] .toast-action .preview-icon { width: 14px; height: 14px; }
+[data-preview='2d'] .toast-close { width: 26px; height: 26px; }
+
+/* ---------- Dialog thao tác (đổi tên · xác nhận xóa) ---------- */
+[data-preview='2d'] .preview-dialog-scrim {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center; padding: 20px;
+  /* Chặn đứng cho chính lớp nền: modal cao hơn viewport mà không có lối cuộn thì footer
+     (Hủy / Lưu thay đổi) nằm ngoài màn hình và KHÔNG với tới được bằng chuột — chỉ còn
+     Enter. Kèm max-height bên dưới, modal luôn tự cuộn trong thân nó. */
+  overflow-y: auto;
+  /* Nền bị tối + lùi lại khi có task cần tập trung (mục 12). */
+  background: rgba(2, 6, 14, .62);
+  backdrop-filter: blur(3px);
+  animation: pv-scrim-in var(--pv-d-surface) var(--pv-ease-out);
+}
+@keyframes pv-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+[data-preview='2d'] .preview-dialog {
+  width: min(460px, 100%);
+  padding: 18px;
+  /* 40px = padding 20px của scrim hai bên — giữ nguyên lề trên/dưới khi thân modal cuộn. */
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--pv-line-strong);
+  border-top-color: rgba(180, 214, 255, .4);
+  border-radius: 20px;
+  /* Vật liệu nặng nhất của frame: gần tối đặc, blur mạnh, bóng sâu. */
+  background: rgba(9, 17, 31, .97);
+  backdrop-filter: blur(30px) saturate(160%);
+  box-shadow: 0 40px 90px rgba(2, 8, 20, .8);
+  animation: pv-dialog-in var(--pv-d-surface) var(--pv-ease-out);
+}
+@keyframes pv-dialog-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+[data-preview='2d'] .dialog-kind {
+  display: inline-block;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--pv-line-strong);
+  font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--pv-faint);
+}
+[data-preview='2d'] .preview-dialog h2 { margin: 8px 0 12px; font-size: 18px; line-height: 1.3; }
+[data-preview='2d'] .dialog-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .dialog-field input {
+  padding: 10px 12px; border-radius: 11px;
+  border: 1px solid var(--pv-line-strong); background: var(--pv-bg-2);
+  color: var(--pv-ink); font: inherit;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .dialog-field input:focus { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .dialog-field input[aria-invalid='true'] { border-color: var(--pv-danger); }
+[data-preview='2d'] .dialog-error { margin-top: 8px; font-size: 12px; color: var(--pv-ink-rose); }
+[data-preview='2d'] .dialog-detail { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--pv-muted); }
+[data-preview='2d'] .dialog-note {
+  margin-top: 12px; padding: 9px 11px;
+  border-left: 2px solid var(--pv-line-strong); border-radius: 0 10px 10px 0;
+  background: var(--pv-bg-2);
+  font-size: 11px; line-height: 1.5; color: var(--pv-faint);
+}
+[data-preview='2d'] .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* ---------- Modal trang chi tiết workspace (Design Board "workspaces detail") ----------
+   Nối vào họ dialog đổi tên/xóa: cùng scrim, cùng vật liệu, chỉ thêm biến thể rộng
+   (is-wide) cho hai khung có form hai cột + bảng roster. Đặt SAU khối dialog để rule
+   ở đây thắng rule cùng độ đặc hiệu phía trên (nguồn CSS sau cùng có quyền). */
+[data-preview='2d'] .ws-detail-actions { display: flex; align-items: flex-start; gap: 8px; }
+[data-preview='2d'] .preview-dialog.is-wide { width: min(760px, 100%); }
+[data-preview='2d'] .dialog-head { display: flex; align-items: flex-start; gap: 12px; }
+[data-preview='2d'] .dialog-head-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px;
+  border-radius: 12px; border: 1px solid var(--pv-line-strong); background: var(--pv-blue-soft); color: var(--pv-ink-accent); }
+[data-preview='2d'] .dialog-head-icon .preview-icon { width: 20px; height: 20px; }
+[data-preview='2d'] .dialog-head-text { flex: 1; min-width: 0; }
+[data-preview='2d'] .dialog-head-text h2 { margin: 0; font-size: 18px; line-height: 1.3; }
+[data-preview='2d'] .dialog-head-text p { margin: 2px 0 0; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .dialog-close { flex: none; }
+
+[data-preview='2d'] .ws-edit-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; margin: 16px 0; }
+[data-preview='2d'] .ws-edit-cover { border-radius: var(--pv-radius); overflow: hidden; height: 120px; }
+[data-preview='2d'] .ws-edit-cover .cover-art { height: 100%; }
+[data-preview='2d'] .ws-edit-fields { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+[data-preview='2d'] .ws-edit-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+[data-preview='2d'] .field-required { color: var(--pv-ink-rose); font-style: normal; }
+[data-preview='2d'] .dialog-field textarea { padding: 10px 12px; border-radius: 11px; resize: vertical; min-height: 68px;
+  border: 1px solid var(--pv-line-strong); background: var(--pv-bg-2); color: var(--pv-ink); font: inherit;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .dialog-field textarea:focus { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .dialog-counter { align-self: flex-end; font-size: 11px; color: var(--pv-faint); }
+
+[data-preview='2d'] .ws-edit-info { display: grid; gap: 1px; margin: 0 0 4px; padding: 10px 14px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2); }
+[data-preview='2d'] .ws-edit-info > div { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; align-items: center; padding: 7px 0; }
+[data-preview='2d'] .ws-edit-info dt { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .ws-edit-info dt .preview-icon { width: 16px; height: 16px; color: var(--pv-ink-accent-soft); flex: none; }
+[data-preview='2d'] .ws-edit-info dd { margin: 0; font-size: 12px; color: var(--pv-ink); min-width: 0; }
+[data-preview='2d'] .info-owner { display: inline-flex; align-items: center; gap: 8px; }
+[data-preview='2d'] .info-sub { display: block; font-size: 11px; color: var(--pv-faint); }
+
+[data-preview='2d'] .members-summary { display: flex; align-items: center; gap: 12px; margin: 16px 0 12px; padding: 12px 14px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: linear-gradient(170deg, rgba(14, 28, 48, .9), rgba(7, 13, 26, .9)); }
+[data-preview='2d'] .members-count-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px;
+  border-radius: 12px; border: 1px solid var(--pv-line-strong); background: var(--pv-blue-soft); color: var(--pv-ink-accent); }
+[data-preview='2d'] .members-count-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+[data-preview='2d'] .members-count-text strong { font-size: 14px; color: var(--pv-ink); }
+[data-preview='2d'] .members-count-text span { font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .members-tools { display: flex; gap: 10px; margin-bottom: 12px; }
+/* Ô tìm người nở ra khi bấm "Thêm thành viên" (ảnh "Neon Workspace Management Panels" vẽ nút đó
+   là thật). Nằm giữa khối đếm số và bộ lọc roster nên nó là một hàng riêng của modal, không phải
+   một dialog chồng lên dialog. */
+[data-preview='2d'] .pv-add-member { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+[data-preview='2d'] .members-search { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+[data-preview='2d'] .members-search .preview-icon { position: absolute; left: 11px; width: 16px; height: 16px; color: var(--pv-faint); pointer-events: none; }
+[data-preview='2d'] .members-search input { width: 100%; padding: 9px 12px 9px 34px; border-radius: 11px;
+  border: 1px solid var(--pv-line-strong); background: var(--pv-bg-2); color: var(--pv-ink); font: inherit; font-size: 12px;
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .members-search input:focus { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .members-table .member-cell { display: flex; align-items: center; gap: 10px; }
+[data-preview='2d'] .members-table .member-id { display: flex; flex-direction: column; min-width: 0; }
+[data-preview='2d'] .member-owner-dash { color: var(--pv-faint); }
+
+[data-preview='2d'] .role-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--pv-line); font-size: 11px; font-weight: 600; white-space: nowrap; }
+[data-preview='2d'] .role-owner { color: var(--pv-ink-amber); background: rgba(251, 191, 36, .14); }
+[data-preview='2d'] .role-admin { color: var(--pv-ink-link); background: rgba(47, 124, 246, .16); }
+[data-preview='2d'] .role-member { color: var(--pv-ink-green); background: rgba(52, 211, 153, .14); }
+[data-preview='2d'] .role-viewer { color: var(--pv-faint); background: rgba(120, 170, 235, .12); }
+
+/* ---------- Wizard "Tạo Project" 4 bước (nút "Tạo Project" trang chi tiết workspace) ----------
+   Nối vào họ dialog: dùng scrim + is-wide + focus trap đã có. Thêm chỉ thị bước (CSS thuần,
+   không thư viện), thẻ radio "nguồn dữ liệu" và chip chọn thành viên. font-size chỉ dùng bậc
+   11/12/14/18 theo gate; chuyển động qua token --pv-*. */
+[data-preview='2d'] .pv-wizard-steps { display: flex; gap: 6px; margin: 16px 0; padding: 0; list-style: none; }
+[data-preview='2d'] .pv-wizard-step { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2); }
+[data-preview='2d'] .pv-wizard-step.is-active { border-color: var(--pv-blue); background: var(--pv-blue-soft); }
+[data-preview='2d'] .pv-step-dot { flex: none; display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 999px; border: 1px solid var(--pv-line-strong); font-size: 12px; font-weight: 700; color: var(--pv-muted); }
+[data-preview='2d'] .pv-step-dot .preview-icon { width: 13px; height: 13px; }
+[data-preview='2d'] .pv-wizard-step.is-active .pv-step-dot { border-color: var(--pv-blue); color: var(--pv-ink-accent); }
+[data-preview='2d'] .pv-wizard-step.is-done .pv-step-dot { border-color: var(--pv-green); color: var(--pv-ink-green); }
+[data-preview='2d'] .pv-step-label { font-size: 12px; color: var(--pv-muted); overflow-wrap: anywhere; }
+[data-preview='2d'] .pv-wizard-step.is-active .pv-step-label { color: var(--pv-ink); font-weight: 600; }
+
+[data-preview='2d'] .pv-wizard-body { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+
+/* Bước "Import Dataset": hàng đợi số đo SUY RA TỆP THẬT (bản ghi · cột · delimiter · dung
+   lượng) thay vì một danh sách bịa. auto-fit để bốn ô tự xếp 2×2 trên modal hẹp mà không
+   cần breakpoint riêng; dl là danh sách mô tả nên margin 0 ở dd là bắt buộc. */
+[data-preview='2d'] .pv-import-step { display: flex; flex-direction: column; gap: 10px; }
+[data-preview='2d'] .pv-import-shape { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0; }
+[data-preview='2d'] .pv-import-shape > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2); }
+[data-preview='2d'] .pv-import-shape dt { font-size: 11px; color: var(--pv-faint); }
+[data-preview='2d'] .pv-import-shape dd { margin: 0; font-size: 12px; font-weight: 600; color: var(--pv-ink); overflow-wrap: anywhere; }
+
+/* .pv-radio-cards / .pv-radio-card (thẻ radio "nguồn dữ liệu": trống · import) ĐÃ XÓA: wizard
+   không còn lựa chọn đó nữa — mỗi project sinh ra kèm một tệp nên bước 2 chỉ còn một đường đi. */
+
+[data-preview='2d'] .pv-step-hint { font-size: 12px; line-height: 1.5; color: var(--pv-muted); }
+[data-preview='2d'] .pv-selected-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+[data-preview='2d'] .pv-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px 5px 5px;
+  border: 1px solid var(--pv-line-strong); border-radius: 999px; background: var(--pv-bg-2); color: var(--pv-ink);
+  font: inherit; cursor: pointer; transition: border-color var(--pv-d-hover) var(--pv-ease-out), background var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .pv-chip.is-on { border-color: var(--pv-blue); background: var(--pv-blue-soft); }
+[data-preview='2d'] .pv-chip-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; text-align: left; }
+[data-preview='2d'] .pv-chip-name { font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+[data-preview='2d'] .pv-chip-email { font-size: 11px; font-weight: 400; color: var(--pv-faint); overflow-wrap: anywhere; }
+[data-preview='2d'] .pv-chip-remove { flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 999px; background: transparent; color: var(--pv-muted); cursor: pointer; }
+[data-preview='2d'] .pv-chip-remove .preview-icon { width: 13px; height: 13px; }
+[data-preview='2d'] .pv-chip-remove:hover { color: var(--pv-ink-rose); background: rgba(244, 63, 94, .14); }
+
+/* Bước 3 wizard "Tạo Project" (ảnh workspaces detail): cột trái là ô tìm + danh sách thành viên
+   CỦA Workspace (checkbox + vai trò trên mỗi dòng), cột phải là khung ba gạch đầu dòng nêu quy tắc.
+   Một cột duy nhất trên màn hẹp — danh sách quan trọng hơn phần giải thích. */
+[data-preview='2d'] .pv-member-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+[data-preview='2d'] .pv-member-pick-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+[data-preview='2d'] .pv-member-rows { max-height: 220px; overflow-y: auto; }
+[data-preview='2d'] .pv-member-pick { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+[data-preview='2d'] .pv-member-check { width: 16px; height: 16px; flex: none; accent-color: var(--pv-blue); cursor: pointer; }
+[data-preview='2d'] .pv-member-notes { display: flex; gap: 8px; margin: 0; padding: 10px 12px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2); }
+[data-preview='2d'] .pv-member-notes-icon { flex: none; color: var(--pv-ink-accent); }
+[data-preview='2d'] .pv-member-notes ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 6px; }
+[data-preview='2d'] .pv-member-notes li { font-size: 11px; line-height: 1.5; color: var(--pv-muted); }
+@media (max-width: 720px) {
+  [data-preview='2d'] .pv-member-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+[data-preview='2d'] .pv-review dd { display: flex; flex-direction: column; gap: 6px; }
+[data-preview='2d'] .pv-review-member { display: inline-flex; align-items: center; gap: 8px; }
+[data-preview='2d'] .pv-review-owner-tag { font-style: normal; font-size: 11px; color: var(--pv-faint); }
+
+[data-preview='2d'] .pv-wizard-foot { justify-content: space-between; }
+[data-preview='2d'] .pv-wizard-nav { display: flex; gap: 8px; }
+
+[data-preview='2d'] .pv-wizard-success { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 24px 0 4px; text-align: center; }
+[data-preview='2d'] .pv-success-icon { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 6px;
+  border-radius: 999px; border: 1px solid var(--pv-green); background: rgba(52, 211, 153, .16); color: var(--pv-ink-green); }
+[data-preview='2d'] .pv-success-icon .preview-icon { width: 28px; height: 28px; }
+[data-preview='2d'] .pv-wizard-success h3 { margin: 0; font-size: 18px; color: var(--pv-ink); }
+[data-preview='2d'] .pv-wizard-success p { margin: 0; max-width: 52ch; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .pv-wizard-success .dialog-note { text-align: left; }
+[data-preview='2d'] .pv-wizard-success .dialog-actions { width: 100%; justify-content: center; }
+
+/* ---------- Trang Workspaces: khối đầu trang + dialog "Tạo Workspace" (ảnh khung 1–3) ----------
+   Nút "Tạo Workspace" đi cùng dải art trong MỘT cột (page-head-side) vì .page-head chỉ có
+   hai ô grid; art ẩn dưới 900px còn thì luôn có chỗ đứng cho dù art có hiện hay không. */
+[data-preview='2d'] .page-head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0; }
+
+[data-preview='2d'] .pv-create-grid { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; margin: 16px 0 4px; }
+[data-preview='2d'] .pv-create-aside { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+[data-preview='2d'] .pv-create-art { width: 100%; height: 120px; border-radius: var(--pv-radius); overflow: hidden; }
+[data-preview='2d'] .pv-create-art .cover-art { height: 100%; }
+[data-preview='2d'] .pv-create-aside p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--pv-muted); }
+/* Nhãn đứng rời (không bọc input) cho ô "Thành viên ban đầu" — cùng bậc chữ với nhãn của
+   các field khác nên form không bị hai cỡ chữ khác nhau trên một cột. */
+[data-preview='2d'] .dialog-field-label { font-size: 12px; font-weight: 600; color: var(--pv-muted); }
+
+/* Ô "Thành viên ban đầu": chip đã chọn + ô nhập email + nút Thêm nằm trong MỘT viền,
+   đúng như ảnh vẽ một hộp thay vì ba control rời. */
+[data-preview='2d'] .pv-people-box {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 8px 8px 10px; border: 1px solid var(--pv-line-strong); border-radius: 11px; background: var(--pv-bg-2);
+  transition: border-color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+/* Ô nhập không tự vẽ viền (viền là của hộp), nên vòng focus phải hiện trên CẢ HỘP khi
+   con trỏ bàn phím vào trong — không có quy tắc này thì input focus mà không thấy gì.
+   :focus-within thay cho class `is-open` cũ vì không còn danh bạ gợi ý để đóng/mở; trạng
+   thái hộp giờ đúng bằng việc có ai đang gõ trong nó hay không. */
+[data-preview='2d'] .pv-people-box:focus-within { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
+[data-preview='2d'] .pv-people-box input { flex: 1; min-width: 160px; border: 0; background: transparent; color: var(--pv-ink); font: inherit; }
+[data-preview='2d'] .pv-people-box input:focus { outline: none; }
+/* Nút "Thêm" ghi email vừa gõ thành một dòng thành viên — nó là hành động của Ô nhập nên
+   đứng cùng hàng trong hộp, không phải một control rời bên ngoài. */
+[data-preview='2d'] .pv-people-add { flex: none; padding: 5px 10px; font-size: 12px; }
+
+/* Danh sách gợi ý: mỗi dòng là một người thật trong danh bạ mẫu + nút "Thêm" thật. */
+[data-preview='2d'] .pv-suggest-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+[data-preview='2d'] .pv-suggest-row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px;
+  border: 1px solid var(--pv-line); border-radius: var(--pv-radius); background: var(--pv-bg-2);
+}
+[data-preview='2d'] .pv-suggest-row .pv-chip-text { flex: 1; min-width: 0; }
+[data-preview='2d'] .pv-suggest-add { flex: none; padding: 5px 10px; font-size: 12px; }
+@media (max-width: 720px) {
+  [data-preview='2d'] .pv-create-grid { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .pv-create-aside { display: none; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) {
+  [data-preview='2d'] .split-layout,
+  [data-preview='2d'] .home-columns { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .detail-panel { position: static; max-height: none; overflow: visible; }
+  /* Rail vẫn sticky ở cột mới: nó cao tối đa 400px nên không che hết màn hình. */
+  [data-preview='2d'] .hero { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .hero-card { position: static; width: auto; margin-bottom: 12px; }
+  [data-preview='2d'] .hero-module-list { position: static; max-width: none; margin-top: 10px; }
+}
+@media (max-width: 820px) {
+  /* Bỏ 64px + ẩn nhãn là việc của class .is-compact; preview-shell.tsx tự bật
+     .is-compact khi matchMedia('(max-width: 820px)') để aria-expanded đúng. */
+  [data-preview='2d'] .user-text { display: none; }
+  /* Hai combobox giờ đổi PHẠM VI thật của frame nên không được ẩn cả khối như trước
+     (ẩn là mất lối đi duy nhất tới workspace khác); chỉ bỏ phần phụ để dành chỗ. */
+  [data-preview='2d'] .scope-label { display: none; }
+  [data-preview='2d'] .scope-select { min-width: 108px; max-width: 150px; }
+  [data-preview='2d'] .home-split { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .page-head-art { display: none; }
+  [data-preview='2d'] .preview-content { padding: 14px; }
+}
+
+/* ---------- Reduced motion (mục 6 structure_ui) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-preview='2d'] *,
+  [data-preview='2d'] *::before,
+  [data-preview='2d'] *::after {
+    transition-duration: 1ms !important;
+    /* Nhãn co lại của sidebar tắt bằng `visibility … linear 100ms` (delay, không phải
+       duration). Chỉ ép duration về 1ms thì chữ vẫn ngồi đó 100ms sau khi cột đã co xong
+       → giật; delay cũng phải về 0 để mọi thứ đổi trạng thái cùng một frame. */
+    transition-delay: 0ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  /* Rule toàn cục ở trên ép mọi animation về 1ms → surface sẽ hiện ra "bụp" một cái.
+     Với các lớp nổi thì đổi độ mờ trong 200ms vẫn cần thiết để người dùng thấy lớp mới
+     vừa tới, nên nới riêng cho chúng và bỏ hết phần trượt/nở (mục 14). */
+  @keyframes pv-fade { from { opacity: 0; } to { opacity: 1; } }
+  [data-preview='2d'] .preview-menu,
+  [data-preview='2d'] .preview-popover,
+  [data-preview='2d'] .pv-info-card,
+  [data-preview='2d'] .toast,
+  [data-preview='2d'] .preview-dialog,
+  [data-preview='2d'] .preview-dialog-scrim { animation: pv-fade 200ms ease !important; }
+  [data-preview='2d'] .resource-card:hover,
+  [data-preview='2d'] .stat-card:hover,
+  [data-preview='2d'] .quick-card:hover,
+  [data-preview='2d'] .mini-card:hover,
+  [data-preview='2d'] .hero-cta:hover { transform: none; }
+  [data-preview='2d'] .resource-card:active,
+  [data-preview='2d'] .mini-card:active,
+  [data-preview='2d'] .scope-select:active,
+  [data-preview='2d'] .menu-item:active,
+  [data-preview='2d'] .mini-row:active,
+  [data-preview='2d'] .toast-action:active,
+  [data-preview='2d'] .button-danger:active { transform: none; }
+}
+
+/* Ít trong suốt → vật liệu chuyển sang nền đặc, blur bỏ, chữ tương phản cao hơn (mục 14). */
+@media (prefers-reduced-transparency: reduce) {
+  [data-preview='2d'] .preview-menu,
+  [data-preview='2d'] .preview-popover,
+  [data-preview='2d'] .pv-info-card { background: var(--pv-surface); backdrop-filter: none; }
+  [data-preview='2d'] .preview-menu[data-trigger='anchor']::before,
+  [data-preview='2d'] .preview-popover::before { background: var(--pv-surface); }
+  [data-preview='2d'] .toast { background: var(--pv-surface-2); backdrop-filter: none; }
+  [data-preview='2d'] .preview-dialog { background: var(--pv-bg-2); backdrop-filter: none; }
+  [data-preview='2d'] .preview-dialog-scrim { background: rgba(2, 6, 14, .82); backdrop-filter: none; }
+  [data-preview='2d'] .preview-topbar { background: var(--pv-bg-1); }
+  /* Sidebar để hở tinh vân ở mức .9 nền đặc; khi người dùng không muốn trong suốt thì
+     đóng hẳn khung lại, ảnh nền không dòm xuyên qua được nữa. */
+  [data-preview='2d'] .preview-sidebar { background: var(--pv-bg-1); }
+  [data-preview='2d'] .hero-card { background: var(--pv-bg-1); backdrop-filter: none; }
+}
+
+/* Tương phản cao: bỏ hẳn trong suốt, viền đậm và nét hơn để phân cấp không dựa vào mờ nền. */
+@media (prefers-contrast: more) {
+  /* Tinh vân quá rối để chữ nhỏ còn đạt 7:1 — bỏ lớp nền, quay về màu đặc. */
+  [data-preview='2d']::before { display: none; }
+  [data-preview='2d'] .preview-sidebar { background: var(--pv-bg-0); }
+  [data-preview='2d'] .preview-topbar { background: var(--pv-bg-0); }
+  [data-preview='2d'] .preview-menu,
+  [data-preview='2d'] .preview-popover,
+  [data-preview='2d'] .pv-info-card,
+  [data-preview='2d'] .toast,
+  [data-preview='2d'] .preview-dialog {
+    background: var(--pv-bg-0);
+    backdrop-filter: none;
+    border: 1px solid var(--pv-hc-edge);
+  }
+  [data-preview='2d'] .preview-dialog-scrim { background: rgba(0, 0, 0, .8); backdrop-filter: none; }
+  [data-preview='2d'] .menu-item:hover,
+  [data-preview='2d'] .option-row:hover,
+  [data-preview='2d'] .notice-row:hover,
+  [data-preview='2d'] .account-row:hover { background: var(--pv-hc-hover); }
+  [data-preview='2d'] .menu-hint,
+  [data-preview='2d'] .menu-note,
+  [data-preview='2d'] .popover-note,
+  [data-preview='2d'] .option-meta,
+  [data-preview='2d'] .notice-at { color: var(--pv-ink); }
+}
+
+/* ---------- Cờ dev chọn bộ dữ liệu kiểm thử (break-ui) đã rút khỏi màn hình ----------
+   chủ sở hữu batch yêu cầu bỏ thanh nút đáy màn hình: nó là chrome của công cụ đo,
+   che nội dung khi cuộn và không thuộc thiết kế đang được duyệt. Đường chọn bộ dữ liệu
+   vẫn còn nguyên, chỉ không còn nút bấm: đặt `?data=worst|empty|one|many` TRƯỚC hash
+   (`/?data=worst#/preview/home`) — xem readSetFromUrl trong preview-mock.service. */
