@@ -1,7 +1,7 @@
 # Change log — Dataset 3D core v3 (Issue Constellation)
 
 Ngày mở log: 2026-11-02 · Phạm vi: core visual + module legend · Gate img2threejs: **không đóng**
-Trạng thái tổng: **DONE — model v1 delivered; spec locked; không đóng gate nào**
+Trạng thái tổng: **DONE — v3 locked (2026-11-02); v4 spool reactor delivered (2026-11-03); cap 3 phần P21–P23; nhãn vật liệu + explode từng tầng P24; chamber tinh gọn P25 (2026-11-03); không đóng gate nào**
 
 Quy ước:
 - Mỗi thay đổi vật lý (file/dòng) = một dòng. Không gộp.
@@ -201,3 +201,280 @@ cp .agents/dataset-3d-core/baseline/<file> <đường-dẫn-gốc-tương-ứng>
 ```
 
 Gate img2threejs: **không đóng**.
+
+---
+
+## 7. v4 — Spool Reactor (2026-11-03)
+
+Yêu cầu: thay core cũ bằng khối spool reactor teal trong ảnh tham chiếu (trụ thấp, đỉnh có 6 rãnh
+đồng tâm, chamber kính trong với vòng cyan + tick + hạt, nhân turquoise, bệ kính, 4 quỹ đạo
+nghiêng có cầu phát sáng, luồng hạt rơi, tia amber bên phải). Phạm vi đã chốt với human:
+**Core + platform + orbits**, giữ 4 cube neon + camera + constellation, thêm revision `v4-spool`
+để rollback; giữ ngữ nghĩa lane issue → Detection; reflection giả (không thêm render pass);
+giữ khung hình hiện tại (không phóng to che cube).
+
+### 7.0 Baseline v4
+
+| File | SHA-256 trước khi sửa | Bản sao |
+|---|---|---|
+| `src/graphics/holographic-core/core-visual-config.ts` | `b14dae8ed2d64f20db6702d5ebfdc2eedcd5c326cf68a2232f9ba2403f5d799c` | `reference-v4-spool/baseline-v3.sha256` |
+| `src/graphics/holographic-core/holographic-core.model.ts` | `a820932aae3bc7f010bff1d18e07e574b6c2718473f35c32cad431ba719831e9` | `reference-v4-spool/baseline-v3.sha256` |
+| `src/graphics/holographic-core/issue-constellation.ts` | `03bc6b102b1dd998b50a61741b816fa640971d0c5b8ed52aa53ae014155b26d3` | `reference-v4-spool/baseline-v3.sha256` |
+
+Bảng trên là **vân tay lúc bắt đầu v4**, không phải bề mặt rollback: 3 hash khớp đúng blob của commit `39e66cf`
+(nên `shasum -a 256 -c` chạy trên cây nguồn *hiện tại* FAILED cả 3 dòng — đó là độ lệch tích luỹ của P21–P26, không
+phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **7 file**; xem **7.4.1**.
+
+Ảnh baseline v3 (cùng camera/khung 1280×900): `captures/v3-baseline-{attached,orbit,closeup,exploded,mobile}.png`.
+Ảnh tham chiếu: `reference-v4-spool/reference.png`. Sheet đối chiếu: `captures/comparison-v4.png`
+(reference | v3 | v4 hero | v4 close-up).
+
+### 7.1 Thay đổi
+
+| # | File / vị trí | Trước | Sau | Lý do | Kiểm chứng | Rollback | Trạng thái |
+|---|---|---|---|---|---|---|---|
+| P13 | `core-visual-config.ts` revision | `CORE_VISUAL_REVISION='v3-constellation'` | `'v4-spool'` (union thêm `'v4-spool'`) | Bật core mới | tsc, vitest | đổi lại `'v3-constellation'` | DONE |
+| P14 | `core-visual-config.ts` nucleus/lanes | `CORE_NUCLEUS`, `ISSUE_LANES` (giá trị v3) | Tách `CORE_NUCLEUS_V3/V4`, `ISSUE_LANES_V3/V4` + `resolveCoreNucleus()`, `resolveIssueLanes()`; V4: tâm y1.42, equator r0.9, band y1.16/1.42/1.68, bead ring 0.55×10 + 0.72×8; 3 lane start ở mặt chamber (r≈0.98, y1.36–1.5), end giữ trên mặt Detection | Lõi mới nằm trong chamber; lane không xuyên kính | `issue-constellation.test.ts` (anchor/lane/version) | dùng resolver mặc định với `'v3-constellation'` hoặc restore baseline hash | DONE |
+| P15 | `core-visual-config.ts` `SPOOL_CORE` (mới) | — | `platform r1.9/t0.05/y0.495`, `baseGlass r1.06/h0.38/y0.71`, `chamber r0.95/h0.86/y1.42`, `topDrum r1.17/h0.46/y2.17`, `topY 2.4`, 6 groove r0.30–1.05, 24 tick, nucleus r0.16, 4 orbit r1.96–2.20 (flatten 0.78, tilt/yaw riêng), particle 90+36+24+14 = **164**, palette teal/amber, `budget 18 draw / 23,000 tri` (phần `topDrum`/groove được thay bởi **P21**) | Tập trung số liệu v4; test đối chiếu | `spool-core.test.ts` (stack, orbit, palette, budget) | xoá khối `SPOOL_CORE` + P13–P14 revert | DONE |
+| P16 | `src/graphics/holographic-core/spool-core.ts` (mới) | — | Top drum dark-glass + upper/lower band kim loại + 7 vòng groove gộp + center glow; chamber kính trong, 3 vòng cyan gộp, 24 tick + 2 dashed ring + 8 seam dọc, nucleus + glow sprite + PointLight; bệ kính + 2 rim; platform + 4 vòng + reflection giả (DataTexture 64²); 4 torus nghiêng gộp + 8 cầu instanced; 164 hạt instanced (chamber/stream/floating/spark amber); `update/reset/setDetached/dispose` không cấp phát mỗi frame | Dựng core theo ảnh, tối đa ít draw call | `spool-core.test.ts` 7 test; đo **18 draw call / 22,080 tri** | xoá file | DONE |
+| P17 | `holographic-core.model.ts` wiring | Core cũ hiển thị đầy đủ; không có spool | Khi v4: tạo `createSpoolCore()`, ẩn `core-upper/core-lower/core-cap/core-mid-collar/core-lower-collar/core-foot/orbit-violet`, ẩn đèn v3 tương ứng + `runner`, bỏ grid/solar decoration của cap, ẩn `axialSpines`/`beam`; attach `top+chamber→core-upper`, `base→core-lower`, `platform→base-deck`, `fx` ở world; contour + pickable lấy từ `spool.selectableMeshes`; `resetMotion/update/setDetached/dispose` gọi spool | Giữ detach, picking, tier contrast, constellation, inbound streams | vitest suite 39/39; capture attached/orbit/exploded/mobile | so sánh hash baseline hoặc P13 revert | DONE |
+| P18 | `issue-constellation.ts` options | Luôn dựng 3 dải nucleus | `createIssueConstellation({ nucleusBands?: boolean })`; v4 truyền `false` (spool có vòng/tick riêng), v3 giữ mặc định `true` | Tránh 2 bộ vòng chồng nhau | test lan + capture | bỏ option (luôn true) | DONE |
+| P19 | Tests | Suite 32 test | `issue-constellation.test.ts`: lane start theo `SPOOL_CORE.chamber.radius + 0.03`, start Y 1.3–1.55, revision `'v4-spool'`; thêm `spool-core.test.ts` 7 test (stack/contact, orbit ngoài drum & trong vành tower, palette, node detail, selectable id, animate/reset/detach/dispose, budget đo được) | Chống hồi quy v4 | vitest **39/39** (6 file) | xoá file test mới + revert P19 | DONE |
+| P20 | Capture | `capture-core-v3.cjs` (v3) | Dùng lại script, chụp 8 ảnh after + 5 ảnh baseline v3; thêm `make-comparison-sheet-v4.py` → `comparison-v4.png` | Bằng chứng trước–sau | console errors: none; reduced-motion A/B byte-identical | xoá script/sheet | DONE |
+| P21 | `core-visual-config.ts` `cap` + `spool-core.ts` | `topDrum r1.17/h0.46/y2.17` + 6 groove đồng tâm + upper/lower band | Cap chia **3 phần** theo mô tả human: `lid` = vành r0.75–0.90, h0.05, tâm y2.375, lỗ xuyên suốt r0.75 (5/7 bán kính), vành ngoài 0.90–1.05 là chỗ ghép roof; `roof` = nón cụt đối xứng, vành trên 0.90–1.05 tại y2.40, vành dưới 1.02–1.17 tại y2.152 (inset 2 mm khỏi drum), cao 0.25, rộng vành 0.15 mỗi phía; `drum` = trụ r1.02–1.17, h0.30, tâm y2.0; tổng cap 0.55 (y1.85–2.40); bỏ toàn bộ rãnh đồng tâm; 3 ID selectable riêng `core-cap-lid`/`core-cap-roof`/`core-cap-drum`; 4 rim gộp r0.756/0.90/1.05/1.166; band kim loại y1.87 giữ nguyên | Sửa cap "chưa khướp" theo đúng tỉ lệ human: nắp rỗng 5/7 + vành ghép 1/7, mái chéo đối xứng, trụ rộng H3 = 0.30 | `spool-core.test.ts` 8 test (stack/contact, split ratios, through-hole, selectable id, budget); đo **19 draw / 20,688 tri**; capture `after-cap-detail.png` | đổi lại `topDrum`/groove theo P15 hoặc restore baseline hash | DONE (số liệu lid/roof được thay bởi **P22**) |
+| P22 | `core-visual-config.ts` `cap` + `spool-core.ts` | lid r0.75–0.90 ×0.05 flush ở y2.40; roof 0.25 cao; lid dùng `darkGlass`, roof dùng `glass` | `lid` = vành r0.65–0.85 (rộng 0.2), **h0.2**, tâm y2.30, lỗ xuyên suốt r0.65, lồng trong roof và nhô 0.13 lên trên (đỉnh y2.40 giữ nguyên); `roof` = nón cụt đối xứng **h0.12** (y2.152–2.27), vành trên 0.85–1.05 (ghép sát lid), vành dưới 1.02–1.17; `drum` giữ r1.02–1.17, thành 0.15, h0.30; **đổi vật liệu lid ↔ roof** (lid `glass`/`blue-volume`, roof `darkGlass`/`cyan-contour`); rim gộp 6 vòng: lid trong/ngoài ở y2.396, roof trên trong/ngoài ở y2.266, roof dưới ngoài/trong ở y2.154; topY vẫn 2.40, cap vẫn cao 0.55 | Human chỉnh: roof thấp 0.12, lid dày 0.2 vành 0.65–0.85 lỗ 0.65, lid lồng trong roof, đổi màu 2 phần | `spool-core.test.ts` 8 test pass (stack, lid/roof split, nesting, through-hole, budget); đo **19 draw / 22,224 tri**; capture toàn bộ + `after-cap-detail.png`; console errors none; reduced-motion A/B byte-identical | revert config lid/roof P21 + đổi lại vật liệu + 4 rim | DONE |
+| P23 | `core-visual-config.ts` `cap` + `spool-core.ts` | P22: lid r0.65–0.85, roof 2.152–2.27, drum 1.85–2.15 | **Dâng cụm roof+drum lên ngang lid**: `drum` 1.98–2.28 (giữ r1.02–1.17, thành 0.15, h0.30, tâm y2.13); `roof` 2.282–2.40 (h0.12, **vành trên 0.90–1.05**, vành dưới 1.02–1.17, nón cụt đối xứng); `lid` thu còn **r0.65–0.80** (rộng 0.15), h0.2, 2.20–2.40; roof và lid cùng mặt trên y2.40, chừa **khe hướng tâm 0.10** (0.80→0.90) để human thiết kế lại; band kim loại dời lên tâm y2.0; `cap.bottomY 1.85→1.98` nên có khe **0.13** giữa đỉnh chamber (1.85) và drum; `cap.topY − cap.bottomY = 0.42` | Human: dâng roof+drum cùng độ cao lid, lid 0.65–0.80, giữ dạng nón cụt đối xứng | `spool-core.test.ts` 8/8; đo **19 draw / 22,224 tri**; capture toàn bộ + `after-cap-detail.png`; console errors none; reduced-motion A/B byte-identical | revert config/rim về P22 | DONE |
+| P24 | `spool-core.ts`, `holographic-core.scene.tsx`, `core-visual-config.ts`, `spool-core.test.ts` | nhãn `material: blue-volume / cyan-contour`; 1 mesh `spool-cap-rims`; cap + chamber cùng node `core-upper`; không có API explode; raycast vẫn bắt mesh ẩn | **Nhãn thật**: lid/chamber/base `material: 'glass'`, roof/drum `material: 'dark-glass'`. **Pivot riêng**: `spool-cap-lid-part` / `spool-cap-roof-part` / `spool-cap-drum-part`; rims tách `spool-cap-lid-rims` (2 vòng) + `spool-cap-roof-rims` (4 vòng); band kim loại vào nhóm drum; base bọc `spool-base-shift` để offset explode không đè vị trí `attach()` bake. **`setExplode(progress)`**: drum +0.16, roof +0.36, lid +0.70, base +0.12 (clamp 0–1) cộng với detach node (`core-upper` +0.42, `core-lower` +0.12, `base-deck` +0.15) → ladder world **platform 0.15 / base 0.24 / chamber 0.42 / drum 0.58 / roof 0.78 / lid 1.12**; `reset()` trả offset về 0. **Pick**: `isVisibleInScene()` lọc hit có ancestor `visible=false`, nên mesh legacy `core-cap` ẩn không còn bắt click phía trên lid. Budget draw call **19→20** (tách rims), tam giác giữ 22,224 | Human: "sửa đúng nhãn" + khi tách mỗi phần phải ở một độ cao riêng để dễ tương tác | `spool-core.test.ts` 10 test (thêm label + explode/reset/clamp) → **42/42**; probe exploded close-up: y320→`core-cap-lid`, y360→`core-cap-roof`, y410→`core-cap-drum`, y470→`core-upper`; panel lid hiện `material = glass`; capture `after-exploded.png`, `after-exploded-cap-detail.png`, `after-exploded-selected.png`; console errors none; reduced-motion A/B byte-identical | revert 4 file về P23 + budget 19 | DONE |
+| P25 | `core-visual-config.ts` `chamber`/`nucleus`/`palette`, `spool-core.ts`, `spool-core.test.ts` | chamber trụ hở r0.95 × h0.86 (0.99–1.85, khe 0.13 tới cap), 3 vòng neon teal r0.90, 24 tick + 2 vòng nét đứt + 8 seam, lõi cầu r0.16, quầng sprite 0.95, đèn `4.2 / d2.6` | **Bỏ** `spool-chamber-rings` + `spool-chamber-ticks` (kèm `buildChamberTicks`, `lineMaterial`, `palette.neonLinear`, `SPOOL_CORE.ticks`). **Thân kính**: vỏ dày **0.01** (lathe: inner 0.94 / outer 0.95, đóng kín 2 vành), **h0.99, tâm y1.485 → 0.99–1.98**, chạm đúng đáy cap (`cap.bottomY 1.98`, khe 0); panel `1.9 × 0.99 × 1.9`. **Lõi**: `CapsuleGeometry(r0.2, length0.16, capSeg 8, radialSeg 24)` → cao 0.56, tâm y1.42 (1.14–1.70), vẫn material `ice`. **Quầng**: scale theo bao lõi `(0.4+0.6, 0.56+0.6) = 1.0 × 1.16`, pulse cùng lõi. **Đèn**: `PointLight('#22e5e0', 6, 0.94, 2)` — tầm dừng ở thành trong nên không chiếu lên kính, intensity 4.2→6 | Human chốt: "A capsule bo tròn", "width=0.01 là bề dày thành kính", "đèn distance 0.94 + tăng intensity" | `spool-core.test.ts` 11 test (thêm wall/capsule/light-range, bỏ rings/ticks, stack khe 0) → **43/43**; đo **18 draw / 20,400 tri**; capture `after-*` + `after-chamber-clear.png` + `after-exploded-cap-detail.png`; console errors none; reduced-motion A/B byte-identical | revert config/spool/test về P24 (rings/ticks, cầu r0.16, đèn 4.2/2.6) | DONE |
+
+| P26 | `core-visual-config.ts` `platform`/`orbits`/`chamber.backdrop`/`budget`, `spool-core.ts`, `spool-core.test.ts` | orbits 4 vòng r1.96–2.20 tâm y1.45 cắt qua vành tower (mặt trong tower gần nhất chỉ r1.288 ở phương vị 346° — tower-15), platform r1.90 loe ra dưới chân tower với vòng ring ngoài r1.78, chamber không có mặt nào ghi độ sâu nên mọi lớp xếp theo `renderOrder` áp đặt (defect #5), budget 18 draw = đúng trần nên không còn chỗ | **Human chốt phương án C**: giữ nguyên 18 tower, nén core vào hành lang còn lại. `orbits` → tâm **y1.25**, `radii [1.20,1.26,1.32,1.38]`, `tube 0.011`, `flatten 0.88`, `tiltX [0.18,-0.24,0.28,-0.34]`, `yaw [1.31,1.48,1.66,1.83]` (họ 75–105° để trục ngắn quay vào phía tower-15/tower-02); toàn bộ cụm nằm dưới mép trên backdrop nên cả 4 vòng bị che **đều ~30%** (lệch 1.9 điểm). `platform` **1.90→1.55**, `ringRadii [0.45,0.82,1.19,1.46]` (bỏ vòng 1.78). **Backdrop**: `CylinderGeometry(r0.930, h0.966, 48, mở 2 đầu)` `MeshStandardMaterial` **không transparent / depthWrite true / BackSide**, name `spool-chamber-backdrop`, `raycast=()=>{}`, là mesh opaque **duy nhất** trong chamber → 1.002–1.968, tâm y1.485; suy ra từ `chamber.backdrop.radiusInset 0.010` (lệch 10 mm mặt trong kính 0.940, vẫn trong tầm đèn 0.94) và `heightInset 0.012` (hai đầu không đồng mức vành kính 0.99/1.98 vốn P25 khoá khe 0). `budget.drawCalls 18→19` | Kịch bản 1 (core đặc, không miễn nhiễm depth-test cho quỹ đạo) + C (không di chuyển tower) human chốt; 4 vòng cắt nhất quán là nghĩa vụ của kịch bản 1 | `spool-core.test.ts` **13 test** (thêm 2: backdrop opaque/BackSide/not-selectable + inset dẫn xuất) → **45/45**; `tsc --noEmit` sạch; đo **19 draw / 20,496 tri** (thêm 96 tri); `holographic-towers.test.ts` **không sửa** (C giữ tower). **Chưa capture** tại thời điểm làm (ảnh sẽ đổi vì core thành vật đặc) — đã chụp ở **P29**, xem deviation #8 | revert 3 file về P25 (orbits 1.96–2.20, platform 1.90, không backdrop, budget 18) | DONE |
+
+| P27 | `.agents/dataset-3d-core/change-log.md` (chỉ tài liệu, §7.0 + §7.4) | §7.4 ghi: `shasum -a 256 -c baseline-v3.sha256` rồi "restore **3 file** từ git `39e66cf` — đã xác nhận 3 hash khớp đúng commit này" | **§7.4.1 mới**: bề mặt v4 là **7 file** (5 tracked đã sửa + 2 untracked), kèm bảng path/cách restore, bước 0 cứu 2 file spool trước mọi lệnh `git`/`git clean`, và vì sao restore thiếu `spool-core.ts` làm gãy build (`39e66cf` không export `SPOOL_CORE`). §7.0 thêm ghi chú: 3 hash là **vân tay lúc bắt đầu**, không phải bề mặt rollback. Diễn giải lại `baseline-v3.sha256`: 3 hash **khớp đúng** blob `39e66cf` (đã đối chiếu `git show ... | shasum`), nên `-c` trên cây hiện tại FAILED cả 3 dòng **là đúng** — đó là máy đo độ lệch của P21–P26, không phải máy kiểm chứng commit; sau rollback nó phải chuyển thành 3 dòng OK | Tài liệu rollback mà chạy theo thì **gãy build** và ** xoá mất nhân spool**; thông tin sai ở mục rollback còn hại hơn thiếu thông tin | Đã nghiệm thu từng lệnh: `git cat-file -e 39e66cf:src/frontend/<path>` → **OK cho cả 5 file tracked**, **MISS cho cả 2 file spool**; `git diff --stat 39e66cf -- <5 path tương đối từ src/frontend>` → đúng 5 file; `git show 39e66cf:…core-visual-config.ts | grep -c SPOOL_CORE` → `0`; `shasum -a 256 -c …baseline-v3.sha256` → 3 FAILED (đúng như mô tả mới). Không sửa code nên không cần vitest | Khôi phục đoạn §7.4 cũ (nội dung sai) | DONE |
+
+| P28 | `core-visual-config.ts` `palette.wall`/`palette.nucleusHotLinear`/`nucleus.light`, `spool-core.ts` (backdrop material, `nucleusHot`, `nucleusLight`, `applyNucleus`), `spool-core.test.ts` | backdrop `MeshStandardMaterial` mượn `palette.metal` (`#05161c`, metalness **0.34**, roughness 0.62, emissive `glass` 0.3); lõi dùng **chung `ice`** với 4 vành rim; đèn `PointLight('#22e5e0', 6, chamberInner=0.94, 2)` **tĩnh**; `applyNucleus` chỉ scale capsule + sprite | **F6 + bước 4 + F3 gộp một batch.** `palette.wall` mới: `#1b4750` / metalness **0** / roughness 0.62 / emissive `#0b6a70` 0.3 (kim loại `metal` không đổi vì 2 mesh khác đang dùng). `nucleusHot = linearMaterial([0.5,2.6,2.3], 0.95)` cấp riêng cho `spool-nucleus`; `ice` vẫn dùng chung cho `spool-cap-lid-rims`/`-roof-rims`/`spool-base-rims`. `nucleus.light` vào config: `intensity 6→10`, `distance 0.94→1.2`, decay 2; `applyNucleus` thêm `nucleusLight.intensity = 10 * pulse` | P25 đặt cutoff **đúng bằng** bán kính tường (0.930) nên cửa sổ `(1-(d/cutoff)⁴)²` của three.js nuốt sạch ánh sáng: vũng sáng đo được **2.6e-5**, tức **~1.900 lần thấp hơn chính phát xạ của tường** — bằng 0 chứ không phải "yếu". Tường gần đen (`#05161c` → albedo linear 0.0116) cộng metalness 0.34 trong khi **không env map nào được install** (`createHolographicOrbitalDataCoreV2Environment` có tồn tại ở `generated-core.ts:1991` nhưng 0 call site) → metalness chỉ cắt diffuse. Lõi không có bậc sáng vì nó là **cùng một material instance** với vành | `spool-core.test.ts` **14 test** (thêm 1 test thang sáng + pool, sửa 2 test light/inset cũ) → **46/46**; toàn repo **372/372**; `tsc -b` 0 lỗi; eslint 0 lỗi. **19 draw / 20,496 tri không đổi** (tách material không thêm mesh). Số nghiệm thu: pool **0.1206** (gấp **4.600** lần so với trước), tự phát xạ tường 0.0486 → tương phản **2.48:1**, vẫn dưới ngưỡng bloom 1; lõi/vành **1.566×** (2.185 vs 1.395 mỗi pixel); **kính +217% là số LINEAR** — trên ảnh thật chỉ **+2.2%** (deviation #11, đã đo ở P29) | undo: backdrop về `palette.metal` + metalness 0.34; `nucleus` về `ice`; `nucleus.light` về `6 / 0.94` và bỏ dòng pulse | DONE (đã capture, xem P29) |
+
+| P29 | `.agents/dataset-3d-core/captures/` (chỉ tài liệu kiểm chứng + harness mới, **0 dòng source sửa**) | Capture cuối cùng lấy sau P25; P26 và P28 đều ghi "chưa capture". `capture-core-v3.cjs` là harness duy nhất, kéo/zoom rồi chụp ngay | Chụp lại toàn bộ `after-*.png` ở trạng thái P28. Thêm **`capture-frozen.cjs`**: một context `reducedMotion: 'reduce'`, chờ 8 s, chụp `frozen.png` + `frozen-b.png` — frame **đóng băng**, vì harness chính hai lần chạy cho Δ tới **+227/255 trên từng pixel** chỉ do vị trí hạt khác nhau, nhấn chìm delta ánh sáng. Thêm **`measure-brightness-p28.py`** (dò đỉnh teal rồi quét scanline) và A/B một biến: tạm đặt `nucleus.light` về `6 / 0.94`, chụp, **restore bằng md5**, chụp lại | human yêu cầu đo mức sáng thật sau khi tôi báo "+217%" từ không gian linear mà không nói rõ đơn vị | A/B đông/frame: `frozen` vs `frozen-b` **0 px khác** ở cả hai trạng thái → pose thực sự đóng băng → delta duy nhất là ánh sáng. **0.33% số pixel toàn khung đổi, max Δ46.** Theo vùng: vũng sáng giữa buồng **+17.0%** (63.7→74.5), vỏ kính **+2.2%** (90.5→92.5), rim +1.0%, **tower/cap-top/background 0.0%** (đèn không lọt ra ngoài). `measure-core-v3.py`: thang sáng giờ **đơn điệu** — base 49.3 < tower 73.9 < core 95.6; `reducedMotionChangedPct 0.0`, `maxDiff 0`; `console errors: none`. Ảnh: `p28/` (P28), `ab-light-off/` (A/B), `pre-p28/` (mốc P25, **chưa từng commit** nên đã copy trước khi ghi đè) | xoá 3 file mới + `capture-core-v3.cjs` chạy lại; không có gì trong `src/` để revert | DONE |
+
+| P30 | `.agents/dataset-3d-core/change-log.md` (viết lại deviation #12) + `.agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs` (mới), **0 dòng source sửa** | #12 ghi F5 = "hai dải **12 mm** ở 2 vành kính không có surface ghi độ sâu", và ghi hướng (b) `openEnded:false` sẽ "bịt luôn tầm nhìn vào buồng" | Đo lại bằng **ray-test từ đúng camera hero** (`[11.45, 9, 11.45]` → `[0, 2.1, 0.5]`, trích từ `holographic-core.scene.tsx:29-30`), chỉ tính mặt mà `side` thực sự vẽ **và** ghi depth. Viết lại #12 theo số đo, kể cả việc tự sửa hai nhận định sai của chính tôi (hướng (b), và vai trò `spool-lower-band`) | F5 được assert từ hình học thuần (2 inset 12 mm) mà chưa từng ray-test; số đo cho thấy khung mô tả đó sai vị trí lỗ | Chạy `node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs` tái lập từng chữ số: **71.2%** diện tích mặt kính nhìn thấy **không có gì chắn** (28.8% có), theo lát: **100%** từ y0.99→1.08, **9.2%** phẳng lì từ y1.878→1.98 ⇒ **dải hở TRÊN 12 mm có giá trị đúng 0.0 điểm %**, dải dưới thủng tuyệt đối nhưng **kéo dài ~88 mm chứ không 12 mm**; `spool-lower-band` tự chặn **0 tia**. Không sửa source nên không cần vitest; md5 `core-visual-config.ts` `bfbe8f0d…` và `spool-core.ts` `671c7f2c…` **không đổi** | xoá `.mjs` + khôi phục đoạn #12 cũ (nội dung sai) | DONE — **hướng sửa vẫn chờ human gate** |
+
+### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
+```bash
+npx tsc -b                                             # 0 lỗi
+npx eslint src/graphics/holographic-core src/__tests__/dataset-3d   # 0 lỗi
+npx vitest run src/__tests__/dataset-3d                # 6 file, 46/46 pass (P28)
+npx vitest run                                         # 25 file, 372/372 pass (P28)
+NODE_PATH=/Users/mac/.npm/_npx/e41f203b7505f1fb/node_modules \
+  node .agents/dataset-3d-core/captures/capture-core-v3.cjs
+NODE_PATH=/Users/mac/.npm/_npx/e41f203b7505f1fb/node_modules \
+  node .agents/dataset-3d-core/captures/capture-frozen.cjs \
+  .agents/dataset-3d-core/captures/p28                 # P29: frame đóng băng, dùng cho A/B
+python3 .agents/dataset-3d-core/captures/measure-core-v3.py
+python3 .agents/dataset-3d-core/captures/make-comparison-sheet-v4.py
+node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs   # P30: 28.8% che / 71.2% hở
+```
+
+- Capture: `reduced-motion label: Chuyển động tự động đã tắt theo cài đặt thiết bị.`; `console errors: none`.
+- `after-reduced-a.png` và `after-reduced-b.png` giống hệt từng byte (0.000% diff).
+- Đo tĩnh từ unit test (không cần WebGL): **19 draw call**, **20,496 tam giác** — nằm trong budget
+  `19 / 23,000`; budget từng là `14 / 18,000` ước tính, sau đó `18 / 22,080` (P16), `19 / 20,688`
+  (P21), `19 / 22,224` (P22–P23), `20 / 22,224` (P24), `18 / 20,400` (P25 bỏ rings/ticks, đổi
+  chamber shell + capsule), `19 / 20,496` (P26 thêm backdrop opaque duy nhất +96 tri). **P28 không đổi
+  một mesh nào**: tách `nucleusHot` ra khỏi `ice` chỉ đổi material trên mesh đã tồn tại, nên vẫn
+  `19 / 20,496` và `budget` không phải nâng (test đếm drawable, không đếm material).
+- Capture P25: `after-chamber-clear.png` (orbit qua khe tower + zoom) và `after-exploded-cap-detail.png`
+  xác nhận không còn vòng teal/vạch chia trong chamber; `after-attached.png` giữ silhouette 4 lớp.
+- Capture cap: `after-cap-detail.png` (zoom + nâng elevation) đọc rõ mặt trên phẳng y2.40 của lid +
+  roof, khe hướng tâm 0.10, roof nón cụt 0.12, drum 1.98–2.28; `after-*.png` chụp lại toàn bộ sau P23.
+- `nucleus.y = chamber.centerY = 1.42`; stack: platform 0.52 = base đáy 0.52; base đỉnh 0.90 =
+  lower band đáy 0.90; lower band đỉnh 0.99 = chamber đáy 0.99; chamber đỉnh **1.98** = cap đáy;
+  khe **0** (P25 nối dài thân kính, vách dày 0.01, capsule r0.2); drum 1.98–2.28; roof 2.282–2.40;
+  lid 2.20–2.40; `topY 2.40`; cap cao **0.42**.
+- Cap P23: lid vành 0.65–0.80 (rộng 0.15, cao 0.2, lỗ xuyên suốt 0.65), roof nón cụt cao 0.12
+  (trên 0.90–1.05, dưới 1.02–1.17), drum thành 0.15 (1.02–1.17, h0.30) dâng lên 1.98–2.28; roof và
+  lid cùng mặt trên 2.40, khe hướng tâm 0.10; lid hole 0.65 < drum inner 1.02 nên nhìn xuyên qua cap
+  xuống chamber/nucleus; drum và roof cùng dải bán kính nên drum nằm dưới roof, không chồng hình học.
+- Orbit trong cùng `1.96 − 0.007 = 1.953 > cap.outerRadius 1.17`, ngoài cùng `2.20 < 2.30` (mặt trong
+  vành tower) — không cắt cap, không lọt vào tower.
+
+### 7.3 Deviations v4 (đã ghi nhận, không sửa thêm)
+
+1. **Kích thước bị vành tower giới hạn**: ảnh tham chiếu có platform/orbit rộng ~2.6× bán kính
+   thân; scene có 18 tower ở r2.6–2.74 nên platform đặt r1.9 và orbit r1.96–2.20. Đây là lựa chọn
+   "giữ khung hiện tại" của human; silhouette 4 lớp vẫn đọc được nhưng không phóng to như ảnh.
+2. **Reflection giả**: dùng `CircleGeometry` + `DataTexture` radial, không dùng `Reflector` (tránh
+   thêm render pass). Không phản chiếu chính xác tower/module.
+3. **Cap chia 3 phần theo mô tả human, không theo ảnh gốc**: nắp vành 0.65–0.80 × 0.2 (lỗ 0.65),
+   roof nón cụt đối xứng 0.12 cao (0.90–1.05 trên), drum 1.02–1.17 × 0.30 dâng lên 1.98–2.28; roof
+   và lid cùng mặt trên y2.40, khe hướng tâm 0.10 giữa lid và roof (human sẽ thiết kế lại). Vì drum
+   và roof cùng dải bán kính, drum nằm dưới roof (2.28) thay vì chồng cùng khoảng 2.28–2.40. Vật
+   liệu lid/roof đổi chỗ. (Khe 0.13 giữa chamber 1.85 và drum 1.98 của P23 đã được P25 đóng lại:
+   chamber 0.99–1.98, khe 0.)
+4. **Không dùng `transmission`** cho kính: giữ MeshPhysicalMaterial opacity thấp + additive layer
+   như quy ước neon-cube; hình khối đọc được nhưng không khúc xạ thật.
+5. **Constellation nucleus bands ẩn ở v4** (`nucleusBands:false`): chamber đã có vỏ kính riêng +
+   capsule lõi (P25 bỏ 3 vòng teal và vạch chia); lane issue vẫn giữ và bắt đầu từ mặt chamber thay
+   vì equator cũ.
+6. **Amber sparks chỉ trang trí** (14 hạt quanh x1.48/y1.5/z−0.78); 3 lane amber issue → Detection
+   vẫn là ngữ nghĩa chính, không đổi.
+7. **Core cũ ẩn, không xoá**: `core-upper/lower/cap/collar/foot/orbit-violet` + đèn v3 vẫn còn trong
+   code để rollback tức thời bằng `CORE_VISUAL_REVISION`.
+8. **Hero view: chiều che đã đảo chiều (kịch bản 1, P26)**. Backdrop opaque ghi độ sâu thật nên core
+   che tower phía sau thay vì các lớp xuyên thấu lẫn nhau như v3; 4 vòng quỹ đạo bị chính tường đó
+   cắt ~30% cung (31.5/30.7/30.0/29.6, **đo hình học**). P29 đã chụp ảnh: `after-attached.png` và
+   `after-closeup.png` xác nhận **chiều che** (các vòng nằm trước tường tối, tower sau lưng bị che
+   thật), còn **con số ~30% thì chưa đo lại trên ảnh** — ảnh không đủ tương phản để vạch cung nào bị
+   tường ăn mất bao nhiêu độ dài. close-up và exploded thể hiện rõ spool; **hero thì không** (xem #3,
+   #10: core vẫn nhỏ hơn vành tower và bị tower sáng xanh che mất tầm nhìn). **Mở rộng (P30): "core
+   che tower" chỉ đúng trên 28.8% diện tích mặt kính — 71.2% còn lại vẫn xuyên thấu như v3, xem #12.**
+9. **Số đo hiệu năng lấy từ unit test** (đếm geometry/drawable), không phải `renderer.info` runtime;
+   chưa hook đo FPS.
+10. **Hành lang quỹ đạo phương án C hẹp hơn ghi trong plan**: plan người dùng viết "towers start
+    r≈2.30, orbits ≤1.68", nhưng vành tower là 9 hộp trục-aligned chứ không phải đường tròn — mép
+    trong gần trục nhất là **r1.288** (tower-15, phương vị 346°), kế đó t02/t06/t08 ~1.50. Vì vòng
+    kín quét mọi phương vị nên `radii [1.5,1.65,1.8,1.95]` không dùng được; C nén thành
+    [1.20,1.26,1.32,1.38] và ép `yaw` vào họ 75–105°. Hệ quả: core **nhỏ hơn về cỡ** so với tower
+    (defect #3), chỉ cứu được bằng độ sáng → backdrop/`nucleusHot`/phân tầng sáng thành bắt buộc.
+11. **Vỏ kính sáng nhiều hơn mức human đã duyệt khi đổi lấy vũng sáng (P28)**: báo cáo trước khi làm
+    ghi "+86%", số thật là **+217%** (0.0356 → 0.1130 mỗi pixel, chưa tính `opacity 0.42`). Lý do
+    phải chấp nhận: tường backdrop ở **r 0.930, nằm TRONG vỏ kính r 0.95**, nên không giá trị
+    `distance` nào chiếu được tường mà không xuyên qua kính trước — hai yêu cầu "đèn không chạm kính"
+    (P25) và "có vũng sáng" loại trừ nhau về mặt hình học, không phải do chọn tham số.
+    **Đã đo trên capture và con số +217% là sai về đơn vị, không sai về bản chất.** +217% là **không
+    gian linear** (0.0356 → 0.1130 tiền tố cộng dồn của riêng lớp kính). Trên ảnh thật, sau ACES tone
+    mapping + sRGB encode + `opacity 0.42` blend, A/B đông/frame cho thấy: **vỏ kính chỉ sáng thêm
+    +2.2%** (90.5 → 92.5), vùng vũng sáng giữa buồng **+17.0%** (63.7 → 74.5), vành rim +1.0%, và
+    `tower trái`/`tower phải`/`mặt cap trên`/`background` đổi **0.0%** — đèn nằm trong tầm là đúng.
+    Toàn khung chỉ **0.33% số pixel** đổi, max Δ46/255. Kết luận: cái giá human duyệt nhỏ hơn nhiều
+    so với chính con số tôi báo; **không cần núm vặn nào cả**, ba lựa chọn `glass.opacity`/
+    `glass.emissiveIntensity`/`light.intensity` ở trên **không dùng tới**. Bài học rút ra: số linear
+    không được báo như số hiển thị — xem lại cách trình bày ở P28 row.
+12. **F5 — đã ray-test: lỗ không nằm ở 2 dải 12 mm, nó nằm ở GIỮA khung nhìn (P30, chưa sửa code)**.
+    Bản cũ của deviation này assert F5 từ hình học ("kính 0.99–1.98, tường 1.002–1.968 ⇒ hai dải hở
+    12 mm") và **không chạy ray-test**. Đo lại bằng `captures/measure-chamber-occlusion.mjs` (camera
+    hero thật `[11.45, 9, 11.45]` → `[0, 2.1, 0.5]`, chỉ tính mặt **được `side` vẽ** *và* **ghi depth**):
+
+    | toàn bộ mặt kính nhìn thấy được | % |
+    |---|---|
+    | có surface chắn (`spool-chamber-backdrop`, mặt xa) | **28.8%** |
+    | **không có gì chắn** — object sau lọt qua | **71.2%** |
+
+    Chia lát 6 mm (số % ở đây là % **xuyên thấu**, tức % pixel không có gì chắn):
+
+    ```
+    y 0.990 → 1.080   100.0%   <- dải hở DƯỚI: thủng tuyệt đối, và kéo dài ~88 mm chứ không 12 mm
+    y 1.500            71.1%
+    y 1.800            36.4%
+    y 1.878 → 1.980     9.2%   <- dải hở TRÊN: 9.2%, GIỐNG HẰNG mọi lát ngay dưới nó
+    ```
+
+    **Nguyên nhân, và là lý do bản cũ sai vị trí:** camera ở y9 nhìn xuống y2.1 nên **mọi** tia nhìn đi
+    chếch xuống. Tia chui qua khe trên tiếp tục xuống và vẫn đập vào mặt *xa* của tường ⇒ vẫn bị che.
+    Tia vào thân buồng hoặc khe dưới rơi *dưới* mép 1.002 ⇒ thoát thẳng xuống nền. Nên % che **tăng dần
+    từ dưới lên trên**, ngược hẳn suy luận "thiếu 12 mm ở đầu = hở 12 mm ở đầu". Hai hệ quả: (i)
+    `heightInset 0.012` **phía trên đang trả giá (rủi ro mép đồng mức vành kính mà P25 khoá) để đổi lấy
+    đúng 0.0 điểm %**; (ii) vùng hở nặng nhất là **tia dài nhất, tức đúng giữa silhouette — chỗ lõi
+    sáng**, không phải viền.
+    **`spool-lower-band` không cứu được gì: đo ra 0 tia tự chặn** — nó là `MeshStandardMaterial` mặc
+    định `FrontSide`, mà tia từ trong buồng đi ra đập vào **mặt sau** của nó ⇒ bị cull. Đây là điều tôi
+    đoán sai trước khi đo, nên không ai được dựa vào dải đó như một mặt chắn.
+
+    Ba hướng sửa, đánh giá lại theo số đo:
+    - **(a) kéo tường cao bằng kính — loại.** Phía trên vô ích (0.0 điểm %); phía dưới chỉ vá được lớp
+      0.99→1.002 trong khi vùng thủng tuyệt đối tới ~1.086 và thủng một phần tới tận 1.878; muốn bịt
+      hết thì tường phải xuống ~y0.5, tức ló ra khỏi buồng. Cộng `spool-core.test.ts:82-83` chặn mép
+      tường đồng mức vành kính P25 đã ghim.
+    - **(b) đậy nắp bằng `openEnded: false` — rẻ nhất theo số đo, và bản cũ đánh giá sai một nửa.**
+      Bản cũ ghi "nắp BackSide sẽ bịt luôn tầm nhìn vào buồng từ elevation camera hero". **Sai**: nắp
+      DƯỚI có pháp tuyến −y, nhìn từ trên xuống là *mặt sau* ⇒ BackSide **vẽ** ⇒ chặn đúng vùng thủng
+      (mọi tia chúc xuống đều đập vào sàn này); nắp TRÊN pháp tuyến +y, nhìn từ trên xuống là *mặt
+      trước* ⇒ BackSide **cull** ⇒ vẫn nhìn thấu xuống lõi. Giá: **0 draw call** (không thêm mesh),
+      **+96 tam giác** (20,496 → 20,592, vẫn dưới 23,000), test hiện hành không chặn (dòng 190/192 chỉ
+      đo bounding box). **Cái giá thật, và là thứ thuộc human**: buồng thành hộp **có sàn đặc ở y1.002**
+      — nó cắt mất phần `spool-base-glass` nằm sau nó theo đường nhìn (phần overlap r0.93), và vũng
+      sáng P28 sẽ đổ thêm lên mặt sàn. Đây là **đổi thiết kế** (buồng kính → bình có đáy), không phải
+      sửa bug.
+    - **(c) thêm 2 vành annular ở 2 đầu — loại.** 1–2 draw call chỉ để vá 24 mm, mà 12 mm trên đo ra vô
+      hại và 12 mm dưới chỉ là ngọn của lỗ.
+
+    **Giới hạn của chính phép đo:** đây là **toán tia, chưa phải pixel render**. Vùng "thủng" vẫn nhận
+    màu từ `glass` (opacity 0.42), `spool-base-glass`, platform và nucleus sprite — tất cả additive
+    `depthWrite:false` — nên nó không nhất thiết tối trên ảnh; số 71.2% là *diện tích không có occlusion
+    thật*, không phải *diện tích tối*. Nếu human chọn (b), nghiệm thu bằng A/B một cờ với
+    `capture-frozen.cjs` (frame đã chứng minh 0 px nhiễu, P29) rồi đo lại bằng chính script này.
+    **Trạng thái: chưa đổi một dòng source nào.** `core-visual-config.ts` md5 `bfbe8f0d…`,
+    `spool-core.ts` md5 `671c7f2c…` — nguyên P28.
+
+### 7.4 Ma trận rollback
+
+| Từ | Về | Cách | Kết quả |
+|---|---|---|---|
+| P26 | P25 | **Không dùng được đường git**: `spool-core.ts` + `spool-core.test.ts` là file **untracked** (`??`), chưa từng có trong commit nào, nên `git diff`/`git checkout` không restore được và một lệnh `git clean -fd` sẽ xoá sạch nhân spool. Restore tay 3 chỗ: `SPOOL_CORE.platform` `1.55→1.90` + `ringRadii [0.55,1.0,1.45,1.78]`, `SPOOL_CORE.orbits` về `centerY1.45 / radii[1.96,2.04,2.12,2.2] / tube0.007 / flatten0.78 / tiltX[0.38,-0.62,0.86,-1.02] / yaw[0.4,1.3,2.2,3.05]`, xoá khối `spool-chamber-backdrop` (`spool-core.ts:292-314`) + `chamber.backdrop` + `budget.drawCalls 19→18` + 2 test backdrop | Hết mesh ghi độ sâu, các lớp quay về xếp theo `renderOrder` |
+| v4-spool | v3-constellation | `CORE_VISUAL_REVISION='v3-constellation'` | Spool không được tạo; core cũ + constellation bands hiện lại; giữ nguyên file v4 |
+| v3-constellation | v2-tier | `CORE_VISUAL_REVISION='v2-tier'` | Material core cũ + không constellation |
+| v4-spool | mã v3 nguyên bản | xem **7.4.1** bên dưới — không phải một lệnh; 3 bước, bước 0 là bắt buộc | Quay lại đúng cây nguồn trước v4, **không mất** 2 file spool |
+
+### 7.4.1 Rollback về cây nguồn trước v4 (`39e66cf`)
+
+**Bề mặt v4 là 7 file**, không phải 3. Bảng dưới là toàn bộ đường biên của rollback; `git diff --stat 39e66cf`
+xác nhận 5 file tracked, `git status --porcelain -- src` xác nhận 2 file untracked. Đã nghiệm thu bằng
+`git cat-file -e 39e66cf:src/frontend/<path>`: **5 file trên có blob ở commit đó** (restore được), **2 file spool
+trả về MISS** (không restore được — chúng không tồn tại ở bất kỳ commit nào, kể cả `39e66cf`).
+
+| # | File | Trạng thái git | Cách restore |
+|---|---|---|---|
+| 1 | `src/graphics/holographic-core/core-visual-config.ts` | tracked, đã sửa | `git restore --source=39e66cf` |
+| 2 | `src/graphics/holographic-core/holographic-core.model.ts` | tracked, đã sửa | `git restore --source=39e66cf` |
+| 3 | `src/graphics/holographic-core/issue-constellation.ts` | tracked, đã sửa | `git restore --source=39e66cf` |
+| 4 | `src/graphics/holographic-core/holographic-core.scene.tsx` | tracked, đã sửa | `git restore --source=39e66cf` |
+| 5 | `src/__tests__/dataset-3d/issue-constellation.test.ts` | tracked, đã sửa | `git restore --source=39e66cf` |
+| 6 | `src/graphics/holographic-core/spool-core.ts` | **untracked** — không có trong commit nào | copy tay, hoặc xoá |
+| 7 | `src/__tests__/dataset-3d/spool-core.test.ts` | **untracked** — không có trong commit nào | copy tay, hoặc xoá |
+
+**Bước 0 — cứu 2 file untracked (bắt buộc, làm trước mọi lệnh git).** `git log --all -- src/frontend/src/graphics/holographic-core/spool-core.ts`
+trả về rỗng: file chưa từng được commit trên nhánh nào, nên `git restore`/`git checkout` **không** restore được và
+một lệnh `git clean -fd` sẽ xoá sạch nhân spool. Chọn một trong hai:
+
+```bash
+# (a) copy ra ngoài, rollback, rồi copy trả nếu muốn giữ để thử lại
+mkdir -p /tmp/spool-keep && cp src/graphics/holographic-core/spool-core.ts \
+  src/__tests__/dataset-3d/spool-core.test.ts /tmp/spool-keep/
+
+# (b) tốt hơn: commit 2 file untracked trước khi rollback, để git lo phần còn lại
+git add src/graphics/holographic-core/spool-core.ts src/__tests__/dataset-3d/spool-core.test.ts
+```
+
+**Bước 1 — restore đủ 5 file tracked** (chạy từ `src/frontend`; path tương đối git tự quy về repo root):
+
+```bash
+git restore --source=39e66cf -- \
+  src/graphics/holographic-core/core-visual-config.ts \
+  src/graphics/holographic-core/holographic-core.model.ts \
+  src/graphics/holographic-core/issue-constellation.ts \
+  src/graphics/holographic-core/holographic-core.scene.tsx \
+  src/__tests__/dataset-3d/issue-constellation.test.ts
+```
+
+**Bước 2 — xử lý 2 file spool rồi nghiệm thu.** `core-visual-config.ts` ở `39e66cf` **không export `SPOOL_CORE`**
+(`git show 39e66cf:...core-visual-config.ts | grep -c SPOOL_CORE` → `0`), nên nếu để `spool-core.ts` nằm lại thì
+`import { SPOOL_CORE }` của nó và của `spool-core.test.ts` không còn đích → **build gãy**. Hoặc xoá 2 file đó,
+hoặc giữ bản copy ở `/tmp` nhưng không đặt trong `src/`. Sau đó: `yarn tsc -b && yarn vitest run src/__tests__/dataset-3d`.
+
+**Về `baseline-v3.sha256` — sửa lại cách dùng (P26/F1).** File này **đúng**: 3 hash trong nó khớp *chính xác* các
+blob của `39e66cf` (đã đối chiếu lại bằng `git show 39e66cf:<path> | shasum -a 256`). Sai ở chỗ bảng cũ mô tả
+`shasum -a 256 -c baseline-v3.sha256` như một bước "xác nhận trước khi rollback" — chạy trên cây nguồn hiện tại thì
+**cả 3 dòng FAILED là hợp lý**, vì P21–P26 đã sửa đúng 3 file đó. Nó là máy đo **độ lệch** so với baseline, không phải
+máy kiểm chứng commit. Dùng đúng hai vai trò:
+
+```bash
+# (1) baseline còn khớp commit không? — mọi lệnh ở đây chạy từ `src/frontend`; path sau `:` là so với repo root
+for p in core-visual-config holographic-core.model issue-constellation; do
+  git show 39e66cf:src/frontend/src/graphics/holographic-core/$p.ts | shasum -a 256; done
+# kỳ vọng: 3 hash in ra đúng bằng 3 hash đã ghi trong baseline-v3.sha256
+
+# (2) cây nguồn hiện tại đã lệch baseline bao nhiêu? — FAILED là tín hiệu "đang ở v4", không phải hỏng
+shasum -a 256 -c .agents/dataset-3d-core/reference-v4-spool/baseline-v3.sha256
+```
+
+Sau khi rollback xong, lệnh (2) phải chuyển thành **3 dòng OK**; đó là nghiệm thu của bước 1.
+
+Gate img2threejs: **không đóng** (không chạy `forge/state.py mark`).
