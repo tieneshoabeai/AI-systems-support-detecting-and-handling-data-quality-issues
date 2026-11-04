@@ -263,8 +263,12 @@ phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **
 | P34 | **Mới**: `src/__tests__/dataset-3d/support/model-fingerprint.ts`, `src/__tests__/dataset-3d/model-fingerprint.test.ts`, `captures/model-fingerprint.measure.ts`, `captures/capture-p0.cjs`, `fingerprint/p0-baseline.ndjson`, `fingerprint/p0-images.sha256`, `fingerprint/p0-metrics.json`, `captures/p0-baseline/*.png` (16). **Sửa**: `captures/vitest.measure.config.ts` (testTimeout). **0 dòng source sửa** | Kế hoạch refactor chốt D1 = Phase 0→5 với gate "fingerprint diff = 0", nhưng fingerprint chưa từng tồn tại; ảnh baseline cũ stale từ v3; ba con số hiệu năng (139 draw tháp, 20.496 tri, budget 19) chưa từng đo trong trình duyệt | Executed Phase 0 items 0.1–0.4: máy dựng vân tay 5 moment (init có hash vertex, update-7.3, reset-motion, detached, selected-18) + test so sánh đọc baseline đã commit; harness Playwright chụp 5 trạng thái × 3 camera dưới `reducedMotion` (damping tắt nên pose camera tất định) và đo `renderer.info` + số lệnh GL thật. Chi tiết số ở **§7.6** | Không có lưới thì Phase 2→5 chỉ là lời hứa "không đổi hình ảnh"; và D7 vừa bỏ qua một va chạm thật, nên lưới càng cần | `npx vitest run` **26 file / 378 pass** (+1 file, +6 test, +13 s); 2 lần sinh baseline → **sha256 `a1c70e1e819a837d…` như nhau**; 2 lần capture → **cả 15 PNG byte-identical**; **mutation check**: sửa 1 `matrixWorld` + xoá 1 dòng baseline → **4 test đỏ** in đúng dòng lệch, khôi phục → xanh; `tsc -p tsconfig.app.json --noEmit` 0; eslint 0; `npm run build` OK (chứng minh `node:fs`/`node:path` typecheck trong `src`); md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` **không đổi**, `git status src/graphics` **trống** | xoá 8 file/mục mới + khôi phục 1 dòng `vitest.measure.config.ts`; suite trở 25 file / 372 test | DONE — Phase 0 complete, số đo trong §7.6 |
 
 | P35 | **Mới**: `src/__tests__/dataset-3d/support/orbit-clearance.ts`, `src/__tests__/dataset-3d/orbit-clearance.test.ts`, `fingerprint/p1-orbit-clearance.ndjson` (28 dòng: 1 header + 27 dòng đo). **Sửa**: `captures/orbit-tower-clearance.measure.ts` (dùng spec chung + ghi baseline). **0 dòng source sửa** | Ràng buộc tháp↔orbit chỉ tồn tại ở dạng comment trong `core-visual-config.ts`; P31–P33 đã **đo** nhưng số chỉ nằm trong báo cáo in ra console, **không có gate nào trong `npm test`** — nghĩa là một phase refactor vẫn có thể dịch tháp lại gần orbit mà không ai cấm | Executed Phase 1 (S3, đã rút gọn còn **Test B** theo D2): phép đo dời vào `support/orbit-clearance.ts` để máy sinh và test gọi **cùng một spec** (đúng quy tắc của fingerprint P34); baseline ghim 18 tháp + 6 mặt core + 3 dòng orbit, mọi float quantise 6 chữ số thập phân, **dung sai 0**. Chi tiết số ở **§7.7** | D1 duyệt Phase 0→5 với lời hứa “image-neutral”; D7 vừa bỏ qua một va chạm **thật**, nên lưới “không làm gần hơn” càng cần trước khi đụng tháp | Generator **1/1** (6,06 s), chạy **2 lần → sha256 `e58b98f33bb6a12e…` như nhau**, và **toàn bộ số trùng khớp báo cáo P32/P33** (tower-15 swept `-0.078476`, tube `-0.034928`, bead xuyên mặt vẽ `0.0550`, brute-force lệch `0.0006`) → tách code dùng chung không đổi phép đo. Test mới **4/4**. **Mutation check**: sửa 3 ô trong baseline (swept tower-04 1e-6, box tower-15 1e-6, gap chamber 1 mm) → test byte **đỏ** và in đúng 3 dòng lệch; đổi `KNOWN_PIERCE` sang `tower-04` → guard ngữ nghĩa **đỏ** với thông điệp “a second tower entered the orbit path” (chứng minh nó đọc hình học thật, không đọc lại baseline). Khôi phục → xanh, sha256 baseline **trở lại đúng giá trị cũ**. `tsc -b` 0 lỗi; `eslint` 0 lỗi; `npm run build` OK; md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` **không đổi**, `git status src/graphics` **trống**. **Ngoài phạm vi**: suite có flake `Test timed out in 5000ms` có từ trước — human quyết step 2, đã sửa ở **P36 / §7.8** | Xoá 3 file/mục mới + `git checkout -- captures/orbit-tower-clearance.measure.ts`; suite trở 26 file / 378 test | DONE — Phase 1 complete |
-| P36 | **Sửa**: `vitest.config.ts` (+4 dòng: `fileParallelism: false` + 3 dòng comment). **0 dòng source sửa** | `npm test` chết một test **luân phiên** với `Test timed out in 5000ms`; đỏ thật/giả không phân biệt được thì mọi gate fingerprint (P34) và clearance (P35) đều mất tác dụng | Step 2 do human chốt: **đo** 4 phương án trên cùng một máy thay vì đoán. Bảng số ở **§7.8**. Chọn chạy tuần tự giữa các file, **giữ nguyên `isolate` mặc định** để không mở đường leak state | Suite đã hỏng **từ trước** Phase 1 (bỏ file test mới ra, 3/3 lần vẫn đỏ); Phase 2→5 sẽ không thể nghiệm thu nếu phải nghi ngờ mọi lần đỏ | Baseline song song **5/1/6** lần timeout; `isolate: false` **6/7/4** (tệ hơn, đã revert, xác nhận file byte-identical HEAD); `maxThreads: 2` **1/1/3**; `fileParallelism: false` **0/0/0** — `npm test` ×4 xanh **27 file / 382 test** ở đúng timeout mặc định 5 s (181,18 / 159,97 / 194,79 / 174,75 s), cộng 2 lần CLI trước đó = **6/6 lần tuần tự liên tiếp sạch**. `tsc -b` 0; `eslint src`, `eslint .agents/dataset-3d-core`, `eslint vitest.config.ts` **0 lỗi cả ba** (riêng `npm run lint` = `eslint .` vẫn **12 lỗi có từ trước**, tất cả ở `.agents/holographic-core/**` scratch chưa commit, xem §7.8), `git diff --stat HEAD` = 1 file **+4 dòng**, `git status src/graphics` **trống**. Cái giá **+80 s**; `pool: 'vmThreads'` **chưa đo**, để ngỏ | `git checkout -- vitest.config.ts` | DONE — suite tất định, số đo ở §7.8 |
+| P36 | **Sửa**: `vitest.config.ts` (+4 dòng: `fileParallelism: false` + 3 dòng comment). **0 dòng source sửa** | `npm test` chết một test **luân phiên** với `Test timed out in 5000ms`; đỏ thật/giả không phân biệt được thì mọi gate fingerprint (P34) và clearance (P35) đều mất tác dụng | Step 2 do human chốt: **đo** 4 phương án trên cùng một máy thay vì đoán. Bảng số ở **§7.8**. Chọn chạy tuần tự giữa các file, **giữ nguyên `isolate` mặc định** để không mở đường leak state | Suite đã hỏng **từ trước** Phase 1 (bỏ file test mới ra, 3/3 lần vẫn đỏ); Phase 2→5 sẽ không thể nghiệm thu nếu phải nghi ngờ mọi lần đỏ | Baseline song song **5/1/6** lần timeout; `isolate: false` **6/7/4** (tệ hơn, đã revert, xác nhận file byte-identical HEAD); `maxThreads: 2` **1/1/3**; `fileParallelism: false` **0/0/0** — `npm test` ×4 xanh **27 file / 382 test** ở đúng timeout mặc định 5 s (181,18 / 159,97 / 194,79 / 174,75 s), cộng 2 lần CLI trước đó = **6/6 lần tuần tự liên tiếp sạch**. `tsc -b` 0; `eslint src`, `eslint .agents/dataset-3d-core`, `eslint vitest.config.ts` **0 lỗi cả ba** (riêng `npm run lint` = `eslint .` vẫn **12 lỗi có từ trước**, tất cả ở `.agents/holographic-core/**` scratch chưa commit, xem §7.8), `git diff --stat HEAD` = 1 file **+4 dòng**, `git status src/graphics` **trống**. **Cái giá** "+80 s" (đã **đính chính** ở §7.8: đó là số của một buổi máy swap, chưa phải chi phí của config); `pool: 'vmThreads'` **chưa đo**, để ngỏ | `git checkout -- vitest.config.ts` | DONE — suite tất định, số đo ở §7.8 |
 | P37 | **Mới**: `src/graphics/holographic-core/technical-lines.ts`. **Sửa**: `holographic-core.model.ts` (+1 dòng import, −60 dòng) | Phase 2 của kế hoạch kiến trúc: tháp sắp tách ra `tower-architecture.ts` / `tower-ring.ts` trong khi `addTechnicalRods` + `CYAN` nằm trong model → hoặc hai file import lẫn nhau (vòng) hoặc nhân bản code | Chuyển **nguyên văn** `CYAN`, `addTechnicalLine`, 5 biến tạm của rod và `addTechnicalRods` sang module mới, model import lại. Không đổi một dòng logic nào; `addPlanarGrid` / `addBaseWallGrid` / `addDeckRecess` ở lại vì chúng thuộc base, không thuộc tháp | §3.4 bắt buộc "không file `tower-*` nào import file Core"; lưới này phải dựng trước khi tách, nếu không Phase 4 không còn đường đi | **Bằng chứng trở thành chuyển code thuần tuý**: đối chiếu máy 57 dòng đã chuyển với bản cũ sau khi gỡ từ khoá `export` → **byte-identical**; diff của model đúng 1 dòng thêm + 60 dòng xoá, không dòng logic mới. Fingerprint **10/10** (5 moment, so từng byte với baseline đã commit), clearance **4/4**, `npm test` **27 file / 382 test** (215,75 s), `tsc -b` 0, `eslint` 0 trên cả hai file, `npm run build` OK. **Ảnh thật trong trình duyệt**: chạy lại harness rồi `shasum -a 256 -c p0-images.sha256` → **15/15 OK** | `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` và xoá `technical-lines.ts` | DONE — Phase 2 complete, số đo ở **§7.9** |
+| P38 | **Mới**: `src/graphics/holographic-core/tower-config.ts`. **Sửa**: `holographic-core.model.ts` (+43 / −105) | Dữ liệu tháp nằm ở 3 nơi: `TOWER_HEIGHTS` (kèm `[gen, corrected]` mà `[0]` không ai đọc), mảng `towerDimensions` lặp lại width/height của 9 tháp gốc, `ORIGINAL_TOWER_RADII`, và một vòng lặp **cấp module** ghi thêm 9 tháp vòng ngoài vào `TOWER_HEIGHTS` ngay lúc import | Phase 3: mọi con số tháp về `tower-config.ts` (dữ liệu thuần, không import gì). `TOWER_HEIGHTS` biến mất hoàn toàn; `seed === 0` → cờ `crowned`; `index + 1` → `riserSeed`; `pulledRadius` gắn thẳng vào từng tháp; detach 0.85/0.5/0.35 thành `DETACH_DISTANCE`; factory dựng `towerPlan = [...ORIGINAL_TOWERS, ...OUTER_TOWERS]` rồi chỉ **đọc** nó. `TOWER_OPACITY` **vẫn ở lại** (Phase 5 mới được xoá) | S1 đã loại phương án chia factory, nên thứ tự dựng là bất biến; muốn tower module (Phase 4) không tự mang dữ liệu riêng thì phải có một nguồn duy nhất trước | **Đối chiếu máy từng chữ số** với `git show HEAD:` (không đọc bằng mắt): 9 × 8 trường của `OUTER_TOWERS` khớp **True**; 9 tháp gốc (width/height/depth/crowned/riserSeed/pulledRadius) khớp **True**, không có sai lệch; thứ tự build 18 id **True**; detail plan 5 phần tử **True**; `TOWER_BASE_Y` 0.45 và detach 0.85/0.5/0.35 **True**. Fingerprint **6/6** byte-exact (init, update-7.3, reset-motion, detached, selected-18), dataset-3d **56/56**, clearance **4/4** baseline `e58b98f3…` không đổi. **Bằng chứng thật, không chỉ headless**: chạy lại harness trong trình duyệt, `shasum -a 256 -c p0-images.sha256` → **15/15 OK**, `gl/frame 490 calls, 378588 tris` như nguyên. `npm test` **27 file / 382 test**, `tsc -b` 0, `eslint src/graphics/holographic-core` 0, `npm run build` OK (3,65 s). **Con số +80 s của P36 cần đo lại** — vì Phase 2 và Phase 3 báo 215,75 s và 50,17 s trên cùng một config; **đã đính chính ở §7.8** sau bốn lần đo tiếp theo | `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` + xoá `tower-config.ts`; revert không để lại tham chiếu cũ nào vì không một cú pháp nào của model đổi | DONE — Phase 3 complete, số đo ở **§7.10** |
+| P39 | **Mới**: `tower-architecture.ts` (221 dòng), `tower-ring.ts` (200 dòng). **Sửa**: `holographic-core.model.ts` (1352 → 970) | Factory mang hết hàm dựng tháp trong một closure 1352 dòng; sửa một chi tiết tháp phải đọc cả file, và Phase 5 không có chỗ đặt vật liệu | Cắt **theo chỉ số dòng có assert ở mọi biên**, không gõ lại: 9 khai báo sang `tower-architecture.ts`, 5 khai báo + `conformOriginalTowers` (tách từ vòng đầu của `conformToReference`) + `createTowerRing(runtime, model)` **đúng vị trí khối cũ** sang `tower-ring.ts`; factory còn 3 dòng, `resetMotion` → `towerRing.reset()`, `update` → `towerRing.update(elapsed)`; comment I1–I7 đặt trên `createHolographicCoreProductModel` (S4) | S1 đã chốt "không chia factory thành stage" mà chỉ tách phần tháp; tách mà không ghi thứ tự thì người sau vẫn đổi thứ tự vô hại — nay mỗi điều kiện có tên và có lý do | Kiểm **độc lập** với `git show HEAD:`: **11/12** khai báo chuyển đi **byte-identical** sau khi gỡ từ khoá `export `, chỗ khác duy nhất là `buildTowerArchitecture` mang đúng hai sai khác `seed`→`crowned` **của Phase 3**. **Lưới bắt được lỗi thật**: `cut()` nuốt thêm một dòng, làm mất `const upperMesh` và `const runner = new THREE.Group()` → `tsc -b` báo **10 lỗi `Cannot find name`** ngay lần chạy đầu (ESLint im lặng), đã khôi phục cả hai. Fingerprint **6/6**, clearance **4/4**, dataset-3d **56/56**, `npm test` **27 file / 382 test** (47,25 s), `tsc -b` 0, `eslint` 0, build OK (2,90 s). **Trình duyệt thật**: `shasum -a 256 -c p0-images.sha256` → **15/15 OK**, `490 calls / 378588 tris`, **console errors: none**. §3.4: hai file tháp chỉ import `three` + type `ProceduralModelRuntime` + `technical-lines` + `tower-config` + `tower-architecture`; model **không còn hàm tháp nào** | `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` + xoá `tower-architecture.ts`, `tower-ring.ts` | DONE — Phase 4 complete, số đo ở **§7.11** |
+| P40 | **Sửa**: `tower-config.ts` (+31 `TOWER_PALETTE`), `tower-architecture.ts` (+49 `createTowerMaterials`, `TowerMaterials`), `tower-ring.ts` (`createOuterTowers` nhận plinth qua tham số), `holographic-core.model.ts` (970 → 965, **xoá `TOWER_OPACITY`** và vế `TOWER_OPACITY[componentId] ??`) | Vật liệu tháp tạo ở hai nơi (tone/corner post trong factory, plinth trong `createOuterTowers`) và `TOWER_OPACITY` là **cấu hình chết**: gán opacity cho material mà sau đó `buildTowerArchitecture` ghi đè bằng `tone.glass` | Literal màu + opacity + roughness/metalness/clearcoat của 6 material tháp về `TOWER_PALETTE` (giá trị giữ nguyên từng chữ số, kèm comment lý do); một hàm `createTowerMaterials()` duy nhất dựng cả 6; `createOuterTowers` nhận plinth thay vì tự tạo; xoá `TOWER_OPACITY` đúng điều kiện Phase 5 cho phép | Phase 4 đã có nhà cho vật liệu; để `TOWER_OPACITY` lại là giữ một bảng dữ liệu **không có tác dụng** mà người sau sẽ tin là có | Fingerprint **6/6** và dòng đầu vẫn `materials total=196 shared=…g46x18,g47x18,g48x18,g49x18,g51x18…` → 4 tone + corner post **một instance / 18 tháp** như trước. **Mutation check chứng minh lưới vật liệu là thật**: đổi một dòng thành `tone.glass.clone()` → **213 materials**, `g46x18` biến mất, **4 test đỏ** in đúng dòng lệch; revert → 6/6 xanh. **Giới hạn ghi rõ**: `describeMaterial` không ghi `roughness`/`metalness`/`clearcoat`/`clearcoatRoughness` — 4 tham số mà Phase 5 chuyển — nên bằng chứng cho chúng là **raster 15/15 OK** (`490 calls / 378588 tris`), không phải fingerprint. dataset-3d **56/56**, `npm test` **27 file / 382 test** (70,58 s trên cây cuối, sau khi gỡ export thừa), `tsc -b` 0, `eslint` 0. Tính từ HEAD: model **1414 → 965 = −449 dòng (−32%)** | khôi phục 6 dòng `TOWER_OPACITY` + vế `??`, đặt lại `plinthMaterial` vào `createOuterTowers`, xoá `TOWER_PALETTE`/`createTowerMaterials`; **nếu fingerprint lệch dù chỉ một material thì KHÔNG xoá `TOWER_OPACITY`** — dừng và điều tra (kế hoạch Phase 5) | DONE — Phase 5 complete, số đo ở **§7.12** |
+| P41 | **Sửa**: `vitest.config.ts` (chỉ **comment**, 3 dòng → 5 dòng), `change-log.md` (§7.8 đính chính + con trỏ ở P36/P38/§7.10). **0 dòng source, 0 dòng test code** | P36 ghi "cái giá +80 s" như một hằng số của `fileParallelism: false`, trong khi nó chỉ là **một buổi đo** trên máy đang swap. Ba pha sau đó đo lại cùng config ra 47,25 / 50,17 / 73,85 / 81,23 / 70,58 s — dải trùng với **song song có tải** (77,62–95,88 s), nên con số cũ không đứng được | Sửa lại câu đó cho đúng những gì đã biết: "tuần tự xanh tất định, chi phí chưa xác định, phép A/B trên cùng máy nhàn vẫn đang nợ"; giữ nguyên **kết luận** chọn tuần tự vì lý do nó được chọn (6/6 xanh vs đỏ 5/1/6), không vì tốc độ | Một comment sai sẽ thành lý lẽ để người sau bật lại song song hoặc bỏ luôn gate; và P36 là quyết định liên quan trực tiếp đến việc đọc số của mọi gate sau này | `npm test` **27 file / 382 test** vẫn chạy đúng như trước khi sửa comment (**70,58 s**), `tsc -b` 0, `git diff` của `vitest.config.ts` **chỉ có dòng comment**, không đổi một khoá config nào | `git checkout -- vitest.config.ts` + khôi phục đoạn đính chính trong §7.8 | DONE — đính chính số, không đổi hành vi |
 
 ### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
 ```bash
@@ -853,11 +857,22 @@ số lần chạy nguyên suite*; dòng đầu là **đo nền**, chưa sửa g�
 | (c3) `fileParallelism: false` | **0/0/0/0** (4 lần) + 0/0 (2 lần CLI) | 196,90 / 175,25 s (CLI), rồi **181,18 / 159,97 / 194,79 / 174,75 s** khi ghi vào config | **xanh cả 6 lần chạy tuần tự liên tiếp** ở đúng timeout mặc định 5 s; lần 4 chạy trên file đã chốt comment, để config được kiểm chứng đúng như nó đang tồn tại |
 
 **Đã áp dụng** (c3): `vitest.config.ts` thêm `fileParallelism: false` kèm 3 dòng comment mang chính các số
-trên, vì nó là lý do người sau không được "tối ưu" ngược lại. **Cái giá: +80 s** (77–96 s → 160–195 s) đổi
-lấy kết quả tất định. **Không có rủi ro leak state**: `fileParallelism: false` chỉ bỏ song song *giữa các
-file*, vẫn giữ `isolate` mặc định — mỗi file một environment mới, nên không có đường chia sẻ module state;
+trên, vì nó là lý do người sau không được "tối ưu" ngược lại. **Cái giá: chưa đo được** (xem đính chính bên
+dưới) đổi lấy kết quả tất định. **Không có rủi ro leak state**: `fileParallelism: false` chỉ bỏ song song *giữa
+các file*, vẫn giữ `isolate` mặc định — mỗi file một environment mới, nên không có đường chia sẻ module state;
 bằng chứng là 27 file / **382 test pass y hệt nhau cả 4 lần**, và `clearMocks` / `restoreMocks` /
 `unstubEnvs` vẫn bật.
+
+**Đính chính (2026-11-04, về số "+80 s" — comment trong `vitest.config.ts` vẫn cần sửa theo).** Kết luận
+"chọn tuần tự" **không đổi**: 6/6 lần xanh ở timeout mặc định, trong khi song song đỏ 5/1/6. Nhưng **cái giá**
+thì tôi đã ghi như một hằng số trong khi nó chỉ là **một buổi đo**. Cùng config tuần tự, cùng 27 file / 382
+test, đo lại ở các Phase 3–5 (máy ít tải hơn): **50,17 s** (P38) → **47,25 s** (P39) → **73,85 s** và
+**81,23 s** (P40) — trải từ 47 đến 81 s, tức **dải giá trị của song song có tải** (77,62–95,88 s), còn P36 thì
+đo tuần tự lúc máy swap nên ra 160–195 s. Hai hệ quả: (1) "+80 s" là **số của buổi đó**, không phải chi phí
+của `fileParallelism: false`; (2) muốn có con số thật phải đo **A/B trên cùng một máy nhàn**, và phép đó **chưa
+làm** — nên câu đúng lúc này là "tuần tự xanh tất định, chi phí chưa xác định", chứ không phải "đắt hơn 80 s".
+Số đáng chú ý hơn: `environment` (jsdom tạo 27 lần) chiếm **57–59%** tổng thời gian, nên chỗ tiết kiệm thật
+nằm ở việc dựng environment, không ở bật lại song song.
 
 **Chưa đo, để ngỏ:** `pool: 'vmThreads'` — lời gợi ý rẻ hơn của Vitest, chưa thử nên không cam kết. Nó cũng
 **không** được phản ánh trong bảng trên. Sau khi chuyển sang tuần tự, dòng `jsdom was created 27 times` vẫn
@@ -904,4 +919,148 @@ hiện tại mỗi lần chạy capture là `git status` bẩn một cách vô n
 
 **Rollback Phase 2**: `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` và
 `rm src/graphics/holographic-core/technical-lines.ts`.
+
+### 7.10 Phase 3 — một nguồn cấu hình cho tháp (2026-11-04, P38)
+
+**Chuyển gì.** Toàn bộ con số tháp sang `src/graphics/holographic-core/tower-config.ts`, file **dữ liệu thuần,
+không import gì**: `TOWER_BASE_Y`, `ORIGINAL_TOWERS` (9 tháp gốc, `pulledRadius` gắn thẳng vào từng phần tử),
+`OUTER_TOWERS` (9 tháp vòng ngoài, giữ nguyên cấu trúc cũ), `TOWER_IDS` / `OUTER_TOWER_IDS` suy ra từ hai danh
+sách chứ không ghi tay, `TOWER_DETAIL_PLAN`, `DETACH_DISTANCE = { original: 0.85, outer: 0.5, lift: 0.35 }`.
+
+**Chết gì.** Bốn nguồn phân tán hợp nhất thành một:
+- `TOWER_HEIGHTS` **biến mất hoàn toàn**, kèm cả hai vấn đề kế hoạch chỉ ra: `[gen, corrected]` mà `[0]` không
+  ai đọc, và vòng lặp **cấp module** ghi thêm 9 tháp vòng ngoài vào bảng ngay lúc import — một tác dụng phụ
+  lúc nạp module, không phải dữ liệu.
+- mảng `towerDimensions` trong factory (lặp lại width/height của 9 tháp gốc lần thứ hai).
+- `ORIGINAL_TOWER_RADII` và `OUTER_TOWERS` khai ở model.
+- hai giá trị ngầm suy theo vị trí thay bằng cờ tường minh: `seed === 0` → `crowned`, `index + 1` →
+  `riserSeed`, **đóng băng đúng giá trị đang có** (tower-01 crowned; riserSeed = vị trí + 1) nên không đổi
+  pha hạt của bất kỳ tháp nào.
+
+`TOWER_OPACITY` (model dòng 38, đọc ở dòng 521) **cố ý ở lại**: nó thuộc Phase 5 (`TOWER_PALETTE` +
+`createTowerMaterials`), xoá sớm là vượt phạm vi.
+
+**Bằng chứng "chỉ là đổi chỗ con số", không phải chọn số mới.** Đối chiếu máy, không đọc bằng mắt: script dựng
+lại bảng giá trị từ `git show HEAD:…holographic-core.model.ts` (bản trước Phase 3) và so từng chữ số với
+`tower-config.ts` đang trên đĩa — 9 × 8 trường `OUTER_TOWERS` **khớp**, 9 tháp gốc × 6 trường
+(width/height/depth/crowned/riserSeed/pulledRadius) **khớp**, **không có mục sai lệch nào**; thứ tự build 18 id
+**khớp** (đây là bất biến S4, registry detach đi theo nó); `TOWER_DETAIL_PLAN` 5 phần tử **khớp**;
+`TOWER_BASE_Y` 0.45 và ba khoảng detach **khớp**. Diff model **+43 / −105**: phần thêm là import và vòng lặp
+đọc config, phần mất là bốn bảng dữ liệu.
+
+**Gate.** Fingerprint **6/6** (5 moment so từng byte với baseline đã commit + 1 test kiểm baseline đủ section),
+clearance **4/4** baseline `e58b98f3…` không đổi, `npm test` **27 file / 382 test** (50,17 s), `tsc -b` 0,
+`eslint src/graphics/holographic-core` 0, `npm run build` OK (3,65 s). Raster thật trong trình duyệt: chạy lại
+harness rồi `shasum -a 256 -c fingerprint/p0-images.sha256` → **15/15 OK**, `gl/frame 490 calls / 378588 tris`
+**như nguyên** — số draw và số tam giác của cả cảnh không đổi, tức không hình nào được thêm hay bớt.
+Chạy lại riêng `src/__tests__/dataset-3d` sau khi ghi log: **8 file / 56 test pass, 21,33 s**.
+
+**Đính chính cho P37 / §7.9 (đã commit, không sửa lại hàng cũ).** Ở đó ghi "Fingerprint **10/10**"; suite
+fingerprint chỉ có **6 test** (5 moment + 1 test baseline đủ section). Con số 10 là **6 fingerprint + 4
+clearance** gộp lại khi chạy hai file cùng lúc, còn clearance đã bị tính lần nữa ở vế sau cùng câu. Cách ghi
+đúng là "fingerprint 6/6, clearance 4/4" như hàng P38. Không có gate nào đỏ ở cả hai lần đo; chỉ số học bị gộp
+nhầm, và nó khiến câu "cả 5 moment" tự mâu thuẫn với mẫu số 10.
+
+**Số đã đo lại và đã đính chính (xem §7.8).** Phase 2 báo suite tuần tự 215,75 s, Phase 3 báo 50,17 s trên
+**cùng một config và gần như cùng code** — bốn lần đo tiếp theo (47,25 / 50,17 / 73,85 / 81,23 s) xác nhận đó là
+**tải của máy**, không phải chi phí của `fileParallelism: false`. Kết luận "chọn tuần tự" giữ nguyên (6/6 lần
+xanh ở timeout mặc định, song song đỏ 5/1/6); chỉ con số "+80 s" là bỏ, và comment trong `vitest.config.ts` đã
+viết lại theo hướng đó.
+
+**Rollback Phase 3**: `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` và
+`rm src/graphics/holographic-core/tower-config.ts`.
+
+### 7.11 Phase 4 — tách builder tháp (2026-11-04, P39)
+
+**Chuyển gì.** `holographic-core.model.ts` **1352 → 970 dòng** trong một pha:
+- `tower-architecture.ts` (221 dòng lúc tách): `TowerTone`, `TowerFace`, `TOWER_FACES`, `TOWER_UP` + 4 biến tạm,
+  `towerPatternHash`, `createBeveledTowerGeometry`, `buildTowerArchitecture`, `addTowerCornerPosts`,
+  `addTowerDataMarks`.
+- `tower-ring.ts` (200 dòng lúc tách): `TowerRiser` + 4 biến tạm riser, `addTowerRiser`, `syncTowerRisers`,
+  `createOuterTowers`, `conformOriginalTowers` (tách từ vòng lặp đầu của `conformToReference`), và
+  `createTowerRing(runtime, model)` chính là **khối cũ đặt ở đúng vị trí cũ**, trả về `{ update, reset }`.
+- Factory: khối tháp còn **3 dòng** (comment + `const towerRing = createTowerRing(runtime, model)`);
+  `resetMotion` gọi `towerRing.reset()`, `update` gọi `towerRing.update(elapsedSeconds)`.
+- Comment I1–I7 đặt ngay trên `createHolographicCoreProductModel` (S4): mỗi điều kiện ghi nó buộc **ai** chạy
+  trước **ai** và **vì sao** (radialOffset đọc `node.position`, `EdgesGeometry` đọc geometry lúc tạo, lượt
+  `traverse` gán `raycast = () => {}` là lưới an toàn — giữ nguyên thiết kế).
+- Bề mặt export **tối thiểu**: `tower-ring.ts` chỉ mở `conformOriginalTowers` và `createTowerRing`;
+  `TowerRiser`, `addTowerRiser`, `syncTowerRisers`, `createOuterTowers` là **riêng của module** (không ai ngoài
+  tower-ring gọi chúng, và một API không dùng thì không nên có). `tower-architecture.ts` mở đúng những gì
+  tower-ring gọi. Nhân tiện sửa comment "nine towers" → "eighteen towers": nó đã sai từ trước, và vừa chuyển
+  chỗ là lúc đáng để sửa.
+
+**Cách chuyển: cắt dòng, không gõ lại.** Script đọc file, cắt theo **chỉ số dòng có assert ở mọi biên**
+(`EXPECT` kiểm dòng đầu/cuối từng khối, và mỗi khối xoá phải có dòng kế tiếp trắng), rồi mới ghi file mới.
+Không một dòng nào được đánh lại bằng tay, nên "verbatim" là **tính chất của phép cắt**, không phải lời hứa.
+Kiểm tra **độc lập** (so với `git show HEAD:`, tức gốc trước cả Phase 3): **11/12** khai báo được chuyển
+**byte-identical** sau khi gỡ đúng từ khoá `export `; khối còn lại là `buildTowerArchitecture` sai khác đúng
+hai chỗ `seed` → `crowned` — **của Phase 3**, không phải Phase 4.
+
+**Hai lỗi mà lưới bắt được, không phải mắt bắt được.** `cut()` luôn nuốt thêm một dòng kể cả khi không được
+phép, nên nó ăn mất `const upperMesh = runtime.meshes['core-upper']` và `const runner = new THREE.Group()`.
+`npx tsc -b` báo **10 lỗi `Cannot find name`** ngay lần chạy đầu; ESLint im lặng vì hai dòng đó không nằm ở
+đâu cả. Đã khôi phục cả hai. **Ghi lại vì nó là bằng chứng rằng gate có tác dụng**: một refactor kiểu "di
+chuyển 389 dòng" mà chỉ đọc diff thì rất dễ tưởng mình chuyển đúng.
+
+**Gate.** Fingerprint **6/6** (5 moment so từng byte, gồm `part[...]` của mọi drawable và `selected-18`),
+clearance **4/4** baseline `e58b98f3…`, dataset-3d **56/56**, `npm test` **27 file / 382 test** (47,25 s;
+chạy lại sau Phase 5 vẫn exit 0), `tsc -b` 0, `eslint src/graphics/holographic-core` 0, `npm run build` OK
+(2,90 s). Trình duyệt thật: chạy lại harness, `shasum -a 256 -c p0-images.sha256` → **15/15 OK**,
+`gl/frame 490 calls / 378588 tris` như nguyên, **console errors: none** (không thêm bộ lọc lỗi nào).
+
+**§3.4 đạt.** `tower-architecture.ts` chỉ import `three`, **type** `ProceduralModelRuntime`, `technical-lines`;
+`tower-ring.ts` chỉ thêm `tower-config` và `tower-architecture`. Không file tháp nào import `spool-core`,
+`issue-constellation`, `inbound-*`, `core-visual-config`. Model **không còn hàm tháp nào** (tìm bằng grep: chỉ
+còn ba dòng comment tham chiếu tên).
+
+**Khoảng trống còn lại của T10 (nói cho đúng).** "Chọn từng tháp bằng tay" đã có bản máy: `selected-18` chọn
+cả 18 tháp và so **đường dẫn contour + hash vertex + opacity** từng cái, harness trình duyệt thì **bấm thật**
+và in `pick=tower-01-back-high` / `pick=tower-10`. Nhưng **không** có phép nào raycast đủ 18 tháp từ màn hình,
+và fingerprint **không ghi** việc gán `raycast = () => {}`. Nếu muốn đóng hẳn T10 thì đó là một test nhỏ riêng
+(nằm ngoài Phase 2–5), không nên nhân danh refactor mà thêm.
+
+### 7.12 Phase 5 — vật liệu tháp và gỡ config chết (2026-11-04, P40)
+
+**Chuyển gì.** `TOWER_PALETTE` vào `tower-config.ts` (vẫn là dữ liệu thuần: glass/core/frame/window +
+cornerPost + plinth, **giữ nguyên từng chữ số**, kèm comment lý do của từng màu); `createTowerMaterials()` vào
+`tower-architecture.ts` trả `{ tone, cornerPost, plinth }`; `createOuterTowers` nhận plinth qua tham số thay vì
+tự tạo; `createTowerRing` gọi `createTowerMaterials()` một lần cho cả 18 tháp. **Xoá `TOWER_OPACITY`** (6 dòng)
+và vế `TOWER_OPACITY[componentId] ??` — đúng điều kiện Phase 5 cho phép.
+
+**Vì sao vật liệu tạo sớm hơn không đổi gì.** `createOuterTowers` từng tự tạo plinth **trước** khi dựng các mesh
+vòng ngoài; giờ plinth tồn tại từ trước. Thứ tự tạo **không** đi vào fingerprint: vật liệu được định danh bằng
+**object identity** và group id cấp theo **lượt duyệt scene graph** (`describeMaterial`), không theo `material.id`
+hay uuid. Giá trị property không đổi, cấu trúc chia sẻ không đổi → dòng `materials total=… shared=…` vẫn byte.
+
+**Bằng chứng gate vật liệu là thật, không phải chữ.** Fingerprint **6/6** và dòng đầu của nó vẫn là
+`materials total=196 shared=…g46x18,g47x18,g48x18,g49x18,g51x18…` — bốn tone material và corner post **một
+instance dùng cho 18 tháp**, đúng như trước. **Mutation check**: đổi một dòng thành
+`mesh.material = tone.glass.clone()` → **213 materials**, `g46x18` biến mất, **4 test đỏ** in đúng dòng lệch;
+revert → 6/6 xanh. Tức là nếu Phase 5 vô tình nhân bản material, lưới đã bắt được.
+
+**Giới hạn của fingerprint, ghi lại để người sau không hiểu nhầm.** `describeMaterial` chỉ ghi
+color / emissive / emissiveIntensity / opacity / transparent / depthWrite / side / blending / toneMapped.
+**`roughness`, `metalness`, `clearcoat`, `clearcoatRoughness` không nằm trong vân tay** — và Phase 5 chuyển đúng
+bốn tham số đó. Bằng chứng cho chúng là **raster**: `shasum -a 256 -c p0-images.sha256` → **15/15 OK** với
+`gl/frame 490 calls / 378588 tris`, tức ảnh render từ chính material đã đổi chỗ cho từng byte. Hai lưới bổ sung
+nhau: fingerprint bắt identity và chia sẻ, PNG bắt giá trị shading.
+
+**Gate.** dataset-3d **56/56** (fingerprint 6, clearance 4), `npm test` **27 file / 382 test** trên **cây cuối
+cùng** sau khi gỡ export thừa (70,58 s; hai lần trước đó 73,85 s và 81,23 s), `tsc -b` 0,
+`eslint src/graphics/holographic-core` 0, raster **15/15 OK**, build OK (4,75 s). Sau Phase 5 model còn **965 dòng**;
+tính từ HEAD (trước Phase 3) là **1414 → 965 = −449 dòng (−32%)**, kế hoạch ước "khoảng 500".
+
+**Bốn số liệu cho cái giá của chạy tuần tự (đo lại cho P36 / §7.8).** Cùng một config `fileParallelism: false`,
+cùng 27 file / 382 test, trên cùng một máy trong một buổi: **47,25 s** (Phase 4) — **73,85 s** và **81,23 s**
+(Phase 5, hai lần liên tiếp) — và **215,75 s** ở Phase 2. Con số P36 ghi "+80 s" là **giá trị của một buổi máy
+đang swap**, không phải hằng số; bốn số liệu hôm nay tự chúng chứng minh phép đo **nhiễu theo tải**, và
+`environment` (jsdom khởi tạo 27 lần) chiếm **57–59%** tổng thời gian — nghĩa là muốn suite nhanh thật thì phải
+giảm chi phí environment, không phải bật lại song song. Chưa đo `pool: 'vmThreads'`; đó vẫn là cửa kế tiếp.
+
+**Trạng thái cuối của chuỗi Phase 0→5.** `TOWER_HEIGHTS`, `ORIGINAL_TOWER_RADII`, `towerDimensions`,
+`TOWER_OPACITY` đều không còn; `seed === 0` và `index + 1` đã thành cờ tường minh; dữ liệu tháp có một nguồn;
+hàm tháp có một nhà; thứ tự dựng được ghi thành bất biến và có lưới bắt vi phạm. Không file nào thuộc
+`src/graphics/holographic-core/` khác bị sửa ngoài bốn file đã nêu, và **0 byte hình ảnh thay đổi** ở cả ba
+lưới: vân tay, raster, số draw call.
 

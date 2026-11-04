@@ -8,6 +8,8 @@ import { CORE_VISUAL_REVISION, ISSUE_CONSTELLATION, resolveCoreGlow } from './co
 import { createIssueConstellation } from './issue-constellation'
 import { createSpoolCore } from './spool-core'
 import { CYAN, addTechnicalLine, addTechnicalRods } from './technical-lines'
+import { DETACH_DISTANCE, OUTER_TOWER_IDS, TOWER_IDS } from './tower-config'
+import { conformOriginalTowers, createTowerRing } from './tower-ring'
 import {
   NON_SELECTABLE_PART_IDS,
   type HolographicPartComponent,
@@ -25,11 +27,6 @@ type HolographicCoreProductModel = {
   dispose(): void
 }
 
-const TOWER_OPACITY: Record<string, number> = {
-  'tower-01-back-high': 0.36, 'tower-02': 0.38, 'tower-03': 0.42,
-  'tower-04': 0.48, 'tower-05': 0.52, 'tower-06': 0.50,
-  'tower-07': 0.44, 'tower-08': 0.40, 'tower-09': 0.36,
-}
 const TIER_OPACITY: Record<string, number> = {
   'core-upper': 0.70,
   'core-lower': 0.65,
@@ -164,209 +161,6 @@ function addHotspot(parent: THREE.Object3D, position: THREE.Vector3, radius: num
   return hotspot
 }
 
-function addTowerCornerPosts(parent: THREE.Object3D, width: number, height: number, depth: number, material: THREE.Material) {
-  const thickness = THREE.MathUtils.clamp(0.05 * Math.min(width, depth), 0.014, 0.03)
-  const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(thickness, height, thickness), material, 4)
-  const matrix = new THREE.Matrix4()
-  let index = 0
-  for (const x of [-width / 2, width / 2]) {
-    for (const z of [-depth / 2, depth / 2]) {
-      matrix.makeTranslation(x, 0, z)
-      posts.setMatrixAt(index, matrix)
-      index += 1
-    }
-  }
-  posts.instanceMatrix.needsUpdate = true
-  posts.name = 'tower-corner-post'
-  // Drawn after the grid so the dark corner edges stay readable on top of the bright linework.
-  posts.renderOrder = 7
-  posts.frustumCulled = false
-  posts.raycast = () => {}
-  parent.add(posts)
-  return posts
-}
-
-type TowerTone = {
-  glass: THREE.MeshPhysicalMaterial
-  core: THREE.MeshStandardMaterial
-  frame: THREE.MeshStandardMaterial
-  window: THREE.MeshBasicMaterial
-}
-
-type TowerFace = { axis: 'x' | 'z'; sign: 1 | -1; index: number; rotation: number }
-
-const TOWER_FACES: TowerFace[] = [
-  { axis: 'z', sign: 1, index: 0, rotation: 0 },
-  { axis: 'z', sign: -1, index: 1, rotation: Math.PI },
-  { axis: 'x', sign: 1, index: 2, rotation: Math.PI / 2 },
-  { axis: 'x', sign: -1, index: 3, rotation: -Math.PI / 2 },
-]
-
-const TOWER_UP = new THREE.Vector3(0, 1, 0)
-const towerMatrix = new THREE.Matrix4()
-const towerQuaternion = new THREE.Quaternion()
-const towerPosition = new THREE.Vector3()
-const towerScale = new THREE.Vector3()
-const towerColor = new THREE.Color()
-
-function towerPatternHash(id: string, first: number, second: number) {
-  let hash = 2166136261
-  for (let index = 0; index < id.length; index += 1) hash = Math.imul(hash ^ id.charCodeAt(index), 16777619)
-  const value = Math.sin((hash >>> 0) * 0.000011 + first * 12.9898 + second * 78.233) * 43758.5453
-  return value - Math.floor(value)
-}
-
-// Solid beveled prism: rounded vertical corners plus chamfered top and bottom caps give the
-// volume a real architectural edge instead of a wireframe cage.
-function createBeveledTowerGeometry(width: number, height: number, depth: number) {
-  const bevel = 0.01
-  const halfWidth = width / 2
-  const halfDepth = depth / 2
-  const corner = Math.min(THREE.MathUtils.clamp(0.08 * Math.min(width, depth), 0.012, 0.03), halfWidth - 0.002, halfDepth - 0.002)
-  const shape = new THREE.Shape()
-  shape.moveTo(-halfWidth + corner, -halfDepth)
-  shape.lineTo(halfWidth - corner, -halfDepth)
-  shape.quadraticCurveTo(halfWidth, -halfDepth, halfWidth, -halfDepth + corner)
-  shape.lineTo(halfWidth, halfDepth - corner)
-  shape.quadraticCurveTo(halfWidth, halfDepth, halfWidth - corner, halfDepth)
-  shape.lineTo(-halfWidth + corner, halfDepth)
-  shape.quadraticCurveTo(-halfWidth, halfDepth, -halfWidth, halfDepth - corner)
-  shape.lineTo(-halfWidth, -halfDepth + corner)
-  shape.quadraticCurveTo(-halfWidth, -halfDepth, -halfWidth + corner, -halfDepth)
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: Math.max(height - 2 * bevel, 0.02),
-    bevelEnabled: true,
-    bevelThickness: bevel,
-    bevelSize: bevel,
-    bevelSegments: 2,
-    steps: 1,
-    curveSegments: 3,
-  })
-  geometry.rotateX(-Math.PI / 2)
-  geometry.translate(0, bevel - height / 2, 0)
-  return geometry
-}
-
-// Floors, mullions, parapet and crown share one instanced draw; window rows get a second one.
-function buildTowerArchitecture(
-  runtime: ProceduralModelRuntime,
-  id: string,
-  width: number,
-  height: number,
-  depth: number,
-  seed: number,
-  tone: TowerTone,
-) {
-  const mesh = runtime.meshes[id]
-  if (!mesh) return
-  mesh.geometry.dispose()
-  mesh.geometry = createBeveledTowerGeometry(width, height, depth)
-  mesh.material = tone.glass
-  mesh.renderOrder = 1
-
-  const core = new THREE.Mesh(
-    new THREE.BoxGeometry(Math.max(width - 0.03, 0.02), Math.max(height - 0.02, 0.02), Math.max(depth - 0.03, 0.02)),
-    tone.core,
-  )
-  core.name = 'tower-solid-core'
-  core.renderOrder = 1
-  mesh.add(core)
-
-  const floorCount = THREE.MathUtils.clamp(Math.round(height / 0.22), 3, 16)
-  const floorHeight = height / floorCount
-  const slabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = []
-  const addSlab = (x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
-    slabs.push({ x, y, z, sx, sy, sz })
-  }
-  addSlab(0, -height / 2 + 0.012, 0, width + 0.026, 0.024, depth + 0.026)
-  for (let floor = 1; floor < floorCount; floor += 1) {
-    addSlab(0, -height / 2 + floor * floorHeight, 0, width + 0.014, 0.012, depth + 0.014)
-  }
-  addSlab(0, height / 2 - 0.012, 0, width + 0.022, 0.024, depth + 0.022)
-  addSlab(0, height / 2 - 0.03, 0, Math.max(width - 0.05, 0.04), 0.006, Math.max(depth - 0.05, 0.04))
-  if (seed === 0) {
-    // The tallest tower carries a setback crown so the skyline reads at a glance.
-    addSlab(0, height / 2 + 0.05, 0, width * 0.62, 0.1, depth * 0.62)
-    addSlab(0, height / 2 + 0.106, 0, width * 0.5, 0.012, depth * 0.5)
-  }
-
-  const bays = Math.max(2, Math.round(width / 0.11))
-  const sideBays = Math.max(2, Math.round(depth / 0.11))
-  const finHeight = Math.max(height - 0.08, 0.1)
-  const finZ = depth / 2 + 0.005
-  const finX = width / 2 + 0.005
-  for (let bay = 1; bay < bays; bay += 1) {
-    const offset = -width / 2 + (bay / bays) * width
-    addSlab(offset, 0, finZ, 0.012, finHeight, 0.014)
-    addSlab(offset, 0, -finZ, 0.012, finHeight, 0.014)
-  }
-  for (let bay = 1; bay < sideBays; bay += 1) {
-    const offset = -depth / 2 + (bay / sideBays) * depth
-    addSlab(finX, 0, offset, 0.014, finHeight, 0.012)
-    addSlab(-finX, 0, offset, 0.014, finHeight, 0.012)
-  }
-
-  const frames = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), tone.frame, slabs.length)
-  towerQuaternion.identity()
-  slabs.forEach((slab, index) => {
-    towerPosition.set(slab.x, slab.y, slab.z)
-    towerScale.set(slab.sx, slab.sy, slab.sz)
-    towerMatrix.compose(towerPosition, towerQuaternion, towerScale)
-    frames.setMatrixAt(index, towerMatrix)
-  })
-  frames.instanceMatrix.needsUpdate = true
-  frames.name = 'tower-floor-frame'
-  frames.renderOrder = 3
-  frames.frustumCulled = false
-  frames.raycast = () => {}
-  mesh.add(frames)
-
-  // Window panels sit behind the glass surface while the floor slabs and fins stand proud,
-  // so every bay reads recessed into the facade.
-  const windowCount = (floorCount - 1) * (bays * 2 + sideBays * 2)
-  const windows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), tone.window, windowCount)
-  const panelHeight = floorHeight * 0.52
-  let windowIndex = 0
-  for (let floor = 1; floor < floorCount; floor += 1) {
-    const y = -height / 2 + (floor - 0.5) * floorHeight
-    for (const face of TOWER_FACES) {
-      const faceBays = face.axis === 'z' ? bays : sideBays
-      const span = face.axis === 'z' ? width : depth
-      const inset = (face.axis === 'z' ? depth / 2 : width / 2) - 0.005
-      towerQuaternion.setFromAxisAngle(TOWER_UP, face.rotation)
-      for (let bay = 0; bay < faceBays; bay += 1) {
-        const offset = -span / 2 + ((bay + 0.5) / faceBays) * span
-        if (face.axis === 'z') towerPosition.set(offset, y, face.sign * inset)
-        else towerPosition.set(face.sign * inset, y, offset)
-        towerScale.set((span / faceBays) * 0.62, panelHeight, 1)
-        towerMatrix.compose(towerPosition, towerQuaternion, towerScale)
-        windows.setMatrixAt(windowIndex, towerMatrix)
-        const lit = towerPatternHash(id, floor, bay + face.index * 13) < 0.38
-        towerColor.set(lit ? '#4f97e8' : '#0a2136')
-        windows.setColorAt(windowIndex, towerColor)
-        windowIndex += 1
-      }
-    }
-  }
-  windows.instanceMatrix.needsUpdate = true
-  if (windows.instanceColor) windows.instanceColor.needsUpdate = true
-  windows.name = 'tower-window-panel'
-  windows.renderOrder = 2
-  windows.frustumCulled = false
-  windows.raycast = () => {}
-  mesh.add(windows)
-
-  const roofY = seed === 0 ? height / 2 + 0.112 : height / 2
-  const roofHalfWidth = (seed === 0 ? width * 0.5 : width) / 2
-  const roofHalfDepth = (seed === 0 ? depth * 0.5 : depth) / 2
-  addTechnicalRods(mesh, [
-    -roofHalfWidth, roofY, -roofHalfDepth, roofHalfWidth, roofY, -roofHalfDepth,
-    roofHalfWidth, roofY, -roofHalfDepth, roofHalfWidth, roofY, roofHalfDepth,
-    roofHalfWidth, roofY, roofHalfDepth, -roofHalfWidth, roofY, roofHalfDepth,
-    -roofHalfWidth, roofY, roofHalfDepth, -roofHalfWidth, roofY, -roofHalfDepth,
-  ], { thickness: 0.008, opacity: 0.45, name: 'tower-roof-outline', color: '#6fa8ff', blending: THREE.NormalBlending })
-}
-
 function addCylinderGrid(parent: THREE.Object3D, radius: number, height: number, horizontalCount: number, verticalCount: number, opacity: number) {
   const positions: number[] = []
   for (let row = 1; row <= horizontalCount; row += 1) {
@@ -402,18 +196,6 @@ function addScatteredNodes(parent: THREE.Object3D, positions: number[], size: nu
   return nodes
 }
 
-function addTowerDataMarks(parent: THREE.Object3D, width: number, height: number, depth: number, density: number) {
-  const positions: number[] = []
-  for (let index = 0; index < density; index += 1) {
-    const y = (-0.34 + index / Math.max(density - 1, 1) * 0.68) * height
-    const start = -width * 0.3
-    const end = start + width * [0.3, 0.62, 0.45, 0.76][index % 4]
-    positions.push(start, y, depth / 2 + 0.012, end, y, depth / 2 + 0.012)
-    if (index % 2 === 0) positions.push(end, y - height * 0.025, depth / 2 + 0.013, end, y + height * 0.025, depth / 2 + 0.013)
-  }
-  addTechnicalLine(parent, positions, 0.35, '#6fa8ff')
-}
-
 function addCapSolarRays(parent: THREE.Object3D) {
   for (const [innerRadius, outerRadius, opacity] of [[0.06, 0.26, 0.4], [0.26, 0.52, 0.22], [0.52, 0.82, 0.08]]) {
     const positions: number[] = []
@@ -422,72 +204,6 @@ function addCapSolarRays(parent: THREE.Object3D) {
       positions.push(innerRadius * Math.cos(angle), 0.038, innerRadius * Math.sin(angle), outerRadius * Math.cos(angle), 0.038, outerRadius * Math.sin(angle))
     }
     addTechnicalLine(parent, positions, opacity)
-  }
-}
-
-type TowerRiser = {
-  mesh: THREE.InstancedMesh
-  baseX: Float32Array
-  baseZ: Float32Array
-  phases: Float32Array
-  speeds: Float32Array
-  lengths: Float32Array
-  height: number
-}
-
-const riserMatrix = new THREE.Matrix4()
-const riserPosition = new THREE.Vector3()
-const riserScale = new THREE.Vector3()
-const riserQuaternion = new THREE.Quaternion()
-
-// Data motes drift up inside each glass tower, from the deck to the tower top.
-function addTowerRiser(parent: THREE.Object3D, width: number, depth: number, height: number, seed: number): TowerRiser {
-  const count = Math.max(14, Math.round(height * 12))
-  const baseX = new Float32Array(count)
-  const baseZ = new Float32Array(count)
-  const phases = new Float32Array(count)
-  const speeds = new Float32Array(count)
-  const lengths = new Float32Array(count)
-  const mesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.012, 1, 0.012),
-    // Dim steel-blue motes so they read through the glass without turning into white sparks.
-    new THREE.MeshBasicMaterial({ color: '#5b9cf0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
-    count,
-  )
-  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-  for (let index = 0; index < count; index += 1) {
-    const angle = (index * 2.399963 + seed * 1.7) % (Math.PI * 2)
-    const radial = 0.10 + 0.30 * ((index * 0.618 + seed * 0.37) % 1)
-    baseX[index] = Math.cos(angle) * width * radial
-    baseZ[index] = Math.sin(angle) * depth * radial
-    phases[index] = (index * 0.377 + seed * 0.21) % 1
-    speeds[index] = 0.35 + ((index * 0.733 + seed * 0.19) % 1) * 0.55
-    lengths[index] = 0.08 + ((index * 0.291 + seed * 0.53) % 1) * 0.12
-  }
-  mesh.name = 'tower-rising-particles'
-  mesh.renderOrder = 7
-  parent.add(mesh)
-  const riser = { mesh, baseX, baseZ, phases, speeds, lengths, height }
-  syncTowerRisers([riser], 0)
-  return riser
-}
-
-function syncTowerRisers(risers: TowerRiser[], elapsedSeconds: number) {
-  for (const riser of risers) {
-    const { mesh, baseX, baseZ, phases, speeds, lengths, height } = riser
-    for (let index = 0; index < phases.length; index += 1) {
-      const travel = (phases[index] + elapsedSeconds * speeds[index] * 0.32) % 1
-      riserPosition.set(
-        baseX[index] + Math.sin(elapsedSeconds * 1.6 + phases[index] * 6.283) * 0.012,
-        // Trails overshoot the tower roof by a fifth of the tower height.
-        -height / 2 + travel * height * 1.2,
-        baseZ[index] + Math.cos(elapsedSeconds * 1.3 + phases[index] * 6.283) * 0.012,
-      )
-      riserScale.set(1, lengths[index], 1)
-      riserMatrix.compose(riserPosition, riserQuaternion, riserScale)
-      mesh.setMatrixAt(index, riserMatrix)
-    }
-    mesh.instanceMatrix.needsUpdate = true
   }
 }
 
@@ -508,7 +224,7 @@ function applyHolographicMaterials(runtime: ProceduralModelRuntime) {
     material.color.set(preset.color)
     material.emissive.set(preset.emissive)
     material.emissiveIntensity = preset.intensity
-    material.opacity = TOWER_OPACITY[componentId] ?? TIER_OPACITY[componentId] ?? preset.opacity
+    material.opacity = TIER_OPACITY[componentId] ?? preset.opacity
     mesh.userData.holographicMaterialRole = materialRole
     mesh.renderOrder = 1
   }
@@ -529,133 +245,9 @@ function applyHolographicMaterials(runtime: ProceduralModelRuntime) {
   }
 }
 
-// Reference-derived proportions: tower tops reach from just below to well above the core cap,
-// measured against the primary image (deck top y=0.45, cap top ≈2.86).
-const TOWER_BASE_Y = 0.45
-const TOWER_HEIGHTS: Record<string, [number, number]> = {
-  'tower-01-back-high': [2.65, 3.3], 'tower-02': [1.95, 2.7], 'tower-03': [1.7, 2.5],
-  'tower-04': [1.2, 2], 'tower-05': [0.85, 1.35], 'tower-06': [1, 1.6],
-  'tower-07': [1.3, 1.9], 'tower-08': [1.8, 2.4], 'tower-09': [1.95, 2.75],
-}
-
-type AdditionalTower = {
-  id: string
-  name: string
-  angleDegrees: number
-  radius: number
-  width: number
-  height: number
-  depth: number
-  level: string
-  baseY: number
-}
-
-// Second ring: one tower between every pair of the original nine, pulled within 9 degrees of the
-// arc midpoint and widened until the nearest AABB gap lands in 0.10-0.38, so the ring reads as one
-// dense tier instead of a sparse set of columns.
-// Containment on the base: r + sqrt(2)*(w/2 + plinth 0.02) stays under 3.06, inside the rim at
-// 3.091, and r - sqrt(2)*(w/2 + 0.02) stays above the sector band's inner radius 2.15. Those
-// bounds cap the tall columns at w 0.596 and the low ones at w 0.41.
-// baseY 0.50 is the sector plate top, so the ring stands on the sectors instead of the deck.
-// tower-15 has no room on the ring between tower-18 (337.5) and tower-04 (355), so it drops onto
-// the inner projection field (flat annulus r 0.96-2.15) at baseY 0.45 with no plinth; its footprint
-// stays inside that annulus and it forms the lowest step of the tiered cluster.
-const OUTER_TOWERS: AdditionalTower[] = [
-  { id: 'tower-10', name: 'Outer ring tower 10', angleDegrees: 14.5, radius: 2.6, width: 0.58, height: 2.1, depth: 0.58, level: 'meso', baseY: 0.5 },
-  { id: 'tower-11', name: 'Outer ring tower 11', angleDegrees: 63, radius: 2.74, width: 0.4, height: 1.2, depth: 0.4, level: 'meso', baseY: 0.5 },
-  { id: 'tower-12', name: 'Outer ring tower 12', angleDegrees: 96.5, radius: 2.6, width: 0.58, height: 2.15, depth: 0.58, level: 'meso', baseY: 0.5 },
-  { id: 'tower-13', name: 'Outer ring tower 13', angleDegrees: 151.5, radius: 2.74, width: 0.4, height: 1.35, depth: 0.4, level: 'meso', baseY: 0.5 },
-  { id: 'tower-14', name: 'Outer ring tower 14', angleDegrees: 181.5, radius: 2.6, width: 0.58, height: 2, depth: 0.58, level: 'meso', baseY: 0.5 },
-  { id: 'tower-15', name: 'Inner projection field tower 15', angleDegrees: 346, radius: 1.5, width: 0.34, height: 1.1, depth: 0.34, level: 'micro', baseY: 0.45 },
-  { id: 'tower-16', name: 'Outer ring tower 16', angleDegrees: 241.5, radius: 2.6, width: 0.58, height: 1.95, depth: 0.58, level: 'meso', baseY: 0.5 },
-  { id: 'tower-17', name: 'Outer ring tower 17', angleDegrees: 282.5, radius: 2.74, width: 0.4, height: 1.3, depth: 0.4, level: 'micro', baseY: 0.5 },
-  { id: 'tower-18', name: 'Outer ring tower 18', angleDegrees: 337.5, radius: 2.6, width: 0.58, height: 2.05, depth: 0.58, level: 'meso', baseY: 0.5 },
-]
-const OUTER_TOWER_IDS = new Set(OUTER_TOWERS.map(tower => tower.id))
-for (const tower of OUTER_TOWERS) TOWER_HEIGHTS[tower.id] = [tower.height, tower.height]
-
-function createOuterTowers(runtime: ProceduralModelRuntime, model: THREE.Object3D) {
-  const root = runtime.nodes['root'] ?? model
-  const dimensions: Array<[string, number, number, number]> = []
-  // Sector plates are 0.0425 above the deck, so towers in the plate gaps get a thin footing
-  // instead of hovering over the deck.
-  const plinthMaterial = new THREE.MeshStandardMaterial({
-    color: '#041a3a', emissive: '#082f60', emissiveIntensity: 0.2, transparent: true, opacity: 0.9,
-    roughness: 0.55, metalness: 0.08, depthWrite: false, side: THREE.DoubleSide,
-  })
-  for (const tower of OUTER_TOWERS) {
-    const angle = THREE.MathUtils.degToRad(tower.angleDegrees)
-    const node = new THREE.Group()
-    node.name = tower.name
-    node.position.set(Math.cos(angle) * tower.radius, tower.baseY + tower.height / 2, Math.sin(angle) * tower.radius)
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(tower.width, tower.height, tower.depth))
-    mesh.name = tower.name
-    mesh.userData.sculptComponent = {
-      id: tower.id,
-      name: tower.name,
-      level: tower.level,
-      role: 'projected-part',
-      importance: 0.6,
-      confidence: 0.7,
-      primitive: 'box',
-      topologyClass: 'assembled-solid',
-      dimensions: { width: tower.width, height: tower.height, depth: tower.depth, units: 'relative', confidence: 0.6 },
-      material: 'blue-face',
-      materialLayers: ['blue-face'],
-    }
-    // The plinth only bridges the 0.0425 gap between deck top and sector top; a tower based at
-    // TOWER_BASE_Y already sits in the deck surface, so it must not hang a footing below it.
-    if (tower.baseY > TOWER_BASE_Y) {
-      const plinth = new THREE.Mesh(
-        new THREE.BoxGeometry(tower.width + 0.04, 0.0425, tower.depth + 0.04),
-        plinthMaterial,
-      )
-      plinth.name = 'tower-plinth'
-      plinth.position.y = -tower.height / 2 - 0.02125
-      plinth.renderOrder = 1
-      mesh.add(plinth)
-    }
-    node.add(mesh)
-    root.add(node)
-    runtime.nodes[tower.id] = node
-    runtime.meshes[tower.id] = mesh
-    dimensions.push([tower.id, tower.width, tower.height, tower.depth])
-  }
-  return dimensions
-}
-
-// The generated radii leave a 0.27-0.38 gap to the mid collar, so the original nine read as a
-// loose ring. Pulling each one in until its nearest footprint edge lands at r ~1.49 puts all but
-// tower-04 on a shared inner face 0.14 outside the collar (rendered outer radius 1.3485).
-// tower-01 already sits at 1.484; tower-04 keeps its generated radius because tower-15 occupies
-// the inner slot at 346 degrees (0.157 gap), so pulling it in would overlap.
-const ORIGINAL_TOWER_RADII: Record<string, number> = {
-  'tower-02': 1.75,
-  'tower-03': 1.8308,
-  'tower-05': 1.7639,
-  'tower-06': 1.7498,
-  'tower-07': 1.7984,
-  'tower-08': 1.7843,
-  'tower-09': 1.8007,
-}
-
 function conformToReference(runtime: ProceduralModelRuntime) {
-  for (const [id, [, target]] of Object.entries(TOWER_HEIGHTS)) {
-    // The outer ring is built later at its own sector-plate base height.
-    if (OUTER_TOWER_IDS.has(id)) continue
-    const mesh = runtime.meshes[id]
-    const node = runtime.nodes[id]
-    if (!mesh || !node) continue
-    // Tower geometry is rebuilt at reference height, so it never needs to be stretched.
-    mesh.scale.y = 1
-    node.position.y = TOWER_BASE_Y + target / 2
-    const pulledRadius = ORIGINAL_TOWER_RADII[id]
-    if (pulledRadius !== undefined) {
-      const pull = pulledRadius / Math.hypot(node.position.x, node.position.z)
-      node.position.x *= pull
-      node.position.z *= pull
-    }
-  }
+  conformOriginalTowers(runtime)
+
   const upperMesh = runtime.meshes['core-upper']
   const upperNode = runtime.nodes['core-upper']
   if (upperMesh && upperNode) {
@@ -999,6 +591,20 @@ function applyTierContrast(runtime: ProceduralModelRuntime) {
   }
 }
 
+// Build order is load-bearing: each step reads state the previous one left in runtime.meshes /
+// runtime.nodes. The Phase 0 fingerprint fails if any of these is reordered.
+//   I1 applyHolographicMaterials runs before the tower architecture — it rewrites the material each mesh
+//      already carries, so it must not run after towers swap in their shared tone.glass.
+//   I2 conformOriginalTowers runs before registerDetach — radialOffset reads node.position when it registers.
+//   I3 createOuterTowers runs before the architecture, registerDetach, the selection contours and
+//      pickableMeshes — all four read runtime.meshes / runtime.nodes.
+//   I4 buildTowerArchitecture runs before the selection-contour loop — that step replaces mesh.geometry and
+//      EdgesGeometry reads the geometry at construction.
+//   I5 Risers are created after createOuterTowers — they are parented to runtime.nodes[id].
+//   I6 Every tower child exists before the model.traverse that assigns raycast = () => {}. That sweep is the
+//      safety net: anything outside pickableMeshes stops answering the pointer. By design; keep it.
+//   I7 The first resetMotion runs after every subsystem is built — it touches risers, spool, constellation
+//      and inbound streams.
 export function createHolographicCoreProductModel(): HolographicCoreProductModel {
   const model = createHolographicOrbitalDataCoreV2Model({
     castShadow: false,
@@ -1111,65 +717,10 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     addScatteredNodes(runtime.meshes['base-deck'] ?? model, [1.58, 0.026, 1.18, -1.35, 0.026, 1.48, 2.3, 0.026, -1.42, -2.42, 0.026, -0.7, 0.44, 0.026, -2.18, -0.65, 0.026, 2.42], 0.018),
     addScatteredNodes(runtime.meshes['base-intermediate'] ?? model, [2.44, 0.108, 0.45, -2.31, 0.108, -0.72, 0.42, 0.108, -2.5], 0.014),
   ]
-  const outerTowerDimensions = createOuterTowers(runtime, model)
-  const towerDimensions: Array<[string, number, number, number]> = [
-    ['tower-01-back-high', 0.76, 3.3, 0.76], ['tower-02', 0.48, 2.7, 0.48], ['tower-03', 0.45, 2.5, 0.45],
-    ['tower-04', 0.42, 2, 0.42], ['tower-05', 0.36, 1.35, 0.36], ['tower-06', 0.4, 1.6, 0.4],
-    ['tower-07', 0.42, 1.9, 0.42], ['tower-08', 0.46, 2.4, 0.46], ['tower-09', 0.46, 2.75, 0.46],
-    ...outerTowerDimensions,
-  ]
-  // Shared architectural palette: deep-blue glass volumes, dark structural frames and a soft
-  // window glow, so nine towers stay inside a handful of draw calls.
-  const towerTone: TowerTone = {
-    glass: new THREE.MeshPhysicalMaterial({
-      // Steel-blue volume that stays well below the core's HDR cyan.
-      color: '#0a2848', transparent: true, opacity: 0.36, roughness: 0.4, metalness: 0.04,
-      clearcoat: 0.28, clearcoatRoughness: 0.5, emissive: '#031a42', emissiveIntensity: 0.42,
-      depthWrite: false, side: THREE.DoubleSide,
-    }),
-    core: new THREE.MeshStandardMaterial({
-      // No depth write so the interior glow stays visible; the block itself stays faint.
-      color: '#010c24', emissive: '#031a3a', emissiveIntensity: 0.3, transparent: true, opacity: 0.3,
-      roughness: 0.5, metalness: 0, depthWrite: false, side: THREE.DoubleSide,
-    }),
-    frame: new THREE.MeshStandardMaterial({
-      color: '#2a6fdb', emissive: '#1b5fbf', emissiveIntensity: 0.55, transparent: true, opacity: 0.9,
-      roughness: 0.55, metalness: 0.08, depthWrite: false, side: THREE.DoubleSide,
-    }),
-    window: new THREE.MeshBasicMaterial({
-      // Outward-facing only: far-side rows no longer double up through the glass.
-      color: '#ffffff', transparent: true, opacity: 0.34, depthWrite: false,
-      blending: THREE.NormalBlending, toneMapped: false,
-    }),
-  }
-  // Bright steel-blue corner posts; cyan is reserved for the core tier.
-  const cornerPostMaterial = new THREE.MeshBasicMaterial({
-    color: '#6fa8ff',
-    transparent: true,
-    opacity: 0.62,
-    depthWrite: false,
-    blending: THREE.NormalBlending,
-    toneMapped: false,
-  })
-  towerDimensions.forEach(([id, width, height, depth], seed) => {
-    const tower = runtime.meshes[id]
-    if (!tower) return
-    buildTowerArchitecture(runtime, id, width, height, depth, seed, towerTone)
-    addTowerCornerPosts(tower, width, height, depth, cornerPostMaterial)
-  })
-  const towerDetailPlan: Array<[string, number]> = [
-    ['tower-01-back-high', 8], ['tower-04', 6], ['tower-06', 7], ['tower-09', 4], ['tower-12', 5],
-  ]
-  towerDetailPlan.forEach(([id, density]) => {
-    const tower = towerDimensions.find(([towerId]) => towerId === id)
-    if (!tower) return
-    const [, width, height, depth] = tower
-    addTowerDataMarks(runtime.meshes[id] ?? model, width, height, depth, density)
-  })
-  const risers = towerDimensions.map(([id, width, , depth], seed) => {
-    const target = TOWER_HEIGHTS[id]?.[1] ?? 1.5
-    return addTowerRiser(runtime.nodes[id] ?? model, width, depth, target, seed + 1)
-  })
+  // Towers: build order, placement, the shared materials and the riser animation all live in
+  // tower-ring.ts, at exactly this position in the pipeline (see the invariants above).
+  const towerRing = createTowerRing(runtime, model)
+
   const runner = new THREE.Group()
   runner.name = 'orbit-violet-runner'
   runner.position.y = 0.769
@@ -1225,9 +776,9 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     offset.y = lift
     return offset
   }
-  for (const id of Object.keys(TOWER_HEIGHTS)) {
+  for (const id of TOWER_IDS) {
     // The outer ring starts farther out, so it travels less to stay inside the frame.
-    registerDetach(id, radialOffset(id, OUTER_TOWER_IDS.has(id) ? 0.5 : 0.85, 0.35))
+    registerDetach(id, radialOffset(id, OUTER_TOWER_IDS.has(id) ? DETACH_DISTANCE.outer : DETACH_DISTANCE.original, DETACH_DISTANCE.lift))
   }
   for (let index = 1; index <= 8; index += 1) registerDetach(`base-sector-0${index}`, radialOffset(`base-sector-0${index}`, 0.5, 0))
   registerDetach('core-upper', new THREE.Vector3(0, 0.42, 0))
@@ -1352,7 +903,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     luminousNodes.forEach(nodes => { (nodes.material as THREE.MeshBasicMaterial).opacity = 0.72 })
     beamMaterial.opacity = 0.45
     selectionContours.forEach(contour => { (contour.material as THREE.LineBasicMaterial).opacity = 0.95 })
-    syncTowerRisers(risers, 0)
+    towerRing.reset()
     inboundStreams.reset()
     constellation?.reset()
     spool?.reset()
@@ -1381,7 +932,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       ;(footHotspot.material as THREE.MeshBasicMaterial).opacity = 0.29 + Math.sin(elapsedSeconds * 1.1 + 2) * 0.02
       axialSpines.forEach(spine => { (spine.material as THREE.MeshBasicMaterial).opacity = 0.48 + Math.sin(elapsedSeconds * 1.1) * 0.06 })
       luminousNodes.forEach((nodes, index) => { (nodes.material as THREE.MeshBasicMaterial).opacity = 0.52 + (Math.sin(elapsedSeconds * 1.4 + index * 0.9) + 1) * 0.08 })
-      syncTowerRisers(risers, elapsedSeconds)
+      towerRing.update(elapsedSeconds)
       beamMaterial.opacity = 0.42 + Math.sin(elapsedSeconds * 0.9) * 0.06
       selectionContours.forEach(contour => {
         if (contour.visible) (contour.material as THREE.LineBasicMaterial).opacity = 0.8 + Math.sin(elapsedSeconds * 4) * 0.2
