@@ -125,6 +125,81 @@ function spinY(p: THREE.Vector3, theta: number) {
   return new THREE.Vector3(p.x * cos + p.z * sin, p.y, -p.x * sin + p.z * cos)
 }
 
+// Meridian raster of a tower's DRAWN surfaces. Rotating a point about Y keeps its (r, y) and lets
+// it reach every azimuth, so for a fixed surface patch T:
+//   min over yaw of dist(spinY(p, yaw), T)  ==  dist in the (r, y) plane from (r_p, y_p) to
+//   {(hypot(x, z), y) : q in T}
+// i.e. the whole 3D sweep collapses to a 2D distance to the projected triangles. That is what
+// separates "the tube enters the bounding box" from "the tube touches real geometry": a bevelled
+// corner leaves box volume with no surface in it.
+const CELL = 0.002
+const R_ORIGIN = 1.0
+const Y_ORIGIN = 0.3
+const cellKey = (ir: number, iy: number) => ir * 4096 + iy
+
+function meridianCellsOf(node: THREE.Object3D, step: number) {
+  const cells = new Map<number, string>()
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const c = new THREE.Vector3()
+  const ab = new THREE.Vector3()
+  const ac = new THREE.Vector3()
+  const p = new THREE.Vector3()
+  node.traverse(object => {
+    const mesh = object as THREE.Mesh
+    if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return
+    const position = mesh.geometry.getAttribute('position')
+    if (!position) return
+    const index = mesh.geometry.getIndex()
+    const matrices: THREE.Matrix4[] = []
+    if (mesh instanceof THREE.InstancedMesh) {
+      for (let s = 0; s < mesh.count; s += 1) {
+        const local = new THREE.Matrix4()
+        mesh.getMatrixAt(s, local)
+        matrices.push(new THREE.Matrix4().multiplyMatrices(mesh.matrixWorld, local))
+      }
+    } else {
+      matrices.push(mesh.matrixWorld)
+    }
+    const faces = Math.floor((index ? index.count : position.count) / 3)
+    for (let t = 0; t < faces; t += 1) {
+      const corners = index
+        ? [index.getX(3 * t), index.getX(3 * t + 1), index.getX(3 * t + 2)]
+        : [3 * t, 3 * t + 1, 3 * t + 2]
+      for (const matrix of matrices) {
+        a.fromBufferAttribute(position, corners[0]).applyMatrix4(matrix)
+        b.fromBufferAttribute(position, corners[1]).applyMatrix4(matrix)
+        c.fromBufferAttribute(position, corners[2]).applyMatrix4(matrix)
+        ab.subVectors(b, a)
+        ac.subVectors(c, a)
+        const n = Math.min(240, Math.max(2, Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / step)))
+        for (let i = 0; i <= n; i += 1) for (let j = 0; j <= n - i; j += 1) {
+          p.copy(a).addScaledVector(ab, i / n).addScaledVector(ac, j / n)
+          const k = cellKey(Math.round((Math.hypot(p.x, p.z) - R_ORIGIN) / CELL), Math.round((p.y - Y_ORIGIN) / CELL))
+          if (!cells.has(k)) cells.set(k, mesh.name)
+        }
+      }
+    }
+  })
+  return cells
+}
+
+// Distance from one orbit point to the nearest covered cell, minus its own radius.
+function surfaceGapOf(v: THREE.Vector3, cells: Map<number, string>, pad: number) {
+  const ir = Math.round((Math.hypot(v.x, v.z) - R_ORIGIN) / CELL)
+  const iy = Math.round((v.y - Y_ORIGIN) / CELL)
+  const window = Math.ceil(0.06 / CELL)
+  let best = Infinity
+  let owner = ''
+  for (let dr = -window; dr <= window; dr += 1) for (let dy = -window; dy <= window; dy += 1) {
+    const ownerHere = cells.get(cellKey(ir + dr, iy + dy))
+    if (ownerHere === undefined) continue
+    const d = Math.hypot(dr * CELL, dy * CELL)
+    if (d < best) { best = d; owner = ownerHere }
+  }
+  return { gap: best - pad, owner, found: best < Infinity }
+}
+
 const f = (n: number) => n.toFixed(4)
 it('orbit vs tower + core clearance (measurement, not an assertion of taste)', () => {
   const { model } = createHolographicCoreProductModel()
@@ -277,6 +352,36 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   lines.push(`   brute-force 512-yaw sweep of ${sweptMin.id}: ${f(brute)}  -> formula error ${f(Math.abs(brute - sweptMin.gap))}`)
   expect(Math.abs(brute - sweptMin.gap)).toBeLessThan(0.002)
   expect(sweptMin.gap).toBeLessThanOrEqual(globalMin)
+
+  // 6. Box3 or drawn surface? Only points the shell model already calls < 0.06 can bind, because
+  //    the box projection contains the surface projection, so the real gap is never smaller.
+  lines.push('')
+  const cells = meridianCellsOf(runtime.nodes[sweptMin.id], 0.004)
+  const shell = sweptMin.shell
+  const candidates = points.filter(p => sweptGap(p.v, shell, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0) < 0.06)
+  let surfaceWorst = { gap: Infinity, p: candidates[0], owner: '' }
+  for (const key of ['bead', 'tube'] as const) {
+    let worst = { gap: Infinity, p: candidates[0], owner: '' }
+    let touching = 0
+    const total = candidates.filter(p => p.bead === (key === 'bead')).length
+    for (const p of candidates) {
+      if ((key === 'bead') !== p.bead) continue
+      const s = surfaceGapOf(p.v, cells, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      if (s.found && s.gap < 1.5 * CELL) touching += 1
+      if (s.found && s.gap < worst.gap) worst = { gap: s.gap, p, owner: s.owner }
+    }
+    if (worst.gap < surfaceWorst.gap) surfaceWorst = worst
+    // A zero-radius sample can only ever read 0 in projection (the silhouette is filled), so 0.0000
+    // for the tube means "coincides with a drawn surface at some yaw", NOT "clears". Only padded
+    // bodies (the beads) get a measurable depth.
+    const verdict = worst.gap < 0 ? `CROSSES by ${f(-worst.gap)}` : worst.gap < 1.5 * CELL ? 'TOUCHES (0 depth: projection cannot measure how deep)' : `clears by ${f(worst.gap)}`
+    lines.push(`   ${key} vs DRAWN surface of ${sweptMin.id}: ${verdict}` +
+      `  [binding: ring ${worst.p.ring} r ${f(Math.hypot(worst.p.v.x, worst.p.v.z))} y ${f(worst.p.v.y)} cell drawn by ${worst.owner || 'the surface itself'}]` +
+      `  ${touching}/${total} candidate ${key} points actually touch it`)
+  }
+  lines.push(`   raster: ${cells.size} cells @${CELL * 1000} mm, ${candidates.length}/${points.length} points inside the box's swept shell` +
+    `  (quantisation error ~${(1.5 * CELL).toFixed(4)})`)
+  expect(surfaceWorst.gap).toBeGreaterThanOrEqual(sweptMin.gap - 0.005)
 
   lines.push('')
   lines.push(`orbit y band ${f(Math.min(...points.map(p => p.v.y)))}..${f(maxY)}, xz bbox ${spread(built)}`)
