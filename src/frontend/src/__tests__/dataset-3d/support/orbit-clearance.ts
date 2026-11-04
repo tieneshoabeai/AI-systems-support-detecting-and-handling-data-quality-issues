@@ -25,8 +25,8 @@
 import * as THREE from 'three'
 import { SPOOL_CORE } from '../../../graphics/holographic-core/core-visual-config'
 
-export const ORIGINAL_TOWER_IDS = ['tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-05', 'tower-06', 'tower-07', 'tower-08', 'tower-09']
-export const OUTER_TOWER_IDS = ['tower-10', 'tower-11', 'tower-12', 'tower-13', 'tower-14', 'tower-15', 'tower-16', 'tower-17', 'tower-18']
+export const ORIGINAL_TOWER_IDS = ['tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-07', 'tower-08', 'tower-09']
+export const OUTER_TOWER_IDS = ['tower-10', 'tower-12', 'tower-13', 'tower-14', 'tower-16', 'tower-17', 'tower-18']
 export const ALL_TOWER_IDS = [...ORIGINAL_TOWER_IDS, ...OUTER_TOWER_IDS]
 
 // Fixed order, never sorted by the measurement: if a tower disappears the lines shift and the diff
@@ -151,15 +151,42 @@ export function shellSurfaceGap(p: THREE.Vector3, radius: number, y0: number, y1
   return Math.hypot(Math.abs(Math.hypot(p.x, p.z) - radius), dy)
 }
 
-export type CoreSurface = { name: string; solid: boolean; radius: number; y0: number; y1: number }
+export type CoreSurface = { name: string; solid: boolean; radius: number; y0: number; y1: number; innerRadius?: number; closed?: boolean; bottomRadius?: number }
+
+export function coreSurfaceGap(p: THREE.Vector3, surface: CoreSurface): number {
+  const { radius, y0, y1 } = surface
+  if (surface.solid) return discGap(p, radius, y0, y1)
+  let gap = shellSurfaceGap(p, radius, y0, y1)
+  if (surface.bottomRadius !== undefined) {
+    const radial = Math.hypot(p.x, p.z)
+    const dr = radius - surface.bottomRadius
+    const dy = y1 - y0
+    const t = Math.min(1, Math.max(0,
+      ((radial - surface.bottomRadius) * dr + (p.y - y0) * dy) / (dr * dr + dy * dy),
+    ))
+    gap = Math.hypot(radial - surface.bottomRadius - t * dr, p.y - y0 - t * dy)
+  }
+  if (surface.innerRadius !== undefined) {
+    gap = Math.min(gap, shellSurfaceGap(p, surface.innerRadius, y0, y1))
+  }
+  if (surface.closed) {
+    const radial = Math.hypot(p.x, p.z)
+    gap = Math.min(gap,
+      Math.hypot(Math.max(radial - (surface.bottomRadius ?? radius), 0), p.y - y0),
+      Math.hypot(Math.max(radial - radius, 0), p.y - y1),
+    )
+  }
+  return gap
+}
 
 // Derived from config, not copied: if a later phase edits SPOOL_CORE, these follow it and the pinned
 // gap moves instead of the surface silently disappearing from the measurement.
 export function coreSurfaces(): CoreSurface[] {
-  const { platform, baseGlass, lowerBand, chamber, cap } = SPOOL_CORE
+  const { platform, baseGlass, lowerRoof, lowerBand, chamber, cap } = SPOOL_CORE
   return [
     { name: 'platform-disc', solid: true, radius: platform.radius, y0: platform.centerY - platform.thickness / 2, y1: platform.centerY + platform.thickness / 2 },
-    { name: 'base-glass', solid: false, radius: baseGlass.radius, y0: baseGlass.centerY - baseGlass.height / 2, y1: baseGlass.centerY + baseGlass.height / 2 },
+    { name: 'base-glass', solid: false, radius: baseGlass.radius, innerRadius: baseGlass.innerRadius, closed: true, y0: baseGlass.centerY - baseGlass.height / 2, y1: baseGlass.centerY + baseGlass.height / 2 },
+    { name: 'lower-roof', solid: false, radius: lowerRoof.topRadius, bottomRadius: lowerRoof.bottomRadius, closed: true, y0: lowerRoof.bottomY, y1: lowerRoof.topY },
     { name: 'lower-band', solid: false, radius: lowerBand.radius, y0: lowerBand.centerY - lowerBand.height / 2, y1: lowerBand.centerY + lowerBand.height / 2 },
     { name: 'chamber-glass', solid: false, radius: chamber.radius, y0: chamber.centerY - chamber.height / 2, y1: chamber.centerY + chamber.height / 2 },
     { name: 'chamber-backdrop', solid: false, radius: chamber.radius - chamber.wall - chamber.backdrop.radiusInset, y0: chamber.centerY - chamber.height / 2 + chamber.backdrop.heightInset, y1: chamber.centerY + chamber.height / 2 - chamber.backdrop.heightInset },
@@ -245,10 +272,13 @@ export function buildClearance(model: THREE.Object3D): string[] {
     let gap = Infinity
     let worst = points[0]
     for (const p of points) {
-      const g = (s.solid ? discGap : shellSurfaceGap)(p.v, s.radius, s.y0, s.y1) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      const g = coreSurfaceGap(p.v, s) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
       if (g < gap) { gap = g; worst = p }
     }
-    lines.push(`core|${s.name}|r=${q(s.radius)}|y=${q(s.y0)},${q(s.y1)}|gap=${q(gap)}` +
+    lines.push(`core|${s.name}|r=${q(s.radius)}|y=${q(s.y0)},${q(s.y1)}` +
+      (s.innerRadius !== undefined ? `|inner=${q(s.innerRadius)}` : '') +
+      (s.bottomRadius !== undefined ? `|bottomRadius=${q(s.bottomRadius)}` : '') +
+      (s.closed ? '|closed=1' : '') + `|gap=${q(gap)}` +
       `|at=ring ${worst.ring},${worst.bead ? 'bead' : 'tube'},reach ${q(worst.reach)},y ${q(worst.v.y)}`)
   }
   return lines

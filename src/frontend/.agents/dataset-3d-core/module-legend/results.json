@@ -1,0 +1,71 @@
+[
+  {
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "collapsed": {
+      "x": 229,
+      "y": 144.28125,
+      "width": 44,
+      "height": 46
+    },
+    "expanded": {
+      "x": 229,
+      "y": 144.28125,
+      "width": 232,
+      "height": 231.65625
+    },
+    "keyboard": "Enter + Space passed",
+    "cameraUnchangedByToggle": true,
+    "detachPreservesState": true,
+    "zoomPreservesState": true,
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "collapsed": {
+      "x": 49.71875,
+      "y": 141,
+      "width": 44,
+      "height": 46
+    },
+    "expanded": {
+      "x": 49.71875,
+      "y": 141,
+      "width": 232,
+      "height": 231.65625
+    },
+    "keyboard": "Enter + Space passed",
+    "cameraUnchangedByToggle": true,
+    "detachPreservesState": true,
+    "zoomPreservesState": true,
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "collapsed": {
+      "x": 29,
+      "y": 133.375,
+      "width": 44,
+      "height": 46
+    },
+    "expanded": {
+      "x": 29,
+      "y": 133.375,
+      "width": 232,
+      "height": 115.375
+    },
+    "keyboard": "Enter + Space passed",
+    "cameraUnchangedByToggle": true,
+    "detachPreservesState": true,
+    "zoomPreservesState": true,
+    "errors": []
+  }
+]

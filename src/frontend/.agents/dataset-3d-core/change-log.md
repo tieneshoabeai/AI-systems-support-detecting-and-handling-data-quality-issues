@@ -270,6 +270,10 @@ phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **
 | P40 | **Sửa**: `tower-config.ts` (+31 `TOWER_PALETTE`), `tower-architecture.ts` (+49 `createTowerMaterials`, `TowerMaterials`), `tower-ring.ts` (`createOuterTowers` nhận plinth qua tham số), `holographic-core.model.ts` (970 → 965, **xoá `TOWER_OPACITY`** và vế `TOWER_OPACITY[componentId] ??`) | Vật liệu tháp tạo ở hai nơi (tone/corner post trong factory, plinth trong `createOuterTowers`) và `TOWER_OPACITY` là **cấu hình chết**: gán opacity cho material mà sau đó `buildTowerArchitecture` ghi đè bằng `tone.glass` | Literal màu + opacity + roughness/metalness/clearcoat của 6 material tháp về `TOWER_PALETTE` (giá trị giữ nguyên từng chữ số, kèm comment lý do); một hàm `createTowerMaterials()` duy nhất dựng cả 6; `createOuterTowers` nhận plinth thay vì tự tạo; xoá `TOWER_OPACITY` đúng điều kiện Phase 5 cho phép | Phase 4 đã có nhà cho vật liệu; để `TOWER_OPACITY` lại là giữ một bảng dữ liệu **không có tác dụng** mà người sau sẽ tin là có | Fingerprint **6/6** và dòng đầu vẫn `materials total=196 shared=…g46x18,g47x18,g48x18,g49x18,g51x18…` → 4 tone + corner post **một instance / 18 tháp** như trước. **Mutation check chứng minh lưới vật liệu là thật**: đổi một dòng thành `tone.glass.clone()` → **213 materials**, `g46x18` biến mất, **4 test đỏ** in đúng dòng lệch; revert → 6/6 xanh. **Giới hạn ghi rõ**: `describeMaterial` không ghi `roughness`/`metalness`/`clearcoat`/`clearcoatRoughness` — 4 tham số mà Phase 5 chuyển — nên bằng chứng cho chúng là **raster 15/15 OK** (`490 calls / 378588 tris`), không phải fingerprint. dataset-3d **56/56**, `npm test` **27 file / 382 test** (70,58 s trên cây cuối, sau khi gỡ export thừa), `tsc -b` 0, `eslint` 0. Tính từ HEAD: model **1414 → 965 = −449 dòng (−32%)** | khôi phục 6 dòng `TOWER_OPACITY` + vế `??`, đặt lại `plinthMaterial` vào `createOuterTowers`, xoá `TOWER_PALETTE`/`createTowerMaterials`; **nếu fingerprint lệch dù chỉ một material thì KHÔNG xoá `TOWER_OPACITY`** — dừng và điều tra (kế hoạch Phase 5) | DONE — Phase 5 complete, số đo ở **§7.12** |
 | P41 | **Sửa**: `vitest.config.ts` (chỉ **comment**, 3 dòng → 5 dòng), `change-log.md` (§7.8 đính chính + con trỏ ở P36/P38/§7.10). **0 dòng source, 0 dòng test code** | P36 ghi "cái giá +80 s" như một hằng số của `fileParallelism: false`, trong khi nó chỉ là **một buổi đo** trên máy đang swap. Ba pha sau đó đo lại cùng config ra 47,25 / 50,17 / 73,85 / 81,23 / 70,58 s — dải trùng với **song song có tải** (77,62–95,88 s), nên con số cũ không đứng được | Sửa lại câu đó cho đúng những gì đã biết: "tuần tự xanh tất định, chi phí chưa xác định, phép A/B trên cùng máy nhàn vẫn đang nợ"; giữ nguyên **kết luận** chọn tuần tự vì lý do nó được chọn (6/6 xanh vs đỏ 5/1/6), không vì tốc độ | Một comment sai sẽ thành lý lẽ để người sau bật lại song song hoặc bỏ luôn gate; và P36 là quyết định liên quan trực tiếp đến việc đọc số của mọi gate sau này | `npm test` **27 file / 382 test** vẫn chạy đúng như trước khi sửa comment (**70,58 s**), `tsc -b` 0, `git diff` của `vitest.config.ts` **chỉ có dòng comment**, không đổi một khoá config nào | `git checkout -- vitest.config.ts` + khôi phục đoạn đính chính trong §7.8 | DONE — đính chính số, không đổi hành vi |
 
+| P42 | **Mới**: `src/__tests__/dataset-3d/tower-picking.test.ts` (85 dòng, 4 test). **0 dòng source sửa** | T10 còn hai ngỏ: `selected-18` chọn tháp bằng `setSelected(id)` — đi đường vòng **không qua con trỏ** — và harness trình duyệt mới bấm thật **2/18** tháp (`pick=tower-01-back-high`, `pick=tower-10`) | Một tia **thẳng đứng** thả xuống tâm footprint của **cả 18** tháp (danh sách lấy từ `TOWER_IDS` trong `tower-config`, không chép tay): hit đầu tiên **phải là** `runtime.meshes[id]` theo **object identity** và `resolvePart(hit).id === id`; chạy ở **cả attached lẫn detached** vì `handleClick` bỏ mọi cú click khi chưa nổ; và **mọi** object nằm trong node của tháp — trừ đúng mesh kính — phải trả **0** intersection. Test thứ nhất chốt rằng hai danh sách 18 không lệch nhau | Lấp một lỗ hành vi thật (bấm không ra), không phải làm số liệu đẹp. Tia thẳng đứng chứ không xuyên tâm vì **tower-04 và tower-15 chồng nhau theo phương bán kính ở ~346°**: tia xuyên tâm sẽ chạm tháp vòng ngoài trước và không nói gì về tháp mà nó nhắm | 4/4 xanh. **M1** `if (false && !pickableMeshes.has(object))` → dataset-3d **7 test đỏ / 2 file**: picking **3/4** (hit đầu tiên rơi vào `technical-linework` `LineSegments` ở tower-05/09, đúng thứ mà lưới đang chặn) và fingerprint **4 đỏ** (init / update-7.3 / reset-motion / detached) — xác nhận đính chính ở §7.11. **M2** `id: tower.name` trong `createOuterTowers` → đỏ **đúng hai test resolve** (`expected 'Outer ring tower 10' to be 'tower-10'`), test "decoration inert" vẫn **xanh**: hai nửa assertion đọc lập, không nửa nào đỡ nửa nào. Cây sạch: `npm test` **28 file / 386 test** (156,08 s), `tsc -b` 0, `eslint src/__tests__/dataset-3d` 0. **Chưa đóng hẳn T10**: còn "bấm vùng trống" và "bấm 5 part của Core" — `spool` không có test raycast headless nào | `rm src/__tests__/dataset-3d/tower-picking.test.ts`; 0 dòng source bị động nên rollback không kéo theo gì khác | DONE — 18/18 tháp đã được raycast thật; chi tiết ở **§7.13** |
+
+| P43 | **Sửa**: `.agents/dataset-3d-core/change-log.md` (§7.14 + dòng P43). **Ngoài repo**: `IMPLEMENTATION_PLAN_quality_gauge_pylons_v2.md` (mới), `IMPLEMENTATION_PLAN_quality_gauge_pylons.md` (thêm khối SUPERSEDED). **0 dòng source sửa, 0 dòng test sửa, 0 ảnh chụp thêm** | Human đưa plan gauge (18 pylon lathe 8 cạnh, 6 hero + 12 context, dời tháp ra `PLAZA_EDGE 2.05`, đổi `SPOOL_CORE.orbits`) và yêu cầu chạy Phase 0 khảo sát trước khi code. Plan đó viết trên cây code **trước** Phase 3–5 nên mục "Hiện trạng trong code" sai 4/5 dòng, **tự mâu thuẫn với quyết định C của P26** (orbits), và không nêu lưới nào sẽ đỏ | Đo thật thay vì tin ước lệ: draw/tam giác/góc/số tầng của từng tháp, kiểm hai bảng số của plan bằng số học độc lập, liệt kê test theo từng phương án phạm vi. Human chốt **C1** giữ nguyên `handleClick` (chỉ pick khi `detached`), **C2** giữ nguyên hình 18 tháp — chỉ đổi ý nghĩa/cách biểu diễn, cùng lắm thêm trụ/vuông/nón cụt, nếu buộc đổi hình thì **chỉ 6 hero** — và **C3** màu giữ nguyên nhưng **phát sáng là hệ quả của điểm xấu từ API**. Hero chốt theo id: **10/12/13/14/17/18** | Một plan 6–7 ngày dựng trên mục "hiện trạng trong code" sai 4/5 dòng thì mọi ước lượng chi phí trong nó sai theo, và nó đang đòi dựng lại một thứ **đã có sẵn trong hình**; phải đo trước khi đồng ý phạm vi, và C1/C2/C3 chỉ trả lời được sau khi có số | Số đo ở **§7.14**. Ba phát hiện đổi căn bản kế hoạch: (1) `tower-window-panel` **đã là InstancedMesh có sẵn `instanceColor`, xếp theo tầng** → cột ô của plan đã tồn tại, chỉ chưa tô theo dữ liệu; (2) 18 tháp = **157 draw / 21 763 tri** (48,3 % draw của model) → G4 của plan thật ra là mục tiêu **giảm**, không phải ràng buộc; (3) **app chưa có mô hình dữ liệu chất lượng nào** (6 từ dimension chỉ khớp chuỗi thương hiệu `login.view.tsx`) nên C3 cần interface nguồn điểm **trước** khi viết `deriveCells`. Đã xoá 3 file probe đo tạm; `git status src/graphics` sạch | `rm` plan v2 + bỏ khối SUPERSEDED ở v1 + gỡ §7.14/P43; **không có gì trong `src/` để revert** | DONE — Phase 0 của plan gauge; chưa code một dòng hình ảnh nào |
+
 ### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
 ```bash
 npx tsc -b                                             # 0 lỗi
@@ -1020,6 +1024,14 @@ và in `pick=tower-01-back-high` / `pick=tower-10`. Nhưng **không** có phép 
 và fingerprint **không ghi** việc gán `raycast = () => {}`. Nếu muốn đóng hẳn T10 thì đó là một test nhỏ riêng
 (nằm ngoài Phase 2–5), không nên nhân danh refactor mà thêm.
 
+**Đính chính cho câu trên (2026-11-04, phát hiện khi làm §7.13).** Vế thứ hai **sai**: `walkModel` có ghi
+`ray[fnv1a(object.raycast.toString())]` cho **mọi** object (dòng 143 của `support/model-fingerprint.ts`), và baseline
+liệt kê đúng hai giá trị — `ray[33ed5093]` ở **1344** object (noop) và `ray[3886127b]` ở **188** object (raycast mặc
+định của Mesh prototype). fingerprint vì thế **có** bắt được việc gán `raycast = () => {}`, và đã bắt thật khi
+mutation M1 dưới §7.13 làm lệch 4/5 moment (moment thứ năm, `selected-18`, không duyệt scene graph nên
+không có dòng `ray[...]` để mà lệch). Cái mà fingerprint **không** làm là **bắn tia** — nó ghi thành phần,
+không kiểm chứng kết quả của một cú click. Đó mới là lỗ mà `tower-picking.test.ts` lấp.
+
 ### 7.12 Phase 5 — vật liệu tháp và gỡ config chết (2026-11-04, P40)
 
 **Chuyển gì.** `TOWER_PALETTE` vào `tower-config.ts` (vẫn là dữ liệu thuần: glass/core/frame/window +
@@ -1064,3 +1076,463 @@ hàm tháp có một nhà; thứ tự dựng được ghi thành bất biến v�
 `src/graphics/holographic-core/` khác bị sửa ngoài bốn file đã nêu, và **0 byte hình ảnh thay đổi** ở cả ba
 lưới: vân tay, raster, số draw call.
 
+### 7.13 T10 — raycast đủ 18 tháp (2026-11-04, P42)
+
+**Test mới.** `src/__tests__/dataset-3d/tower-picking.test.ts`, 85 dòng, 4 test, headless, không đụng
+nguồn. Mỗi tower được kiểm bằng **ba** khẳng định ghép lại: (1) hit đầu tiên của tia là **đúng object**
+`runtime.meshes[id]` — so identity, không so tên, vì hai mesh cùng tên vẫn là hai mesh; (2)
+`resolvePart(hit).id === id` — nửa mà mesh-identity không với tới được, vì nó đi lên chuỗi
+`userData.sculptComponent`; (3) **mọi** object khác trong node của tháp, trừ mesh kính, trả về **0**
+intersection — tức `tower-solid-core`, `tower-floor-frame`, `tower-window-panel`, `tower-corner-post`,
+`tower-roof-outline`, `technical-linework`, `tower-plinth`, vệt hạt đi lên và cả `selection-contour`.
+Khẳng định (3) duyệt con thực tế chứ không liệt kê tên, nên một trang trí mới mọc thêm sẽ tự bị kiểm.
+
+**Vì sao tia thẳng đứng.** tower-04 và tower-15 nằm **cùng phương bán kính** (~346°): một tia bắn từ
+ngoài vào sẽ chạm tháp vòng ngoài trước khi chạm cái mà nó nhắm, nên "bắn xuyên tâm" chỉ đo được tháp
+ngoài. Thả thẳng đứng xuống tâm footprint thì mỗi tháp đứng một mình — footprint của chúng đã được
+`holographic-towers.test.ts` khoá cách nhau ≥ 0,10, nên không có chuyện hai tháp chồng nhau trên mặt
+phẳng ngang. Điểm xuất phát lấy ở **3 đơn vị trên tâm node**, tức cao hơn đỉnh tháp cao nhất (3,75) khoảng
+1,35 đơn vị, nên không object nào kịp chắn trước khi tia chạm mái.
+
+**Vì sao phải chạy cả hai trạng thái.** `handleClick` trong `holographic-core.scene.tsx:102`
+`if (!detached || event.delta > 6) return` — khi model chưa nổ, **mọi** cú click đều bị bỏ. Nên trạng
+thái detached mới là trạng thái duy nhất mà một cú pick từng tới được panel; detach dời từng tháp ra xa
+tâm và nâng lên, vì vậy tia lấy tâm từ `getWorldPosition()` của node chứ không lấy số layout đã lưu.
+Attached vẫn được kiểm vì nó là trạng thái fingerprint đang so.
+
+**Hai phép đột biến, mỗi phép giết một nửa.**
+- **M1** — `if (false && !pickableMeshes.has(object)) object.raycast = () => {}` (tắt cả lưới): dataset-3d
+  đỏ **7 test trên 2 file** trong 67,12 s. `tower-picking` đỏ **3/4** (test danh sách vẫn xanh, đúng vai
+  trò sanity), và lần đầu tiên in ra là `tower-05 first hit: expected LineSegments{…}` — tức đúng cái
+  `technical-linework` mà lưới đang chặn. Fingerprint đỏ ở **init / update-7.3 / reset-motion / detached**.
+- **M2** — `id: tower.name` trong `createOuterTowers`: đỏ **đúng hai test resolve**, `expected 'Outer ring
+  tower 10' to be 'tower-10'`, còn test "decoration inert" vẫn **xanh**. Hai nửa khẳng định vì thế là hai
+  nửa thật sự đọc lập: không có cái nào đang tình cờ đỡ cái kia đứng.
+Cả hai đã `git checkout --`; `git status` xác nhận `src/graphics/` sạch, chỉ còn file test mới.
+
+**Giới hạn của chính test này (nói trước để người sau không tin nó quá).** Nó chứng minh **một** vị trí
+trỏ trên mỗi tháp, ở góc nhìn thẳng đứng, không chứng minh mọi pixel của tháp trên màn hình thật — góc
+nghiêng của camera có thể để lộ cạnh tháp kề bên, và đó đúng là vùng mà D7 (orbit cắt tower-15) đang chờ.
+Nó cũng **chưa** đóng trọn T10: plan ghi ba vế — "bấm lần lượt cả 18 tháp, bấm vùng trống, bấm các part
+của Core (lid, roof, drum, chamber, base)". Vế một đã xong 18/18; hai vế còn lại chưa có test headless
+nào (`grep Raycaster src/__tests__` chỉ ra `connection-geometry`, `inbound-streams` và file này; phần
+spool mới được chứng minh bằng probe trình duyệt ở P24).
+
+**Gate.** `npm test` **28 file / 386 test** (156,08 s), `tsc -b` 0, `eslint src/__tests__/dataset-3d` 0,
+fingerprint và clearance vẫn **6/6** và **4/4** trên baseline cũ — test mới chỉ đọc model, không sửa gì
+nên byte của lưới không đổi.
+
+### 7.14 Phase 0 của plan gauge: số đo, không phải ước lệ (2026-11-04, P43)
+
+**Cách đo.** Ba file probe tạm trong `src/__tests__/dataset-3d/` (dựng model headless, đi cảnh scene graph),
+chạy bằng `npx vitest run <file>` rồi **xoá ngay** — không để lại test "probe" trong suite vì chúng không
+đoán điều gì, chỉ in số. Cộng một script số học thuần `/tmp` cho hai bảng màu. `git status src/graphics`
+sau đó sạch, và **không chạy harness capture** (không có thay đổi nào để chụp; thêm camera vào
+`capture-p0.cjs` nghĩa là đổi bộ gate 15 PNG, đó là quyết định của human chứ không phải việc nhân danh
+khảo sát).
+
+**Chi phí thật của 18 tháp.** `Mesh|LineSegments|Points|Sprite` đếm trong node từng tháp, tam giác tính cả
+instance:
+
+| | trị đo |
+|---|---|
+| draw/tháp | **8 → 10** (cả 18 tháp: **157**) |
+| tam giác/tháp | **432 → 2 121** (cả 18 tháp: **21 763**) |
+| cả model (headless) | 325 draw / 166 369 tri → tháp chiếm **48,3 % draw**, **13,1 % tam giác** |
+
+Plan v1 đặt trần "≤ 4 draw/tháp, ≤ 72 cho 18 tháp" mà không nêu nền, nên con số đó nhìn như ràng buộc;
+thật ra nó là mục tiêu **giảm 55 % draw / 45 % tam giác**. Phương án mới (giữ hình, chỉ thêm cột hero) tốn
+**+6 draw** cho 6 hero, 12 context **+0**.
+
+**Góc thật, để gán hero.** 9 tháp trong: 225, 270, 310, 355, 35, 75, 120, 165, 200°. Vòng ngoài: 14,5 / 63 /
+96,5 / 151,5 / 181,5 / 241,5 / 282,5 / 337,5 và tower-15 ở 346°/r 1,5. circumR hiện hữu 0,259→0,559.
+Thuật toán `pickHeroes` của v1 (góc mục tiêu 30/90/150/210/270/330) trên số này cho **05/12/13/09/02/18** —
+trộn 3 tháp vòng trong, nghĩa là phải dời chúng mới qua nổi `PLAZA_EDGE 2.05`. Human chốt hero **vòng ngoài
+hết**: 10/12/13/14/17/18, nên **không dời tháp nào**, và 210° rơi vào tower-14 (181,5°, lệch 28,5° — vẫn là
+tháp gần nhất phía vòng ngoài).
+
+**Kênh biểu diễn đã có sẵn — phát hiện đổi căn bản kế hoạch.** Mỗi tháp đã có `tower-window-panel` là
+`InstancedMesh` **đã có `instanceColor`**, 48 → 392 instance, bố trí **theo từng tầng** × từng vửa mặt
+(`(floorCount−1)·(bays·2 + sideBays·2)`), hiện tô bằng `towerPatternHash(id, floor, bay)`. `tower-floor-frame`
+15 → 43 slab, `addTowerDataMarks` đã là một `LineSegments` mỗi tháp. Với `floorCount = clamp(round(h/0.22),3,16)`
+thì hero 10/12/13/14/17/18 có **10 / 10 / 6 / 9 / 6 / 10** tầng (suy ra từ số instance đo trực tiếp, ví dụ
+tower-13: 80 window = (6−1)·16). Tức là "cột ô đo chất lượng" **đã nằm trong hình**, chỉ chưa được tô theo
+dữ liệu → không cần `LatheGeometry`, `mergeGeometries`, hit proxy mới, hay dời bố cục. Hệ quả gate: **giai
+đoạn chỉ đổi màu làm đỏ đúng moment `init`** của fingerprint (moment duy nhất ghi hash `instanceColor`,
+`describeInstancing(..., detail)`), bốn moment kia vẫn byte; giai đoạn thêm cột hero thì mọi moment + raster
+đều đổi, nên tách làm hai bước để khi số lệch thì biết ngay lệch vì cái nào.
+
+**Kiểm hai bảng số của plan bằng số học độc lập** (Rec.709, sRGB→linear, WCAG):
+
+| ô | L(linear) | ×gain | vượt ngưỡng bloom 1? | tương phản trên vỏ đặc | trên surround thật |
+|---|---|---|---|---|---|
+| tốt `#22d3ee` | 0,5310 | 0,8496 | không | 9,86 | **10,46** |
+| trung bình `#818cf8` | 0,3020 | 0,7852 | không | 5,98 | 6,34 |
+| kém `#f97316` | 0,3246 | **1,1036** | **có** | 6,36 | 6,75 |
+| tắt `#2a2150` | 0,0216 | 0,0076 | không | 1,22 | 1,29 |
+
+Bảng 3.1 và 3.2 của plan **đúng từng chữ số**. Hai chỗ plan tính thiếu: ô được nhìn **xuyên qua** vỏ
+`transparent opacity 0.22`, nên surround thật là L = 0,00553 (không phải 0,00891 của vỏ đặc) — tương phản ô
+tăng nhẹ, nhưng bản thân vỏ chỉ còn **1,19:1** trên fog `#02101a`, nghĩa silhouette sống hoàn toàn nhờ khung +
+ô; và G2 lấy nucleus ≈ 2,5 trong khi mã là `nucleusHotLinear [0.5, 2.6, 2.3] × opacity 0.95` (AdditiveBlending)
+≈ **2,02** → so với ô kém 1,10 core còn sáng hơn **1,8×**, không phải 2,3×. `#f97316` **không có** trong
+`GRAIN_DEFINITIONS` (6 hex plan liệt kê là đúng), nên cam là màu duy nhất mượn ngoài bảng grain.
+
+**App chưa có mô hình dữ liệu chất lượng nào.** `grep -i` 6 từ khoá `completeness|uniqueness|validity|accuracy|
+consistency|timeliness` trong `src/` chỉ khớp `login.view.tsx:62` (chuỗi thương hiệu "AI Systems · Data Quality");
+`src/types/api`, `src/types/datasets`, `src/types/health` không có score/issue/rate/profiling nào; các chỗ khớp
+"quality" khác là `qualityContract` của img2threejs (fidelity ảnh, **không phải** chất lượng dữ liệu — dễ đọc
+nhầm). Vì vậy `MOCK_REPORT` **không phải** "chỗ tạm để đổi nguồn ở Phase 6" mà là mô hình mới; plan v2 đặt
+`QualityScoreSource` (score 0..1, ba scope `overall|sliceA|sliceB`) lên trước, và ba câu hỏi (tỉ lệ đạt hay lỗi,
+slice là gì, cập nhật theo lần phân tích hay realtime) phải trả lời **trước khi** viết `deriveCells`.
+
+**Test sẽ đỏ, theo phạm vi mới.** `dataset-3d` hiện **9 file / 60 test** (19,91 s cho phân hệ này; cả suite 28
+file / 386 test 156,08 s). Với "giữ hình + chỉ tô": `holographic-towers.test.ts` (8) và `tower-picking.test.ts` (4)
+**xanh nguyên** vì không đổi id/vị trí/chiều cao/footprint; `model-fingerprint.test.ts` đỏ ở `init`; 15 PNG raster
+đổi → re-baseline. Nếu về sau chiều cao hero đổi (nguyên tắc "cùng role cùng chiều cao" của v1) thì skyline bị
+`TOWER_TARGETS`/`BASE_Y` khoá, hai file trên phải viết lại — đó là lý do C2 giữ hình là một tiết kiệm thật,
+không chỉ là tiết kiệm công vẽ.
+
+**Không làm trong Phase 0 (nói rõ để người sau không tưởng):** chưa chụp góc 12° và top-down (harness chỉ có
+`hero` ≈ 29°, `orbit`, `closeup`); chưa sửa orbits; chưa đụng `holographic-core.scene.tsx`; chưa code một dòng
+hình ảnh nào.
+
+### 7.15 P44/P45 — gauge Phase 1 đối chiếu và Phase 2 tô context (2026-11-04)
+
+**P44 — đối chiếu Phase 1 có sẵn, không nhận là code mới của Phase 2.** Bốn file untracked:
+`quality-score.types.ts`, `tower-gauge-config.ts`, `tower-gauge-data.ts`, `tower-gauge-data.test.ts`.
+Đã chạy lại 15/15 test gauge và 8 towers + 4 picking = 27/27. Chưa chạy lại mutation M1/M2.
+Human chốt consistency theo code: đủ `bad` ô mismatch, ưu tiên cặp liền kề, giữ ô lẻ; không seed.
+Human cũng chốt bát giác 8 cạnh cho hero ở Phase 3 và dùng mock trước; chưa tích hợp API thật.
+
+**P45 — thay đổi Phase 2.** Thêm `tower-gauge.ts`, gọi sau `createTowerRing` trong factory.
+Đọc `MOCK_QUALITY_SCORES` đồng bộ để model vừa tạo đã có màu; `QualityScoreSource.read()` async
+chưa nối vào scene trong phase này. Nhóm instance cửa sổ theo local Y thực, từ dưới lên, rồi gọi
+`deriveCells` cho từng dimension/scope context. Không sao chép công thức floorCount/bays, không sửa
+`tower-architecture.ts`, không đổi matrix, không clone material, không thêm object/draw call.
+
+Màu dùng palette/gain Phase 1: off tối; invalid/duplicate cam; stale nhân 0.55; unverified nhân 0.7;
+mismatch tụt good→mid, mid/poor→poor. Context chỉ mã hóa bằng màu, không offset/scale hay mark mới.
+Các hệ số này là giá trị màu trước khi hòa trộn opacity; không coi luminance 1.10 là chứng minh bloom
+trên ảnh thật. Kính/cửa sổ hiện có làm tín hiệu màu khá nhẹ ở pose mặc định; chưa chỉnh vật liệu.
+
+Phase 2 không sở hữu geometry/material/subscription/animation nên chưa thêm update/reset/dispose
+rỗng. Màu giữ nguyên qua các lifecycle hiện có; applyScores/nguồn async và tài nguyên hero để Phase 3.
+
+**Gate trước re-baseline:** test fingerprint cũ đỏ đúng init, 4 moment còn lại xanh. Probe tạm xác nhận
+đúng 12 dòng khác nhau và mỗi dòng chỉ đổi `col` hash của `tower-window-panel`; geometry, instance
+matrix, material identity và raycast giữ nguyên. Đã cập nhật 12 hash bằng apply_patch, không sửa logic
+so sánh fingerprint. Probe đã xóa sau dùng. Thêm 2 integration test chính thức: cực trị completeness,
+nhóm màu cùng tầng, hero không bị tô lại, giữ matrix/geometry/material qua repaint/update/reset/detach.
+TypeScript `tsc -b` và ESLint các file source/test thay đổi đều qua.
+
+**Kiểm tra cuối:** dataset-3d **11 file / 77 test pass**, gồm fingerprint 5 moment, orbit-clearance,
+towers, picking và 2 integration test mới. `tsc -b`, ESLint phạm vi sửa và `git diff --check` qua.
+Harness gốc đã chụp lại **15 PNG** cùng camera/trạng thái, cập nhật manifest và metrics, thêm lại ảnh
+motion-reference ngoài manifest; không đổi script capture hay thêm camera. Click thật qua harness
+đúng tower-01-back-high, tower-10 và core-cap-drum ở cả 3 camera; console không có error.
+Reduced-motion attached: **476 GL calls / 378574 triangles**, bằng baseline cũ; detached GL cũng 476.
+Số renderer.info detached bị lệch cửa sổ lấy mẫu (468 so với GL 476); animated median trả 0 dù ảnh có
+render, nên **không dùng hai số này để kết luận hiệu năng/bloom**. Phase 2 không sửa harness đo.
+Đã xem ảnh attached và motion: màu context nhẹ dưới kính hiện có; chưa nghiệm thu khả năng đọc điểm
+nhanh hay bloom. Chưa triển khai hero bát giác/cột ô, tia nối core hoặc API thật.
+
+### 7.16 P46 — Phase 3: hero ghép ba phần, lõi trắng và kính hiện màu (2026-11-04)
+
+**Thiết kế cuối human đã xác nhận.** Sáu hero 10/12/13/14/17/18 giữ tâm, footprint và chiều cao tổng.
+Lõi vuông trắng liền chiếm toàn bộ vùng giữa, cạnh L=2W/3. Bốn khối kính ngoài có tiết diện L×L/4,
+mỗi mặt chia 10 tầng cùng biểu diễn overall score (40 instance/hero). Bốn lăng trụ tam giác kim loại
+lấp góc chữ thập. Chóp cụt bát giác cao đúng một tầng màu, mặt trên bằng 3/4 đáy, cùng material
+với tam giác. Đỉnh nằm trong chiều cao cũ, không nâng skyline.
+
+`tower-architecture.ts` dựng lõi trắng, góc kim loại, đỉnh và viền cạnh mảnh. Không dựng cửa sổ,
+khung tầng, mullion, corner post hoặc data marks cũ trên hero; `tower-ring.ts` cũng bỏ các vệt hạt
+dọc hero. Hit proxy là envelope bát giác có material.visible=false nhưng Object3D.visible=true:
+giữ mesh/id cho picking và selection contour mà không render một vỏ kính phủ toàn tháp. Tất cả
+khối con không raycast. Mười hai context giữ nguyên cấu trúc và tương tác.
+
+**Palette mới:** thân/đỉnh #0b1430, viền #6b7fb3; đạt #34d399, cảnh báo #f59e0b, nghiêm trọng #f43f5e.
+Tương phản sRGB trên thân đặc lần lượt 4.59 (viền), 9.44, 8.45, 4.94. #a78bfa chỉ khai báo cho
+AI đã xử lý; không tự gán cho mock hoặc suy ra từ score. Ô tắt vẫn #2a2150. Context cũng nhận
+palette chất lượng mới. Gain 1.7/1.8/4.7 cho luminance nguồn ≈0.844/0.790/1.109; đây không phải
+luminance ảnh sau alpha, ánh sáng và bloom.
+
+`tower-gauge.ts` sở hữu một geometry hộp và một material physical dùng chung cho sáu bộ kính.
+Kính opacity 0.65, diffuse đen, specular/clearcoat physical; onBeforeCompile nhân emission với
+instanceColor (vColor.rgb) để ánh sáng xanh không làm màu nghiêm trọng thành xám. Có cache key
+riêng và báo lỗi nếu shader chunk không còn tồn tại khi nâng Three. Không thêm light. Ảnh cuối
+đã được kiểm cả reduced-motion và bloom-on; không xem số tương phản hex là phép đo pixel.
+
+Điểm chỉ cập nhật màu trên kính và cửa sổ context; matrix kính cố định đúng L×L/4, không phóng
+hay offset duplicate vào góc kim loại. `deriveCells` Phase 1 giữ nguyên, gồm đủ bad ô consistency.
+`applyQualityScores(rows)` nhận đủ 18 điểm và kiểm tra thiếu/trùng/NaN/out-of-range trước khi đổi
+buffer. Lõi trắng không nhận score. Không tô lại gauge trong resetMotion (được gọi mỗi frame khi
+reduced motion). setSelected ghi nhận hero; outline hiện có vẫn là phản hồi chọn, chưa có tia Phase 4.
+Gauge dispose bỏ instance trước model sweep, giải phóng geometry/material kính đúng một lần;
+model sweep khử trùng tài nguyên dùng chung và gọi dispose cho InstancedMesh kiến trúc.
+
+**Audit trước re-baseline:** so với fingerprint Phase 2 lưu tại phase3/phase2-fingerprint.ndjson,
+mọi dòng ngoài subtree hero giữ nguyên sau chuẩn hóa số định danh material, trừ đúng 12 hash
+instanceColor của cửa sổ context do đổi palette. Group transform của hero giữ nguyên. Các trường
+swept/tube/bead/static và tọa độ XZ của clearance giữ nguyên; chỉ bbox Y của sáu hero co lại vì bỏ
+trang trí vượt đỉnh. Đã patch sáu dòng baseline clearance tương ứng; test vẫn yêu cầu 17 tháp clear,
+ngoại lệ tower-15 cũ không thay đổi. Fingerprint cập nhật bằng apply_patch; không nới bộ so sánh.
+
+Headless hiện có 150 drawable tháp kể cả proxy/contour, 126 object có thể render, 17652 tam giác
+trên các object đó; không gọi các số này là GL calls. Số đo giữ tại phase3/glass-measurement.json.
+Probe tạm và artifact trung gian đã xóa; snapshot Phase 2 giữ trong .agents để đối chiếu.
+
+**Kiểm tra cuối:** dataset-3d **11 file / 82 test pass**, gồm 4 picking, 8 kiến trúc tháp, fingerprint
+5 moment, clearance, 16 data tests và 6 integration tests gauge. tsc -b, ESLint phạm vi sửa,
+git diff --check và Vite build qua; build còn cảnh báo chunk Dataset 3D >500 kB, chưa làm bundle split.
+Đã chụp lại 15 PNG cùng harness/camera/trạng thái, cập nhật manifest/metrics và kiểm đủ 15 SHA256;
+motion-reference ngoài manifest. Click thật đúng tower-01-back-high, tower-10, core-cap-drum ở cả
+ba camera; console errors=0. Attached GL **445 calls / 372262 triangles** so với Phase 2
+476 / 378574; animated **459 calls / 372276 triangles**. Không kết luận FPS từ draw-call count.
+Detached renderer.info và GL có lệch cửa sổ lấy mẫu (437 so với 445), không dùng chênh đó làm chỉ số
+cải thiện. Chưa commit, chưa tích hợp API và chưa triển khai Phase 4.
+
+### 7.17 P47 — hạ lid và thêm vòng kính rỗng đồng tâm (2026-11-04)
+
+Human xác nhận lid hiện có r=0.65–0.8, cao 0.2, centerY=2.25 → đáy 2.15/đỉnh 2.35; thêm
+`SPOOL_CORE.cap.innerLid` r=0.38–0.5, cao 0.2, centerY=2.2 → đáy 2.1/đỉnh 2.3. Roof/drum,
+cap.topY và SPOOL_CORE.topY vẫn 2.4. Không thay tháp, quỹ đạo hoặc nguồn dữ liệu gauge.
+
+Hai hình học LatheGeometry là hai vòng rỗng tách biệt. Dùng mergeRings có sẵn để gộp vào một
+mesh `spool-cap-lid`, cùng material kính và pivot `spool-cap-lid-part`; không thêm ID chọn.
+Click vòng nào cũng trả `core-cap-lid`. Nhãn đổi thành “Cap lid rings”; chiều cao metadata của
+cả cụm là 0.25, trong khi mỗi vòng vẫn cao 0.2. Rims của vòng ngoài tự hạ theo lidTop mới.
+Không thêm rims riêng cho vòng trong. Geometry nguồn được dispose sau merge theo helper sẵn có.
+
+Lý do gộp: thêm một mesh riêng làm test budget đỏ (20 > 19 drawable). Gộp hai vòng cùng material
+giữ nguyên budget 19, không nâng ngưỡng test hoặc bỏ chi tiết để lách budget. Test spool 15/15 qua,
+bao gồm test mới đo tọa độ/bán kính thật, ray xuyên tâm không hit, ray qua khe r=0.575 không hit,
+ray vào r=0.44 và r=0.72 cùng hit lid, chuyển động explode +0.7 và reset về đúng chỗ.
+
+Audit fingerprint trước re-baseline xác nhận mọi dòng ngoài subtree lid, material identity summary
+và moment chọn 18 tháp giữ nguyên. Clearance byte-identical; không sửa baseline clearance. Đã
+patch fingerprint của lid; snapshot trước thay đổi nằm trong .agents/dataset-3d-core/lid-inner-ring/.
+Probe và candidate tạm đã xóa. TypeScript, ESLint phạm vi sửa, git diff --check và build qua; build
+vẫn có cảnh báo chunk Dataset 3D >500 kB. Suite cuối **11 file / 83 test pass**. Harness gốc đã chụp
+lại 15 PNG, cập nhật manifest/metrics và kiểm đủ 15 SHA256; không thêm camera. Có ảnh motion-reference
+ngoài manifest. Click thật đúng các part ở ba camera; console errors=0. Đã xem ảnh closeup attached:
+hai vòng hạ bậc đồng tâm, roof vẫn cao 2.4. Attached GL vẫn **445 calls**, tam giác tăng từ 372262
+lên **373286**; animated 459 calls / 373300 triangles. Renderer.info detached lấy cửa sổ khác GL
+(437 so với 445), không dùng chênh đó để kết luận hiệu năng. Chưa commit.
+
+### 7.18 P48 — hero đồng màu, khe sát đỉnh và sáu vương miện có hover (2026-11-04)
+
+Human chốt: giảm gain lõi trắng còn 0.5; khe tầng 0.025→0.005; lề chân 0.08→0.016; **lề trên = 0**.
+Mười tầng bốn mặt kính của mỗi hero có cùng hue/gain theo overall state, không còn đánh dấu lỗi
+riêng ở từng tầng hero. Context vẫn dùng deriveCells Phase 1 như cũ. Đây là thay đổi cách biểu diễn:
+số ô sáng của hero không còn mã hóa tỷ lệ đạt; hero đọc trạng thái theo màu, không đọc số ô lỗi.
+
+Cap của từng hero cao đúng nửa chiều cao trước điều chỉnh. CAP_REFERENCE giữ profile cũ độc lập
+với cellGap mới để cap không vô tình cao lên khi thu khe. Body giữ chiều cao cũ, cellHeight được
+tính từ (bodyHeight−bottomInset−9×cellGap)/10. Mặt trên tầng kính cuối trùng đáy cap. Nửa chiều cao
+cap đã giải phóng dùng cho vương miện, tất cả geometry vương miện nằm trong envelope cũ.
+
+`tower-crowns.ts` dựng sáu glyph thường trực theo phương án A: completeness vòng khuyết 45°;
+uniqueness hai đĩa giống nhau xếp lệch; validity bốn góc L; accuracy hai vòng đồng tâm và cọc;
+consistency hai nửa vòng lệch cao; timeliness vòng và kim. Mỗi glyph tĩnh gộp một mesh, một material
+dùng chung; riêng kim có thêm một mesh để xoay. Tất cả không raycast, đi theo node tháp khi explode.
+Animation theo skill animate: mục đích nhận diện đồng hồ Timeliness, tuyến tính một vòng/60 giây
+bằng rotation.y trong vòng update Three hiện có; không tạo timer hay React render mỗi frame.
+Reset trả kim về 0 cho reduced motion; không suy diễn độ mới dữ liệu từ chuyển động này.
+
+`holographic-core.scene.tsx` thêm nhãn Anh–Việt cho 6 hero ở cả attached/detached. Click vẫn bị chặn
+khi attached. Hover theo hit component hiện gần nhất, không xuyên qua part khác. Nhãn DOM tức thì,
+không animation, pointer-events:none; tọa độ chặn trong canvas và chỉ đổi state khi đổi hero.
+Rời canvas, bắt đầu kéo hoặc Escape thì ẩn. Touch không kích hoạt hover. Không dùng nhãn cho context.
+
+Test chính thức mới `tower-crowns.test.ts` kiểm sáu mapping, glyph khác nhau và nằm trong envelope,
+clock tiến tuyến tính/reset tĩnh, tài nguyên dùng chung dispose một lần. Gauge test đổi theo hợp đồng
+mới: kiểm 40 màu bằng nhau, top gap=0, bottom gap=0.016, 9 khe=0.005, lõi linear RGB=0.5 và cap/2.
+Test picking 18 tháp giữ nguyên kỳ vọng; clearance baseline byte-identical. Probe fingerprint xác nhận
+mọi dòng ngoài subtree hero giữ nguyên sau chuẩn hóa số định danh material. Baseline đã cập nhật
+bằng apply_patch, probe/candidate tạm đã xóa; không nới bộ so sánh.
+
+Harness trình duyệt giữ tại `.agents/dataset-3d-core/crowns/hover-check.cjs` (cùng NODE_PATH với
+capture-p0.cjs), báo cáo `hover-check.json`, hai PNG hover attached/detached. Đã kiểm nhãn, context
+không có nhãn, click attached bị bỏ qua, click detached chọn đúng tower-10, Escape/leave ẩn nhãn,
+reduced-motion kim đứng yên và no-preference kim quay. Console errors=0.
+
+Kiểm tra cuối: **12 file / 87 test pass**, tsc -b, ESLint phạm vi sửa, git diff --check và build qua.
+Build vẫn có cảnh báo chunk Dataset 3D >500 kB. Đã chụp lại 15 PNG/manifest cùng camera/trạng thái,
+kiểm đủ 15 SHA256; motion-reference ngoài manifest. GL attached **452 calls / 377154 triangles**,
+so với P47 445 / 373286: +7 calls cho 6 glyph + một kim; animated 466 / 377168. Không suy ra FPS từ
+draw calls. Detached renderer.info lệch cửa sổ lấy mẫu (444 so với GL 452), không dùng làm so sánh.
+Chưa commit, chưa làm tia nối Phase 4.
+
+### 7.19 P49 — bỏ tower 05, 06, 11; giữ nguyên 15 tower còn lại (2026-11-04)
+
+Human xác nhận bỏ hoàn toàn ba context tower, gồm thân, chân đế, hiệu ứng và picking.
+Scene còn 6 hero + 9 context; không đánh lại ID, không dời tháp và không gán lại ba binding
+sliceA Completeness/Validity/Uniqueness. Mock vẫn có 18 điểm theo hợp đồng 6 chiều × 3 scope.
+Validation trong tower-gauge kiểm hợp đồng nguồn độc lập với số binding hiển thị.
+
+Tower 05/06 còn trong generated-core nên factory gọi removeInactiveGeneratedTowers ngay sau khi
+nhận runtime, trước material/conform/architecture/registry. Hàm bỏ node khỏi scene, giải phóng
+geometry riêng, xóa mesh/node/collider/destruction-group; giữ material dùng chung. Tower 11 không
+còn được tạo bởi outer config. Xóa data-mark plan của 06. Generated reference được giữ nguyên.
+
+Test danh sách tower/picking/layout và assignment được cập nhật đúng 15 ID, vẫn giữ các kỳ vọng
+vị trí/chiều cao độc lập. Kiểm scene traversal xác nhận không có tower sót lại dù registry đã xóa.
+Test màu context dùng Completeness/sliceB trên tower-01. Test thiếu điểm của tower đã bỏ xác nhận
+không thu nhỏ hợp đồng nguồn. Hai baseline trước sửa giữ trong tower-removal/ để đối chiếu.
+Audit: mọi subtree của 15 tower còn lại giống trước sau chuẩn hóa path/material ordinal;
+mọi dòng orbit và khoảng cách của 15 tower giống từng byte. Moment tên lịch sử selected-18
+được giữ, nhưng nay ghi đúng 15 lượt chọn. Chi tiết tại tower-removal/audit.md.
+
+Baseline hiện cũng ghi nhận thay đổi core đã được xác nhận ở lượt trước: chamber cao 1.32,
+đáy 0.99, đỉnh 2.31; kính ngoài radii 1.14/1.17; toàn bộ cap nâng 0.33, đỉnh 2.73.
+Đây không phải thay đổi quỹ đạo. Lưới clearance legacy 6 mặt chưa đo kính ngoài; phép đo riêng
+chamber-double/preflight.json ghi ring 1–3 giao kính. Human yêu cầu giữ kính và lập plan chỉnh
+quỹ đạo trước nghiệm thu. Không coi baseline mới là chấp thuận giao cắt đó; tower-15 cũng còn
+giao cắt đã biết từ trước.
+
+Đã chụp lại 15 PNG ở ba camera và kiểm đủ SHA256, click thực chọn đúng tower-01/tower-10/core
+ở cả ba camera, console errors=0. GL attached/detached 419 calls / 374294 triangles.
+Mẫu animated trả 0 nên không hợp lệ, không dùng kết luận hiệu năng. TypeScript, ESLint phạm vi
+sửa, build và diff whitespace qua; build còn cảnh báo chunk lớn. Một crown test timeout 5s
+khi chạy cùng browser; chạy lại toàn bộ sau khi đóng browser đạt **12 file / 88 test pass**
+trong 100.09s, không nới timeout. Chưa commit.
+
+### 7.20 P50 — bỏ tower 15 và làm kính ngoài trắng đục (2026-11-04)
+
+Human xác nhận bỏ hoàn toàn tower-15 và dùng kính ngoài màu #e2e8e6, opacity 0.65,
+roughness 0.6, không emission. Scene còn 14 tower (6 hero + 8 context); bỏ binding
+Consistency/sliceB trên tower-15 nhưng giữ hợp đồng nguồn 18 điểm. Không dời/đổi ID
+các tháp khác, không thay đổi quỹ đạo.
+
+Chamber vẫn một mesh/selectable core-upper, cùng pivot và geometry cũ. mergeRings
+nhận tùy chọn useGroups (mặc định false); chamber dùng hai group/material: lớp trong
+giữ material cũ, lớp ngoài material Physical riêng. Budget logical material draws
+19→20, không tăng triangle; test đếm group thay vì mặc định một mesh=một draw.
+Ray test phân biệt đúng inner materialIndex 0 và outer 1, cả hai vẫn chọn cùng core.
+
+Ảnh đầu cho thấy albedo trắng vẫn bị ambient xanh nhuộm tối. Thêm light map trắng
+1×1, channel 0, intensity 1, chỉ cho outer material, cung cấp diffuse fill trung tính.
+Không đổi đèn scene, không phát sáng và không đổi material lõi/nắp/hạt. Texture được
+dispose cùng spool. Ảnh sau đã hiện vỏ trắng đục và còn thấy ánh lõi/hạt bên trong.
+
+Audit snapshots tại outer-milky-glass/. Mọi subtree của 14 tower còn lại giữ nguyên
+sau chuẩn hóa path/material ordinal; clearance chỉ mất dòng tower-15, các dòng khác
+giống từng byte. Cả 14 swept gap >=0, nhỏ nhất 0.127814 ở tower-01. Gate bỏ ngoại lệ
+tower-15. Harness đo chọn tower gần nhất theo dữ liệu, bỏ hard-code 15 và xử lý trường
+hợp không có raster sample gần đường quay bằng báo cáo rõ, không tạo khoảng cách giả.
+Kính ngoài vẫn giao quỹ đạo 1–3; chưa sửa hoặc nghiệm thu phần đó.
+
+Kiểm tra sau diffuse fill: **12 file / 88 test pass**, 68.05s. TypeScript, ESLint phạm vi
+sửa và build qua, build còn cảnh báo chunk lớn. Fingerprint/clearance được cập nhật;
+đang hoàn tất capture cuối và manifest. Chưa commit.
+
+### 7.21 P51 — core-lower cùng kích thước drum, hai mặt kính kín (2026-11-04)
+
+Human xác nhận lấy inner/outer radius 1.02/1.17, cao 0.3 như cap.drum; cả hai mặt
+trên/dưới phủ kính kín toàn bộ. Giữ đáy Y=0.52 → tâm 0.67, đỉnh 0.82. lowerBand
+cao 0.17, tâm 0.905 nối 0.82–0.99; chamber và cap giữ nguyên.
+
+spool-base-glass vẫn một mesh/selectable core-lower và baseShift cũ. Hai thành trụ
+đứng dùng darkGlass chung instance với cap drum; hai CircleGeometry bán kính 1.17
+dùng glass chung với lid. Gộp thành hai material group, không có lỗ tâm hay mặt
+annulus đồng phẳng gây z-fighting. Khoang trong rỗng. Cyan rims theo bán kính mới.
+Budget 20→21 material draw; không thêm part ID. Metadata mô tả dark-glass + glass.
+
+Test mới bắn ray từ trên/dưới tại tâm và gần mép xác nhận mặt kính kín, ray ngang
+từ khoang trong chạm r=1.02; ray ngoài r=1.17 không chạm. Kiểm đúng material group,
+kích thước bằng cap.drum, tiếp giáp, explode +0.12 và reset. Clearance helper/generator
+cùng coreSurfaceGap để tính cả hai đĩa kính và thành trong, thêm test khoảng cách
+tới tâm hai nắp. Đáy mới gap 0.073697; lowerBand 0.114147. Các dòng orbit và 14 tower
+giữ nguyên từng byte; subtree 14 tower giữ nguyên sau chuẩn hóa path/material ordinal.
+
+Đầu lượt sửa đã có outerGlass #bcc2c0ff / opacity 0.2 / roughness 0.1 /
+lightMapIntensity 0.3 và backdrop inset 0.001 từ chỉnh sửa trước đó. Giữ nguyên;
+Three.js cảnh báo màu hex 8 chữ số không hợp lệ và fallback trắng. Hai test cũ vẫn
+đòi palette/inset cũ nên đỏ; không sửa assertion hoặc đổi các giá trị này để che lỗi.
+Full suite **88 pass / 2 fail, tổng 90**, 26.17s; test đáy mới và clearance mới đều qua.
+TypeScript, ESLint phạm vi sửa, build và whitespace qua; build còn cảnh báo chunk lớn.
+
+Baseline hiện ghi nhận cả giá trị kính/backdrop có sẵn nêu trên. Không suy ra tính
+hợp lệ của chúng từ việc fingerprint xanh. Snapshot trước sửa và audit chi tiết tại
+closed-lower-drum/. Ảnh normal/detached closeup đã kiểm trực quan: thân drum đáy
+và mặt kính kín hiện đúng; đủ 15 ảnh khớp SHA256, console errors=0 (cảnh báo màu vẫn
+còn), click chọn đúng part ở ba camera. GL attached 413 calls/373430 triangles,
+detached 405/365604, animated 427/373444. Quỹ đạo 1–3 vẫn giao kính
+ngoài như trước; không thay đổi hoặc nghiệm thu phần này. Chưa commit.
+
+### 7.22 P52 — mái dưới úp ngược kín và hạ platform (2026-11-04)
+
+Human xác nhận mái cụt dưới core-lower: cao 0.12, trên r=1.17/Y=0.52, dưới
+r=1.05/Y=0.40, kín cả hai mặt tới tâm; material chung với core-cap-roof.
+Platform giữ dày 0.05, hạ tâm 0.495→0.375 để mặt trên Y=0.40 tiếp giáp mái.
+Đĩa, vòng khắc và reflection của platform đều dùng config nên hạ cùng nhau.
+
+lowerRoof được khai báo trong core-visual-config. Geometry lathe profile tới r=0
+ở hai đầu, gộp vào material group darkGlass của spool-base-glass. Giữ một part ID
+core-lower, cùng pivot/baseShift và hai material group; không thêm draw riêng.
+Hai mặt kính drum giữ nguyên. Metadata core-lower tính cả mái, height=0.42.
+
+Ray test xác nhận đáy kín Y=0.40, đỉnh kín Y=0.52, mặt nghiêng r=1.11 tại Y=0.46,
+đúng materialIndex 0. Test kính drum lọc materialIndex 1 vì nay ray từ dưới gặp mái
+trước. Platform body bbox 0.35–0.40, không gộp phần reflection/rings vào phép đo đó.
+Gate clearance thêm lower-roof thành mặt core thứ 7; tính khoảng cách tới đoạn
+nghiêng và hai đĩa kín. Test giải tích kiểm đáy, đỉnh và mặt nghiêng. Mọi dòng orbit,
+14 tower và các mặt core cũ ngoài platform giống từng byte. Gap mái 0.287715,
+platform mới 0.457334.
+
+Full suite **90 pass / 2 fail, tổng 92**, 28.18s. Hai fail vẫn là kính/backdrop có
+sẵn đã ghi P51; không sửa cấu hình hoặc assertion để giấu sai lệch. Test mái và
+clearance mới đều qua. TypeScript, ESLint phạm vi sửa, build, whitespace qua; build
+vẫn cảnh báo chunk lớn. Snapshot trước sửa và audit tại inverted-lower-roof/.
+Ảnh detached closeup đã kiểm; 15 PNG khớp SHA256, console errors=0 (warning màu
+cũ còn), click chọn đúng part tại ba camera. GL attached/detached 413 calls /
+374454 triangles, animated 427/374468; số draw không tăng. Chưa commit.
+
+### 7.23 P53 — drum và roof dưới đậm hơn đỉnh (2026-11-04)
+
+Human xác nhận tách material riêng cho thân drum dưới và roof úp ngược, giữ xanh đen,
+giảm emission, opacity 0.88→0.96. palette.lowerBody khai báo color #031418,
+emissive #05282c, emissiveIntensity 0.08. Clone darkGlass để giữ các đặc tính
+physical hiện hữu rồi áp dụng palette này; chỉ thay material group 0 của core-lower.
+Hai đĩa kính, viền sáng, hình học, picking/explode và material phần đỉnh giữ nguyên.
+Material mới được model dispose sweep thu gom như các material khác.
+
+Test không còn đòi material đế trùng instance với đỉnh; thay bằng kiểm material riêng,
+màu/opacity/emission mới và giá trị đỉnh không bị đổi. Gate fingerprint/clearance được
+cập nhật bằng harness hiện hữu; không đổi bộ so sánh.
+Full suite **90 pass / 2 fail, tổng 92**, 32.85s; hai fail cũ thuộc kính/backdrop như
+P51–P52 vẫn giữ nguyên. TypeScript, ESLint phạm vi sửa, build và whitespace qua.
+Build còn cảnh báo chunk lớn. Ảnh trước chỉnh giữ tại darker-lower/. Đã kiểm ảnh
+detached closeup: thân đế tối hơn đỉnh, kính/viền giữ nét. Capture đủ 15 ảnh khớp
+SHA256, console errors=0 (warning màu cũ còn); click đúng part tại ba camera.
+GL attached/detached 413 calls/374454 triangles, animated 427/374468, không tăng
+so với P52. Chưa commit.
+
+### 7.24 P54 — bản đồ module thu gọn bằng nút mũi tên
+
+Human xác nhận mặc định thu gọn trên desktop/mobile; chỉ hiện nút › ở góc trái trên,
+bấm mở đầy đủ bảng, bấm ‹ thu lại, không animation. legendOpen là state riêng của
+Dataset3DView, không phụ thuộc detached/selectedId/camera nên giữ lựa chọn trong
+phiên màn hình khi zoom, xoay hoặc tách mô hình; không lưu qua reload.
+
+Nút native button có aria-label, aria-expanded, aria-controls và focus-visible.
+Nội dung dùng hidden khi đóng, giữ nút hiện tại để không mất focus bàn phím.
+Legend bật pointer-events riêng trong overlay; sự kiện nút không thuộc DOM canvas
+nên không kéo camera. Bảng mở giữ width 232px, bảng đóng chỉ 44×46px; max-height
+và overflow cho phép cuộn trong canvas thấp. Mobile bỏ display:none cũ, đặt detach
+xuống góc dưới, detail panel cách đáy 62px để không chồng nút.
+
+Test view cập nhật kiểm mặc định đóng, đóng/mở theo aria-controls, giữ lựa chọn
+khi detach/selected part thay đổi. **4/4 view tests pass**. TypeScript, scoped ESLint,
+build và whitespace qua; build vẫn cảnh báo chunk lớn. Không sửa geometry/model
+hoặc baseline fingerprint/clearance của model trong lượt này.
+
+Harness trình duyệt tại module-legend/check.cjs, kết quả results.json và 6 PNG:
+1920×1080, 1280×900, 390×844 đều qua Enter/Space, đóng/mở không đổi camera,
+zoom/detach không reset bảng, không chồng detach, không tràn ngang, page errors=0.
+Đã kiểm ảnh wide collapsed cho thấy khối Tổng quan không còn bị bảng che; mobile
+expanded giới hạn chiều cao và có cuộn. Đã cập nhật đủ 15 ảnh baseline desktop,
+kiểm khớp SHA256, console errors=0; click chọn part qua tại cả ba camera.
+Hai fail kính/backdrop đã ghi P51–P53 vẫn ngoài phạm vi; không chạy lại toàn bộ
+suite hình học cho thay đổi DOM/CSS này. Chưa commit.

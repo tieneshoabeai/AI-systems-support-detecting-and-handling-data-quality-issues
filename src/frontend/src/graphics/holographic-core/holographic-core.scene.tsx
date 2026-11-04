@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useState } from 'react'
+import { Component, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
@@ -12,6 +12,7 @@ import { createHolographicCoreProductModel } from './holographic-core.model'
 import { HolographicEnvironment } from './holographic-core.environment'
 import { createNeonCubeCluster } from '../neon-cube/neon-cube.cluster'
 import type { HolographicPartInfo } from '../../types/dataset-3d/holographic-part.types'
+import { heroLabelForId } from './tower-gauge-config'
 
 type HolographicCoreCanvasProps = {
   reducedMotion: boolean
@@ -60,17 +61,20 @@ function CameraControls({ reducedMotion }: { reducedMotion: boolean }) {
 // three.js objects are imperative by design, so DOM cursor writes stay in a plain helper
 // instead of a render/hook body where the react-hooks immutability rule rejects them.
 function setCanvasCursor(element: HTMLCanvasElement, value: string) {
-  element.style.cursor = value
+  if (element.style.cursor !== value) element.style.cursor = value
 }
+
+type HeroHover = { id: string; label: string; x: number; y: number }
 
 type CoreStructureProps = {
   reducedMotion: boolean
   detached: boolean
   selectedId: string | null
   onSelectPart(part: HolographicPartInfo | null): void
+  onHeroHover(hover: HeroHover | null): void
 }
 
-function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart }: CoreStructureProps) {
+function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart, onHeroHover }: CoreStructureProps) {
   const { gl } = useThree()
   const productModel = useMemo(() => createHolographicCoreProductModel(), [])
   useEffect(() => () => productModel.dispose(), [productModel])
@@ -78,17 +82,21 @@ function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart }: Co
   useEffect(() => { productModel.setSelected(selectedId) }, [productModel, selectedId])
   useEffect(() => {
     const element = gl.domElement
-    const resetCursor = () => setCanvasCursor(element, '')
-    if (!detached) {
-      resetCursor()
-      return
+    const clearHover = () => {
+      setCanvasCursor(element, '')
+      onHeroHover(null)
     }
-    element.addEventListener('pointerleave', resetCursor)
+    const dismiss = (event: KeyboardEvent) => { if (event.key === 'Escape') clearHover() }
+    element.addEventListener('pointerleave', clearHover)
+    element.addEventListener('pointerdown', clearHover)
+    window.addEventListener('keydown', dismiss)
     return () => {
-      element.removeEventListener('pointerleave', resetCursor)
-      resetCursor()
+      element.removeEventListener('pointerleave', clearHover)
+      element.removeEventListener('pointerdown', clearHover)
+      window.removeEventListener('keydown', dismiss)
+      clearHover()
     }
-  }, [detached, gl])
+  }, [gl, onHeroHover])
   useFrame(({ clock }, delta) => {
     if (reducedMotion) {
       productModel.resetMotion()
@@ -110,11 +118,28 @@ function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart }: Co
     onSelectPart(part)
   }
   const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
-    if (!detached) return
-    const selectable = event.intersections.some(hit => isVisibleInScene(hit.object) && productModel.resolvePart(hit.object))
-    setCanvasCursor(gl.domElement, selectable ? 'pointer' : 'default')
+    if (event.pointerType === 'touch' || event.buttons !== 0) {
+      onHeroHover(null)
+      return
+    }
+    // Match click occlusion: never label a hero through another visible component.
+    let part: HolographicPartInfo | null = null
+    for (const hit of event.intersections) {
+      if (!isVisibleInScene(hit.object)) continue
+      part = productModel.resolvePart(hit.object)
+      if (part) break
+    }
+    const label = part ? heroLabelForId(part.id) : null
+    setCanvasCursor(gl.domElement, detached && part ? 'pointer' : label ? 'help' : '')
+    if (!label || !part) { onHeroHover(null); return }
+    const rect = gl.domElement.getBoundingClientRect()
+    onHeroHover({
+      id: part.id, label,
+      x: Math.max(8, Math.min(event.clientX - rect.left + 12, rect.width - 248)),
+      y: Math.max(8, Math.min(event.clientY - rect.top + 14, rect.height - 54)),
+    })
   }
-  return <primitive object={productModel.model} onClick={handleClick} onPointerMove={handlePointerMove} />
+  return <primitive object={productModel.model} onClick={handleClick} onPointerMove={handlePointerMove} onPointerOut={() => onHeroHover(null)} />
 }
 
 function NeonCubeNodes() {
@@ -154,7 +179,7 @@ function HolographicBloom({ enabled }: { enabled: boolean }) {
 
 type HolographicSceneProps = CoreStructureProps & { onContextLost(): void }
 
-function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, onContextLost }: HolographicSceneProps) {
+function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, onHeroHover, onContextLost }: HolographicSceneProps) {
   const { camera } = useThree()
   useEffect(() => {
     camera.position.set(...INITIAL_CAMERA_POSITION)
@@ -169,7 +194,7 @@ function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, o
     <pointLight color="#3f7dff" intensity={12} distance={10} position={[-5, 4.5, -5]} />
     <HolographicEnvironment reducedMotion={reducedMotion} />
     <NeonCubeNodes />
-    <CoreStructure reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} />
+    <CoreStructure reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} onHeroHover={onHeroHover} />
     <CameraControls reducedMotion={reducedMotion} />
     <HolographicBloom enabled={!reducedMotion} />
   </>
@@ -187,13 +212,21 @@ function isVisibleInScene(object: Object3D) {
 
 export function HolographicCoreCanvas({ reducedMotion, detached, selectedId, onSelectPart }: HolographicCoreCanvasProps) {
   const [failed, setFailed] = useState(false)
+  const [hover, setHover] = useState<HeroHover | null>(null)
+  // Keep the label at its entry point while reading it; no React render on every mouse pixel.
+  const onHeroHover = useCallback((next: HeroHover | null) => {
+    setHover(previous => previous?.id === next?.id ? previous : next)
+  }, [])
   if (failed) return <div className="dataset-3d-fallback" role="status"><strong>Không thể hiển thị mô hình 3D</strong><p>WebGL không khả dụng hoặc renderer đã mất context. Hãy tải lại trang để thử lại.</p></div>
-  return <SceneBoundary onFailure={() => setFailed(true)}>
+  return <div className="dataset-3d-canvas-shell"><SceneBoundary onFailure={() => setFailed(true)}>
     <Canvas className="dataset-3d-canvas" dpr={[1, 1.5]} camera={{ fov: 34, near: 0.1, far: 100 }}
       onPointerMissed={() => { if (detached) onSelectPart(null) }}
       fallback={<div className="dataset-3d-fallback" role="status"><strong>Trình duyệt không hỗ trợ WebGL</strong><p>Không thể mở không gian Dataset 3D trên trình duyệt này.</p></div>}>
       <HolographicScene reducedMotion={reducedMotion} detached={detached} selectedId={selectedId}
-        onSelectPart={onSelectPart} onContextLost={() => setFailed(true)} />
+        onSelectPart={onSelectPart} onHeroHover={onHeroHover} onContextLost={() => setFailed(true)} />
     </Canvas>
   </SceneBoundary>
+    {hover && <div className="dataset-3d-hero-tooltip" role="tooltip" data-tower-id={hover.id}
+      style={{ transform: `translate3d(${hover.x}px, ${hover.y}px, 0)` }}>{hover.label}</div>}
+  </div>
 }

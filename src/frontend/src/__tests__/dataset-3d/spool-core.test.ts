@@ -21,7 +21,7 @@ function countDrawables(root: THREE.Object3D) {
       || object instanceof THREE.Points
       || object instanceof THREE.Sprite
     ) {
-      drawCalls += 1
+      drawCalls += Array.isArray(drawable.material) ? drawable.geometry.groups.length : 1
     }
     if (!(object instanceof THREE.Mesh) || !drawable.geometry) return
     const geometry = drawable.geometry
@@ -34,8 +34,9 @@ function countDrawables(root: THREE.Object3D) {
 
 describe('spool core config', () => {
   it('stacks platform, base, chamber and cap without gaps', () => {
-    const { platform, baseGlass, lowerBand, chamber, cap } = SPOOL_CORE
-    expect(platform.centerY + platform.thickness / 2).toBeCloseTo(baseGlass.centerY - baseGlass.height / 2, 6)
+    const { platform, baseGlass, lowerRoof, lowerBand, chamber, cap } = SPOOL_CORE
+    expect(platform.centerY + platform.thickness / 2).toBeCloseTo(lowerRoof.bottomY, 6)
+    expect(lowerRoof.topY).toBeCloseTo(baseGlass.centerY - baseGlass.height / 2, 6)
     expect(baseGlass.centerY + baseGlass.height / 2).toBeCloseTo(lowerBand.centerY - lowerBand.height / 2, 6)
     expect(lowerBand.centerY + lowerBand.height / 2).toBeCloseTo(chamber.centerY - chamber.height / 2, 6)
     expect(chamber.centerY + chamber.height / 2).toBeCloseTo(cap.bottomY, 6)
@@ -43,7 +44,8 @@ describe('spool core config', () => {
     expect(cap.drum.centerY - cap.drum.height / 2).toBeCloseTo(cap.bottomY, 6)
     expect(cap.drum.centerY + cap.drum.height / 2).toBeCloseTo(cap.roof.bottomY, 6)
     expect(cap.roof.topY).toBeCloseTo(SPOOL_CORE.topY, 6)
-    expect(cap.lid.centerY + cap.lid.height / 2).toBeCloseTo(SPOOL_CORE.topY, 6)
+    expect(cap.lid.centerY + cap.lid.height / 2).toBeCloseTo(2.68, 6)
+    expect(cap.lid.centerY - cap.lid.height / 2).toBeCloseTo(2.48, 6)
     expect(cap.lid.centerY - cap.lid.height / 2).toBeLessThan(cap.roof.bottomY)
     expect(cap.topY - cap.bottomY).toBeCloseTo(0.42, 6)
     expect(SPOOL_CORE.nucleus.y).toBeGreaterThan(chamber.centerY - chamber.height / 2)
@@ -52,7 +54,7 @@ describe('spool core config', () => {
 
   it('wraps the chamber in a 0.01 glass wall and keeps a capsule nucleus inside', () => {
     const { chamber, nucleus } = SPOOL_CORE
-    expect(chamber.height).toBeCloseTo(0.99, 6)
+    expect(chamber.height).toBeCloseTo(1.32, 6)
     expect(chamber.wall).toBeCloseTo(0.01, 6)
     expect(nucleus.radius).toBeCloseTo(0.2, 6)
     expect(nucleus.length).toBeCloseTo(0.16, 6)
@@ -119,6 +121,131 @@ describe('spool core config', () => {
 })
 
 describe('spool core model', () => {
+  it('closes the inverted lower roof and seats it on the lowered platform', () => {
+    const spool = createSpoolCore()
+    try {
+      const lower = spool.selectableMeshes.get('core-lower')!
+      const roof = spool.selectableMeshes.get('core-cap-roof')!
+      const { lowerRoof, platform } = SPOOL_CORE
+      expect(lowerRoof.topY - lowerRoof.bottomY).toBeCloseTo(0.12, 6)
+      expect(lowerRoof.topRadius).toBe(SPOOL_CORE.cap.roof.bottomOuter)
+      expect(lowerRoof.bottomRadius).toBe(SPOOL_CORE.cap.roof.topOuter)
+      expect((lower.material as THREE.Material[])[0]).not.toBe(roof.material)
+      spool.parts.base.updateMatrixWorld(true)
+      spool.parts.platform.updateMatrixWorld(true)
+      const platformMesh = spool.parts.platform.children.find(child =>
+        child instanceof THREE.Mesh && child.name === 'spool-platform',
+      )!
+      const bounds = new THREE.Box3().setFromObject(platformMesh)
+      expect(bounds.min.y).toBeCloseTo(0.35, 6)
+      expect(bounds.max.y).toBeCloseTo(0.4, 6)
+      expect(platform.centerY).toBe(0.375)
+      // Both centre faces are closed, rather than the annular opening on the upper roof.
+      const bottomHit = new THREE.Raycaster(new THREE.Vector3(0, 0.2, 0), new THREE.Vector3(0, 1, 0)).intersectObject(lower)[0]
+      expect(bottomHit?.point.y).toBeCloseTo(0.4, 6)
+      expect(bottomHit?.face?.materialIndex).toBe(0)
+      const topHits = new THREE.Raycaster(new THREE.Vector3(0, 0.6, 0), new THREE.Vector3(0, -1, 0)).intersectObject(lower)
+      expect(topHits.some(hit => Math.abs(hit.point.y - 0.52) < 1e-6 && hit.face?.materialIndex === 0)).toBe(true)
+      const sideHit = new THREE.Raycaster(new THREE.Vector3(2, 0.46, 0), new THREE.Vector3(-1, 0, 0)).intersectObject(lower)[0]
+      expect(sideHit?.point.x).toBeCloseTo(1.11, 6)
+      expect(sideHit?.face?.materialIndex).toBe(0)
+      expect(lower.userData.sculptComponent.dimensions.height).toBeCloseTo(0.42, 6)
+    } finally { spool.dispose() }
+  })
+
+  it('matches the cap drum dimensions and closes both lower faces with full glass discs', () => {
+    const spool = createSpoolCore()
+    try {
+      const lower = spool.selectableMeshes.get('core-lower')!
+      const upper = spool.selectableMeshes.get('core-cap-drum')!
+      const { baseGlass, cap, lowerBand } = SPOOL_CORE
+      expect(baseGlass.innerRadius).toBe(cap.drum.innerRadius)
+      expect(baseGlass.radius).toBe(cap.drum.outerRadius)
+      expect(baseGlass.height).toBe(cap.drum.height)
+      spool.parts.base.updateMatrixWorld(true)
+      const bounds = new THREE.Box3().setFromObject(lower)
+      expect(bounds.min.y).toBeCloseTo(0.4, 6)
+      expect(bounds.max.y).toBeCloseTo(0.82, 6)
+      expect(bounds.max.x).toBeCloseTo(1.17, 6)
+      expect(lowerBand.centerY - lowerBand.height / 2).toBeCloseTo(0.82, 6)
+      expect(lowerBand.centerY + lowerBand.height / 2).toBeCloseTo(0.99, 6)
+      const materials = lower.material as THREE.Material[]
+      const body = materials[0] as THREE.MeshPhysicalMaterial
+      const upperBody = upper.material as THREE.MeshPhysicalMaterial
+      expect(body).not.toBe(upperBody)
+      expect(body.color.getHexString()).toBe('031418')
+      expect(body.opacity).toBe(0.96)
+      expect(body.emissiveIntensity).toBe(0.08)
+      expect(body.emissiveIntensity).toBeLessThan(upperBody.emissiveIntensity)
+      expect(upperBody.color.getHexString()).toBe('06232a')
+      expect(upperBody.opacity).toBe(0.88)
+      expect(materials[1]).toBe(spool.selectableMeshes.get('core-cap-lid')!.material)
+      expect(lower.geometry.groups.map(group => group.materialIndex)).toEqual([0, 1])
+      // Centre and near-rim rays hit glass from either direction: neither face has a hole.
+      for (const x of [0, 0.8, 1.1, 1.16]) {
+        for (const [originY, directionY, hitY] of [[1, -1, 0.82], [0.3, 1, 0.52]]) {
+          const hit = new THREE.Raycaster(
+            new THREE.Vector3(x, originY, 0), new THREE.Vector3(0, directionY, 0),
+          ).intersectObject(lower).find(hit => hit.face?.materialIndex === 1)
+          expect(hit?.object).toBe(lower)
+          expect(hit?.point.y).toBeCloseTo(hitY, 6)
+          expect(hit?.face?.materialIndex).toBe(1)
+        }
+      }
+      // From the hollow interior, a horizontal ray meets the inner drum wall at r=1.02.
+      const innerHit = new THREE.Raycaster(
+        new THREE.Vector3(0, 0.67, 0), new THREE.Vector3(1, 0, 0),
+      ).intersectObject(lower)[0]
+      expect(innerHit?.point.x).toBeCloseTo(1.02, 6)
+      expect(innerHit?.face?.materialIndex).toBe(0)
+      expect(new THREE.Raycaster(
+        new THREE.Vector3(1.18, 1, 0), new THREE.Vector3(0, -1, 0),
+      ).intersectObject(lower)).toHaveLength(0)
+      spool.setExplode(1)
+      spool.parts.base.updateMatrixWorld(true)
+      expect(new THREE.Box3().setFromObject(lower).min.y).toBeCloseTo(0.52, 6)
+      spool.reset()
+      spool.parts.base.updateMatrixWorld(true)
+      expect(new THREE.Box3().setFromObject(lower).min.y).toBeCloseTo(0.4, 6)
+    } finally { spool.dispose() }
+  })
+
+  it('lifts both hollow lid bands with the cap while preserving their material, id and pivot', () => {
+    const spool = createSpoolCore()
+    try {
+      const lid = findByName(spool.parts.top, 'spool-cap-lid') as THREE.Mesh
+      expect(Array.isArray(lid.material)).toBe(false)
+      expect(lid.parent).toBe(findByName(spool.parts.top, 'spool-cap-lid-part'))
+      expect(spool.selectableMeshes.get('core-cap-lid')).toBe(lid)
+      const position = lid.geometry.getAttribute('position')
+      const inner: THREE.Vector3[] = []
+      const outer: THREE.Vector3[] = []
+      for (let i = 0; i < position.count; i += 1) {
+        const point = new THREE.Vector3().fromBufferAttribute(position, i)
+        if (Math.hypot(point.x, point.z) < 0.55) inner.push(point)
+        else outer.push(point)
+      }
+      const radii = inner.map(point => Math.hypot(point.x, point.z))
+      expect(Math.min(...radii)).toBeCloseTo(0.38, 6)
+      expect(Math.max(...radii)).toBeCloseTo(0.5, 6)
+      expect(Math.min(...inner.map(point => point.y))).toBeCloseTo(2.43, 6)
+      expect(Math.max(...inner.map(point => point.y))).toBeCloseTo(2.63, 6)
+      expect(Math.min(...outer.map(point => point.y))).toBeCloseTo(2.48, 6)
+      expect(Math.max(...outer.map(point => point.y))).toBeCloseTo(2.68, 6)
+      const verticalRay = (x: number) => new THREE.Raycaster(new THREE.Vector3(x, 3, 0), new THREE.Vector3(0, -1, 0))
+      expect(verticalRay(0).intersectObject(lid)).toHaveLength(0)
+      expect(verticalRay(0.575).intersectObject(lid)).toHaveLength(0)
+      expect(verticalRay(0.44).intersectObject(lid)[0]?.object).toBe(lid)
+      expect(verticalRay(0.72).intersectObject(lid)[0]?.object).toBe(lid)
+      spool.setExplode(1)
+      spool.parts.top.updateMatrixWorld(true)
+      expect(new THREE.Vector3(0, 2.53, 0).applyMatrix4(lid.matrixWorld).y).toBeCloseTo(3.23, 6)
+      spool.reset()
+      spool.parts.top.updateMatrixWorld(true)
+      expect(new THREE.Vector3(0, 2.53, 0).applyMatrix4(lid.matrixWorld).y).toBeCloseTo(2.53, 6)
+    } finally { spool.dispose() }
+  })
+
   it('builds the four stack parts with their detail meshes', () => {
     const spool = createSpoolCore()
     expect(spool.parts.top.name).toBe('spool-top')
@@ -170,6 +297,43 @@ describe('spool core model', () => {
     expect(particles.count).toBe(164)
 
     spool.dispose()
+  })
+
+  it('builds two concentric hollow chamber walls with a common 0.99–2.31 height', () => {
+    const spool = createSpoolCore()
+    try {
+      const glass = findByName(spool.parts.chamber, 'spool-chamber-glass') as THREE.Mesh
+      spool.parts.chamber.updateMatrixWorld(true)
+      const bounds = new THREE.Box3().setFromObject(glass)
+      expect(bounds.min.y).toBeCloseTo(0.99, 6)
+      expect(bounds.max.y).toBeCloseTo(2.31, 6)
+      expect(bounds.getSize(new THREE.Vector3()).y).toBeCloseTo(1.32, 6)
+      const positions = glass.geometry.getAttribute('position')
+      const radii = new Set(Array.from({ length: positions.count }, (_, i) =>
+        Math.hypot(positions.getX(i), positions.getZ(i)).toFixed(5)))
+      expect([...radii].sort()).toEqual(['0.94000', '0.95000', '1.14000', '1.17000'])
+      const ray = (x: number) => new THREE.Raycaster(new THREE.Vector3(x, 3, 0), new THREE.Vector3(0, -1, 0))
+      expect(ray(0).intersectObject(glass)).toHaveLength(0)
+      expect(ray(1.05).intersectObject(glass)).toHaveLength(0)
+      expect(ray(0.945).intersectObject(glass)[0]?.object).toBe(glass)
+      expect(ray(1.155).intersectObject(glass)[0]?.object).toBe(glass)
+      expect(spool.selectableMeshes.get('core-upper')).toBe(glass)
+      const materials = glass.material as THREE.MeshPhysicalMaterial[]
+      expect(materials).toHaveLength(2)
+      expect(materials[0].color.getHexString()).toBe('0a3b45')
+      expect(materials[0].opacity).toBe(0.42)
+      expect(materials[1].color.getHexString()).toBe('e2e8e6')
+      expect(materials[1].opacity).toBe(0.65)
+      expect(materials[1].roughness).toBe(0.6)
+      expect(materials[1].emissiveIntensity).toBe(0)
+      expect(materials[1].lightMap).toBeInstanceOf(THREE.DataTexture)
+      expect(materials[1].lightMap?.channel).toBe(0)
+      expect(materials[1].lightMapIntensity).toBe(1)
+      expect(materials[1].depthWrite).toBe(false)
+      expect(glass.geometry.groups.map(group => group.materialIndex)).toEqual([0, 1])
+      expect(ray(0.945).intersectObject(glass)[0]?.face?.materialIndex).toBe(0)
+      expect(ray(1.155).intersectObject(glass)[0]?.face?.materialIndex).toBe(1)
+    } finally { spool.dispose() }
   })
 
   it('stands one opaque depth-writing wall behind the chamber', () => {
@@ -250,9 +414,9 @@ describe('spool core model', () => {
     expect(label('core-cap-roof')).toBe('dark-glass')
     expect(label('core-cap-drum')).toBe('dark-glass')
     expect(label('core-upper')).toBe('glass')
-    expect(label('core-lower')).toBe('glass')
+    expect(label('core-lower')).toBe('dark-glass + glass')
     expect(spool.selectableMeshes.get('core-upper')?.userData.sculptComponent.dimensions).toMatchObject({
-      width: 1.9, height: 0.99, depth: 1.9,
+      width: 2.34, height: 1.32, depth: 2.34,
     })
     spool.dispose()
   })

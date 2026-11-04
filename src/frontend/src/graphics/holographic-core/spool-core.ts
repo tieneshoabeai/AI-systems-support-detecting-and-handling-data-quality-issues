@@ -78,8 +78,8 @@ function ringGeometry(radius: number, tube: number, y: number, radialSegments = 
   return geometry
 }
 
-function mergeRings(rings: THREE.BufferGeometry[]) {
-  const merged = mergeGeometries(rings, false)
+function mergeRings(rings: THREE.BufferGeometry[], useGroups = false) {
+  const merged = mergeGeometries(rings, useGroups)
   rings.forEach(ring => ring.dispose())
   if (!merged) throw new Error('Không gộp được vòng spool')
   return merged
@@ -140,6 +140,11 @@ export function createSpoolCore(): SpoolCore {
     side: THREE.DoubleSide,
     depthWrite: false,
   })
+  const lowerBody = darkGlass.clone()
+  lowerBody.color.set(SPOOL_CORE.palette.lowerBody.color)
+  lowerBody.emissive.set(SPOOL_CORE.palette.lowerBody.emissive)
+  lowerBody.emissiveIntensity = SPOOL_CORE.palette.lowerBody.emissiveIntensity
+  lowerBody.opacity = SPOOL_CORE.palette.lowerBody.opacity
   const metal = new THREE.MeshStandardMaterial({
     color: SPOOL_CORE.palette.metal.color,
     emissive: SPOOL_CORE.palette.metal.emissive,
@@ -171,21 +176,38 @@ export function createSpoolCore(): SpoolCore {
 
   const lidBottom = cap.lid.centerY - cap.lid.height / 2
   const lidTop = cap.lid.centerY + cap.lid.height / 2
+  const innerLidBottom = cap.innerLid.centerY - cap.innerLid.height / 2
+  const innerLidTop = cap.innerLid.centerY + cap.innerLid.height / 2
+  // Two disconnected hollow bands, one glass material and one explode pivot. Merging keeps
+  // the 19-drawable core budget and one selectable lid id without filling either hole/gap.
   const lid = new THREE.Mesh(
-    latheBand([
-      [cap.lid.innerRadius, lidBottom],
-      [cap.lid.outerRadius, lidBottom],
-      [cap.lid.outerRadius, lidTop],
-      [cap.lid.innerRadius, lidTop],
-      [cap.lid.innerRadius, lidBottom],
+    mergeRings([
+      latheBand([
+        [cap.lid.innerRadius, lidBottom],
+        [cap.lid.outerRadius, lidBottom],
+        [cap.lid.outerRadius, lidTop],
+        [cap.lid.innerRadius, lidTop],
+        [cap.lid.innerRadius, lidBottom],
+      ]),
+      latheBand([
+        [cap.innerLid.innerRadius, innerLidBottom],
+        [cap.innerLid.outerRadius, innerLidBottom],
+        [cap.innerLid.outerRadius, innerLidTop],
+        [cap.innerLid.innerRadius, innerLidTop],
+        [cap.innerLid.innerRadius, innerLidBottom],
+      ]),
     ]),
     glass,
   )
   lid.name = 'spool-cap-lid'
   lid.renderOrder = 4
   lid.userData.sculptComponent = {
-    id: 'core-cap-lid', name: 'Cap lid ring', role: 'projected-part', material: 'glass',
-    level: 'meso', dimensions: { width: cap.lid.outerRadius * 2, height: cap.lid.height, depth: cap.lid.outerRadius * 2, units: 'relative' },
+    id: 'core-cap-lid', name: 'Cap lid rings', role: 'projected-part', material: 'glass',
+    level: 'meso', dimensions: {
+      width: cap.lid.outerRadius * 2,
+      height: Math.max(lidTop, innerLidTop) - Math.min(lidBottom, innerLidBottom),
+      depth: cap.lid.outerRadius * 2, units: 'relative',
+    },
   }
   lidPart.add(lid)
   selectableMeshes.set('core-cap-lid', lid)
@@ -270,25 +292,46 @@ export function createSpoolCore(): SpoolCore {
   roofRims.raycast = () => {}
   roofPart.add(roofRims)
 
-  // --- Chamber: thin-walled glass tube (0.01 wall) with a glowing capsule nucleus. ---
+  // --- Chamber: concentric shells share a pivot and pick id, with separate material groups. ---
   const { chamber } = SPOOL_CORE
   const chamberInner = chamber.radius - chamber.wall
+  // A uniform baked diffuse fill keeps the milky wall neutral under the blue ambient light.
+  // It lights only this material and adds no emission or scene-wide light.
+  const outerGlassFill = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1)
+  outerGlassFill.channel = 0
+  outerGlassFill.needsUpdate = true
+  const outerGlass = new THREE.MeshPhysicalMaterial({
+    ...chamber.outerGlass.material,
+    lightMap: outerGlassFill,
+    emissive: '#000000', emissiveIntensity: 0,
+    transparent: true, metalness: 0,
+    clearcoat: 0, side: THREE.DoubleSide, depthWrite: false,
+  })
   const chamberGlass = new THREE.Mesh(
-    latheBand([
-      [chamberInner, -chamber.height / 2],
-      [chamber.radius, -chamber.height / 2],
-      [chamber.radius, chamber.height / 2],
-      [chamberInner, chamber.height / 2],
-      [chamberInner, -chamber.height / 2],
-    ]),
-    glass,
+    mergeRings([
+      latheBand([
+        [chamberInner, -chamber.height / 2],
+        [chamber.radius, -chamber.height / 2],
+        [chamber.radius, chamber.height / 2],
+        [chamberInner, chamber.height / 2],
+        [chamberInner, -chamber.height / 2],
+      ]),
+      latheBand([
+        [chamber.outerGlass.innerRadius, -chamber.height / 2],
+        [chamber.outerGlass.outerRadius, -chamber.height / 2],
+        [chamber.outerGlass.outerRadius, chamber.height / 2],
+        [chamber.outerGlass.innerRadius, chamber.height / 2],
+        [chamber.outerGlass.innerRadius, -chamber.height / 2],
+      ]),
+    ], true),
+    [glass, outerGlass],
   )
   chamberGlass.position.y = chamber.centerY
   chamberGlass.name = 'spool-chamber-glass'
   chamberGlass.renderOrder = 3
   chamberGlass.userData.sculptComponent = {
     id: 'core-upper', name: 'Spool chamber', role: 'projected-part', material: 'glass',
-    level: 'macro', dimensions: { width: chamber.radius * 2, height: chamber.height, depth: chamber.radius * 2, units: 'relative' },
+    level: 'macro', dimensions: { width: chamber.outerGlass.outerRadius * 2, height: chamber.height, depth: chamber.outerGlass.outerRadius * 2, units: 'relative' },
   }
   parts.chamber.add(chamberGlass)
   selectableMeshes.set('core-upper', chamberGlass)
@@ -356,22 +399,48 @@ export function createSpoolCore(): SpoolCore {
   nucleusLight.name = 'spool-nucleus-light'
   parts.chamber.add(nucleusLight)
 
-  // --- Base: translucent glass foundation with a cyan edge. ---
-  const { baseGlass } = SPOOL_CORE
+  // --- Base: drum-sized hollow walls, closed at both ends by full glass discs. ---
+  const { baseGlass, lowerRoof } = SPOOL_CORE
   // The shift group keeps the explode offset separate from the local offset attach() bakes in.
   const baseShift = new THREE.Group()
   baseShift.name = 'spool-base-shift'
   parts.base.add(baseShift)
+  const baseHalfHeight = baseGlass.height / 2
+  const baseWalls = mergeRings([
+    latheBand([[baseGlass.radius, -baseHalfHeight], [baseGlass.radius, baseHalfHeight]]),
+    latheBand([[baseGlass.innerRadius, baseHalfHeight], [baseGlass.innerRadius, -baseHalfHeight]]),
+    // Inverted roof, closed all the way to the axis at both ends. Merge into the
+    // drum's dark material group so the whole lower assembly keeps one pick id.
+    latheBand([
+      [0, lowerRoof.bottomY - baseGlass.centerY],
+      [lowerRoof.bottomRadius, lowerRoof.bottomY - baseGlass.centerY],
+      [lowerRoof.topRadius, lowerRoof.topY - baseGlass.centerY],
+      [0, lowerRoof.topY - baseGlass.centerY],
+      [0, lowerRoof.bottomY - baseGlass.centerY],
+    ]),
+  ])
+  // Only the vertical walls use darkGlass. Full-radius discs avoid either a central
+  // hole or coplanar overlap with dark annular end faces.
+  const baseTop = new THREE.CircleGeometry(baseGlass.radius, 64)
+  baseTop.rotateX(-Math.PI / 2)
+  baseTop.translate(0, baseHalfHeight, 0)
+  const baseBottom = new THREE.CircleGeometry(baseGlass.radius, 64)
+  baseBottom.rotateX(Math.PI / 2)
+  baseBottom.translate(0, -baseHalfHeight, 0)
   const baseShell = new THREE.Mesh(
-    new THREE.CylinderGeometry(baseGlass.radius - 0.02, baseGlass.radius, baseGlass.height, 64),
-    glass,
+    mergeRings([baseWalls, mergeRings([baseTop, baseBottom])], true),
+    [lowerBody, glass],
   )
   baseShell.position.y = baseGlass.centerY
   baseShell.name = 'spool-base-glass'
   baseShell.renderOrder = 2
   baseShell.userData.sculptComponent = {
-    id: 'core-lower', name: 'Spool glass base', role: 'projected-part', material: 'glass',
-    level: 'macro', dimensions: { width: baseGlass.radius * 2, height: baseGlass.height, depth: baseGlass.radius * 2, units: 'relative' },
+    id: 'core-lower', name: 'Closed lower drum and inverted roof', role: 'projected-part', material: 'dark-glass + glass',
+    level: 'macro', dimensions: {
+      width: baseGlass.radius * 2,
+      height: baseGlass.centerY + baseHalfHeight - lowerRoof.bottomY,
+      depth: baseGlass.radius * 2, units: 'relative',
+    },
   }
   baseShift.add(baseShell)
   selectableMeshes.set('core-lower', baseShell)
@@ -387,7 +456,7 @@ export function createSpoolCore(): SpoolCore {
   const baseRims = new THREE.Mesh(
     mergeRings([
       ringGeometry(baseGlass.radius - 0.005, 0.005, baseGlass.centerY + baseGlass.height / 2 - 0.012, 6),
-      ringGeometry(baseGlass.radius - 0.02, 0.004, baseGlass.centerY - baseGlass.height / 2 + 0.012, 6),
+      ringGeometry(baseGlass.radius - 0.005, 0.004, baseGlass.centerY - baseGlass.height / 2 + 0.012, 6),
     ]),
     ice,
   )
@@ -642,6 +711,7 @@ export function createSpoolCore(): SpoolCore {
     setExplode: applyExplode,
     dispose() {
       texture.dispose()
+      outerGlassFill.dispose()
     },
   }
 }

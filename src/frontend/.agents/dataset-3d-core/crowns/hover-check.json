@@ -1,0 +1,25 @@
+{
+  "attached": {
+    "pixel": {
+      "id": "tower-10",
+      "x": 761,
+      "y": 547
+    },
+    "label": "Completeness — Đầy đủ"
+  },
+  "detached": {
+    "pixel": {
+      "id": "tower-10",
+      "x": 785,
+      "y": 539
+    },
+    "label": "Completeness — Đầy đủ"
+  },
+  "attachedClickIgnored": true,
+  "detachedClickSelected": true,
+  "contextUnlabelled": true,
+  "escapeAndLeaveDismiss": true,
+  "reducedMotionClockStatic": true,
+  "normalClockMoves": true,
+  "errors": []
+}

@@ -1,6 +1,6 @@
 // The Tower<->Core clearance gate (CODE ARCHITECTURE IMPROVEMENT PLAN, S3 / Phase 1, Test B).
 //
-// The binding constraint between the 18 towers and the spinning orbit used to live only in a comment
+// The binding constraint between the 14 towers and the spinning orbit used to live only in a comment
 // in core-visual-config.ts. p1-orbit-clearance.ndjson pins it as numbers, quantised to 6 decimals, so
 // "this refactor did not bring a tower closer to the orbit" is a byte comparison instead of a promise.
 // The plan's tolerance for Phases 2-5 is zero: any deviation is a diff, and whether to widen it later
@@ -17,18 +17,16 @@
 //     a tower is the exact answer and a 512-step brute sweep agrees with it to 0.0006 (generator §5).
 //   * `swept` is measured to the tower's Box3, which unions hidden children such as the selection
 //     contour, so it is the conservative reading: never wider than the drawn truth.
-//   * tower-15 is negative. That is the pre-existing pierce recorded at change-log P32-P33 (deviation
-//     D7) — ring 4's bead digs 0.0550 into the drawn glass volume at one yaw. Every fix changes the
-//     image, so it is parked outside this refactor and pinned here as a known negative, not silenced.
+//   * After tower-15 removal, all remaining tower gaps must be non-negative.
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import * as THREE from 'three'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
-import { ALL_TOWER_IDS, buildClearance } from './support/orbit-clearance'
+import { ALL_TOWER_IDS, buildClearance, coreSurfaceGap, coreSurfaces } from './support/orbit-clearance'
 
 const BASELINE = resolve(process.cwd(), '.agents/dataset-3d-core/fingerprint/p1-orbit-clearance.ndjson')
-const KNOWN_PIERCE = 'tower-15'
 
 function parseLines(text: string): string[] {
   return text.split('\n').filter(line => line && !line.startsWith('#'))
@@ -49,6 +47,22 @@ function gapsOf(lines: string[], prefix: string): Array<{ id: string; swept: num
 }
 
 describe('orbit-vs-tower clearance vs the Phase 1 baseline', () => {
+  it('measures the slope and full closures of the inverted lower roof', () => {
+    const surface = coreSurfaces().find(entry => entry.name === 'lower-roof')!
+    expect(coreSurfaceGap(new THREE.Vector3(0, 0.3, 0), surface)).toBeCloseTo(0.1, 6)
+    expect(coreSurfaceGap(new THREE.Vector3(0, 0.62, 0), surface)).toBeCloseTo(0.1, 6)
+    expect(coreSurfaceGap(new THREE.Vector3(1.11, 0.46, 0), surface)).toBeCloseTo(0, 6)
+    expect(coreSurfaceGap(new THREE.Vector3(1.2, 0.46, 0), surface)).toBeCloseTo(0.09 / Math.sqrt(2), 6)
+  })
+
+  it('measures both glass closures and the inner wall of the new lower drum', () => {
+    const surface = coreSurfaces().find(entry => entry.name === 'base-glass')!
+    expect(surface.closed).toBe(true)
+    expect(coreSurfaceGap(new THREE.Vector3(0, 0.92, 0), surface)).toBeCloseTo(0.1, 6)
+    expect(coreSurfaceGap(new THREE.Vector3(0, 0.42, 0), surface)).toBeCloseTo(0.1, 6)
+    expect(coreSurfaceGap(new THREE.Vector3(0, 0.82, 0), surface)).toBeCloseTo(0, 6)
+    expect(coreSurfaceGap(new THREE.Vector3(1.01, 0.67, 0), surface)).toBeCloseTo(0.01, 6)
+  })
   const expected = parseLines(readFileSync(BASELINE, 'utf8'))
   let got: string[] = []
 
@@ -56,7 +70,7 @@ describe('orbit-vs-tower clearance vs the Phase 1 baseline', () => {
     got = buildClearance(createHolographicCoreProductModel().model)
   }, 120_000)
 
-  it('pins a line for every one of the 18 towers', () => {
+  it('pins a line for every one of the 14 towers', () => {
     const ids = got.filter(line => line.startsWith('tower|')).map(line => line.split('|')[1])
     expect(ids).toEqual(ALL_TOWER_IDS)
   })
@@ -77,17 +91,15 @@ describe('orbit-vs-tower clearance vs the Phase 1 baseline', () => {
   // pinned gaps would be describing geometry that is no longer on screen.
   it('is still measuring the geometry that is actually drawn', () => {
     expect(field(got, 'orbit|samples=', 'drift')).toBeLessThan(0.003)
-    expect(got.filter(line => line.startsWith('tower|'))).toHaveLength(18)
-    expect(got.filter(line => line.startsWith('core|'))).toHaveLength(6)
+    expect(got.filter(line => line.startsWith('tower|'))).toHaveLength(14)
+    expect(got.filter(line => line.startsWith('core|'))).toHaveLength(7)
   })
 
-  // The 17 that stay clear are the towers this refactor is allowed to move at all. Their exact margins
-  // belong to the byte comparison above; this check only makes sure the parked exception stays a
-  // singleton instead of quietly becoming a category.
-  it('keeps every tower except the parked one clear of the full spin', () => {
+  // No tower exceptions remain after removal of tower-15.
+  it('keeps every remaining tower clear of the full spin', () => {
     const gaps = gapsOf(got, 'tower|')
     const pierced = gaps.filter(entry => entry.swept < 0).map(entry => entry.id)
-    expect(pierced.filter(id => id !== KNOWN_PIERCE), 'a second tower entered the orbit path').toEqual([])
-    expect(gaps.filter(entry => entry.swept >= 0)).toHaveLength(17)
+    expect(pierced, 'a remaining tower entered the orbit path').toEqual([])
+    expect(gaps.filter(entry => entry.swept >= 0)).toHaveLength(14)
   })
 })

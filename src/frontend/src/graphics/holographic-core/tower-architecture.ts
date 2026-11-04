@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import type { ProceduralModelRuntime } from './generated-core'
 import { addTechnicalLine, addTechnicalRods } from './technical-lines'
 import { TOWER_PALETTE } from './tower-config'
+import { GAUGE_COLOR, HERO_FORM, heroGaugeDimensions } from './tower-gauge-config'
 
 export type TowerTone = {
   glass: THREE.MeshPhysicalMaterial
@@ -17,12 +18,21 @@ export type TowerMaterials = {
   tone: TowerTone
   cornerPost: THREE.MeshBasicMaterial
   plinth: THREE.MeshStandardMaterial
+  heroMetal: THREE.MeshStandardMaterial
+  heroProxy: THREE.MeshBasicMaterial
+  heroCore: THREE.MeshBasicMaterial
+  heroEdge: THREE.LineBasicMaterial
 }
 
-// One call per model, not per tower: 18 towers share these six materials, and the fingerprint gate
-// tracks them by object identity, so a second copy of `glass` would show up as 18 groups instead of one.
+// One call per model. Context architecture keeps its shared palette; composite heroes share
+// their own metal, white core, edge and non-rendered hit-proxy materials.
 export function createTowerMaterials(): TowerMaterials {
   return {
+    heroMetal: new THREE.MeshStandardMaterial({ color: GAUGE_COLOR.body, metalness: 0.85, roughness: 0.4 }),
+    heroCore: new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(HERO_FORM.coreGain), toneMapped: false }),
+    heroEdge: new THREE.LineBasicMaterial({ color: GAUGE_COLOR.edge, toneMapped: false, depthWrite: false }),
+    // Object visibility stays true for picking; only the material is excluded from rendering.
+    heroProxy: new THREE.MeshBasicMaterial({ visible: false }),
     tone: {
       glass: new THREE.MeshPhysicalMaterial({
         color: TOWER_PALETTE.glass.color, transparent: true, opacity: TOWER_PALETTE.glass.opacity,
@@ -115,6 +125,130 @@ export function createBeveledTowerGeometry(width: number, height: number, depth:
   return geometry
 }
 
+export type TowerShape = 'box' | 'octagon'
+
+// Union of a cross with 2/3-wide arms and four triangular fillers. These are eight flat
+// sides, not a regular octagon; a single solid avoids coincident transparent faces.
+function octagonalFootprint(width: number, depth: number): THREE.Vector2[] {
+  return [
+    [-width / 3, -depth / 2], [width / 3, -depth / 2],
+    [width / 2, -depth / 3], [width / 2, depth / 3],
+    [width / 3, depth / 2], [-width / 3, depth / 2],
+    [-width / 2, depth / 3], [-width / 2, -depth / 3],
+  ].map(([x, z]) => new THREE.Vector2(x, z))
+}
+
+export function createOctagonalTowerGeometry(width: number, height: number, depth: number) {
+  const shape = new THREE.Shape(octagonalFootprint(width, depth))
+  shape.closePath()
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1, curveSegments: 1 })
+  geometry.rotateX(-Math.PI / 2)
+  geometry.translate(0, -height / 2, 0)
+  return geometry
+}
+
+// Flat-shaded rings make one closed eight-sided prism/frustum, including caps.
+function octagonalRingsGeometry(width: number, depth: number, rings: Array<{ y: number; scale: number }>) {
+  const footprint = octagonalFootprint(width, depth)
+  const positions: number[] = []
+  const triangle = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
+    positions.push(...a.toArray(), ...b.toArray(), ...c.toArray())
+  }
+  const points = rings.map(ring => footprint.map(p => new THREE.Vector3(p.x * ring.scale, ring.y, p.y * ring.scale)))
+  for (let level = 0; level < points.length - 1; level += 1) {
+    for (let i = 0; i < 8; i += 1) {
+      const j = (i + 1) % 8
+      triangle(points[level][i], points[level + 1][i], points[level + 1][j])
+      triangle(points[level][i], points[level + 1][j], points[level][j])
+    }
+  }
+  for (let i = 0; i < 8; i += 1) {
+    const j = (i + 1) % 8
+    triangle(new THREE.Vector3(0, rings[0].y, 0), points[0][i], points[0][j])
+    const last = points.length - 1
+    triangle(new THREE.Vector3(0, rings[last].y, 0), points[last][j], points[last][i])
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+function buildCompositeHero(mesh: THREE.Mesh, width: number, height: number, depth: number, materials: Pick<TowerMaterials, 'heroMetal' | 'heroProxy' | 'heroCore' | 'heroEdge'>) {
+  const form = heroGaugeDimensions(width, height, depth)
+  // The only pickable object keeps the tower id and an exact envelope for the selection outline.
+  mesh.geometry = octagonalRingsGeometry(width, depth, [
+    { y: -height / 2, scale: 1 },
+    { y: form.bodyTopY, scale: 1 },
+    { y: form.capTopY, scale: HERO_FORM.capTopRatio },
+    { y: height / 2, scale: HERO_FORM.capTopRatio },
+  ])
+  mesh.material = materials.heroProxy
+
+  const core = new THREE.Mesh(new THREE.BoxGeometry(form.coreWidth, form.bodyHeight, form.coreDepth), materials.heroCore)
+  core.position.y = form.bodyCenterY
+  core.name = 'hero-square-core'
+  core.raycast = () => {}
+  mesh.add(core)
+
+  // A positive-X/positive-Z unit right triangle. Rotate it into each corner; no negative
+  // instance scales, which InstancedMesh cannot reliably render with back-face culling.
+  const triangle = new THREE.Shape([
+    new THREE.Vector2(0, 0), new THREE.Vector2(1, 0), new THREE.Vector2(0, -1),
+  ])
+  triangle.closePath()
+  const cornerGeometry = new THREE.ExtrudeGeometry(triangle, { depth: 1, bevelEnabled: false, steps: 1 })
+  cornerGeometry.rotateX(-Math.PI / 2)
+  cornerGeometry.translate(0, -0.5, 0)
+  const corners = new THREE.InstancedMesh(cornerGeometry, materials.heroMetal, 4)
+  const anchors = [[1, 1], [1, -1], [-1, -1], [-1, 1]]
+  anchors.forEach(([sx, sz], index) => {
+    towerPosition.set(sx * form.coreWidth / 2, form.bodyCenterY, sz * form.coreDepth / 2)
+    towerQuaternion.setFromAxisAngle(TOWER_UP, index * Math.PI / 2)
+    towerScale.set(index % 2 ? form.armDepth : form.armWidth, form.bodyHeight, index % 2 ? form.armWidth : form.armDepth)
+    towerMatrix.compose(towerPosition, towerQuaternion, towerScale)
+    corners.setMatrixAt(index, towerMatrix)
+  })
+  corners.instanceMatrix.needsUpdate = true
+  corners.name = 'hero-metal-corners'
+  corners.raycast = () => {}
+  corners.frustumCulled = false
+  mesh.add(corners)
+
+  const cap = new THREE.Mesh(octagonalRingsGeometry(width, depth, [
+    { y: form.bodyTopY, scale: 1 },
+    { y: form.capTopY, scale: HERO_FORM.capTopRatio },
+  ]), materials.heroMetal)
+  cap.name = 'hero-cap'
+  cap.raycast = () => {}
+  mesh.add(cap)
+
+  // Only the physical edges of the four metal corners and cap; no facade grid or mullions.
+  const edgePositions: number[] = []
+  const appendEdges = (geometry: THREE.BufferGeometry, matrix: THREE.Matrix4) => {
+    const edges = new THREE.EdgesGeometry(geometry)
+    const positions = edges.getAttribute('position')
+    const point = new THREE.Vector3()
+    for (let i = 0; i < positions.count; i += 1) {
+      point.fromBufferAttribute(positions, i).applyMatrix4(matrix)
+      edgePositions.push(point.x, point.y, point.z)
+    }
+    edges.dispose()
+  }
+  for (let i = 0; i < corners.count; i += 1) {
+    corners.getMatrixAt(i, towerMatrix)
+    appendEdges(cornerGeometry, towerMatrix)
+  }
+  appendEdges(cap.geometry, new THREE.Matrix4())
+  const edgeGeometry = new THREE.BufferGeometry()
+  edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(edgePositions, 3))
+  const edges = new THREE.LineSegments(edgeGeometry, materials.heroEdge)
+  edges.name = 'hero-metal-edge'
+  edges.renderOrder = 3
+  edges.raycast = () => {}
+  mesh.add(edges)
+}
+
 // Floors, mullions, parapet and crown share one instanced draw; window rows get a second one.
 export function buildTowerArchitecture(
   runtime: ProceduralModelRuntime,
@@ -124,13 +258,20 @@ export function buildTowerArchitecture(
   depth: number,
   crowned: boolean,
   tone: TowerTone,
+  shape: TowerShape = 'box',
+  heroMaterials?: Pick<TowerMaterials, 'heroMetal' | 'heroProxy' | 'heroCore' | 'heroEdge'>,
 ) {
   const mesh = runtime.meshes[id]
   if (!mesh) return
   mesh.geometry.dispose()
-  mesh.geometry = createBeveledTowerGeometry(width, height, depth)
   mesh.material = tone.glass
   mesh.renderOrder = 1
+  if (shape === 'octagon') {
+    if (!heroMaterials) throw new Error('Composite hero requires metal and hit-proxy materials')
+    buildCompositeHero(mesh, width, height, depth, heroMaterials)
+    return
+  }
+  mesh.geometry = createBeveledTowerGeometry(width, height, depth)
 
   const core = new THREE.Mesh(
     new THREE.BoxGeometry(Math.max(width - 0.03, 0.02), Math.max(height - 0.02, 0.02), Math.max(depth - 0.03, 0.02)),
@@ -235,17 +376,19 @@ export function buildTowerArchitecture(
   ], { thickness: 0.008, opacity: 0.45, name: 'tower-roof-outline', color: '#6fa8ff', blending: THREE.NormalBlending })
 }
 
-export function addTowerCornerPosts(parent: THREE.Object3D, width: number, height: number, depth: number, material: THREE.Material) {
+export function addTowerCornerPosts(parent: THREE.Object3D, width: number, height: number, depth: number, material: THREE.Material, shape: TowerShape = 'box') {
   const thickness = THREE.MathUtils.clamp(0.05 * Math.min(width, depth), 0.014, 0.03)
-  const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(thickness, height, thickness), material, 4)
+  const corners = shape === 'octagon' ? octagonalFootprint(width, depth) : [
+    new THREE.Vector2(-width / 2, -depth / 2), new THREE.Vector2(-width / 2, depth / 2),
+    new THREE.Vector2(width / 2, -depth / 2), new THREE.Vector2(width / 2, depth / 2),
+  ]
+  const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(thickness, height, thickness), material, corners.length)
   const matrix = new THREE.Matrix4()
   let index = 0
-  for (const x of [-width / 2, width / 2]) {
-    for (const z of [-depth / 2, depth / 2]) {
-      matrix.makeTranslation(x, 0, z)
-      posts.setMatrixAt(index, matrix)
-      index += 1
-    }
+  for (const { x, y: z } of corners) {
+    matrix.makeTranslation(x, 0, z)
+    posts.setMatrixAt(index, matrix)
+    index += 1
   }
   posts.instanceMatrix.needsUpdate = true
   posts.name = 'tower-corner-post'

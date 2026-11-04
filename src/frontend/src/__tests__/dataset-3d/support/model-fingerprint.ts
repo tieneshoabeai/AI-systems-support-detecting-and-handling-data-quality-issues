@@ -175,8 +175,8 @@ export function materialSummary(api: ModelApi): string[] {
 export type Moment = 'init' | 'update-7.3' | 'reset-motion' | 'detached' | 'selected-18'
 
 const TOWER_IDS = [
-  'tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-05', 'tower-06', 'tower-07', 'tower-08', 'tower-09',
-  'tower-10', 'tower-11', 'tower-12', 'tower-13', 'tower-14', 'tower-15', 'tower-16', 'tower-17', 'tower-18',
+  'tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-07', 'tower-08', 'tower-09',
+  'tower-10', 'tower-12', 'tower-13', 'tower-14', 'tower-16', 'tower-17', 'tower-18',
 ]
 
 // Each moment rebuilds its own model: the factory is a closure with mutable state, so reusing one

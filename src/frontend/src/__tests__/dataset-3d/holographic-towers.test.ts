@@ -1,15 +1,18 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
+import { HERO_GAUGES } from '../../graphics/holographic-core/tower-gauge-config'
+
+const HERO_IDS = new Set(HERO_GAUGES.map(target => target.towerId))
 
 type TowerRuntime = {
   nodes: Record<string, THREE.Object3D>
   meshes: Record<string, THREE.Mesh>
 }
 
-const ORIGINAL_IDS = ['tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-05', 'tower-06', 'tower-07', 'tower-08', 'tower-09']
-const OUTER_IDS = ['tower-10', 'tower-11', 'tower-12', 'tower-13', 'tower-14', 'tower-15', 'tower-16', 'tower-17', 'tower-18']
-const RING_IDS = OUTER_IDS.filter(id => id !== 'tower-15')
+const ORIGINAL_IDS = ['tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-07', 'tower-08', 'tower-09']
+const OUTER_IDS = ['tower-10', 'tower-12', 'tower-13', 'tower-14', 'tower-16', 'tower-17', 'tower-18']
+const RING_IDS = OUTER_IDS
 const ALL_IDS = [...ORIGINAL_IDS, ...OUTER_IDS]
 
 const TOWER_TARGETS: Record<string, number> = {
@@ -17,50 +20,41 @@ const TOWER_TARGETS: Record<string, number> = {
   'tower-02': 2.7,
   'tower-03': 2.5,
   'tower-04': 2,
-  'tower-05': 1.35,
-  'tower-06': 1.6,
   'tower-07': 1.9,
   'tower-08': 2.4,
   'tower-09': 2.75,
   'tower-10': 2.1,
-  'tower-11': 1.2,
   'tower-12': 2.15,
   'tower-13': 1.35,
   'tower-14': 2,
-  'tower-15': 1.1,
   'tower-16': 1.95,
   'tower-17': 1.3,
   'tower-18': 2.05,
 }
 
-// Original towers stand on the deck (0.45); the ring stands on the sector plates (0.50) while
-// tower-15 drops onto the inner projection field at the deck height.
+// Original towers stand on the deck (0.45); outer towers stand on the sector plates (0.50).
 const BASE_Y: Record<string, number> = Object.fromEntries([
   ...ORIGINAL_IDS.map(id => [id, 0.45]),
-  ...OUTER_IDS.map(id => [id, id === 'tower-15' ? 0.45 : 0.5]),
+  ...OUTER_IDS.map(id => [id, 0.5]),
 ])
 
 const OUTER_LAYOUT: Record<string, { angle: number; radius: number }> = {
   'tower-10': { angle: 14.5, radius: 2.6 },
-  'tower-11': { angle: 63, radius: 2.74 },
   'tower-12': { angle: 96.5, radius: 2.6 },
   'tower-13': { angle: 151.5, radius: 2.74 },
   'tower-14': { angle: 181.5, radius: 2.6 },
-  'tower-15': { angle: 346, radius: 1.5 },
   'tower-16': { angle: 241.5, radius: 2.6 },
   'tower-17': { angle: 282.5, radius: 2.74 },
   'tower-18': { angle: 337.5, radius: 2.6 },
 }
 
 // Originals keep their generated angle; the seven pulled towers land on a shared inner face at
-// r ~1.49. tower-01 already sat at 1.484 and tower-04 is pinned by tower-15.
+// r ~1.49. tower-01 already sat at 1.484 and tower-04 retains its approved radius.
 const ORIGINAL_LAYOUT: Record<string, { angle: number; radius: number }> = {
   'tower-01-back-high': { angle: 225, radius: 2.05 },
   'tower-02': { angle: 270, radius: 1.75 },
   'tower-03': { angle: 310, radius: 1.8308 },
   'tower-04': { angle: 355, radius: 2.02 },
-  'tower-05': { angle: 35, radius: 1.7639 },
-  'tower-06': { angle: 75, radius: 1.7498 },
   'tower-07': { angle: 120, radius: 1.7984 },
   'tower-08': { angle: 165, radius: 1.7843 },
   'tower-09': { angle: 200, radius: 1.8007 },
@@ -110,12 +104,24 @@ describe('holographic tower architecture', () => {
       expect(node).toBeDefined()
       if (!mesh || !node) continue
 
-      expect(mesh.material).toBeInstanceOf(THREE.MeshPhysicalMaterial)
-      glassMaterials.add(mesh.material as THREE.Material)
       expect(mesh.scale.y).toBe(1)
       expect(node.position.y).toBeCloseTo(BASE_Y[id] + target / 2, 5)
 
       expect(boundingSize(mesh).y).toBeCloseTo(target, 4)
+
+      if (HERO_IDS.has(id)) {
+        expect((mesh.material as THREE.Material).visible).toBe(false)
+        const arms = mesh.getObjectByName('hero-glass-arms') as THREE.InstancedMesh
+        expect(arms.material).toBeInstanceOf(THREE.MeshPhysicalMaterial)
+        expect(mesh.getObjectByName('hero-metal-corners')).toBeDefined()
+        expect(mesh.getObjectByName('hero-cap')).toBeDefined()
+        expect(mesh.getObjectByName('hero-square-core')).toBeDefined()
+        expect(mesh.getObjectByName('tower-corner-post')).toBeUndefined()
+        expect(mesh.getObjectByName('tower-floor-frame')).toBeUndefined()
+        continue
+      }
+      expect(mesh.material).toBeInstanceOf(THREE.MeshPhysicalMaterial)
+      glassMaterials.add(mesh.material as THREE.Material)
 
       const frame = mesh.children.find(child => child.name === 'tower-floor-frame')
       expect(frame).toBeInstanceOf(THREE.InstancedMesh)
@@ -146,10 +152,10 @@ describe('holographic tower architecture', () => {
     expect(boundingSize(tallest).y).toBeGreaterThan(boundingSize(neighbour).y)
   })
 
-  it('keeps eight towers on the second ring and one on the inner field', () => {
+  it('keeps seven original and seven outer towers at their approved positions', () => {
     const runtime = createRuntime()
     const towerIds = Object.keys(runtime.meshes).filter(id => id.startsWith('tower-'))
-    expect(towerIds).toHaveLength(18)
+    expect(towerIds).toHaveLength(14)
 
     for (const [id, layout] of Object.entries(ORIGINAL_LAYOUT)) {
       const node = runtime.nodes[id]
@@ -169,7 +175,7 @@ describe('holographic tower architecture', () => {
     }
   })
 
-  it('keeps the ring inside the base shell and tower-15 inside the inner field', () => {
+  it('keeps the ring inside the base shell', () => {
     const runtime = createRuntime()
 
     for (const id of RING_IDS) {
@@ -180,11 +186,6 @@ describe('holographic tower architecture', () => {
       expect(radius - halfDiagonal).toBeGreaterThanOrEqual(2.15)
     }
 
-    // The inner projection field is the flat annulus between r 0.96 and 2.15.
-    const innerRadius = Math.hypot(runtime.nodes['tower-15'].position.x, runtime.nodes['tower-15'].position.z)
-    const innerHalfDiagonal = Math.SQRT2 * footprintHalf(runtime, 'tower-15')
-    expect(innerRadius - innerHalfDiagonal).toBeGreaterThanOrEqual(0.96)
-    expect(innerRadius + innerHalfDiagonal).toBeLessThanOrEqual(2.15)
   })
 
   it('pulls the original towers onto a shared inner face around the mid collar', () => {
@@ -195,9 +196,8 @@ describe('holographic tower architecture', () => {
       expect(innerFace(runtime, id), id).toBeLessThanOrEqual(1.53)
     }
 
-    // tower-15 owns the inner slot at 346 degrees, so tower-04 keeps its generated radius.
+    // Removing tower-15 does not move tower-04 from its approved radius.
     expect(innerFace(runtime, 'tower-04')).toBeGreaterThan(1.70)
-    expect(clearance(runtime, 'tower-04', 'tower-15')).toBeGreaterThanOrEqual(0.10)
   })
 
   it('keeps every tower clear of its nearest neighbour', () => {
@@ -211,11 +211,10 @@ describe('holographic tower architecture', () => {
     }
   })
 
-  it('stands tower-15 on the inner field without a plinth', () => {
+  it('gives every remaining outer tower a sector plinth', () => {
     const runtime = createRuntime()
     const hasPlinth = (id: string) => runtime.meshes[id].children.some(child => child.name === 'tower-plinth')
 
-    expect(hasPlinth('tower-15')).toBe(false)
     for (const id of RING_IDS) expect(hasPlinth(id), id).toBe(true)
   })
 

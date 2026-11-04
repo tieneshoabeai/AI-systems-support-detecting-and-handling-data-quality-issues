@@ -33,6 +33,7 @@ function formatDimensions({ width, height, depth, units }: HolographicPartInfo['
 export function Dataset3DView() {
   const reducedMotion = useReducedMotion()
   const [detached, setDetached] = useState(false)
+  const [legendOpen, setLegendOpen] = useState(false)
   const [part, setPart] = useState<HolographicPartInfo | null>(null)
   const selectedId = detached ? part?.id ?? null : null
 
@@ -60,20 +61,31 @@ export function Dataset3DView() {
       <HolographicCoreCanvas reducedMotion={reducedMotion} detached={detached}
         selectedId={selectedId} onSelectPart={setPart} />
       <div className="dataset-3d-overlay">
-        <aside className="dataset-3d-legend" aria-label="Bản đồ module">
-          <p className="dataset-3d-legend-title">BẢN ĐỒ MODULE</p>
-          <ul>
-            {MODULE_LEGEND.map(item => (
-              <li key={item.id} data-tone={item.id}>
-                <i aria-hidden="true" />
-                <span>{item.label}</span>
-                <small>{item.detail}</small>
-              </li>
-            ))}
-          </ul>
-          <p className="dataset-3d-legend-note">
-            <i aria-hidden="true" data-tone="issue" />Hạt cam: vấn đề chất lượng → Detection
-          </p>
+        <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>
+          <header className="dataset-3d-legend-header">
+            <p className="dataset-3d-legend-title" hidden={!legendOpen}>BẢN ĐỒ MODULE</p>
+            <button className="dataset-3d-legend-toggle" type="button"
+              aria-label={legendOpen ? 'Thu gọn bản đồ module' : 'Mở bản đồ module'}
+              title={legendOpen ? 'Thu gọn bản đồ module' : 'Mở bản đồ module'}
+              aria-expanded={legendOpen} aria-controls="dataset-3d-legend-content"
+              onClick={() => setLegendOpen(value => !value)}>
+              <span aria-hidden="true">{legendOpen ? '‹' : '›'}</span>
+            </button>
+          </header>
+          <div id="dataset-3d-legend-content" className="dataset-3d-legend-content" hidden={!legendOpen}>
+            <ul>
+              {MODULE_LEGEND.map(item => (
+                <li key={item.id} data-tone={item.id}>
+                  <i aria-hidden="true" />
+                  <span>{item.label}</span>
+                  <small>{item.detail}</small>
+                </li>
+              ))}
+            </ul>
+            <p className="dataset-3d-legend-note">
+              <i aria-hidden="true" data-tone="issue" />Hạt cam: vấn đề chất lượng → Detection
+            </p>
+          </div>
         </aside>
         <button className="dataset-3d-detach" type="button" aria-pressed={detached}
           aria-controls="dataset-3d-part-panel" onClick={toggleDetached}>

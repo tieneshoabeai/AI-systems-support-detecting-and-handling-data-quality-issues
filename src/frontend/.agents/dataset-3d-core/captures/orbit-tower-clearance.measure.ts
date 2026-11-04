@@ -27,12 +27,12 @@ import { expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../../src/graphics/holographic-core/holographic-core.model'
 import { SPOOL_CORE } from '../../../src/graphics/holographic-core/core-visual-config'
 import {
-  ALL_TOWER_IDS, type OrbitSample, boxGap, buildClearance, coreSurfaces, discGap, orbitSamples,
-  shellSurfaceGap, spinY, sweptGap, sweptShellOf, towerRecords,
+  ALL_TOWER_IDS, type OrbitSample, boxGap, buildClearance, coreSurfaces, coreSurfaceGap, orbitSamples,
+  spinY, sweptGap, sweptShellOf, towerRecords,
 } from '../../../src/__tests__/dataset-3d/support/orbit-clearance'
 
 const OUT = resolve(process.cwd(), '.agents/dataset-3d-core/fingerprint/p1-orbit-clearance.ndjson')
-const TOWER_15_WINDOW: [number, number] = [0, 0]
+const BINDING_WINDOW: [number, number] = [0, 0]
 
 const f = (n: number) => n.toFixed(4)
 
@@ -149,14 +149,15 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   const azimuthOf = (x: number, z: number) => (THREE.MathUtils.radToDeg(Math.atan2(z, x)) + 360) % 360
   const faces = ALL_TOWER_IDS.map(id => ({ id, face: faceOf(boxes.get(id)!) })).sort((a, b) => a.face - b.face)
   lines.push(`tower inner faces: ${faces.slice(0, 3).map(x => `${x.id} ${f(x.face)}`).join(', ')}`)
-  const t15 = boxes.get('tower-15')!
-  const t15Corners = [
-    [t15.min.x, t15.min.z], [t15.min.x, t15.max.z], [t15.max.x, t15.min.z], [t15.max.x, t15.max.z],
+  const bindingId = faces[0].id
+  const bindingBox = boxes.get(bindingId)!
+  const bindingCorners = [
+    [bindingBox.min.x, bindingBox.min.z], [bindingBox.min.x, bindingBox.max.z], [bindingBox.max.x, bindingBox.min.z], [bindingBox.max.x, bindingBox.max.z],
   ].map(([x, z]) => azimuthOf(x, z))
-  lines.push(`tower-15 bbox x ${f(t15.min.x)}..${f(t15.max.x)} y ${f(t15.min.y)}..${f(t15.max.y)} z ${f(t15.min.z)}..${f(t15.max.z)}`)
-  lines.push(`tower-15 azimuth window ${f(Math.min(...t15Corners))}..${f(Math.max(...t15Corners))}`)
-  TOWER_15_WINDOW[0] = Math.min(...t15Corners)
-  TOWER_15_WINDOW[1] = Math.max(...t15Corners)
+  lines.push(`${bindingId} bbox x ${f(bindingBox.min.x)}..${f(bindingBox.max.x)} y ${f(bindingBox.min.y)}..${f(bindingBox.max.y)} z ${f(bindingBox.min.z)}..${f(bindingBox.max.z)}`)
+  lines.push(`${bindingId} azimuth window ${f(Math.min(...bindingCorners))}..${f(Math.max(...bindingCorners))}`)
+  BINDING_WINDOW[0] = Math.min(...bindingCorners)
+  BINDING_WINDOW[1] = Math.max(...bindingCorners)
 
   // 3. Per ring: reach extremes, height band, and true 3D gap to the binding tower at the captured
   //    yaw (rotation.y = 0).
@@ -174,25 +175,25 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
       if (gap < binding.gap) binding = { gap, id }
     }
     globalMin = Math.min(globalMin, binding.gap)
-    const inWindow = rp.filter(p => p.azimuth >= TOWER_15_WINDOW[0] && p.azimuth <= TOWER_15_WINDOW[1])
+    const inWindow = rp.filter(p => p.azimuth >= BINDING_WINDOW[0] && p.azimuth <= BINDING_WINDOW[1])
     const windowReach = Math.max(...inWindow.map(p => p.reach))
     lines.push(`ring ${ring} r${f(SPOOL_CORE.orbits.radii[ring - 1])} y ${f(Math.min(...rp.map(p => p.v.y)))}..${f(Math.max(...rp.map(p => p.v.y)))}`)
     lines.push(`   reach  min ${f(minReach.reach)} @${f(minReach.azimuth)}deg/y${f(minReach.v.y)}` +
       `  max ${f(maxReach.reach)} @${f(maxReach.azimuth)}deg/y${f(maxReach.v.y)}  bead max ${f(beadMax.reach)} @${f(beadMax.azimuth)}deg`)
-    lines.push(`   gap to ${binding.id} ${f(binding.gap)};  inside tower-15 azimuth window: max reach ${f(windowReach)} vs face ${f(faces[0].face)} -> radial spare ${f(faces[0].face - windowReach)}`)
+    lines.push(`   gap to ${binding.id} ${f(binding.gap)};  inside ${bindingId} azimuth window: max reach ${f(windowReach)} vs face ${f(faces[0].face)} -> radial spare ${f(faces[0].face - windowReach)}`)
   }
   expect(globalMin).toBeGreaterThan(0)
 
   // 4. Everything the ring passes near on the core side, and the cap.
   lines.push('')
-  const outerFace = faces.find(x => x.id !== 'tower-15')!
+  const outerFace = faces[0]
   const maxReachAll = Math.max(...points.map(p => p.reach))
-  lines.push(`global max reach (beads included) ${f(maxReachAll)} vs nearest non-15 face ${outerFace.id} ${f(outerFace.face)} -> spare ${f(outerFace.face - maxReachAll)}`)
+  lines.push(`global max reach (beads included) ${f(maxReachAll)} vs nearest tower face ${outerFace.id} ${f(outerFace.face)} -> spare ${f(outerFace.face - maxReachAll)}`)
   for (const s of coreSurfaces()) {
     let gap = Infinity
     let worst: OrbitSample = points[0]
     for (const p of points) {
-      const g = (s.solid ? discGap : shellSurfaceGap)(p.v, s.radius, s.y0, s.y1) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      const g = coreSurfaceGap(p.v, s) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
       if (g < gap) { gap = g; worst = p }
     }
     lines.push(`${gap < 0 ? 'CUTS' : 'clears'} ${s.name} (r ${f(s.radius)}, y ${f(s.y0)}..${f(s.y1)}) by ${f(gap)} at ring ${worst.ring}${worst.bead ? ' bead' : ' tube'} reach ${f(worst.reach)} y ${f(worst.v.y)}`)
@@ -214,7 +215,7 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
       `  (at the captured yaw ${f(s.staticGap)}, loss ${f(s.staticGap - s.swept)})` +
       `  | tube-only ${f(s.tube)}`)
   }
-  lines.push(`   the 17 that stay clear, smallest first: ${swept.filter(s => s.swept >= 0).map(s => `${s.id} ${f(s.swept)}`).join(', ')}`)
+  lines.push(`   the ${swept.filter(s => s.swept >= 0).length} that stay clear, smallest first: ${swept.filter(s => s.swept >= 0).map(s => `${s.id} ${f(s.swept)}`).join(', ')}`)
 
   // Cross-check the commutation argument by actually sweeping one yaw axis, 512 steps.
   const checkTower = boxes.get(sweptMin.id)!
@@ -246,6 +247,10 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
       const s = surfaceGapOf(p.v, cells, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
       if (s.found && s.gap < 1.5 * CELL) touching += 1
       if (s.found && s.gap < worst.gap) worst = { gap: s.gap, p, owner: s.owner }
+    }
+    if (!worst.p) {
+      lines.push(`   ${key} vs DRAWN surface of ${sweptMin.id}: no nearby raster samples; use the swept box clearance above`)
+      continue
     }
     if (worst.gap < surfaceWorst.gap) surfaceWorst = worst
     // A zero-radius sample can only ever read 0 in projection (the silhouette is filled), so 0.0000

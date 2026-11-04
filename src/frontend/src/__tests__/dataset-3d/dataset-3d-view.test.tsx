@@ -37,6 +37,13 @@ it('renders the conceptual module map without claiming live data', () => {
   expect(screen.getByRole('heading', { name: 'Dataset 3D' })).toBeDefined()
   expect(screen.getByRole('img', { name: 'Holographic core fixture' })).toBeDefined()
   expect(screen.getByRole('complementary', { name: 'Bản đồ module' })).toBeDefined()
+  const toggle = screen.getByRole('button', { name: 'Mở bản đồ module' })
+  const content = document.getElementById(toggle.getAttribute('aria-controls')!)!
+  expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  expect(content.hidden).toBe(true)
+  fireEvent.click(toggle)
+  expect(toggle.getAttribute('aria-expanded')).toBe('true')
+  expect(content.hidden).toBe(false)
   expect(screen.getByText('Nhân dữ liệu')).toBeDefined()
   expect(screen.getByText('Tổng quan')).toBeDefined()
   expect(screen.getByText('Data view')).toBeDefined()
@@ -45,6 +52,21 @@ it('renders the conceptual module map without claiming live data', () => {
   expect(screen.getByText(/Nhân trung tâm là một bộ dữ liệu/)).toBeDefined()
   expect(screen.getByText(/chưa nối dữ liệu thật/)).toBeDefined()
   expect(canvasProbe).toHaveBeenLastCalledWith({ reducedMotion: false, detached: false, selectedId: null, onSelectPart: expect.any(Function) })
+})
+
+it('keeps the module map state independent of detach and selected-part changes', () => {
+  render(<MemoryRouter><Dataset3DView /></MemoryRouter>)
+  const toggle = screen.getByRole('button', { name: 'Mở bản đồ module' })
+  fireEvent.click(toggle)
+  fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
+  act(() => { canvasProbe.mock.lastCall?.[0].onSelectPart(FIXTURE) })
+  expect(toggle.getAttribute('aria-expanded')).toBe('true')
+  fireEvent.click(toggle)
+  expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  expect(screen.getByRole('heading', { name: 'Tower 02' })).toBeDefined()
+  expect(canvasProbe).toHaveBeenLastCalledWith(expect.objectContaining({ detached: true, selectedId: 'tower-02' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Lắp lại mô hình' }))
+  expect(toggle.getAttribute('aria-expanded')).toBe('false')
 })
 
 it('passes the live reduced-motion preference to the canvas', () => {

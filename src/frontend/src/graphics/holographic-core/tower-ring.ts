@@ -4,8 +4,27 @@
 // the top of the factory say which later steps read what it leaves in runtime.meshes and runtime.nodes.
 import * as THREE from 'three'
 import type { ProceduralModelRuntime } from './generated-core'
-import { ORIGINAL_TOWERS, OUTER_TOWERS, TOWER_BASE_Y, TOWER_DETAIL_PLAN, type TowerRecord } from './tower-config'
-import { addTowerCornerPosts, addTowerDataMarks, buildTowerArchitecture, createTowerMaterials } from './tower-architecture'
+import { ORIGINAL_TOWERS, OUTER_TOWERS, TOWER_BASE_Y, TOWER_DETAIL_PLAN, TOWER_IDS, type TowerRecord } from './tower-config'
+import { addTowerCornerPosts, addTowerDataMarks, buildTowerArchitecture, createOctagonalTowerGeometry, createTowerMaterials } from './tower-architecture'
+import { HERO_GAUGES } from './tower-gauge-config'
+
+const heroShapes = new Map(HERO_GAUGES.map(target => [target.towerId, target.shape]))
+
+// The generated reference still contains the original nine towers. Remove retired ones
+// before materials, architecture, picking or detach registries read the runtime.
+export function removeInactiveGeneratedTowers(runtime: ProceduralModelRuntime) {
+  for (const id of Object.keys(runtime.meshes)) {
+    if (!id.startsWith('tower-') || TOWER_IDS.includes(id)) continue
+    const mesh = runtime.meshes[id]
+    runtime.nodes[id].removeFromParent()
+    // Each generated tower owns its BoxGeometry; its material is shared with retained parts.
+    mesh.geometry.dispose()
+    delete runtime.nodes[id]
+    delete runtime.meshes[id]
+    delete runtime.colliders[id]
+    delete runtime.destructionGroups[id]
+  }
+}
 
 type TowerRiser = {
   mesh: THREE.InstancedMesh
@@ -99,7 +118,9 @@ function createOuterTowers(runtime: ProceduralModelRuntime, model: THREE.Object3
     // TOWER_BASE_Y already sits in the deck surface, so it must not hang a footing below it.
     if (tower.baseY > TOWER_BASE_Y) {
       const plinth = new THREE.Mesh(
-        new THREE.BoxGeometry(tower.width + 0.04, 0.0425, tower.depth + 0.04),
+        heroShapes.has(tower.id)
+          ? createOctagonalTowerGeometry(tower.width + 0.04, 0.0425, tower.depth + 0.04)
+          : new THREE.BoxGeometry(tower.width + 0.04, 0.0425, tower.depth + 0.04),
         plinthMaterial,
       )
       plinth.name = 'tower-plinth'
@@ -114,10 +135,10 @@ function createOuterTowers(runtime: ProceduralModelRuntime, model: THREE.Object3
   }
 }
 
-// The original nine are conformed before anything reads their nodes: the detach registry takes a radial
+// Active original towers are conformed before the detach registry takes a radial
 // direction from node.position and the selection contours read the rebuilt geometry.
 export function conformOriginalTowers(runtime: ProceduralModelRuntime) {
-  // Only the original nine are conformed here: the outer ring is built later at its own
+  // Only retained original towers are conformed here: the outer ring is built later at its own
   // sector-plate base height. Radii that stay absent keep what the generator produced.
   for (const tower of ORIGINAL_TOWERS) {
     const mesh = runtime.meshes[tower.id]
@@ -137,24 +158,28 @@ export function conformOriginalTowers(runtime: ProceduralModelRuntime) {
 // Everything the factory used to do between the core decoration and the orbit runner, in the same order.
 export function createTowerRing(runtime: ProceduralModelRuntime, model: THREE.Object3D) {
   // Shared architectural palette: deep-blue glass volumes, dark structural frames and a soft
-  // window glow, so eighteen towers stay inside a handful of draw calls.
-  const { tone: towerTone, cornerPost: cornerPostMaterial, plinth } = createTowerMaterials()
+  // window glow, with shared materials across all active towers.
+  const materials = createTowerMaterials()
+  const { tone: towerTone, cornerPost: cornerPostMaterial, plinth } = materials
   createOuterTowers(runtime, model, plinth)
-  // Build order: the nine generated originals first, then the second ring. Several things key off
+  // Build order: retained generated originals first, then the second ring. Several things key off
   // this list — the detach registry walks it as it stands.
   const towerPlan: TowerRecord[] = [...ORIGINAL_TOWERS, ...OUTER_TOWERS]
   for (const tower of towerPlan) {
     const mesh = runtime.meshes[tower.id]
     if (!mesh) continue
-    buildTowerArchitecture(runtime, tower.id, tower.width, tower.height, tower.depth, tower.crowned, towerTone)
-    addTowerCornerPosts(mesh, tower.width, tower.height, tower.depth, cornerPostMaterial)
+    const shape = heroShapes.get(tower.id) ?? 'box'
+    buildTowerArchitecture(runtime, tower.id, tower.width, tower.height, tower.depth, tower.crowned, towerTone, shape, materials)
+    if (shape === 'box') addTowerCornerPosts(mesh, tower.width, tower.height, tower.depth, cornerPostMaterial)
   }
   for (const { id, density } of TOWER_DETAIL_PLAN) {
+    if (heroShapes.has(id)) continue
     const tower = towerPlan.find(entry => entry.id === id)
     if (!tower) continue
     addTowerDataMarks(runtime.meshes[id] ?? model, tower.width, tower.height, tower.depth, density)
   }
-  const risers = towerPlan.map(tower =>
+  // Hero cells carry the data now; omit decorative vertical particle trails along with mullions.
+  const risers = towerPlan.filter(tower => !heroShapes.has(tower.id)).map(tower =>
     addTowerRiser(runtime.nodes[tower.id] ?? model, tower.width, tower.depth, tower.height, tower.riserSeed),
   )
   return {

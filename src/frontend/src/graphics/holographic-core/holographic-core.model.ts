@@ -9,7 +9,11 @@ import { createIssueConstellation } from './issue-constellation'
 import { createSpoolCore } from './spool-core'
 import { CYAN, addTechnicalLine, addTechnicalRods } from './technical-lines'
 import { DETACH_DISTANCE, OUTER_TOWER_IDS, TOWER_IDS } from './tower-config'
-import { conformOriginalTowers, createTowerRing } from './tower-ring'
+import { conformOriginalTowers, createTowerRing, removeInactiveGeneratedTowers } from './tower-ring'
+import { createTowerGauge } from './tower-gauge'
+import { createTowerCrowns } from './tower-crowns'
+import { MOCK_QUALITY_SCORES } from './tower-gauge-data'
+import type { DimensionScore } from '../../types/datasets/quality-score.types'
 import {
   NON_SELECTABLE_PART_IDS,
   type HolographicPartComponent,
@@ -23,6 +27,7 @@ type HolographicCoreProductModel = {
   snapDetach(): void
   setDetached(detached: boolean): void
   setSelected(componentId: string | null): void
+  applyQualityScores(rows: readonly DimensionScore[]): void
   resolvePart(object: THREE.Object3D): HolographicPartInfo | null
   dispose(): void
 }
@@ -612,6 +617,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     qualityPriority: 'reference-fidelity',
   })
   const runtime = model.userData.sculptRuntime as ProceduralModelRuntime
+  removeInactiveGeneratedTowers(runtime)
   createIntermediateBase(runtime)
   applyHolographicMaterials(runtime)
   conformToReference(runtime)
@@ -720,6 +726,8 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   // Towers: build order, placement, the shared materials and the riser animation all live in
   // tower-ring.ts, at exactly this position in the pipeline (see the invariants above).
   const towerRing = createTowerRing(runtime, model)
+  const gauge = createTowerGauge(runtime, MOCK_QUALITY_SCORES)
+  const crowns = createTowerCrowns(runtime)
 
   const runner = new THREE.Group()
   runner.name = 'orbit-violet-runner'
@@ -849,6 +857,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   let selectedId: string | null = null
   const setSelected = (componentId: string | null) => {
     selectedId = componentId
+    gauge.setSelected(componentId)
     selectionContours.forEach((contour, id) => {
       contour.visible = id === selectedId
       ;(contour.material as THREE.LineBasicMaterial).opacity = 1
@@ -904,6 +913,9 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     beamMaterial.opacity = 0.45
     selectionContours.forEach(contour => { (contour.material as THREE.LineBasicMaterial).opacity = 0.95 })
     towerRing.reset()
+    crowns.reset()
+    // Gauge scores are static until applyQualityScores; reduced motion calls this every frame,
+    // so do not repaint/upload the gauge buffers here.
     inboundStreams.reset()
     constellation?.reset()
     spool?.reset()
@@ -933,6 +945,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       axialSpines.forEach(spine => { (spine.material as THREE.MeshBasicMaterial).opacity = 0.48 + Math.sin(elapsedSeconds * 1.1) * 0.06 })
       luminousNodes.forEach((nodes, index) => { (nodes.material as THREE.MeshBasicMaterial).opacity = 0.52 + (Math.sin(elapsedSeconds * 1.4 + index * 0.9) + 1) * 0.08 })
       towerRing.update(elapsedSeconds)
+      crowns.update(elapsedSeconds)
       beamMaterial.opacity = 0.42 + Math.sin(elapsedSeconds * 0.9) * 0.06
       selectionContours.forEach(contour => {
         if (contour.visible) (contour.material as THREE.LineBasicMaterial).opacity = 0.8 + Math.sin(elapsedSeconds * 4) * 0.2
@@ -946,20 +959,28 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     },
     snapDetach,
     setSelected,
+    applyQualityScores: gauge.applyScores,
     resolvePart,
     dispose() {
+      crowns.dispose()
+      gauge.dispose()
       if (constellation) {
         model.remove(constellation.root)
         constellation.dispose()
       }
       spool?.dispose()
+      const geometries = new Set<THREE.BufferGeometry>()
+      const materials = new Set<THREE.Material>()
       model.traverse((object) => {
         if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments || object instanceof THREE.Points) {
-          object.geometry.dispose()
-          const materials = Array.isArray(object.material) ? object.material : [object.material]
-          materials.forEach(material => material.dispose())
+          if (object instanceof THREE.InstancedMesh) object.dispose()
+          geometries.add(object.geometry)
+          const entries = Array.isArray(object.material) ? object.material : [object.material]
+          entries.forEach(material => materials.add(material))
         }
       })
+      geometries.forEach(geometry => geometry.dispose())
+      materials.forEach(material => material.dispose())
     },
   }
 }

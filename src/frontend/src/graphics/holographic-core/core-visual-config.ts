@@ -263,41 +263,46 @@ export const ISSUE_CONSTELLATION = {
 } as const
 
 // v4 spool, revision C: the tower ring keeps its layout, so the core has to fit inside it.
-// The ring is nine axis-aligned boxes, not a circle: measured from the axis, the nearest tower
-// surface is tower-15 at r 1.288 (azimuth 346 deg), then t02/t06/t08 at r ~1.50. A closed orbit
-// sweeps every azimuth, so its minor axis must clear 1.288 while its major axis clears ~1.50.
-// That caps the whole collar at r<=1.38 and forces yaw into the 75-105 deg family; the platform
-// stops at r 1.55 so the deck no longer sprawls under the tower footprints.
+// Remaining towers keep their approved placements after removal of 05/06/11/15.
+// Orbit parameters are unchanged; the new outer chamber wall still intersects rings 1–3,
+// pending a separately approved orbit-adjustment plan.
 export const SPOOL_CORE = {
-  platform: { radius: 1.55, thickness: 0.05, centerY: 0.495, ringRadii: [0.45, 0.82, 1.19, 1.46] },
-  baseGlass: { radius: 1.06, height: 0.38, centerY: 0.71 },
-  lowerBand: { radius: 1.02, height: 0.09, centerY: 0.945 },
+  platform: { radius: 1.55, thickness: 0.05, centerY: 0.375, ringRadii: [0.45, 0.82, 1.19, 1.46] },
+  // Match the cap drum's wall dimensions; full glass discs close both ends.
+  baseGlass: { innerRadius: 1.02, radius: 1.17, height: 0.3, centerY: 0.67 },
+  lowerRoof: { topRadius: 1.17, bottomRadius: 1.05, topY: 0.52, bottomY: 0.4 },
+  lowerBand: { radius: 1.02, height: 0.17, centerY: 0.905 },
   // The backdrop is derived from the chamber so it can never drift out of containment: it sits
-  // 10 mm off the inner glass face and pulls 12 mm in at each end, off the y 1.98 / 0.99 rims.
+  // 10 mm off the inner glass face and pulls 12 mm in at each end, off the y 2.31 / 0.99 rims.
   chamber: {
     radius: 0.95,
     wall: 0.01,
-    height: 0.99,
-    centerY: 1.485,
-    backdrop: { radiusInset: 0.01, heightInset: 0.012 },
+    height: 1.32,
+    centerY: 1.65,
+    outerGlass: {
+      innerRadius: 1.14, outerRadius: 1.17,
+      material: { color: '#bcc2c0ff', opacity: 0.2, roughness: 0.1, lightMapIntensity: 0.3 },
+    },
+    backdrop: { radiusInset: 0.001, heightInset: 0.001 },
   },
   cap: {
-    bottomY: 1.98,
-    topY: 2.4,
+    bottomY: 2.31,
+    topY: 2.73,
     outerRadius: 1.17,
-    lid: { innerRadius: 0.65, outerRadius: 0.8, height: 0.2, centerY: 2.3 },
+    lid: { innerRadius: 0.65, outerRadius: 0.8, height: 0.2, centerY: 2.58 },
+    innerLid: { innerRadius: 0.38, outerRadius: 0.5, height: 0.2, centerY: 2.53 },
     roof: {
       topInner: 0.9,
       topOuter: 1.05,
       bottomInner: 1.02,
       bottomOuter: 1.17,
-      topY: 2.4,
-      bottomY: 2.28,
+      topY: 2.73,
+      bottomY: 2.61,
     },
-    drum: { innerRadius: 1.02, outerRadius: 1.17, height: 0.3, centerY: 2.13 },
-    neck: { radius: 1.17, height: 0.04, centerY: 2.0 },
+    drum: { innerRadius: 1.02, outerRadius: 1.17, height: 0.3, centerY: 2.46 },
+    neck: { radius: 1.17, height: 0.04, centerY: 2.33 },
   },
-  topY: 2.4,
+  topY: 2.73,
   // The light has to clear r 0.930 (the backdrop) to make the pool at all, which means it also
   // passes through the glass at r 0.95 — human accepted that the glass lifts ~86% as the price.
   nucleus: {
@@ -309,7 +314,7 @@ export const SPOOL_CORE = {
   orbits: {
     // Nested collar rather than a gyroscope: four hoops stacked on the lower chamber, each tipped
     // so the stack reads as one magnetic loop. centerY 1.25 keeps every arc below the backdrop's
-    // top edge (1.968), which is what makes all four rings clip it by the same ~30%.
+    // The orbit geometry is unchanged when the taller two-layer chamber is installed.
     centerY: 1.25,
     radii: [1.2, 1.26, 1.32, 1.38],
     tube: 0.011,
@@ -333,6 +338,7 @@ export const SPOOL_CORE = {
     fallSpeed: 0.16,
   },
   palette: {
+    lowerBody: { color: '#031418', emissive: '#05282c', emissiveIntensity: 0.08, opacity: 0.96 },
     glass: { color: '#0a3b45', emissive: '#0b6a70', emissiveIntensity: 0.22 },
     metal: { color: '#05161c', emissive: '#0a2a30', emissiveIntensity: 0.3 },
     // The chamber's only depth writer, and the surface the nucleus light has to land on. Its albedo
@@ -350,8 +356,7 @@ export const SPOOL_CORE = {
     amberLinear: [2.2, 0.95, 0.2] as const,
     platformLinear: [0.05, 0.95, 0.85] as const,
   },
-  // The model measured exactly 18 drawables, so the cap had no slack left. Slot 19 is reserved for
-  // the opaque chamber backdrop: it is the one mesh that buys real depth instead of renderOrder.
-  budget: { drawCalls: 19, triangles: 23000 },
+  // Backdrop + outer chamber group + separately shaded lower glass closures.
+  budget: { drawCalls: 21, triangles: 23000 },
 } as const
 

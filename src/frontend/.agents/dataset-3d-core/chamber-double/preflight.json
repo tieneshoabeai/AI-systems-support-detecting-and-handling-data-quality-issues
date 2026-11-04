@@ -1,0 +1,26 @@
+[
+  {
+    "ring": 1,
+    "gap": -0.06340592874250334,
+    "tubePointsInsideWall": 422,
+    "intersects": true
+  },
+  {
+    "ring": 2,
+    "gap": -0.03683606353358499,
+    "tubePointsInsideWall": 354,
+    "intersects": true
+  },
+  {
+    "ring": 3,
+    "gap": -0.03563677465490828,
+    "tubePointsInsideWall": 324,
+    "intersects": true
+  },
+  {
+    "ring": 4,
+    "gap": 0.026824331771442722,
+    "tubePointsInsideWall": 0,
+    "intersects": false
+  }
+]

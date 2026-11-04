@@ -1,0 +1,1886 @@
+{
+  "context": "reducedMotion=reduce, viewport 1280x900, deviceScaleFactor 1",
+  "hook": {
+    "module": "http://localhost:5173/node_modules/.vite/deps/three.js?v=f7bf2a7c",
+    "scenes": 1,
+    "cameras": 1,
+    "cameraPosition": [
+      11.45,
+      9,
+      11.45
+    ]
+  },
+  "states": {
+    "attached": {
+      "callsPerFrame": 452,
+      "trianglesPerFrame": 377154,
+      "minCalls": 452,
+      "maxCalls": 452,
+      "samples": 90,
+      "byTarget": {
+        "screen": {
+          "callsPerFrame": 452,
+          "trianglesPerFrame": 377154
+        }
+      },
+      "renderer": {
+        "renderPassesPerFrame": 1,
+        "callsPerFrame": 452,
+        "trianglesPerFrame": 377154,
+        "maxCallsPerPass": 452,
+        "frames": 62,
+        "passes": 62,
+        "memory": {
+          "geometries": 299,
+          "textures": 15
+        },
+        "programs": 31,
+        "renderer": {
+          "shadows": false,
+          "toneMapping": 4,
+          "autoClear": true,
+          "maxTextures": 16,
+          "isWebGL2": true
+        }
+      },
+      "draws": {
+        "frames": 60,
+        "renderItemsPerFrame": 338.93,
+        "byName": [
+          {
+            "name": "inbound-stream-streaks",
+            "perFrame": 24.8
+          },
+          {
+            "name": "holographic-contour",
+            "perFrame": 18.6
+          },
+          {
+            "name": "tower-corner-post",
+            "perFrame": 12.4
+          },
+          {
+            "name": "tower-floor-frame",
+            "perFrame": 12.4
+          },
+          {
+            "name": "tower-rising-particles",
+            "perFrame": 12.4
+          },
+          {
+            "name": "tower-roof-outline",
+            "perFrame": 12.4
+          },
+          {
+            "name": "tower-solid-core",
+            "perFrame": 12.4
+          },
+          {
+            "name": "tower-window-panel",
+            "perFrame": 12.4
+          },
+          {
+            "name": "Mesh",
+            "perFrame": 9.3
+          },
+          {
+            "name": "sector-edge-rod",
+            "perFrame": 8.27
+          },
+          {
+            "name": "tower-plinth",
+            "perFrame": 8.27
+          },
+          {
+            "name": "hero-cap",
+            "perFrame": 6.2
+          },
+          {
+            "name": "hero-crown-glyph",
+            "perFrame": 6.2
+          },
+          {
+            "name": "hero-glass-arms",
+            "perFrame": 6.2
+          },
+          {
+            "name": "hero-metal-corners",
+            "perFrame": 6.2
+          },
+          {
+            "name": "hero-metal-edge",
+            "perFrame": 6.2
+          },
+          {
+            "name": "hero-square-core",
+            "perFrame": 6.2
+          },
+          {
+            "name": "base-inner-slab",
+            "perFrame": 4.13
+          },
+          {
+            "name": "base-outer-shell",
+            "perFrame": 4.13
+          },
+          {
+            "name": "core-cube",
+            "perFrame": 4.13
+          },
+          {
+            "name": "core-halo",
+            "perFrame": 4.13
+          },
+          {
+            "name": "corner-markers-base",
+            "perFrame": 4.13
+          },
+          {
+            "name": "corner-markers-cube",
+            "perFrame": 4.13
+          },
+          {
+            "name": "cube-edges",
+            "perFrame": 4.13
+          },
+          {
+            "name": "inbound-stream-guide",
+            "perFrame": 4.13
+          },
+          {
+            "name": "inner-edges",
+            "perFrame": 4.13
+          },
+          {
+            "name": "light-sheets",
+            "perFrame": 4.13
+          },
+          {
+            "name": "panel-grid",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 1",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 2",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 3",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 4",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 5",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 6",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 7",
+            "perFrame": 4.13
+          },
+          {
+            "name": "Radial annular sector 8",
+            "perFrame": 4.13
+          },
+          {
+            "name": "rim-inner",
+            "perFrame": 4.13
+          },
+          {
+            "name": "rim-outer",
+            "perFrame": 4.13
+          },
+          {
+            "name": "seam-grid",
+            "perFrame": 4.13
+          },
+          {
+            "name": "technical-linework",
+            "perFrame": 4.13
+          },
+          {
+            "name": "base-wall-ring",
+            "perFrame": 3.1
+          },
+          {
+            "name": "Points",
+            "perFrame": 3.1
+          },
+          {
+            "name": "scattered-holographic-nodes",
+            "perFrame": 2.07
+          },
+          {
+            "name": "technical-planar-grid",
+            "perFrame": 2.07
+          },
+          {
+            "name": "base-intermediate",
+            "perFrame": 1.03
+          },
+          {
+            "name": "base-rim-bottom-halo",
+            "perFrame": 1.03
+          },
+          {
+            "name": "base-rim-inner-top",
+            "perFrame": 1.03
+          },
+          {
+            "name": "base-rim-outer-bottom",
+            "perFrame": 1.03
+          },
+          {
+            "name": "base-rim-outer-top",
+            "perFrame": 1.03
+          },
+          {
+            "name": "base-wall-post",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Cap center highlight carrier",
+            "perFrame": 1.03
+          },
+          {
+            "name": "constellation-lanes",
+            "perFrame": 1.03
+          },
+          {
+            "name": "constellation-particles",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Curved annular base wall",
+            "perFrame": 1.03
+          },
+          {
+            "name": "deck-chevron-rod",
+            "perFrame": 1.03
+          },
+          {
+            "name": "deck-inner-rim-light",
+            "perFrame": 1.03
+          },
+          {
+            "name": "deck-outer-rim-light",
+            "perFrame": 1.03
+          },
+          {
+            "name": "deck-recess",
+            "perFrame": 1.03
+          },
+          {
+            "name": "detection-beacon-ring",
+            "perFrame": 1.03
+          },
+          {
+            "name": "detection-beacon-sprite",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Faint inner polar projection field",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Front loop highlight carrier",
+            "perFrame": 1.03
+          },
+          {
+            "name": "hero-crown-clock-hand",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Highest rear cuboid tower",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Inner projection field tower 15",
+            "perFrame": 1.03
+          },
+          {
+            "name": "nucleus-beads",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Outer ring tower 11",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Outer ring tower 16",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 02",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 03",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 04",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 05",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 06",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 07",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 08",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Radial cuboid tower 09",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Scene",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-base-glass",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-base-rims",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-cap-band",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-cap-drum",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-cap-lid",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-cap-lid-rims",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-cap-roof",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-cap-roof-rims",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-chamber-backdrop",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-chamber-glass",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-lower-band",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-nucleus",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-nucleus-glow",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-orbit-tubes",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-platform",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-platform-reflection",
+            "perFrame": 1.03
+          },
+          {
+            "name": "spool-platform-rings",
+            "perFrame": 1.03
+          },
+          {
+            "name": "Upper annular deck",
+            "perFrame": 1.03
+          }
+        ]
+      },
+      "scene": {
+        "totalDrawables": 308,
+        "totalDrawCalls": 332,
+        "totalTriangles": 232178,
+        "modelOnly": 271,
+        "towers": 136,
+        "core": 41,
+        "base": 69,
+        "noPart": 19,
+        "outsideModel": 61,
+        "topLevel": [
+          {
+            "name": "outside-model",
+            "drawables": 61,
+            "drawCalls": 61,
+            "triangles": 93842
+          },
+          {
+            "name": "Curved annular base wall__pivot",
+            "drawables": 47,
+            "drawCalls": 71,
+            "triangles": 19120
+          },
+          {
+            "name": "Upper narrow core__pivot",
+            "drawables": 40,
+            "drawCalls": 40,
+            "triangles": 78096
+          },
+          {
+            "name": "Outer ring tower 18",
+            "drawables": 9,
+            "drawCalls": 9,
+            "triangles": 1236
+          },
+          {
+            "name": "Highest rear cuboid tower__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 2076
+          },
+          {
+            "name": "Radial cuboid tower 04__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1116
+          },
+          {
+            "name": "Radial cuboid tower 06__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 968
+          },
+          {
+            "name": "Radial cuboid tower 09__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1400
+          },
+          {
+            "name": "Outer ring tower 10",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1224
+          },
+          {
+            "name": "Outer ring tower 11",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 832
+          },
+          {
+            "name": "Outer ring tower 12",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 904
+          },
+          {
+            "name": "Outer ring tower 13",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 744
+          },
+          {
+            "name": "Outer ring tower 14",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1848
+          },
+          {
+            "name": "Outer ring tower 16",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1228
+          },
+          {
+            "name": "Outer ring tower 17",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1800
+          },
+          {
+            "name": "Radial cuboid tower 02__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1344
+          },
+          {
+            "name": "Radial cuboid tower 03__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1276
+          },
+          {
+            "name": "Radial cuboid tower 05__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 800
+          },
+          {
+            "name": "Radial cuboid tower 07__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1104
+          },
+          {
+            "name": "Radial cuboid tower 08__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1264
+          },
+          {
+            "name": "Inner projection field tower 15",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 740
+          },
+          {
+            "name": "issue-constellation",
+            "drawables": 5,
+            "drawCalls": 5,
+            "triangles": 1296
+          },
+          {
+            "name": "Lower narrow core__pivot",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 2688
+          },
+          {
+            "name": "base-wall-ring",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 3456
+          },
+          {
+            "name": "spool-fx",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 6528
+          },
+          {
+            "name": "Violet loop registered to base__pivot",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 1216
+          },
+          {
+            "name": "deck-outer-rim-light",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 1536
+          },
+          {
+            "name": "deck-inner-rim-light",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 1536
+          },
+          {
+            "name": "base-wall-post",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 192
+          },
+          {
+            "name": "deck-recess",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 192
+          },
+          {
+            "name": "deck-chevron-rod",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 576
+          }
+        ],
+        "byPart": [
+          {
+            "id": "outside-model",
+            "drawables": 61,
+            "drawCalls": 61,
+            "triangles": 93842
+          },
+          {
+            "id": "core-cap",
+            "drawables": 28,
+            "drawCalls": 28,
+            "triangles": 68608
+          },
+          {
+            "id": "no-part",
+            "drawables": 19,
+            "drawCalls": 19,
+            "triangles": 15924
+          },
+          {
+            "id": "tower-18",
+            "drawables": 9,
+            "drawCalls": 9,
+            "triangles": 1236
+          },
+          {
+            "id": "tower-01-back-high",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 2076
+          },
+          {
+            "id": "tower-04",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1116
+          },
+          {
+            "id": "tower-06",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 968
+          },
+          {
+            "id": "tower-09",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1400
+          },
+          {
+            "id": "tower-10",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1224
+          },
+          {
+            "id": "tower-12",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 904
+          },
+          {
+            "id": "tower-13",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 744
+          },
+          {
+            "id": "tower-14",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1848
+          },
+          {
+            "id": "tower-17",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1800
+          },
+          {
+            "id": "core-upper",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 6224
+          },
+          {
+            "id": "tower-02",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1344
+          },
+          {
+            "id": "tower-03",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1276
+          },
+          {
+            "id": "tower-05",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 800
+          },
+          {
+            "id": "tower-07",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1104
+          },
+          {
+            "id": "tower-08",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1264
+          },
+          {
+            "id": "base-deck",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 4768
+          },
+          {
+            "id": "tower-11",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 664
+          },
+          {
+            "id": "tower-16",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 952
+          },
+          {
+            "id": "tower-15",
+            "drawables": 6,
+            "drawCalls": 6,
+            "triangles": 572
+          },
+          {
+            "id": "base-shell",
+            "drawables": 4,
+            "drawCalls": 4,
+            "triangles": 768
+          },
+          {
+            "id": "core-lower",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 2688
+          },
+          {
+            "id": "base-sector-01",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-02",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-03",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-04",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-05",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-06",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-07",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-08",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-rim-outer-bottom",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 2304
+          },
+          {
+            "id": "base-intermediate",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 1008
+          },
+          {
+            "id": "cap-center-light",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 1216
+          },
+          {
+            "id": "base-rim-outer-top",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 768
+          },
+          {
+            "id": "base-rim-inner-top",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 768
+          },
+          {
+            "id": "inner-projection-field",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 768
+          },
+          {
+            "id": "front-loop-light",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 1216
+          },
+          {
+            "id": "core-cap-drum",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 512
+          },
+          {
+            "id": "core-cap-roof",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 512
+          },
+          {
+            "id": "core-cap-lid",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 1024
+          }
+        ]
+      }
+    },
+    "detached": {
+      "callsPerFrame": 452,
+      "trianglesPerFrame": 377154,
+      "minCalls": 444,
+      "maxCalls": 452,
+      "samples": 90,
+      "byTarget": {
+        "screen": {
+          "callsPerFrame": 452,
+          "trianglesPerFrame": 377154
+        }
+      },
+      "renderer": {
+        "renderPassesPerFrame": 1,
+        "callsPerFrame": 444,
+        "trianglesPerFrame": 369328,
+        "maxCallsPerPass": 444,
+        "frames": 52,
+        "passes": 52,
+        "memory": {
+          "geometries": 299,
+          "textures": 15
+        },
+        "programs": 31,
+        "renderer": {
+          "shadows": false,
+          "toneMapping": 4,
+          "autoClear": true,
+          "maxTextures": 16,
+          "isWebGL2": true
+        }
+      },
+      "draws": {
+        "frames": 60,
+        "renderItemsPerFrame": 352,
+        "byName": [
+          {
+            "name": "inbound-stream-streaks",
+            "perFrame": 26.4
+          },
+          {
+            "name": "holographic-contour",
+            "perFrame": 19.8
+          },
+          {
+            "name": "tower-corner-post",
+            "perFrame": 13.2
+          },
+          {
+            "name": "tower-floor-frame",
+            "perFrame": 13.2
+          },
+          {
+            "name": "tower-rising-particles",
+            "perFrame": 13.2
+          },
+          {
+            "name": "tower-roof-outline",
+            "perFrame": 13.2
+          },
+          {
+            "name": "tower-solid-core",
+            "perFrame": 13.2
+          },
+          {
+            "name": "tower-window-panel",
+            "perFrame": 13.2
+          },
+          {
+            "name": "sector-edge-rod",
+            "perFrame": 8.8
+          },
+          {
+            "name": "tower-plinth",
+            "perFrame": 8.8
+          },
+          {
+            "name": "Mesh",
+            "perFrame": 7.7
+          },
+          {
+            "name": "hero-cap",
+            "perFrame": 6.6
+          },
+          {
+            "name": "hero-crown-glyph",
+            "perFrame": 6.6
+          },
+          {
+            "name": "hero-glass-arms",
+            "perFrame": 6.6
+          },
+          {
+            "name": "hero-metal-corners",
+            "perFrame": 6.6
+          },
+          {
+            "name": "hero-metal-edge",
+            "perFrame": 6.6
+          },
+          {
+            "name": "hero-square-core",
+            "perFrame": 6.6
+          },
+          {
+            "name": "base-inner-slab",
+            "perFrame": 4.4
+          },
+          {
+            "name": "base-outer-shell",
+            "perFrame": 4.4
+          },
+          {
+            "name": "core-cube",
+            "perFrame": 4.4
+          },
+          {
+            "name": "core-halo",
+            "perFrame": 4.4
+          },
+          {
+            "name": "corner-markers-base",
+            "perFrame": 4.4
+          },
+          {
+            "name": "corner-markers-cube",
+            "perFrame": 4.4
+          },
+          {
+            "name": "cube-edges",
+            "perFrame": 4.4
+          },
+          {
+            "name": "inbound-stream-guide",
+            "perFrame": 4.4
+          },
+          {
+            "name": "inner-edges",
+            "perFrame": 4.4
+          },
+          {
+            "name": "light-sheets",
+            "perFrame": 4.4
+          },
+          {
+            "name": "panel-grid",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 1",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 2",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 3",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 4",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 5",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 6",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 7",
+            "perFrame": 4.4
+          },
+          {
+            "name": "Radial annular sector 8",
+            "perFrame": 4.4
+          },
+          {
+            "name": "rim-inner",
+            "perFrame": 4.4
+          },
+          {
+            "name": "rim-outer",
+            "perFrame": 4.4
+          },
+          {
+            "name": "seam-grid",
+            "perFrame": 4.4
+          },
+          {
+            "name": "technical-linework",
+            "perFrame": 4.4
+          },
+          {
+            "name": "base-wall-ring",
+            "perFrame": 3.3
+          },
+          {
+            "name": "Points",
+            "perFrame": 3.3
+          },
+          {
+            "name": "scattered-holographic-nodes",
+            "perFrame": 2.2
+          },
+          {
+            "name": "technical-planar-grid",
+            "perFrame": 2.2
+          },
+          {
+            "name": "base-intermediate",
+            "perFrame": 1.1
+          },
+          {
+            "name": "base-rim-bottom-halo",
+            "perFrame": 1.1
+          },
+          {
+            "name": "base-rim-inner-top",
+            "perFrame": 1.1
+          },
+          {
+            "name": "base-rim-outer-bottom",
+            "perFrame": 1.1
+          },
+          {
+            "name": "base-rim-outer-top",
+            "perFrame": 1.1
+          },
+          {
+            "name": "base-wall-post",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Cap center highlight carrier",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Curved annular base wall",
+            "perFrame": 1.1
+          },
+          {
+            "name": "deck-chevron-rod",
+            "perFrame": 1.1
+          },
+          {
+            "name": "deck-inner-rim-light",
+            "perFrame": 1.1
+          },
+          {
+            "name": "deck-outer-rim-light",
+            "perFrame": 1.1
+          },
+          {
+            "name": "deck-recess",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Faint inner polar projection field",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Front loop highlight carrier",
+            "perFrame": 1.1
+          },
+          {
+            "name": "hero-crown-clock-hand",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Highest rear cuboid tower",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Inner projection field tower 15",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Outer ring tower 11",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Outer ring tower 16",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 02",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 03",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 04",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 05",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 06",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 07",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 08",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Radial cuboid tower 09",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Scene",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-base-glass",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-base-rims",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-cap-band",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-cap-drum",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-cap-lid",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-cap-lid-rims",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-cap-roof",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-cap-roof-rims",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-chamber-backdrop",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-chamber-glass",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-lower-band",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-nucleus",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-nucleus-glow",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-platform",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-platform-reflection",
+            "perFrame": 1.1
+          },
+          {
+            "name": "spool-platform-rings",
+            "perFrame": 1.1
+          },
+          {
+            "name": "Upper annular deck",
+            "perFrame": 1.1
+          }
+        ]
+      },
+      "scene": {
+        "totalDrawables": 300,
+        "totalDrawCalls": 324,
+        "totalTriangles": 224354,
+        "modelOnly": 263,
+        "towers": 136,
+        "core": 41,
+        "base": 69,
+        "noPart": 11,
+        "outsideModel": 61,
+        "topLevel": [
+          {
+            "name": "outside-model",
+            "drawables": 61,
+            "drawCalls": 61,
+            "triangles": 93842
+          },
+          {
+            "name": "Curved annular base wall__pivot",
+            "drawables": 47,
+            "drawCalls": 71,
+            "triangles": 19120
+          },
+          {
+            "name": "Upper narrow core__pivot",
+            "drawables": 40,
+            "drawCalls": 40,
+            "triangles": 78096
+          },
+          {
+            "name": "Outer ring tower 18",
+            "drawables": 9,
+            "drawCalls": 9,
+            "triangles": 1236
+          },
+          {
+            "name": "Highest rear cuboid tower__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 2076
+          },
+          {
+            "name": "Radial cuboid tower 04__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1116
+          },
+          {
+            "name": "Radial cuboid tower 06__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 968
+          },
+          {
+            "name": "Radial cuboid tower 09__pivot",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1400
+          },
+          {
+            "name": "Outer ring tower 10",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1224
+          },
+          {
+            "name": "Outer ring tower 11",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 832
+          },
+          {
+            "name": "Outer ring tower 12",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 904
+          },
+          {
+            "name": "Outer ring tower 13",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 744
+          },
+          {
+            "name": "Outer ring tower 14",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1848
+          },
+          {
+            "name": "Outer ring tower 16",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1228
+          },
+          {
+            "name": "Outer ring tower 17",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1800
+          },
+          {
+            "name": "Radial cuboid tower 02__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1344
+          },
+          {
+            "name": "Radial cuboid tower 03__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1276
+          },
+          {
+            "name": "Radial cuboid tower 05__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 800
+          },
+          {
+            "name": "Radial cuboid tower 07__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1104
+          },
+          {
+            "name": "Radial cuboid tower 08__pivot",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1264
+          },
+          {
+            "name": "Inner projection field tower 15",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 740
+          },
+          {
+            "name": "Lower narrow core__pivot",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 2688
+          },
+          {
+            "name": "base-wall-ring",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 3456
+          },
+          {
+            "name": "Violet loop registered to base__pivot",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 1216
+          },
+          {
+            "name": "deck-outer-rim-light",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 1536
+          },
+          {
+            "name": "deck-inner-rim-light",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 1536
+          },
+          {
+            "name": "base-wall-post",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 192
+          },
+          {
+            "name": "deck-recess",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 192
+          },
+          {
+            "name": "deck-chevron-rod",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 576
+          }
+        ],
+        "byPart": [
+          {
+            "id": "outside-model",
+            "drawables": 61,
+            "drawCalls": 61,
+            "triangles": 93842
+          },
+          {
+            "id": "core-cap",
+            "drawables": 28,
+            "drawCalls": 28,
+            "triangles": 68608
+          },
+          {
+            "id": "no-part",
+            "drawables": 11,
+            "drawCalls": 11,
+            "triangles": 8100
+          },
+          {
+            "id": "tower-18",
+            "drawables": 9,
+            "drawCalls": 9,
+            "triangles": 1236
+          },
+          {
+            "id": "tower-01-back-high",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 2076
+          },
+          {
+            "id": "tower-04",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1116
+          },
+          {
+            "id": "tower-06",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 968
+          },
+          {
+            "id": "tower-09",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1400
+          },
+          {
+            "id": "tower-10",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1224
+          },
+          {
+            "id": "tower-12",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 904
+          },
+          {
+            "id": "tower-13",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 744
+          },
+          {
+            "id": "tower-14",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1848
+          },
+          {
+            "id": "tower-17",
+            "drawables": 8,
+            "drawCalls": 8,
+            "triangles": 1800
+          },
+          {
+            "id": "core-upper",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 6224
+          },
+          {
+            "id": "tower-02",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1344
+          },
+          {
+            "id": "tower-03",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1276
+          },
+          {
+            "id": "tower-05",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 800
+          },
+          {
+            "id": "tower-07",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1104
+          },
+          {
+            "id": "tower-08",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 1264
+          },
+          {
+            "id": "base-deck",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 4768
+          },
+          {
+            "id": "tower-11",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 664
+          },
+          {
+            "id": "tower-16",
+            "drawables": 7,
+            "drawCalls": 7,
+            "triangles": 952
+          },
+          {
+            "id": "tower-15",
+            "drawables": 6,
+            "drawCalls": 6,
+            "triangles": 572
+          },
+          {
+            "id": "base-shell",
+            "drawables": 4,
+            "drawCalls": 4,
+            "triangles": 768
+          },
+          {
+            "id": "core-lower",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 2688
+          },
+          {
+            "id": "base-sector-01",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-02",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-03",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-04",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-05",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-06",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-07",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-sector-08",
+            "drawables": 3,
+            "drawCalls": 6,
+            "triangles": 996
+          },
+          {
+            "id": "base-rim-outer-bottom",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 2304
+          },
+          {
+            "id": "base-intermediate",
+            "drawables": 3,
+            "drawCalls": 3,
+            "triangles": 1008
+          },
+          {
+            "id": "cap-center-light",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 1216
+          },
+          {
+            "id": "base-rim-outer-top",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 768
+          },
+          {
+            "id": "base-rim-inner-top",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 768
+          },
+          {
+            "id": "inner-projection-field",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 768
+          },
+          {
+            "id": "front-loop-light",
+            "drawables": 2,
+            "drawCalls": 2,
+            "triangles": 1216
+          },
+          {
+            "id": "core-cap-drum",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 512
+          },
+          {
+            "id": "core-cap-roof",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 512
+          },
+          {
+            "id": "core-cap-lid",
+            "drawables": 1,
+            "drawCalls": 1,
+            "triangles": 1024
+          }
+        ]
+      }
+    },
+    "animated": {
+      "callsPerFrame": 466,
+      "trianglesPerFrame": 377168,
+      "minCalls": 466,
+      "maxCalls": 466,
+      "samples": 90,
+      "byTarget": {
+        "rt0": {
+          "callsPerFrame": 452,
+          "trianglesPerFrame": 377154
+        },
+        "rt1": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt10": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt11": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt2": {
+          "callsPerFrame": 2,
+          "trianglesPerFrame": 2
+        },
+        "rt3": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt4": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt5": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt6": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt7": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt8": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "rt9": {
+          "callsPerFrame": 1,
+          "trianglesPerFrame": 1
+        },
+        "screen": {
+          "callsPerFrame": 2,
+          "trianglesPerFrame": 2
+        }
+      }
+    }
+  },
+  "shots": {
+    "normal/hero": {
+      "picked": null,
+      "pixel": null
+    },
+    "detached/hero": {
+      "picked": null,
+      "pixel": null
+    },
+    "sel-tower-01/hero": {
+      "picked": "tower-01-back-high",
+      "pixel": [
+        652,
+        232
+      ]
+    },
+    "sel-tower-10/hero": {
+      "picked": "tower-10",
+      "pixel": [
+        753,
+        416
+      ]
+    },
+    "sel-core/hero": {
+      "picked": "core-cap-drum",
+      "pixel": [
+        615,
+        316
+      ]
+    },
+    "normal/orbit": {
+      "picked": null,
+      "pixel": null
+    },
+    "detached/orbit": {
+      "picked": null,
+      "pixel": null
+    },
+    "sel-tower-01/orbit": {
+      "picked": "tower-01-back-high",
+      "pixel": [
+        416,
+        284
+      ]
+    },
+    "sel-tower-10/orbit": {
+      "picked": "tower-10",
+      "pixel": [
+        651,
+        323
+      ]
+    },
+    "sel-core/orbit": {
+      "picked": "core-cap-drum",
+      "pixel": [
+        562,
+        311
+      ]
+    },
+    "normal/closeup": {
+      "picked": null,
+      "pixel": null
+    },
+    "detached/closeup": {
+      "picked": null,
+      "pixel": null
+    },
+    "sel-tower-01/closeup": {
+      "picked": "tower-01-back-high",
+      "pixel": [
+        640,
+        173
+      ]
+    },
+    "sel-tower-10/closeup": {
+      "picked": "tower-10",
+      "pixel": [
+        797,
+        498
+      ]
+    },
+    "sel-core/closeup": {
+      "picked": "core-cap-drum",
+      "pixel": [
+        612,
+        320
+      ]
+    }
+  },
+  "errors": []
+}
