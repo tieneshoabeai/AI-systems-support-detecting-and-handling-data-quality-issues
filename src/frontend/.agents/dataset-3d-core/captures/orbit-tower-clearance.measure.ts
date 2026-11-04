@@ -1,132 +1,44 @@
-// Orbit-to-tower / orbit-to-core clearance, measured from the REAL scene graph.
+// Orbit-to-tower / orbit-to-core clearance — generator, self-checks and the pinned baseline.
 //
-// Why this exists: change-log §7.2 used to assert containment with v3 arithmetic (orbits at
-// y~1.96, radii 1.96-2.20) that P26 replaced. A tilted, flattened torus is not a circle in plan
-// view, so "orbit radius < tower inner radius" is not a statement you can evaluate from `radii`
-// alone — the reach of a ring depends on azimuth AND on y. This harness samples the actual vertex
-// cloud and reports exact distances.
+// Why this exists: change-log §7.2 used to assert containment with v3 arithmetic (orbits at y~1.96,
+// radii 1.96-2.20) that P26 replaced. A tilted, flattened torus is not a circle in plan view, so
+// "orbit radius < tower inner radius" is not a statement you can evaluate from `radii` alone — the
+// reach of a ring depends on azimuth AND on y. This harness samples the actual geometry, reports exact
+// distances, and writes the numbers that src/__tests__/dataset-3d/orbit-clearance.test.ts pins.
 //
 // Run from src/frontend:
 //   npx vitest run --config .agents/dataset-3d-core/captures/vitest.measure.config.ts
 //
-// Two rules make the numbers trustworthy:
+// The measurement itself lives in src/__tests__/dataset-3d/support/orbit-clearance.ts, imported by
+// both this generator and the shipped test, so a baseline can never be produced by a different spec
+// than the one that checks it. What stays HERE is the part that does not belong in `npm test`:
 //   1. The synthetic ring is checked against the merged mesh's own Box3 (assert < 0.003), so if
-//      spool-core.ts changes the pipeline, this harness goes red instead of lying.
-//   2. Towers are axis-aligned boxes, so point-to-AABB distance is exact — no hull approximation.
-//   3. The spin worst case (§5) is cross-checked against a brute-force sweep of one yaw axis, so
-//      the commutation argument that makes it exact is tested, not trusted.
+//      spool-core.ts changes the pipeline this harness goes red instead of lying.
+//   2. The spin worst case is cross-checked against a real 512-step yaw sweep, so the commutation
+//      argument that makes it exact is tested, not trusted.
+//   3. The drawn-surface raster (§6) asks whether a Box3 hit is real geometry or empty chamfer. It
+//      samples tens of thousands of triangle points, which is why it is a report and not a gate.
 
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import * as THREE from 'three'
 import { expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../../src/graphics/holographic-core/holographic-core.model'
 import { SPOOL_CORE } from '../../../src/graphics/holographic-core/core-visual-config'
+import {
+  ALL_TOWER_IDS, type OrbitSample, boxGap, buildClearance, coreSurfaces, discGap, orbitSamples,
+  shellSurfaceGap, spinY, sweptGap, sweptShellOf, towerRecords,
+} from '../../../src/__tests__/dataset-3d/support/orbit-clearance'
 
-const ORIGINAL_IDS = ['tower-01-back-high', 'tower-02', 'tower-03', 'tower-04', 'tower-05', 'tower-06', 'tower-07', 'tower-08', 'tower-09']
-const OUTER_IDS = ['tower-10', 'tower-11', 'tower-12', 'tower-13', 'tower-14', 'tower-15', 'tower-16', 'tower-17', 'tower-18']
-const ALL_IDS = [...ORIGINAL_IDS, ...OUTER_IDS]
-const TOWER_15_WINDOW: [number, number] = [336.78, 353.74]
+const OUT = resolve(process.cwd(), '.agents/dataset-3d-core/fingerprint/p1-orbit-clearance.ndjson')
+const TOWER_15_WINDOW: [number, number] = [0, 0]
 
-type Sample = { ring: number; v: THREE.Vector3; reach: number; azimuth: number; bead: boolean }
+const f = (n: number) => n.toFixed(4)
 
-// Mirrors spool-core.ts:441-460: torus ring in XZ, flattened in z, Euler(tiltX about x, yaw about
-// y), lifted to centerY. radialSegments is 4, so the tube is a square section and 4 sides is exact.
-function orbitSamples(): Sample[] {
-  const out: Sample[] = []
-  const euler = new THREE.Euler()
-  const rotation = new THREE.Matrix4()
-  const v = new THREE.Vector3()
-  const push = (ring: number, bead: boolean) => {
-    out.push({
-      ring,
-      v: v.clone(),
-      reach: Math.hypot(v.x, v.z) + (bead ? SPOOL_CORE.orbits.sphereRadius : 0),
-      azimuth: (THREE.MathUtils.radToDeg(Math.atan2(v.z, v.x)) + 360) % 360,
-      bead,
-    })
-  }
-  SPOOL_CORE.orbits.radii.forEach((radius, index) => {
-    euler.set(SPOOL_CORE.orbits.tiltX[index], SPOOL_CORE.orbits.yaw[index], 0)
-    rotation.makeRotationFromEuler(euler)
-    for (let step = 0; step < 512; step += 1) {
-      const angle = (step / 512) * Math.PI * 2
-      for (let side = 0; side < 4; side += 1) {
-        const phi = (side / 4) * Math.PI * 2
-        const ring = radius + Math.cos(phi) * SPOOL_CORE.orbits.tube
-        v.set(Math.cos(angle) * ring, Math.sin(phi) * SPOOL_CORE.orbits.tube, Math.sin(angle) * ring * SPOOL_CORE.orbits.flatten)
-        v.applyMatrix4(rotation)
-        v.y += SPOOL_CORE.orbits.centerY
-        push(index + 1, false)
-      }
-    }
-    for (let bead = 0; bead < 2; bead += 1) {
-      const angle = 0.7 + bead * 2.9 + index * 0.8
-      v.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius * SPOOL_CORE.orbits.flatten)
-      v.applyMatrix4(rotation)
-      v.y += SPOOL_CORE.orbits.centerY
-      push(index + 1, true)
-    }
-  })
-  return out
-}
-
-// Exact for an axis-aligned box: 0 on the surface, positive outside, negative inside.
-function boxGap(p: THREE.Vector3, box: THREE.Box3) {
-  const dx = Math.max(box.min.x - p.x, p.x - box.max.x, 0)
-  const dy = Math.max(box.min.y - p.y, p.y - box.max.y, 0)
-  const dz = Math.max(box.min.z - p.z, p.z - box.max.z, 0)
-  const outside = Math.hypot(dx, dy, dz)
-  if (outside > 0) return outside
-  return -Math.min(...(['x', 'y', 'z'] as const).map(axis => {
-    const lo = box.min[axis]
-    const hi = box.max[axis]
-    return p[axis] >= lo ? p[axis] - lo : hi - p[axis]
-  }))
-}
-
-// Solid cylinder (the platform disc).
-function discGap(p: THREE.Vector3, radius: number, y0: number, y1: number) {
-  const radial = Math.hypot(p.x, p.z)
-  if (p.y < y0) return Math.hypot(Math.max(radius - radial, 0), y0 - p.y)
-  if (p.y > y1) return Math.hypot(Math.max(radius - radial, 0), p.y - y1)
-  return radius - radial
-}
-
-// Cylindrical surface only (glass walls are shells, so "inside the radius" is not a collision).
-function shellGap(p: THREE.Vector3, radius: number, y0: number, y1: number) {
-  const dy = Math.max(y0 - p.y, p.y - y1, 0)
-  return Math.hypot(Math.abs(Math.hypot(p.x, p.z) - radius), dy)
-}
-
-// A box spun about the world Y axis sweeps a solid cylindrical shell: every azimuth, radii
-// r0..r1, heights y0..y1. Spinning a point about Y leaves its radius and height untouched, so
-//   min over yaw  min over points   gap        ==   min over points   min over yaw   gap
-// (the two mins commute) and the right-hand side is just the distance to this shell. Exact,
-// no sampling of the angle needed.
-function sweptShellOf(box: THREE.Box3) {
-  const span = (a: number, b: number) => [a > 0 ? a : (b < 0 ? -b : 0), Math.max(Math.abs(a), Math.abs(b))] as const
-  const [minX, maxX] = span(box.min.x, box.max.x)
-  const [minZ, maxZ] = span(box.min.z, box.max.z)
-  return { r0: Math.hypot(minX, minZ), r1: Math.hypot(maxX, maxZ), y0: box.min.y, y1: box.max.y }
-}
-
-function sweptGap(p: THREE.Vector3, s: ReturnType<typeof sweptShellOf>, pad: number) {
-  const r = Math.hypot(p.x, p.z)
-  const dr = Math.max(s.r0 - r, r - s.r1, 0)
-  const dy = Math.max(s.y0 - p.y, p.y - s.y1, 0)
-  const outside = Math.hypot(dr, dy)
-  if (outside > 0) return outside - pad
-  return -(Math.min(r - s.r0, s.r1 - r, p.y - s.y0, s.y1 - p.y) + pad)
-}
-
-// Rotate a point about world Y the way orbitGroup.rotation.y does.
-function spinY(p: THREE.Vector3, theta: number) {
-  const cos = Math.cos(theta)
-  const sin = Math.sin(theta)
-  return new THREE.Vector3(p.x * cos + p.z * sin, p.y, -p.x * sin + p.z * cos)
-}
-
-// Meridian raster of a tower's DRAWN surfaces. Rotating a point about Y keeps its (r, y) and lets
-// it reach every azimuth, so for a fixed surface patch T:
+// --- report-only: the DRAWN surface, not the bounding box -----------------------------------------
+// Meridian raster of a tower's DRAWN surfaces. Rotating a point about Y keeps its (r, y) and lets it
+// reach every azimuth, so for a fixed surface patch T:
 //   min over yaw of dist(spinY(p, yaw), T)  ==  dist in the (r, y) plane from (r_p, y_p) to
 //   {(hypot(x, z), y) : q in T}
 // i.e. the whole 3D sweep collapses to a 2D distance to the projected triangles. That is what
@@ -200,8 +112,8 @@ function surfaceGapOf(v: THREE.Vector3, cells: Map<number, string>, pad: number)
   return { gap: best - pad, owner, found: best < Infinity }
 }
 
-const f = (n: number) => n.toFixed(4)
 it('orbit vs tower + core clearance (measurement, not an assertion of taste)', () => {
+  expect(existsSync(resolve(process.cwd(), '.agents/dataset-3d-core')), `run from src/frontend, not ${process.cwd()}`).toBe(true)
   const { model } = createHolographicCoreProductModel()
   const runtime = model.userData.sculptRuntime as { nodes: Record<string, THREE.Object3D> }
   model.updateMatrixWorld(true)
@@ -225,7 +137,7 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
 
   // 2. Tower footprints: nearest approach to the axis, and the azimuth each one occupies.
   const boxes = new Map<string, THREE.Box3>()
-  for (const id of ALL_IDS) {
+  for (const id of ALL_TOWER_IDS) {
     const node = runtime.nodes[id]
     expect(node, `missing tower ${id}`).toBeTruthy()
     boxes.set(id, new THREE.Box3().setFromObject(node))
@@ -235,7 +147,7 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
     return Math.hypot(clamp(0, box.min.x, box.max.x), clamp(0, box.min.z, box.max.z))
   }
   const azimuthOf = (x: number, z: number) => (THREE.MathUtils.radToDeg(Math.atan2(z, x)) + 360) % 360
-  const faces = ALL_IDS.map(id => ({ id, face: faceOf(boxes.get(id)!) })).sort((a, b) => a.face - b.face)
+  const faces = ALL_TOWER_IDS.map(id => ({ id, face: faceOf(boxes.get(id)!) })).sort((a, b) => a.face - b.face)
   lines.push(`tower inner faces: ${faces.slice(0, 3).map(x => `${x.id} ${f(x.face)}`).join(', ')}`)
   const t15 = boxes.get('tower-15')!
   const t15Corners = [
@@ -246,7 +158,8 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   TOWER_15_WINDOW[0] = Math.min(...t15Corners)
   TOWER_15_WINDOW[1] = Math.max(...t15Corners)
 
-  // 3. Per ring: reach extremes, height band, and true 3D gap to the binding tower.
+  // 3. Per ring: reach extremes, height band, and true 3D gap to the binding tower at the captured
+  //    yaw (rotation.y = 0).
   lines.push('')
   let globalMin = Infinity
   for (const ring of [1, 2, 3, 4]) {
@@ -256,7 +169,7 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
     const maxReach = tubeOnly.reduce((a, b) => (b.reach > a.reach ? b : a))
     const beadMax = rp.filter(p => p.bead).reduce((a, b) => (b.reach > a.reach ? b : a))
     let binding = { gap: Infinity, id: '' }
-    for (const p of rp) for (const id of ALL_IDS) {
+    for (const p of rp) for (const id of ALL_TOWER_IDS) {
       const gap = boxGap(p.v, boxes.get(id)!) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
       if (gap < binding.gap) binding = { gap, id }
     }
@@ -275,19 +188,11 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   const outerFace = faces.find(x => x.id !== 'tower-15')!
   const maxReachAll = Math.max(...points.map(p => p.reach))
   lines.push(`global max reach (beads included) ${f(maxReachAll)} vs nearest non-15 face ${outerFace.id} ${f(outerFace.face)} -> spare ${f(outerFace.face - maxReachAll)}`)
-  const surfaces = [
-    { name: 'platform disc', solid: true, radius: SPOOL_CORE.platform.radius, y0: SPOOL_CORE.platform.centerY - SPOOL_CORE.platform.thickness / 2, y1: SPOOL_CORE.platform.centerY + SPOOL_CORE.platform.thickness / 2 },
-    { name: 'base glass', solid: false, radius: SPOOL_CORE.baseGlass.radius, y0: SPOOL_CORE.baseGlass.centerY - SPOOL_CORE.baseGlass.height / 2, y1: SPOOL_CORE.baseGlass.centerY + SPOOL_CORE.baseGlass.height / 2 },
-    { name: 'lower band', solid: false, radius: SPOOL_CORE.lowerBand.radius, y0: SPOOL_CORE.lowerBand.centerY - SPOOL_CORE.lowerBand.height / 2, y1: SPOOL_CORE.lowerBand.centerY + SPOOL_CORE.lowerBand.height / 2 },
-    { name: 'chamber glass', solid: false, radius: SPOOL_CORE.chamber.radius, y0: SPOOL_CORE.chamber.centerY - SPOOL_CORE.chamber.height / 2, y1: SPOOL_CORE.chamber.centerY + SPOOL_CORE.chamber.height / 2 },
-    { name: 'backdrop', solid: false, radius: SPOOL_CORE.chamber.radius - SPOOL_CORE.chamber.wall - SPOOL_CORE.chamber.backdrop.radiusInset, y0: SPOOL_CORE.chamber.centerY - SPOOL_CORE.chamber.height / 2 + SPOOL_CORE.chamber.backdrop.heightInset, y1: SPOOL_CORE.chamber.centerY + SPOOL_CORE.chamber.height / 2 - SPOOL_CORE.chamber.backdrop.heightInset },
-    { name: 'cap envelope', solid: false, radius: SPOOL_CORE.cap.outerRadius, y0: SPOOL_CORE.cap.bottomY, y1: SPOOL_CORE.cap.topY },
-  ]
-  for (const s of surfaces) {
+  for (const s of coreSurfaces()) {
     let gap = Infinity
-    let worst = points[0]
+    let worst: OrbitSample = points[0]
     for (const p of points) {
-      const g = (s.solid ? discGap : shellGap)(p.v, s.radius, s.y0, s.y1) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      const g = (s.solid ? discGap : shellSurfaceGap)(p.v, s.radius, s.y0, s.y1) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
       if (g < gap) { gap = g; worst = p }
     }
     lines.push(`${gap < 0 ? 'CUTS' : 'clears'} ${s.name} (r ${f(s.radius)}, y ${f(s.y0)}..${f(s.y1)}) by ${f(gap)} at ring ${worst.ring}${worst.bead ? ' bead' : ' tube'} reach ${f(worst.reach)} y ${f(worst.v.y)}`)
@@ -299,45 +204,17 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   //    returns it to 0 (:618), so every yaw is visited over time. The core surfaces above are
   //    cylinders on the axis, so they are yaw-invariant; only the towers can get closer.
   lines.push('')
-  const swept = ALL_IDS.map(id => {
-    const shell = sweptShellOf(boxes.get(id)!)
-    let worst = { gap: Infinity, p: points[0] }
-    for (const p of points) {
-      const g = sweptGap(p.v, shell, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
-      if (g < worst.gap) worst = { gap: g, p }
-    }
-    return { id, shell, ...worst }
-  }).sort((a, b) => a.gap - b.gap)
+  const swept = towerRecords(model, points).sort((a, b) => a.swept - b.swept)
   const sweptMin = swept[0]
-  const staticGapOf = (id: string, tubesOnly = false) => {
-    let g = Infinity
-    for (const p of points) {
-      if (tubesOnly && p.bead) continue
-      g = Math.min(g, boxGap(p.v, boxes.get(id)!) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0))
-    }
-    return g
-  }
-  const sweptGapOf = (s: (typeof swept)[number], tubesOnly: boolean) => {
-    let best = { gap: Infinity, p: points[0] }
-    for (const p of points) {
-      if (p.bead !== !tubesOnly) continue
-      const g = sweptGap(p.v, s.shell, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
-      if (g < best.gap) best = { gap: g, p }
-    }
-    return best
-  }
-  lines.push(`yaw-invariant worst case (exact): ${sweptMin.id} ring ${sweptMin.p.ring}${sweptMin.p.bead ? ' bead' : ' tube'}` +
-    ` gap ${f(sweptMin.gap)} at r ${f(Math.hypot(sweptMin.p.v.x, sweptMin.p.v.z))} y ${f(sweptMin.p.v.y)}` +
-    `  [shell r ${f(sweptMin.shell.r0)}..${f(sweptMin.shell.r1)}, y ${f(sweptMin.shell.y0)}..${f(sweptMin.shell.y1)}]`)
-  const tubeWorst = sweptGapOf(sweptMin, true)
-  const beadWorst = sweptGapOf(sweptMin, false)
-  lines.push(`   ${sweptMin.id} split: glass TUBE worst ${f(tubeWorst.gap)} (ring ${tubeWorst.p.ring} r ${f(Math.hypot(tubeWorst.p.v.x, tubeWorst.p.v.z))} y ${f(tubeWorst.p.v.y)})` +
-    ` | BEAD worst ${f(beadWorst.gap)} (ring ${beadWorst.p.ring} r ${f(Math.hypot(beadWorst.p.v.x, beadWorst.p.v.z))} y ${f(beadWorst.p.v.y)})`)
+  lines.push(`yaw-invariant worst case (exact): ${sweptMin.id}` +
+    ` gap ${f(sweptMin.swept)}  [shell r ${f(sweptMin.shell.r0)}..${f(sweptMin.shell.r1)}, y ${f(sweptMin.shell.y0)}..${f(sweptMin.shell.y1)}]`)
+  lines.push(`   ${sweptMin.id} split: glass TUBE worst ${f(sweptMin.tube)} | BEAD worst ${f(sweptMin.bead)}`)
   for (const s of swept.slice(0, 6)) {
-    lines.push(`   ${s.gap < 0 ? 'PIERCES' : 'clears'} ${s.id} by ${f(s.gap)} over the full spin` +
-      `  (at the captured yaw ${f(staticGapOf(s.id))}, loss ${f(staticGapOf(s.id) - s.gap)})` +
-      `  | tube-only ${f(sweptGapOf(s, true).gap)}`)
+    lines.push(`   ${s.swept < 0 ? 'PIERCES' : 'clears'} ${s.id} by ${f(s.swept)} over the full spin` +
+      `  (at the captured yaw ${f(s.staticGap)}, loss ${f(s.staticGap - s.swept)})` +
+      `  | tube-only ${f(s.tube)}`)
   }
+  lines.push(`   the 17 that stay clear, smallest first: ${swept.filter(s => s.swept >= 0).map(s => `${s.id} ${f(s.swept)}`).join(', ')}`)
 
   // Cross-check the commutation argument by actually sweeping one yaw axis, 512 steps.
   const checkTower = boxes.get(sweptMin.id)!
@@ -349,15 +226,15 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
       if (g < brute) brute = g
     }
   }
-  lines.push(`   brute-force 512-yaw sweep of ${sweptMin.id}: ${f(brute)}  -> formula error ${f(Math.abs(brute - sweptMin.gap))}`)
-  expect(Math.abs(brute - sweptMin.gap)).toBeLessThan(0.002)
-  expect(sweptMin.gap).toBeLessThanOrEqual(globalMin)
+  lines.push(`   brute-force 512-yaw sweep of ${sweptMin.id}: ${f(brute)}  -> formula error ${f(Math.abs(brute - sweptMin.swept))}`)
+  expect(Math.abs(brute - sweptMin.swept)).toBeLessThan(0.002)
+  expect(sweptMin.swept).toBeLessThanOrEqual(globalMin)
 
   // 6. Box3 or drawn surface? Only points the shell model already calls < 0.06 can bind, because
   //    the box projection contains the surface projection, so the real gap is never smaller.
   lines.push('')
   const cells = meridianCellsOf(runtime.nodes[sweptMin.id], 0.004)
-  const shell = sweptMin.shell
+  const shell = sweptShellOf(boxes.get(sweptMin.id)!)
   const candidates = points.filter(p => sweptGap(p.v, shell, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0) < 0.06)
   let surfaceWorst = { gap: Infinity, p: candidates[0], owner: '' }
   for (const key of ['bead', 'tube'] as const) {
@@ -381,10 +258,18 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   }
   lines.push(`   raster: ${cells.size} cells @${CELL * 1000} mm, ${candidates.length}/${points.length} points inside the box's swept shell` +
     `  (quantisation error ~${(1.5 * CELL).toFixed(4)})`)
-  expect(surfaceWorst.gap).toBeGreaterThanOrEqual(sweptMin.gap - 0.005)
+  expect(surfaceWorst.gap).toBeGreaterThanOrEqual(sweptMin.swept - 0.005)
 
   lines.push('')
   lines.push(`orbit y band ${f(Math.min(...points.map(p => p.v.y)))}..${f(maxY)}, xz bbox ${spread(built)}`)
+
+  // 7. Write the baseline the shipped test pins, and print it so this run quotes the same bytes.
+  const baseline = ['# phase1-orbit-clearance', ...buildClearance(model)].join('\n') + '\n'
+  mkdirSync(dirname(OUT), { recursive: true })
+  writeFileSync(OUT, baseline, 'utf8')
+  lines.push('')
+  lines.push(`baseline -> ${OUT}  ${baseline.length} bytes  sha256 ${createHash('sha256').update(baseline).digest('hex')}`)
+  lines.push(baseline.replace(/^/gm, '  '))
 
   console.log(lines.join('\n'))
 })
