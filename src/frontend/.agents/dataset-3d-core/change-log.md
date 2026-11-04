@@ -260,6 +260,11 @@ phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **
 | P32 | `captures/orbit-tower-clearance.measure.ts` (thêm mục 5 + 3 helper), `change-log.md` (§7.2), **0 dòng source sửa** | P31 kết luận "**không cắt**" nhưng chỉ đo ở **một pose** (`rotation.y = 0`). Kế hoạch refactor mục S3 đánh dấu đúng chỗ này là `[Giả thuyết]`: "*orbit xoay trong khi tháp đứng yên… Test B có thể cho thấy orbit hiện đã chạm hoặc xuyên tháp ở một số góc xoay*". Human chốt D2 = đo | Thêm **worst-case theo góc xoay, chính xác không cần lấy mẫu**: xoay quanh trục Y không đổi bán kính và cao độ của một điểm ⇒ `min_gyaw min_point gap = min_point min_gyaw gap` (hai phép min giao hoán), và hộp quay quanh trục quét thành **vỏ trụ đặc** `[r0..r1] × [y0..y1]` nên khoảng cách tới nó tính bằng một phép clamp. `spool-core.ts` không đổi pipeline nên không cần chạy lại suite source; đối chiếu bằng **quét thô 512 góc** cho tower chốt | P31 để ngỏ câu hỏi quay; nếu chỉ dựa vào pose tĩnh thì "biên 0.0608" dễ bị đọc là "an toàn tuyệt đối" | Harness **1/1 pass**, in thêm 8 dòng. Kết luận: **có xuyên** — bead ring 4 **−0.0785**, ống kính **−0.0349** vào Box3 tower-15; 17 tower còn lại clear (min 0.1278); brute-force lệch **0.0006**; `expect(sweptMin.gap ≤ globalMin)` pass (worst-case quay luôn ≤ pose tĩnh, đúng như lý thuyết). `npx tsc --ignoreConfig --noEmit --strict` sạch. md5 `core-visual-config.ts bfbe8f0d…` / `spool-core.ts 671c7f2c…` **không đổi** | bỏ mục 5 + 3 helper trong harness, khôi phục 1 bullet §7.2 | DONE — **phát hiện có sẵn, không sửa (đổi hình ảnh)** |
 | P33 | `captures/orbit-tower-clearance.measure.ts` (thêm mục 6 + 2 helper), `change-log.md` (§7.2), **0 dòng source sửa** | P32 để ngỏ: số −0.0785 đo theo **Box3**, mà tower là khối vát góc nên hộp có thể chứa **không gian rỗng** — nếu vậy "xuyên" chỉ là báo động giả của hộp bao | Đo lại với **bề mặt thật**: rút bài toán 3D về mặt kinh tuyến 2D `(r, y)` (xoay quanh Y giữ `(r,y)` và tới được mọi phương vị ⇒ 2 phép min đổi được cho nhau), raster tam giác thật của tower chốt, có nhân `instanceMatrix` cho `InstancedMesh` và bỏ `!visible`, rồi tra khoảng cách cho các điểm ứng viên | P32 tự ghi rõ caveat nhưng không có số; kết luận "xuyên" nếu dừng ở Box3 là chưa đủ bằng chứng | bead **ăn sâu 0.0550** vào khối kính đã vẽ (hộp phóng đại 0.0235), ống kính **chạm** bề mặt (346/2548 điểm), 1/4 bead ứng viên chạm; `expect(surface ≥ shell − 0.005)` pass; raster 86.461 ô @2 mm, 2.552/8.200 điểm vào shell hộp. Harness **1/1** (9.7 s), `tsc --ignoreConfig --strict` 0, `eslint` 0, `npx vitest run` vẫn **25 file / 372 pass**, md5 `spool-core 671c7f2c…` / `config bfbe8f0d…` / `model 66efa4d2…` **không đổi** | bỏ mục 6 + 2 helper, khôi phục đoạn caveat trong bullet P32 của §7.2 | DONE — **thật, không sửa**. Human chốt D7: **bỏ qua, xử lý sau** |
 
+| P34 | **Mới**: `src/__tests__/dataset-3d/support/model-fingerprint.ts`, `src/__tests__/dataset-3d/model-fingerprint.test.ts`, `captures/model-fingerprint.measure.ts`, `captures/capture-p0.cjs`, `fingerprint/p0-baseline.ndjson`, `fingerprint/p0-images.sha256`, `fingerprint/p0-metrics.json`, `captures/p0-baseline/*.png` (16). **Sửa**: `captures/vitest.measure.config.ts` (testTimeout). **0 dòng source sửa** | Kế hoạch refactor chốt D1 = Phase 0→5 với gate "fingerprint diff = 0", nhưng fingerprint chưa từng tồn tại; ảnh baseline cũ stale từ v3; ba con số hiệu năng (139 draw tháp, 20.496 tri, budget 19) chưa từng đo trong trình duyệt | Executed Phase 0 items 0.1–0.4: máy dựng vân tay 5 moment (init có hash vertex, update-7.3, reset-motion, detached, selected-18) + test so sánh đọc baseline đã commit; harness Playwright chụp 5 trạng thái × 3 camera dưới `reducedMotion` (damping tắt nên pose camera tất định) và đo `renderer.info` + số lệnh GL thật. Chi tiết số ở **§7.6** | Không có lưới thì Phase 2→5 chỉ là lời hứa "không đổi hình ảnh"; và D7 vừa bỏ qua một va chạm thật, nên lưới càng cần | `npx vitest run` **26 file / 378 pass** (+1 file, +6 test, +13 s); 2 lần sinh baseline → **sha256 `a1c70e1e819a837d…` như nhau**; 2 lần capture → **cả 15 PNG byte-identical**; **mutation check**: sửa 1 `matrixWorld` + xoá 1 dòng baseline → **4 test đỏ** in đúng dòng lệch, khôi phục → xanh; `tsc -p tsconfig.app.json --noEmit` 0; eslint 0; `npm run build` OK (chứng minh `node:fs`/`node:path` typecheck trong `src`); md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` **không đổi**, `git status src/graphics` **trống** | xoá 8 file/mục mới + khôi phục 1 dòng `vitest.measure.config.ts`; suite trở 25 file / 372 test | DONE — Phase 0 complete, số đo trong §7.6 |
+
+| P35 | **Mới**: `src/__tests__/dataset-3d/support/orbit-clearance.ts`, `src/__tests__/dataset-3d/orbit-clearance.test.ts`, `fingerprint/p1-orbit-clearance.ndjson` (28 dòng: 1 header + 27 dòng đo). **Sửa**: `captures/orbit-tower-clearance.measure.ts` (dùng spec chung + ghi baseline). **0 dòng source sửa** | Ràng buộc tháp↔orbit chỉ tồn tại ở dạng comment trong `core-visual-config.ts`; P31–P33 đã **đo** nhưng số chỉ nằm trong báo cáo in ra console, **không có gate nào trong `npm test`** — nghĩa là một phase refactor vẫn có thể dịch tháp lại gần orbit mà không ai cấm | Executed Phase 1 (S3, đã rút gọn còn **Test B** theo D2): phép đo dời vào `support/orbit-clearance.ts` để máy sinh và test gọi **cùng một spec** (đúng quy tắc của fingerprint P34); baseline ghim 18 tháp + 6 mặt core + 3 dòng orbit, mọi float quantise 6 chữ số thập phân, **dung sai 0**. Chi tiết số ở **§7.7** | D1 duyệt Phase 0→5 với lời hứa “image-neutral”; D7 vừa bỏ qua một va chạm **thật**, nên lưới “không làm gần hơn” càng cần trước khi đụng tháp | Generator **1/1** (6,06 s), chạy **2 lần → sha256 `e58b98f33bb6a12e…` như nhau**, và **toàn bộ số trùng khớp báo cáo P32/P33** (tower-15 swept `-0.078476`, tube `-0.034928`, bead xuyên mặt vẽ `0.0550`, brute-force lệch `0.0006`) → tách code dùng chung không đổi phép đo. Test mới **4/4**. **Mutation check**: sửa 3 ô trong baseline (swept tower-04 1e-6, box tower-15 1e-6, gap chamber 1 mm) → test byte **đỏ** và in đúng 3 dòng lệch; đổi `KNOWN_PIERCE` sang `tower-04` → guard ngữ nghĩa **đỏ** với thông điệp “a second tower entered the orbit path” (chứng minh nó đọc hình học thật, không đọc lại baseline). Khôi phục → xanh, sha256 baseline **trở lại đúng giá trị cũ**. `tsc -b` 0 lỗi; `eslint` 0 lỗi; `npm run build` OK; md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` **không đổi**, `git status src/graphics` **trống**. **Ngoài phạm vi**: suite có flake `Test timed out in 5000ms` có từ trước — human quyết step 2, đã sửa ở **P36 / §7.8** | Xoá 3 file/mục mới + `git checkout -- captures/orbit-tower-clearance.measure.ts`; suite trở 26 file / 378 test | DONE — Phase 1 complete |
+| P36 | **Sửa**: `vitest.config.ts` (+4 dòng: `fileParallelism: false` + 3 dòng comment). **0 dòng source sửa** | `npm test` chết một test **luân phiên** với `Test timed out in 5000ms`; đỏ thật/giả không phân biệt được thì mọi gate fingerprint (P34) và clearance (P35) đều mất tác dụng | Step 2 do human chốt: **đo** 4 phương án trên cùng một máy thay vì đoán. Bảng số ở **§7.8**. Chọn chạy tuần tự giữa các file, **giữ nguyên `isolate` mặc định** để không mở đường leak state | Suite đã hỏng **từ trước** Phase 1 (bỏ file test mới ra, 3/3 lần vẫn đỏ); Phase 2→5 sẽ không thể nghiệm thu nếu phải nghi ngờ mọi lần đỏ | Baseline song song **5/1/6** lần timeout; `isolate: false` **6/7/4** (tệ hơn, đã revert, xác nhận file byte-identical HEAD); `maxThreads: 2` **1/1/3**; `fileParallelism: false` **0/0/0** — `npm test` ×4 xanh **27 file / 382 test** ở đúng timeout mặc định 5 s (181,18 / 159,97 / 194,79 / 174,75 s), cộng 2 lần CLI trước đó = **6/6 lần tuần tự liên tiếp sạch**. `tsc -b` 0; `eslint src`, `eslint .agents/dataset-3d-core`, `eslint vitest.config.ts` **0 lỗi cả ba** (riêng `npm run lint` = `eslint .` vẫn **12 lỗi có từ trước**, tất cả ở `.agents/holographic-core/**` scratch chưa commit, xem §7.8), `git diff --stat HEAD` = 1 file **+4 dòng**, `git status src/graphics` **trống**. Cái giá **+80 s**; `pool: 'vmThreads'` **chưa đo**, để ngỏ | `git checkout -- vitest.config.ts` | DONE — suite tất định, số đo ở §7.8 |
+
 ### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
 ```bash
 npx tsc -b                                             # 0 lỗi
@@ -586,3 +591,287 @@ Câu hỏi V2/V3 của plan đã có đáp án nên không cần hỏi lại: te
 `"test": "vitest run"`), và **dựng model headless trong jsdom chạy được** (chính harness P31/P32 +
 `holographic-towers.test.ts` đã làm từ trước). Còn mở: **V4** (`holographic-part.types.ts` ở
 `src/types/dataset-3d/`, `neon-cube.*` ở `src/graphics/neon-cube/` — chưa đọc, cần trước Phase 5).
+
+### 7.6 Phase 0 — lưới an toàn và số đo thật (2026-11-04, **0 dòng source sửa**)
+
+Phạm vi D1 = Phase 0→5, gate của mọi phase là "fingerprint diff = 0". Phase 0 dựng lưới đó và đo
+ba con số hiệu năng mà kế hoạch tự đánh dấu là chưa đo.
+
+**7.6.1 Vân tay scene graph (item 0.3)**
+
+`src/__tests__/dataset-3d/support/model-fingerprint.ts` là spec dùng chung cho cả máy sinh
+(`.agents/dataset-3d-core/captures/model-fingerprint.measure.ts`) lẫn test so sánh
+(`src/__tests__/dataset-3d/model-fingerprint.test.ts`) — baseline không thể được xác nhận bởi một
+spec khác với spec kiểm tra nó. Mỗi dòng ghi: đường dẫn chỉ số con, tên, loại, `visible`,
+`renderOrder`, `matrixWorld` (6 chữ số thập phân), geometry (loại + tên attribute + `n` + hash
+position/index/normal ở moment `init`), `instanceMatrix`/`instanceColor`, chữ ký vật liệu theo
+**object identity**, hash `raycast.toString()`, và kết quả `resolvePart`.
+
+| moment | dòng | nội dung |
+|---|---|---|
+| `init` | 1539 | full vertex hash cho mọi mesh |
+| `update-7.3` | 1154 | sau `update(7.3, 0.016)` |
+| `reset-motion` | 769 | sau `update(...)` rồi `resetMotion()` |
+| `detached` | 384 | sau `setDetached(true); snapDetach()` |
+| `selected-18` | 19 | mỗi tháp 1 dòng `sel[...] visible=1 verts=112 hash=<riêng> afterClear=0` |
+
+`fingerprint/p0-baseline.ndjson` = 320.404 byte, sha256
+`a1c70e1e819a837d1e89b98df6878b74e3df6573ddea8cf113ab1883f38ee203`. Hai lần sinh liên tiếp cho **cùng
+một hash**. Dòng header vật liệu, nguyên văn:
+`materials total=196 shared=g9x2,g11x4,g12x24,g14x2,g16x2,g18x3,g19x3,g46x18,g47x18,g48x18,g49x18,g51x18,g94x8,g95x8,g96x8,g97x8,g164x8`
+— **đúng 5 vật liệu tháp `g46/g47/g48/g49/g51` mỗi cái dùng chung cho 18 mesh**, nghĩa là giả định
+"xoá `TOWER_OPACITY` mà không tạo 18 bản clone `tone.glass`" của Phase 5 là **có bằng chứng**, không
+còn là suy đoán; `budget.drawCalls` không bị đụng tới.
+
+Lưới có cắn không: mutation test (sửa 1 `matrixWorld` trong baseline, xoá 1 dòng ở moment `detached`)
+làm **4/6 test đỏ** và in đúng dòng lệch; khôi phục → xanh. Test này nằm trong `npm test`, máy sinh
+thì **không** (một test tự viết lại baseline thì không phải gate).
+
+**7.6.2 Ảnh baseline (item 0.1)**
+
+`captures/capture-p0.cjs` chụp 5 trạng thái × 3 camera = **15 PNG** trong `captures/p0-baseline/`
+(`normal`, `detached`, `sel-tower-01`, `sel-tower-10`, `sel-core` × `hero`, `orbit`, `closeup`) dưới
+`reducedMotion: reduce`. Chọn reducedMotion không chỉ để "tắt chuyển động": `scene.tsx:47` đặt
+`controls.enableDamping = !reducedMotion`, nên khi reduce thì một cú kéo **landing đúng pose** — ảnh
+tất định theo code, không phải theo tốc độ máy.
+
+- `p0-images.sha256`: 15 hash; chạy harness **hai lần → cả 15 PNG byte-identical**.
+- Mỗi cú chọn part được **xác minh bằng DOM** (`#dataset-3d-part-panel[data-part-id]`), không tin
+  vào toạ độ. Pixel bấm được tính bằng cách chiếu chính vertex của part đó rồi raycast ngược
+  (`inbound` của `scene.tsx`: điểm gần nhất có tổ tiên mang `sculptComponent`), và làm tròn về pixel
+  nguyên **trước khi** kiểm tra — bản chưa làm tròn từng chọn nhầm `core-upper` khi nhắm
+  `core-cap-drum`.
+- Cả 3 camera đều ra `tower-01-back-high`, `tower-10`, `core-cap-drum` — danh sách candidate core
+  chưa cần tới phương án dự phòng.
+- `p0-motion-reference.png` (bloom + motion BẬT) chỉ để so bằng mắt, **không** có trong manifest.
+
+**7.6.3 Số đo thật trong trình duyệt (item 0.2)**
+
+`renderer.info` lấy được mà không sửa source: ba gán `render` theo **instance**, không theo prototype,
+nhưng `Object3D.prototype.onBeforeRender` nhận `renderer` làm tham số đầu tiên → hook prototype bắt
+được renderer, rồi wrap `render` trên instance. Số đo đối chiếu độc lập bằng cách đếm lệnh GL
+(`drawElements`/`drawArrays`/`*Instanced`, chỉ tính tam giác cho mode TAMGIÁC, điểm/line = 0).
+
+| pose | calls/frame | triangles/frame | passes | geometries | textures | programs |
+|---|---|---|---|---|---|---|
+| attached | **476** | **378.574** | 1 | 304 | 15 | 27 |
+| detached | **468** | **370.748** | 1 | 304 | 15 | 27 |
+| animated (bloom on) | **490** | 378.588 | 14 (`rt0=476` scene + 12 post + 2 screen) | — | — | — |
+
+`shadows=false`, `toneMapping=4` (ACESFilmic), `autoClear=true`, WebGL2, dpr 1. Máy đếm GL khớp
+`renderer.info` **chính xác từng chữ số** ở attached (476 / 378.574); ở detached nó đọc 476 vì cửa sổ
+90 khung hình vắt ngang cú lắp/tách — coi `renderer.info` là số chuẩn theo pose.
+
+**7.6.4 Ngân sách chi vào đâu — trả lời ba câu human hỏi**
+
+Đi bộ scene graph (chỉ tính `visible`, nhân `instanceMatrix` cho `InstancedMesh`):
+
+| nhóm | drawable | GL call (ước theo material array) | triangle |
+|---|---|---|---|
+| trong model (`holographic-core.model.ts`) | 271 | — | — |
+| · tháp (`tower-*`) | **130** | 130 | **18.864** |
+| · core/spool (`core-*`, `spool-*`) | 41 | 41 | 79.056 |
+| · base (`base-*`) | 45 | 69 | 18.352 |
+| · không có part | 25 | 25 | 17.508 |
+| ngoài model (sao, `neon-cube-cluster`, environment) | **61** | 61 | **93.842** |
+| **tổng** | **308** | 332 | 230.822 |
+
+1. **"139 draw call của tháp"** (kế hoạch đếm từ code): số **object** thật là **130** — cùng loại số,
+   lệch 9 vì vài mesh tower không có `sculptComponent` và vài mesh bị ẩn. Nhưng tháp **không** phải
+   chỗ tốn nhất: 130/308 object và 18.864/230.822 triangle. Chỗ tốn nhất là **61 object ngoài model
+   = 93.842 triangle** (đầy sao + cụm neon-cube + environment), rồi core 79.056.
+2. **"20.496 triangles"** (ghi ở P26): không phải tổng khung hình. Khung hình thật **378.574**
+   (`renderer.info`) và 230.822 nếu cộng hình học một lần. Con số cũ chỉ đúng trong phạm vi phép đo
+   của nó; đừng trích nó làm tổng.
+3. **`SPOOL_CORE.budget.drawCalls = 19`** là ngân sách **của phân hệ spool**, không phải ngân sách
+   khung hình. Khung hình là 476 call, tức gate "thêm mesh vào Core là vỡ test" vẫn đúng và vẫn phải
+   giữ (ràng buộc #4 ở §7.5), nhưng nó không mô tả chi phí thật của trang.
+4. **Chênh chưa đóng được**: 476 call thật vs 332 ước từ scene graph vs 334 render item đếm qua
+   `onBeforeRender`. `Sprite` có `onBeforeRender` **của riêng prototype nó** nên bỏ qua hook, và ba
+   chia submission theo group/vật liệu. Hệ quả cho Phase 2→5: **không** dùng số walk làm ngân sách
+   draw call, chỉ dùng fingerprint để kết luận "không đổi".
+
+**7.6.5 Quan sát D6 / P10 (StrictMode)**
+
+Trang dev (`/workspaces/3d-dataset`, `main.tsx:25` bọc `React.StrictMode`) sau mount có **đủ**:
+`issue-constellation` 5 con theo đúng thứ tự (`nucleus-beads` inst 18, `constellation-lanes` 512 verts,
+`constellation-particles` inst 48, `detection-beacon-ring`, `detection-beacon-sprite`), 24
+`inbound-stream-streaks`, 45 `selection-contour` — **giống hệt** cấu trúc headless trong baseline.
+Không có dấu hiệu P10 phá scene graph khi double-mount. Giới hạn: đây là quan sát trạng thái đã commit,
+không phải chứng minh `dispose()` vô hại; harness fingerprint dựng model ngoài React nên không kiểm
+được chu trình mount. P10 vẫn **không sửa** (đã bị D1 cắt khỏi phạm vi).
+
+**7.6.6 Nghiệm thu Phase 0**
+
+| Gate | Kết quả |
+|---|---|
+| `npx vitest run` | **26 file / 378 pass** (trước: 25/372; +6 test fingerprint, +~13 s) |
+| Baseline 2 lần | sha256 ndjson **như nhau**; 15 PNG **byte-identical** |
+| Lưới có cắn | mutation → 4 test đỏ, khôi phục → xanh |
+| `tsc -p tsconfig.app.json --noEmit` | 0 lỗi (chứng minh `node:fs`/`node:path` typecheck trong `src`) |
+| `eslint` trên file mới | 0 lỗi |
+| `npm run build` | OK |
+| Source không đổi | md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…`; `git status src/graphics` **trống** |
+| Console errors khi capture | **none** (không chèn probe `hasWebGL`, theo đúng lệnh của human) |
+
+Rollback Phase 0: xoá `src/__tests__/dataset-3d/support/model-fingerprint.ts`,
+`src/__tests__/dataset-3d/model-fingerprint.test.ts`, `captures/model-fingerprint.measure.ts`,
+`captures/capture-p0.cjs`, `captures/p0-baseline/`, `fingerprint/`; khôi phục 1 dòng `testTimeout`
+trong `captures/vitest.measure.config.ts`. Suite về 25 file / 372 test.
+
+### 7.7 Phase 1 — ghim khoảng trống Tower↔Orbit (2026-11-04)
+
+Phase 1 = S3, **đã rút gọn còn Test B** theo D2 (Test A — công thức chứa vòng ngoài — bị cắt vì nó chỉ
+đúng cho một họ tháp và đã bị phép đo 3D thay thế). Ba file: `support/orbit-clearance.ts` (spec dùng
+chung), `fingerprint/p1-orbit-clearance.ndjson` (baseline 28 dòng = 1 header + 27 dòng đo), `orbit-clearance.test.ts` (gate
+trong `npm test`). Máy sinh `orbit-tower-clearance.measure.ts` gọi **cùng** `buildClearance()`, nên
+không có chuyện baseline được xác nhận bởi một spec khác với spec kiểm tra nó.
+
+**7.7.1 Dòng ghim những gì**
+
+```
+orbit|samples=8200|mesh|bbox=-1.235736,0.782901,-1.301447|1.235736,1.717099,1.301447
+orbit|samples=8200|synthetic|bbox=...|drift=0.000161
+orbit|maxReach=1.320023|meshReach=1.320003
+tower|tower-15|swept=-0.078476|tube=-0.034928|bead=-0.078476|static=0.060796|shell=1.285096,1.726987,0.431900,1.756000|box=...
+core|chamber-glass|r=0.950000|y=0.990000,1.980000|gap=0.095036|at=ring 1,tube,reach 1.045036,y 1.194162
+```
+
+| Trường | Nghĩa |
+|---|---|
+| `swept` | khoảng cách nhỏ nhất **trong suốt vòng xoay** (worst case, chính xác không cần lấy mẫu góc) |
+| `tube` / `bead` | cùng phép đo nhưng tách riêng ống kính và quả cầu quỹ đạo |
+| `static` | cùng phép đo ở **pose chụp** (`rotation.y = 0`) — để thấy quay tệ hơn bao nhiêu |
+| `shell` | `[r0, r1, y0, y1]` của vỏ trụ mà hộp tháp quét quanh trục Y |
+| `box` | Box3 world của tháp. `Box3.setFromObject` **bỏ qua `visible`** (three r0.186 `expandByObject`), nên nó union cả `selection-contour` ẩn scale 1.002 → số đọc được là **bảo thủ**: khoảng cách không bao giờ rộng hơn sự thật đã vẽ |
+| `drift` | bbox mẫu tổng hợp vs bbox mesh thật — chứng minh phép đo đang mô tả hình học trên màn hình |
+
+**7.7.2 18 tháp, xếp theo `swept` tăng dần**
+
+| # | tháp | swept | tube | static | static − swept |
+|---|---|---|---|---|---|
+| 1 | tower-15 | **−0.078476** | −0.034928 | 0.060796 | 0.139272 |
+| 2 | tower-01-back-high | 0.127814 | 0.171363 | 0.184373 | 0.056559 |
+| 3 | tower-03 | 0.132214 | 0.175762 | 0.261537 | 0.129323 |
+| 4 | tower-05 | 0.132283 | 0.175831 | 0.206342 | 0.074059 |
+| 5 | tower-07 | 0.132433 | 0.175982 | 0.243314 | 0.110881 |
+| 6 | tower-09 | 0.132737 | 0.176286 | 0.240284 | 0.107547 |
+| 7 | tower-06 | 0.132956 | 0.176504 | 0.177925 | 0.044969 |
+| 8 | tower-08 | 0.133012 | 0.176561 | 0.272451 | 0.139439 |
+| 9 | tower-02 | 0.133428 | 0.176977 | 0.195392 | 0.061964 |
+| 10 | tower-04 | 0.425741 | 0.469290 | 0.553926 | 0.128185 |
+| 11 | tower-16 | 0.819629 | 0.863178 | 0.834248 | 0.014619 |
+| 12 | tower-18 | 0.837796 | 0.881345 | 0.983779 | 0.145983 |
+| 13 | tower-10 | 0.869796 | 0.913345 | 0.985778 | 0.115982 |
+| 14 | tower-12 | 0.909715 | 0.953264 | 0.972586 | 0.062871 |
+| 15 | tower-14 | 0.925537 | 0.969086 | 1.053373 | 0.127836 |
+| 16 | tower-13 | 1.079712 | 1.123261 | 1.227219 | 0.147507 |
+| 17 | tower-11 | 1.082419 | 1.125968 | 1.103134 | 0.020715 |
+| 18 | tower-17 | 1.119659 | 1.163208 | 1.196672 | 0.077013 |
+
+Bốn điều rút ra từ chính bảng này:
+
+1. `bead == swept` trên **cả 18 dòng**: quả cầu quỹ đạo (bán kính 0.0785) luôn là vật bám, không bao
+   giờ ống kính. Gate vì vậy đọc cột `swept`, còn `tube` chỉ là ngữ cảnh.
+2. `static > swept` trên **cả 18 dòng** (khoảng 0.0146 → 0.1475) — đúng bất biến lý thuyết
+   `swept ≤ static` mà P32 chứng minh bằng lập luận giao hoán hai phép min; giờ nó là số đo, không còn
+   là suy luận.
+3. Tám tháp nhóm trong (01, 02, 03, 05, 06, 07, 08, 09) nằm trong dải rộng **0.0056** (0.127814 →
+   0.133428). Một dịch chuyển tháp cỡ milimet đều bị bắt, và **không** có tháp nào trong nhóm này có
+   biên đáng kể để "nới tay".
+4. tower-15 là **D7** (đã human chốt bỏ qua): xuyên 0.078476 theo Box3, và P33 đã đo trên mặt thật là
+   bead ăn sâu **0.0550** vào khối kính đã vẽ. Nó được ghim như một số **âm có chủ đích**, không bị
+   miễn nhiễm: mọi thay đổi hình học của tower-15 đều làm test byte đỏ.
+
+**7.7.3 Phía Core và bằng chứng tự thân**
+
+| mặt | bán kính | dải y | gap | tại |
+|---|---|---|---|---|
+| platform-disc | 1.550000 | 0.470000–0.520000 | 0.355407 | ring 4 bead, reach 1.363572 |
+| base-glass | 1.060000 | 0.520000–0.900000 | 0.146451 | ring 3 bead, reach 1.269529 |
+| lower-band | 1.020000 | 0.900000–0.990000 | 0.114147 | ring 1 tube, reach 1.101605 |
+| chamber-glass | 0.950000 | 0.990000–1.980000 | **0.095036** | ring 1 tube, reach 1.045036 |
+| chamber-backdrop | 0.930000 | 1.002000–1.968000 | 0.115036 | ring 1 tube, reach 1.045036 |
+| cap-envelope | 1.170000 | 1.980000–2.400000 | 0.265884 | ring 4 bead, reach 1.362645 |
+
+Sáu mặt này là **trụ đồng tâm trên trục Y** nên chúng bất biến theo yaw: vòng xoay chỉ có thể làm tháp
+đến gần hơn, không làm core gần hơn. Vì vậy chỉ các dòng `tower|` cần `swept`, còn `core|` dùng phép
+đo tĩnh. Khoảng cách cap thật chất là **chiều cao** (`cap.bottomY 1.98 − orbit maxY 1.7172 = 0.2628`),
+bán kính của cap không tham gia.
+
+`drift = 0.000161` và `maxReach 1.320023` vs `meshReach 1.320003`: mẫu tổng hợp (512 bước góc) nằm
+**ngoài** mesh thật (128 bước góc) một khoảng 2.0e-5 — tức phép đo over-approximate hình đã vẽ, hướng
+an toàn cho một gate kiểu "không được đến gần hơn". Hai số này giờ nằm trong baseline, nên nếu
+`spool-core.ts` đổi pipeline mà spec không theo kịp, `drift` nhảy và gate tự đỏ.
+
+**7.7.4 Nghiệm thu Phase 1**
+
+| Gate | Kết quả |
+|---|---|
+| Generator 2 lần | sha256 `e58b98f33bb6a12eb3a4eb563388b04c0369f12c0ea23bcd1b97c5be8ef9e267` **như nhau** (4.057 byte, 28 dòng) |
+| Không đổi phép đo | mọi số trùng khớp báo cáo P32/P33 (−0.0785 / −0.0349 / 0.0550 / brute lệch 0.0006) |
+| Test mới trong `npm test` | **4/4 pass** (1,2 s): 18 dòng tháp, byte-exact, `drift < 0.003`, không tháp nào xuyên ngoài D7 |
+| Mutation baseline | 3 ô sửa (1e-6, 1e-6, 1 mm) → test byte **đỏ**, in đúng 3 dòng |
+| Mutation nhãn D7 | `KNOWN_PIERCE` đổi sang tower-04 → guard ngữ nghĩa **đỏ**: “a second tower entered the orbit path: expected [ 'tower-15' ] to deeply equal []” — chứng minh nó đọc hình học thật |
+| `tsc -b` / `eslint` / `npm run build` | 0 lỗi / 0 lỗi / OK (268 module) |
+| Image-neutral | md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` không đổi; `git status src/graphics` trống |
+
+**Ngoài phạm vi Phase 1 — `npm test` flake: ĐÃ SỬA, xem §7.8.** Khi chạy nguyên suite,
+một test **không liên quan** (`workspace-3d/local-csv-viewer`, cũng từng gặp `auth-flow`,
+`holographic-towers`, `issue-constellation`, `resource-map`) chết với `Error: Test timed out in
+5000ms`; chạy riêng thì **pass** (1,93 s). Đã đối chứng: **bỏ file test mới của Phase 1 ra khỏi suite,
+3/3 lần chạy vẫn đỏ** (1–2 file fail), tức bệnh có từ trước, không do Phase 1. Human chốt step 2 =
+sửa nguyên nhân; bốn phương án đã **đo** và bảng kết quả ở **§7.8**.
+
+Rollback Phase 1: xoá `src/__tests__/dataset-3d/support/orbit-clearance.ts`,
+`src/__tests__/dataset-3d/orbit-clearance.test.ts`, `fingerprint/p1-orbit-clearance.ndjson`;
+`git checkout -- .agents/dataset-3d-core/captures/orbit-tower-clearance.measure.ts`.
+Suite trở 26 file / 378 test; §7.2 và các số P31–P33 vẫn đúng nguyên văn.
+
+### 7.8 Flake `npm test`: bốn phương án đo, một phương án đứng (2026-11-03, step 2)
+
+**Triệu chứng.** Một test **luân phiên** đổi nạn nhân (`local-csv-viewer`, `auth-flow`, `holographic-towers`,
+`issue-constellation`, `resource-map`) chết với `Error: Test timed out in 5000ms`; chính test đó chạy riêng
+thì pass (1,93 s). Đổi nạn nhân theo lần chạy là dấu hiệu của **đói tài nguyên**, không của một assertion sai.
+
+**Nguyên nhân.** Máy 4 nhân CPU thật / 8 GB RAM, swap **10.995/12.288 MB đã dùng**, load average 136,97 giảm dần
+xuống 39,40 trong lúc đo; không có process playwright/node cô cút nào. 27 môi trường jsdom tốn ~90 s chỉ để
+dựng (Vitest tự in `jsdom was created 27 times · 90,58 s`), đồng hồ 5 s của **từng test** bị tính bằng thời
+gian thực, nên khi các file tranh CPU nhau thì test nào cũng có thể trễ hạn. Đây là bài toán **scheduling**,
+không phải bài toán chi phí dựng environment.
+
+**Bốn phương án** (b), (c1), (c2), (c3), đo trên cùng một máy đang chạy; cột Timeout là *số lần test trễ hạn /
+số lần chạy nguyên suite*; dòng đầu là **đo nền**, chưa sửa gì:
+
+| Phương án | Timeout / lần chạy | Duration | Phán quyết |
+|---|---|---|---|
+| `vitest.config.ts` như HEAD (song song) | **5 / 1 / 6** (3 lần) | 95,88 / 77,62 / 94,73 s | đỏ — bệnh nền, không do Phase 1 |
+| (b) `--testTimeout=20000` | 0 (1 lần) | (không ghi duration) | **loại**: đồng hồ dài hơn chỉ biến triệu chứng thành vô hình, không trả lời được câu hỏi mà gate cần — test này chậm hay bị đói? |
+| (c1) `isolate: false` | **6 / 7 / 4** (3 lần) | 83,96 / 59,02 / 50,09 s | **tệ hơn**: environment ít đi nên nhanh hơn (50–84 s), nhưng tổng số lần trễ hạn tăng **12 → 17**; đã `git checkout --` ngay, xác nhận file trở **byte-identical** với HEAD |
+| (c2) `poolOptions.threads.maxThreads: 2` | **1 / 1 / 3** (3 lần) | ~68–76 s | vẫn đỏ — giới hạn thread không đủ; config thí điểm `vitest.max2.config.ts` đã xoá |
+| (c3) `fileParallelism: false` | **0/0/0/0** (4 lần) + 0/0 (2 lần CLI) | 196,90 / 175,25 s (CLI), rồi **181,18 / 159,97 / 194,79 / 174,75 s** khi ghi vào config | **xanh cả 6 lần chạy tuần tự liên tiếp** ở đúng timeout mặc định 5 s; lần 4 chạy trên file đã chốt comment, để config được kiểm chứng đúng như nó đang tồn tại |
+
+**Đã áp dụng** (c3): `vitest.config.ts` thêm `fileParallelism: false` kèm 3 dòng comment mang chính các số
+trên, vì nó là lý do người sau không được "tối ưu" ngược lại. **Cái giá: +80 s** (77–96 s → 160–195 s) đổi
+lấy kết quả tất định. **Không có rủi ro leak state**: `fileParallelism: false` chỉ bỏ song song *giữa các
+file*, vẫn giữ `isolate` mặc định — mỗi file một environment mới, nên không có đường chia sẻ module state;
+bằng chứng là 27 file / **382 test pass y hệt nhau cả 4 lần**, và `clearMocks` / `restoreMocks` /
+`unstubEnvs` vẫn bật.
+
+**Chưa đo, để ngỏ:** `pool: 'vmThreads'` — lời gợi ý rẻ hơn của Vitest, chưa thử nên không cam kết. Nó cũng
+**không** được phản ánh trong bảng trên. Sau khi chuyển sang tuần tự, dòng `jsdom was created 27 times` vẫn
+in ra: đó là **giá của isolation**, không phải thứ còn hỏng.
+
+**Nghiệm thu bước này**: `npm test` ×4 → 27 file / 382 test pass (181,18 / 159,97 / 194,79 / 174,75 s,
+timeout mặc định; 3 lần đầu chạy trên config, lần 4 chạy sau khi sửa lại comment cho đúng số);
+`npx tsc -b` 0 lỗi; `git diff --stat HEAD` chỉ một file **+4 dòng**; `git status src/graphics` **trống**;
+md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` không đổi → không ảnh hưởng hình ảnh.
+Rollback: `git checkout -- vitest.config.ts` (bỏ 4 dòng), suite trở lại đỏ luân phiên như mô tả ở trên.
+
+**Cảnh báo về `npm run lint`** (đã kiểm tra lại vì các dòng trước ghi `eslint 0 lỗi`): lệnh này là
+`eslint .` trên toàn repo nên vẫn **12 lỗi**, **toàn bộ** nằm trong `.agents/holographic-core/blockout/` và
+`reference-v2/blockout/` — scratch **chưa commit** (`??`) của pass img2threejs, trong đó `generated-core.ts`
+là file sinh nên **không sửa tay**. Gate thật cho thay đổi này là lint theo phạm vi: `eslint src`,
+`eslint .agents/dataset-3d-core`, `eslint vitest.config.ts` → **0 lỗi cả ba**. Không trộn việc sửa 12 lỗi
+scratch vào bước này (ngoài phạm vi).
+
