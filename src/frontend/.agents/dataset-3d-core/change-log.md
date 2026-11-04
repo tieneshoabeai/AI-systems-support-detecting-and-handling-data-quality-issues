@@ -264,6 +264,7 @@ phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **
 
 | P35 | **Mới**: `src/__tests__/dataset-3d/support/orbit-clearance.ts`, `src/__tests__/dataset-3d/orbit-clearance.test.ts`, `fingerprint/p1-orbit-clearance.ndjson` (28 dòng: 1 header + 27 dòng đo). **Sửa**: `captures/orbit-tower-clearance.measure.ts` (dùng spec chung + ghi baseline). **0 dòng source sửa** | Ràng buộc tháp↔orbit chỉ tồn tại ở dạng comment trong `core-visual-config.ts`; P31–P33 đã **đo** nhưng số chỉ nằm trong báo cáo in ra console, **không có gate nào trong `npm test`** — nghĩa là một phase refactor vẫn có thể dịch tháp lại gần orbit mà không ai cấm | Executed Phase 1 (S3, đã rút gọn còn **Test B** theo D2): phép đo dời vào `support/orbit-clearance.ts` để máy sinh và test gọi **cùng một spec** (đúng quy tắc của fingerprint P34); baseline ghim 18 tháp + 6 mặt core + 3 dòng orbit, mọi float quantise 6 chữ số thập phân, **dung sai 0**. Chi tiết số ở **§7.7** | D1 duyệt Phase 0→5 với lời hứa “image-neutral”; D7 vừa bỏ qua một va chạm **thật**, nên lưới “không làm gần hơn” càng cần trước khi đụng tháp | Generator **1/1** (6,06 s), chạy **2 lần → sha256 `e58b98f33bb6a12e…` như nhau**, và **toàn bộ số trùng khớp báo cáo P32/P33** (tower-15 swept `-0.078476`, tube `-0.034928`, bead xuyên mặt vẽ `0.0550`, brute-force lệch `0.0006`) → tách code dùng chung không đổi phép đo. Test mới **4/4**. **Mutation check**: sửa 3 ô trong baseline (swept tower-04 1e-6, box tower-15 1e-6, gap chamber 1 mm) → test byte **đỏ** và in đúng 3 dòng lệch; đổi `KNOWN_PIERCE` sang `tower-04` → guard ngữ nghĩa **đỏ** với thông điệp “a second tower entered the orbit path” (chứng minh nó đọc hình học thật, không đọc lại baseline). Khôi phục → xanh, sha256 baseline **trở lại đúng giá trị cũ**. `tsc -b` 0 lỗi; `eslint` 0 lỗi; `npm run build` OK; md5 `model 66efa4d2…` / `spool 671c7f2c…` / `config bfbe8f0d…` **không đổi**, `git status src/graphics` **trống**. **Ngoài phạm vi**: suite có flake `Test timed out in 5000ms` có từ trước — human quyết step 2, đã sửa ở **P36 / §7.8** | Xoá 3 file/mục mới + `git checkout -- captures/orbit-tower-clearance.measure.ts`; suite trở 26 file / 378 test | DONE — Phase 1 complete |
 | P36 | **Sửa**: `vitest.config.ts` (+4 dòng: `fileParallelism: false` + 3 dòng comment). **0 dòng source sửa** | `npm test` chết một test **luân phiên** với `Test timed out in 5000ms`; đỏ thật/giả không phân biệt được thì mọi gate fingerprint (P34) và clearance (P35) đều mất tác dụng | Step 2 do human chốt: **đo** 4 phương án trên cùng một máy thay vì đoán. Bảng số ở **§7.8**. Chọn chạy tuần tự giữa các file, **giữ nguyên `isolate` mặc định** để không mở đường leak state | Suite đã hỏng **từ trước** Phase 1 (bỏ file test mới ra, 3/3 lần vẫn đỏ); Phase 2→5 sẽ không thể nghiệm thu nếu phải nghi ngờ mọi lần đỏ | Baseline song song **5/1/6** lần timeout; `isolate: false` **6/7/4** (tệ hơn, đã revert, xác nhận file byte-identical HEAD); `maxThreads: 2` **1/1/3**; `fileParallelism: false` **0/0/0** — `npm test` ×4 xanh **27 file / 382 test** ở đúng timeout mặc định 5 s (181,18 / 159,97 / 194,79 / 174,75 s), cộng 2 lần CLI trước đó = **6/6 lần tuần tự liên tiếp sạch**. `tsc -b` 0; `eslint src`, `eslint .agents/dataset-3d-core`, `eslint vitest.config.ts` **0 lỗi cả ba** (riêng `npm run lint` = `eslint .` vẫn **12 lỗi có từ trước**, tất cả ở `.agents/holographic-core/**` scratch chưa commit, xem §7.8), `git diff --stat HEAD` = 1 file **+4 dòng**, `git status src/graphics` **trống**. Cái giá **+80 s**; `pool: 'vmThreads'` **chưa đo**, để ngỏ | `git checkout -- vitest.config.ts` | DONE — suite tất định, số đo ở §7.8 |
+| P37 | **Mới**: `src/graphics/holographic-core/technical-lines.ts`. **Sửa**: `holographic-core.model.ts` (+1 dòng import, −60 dòng) | Phase 2 của kế hoạch kiến trúc: tháp sắp tách ra `tower-architecture.ts` / `tower-ring.ts` trong khi `addTechnicalRods` + `CYAN` nằm trong model → hoặc hai file import lẫn nhau (vòng) hoặc nhân bản code | Chuyển **nguyên văn** `CYAN`, `addTechnicalLine`, 5 biến tạm của rod và `addTechnicalRods` sang module mới, model import lại. Không đổi một dòng logic nào; `addPlanarGrid` / `addBaseWallGrid` / `addDeckRecess` ở lại vì chúng thuộc base, không thuộc tháp | §3.4 bắt buộc "không file `tower-*` nào import file Core"; lưới này phải dựng trước khi tách, nếu không Phase 4 không còn đường đi | **Bằng chứng trở thành chuyển code thuần tuý**: đối chiếu máy 57 dòng đã chuyển với bản cũ sau khi gỡ từ khoá `export` → **byte-identical**; diff của model đúng 1 dòng thêm + 60 dòng xoá, không dòng logic mới. Fingerprint **10/10** (5 moment, so từng byte với baseline đã commit), clearance **4/4**, `npm test` **27 file / 382 test** (215,75 s), `tsc -b` 0, `eslint` 0 trên cả hai file, `npm run build` OK. **Ảnh thật trong trình duyệt**: chạy lại harness rồi `shasum -a 256 -c p0-images.sha256` → **15/15 OK** | `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` và xoá `technical-lines.ts` | DONE — Phase 2 complete, số đo ở **§7.9** |
 
 ### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
 ```bash
@@ -874,4 +875,33 @@ Rollback: `git checkout -- vitest.config.ts` (bỏ 4 dòng), suite trở lại �
 là file sinh nên **không sửa tay**. Gate thật cho thay đổi này là lint theo phạm vi: `eslint src`,
 `eslint .agents/dataset-3d-core`, `eslint vitest.config.ts` → **0 lỗi cả ba**. Không trộn việc sửa 12 lỗi
 scratch vào bước này (ngoài phạm vi).
+
+## 7.9 Phase 2 — trích `technical-lines.ts` (2026-11-04, P37)
+
+**Chuyển gì.** `CYAN`, `addTechnicalLine`, năm biến tạm của rod (`ROD_UP`, `rodMidpoint`, `rodDirection`,
+`rodQuaternion`, `rodScale`) và `addTechnicalRods` sang `src/graphics/holographic-core/technical-lines.ts`;
+model import lại một dòng. `addPlanarGrid` / `addBaseWallGrid` / `addDeckRecess` **ở lại** model vì chúng là
+base/deck, không phải tháp (§3.1). Module mới không import gì ngoài `three`, nên tháp tách ra sau này dùng
+chung được mà không tạo vòng phụ thuộc (§3.4).
+
+**Bằng chứng "chỉ là di chuyển code", không phải viết lại.** Phép đối chiếu máy, không phải mắt đọc: 57 dòng
+đã chuyển được so từng ký tự với bản trong `git show HEAD:…holographic-core.model.ts` sau khi gỡ đúng hai từ
+khoá `export ` ở đầu dòng → **identical**. Diff của model là **+1 / −60**, không một dòng logic mới.
+
+**Gate.** Fingerprint **10/10** (cả 5 moment so từng byte với baseline đã commit), clearance **4/4** (baseline
+`e58b98f3…` không đổi), `npm test` **27 file / 382 test** (215,75 s), `tsc -b` 0, `eslint` 0 trên cả hai file,
+`npm run build` OK. Quan trọng hơn mọi thứ headless: chạy lại harness trong trình duyệt rồi
+`shasum -a 256 -c fingerprint/p0-images.sha256` → **15/15 OK**, tức raster thật không đổi một byte.
+
+**Điều học được về chính harness (mới, chưa ai ghi).** `capture-p0.cjs` **ghi đè** hai artefact không tất
+định: `p0-motion-reference.png` (motion + bloom BẬT) và `p0-metrics.json` (cửa sổ lấy mẫu phụ thuộc số frame
+kịp quan sát). Bằng chứng: hai lần chụp **trên cùng một code** cho `ca3649b8…` và `e3b4b1e6…`, cửa sổ animated
+tụt từ 57 xuống 47 frame nên mọi `perFrame` nhân đúng 1,0667 lần. Đây **không** phải hồi quy: 15 ảnh
+`reducedMotion` trong manifest vẫn nguyên hash. Hai file đã `git checkout --` khôi phục. **Cần human quyết
+(nho nhỏ, để ngỏ)**: hoặc cho harness ghi hai artefact này ra đường dẫn scratch, hoặc ngừng commit chúng —
+hiện tại mỗi lần chạy capture là `git status` bẩn một cách vô nghĩa, và đó là loại bẩn dễ bị người sau "commit
+đi cho sạch" nhất.
+
+**Rollback Phase 2**: `git checkout -- src/graphics/holographic-core/holographic-core.model.ts` và
+`rm src/graphics/holographic-core/technical-lines.ts`.
 
