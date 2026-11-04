@@ -2,12 +2,17 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import {
   CLEAN_LOOP_POINTS,
-  CORE_NUCLEUS,
+  CORE_VISUAL_REVISION,
   DETECTION_ANCHOR,
   ISSUE_CONSTELLATION,
-  ISSUE_LANES,
+  resolveCoreNucleus,
+  resolveIssueLanes,
   type Vec3,
 } from './core-visual-config'
+
+// Resolved once per build; the revision is a compile-time switch.
+const CORE_NUCLEUS = resolveCoreNucleus(CORE_VISUAL_REVISION)
+const ISSUE_LANES = resolveIssueLanes(CORE_VISUAL_REVISION)
 
 export type IssueConstellation = {
   root: THREE.Group
@@ -100,7 +105,12 @@ function createGlowTexture(): THREE.DataTexture {
   return texture
 }
 
-export function createIssueConstellation(): IssueConstellation {
+export type IssueConstellationOptions = {
+  // v4 draws its chamber rings inside the spool, so the constellation skips the old bands.
+  nucleusBands?: boolean
+}
+
+export function createIssueConstellation(options: IssueConstellationOptions = {}): IssueConstellation {
   const root = new THREE.Group()
   root.name = 'issue-constellation'
 
@@ -114,37 +124,39 @@ export function createIssueConstellation(): IssueConstellation {
   const color = new THREE.Color()
 
   // 1. Horizontal nucleus bands: three thin HDR rings merged into one draw call.
-  const bandGeometries = CORE_NUCLEUS.bands.map(band => {
-    const geometry = new THREE.TorusGeometry(band.radius, band.tube, 6, 64)
-    geometry.rotateX(Math.PI / 2)
-    geometry.translate(0, band.y, 0)
-    const count = geometry.getAttribute('position').count
-    const colors = new Float32Array(count * 3)
-    for (let index = 0; index < count; index += 1) {
-      colors[index * 3] = band.linear[0]
-      colors[index * 3 + 1] = band.linear[1]
-      colors[index * 3 + 2] = band.linear[2]
-    }
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-    return geometry
-  })
-  const bandGeometry = mergeGeometries(bandGeometries, false)
-  for (const geometry of bandGeometries) geometry.dispose()
-  if (!bandGeometry) throw new Error('Không gộp được geometry dải nucleus')
-  const bandMaterial = new THREE.MeshBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.65,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false,
-  })
-  const bands = new THREE.Mesh(bandGeometry, bandMaterial)
-  bands.name = 'nucleus-bands'
-  bands.renderOrder = 7
-  bands.raycast = () => {}
-  root.add(bands)
-  disposables.push(bandGeometry, bandMaterial)
+  if (options.nucleusBands !== false) {
+    const bandGeometries = CORE_NUCLEUS.bands.map(band => {
+      const geometry = new THREE.TorusGeometry(band.radius, band.tube, 6, 64)
+      geometry.rotateX(Math.PI / 2)
+      geometry.translate(0, band.y, 0)
+      const count = geometry.getAttribute('position').count
+      const colors = new Float32Array(count * 3)
+      for (let index = 0; index < count; index += 1) {
+        colors[index * 3] = band.linear[0]
+        colors[index * 3 + 1] = band.linear[1]
+        colors[index * 3 + 2] = band.linear[2]
+      }
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+      return geometry
+    })
+    const bandGeometry = mergeGeometries(bandGeometries, false)
+    for (const geometry of bandGeometries) geometry.dispose()
+    if (!bandGeometry) throw new Error('Không gộp được geometry dải nucleus')
+    const bandMaterial = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    })
+    const bands = new THREE.Mesh(bandGeometry, bandMaterial)
+    bands.name = 'nucleus-bands'
+    bands.renderOrder = 7
+    bands.raycast = () => {}
+    root.add(bands)
+    disposables.push(bandGeometry, bandMaterial)
+  }
 
   // 2. Record beads: two counter-rotating rings of tiny octahedra around the nucleus.
   const beadSeeds: BeadSeed[] = []

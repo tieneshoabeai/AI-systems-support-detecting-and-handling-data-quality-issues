@@ -6,6 +6,7 @@ import {
 import { createInboundStreams } from './inbound-streams'
 import { CORE_VISUAL_REVISION, ISSUE_CONSTELLATION, resolveCoreGlow } from './core-visual-config'
 import { createIssueConstellation } from './issue-constellation'
+import { createSpoolCore } from './spool-core'
 import {
   NON_SELECTABLE_PART_IDS,
   type HolographicPartComponent,
@@ -1070,10 +1071,18 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   applyBaseDepth(runtime)
   applyFaceShading(runtime)
   applyTierContrast(runtime)
+  const spool = CORE_VISUAL_REVISION === 'v4-spool' ? createSpoolCore() : null
+  if (spool) {
+    // Keep the old meshes (and their nodes) for detach/pick offsets, but never draw them.
+    for (const id of ['core-upper', 'core-lower', 'core-cap', 'core-mid-collar', 'core-lower-collar', 'core-foot', 'orbit-violet']) {
+      const mesh = runtime.meshes[id]
+      if (mesh) mesh.visible = false
+    }
+  }
   // The constellation lives in world space (core root is at the origin) so issue lanes can
   // reach the orange Detection cube. It is hidden while the model is exploded.
-  const constellation = CORE_VISUAL_REVISION === 'v3-constellation' && ISSUE_CONSTELLATION.enabled
-    ? createIssueConstellation()
+  const constellation = CORE_VISUAL_REVISION !== 'v2-tier' && ISSUE_CONSTELLATION.enabled
+    ? createIssueConstellation({ nucleusBands: CORE_VISUAL_REVISION !== 'v4-spool' })
     : null
   if (constellation) model.add(constellation.root)
 
@@ -1109,16 +1118,25 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   deckInnerLight.name = 'deck-inner-rim-light'
   const baseRimHalo = ringLight(3.108, 0.016, '#b18cff', 0, 0.22)
   baseRimHalo.name = 'base-rim-bottom-halo'
+  if (spool) {
+    // v3 rim/pedestal halos sit at the old drum heights, and the violet orbit would crowd
+    // the four cyan spool orbits, so the spool carries its own edges and rings.
+    for (const halo of [capRimLight, collarLight, pedestalLight, pedestalOrbit, lowerCollarLight, orbitLight, orbitHalo]) {
+      halo.visible = false
+    }
+  }
 
   // Reference-derived technical layers: they are visual structure, not dataset records.
   addPlanarGrid(runtime.nodes['base-deck'] ?? model, [1.1, 1.55, 2.05], 16, 0.016, 0.12, '#a37bff')
   addPlanarGrid(runtime.nodes['base-intermediate'] ?? model, [2.18, 2.4, 2.66], 16, 0.106, 0.24, '#a37bff')
-  addPlanarGrid(runtime.nodes['core-cap'] ?? model, [0.22, 0.46, 0.69, 0.9], 12, 0.012, 0.22)
-  // The older core reference keeps only soft seam lines on the drum, so the cylinder grids stay faint.
-  addCylinderGrid(runtime.meshes['core-upper'] ?? model, 0.906, 1.2, 6, 12, 0.1)
-  addCylinderGrid(runtime.meshes['core-lower'] ?? model, 0.906, 0.95, 5, 12, 0.09)
-  addCylinderGrid(runtime.meshes['core-foot'] ?? model, 0.966, 0.25, 2, 12, 0.07)
-  addCapSolarRays(runtime.meshes['core-cap'] ?? model)
+  if (!spool) {
+    addPlanarGrid(runtime.nodes['core-cap'] ?? model, [0.22, 0.46, 0.69, 0.9], 12, 0.012, 0.22)
+    // The older core reference keeps only soft seam lines on the drum, so the cylinder grids stay faint.
+    addCylinderGrid(runtime.meshes['core-upper'] ?? model, 0.906, 1.2, 6, 12, 0.1)
+    addCylinderGrid(runtime.meshes['core-lower'] ?? model, 0.906, 0.95, 5, 12, 0.09)
+    addCylinderGrid(runtime.meshes['core-foot'] ?? model, 0.966, 0.25, 2, 12, 0.07)
+    addCapSolarRays(runtime.meshes['core-cap'] ?? model)
+  }
   addBaseWallGrid(model, 3.108, 0.03, 0.44, '#8a5bff')
   addDeckRecess(model)
   const capHotspot = addHotspot(runtime.meshes['core-cap'] ?? model, new THREE.Vector3(0, 0.036, 0), 0.052, 0.42)
@@ -1136,6 +1154,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     model.add(spine)
     return spine
   })
+  if (spool) axialSpines.forEach(spine => { spine.visible = false })
   // Reference keeps a single white-hot beam running from the deck, through the core, into the sky.
   const beamMaterial = new THREE.MeshBasicMaterial({ color: '#a8ecff', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 4.5, 8, 1, true), beamMaterial)
@@ -1143,6 +1162,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   beam.name = 'core-vertical-beam'
   beam.renderOrder = 8
   model.add(beam)
+  if (spool) beam.visible = false
   const luminousNodes = [
     addScatteredNodes(runtime.meshes['core-upper'] ?? model, [0.56, 0.32, 0.7, -0.7, 0.18, 0.56, 0.8, -0.16, 0.38, -0.44, -0.3, 0.78], 0.015),
     addScatteredNodes(runtime.meshes['core-upper'] ?? model, [0.04, 0.06, 0.91, -0.84, 0.24, 0.25], 0.023),
@@ -1221,6 +1241,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   runnerArc.renderOrder = 7
   runner.add(runnerArc)
   model.add(runner)
+  if (spool) runner.visible = false
 
   // Ring lights and the runner belong to the parts they decorate, so they must ride
   // along when the model explodes instead of hovering at ground level.
@@ -1238,6 +1259,15 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   attachToNode(orbitHalo, 'orbit-violet')
   attachToNode(runner, 'orbit-violet')
   attachToNode(baseRimHalo, 'base-rim-outer-bottom')
+  if (spool) {
+    // Each spool layer rides the node of the old part it replaces, so detach offsets still work.
+    // The top drum stays on core-upper (static) because the old cap node keeps its spin.
+    attachToNode(spool.parts.top, 'core-upper')
+    attachToNode(spool.parts.chamber, 'core-upper')
+    attachToNode(spool.parts.base, 'core-lower')
+    attachToNode(spool.parts.platform, 'base-deck')
+    model.add(spool.parts.fx)
+  }
 
   const DETACH_DURATION = 0.65
   const detachEntries: Array<{ node: THREE.Object3D; base: THREE.Vector3; offset: THREE.Vector3 }> = []
@@ -1279,6 +1309,8 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       ? 4 * detachProgress * detachProgress * detachProgress
       : 1 - Math.pow(-2 * detachProgress + 2, 3) / 2
     for (const entry of detachEntries) entry.node.position.copy(entry.base).addScaledVector(entry.offset, eased)
+    // The spool layers share two pivots, so they get their own ladder of heights on top of those offsets.
+    spool?.setExplode(eased)
   }
   const snapDetach = () => {
     detachProgress = detachTarget
@@ -1306,6 +1338,21 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     contour.raycast = () => {}
     mesh.add(contour)
     selectionContours.set(id, contour)
+  }
+  if (spool) {
+    for (const [id, mesh] of spool.selectableMeshes) {
+      const contour = new THREE.LineSegments(
+        new THREE.EdgesGeometry(mesh.geometry, 24),
+        new THREE.LineBasicMaterial({ color: '#ffa41c', transparent: true, opacity: 1, depthWrite: false, depthTest: false, toneMapped: false }),
+      )
+      contour.name = 'selection-contour'
+      contour.scale.setScalar(1.002)
+      contour.renderOrder = 9
+      contour.visible = false
+      contour.raycast = () => {}
+      mesh.add(contour)
+      selectionContours.set(id, contour)
+    }
   }
   let selectedId: string | null = null
   const setSelected = (componentId: string | null) => {
@@ -1342,6 +1389,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
 
   // Only component meshes answer the pointer; decoration, lights and contours stay transparent to it.
   const pickableMeshes = new Set<THREE.Object3D>(Object.values(runtime.meshes))
+  if (spool) spool.selectableMeshes.forEach(mesh => pickableMeshes.add(mesh))
   model.traverse(object => {
     if (!pickableMeshes.has(object)) object.raycast = () => {}
   })
@@ -1366,6 +1414,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     syncTowerRisers(risers, 0)
     inboundStreams.reset()
     constellation?.reset()
+    spool?.reset()
   }
   resetMotion()
 
@@ -1379,6 +1428,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       if (motionNodes.cap) motionNodes.cap.rotation.y = -elapsedSeconds * Math.PI * 2 / 24
       inboundStreams.update(elapsedSeconds)
       constellation?.update(elapsedSeconds, deltaSeconds)
+      spool?.update(elapsedSeconds, deltaSeconds)
       runner.rotation.y = elapsedSeconds * Math.PI * 2 / 6
       runnerMaterial.opacity = 0.66 + Math.sin(elapsedSeconds * Math.PI * 2 / 2.4) * 0.14
       const capPulse = 0.9 + Math.sin(elapsedSeconds * Math.PI * 2 / 3.2) * 0.1
@@ -1400,6 +1450,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     setDetached(detached) {
       detachTarget = detached ? 1 : 0
       constellation?.setDetached(detached)
+      spool?.setDetached(detached)
     },
     snapDetach,
     setSelected,
@@ -1409,6 +1460,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
         model.remove(constellation.root)
         constellation.dispose()
       }
+      spool?.dispose()
       model.traverse((object) => {
         if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments || object instanceof THREE.Points) {
           object.geometry.dispose()

@@ -4,13 +4,14 @@ import {
   CLEAN_LOOP_POINTS,
   CORE_GLOW_V2,
   CORE_GLOW_V3,
-  CORE_NUCLEUS,
   CORE_VISUAL_REVISION,
   DETECTION_ANCHOR,
   ISSUE_CONSTELLATION,
-  ISSUE_LANES,
   resolveCoreGlow,
+  resolveCoreNucleus,
   resolveDetectionAnchor,
+  resolveIssueLanes,
+  SPOOL_CORE,
   type Vec3,
 } from '../../graphics/holographic-core/core-visual-config'
 import { createIssueConstellation } from '../../graphics/holographic-core/issue-constellation'
@@ -32,12 +33,21 @@ describe('core visual config', () => {
   })
 
   it('keeps every issue lane anchored to the nucleus and the cube face', () => {
-    expect(ISSUE_LANES).toHaveLength(3)
-    for (const lane of ISSUE_LANES) {
+    const lanes = resolveIssueLanes(CORE_VISUAL_REVISION)
+    const nucleus = resolveCoreNucleus(CORE_VISUAL_REVISION)
+    // v4 lanes leave the wider chamber glass, not the old drum shoulder.
+    const expectedRadius = CORE_VISUAL_REVISION === 'v4-spool' ? SPOOL_CORE.chamber.radius + 0.03 : nucleus.equatorRadius
+    expect(lanes).toHaveLength(3)
+    for (const lane of lanes) {
       const startRadius = Math.hypot(lane.start[0], lane.start[2])
-      expect(Math.abs(startRadius - CORE_NUCLEUS.equatorRadius)).toBeLessThan(0.003)
-      expect(lane.start[1]).toBeGreaterThanOrEqual(1.8)
-      expect(lane.start[1]).toBeLessThanOrEqual(2.1)
+      expect(Math.abs(startRadius - expectedRadius)).toBeLessThan(0.05)
+      if (CORE_VISUAL_REVISION === 'v4-spool') {
+        expect(lane.start[1]).toBeGreaterThanOrEqual(1.3)
+        expect(lane.start[1]).toBeLessThanOrEqual(1.55)
+      } else {
+        expect(lane.start[1]).toBeGreaterThanOrEqual(1.8)
+        expect(lane.start[1]).toBeLessThanOrEqual(2.1)
+      }
       const endDistance = distance(lane.end, DETECTION_ANCHOR.center)
       expect(endDistance).toBeGreaterThan(DETECTION_ANCHOR.halfSide + 0.1)
       expect(endDistance).toBeLessThan(DETECTION_ANCHOR.halfSide + 0.2)
@@ -53,20 +63,21 @@ describe('core visual config', () => {
   })
 
   it('ships 18 issue motes and 30 clean motes', () => {
-    expect(ISSUE_LANES.length * ISSUE_CONSTELLATION.issueParticlesPerLane).toBe(18)
+    expect(resolveIssueLanes(CORE_VISUAL_REVISION).length * ISSUE_CONSTELLATION.issueParticlesPerLane).toBe(18)
     expect(ISSUE_CONSTELLATION.cleanParticleCount).toBe(30)
     expect(ISSUE_CONSTELLATION.issuePalette.every(([r, g, b]) => r > g && g > b)).toBe(true)
     expect(ISSUE_CONSTELLATION.cleanPalette.every(([r, , b]) => b > r)).toBe(true)
   })
 
   it('keeps the core body below bloom threshold while legacy values stay intact', () => {
-    expect(CORE_VISUAL_REVISION).toBe('v3-constellation')
+    expect(CORE_VISUAL_REVISION).toBe('v4-spool')
     for (const entry of Object.values(CORE_GLOW_V3)) {
       expect(entry.patch.emissiveIntensity ?? 0).toBeLessThanOrEqual(1)
     }
     expect(CORE_GLOW_V3['core-upper'].patch.emissiveIntensity).toBe(0.5)
     expect(CORE_GLOW_V2['core-upper'].patch.emissiveIntensity).toBe(1.35)
     expect(resolveCoreGlow('v2-tier')).toBe(CORE_GLOW_V2)
+    expect(resolveCoreNucleus('v4-spool').centerY).toBe(SPOOL_CORE.nucleus.y)
   })
 })
 

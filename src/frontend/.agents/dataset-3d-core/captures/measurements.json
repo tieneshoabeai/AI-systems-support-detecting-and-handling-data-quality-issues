@@ -23,36 +23,36 @@
   },
   "after": {
     "planCrop": {
-      "mean": 132.1,
-      "p95": 240.7,
-      "clippedPct": 2.17,
-      "clippedArcs": 294,
-      "clippedBelowArcs": 194,
-      "hueMedian": 212.2
+      "mean": 102.7,
+      "p95": 244.4,
+      "clippedPct": 1.47,
+      "clippedArcs": 66,
+      "clippedBelowArcs": 265,
+      "hueMedian": 199.1
     },
     "bodyCrop": {
-      "mean": 107.2,
-      "p95": 211.7,
-      "clippedPct": 0.25,
+      "mean": 95.6,
+      "p95": 230.6,
+      "clippedPct": 1.61,
       "clippedArcs": 0,
-      "clippedBelowArcs": 42,
-      "hueMedian": 211.6
+      "clippedBelowArcs": 270,
+      "hueMedian": 210.8
     },
     "cyan": {
-      "cyanSharePct": 73.6,
-      "hueP25": 196.0,
-      "hueP50": 207.2,
-      "hueP75": 215.8
+      "cyanSharePct": 74.3,
+      "hueP25": 195.2,
+      "hueP50": 207.8,
+      "hueP75": 215.3
     },
     "amberPx": {
-      "pathCrop": 583,
+      "pathCrop": 559,
       "pathCropBefore": 0,
-      "fullFrame": 13611
+      "fullFrame": 13597
     },
     "tiers": {
-      "base": 48.8,
-      "tower": 76.1,
-      "core": 107.2
+      "base": 49.3,
+      "tower": 73.9,
+      "core": 95.6
     }
   },
   "reducedMotionChangedPct": 0.0,

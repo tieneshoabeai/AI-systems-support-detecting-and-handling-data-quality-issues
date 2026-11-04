@@ -256,13 +256,16 @@ phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **
 | P29 | `.agents/dataset-3d-core/captures/` (chỉ tài liệu kiểm chứng + harness mới, **0 dòng source sửa**) | Capture cuối cùng lấy sau P25; P26 và P28 đều ghi "chưa capture". `capture-core-v3.cjs` là harness duy nhất, kéo/zoom rồi chụp ngay | Chụp lại toàn bộ `after-*.png` ở trạng thái P28. Thêm **`capture-frozen.cjs`**: một context `reducedMotion: 'reduce'`, chờ 8 s, chụp `frozen.png` + `frozen-b.png` — frame **đóng băng**, vì harness chính hai lần chạy cho Δ tới **+227/255 trên từng pixel** chỉ do vị trí hạt khác nhau, nhấn chìm delta ánh sáng. Thêm **`measure-brightness-p28.py`** (dò đỉnh teal rồi quét scanline) và A/B một biến: tạm đặt `nucleus.light` về `6 / 0.94`, chụp, **restore bằng md5**, chụp lại | human yêu cầu đo mức sáng thật sau khi tôi báo "+217%" từ không gian linear mà không nói rõ đơn vị | A/B đông/frame: `frozen` vs `frozen-b` **0 px khác** ở cả hai trạng thái → pose thực sự đóng băng → delta duy nhất là ánh sáng. **0.33% số pixel toàn khung đổi, max Δ46.** Theo vùng: vũng sáng giữa buồng **+17.0%** (63.7→74.5), vỏ kính **+2.2%** (90.5→92.5), rim +1.0%, **tower/cap-top/background 0.0%** (đèn không lọt ra ngoài). `measure-core-v3.py`: thang sáng giờ **đơn điệu** — base 49.3 < tower 73.9 < core 95.6; `reducedMotionChangedPct 0.0`, `maxDiff 0`; `console errors: none`. Ảnh: `p28/` (P28), `ab-light-off/` (A/B), `pre-p28/` (mốc P25, **chưa từng commit** nên đã copy trước khi ghi đè) | xoá 3 file mới + `capture-core-v3.cjs` chạy lại; không có gì trong `src/` để revert | DONE |
 
 | P30 | `.agents/dataset-3d-core/change-log.md` (viết lại deviation #12) + `.agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs` (mới), **0 dòng source sửa** | #12 ghi F5 = "hai dải **12 mm** ở 2 vành kính không có surface ghi độ sâu", và ghi hướng (b) `openEnded:false` sẽ "bịt luôn tầm nhìn vào buồng" | Đo lại bằng **ray-test từ đúng camera hero** (`[11.45, 9, 11.45]` → `[0, 2.1, 0.5]`, trích từ `holographic-core.scene.tsx:29-30`), chỉ tính mặt mà `side` thực sự vẽ **và** ghi depth. Viết lại #12 theo số đo, kể cả việc tự sửa hai nhận định sai của chính tôi (hướng (b), và vai trò `spool-lower-band`) | F5 được assert từ hình học thuần (2 inset 12 mm) mà chưa từng ray-test; số đo cho thấy khung mô tả đó sai vị trí lỗ | Chạy `node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs` tái lập từng chữ số: **71.2%** diện tích mặt kính nhìn thấy **không có gì chắn** (28.8% có), theo lát: **100%** từ y0.99→1.08, **9.2%** phẳng lì từ y1.878→1.98 ⇒ **dải hở TRÊN 12 mm có giá trị đúng 0.0 điểm %**, dải dưới thủng tuyệt đối nhưng **kéo dài ~88 mm chứ không 12 mm**; `spool-lower-band` tự chặn **0 tia**. Không sửa source nên không cần vitest; md5 `core-visual-config.ts` `bfbe8f0d…` và `spool-core.ts` `671c7f2c…` **không đổi** | xoá `.mjs` + khôi phục đoạn #12 cũ (nội dung sai) | DONE — **hướng sửa vẫn chờ human gate** |
+| P31 | `.agents/dataset-3d-core/change-log.md` (§7.2 + #10) + 2 harness mới `captures/orbit-tower-clearance.measure.ts`, `captures/vitest.measure.config.ts`, **0 dòng source sửa** | §7.2 assert "Orbit trong cùng `1.96 − 0.007 = 1.953 > cap.outerRadius 1.17`, ngoài cùng `2.20 < 2.30` (mặt trong vành tower) — không cắt cap, không lọt vào tower" bằng **số của v3**: P26 đã dồn orbits từ `radii [1.96,2.04,2.12,2.2] / centerY 1.45` xuống `[1.20,1.26,1.32,1.38] / centerY 1.25`, nên cả hai vế dẫn chiếu một hình không còn tồn tại | Đo lại từ **scene graph thật**: dựng `createHolographicCoreProductModel()`, lấy `Box3` world của 18 tower (hộp trục-aligned nên khoảng cách điểm→hộp là **chính xác**, không xấp xỉ), mẫu 2.048 điểm/vành đúng pipeline `TorusGeometry(r,tube,4,128) → rotateX → scale(flatten) → Euler(tiltX,yaw) → translateY`, **đối chiếu bbox mesh thật (drift 0.0002)** để harness không tự nói dối khi `spool-core.ts` đổi. Viết lại §7.2, sửa `r1.288 → 1.2851` ở #10 | human chốt "Đo lại hình học orbit so với tower để sửa §7.2 trước"; trước đó chính tôi định điền số bằng phép tính bán kính — sai loại hình, vì torus nghiêng+dẹt không phải đường tròn trong nhìn-from-trên | `npx vitest run --config .agents/dataset-3d-core/captures/vitest.measure.config.ts` → **1/1 pass**, in toàn bộ bảng. Kết luận: **không cắt** (gap 3D nhỏ nhất mọi vành đều > 0, harness `expect(globalMin).toBeGreaterThan(0)`), nhưng cơ chế thoát là **chiều cao + phương vị**, không phải bán kính. md5 `core-visual-config.ts bfbe8f0d…` / `spool-core.ts 671c7f2c…` **không đổi**; `npx vitest run` vẫn **25 file / 372 pass** (harness nằm ngoài `include` của suite) | xoá 2 file harness + khôi phục 1 bullet §7.2 và 1 số ở #10 | DONE |
 
 ### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
 ```bash
 npx tsc -b                                             # 0 lỗi
 npx eslint src/graphics/holographic-core src/__tests__/dataset-3d   # 0 lỗi
 npx vitest run src/__tests__/dataset-3d                # 6 file, 46/46 pass (P28)
-npx vitest run                                         # 25 file, 372/372 pass (P28)
+npx vitest run                                         # 25 file, 372/372 pass (P31 vẫn đúng)
+npx vitest run --config .agents/dataset-3d-core/captures/vitest.measure.config.ts \
+                                                       # P31: đo orbit↔tower/core, in bảng số, 1/1
 NODE_PATH=/Users/mac/.npm/_npx/e41f203b7505f1fb/node_modules \
   node .agents/dataset-3d-core/captures/capture-core-v3.cjs
 NODE_PATH=/Users/mac/.npm/_npx/e41f203b7505f1fb/node_modules \
@@ -283,6 +286,8 @@ node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs   # P30: 28.
   `19 / 20,496` và `budget` không phải nâng (test đếm drawable, không đếm material).
 - Capture P25: `after-chamber-clear.png` (orbit qua khe tower + zoom) và `after-exploded-cap-detail.png`
   xác nhận không còn vòng teal/vạch chia trong chamber; `after-attached.png` giữ silhouette 4 lớp.
+  *(P31: chú thích "qua khe tower" là mô tả thao tác camera của harness, không phải claim hình học —
+  orbit không đi qua khe nào, nó đi vào **phía trong** mặt trong tower-15, xem bullet orbit ở trên.)*
 - Capture cap: `after-cap-detail.png` (zoom + nâng elevation) đọc rõ mặt trên phẳng y2.40 của lid +
   roof, khe hướng tâm 0.10, roof nón cụt 0.12, drum 1.98–2.28; `after-*.png` chụp lại toàn bộ sau P23.
 - `nucleus.y = chamber.centerY = 1.42`; stack: platform 0.52 = base đáy 0.52; base đỉnh 0.90 =
@@ -293,8 +298,42 @@ node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs   # P30: 28.
   (trên 0.90–1.05, dưới 1.02–1.17), drum thành 0.15 (1.02–1.17, h0.30) dâng lên 1.98–2.28; roof và
   lid cùng mặt trên 2.40, khe hướng tâm 0.10; lid hole 0.65 < drum inner 1.02 nên nhìn xuyên qua cap
   xuống chamber/nucleus; drum và roof cùng dải bán kính nên drum nằm dưới roof, không chồng hình học.
-- Orbit trong cùng `1.96 − 0.007 = 1.953 > cap.outerRadius 1.17`, ngoài cùng `2.20 < 2.30` (mặt trong
-  vành tower) — không cắt cap, không lọt vào tower.
+- **Orbits ↔ cap ↔ tower — đã đo lại từ scene graph (P31)**. Bản cũ của bullet này ("orbit trong cùng
+  `1.96 − 0.007 = 1.953 > cap.outerRadius 1.17`, ngoài cùng `2.20 < 2.30` — không cắt cap, không lọt
+  vào tower") là **số của v3** và đã bị P26 xoá sổ: orbits đi từ `radii [1.96…2.2] / centerY 1.45`
+  xuống `[1.20…1.38] / centerY 1.25`. Số đo thật, dựng `createHolographicCoreProductModel()` và lấy
+  `Box3` world của 18 tower (hộp trục-aligned ⇒ khoảng cách điểm→hộp là **chính xác**, không xấp xỉ):
+  - Dải y orbit **0.783–1.717**, bbox XZ **x ±1.236 / z ±1.301** (đo trên `spool-orbit-tubes`; đám mây
+    điểm tái dựng lệch bbox mesh thật **0.0002**, harness assert điều đó nên nó không tự nói dối được
+    khi `spool-core.ts` đổi pipeline).
+  - Cap không bị cắt **vì chiều cao, không phải vì bán kính**: `cap.bottomY 1.98 − orbit maxY 1.717 =`
+    **0.263**. Mệnh đề cũ so `1.953 > 1.17` là so một đại lượng không còn ở tầm đó.
+  - **"bán kính orbit" không tồn tại dưới dạng một con số**: `flatten 0.88` dẹt torus theo z *trước khi*
+    `tiltX` nghiêng, nên reach phụ thuộc **đồng thời** phương vị và y. Reach lớn nhất toàn cụm (kể bead
+    r 0.055) **1.3636**, nhỏ nhất **1.0450**; ring 4 max **1.3200** ở phương vị 64.6° / y 1.672.
+  - Mép trong gần trục nhất: **tower-15 = 1.2851** (ô phương vị 336.78–353.73°), gần nhất *sau* nó là
+    **tower-01-back-high = 1.4914**, tức mọi tower khác đều ≥ 1.49.
+  - Ở tower-15, cơ chế không va chạm là **orbit luồn vào trong**, không phải vòng ra ngoài: trong ô
+    phương vị của tower-15, ring 4 chỉ đạt reach **1.2258 < 1.2851** (hở hướng tâm 0.0593). 664 điểm
+    của ring 4 vượt r 1.2851 nhưng rơi vào cung phương vị **31.6–278.2°** — vẫn có tower ở đó (t05 35°,
+    t06 75°, t07 120°, t08 165°, t09 200°, t11 63°, t12 96.5°, t13 151.5°, t14 181.5°, t16 241.5°),
+    nhưng mép trong của chúng **≥ 1.4914**, xa hơn reach toàn cụm 0.1278.
+  - Khoảng cách 3D nhỏ nhất orbit↔tower, **cả 4 vành đều chốt ở tower-15**: ring1 **0.2002**, ring2
+    **0.1603**, ring3 **0.1143**, ring4 **0.0608**. bead không phải điểm chốt (bead gần nhất vẫn cách
+    0.1779). ⇒ **không cắt**, nhưng biên ring 4 chỉ còn **6 cm** ≈ 3.9% bán kính platform, và tower-15
+    cao tới y 1.756 **phủ trọn** dải y orbit nên không còn đường tránh theo chiều đứng.
+  - Orbit cũng không cắt thân core: cách mặt kính chamber (r 0.95) **0.0950**, backdrop (r 0.93)
+    **0.1150**, lower band (r 1.02) **0.1141**, base glass (r 1.06) **0.1465**, platform (r 1.55)
+    **0.3554**.
+  - **Chưa sửa, gate human**: comment đầu `core-visual-config.ts:264-271` là lý thiết kế của chính
+    orbits, và nó có hai chỗ **đọc ra sai** so với số đo: (a) "the ring is **nine** axis-aligned boxes"
+    — vành tower là **18** hộp (9 gốc + 9 vành ngoài, và tower-15 thuộc 9 hộp *ngoài*); (b) "*so its
+    minor axis must clear 1.288 while its major axis clears ~1.50*" — "clear" ở đây phải hiểu là
+    **ở trong** chứ không phải **vượt lên trên**: trục ngắn đo được 1.045–1.197 **nhỏ hơn** 1.2851, và
+    đó chính là cơ chế thoát (P26 ghi đúng ý này: "*yaw vào họ 75–105° để trục ngắn quay vào phía
+    tower-15*"). Điều kiện không cắt viết lại cho gọn: **reach trong ô phương vị tower-15 < 1.2851**
+    *và* **reach toàn cụm < 1.4914**. Số `1.288` là 1.2851 (lệch 3 mm, kết luận không đổi). Đó là source
+    nên tôi không tự đổi.
 
 ### 7.3 Deviations v4 (đã ghi nhận, không sửa thêm)
 
@@ -334,6 +373,12 @@ node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs   # P30: 28.
     kín quét mọi phương vị nên `radii [1.5,1.65,1.8,1.95]` không dùng được; C nén thành
     [1.20,1.26,1.32,1.38] và ép `yaw` vào họ 75–105°. Hệ quả: core **nhỏ hơn về cỡ** so với tower
     (defect #3), chỉ cứu được bằng độ sáng → backdrop/`nucleusHot`/phân tầng sáng thành bắt buộc.
+    **Đo lại (P31)**: vành tower là **18** hộp chứ không 9; mép trong tower-15 là **1.2851** (không phải
+    1.288, lệch 3 mm), hộp gần nhất *sau* tower-15 là tower-01-back-high **1.4914**. Hành lang hẹp hơn
+    nữa so với chính mô tả này: reach 3D nhỏ nhất orbit↔tower-15 là **0.0608 ở ring 4** (0.2002 /
+    0.1603 / 0.1143 / 0.0608 cho ring 1–4), tức `radii` không còn chỗ nở ra hướng đó, và tower-15 cao
+    tới y 1.756 nên phủ trọn dải y 0.783–1.717 của orbits — không có cửa tránh theo chiều đứng. Cơ chế
+    không cắt là **trục ngắn luồn vào trong tower-15 theo phương vị**, không phải "orbit nhỏ hơn vành".
 11. **Vỏ kính sáng nhiều hơn mức human đã duyệt khi đổi lấy vũng sáng (P28)**: báo cáo trước khi làm
     ghi "+86%", số thật là **+217%** (0.0356 → 0.1130 mỗi pixel, chưa tính `opacity 0.42`). Lý do
     phải chấp nhận: tường backdrop ở **r 0.930, nằm TRONG vỏ kính r 0.95**, nên không giá trị
@@ -429,6 +474,12 @@ trả về MISS** (không restore được — chúng không tồn tại ở b�
 | 5 | `src/__tests__/dataset-3d/issue-constellation.test.ts` | tracked, đã sửa | `git restore --source=39e66cf` |
 | 6 | `src/graphics/holographic-core/spool-core.ts` | **untracked** — không có trong commit nào | copy tay, hoặc xoá |
 | 7 | `src/__tests__/dataset-3d/spool-core.test.ts` | **untracked** — không có trong commit nào | copy tay, hoặc xoá |
+
+**Cùng chung hazard nhưng không thuộc bề mặt source**: các harness đo dưới `.agents/dataset-3d-core/captures/`
+cũng untracked (`measure-chamber-occlusion.mjs` P30, `orbit-tower-clearance.measure.ts` +
+`vitest.measure.config.ts` P31, `capture-frozen.cjs` + `measure-brightness-p28.py` P29). `git clean -fd` xoá
+sạch chúng, và khi đó **mọi chữ số trong §7.2/#10/#12 không còn cách nào tái lập** ngoài đọc lại ảnh. Nếu
+rollback, cứu cả nhóm này cùng lúc với 2 file spool.
 
 **Bước 0 — cứu 2 file untracked (bắt buộc, làm trước mọi lệnh git).** `git log --all -- src/frontend/src/graphics/holographic-core/spool-core.ts`
 trả về rỗng: file chưa từng được commit trên nhánh nào, nên `git restore`/`git checkout` **không** restore được và

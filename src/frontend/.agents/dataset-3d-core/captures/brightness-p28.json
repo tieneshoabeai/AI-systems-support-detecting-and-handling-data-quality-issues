@@ -1,0 +1,56 @@
+{
+  "frozenIsStable": {
+    "off": 0,
+    "p28": 0
+  },
+  "changedPixels": 3840,
+  "maxPixelDelta": 46,
+  "regions": {
+    "nucleus glow": {
+      "lightOff": 95.5,
+      "p28": 95.6,
+      "deltaPct": 0.1
+    },
+    "chamber pool (centre disc)": {
+      "lightOff": 63.7,
+      "p28": 74.5,
+      "deltaPct": 17.0
+    },
+    "chamber wall (lower)": {
+      "lightOff": 82.6,
+      "p28": 84.3,
+      "deltaPct": 2.1
+    },
+    "cap top face": {
+      "lightOff": 87.0,
+      "p28": 87.0,
+      "deltaPct": 0.0
+    },
+    "orbit rim (dashed)": {
+      "lightOff": 56.1,
+      "p28": 56.6,
+      "deltaPct": 0.9
+    },
+    "glass shell (lower left)": {
+      "lightOff": 90.5,
+      "p28": 92.5,
+      "deltaPct": 2.2
+    },
+    "tower slab (left)": {
+      "lightOff": 82.0,
+      "p28": 82.0,
+      "deltaPct": 0.0
+    },
+    "tower slab (right)": {
+      "lightOff": 103.6,
+      "p28": 103.6,
+      "deltaPct": 0.0
+    },
+    "background": {
+      "lightOff": 25.7,
+      "p28": 25.7,
+      "deltaPct": 0.0
+    }
+  },
+  "changedPct": 0.33
+}

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Vector2, Vector3, setConsoleFunction } from 'three'
+import type { Object3D } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
@@ -101,6 +102,7 @@ function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart }: Co
     if (!detached || event.delta > 6) return
     let part: HolographicPartInfo | null = null
     for (const hit of event.intersections) {
+      if (!isVisibleInScene(hit.object)) continue
       part = productModel.resolvePart(hit.object)
       if (part) break
     }
@@ -109,7 +111,7 @@ function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart }: Co
   }
   const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
     if (!detached) return
-    const selectable = event.intersections.some(hit => productModel.resolvePart(hit.object))
+    const selectable = event.intersections.some(hit => isVisibleInScene(hit.object) && productModel.resolvePart(hit.object))
     setCanvasCursor(gl.domElement, selectable ? 'pointer' : 'default')
   }
   return <primitive object={productModel.model} onClick={handleClick} onPointerMove={handlePointerMove} />
@@ -171,6 +173,16 @@ function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, o
     <CameraControls reducedMotion={reducedMotion} />
     <HolographicBloom enabled={!reducedMotion} />
   </>
+}
+
+// The raycaster still reports hidden legacy meshes, so only visible hits may select a part.
+function isVisibleInScene(object: Object3D) {
+  let current: Object3D | null = object
+  while (current) {
+    if (!current.visible) return false
+    current = current.parent
+  }
+  return true
 }
 
 export function HolographicCoreCanvas({ reducedMotion, detached, selectedId, onSelectPart }: HolographicCoreCanvasProps) {
