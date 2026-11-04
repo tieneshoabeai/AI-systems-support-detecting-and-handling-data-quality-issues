@@ -10,30 +10,18 @@ Trong kỷ nguyên chuyển đổi số và bùng nổ Trí tuệ Nhân tạo (A
 
 Hệ thống được nghiên cứu và phát triển nhằm giải quyết triệt để bài toán này, định vị thông qua **3 câu hỏi cốt lõi**:
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 3 CÂU HỎI CỐT LÕI (CORE PRINCIPLES)                    │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 1. ĐANG LÀM GÌ?                                                                        │
-│    Xây dựng một nền tảng Full-Stack cấp doanh nghiệp (Enterprise-Grade Data Quality    │
-│    Platform) có khả năng tiếp nhận tập dữ liệu quy mô lớn, phân tích cấu trúc,         │
-│    thực thi các bộ luật làm sạch đa tầng, lưu trữ phiên bản bất biến (Data Versioning), │
-│    truy vết dòng chảy dữ liệu trên đồ thị (Data Lineage), và tích hợp Trợ lý AI       │
-│    hỗ trợ phát hiện dị thường tự động.                                                 │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 2. CHO AI?                                                                             │
-│    Dành cho các Kỹ sư Dữ liệu (Data Engineers), Chuyên viên Phân tích (Data Analysts), │
-│    Quản trị viên Dữ liệu (Data Stewards) và các Tổ chức cần một quy trình kiểm chuẩn   │
-│    dữ liệu nghiêm ngặt trước khi nạp vào Kho Dữ liệu (Data Warehouse) hoặc huấn luyện  │
-│    các mô hình Trí tuệ Nhân tạo.                                                       │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 3. ĐỂ LÀM GÌ?                                                                          │
-│    - Loại bỏ hiện tượng "Rác vào, Rác ra" (Garbage In, Garbage Out) trong phân tích.   │
-│    - Xóa bỏ điểm nghẽn tràn bộ nhớ máy chủ (OOM) khi xử lý tệp dữ liệu hàng triệu dòng.│
-│    - Minh bạch hóa lịch sử can thiệp dữ liệu bằng mật mã học Merkle DAG chống giả mạo. │
-│    - Đảm bảo an toàn thông tin nhạy cảm qua mã hóa luồng chuẩn quân sự AES-256-GCM.    │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
+ 1. ĐANG LÀM GÌ?                                                                           
+ - Xây dựng một nền tảng Full-Stack cấp doanh nghiệp (Enterprise-Grade Data Quality Platform) có khả năng tiếp nhận tập dữ liệu quy mô lớn, phân tích cấu trúc,         
+    thực thi các bộ luật làm sạch đa tầng, lưu trữ phiên bản bất biến (Data Versioning), truy vết dòng chảy dữ liệu trên đồ thị (Data Lineage), và tích hợp Trợ lý AI       
+    hỗ trợ phát hiện dị thường tự động.                                                 
+2. DÀNHCHO:                                                                                
+   - Dành cho các Kỹ sư Dữ liệu (Data Engineers), Chuyên viên Phân tích (Data Analysts),  
+   - Quản trị viên Dữ liệu (Data Stewards) và các Tổ chức cần một quy trình kiểm chuẩn  dữ liệu nghiêm ngặt trước khi nạp vào Kho Dữ liệu (Data Warehouse) hoặc huấn luyện  các mô hình Trí tuệ Nhân tạo.                                                       
+ 3. ĐỂ LÀM GÌ?                                                                          
+    - Loại bỏ hiện tượng "Rác vào, Rác ra" (Garbage In, Garbage Out) trong phân tích.   
+    - Xóa bỏ điểm nghẽn tràn bộ nhớ máy chủ (OOM) khi xử lý tệp dữ liệu hàng triệu dòng.
+    - Minh bạch hóa lịch sử can thiệp dữ liệu bằng mật mã học Merkle DAG chống giả mạo. 
+    - Đảm bảo an toàn thông tin nhạy cảm qua mã hóa luồng chuẩn quân sự AES-256-GCM.    
 
 ---
 

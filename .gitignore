@@ -68,3 +68,5 @@ pnpm-debug.log*
 build_env.md
 .agent/
 remember/
+
+/docs/restructures/
