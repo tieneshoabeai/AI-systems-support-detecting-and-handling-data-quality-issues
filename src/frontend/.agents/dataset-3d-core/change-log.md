@@ -257,6 +257,7 @@ phải baseline hỏng). Bề mặt thực tế của v4 tính đến P26 là **
 
 | P30 | `.agents/dataset-3d-core/change-log.md` (viết lại deviation #12) + `.agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs` (mới), **0 dòng source sửa** | #12 ghi F5 = "hai dải **12 mm** ở 2 vành kính không có surface ghi độ sâu", và ghi hướng (b) `openEnded:false` sẽ "bịt luôn tầm nhìn vào buồng" | Đo lại bằng **ray-test từ đúng camera hero** (`[11.45, 9, 11.45]` → `[0, 2.1, 0.5]`, trích từ `holographic-core.scene.tsx:29-30`), chỉ tính mặt mà `side` thực sự vẽ **và** ghi depth. Viết lại #12 theo số đo, kể cả việc tự sửa hai nhận định sai của chính tôi (hướng (b), và vai trò `spool-lower-band`) | F5 được assert từ hình học thuần (2 inset 12 mm) mà chưa từng ray-test; số đo cho thấy khung mô tả đó sai vị trí lỗ | Chạy `node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs` tái lập từng chữ số: **71.2%** diện tích mặt kính nhìn thấy **không có gì chắn** (28.8% có), theo lát: **100%** từ y0.99→1.08, **9.2%** phẳng lì từ y1.878→1.98 ⇒ **dải hở TRÊN 12 mm có giá trị đúng 0.0 điểm %**, dải dưới thủng tuyệt đối nhưng **kéo dài ~88 mm chứ không 12 mm**; `spool-lower-band` tự chặn **0 tia**. Không sửa source nên không cần vitest; md5 `core-visual-config.ts` `bfbe8f0d…` và `spool-core.ts` `671c7f2c…` **không đổi** | xoá `.mjs` + khôi phục đoạn #12 cũ (nội dung sai) | DONE — **hướng sửa vẫn chờ human gate** |
 | P31 | `.agents/dataset-3d-core/change-log.md` (§7.2 + #10) + 2 harness mới `captures/orbit-tower-clearance.measure.ts`, `captures/vitest.measure.config.ts`, **0 dòng source sửa** | §7.2 assert "Orbit trong cùng `1.96 − 0.007 = 1.953 > cap.outerRadius 1.17`, ngoài cùng `2.20 < 2.30` (mặt trong vành tower) — không cắt cap, không lọt vào tower" bằng **số của v3**: P26 đã dồn orbits từ `radii [1.96,2.04,2.12,2.2] / centerY 1.45` xuống `[1.20,1.26,1.32,1.38] / centerY 1.25`, nên cả hai vế dẫn chiếu một hình không còn tồn tại | Đo lại từ **scene graph thật**: dựng `createHolographicCoreProductModel()`, lấy `Box3` world của 18 tower (hộp trục-aligned nên khoảng cách điểm→hộp là **chính xác**, không xấp xỉ), mẫu 2.048 điểm/vành đúng pipeline `TorusGeometry(r,tube,4,128) → rotateX → scale(flatten) → Euler(tiltX,yaw) → translateY`, **đối chiếu bbox mesh thật (drift 0.0002)** để harness không tự nói dối khi `spool-core.ts` đổi. Viết lại §7.2, sửa `r1.288 → 1.2851` ở #10 | human chốt "Đo lại hình học orbit so với tower để sửa §7.2 trước"; trước đó chính tôi định điền số bằng phép tính bán kính — sai loại hình, vì torus nghiêng+dẹt không phải đường tròn trong nhìn-from-trên | `npx vitest run --config .agents/dataset-3d-core/captures/vitest.measure.config.ts` → **1/1 pass**, in toàn bộ bảng. Kết luận: **không cắt** (gap 3D nhỏ nhất mọi vành đều > 0, harness `expect(globalMin).toBeGreaterThan(0)`), nhưng cơ chế thoát là **chiều cao + phương vị**, không phải bán kính. md5 `core-visual-config.ts bfbe8f0d…` / `spool-core.ts 671c7f2c…` **không đổi**; `npx vitest run` vẫn **25 file / 372 pass** (harness nằm ngoài `include` của suite) | xoá 2 file harness + khôi phục 1 bullet §7.2 và 1 số ở #10 | DONE |
+| P32 | `captures/orbit-tower-clearance.measure.ts` (thêm mục 5 + 3 helper), `change-log.md` (§7.2), **0 dòng source sửa** | P31 kết luận "**không cắt**" nhưng chỉ đo ở **một pose** (`rotation.y = 0`). Kế hoạch refactor mục S3 đánh dấu đúng chỗ này là `[Giả thuyết]`: "*orbit xoay trong khi tháp đứng yên… Test B có thể cho thấy orbit hiện đã chạm hoặc xuyên tháp ở một số góc xoay*". Human chốt D2 = đo | Thêm **worst-case theo góc xoay, chính xác không cần lấy mẫu**: xoay quanh trục Y không đổi bán kính và cao độ của một điểm ⇒ `min_gyaw min_point gap = min_point min_gyaw gap` (hai phép min giao hoán), và hộp quay quanh trục quét thành **vỏ trụ đặc** `[r0..r1] × [y0..y1]` nên khoảng cách tới nó tính bằng một phép clamp. `spool-core.ts` không đổi pipeline nên không cần chạy lại suite source; đối chiếu bằng **quét thô 512 góc** cho tower chốt | P31 để ngỏ câu hỏi quay; nếu chỉ dựa vào pose tĩnh thì "biên 0.0608" dễ bị đọc là "an toàn tuyệt đối" | Harness **1/1 pass**, in thêm 8 dòng. Kết luận: **có xuyên** — bead ring 4 **−0.0785**, ống kính **−0.0349** vào Box3 tower-15; 17 tower còn lại clear (min 0.1278); brute-force lệch **0.0006**; `expect(sweptMin.gap ≤ globalMin)` pass (worst-case quay luôn ≤ pose tĩnh, đúng như lý thuyết). `npx tsc --ignoreConfig --noEmit --strict` sạch. md5 `core-visual-config.ts bfbe8f0d…` / `spool-core.ts 671c7f2c…` **không đổi** | bỏ mục 5 + 3 helper trong harness, khôi phục 1 bullet §7.2 | DONE — **phát hiện có sẵn, không sửa (đổi hình ảnh)** |
 
 ### 7.2 Kiểm chứng v4 (2026-11-03, chạy từ `src/frontend`)
 ```bash
@@ -318,10 +319,24 @@ node .agents/dataset-3d-core/captures/measure-chamber-occlusion.mjs   # P30: 28.
     của ring 4 vượt r 1.2851 nhưng rơi vào cung phương vị **31.6–278.2°** — vẫn có tower ở đó (t05 35°,
     t06 75°, t07 120°, t08 165°, t09 200°, t11 63°, t12 96.5°, t13 151.5°, t14 181.5°, t16 241.5°),
     nhưng mép trong của chúng **≥ 1.4914**, xa hơn reach toàn cụm 0.1278.
-  - Khoảng cách 3D nhỏ nhất orbit↔tower, **cả 4 vành đều chốt ở tower-15**: ring1 **0.2002**, ring2
-    **0.1603**, ring3 **0.1143**, ring4 **0.0608**. bead không phải điểm chốt (bead gần nhất vẫn cách
-    0.1779). ⇒ **không cắt**, nhưng biên ring 4 chỉ còn **6 cm** ≈ 3.9% bán kính platform, và tower-15
-    cao tới y 1.756 **phủ trọn** dải y orbit nên không còn đường tránh theo chiều đứng.
+  - Khoảng cách 3D nhỏ nhất orbit↔tower, **cả 4 vành đều chốt ở tower-15**, **đo tại yaw `rotation.y = 0`**
+    (= pose lúc `spool.reset()`, `spool-core.ts:618`): ring1 **0.2002**, ring2 **0.1603**, ring3
+    **0.1143**, ring4 **0.0608**. bead không phải điểm chốt ở yaw này (bead gần nhất vẫn cách
+    0.1779). ⇒ ở **một pose tĩnh** thì không cắt, nhưng biên ring 4 chỉ còn **6 cm** ≈ 3.9% bán kính
+    platform, và tower-15 cao tới y 1.756 **phủ trọn** dải y orbit nên không còn đường tránh theo
+    chiều đứng.
+  - **P32 (sửa kết luận trên): quay thật thì CÓ cắt.** `orbitGroup.rotation.y = elapsedSeconds * 0.05`
+    (`spool-core.ts:634`) nên mọi góc phương vị đều được đi qua theo thời gian. Quét toàn bộ góc (công
+    thức chính xác, không lấy mẫu — xem ghi chú P32): **bead ring 4 xuyên hộp tower-15 sâu 0.0785**
+    (tâm bead ở r 1.3086 / y 0.8519, trong khi vỏ quét của tower-15 là r 1.2851–1.7270 × y 0.4319–1.7560),
+    và **thân ống kính cũng vào trong hộp 0.0349** (r 1.3200 / y 1.6717). Tổn hao so với pose tĩnh
+    **0.1393**. 17 tower còn lại vẫn-clear cả khi quay (gần nhất tower-01-back-high **0.1278**, riêng
+    ống kính 0.1714). Cross-check bằng quét thô 512 góc: −0.0778, **lệch công thức 0.0006**.
+    **Caveat bắt buộc đọc kèm**: số đo tính theo **Box3 world của tower**, mà điểm chốt của tower-15 là
+    **góc hộp** ở phía trục — tower là khối *bevel* (vát góc) và Box3 gộp cả corner-post/roof-rod/window
+    — nên 0.0349/0.0785 là **cận trên** của phần chồng lấn với tam giác thật; muốn kết luận "thấy bằng
+    mắt" phải test điểm↔tam-giác tại góc yaw chốt. **Không sửa**: mọi hướng sửa (lùi bead, đổi `radii`,
+    dịch tower-15) đều đổi hình ảnh → ngoài phạm vi, gate human.
   - Orbit cũng không cắt thân core: cách mặt kính chamber (r 0.95) **0.0950**, backdrop (r 0.93)
     **0.1150**, lower band (r 1.02) **0.1141**, base glass (r 1.06) **0.1465**, platform (r 1.55)
     **0.3554**.
@@ -529,3 +544,29 @@ shasum -a 256 -c .agents/dataset-3d-core/reference-v4-spool/baseline-v3.sha256
 Sau khi rollback xong, lệnh (2) phải chuyển thành **3 dòng OK**; đó là nghiệm thu của bước 1.
 
 Gate img2threejs: **không đóng** (không chạy `forge/state.py mark`).
+
+### 7.5 Duyệt kế hoạch refactor Tower (2026-11-04)
+
+Nguồn quyết định: `~/Documents/JS-TS-AI/CODE ARCHITECTURE IMPROVEMENT PLAN.md` (562 dòng, chỉ phân tích,
+**0 dòng source sửa**). Human duyệt từng câu hỏi, chốt như sau:
+
+| # | Câu hỏi trong plan | Quyết định của human | Hệ quả với code |
+|---|---|---|---|
+| D1 | Phạm vi | **Phase 0 → 5 (Necessary)** | Phase 6/7 không làm đợt này |
+| D2 | Đo nốt góc xoay orbit trước Phase 1? | **Có** | Đã đo ở **P32**: quay thật thì bead ring 4 **xuyên** hộp tower-15 0.0785 — ghi nhận, **không sửa** (sửa là đổi hình ảnh) |
+| D3 | Phase 1 rút còn Test B? | **Có** | Test A đã tồn tại (`holographic-towers.test.ts:172-188`, ngưỡng 3.07/2.15/0.96), baseline tower-15 **1.2851** / khe pose tĩnh **0.0608** / worst khi quay **−0.0785** đã có trong harness P31+P32 → Phase 1 **không đo trùng Test A** |
+| D4 | S6 phần Spool (chạm `spool-core.ts`)? | Cắt theo khuyến nghị, **chỉ làm risers** (`tower-ring.ts`) | Bất biến "không file Core nào bị sửa" giữ được tuyệt đối. (Mục này vốn thuộc Phase 6 = Optional, đã bị D1 cắt, nên không còn việc.) |
+| D5 | Commit baseline trước Phase 0? | **Có** | `ca93b56 feat(dataset-3d): commit v4 spool baseline before tower refactor` — 65 file, gồm `spool-core.ts` + test của nó (trước đó **untracked**, `git clean -fd` là mất). Nghiệm thu trước commit: `npx vitest run` **25 file / 372 pass**, harness khoảng trống **1/1**. Không đưa vào commit: `.agents/skills/dac-ta-prompt-test/*`, `.agents/holographic-core/**`, `.agents/neon-cube/**`, `.qoder/`, `vibe_images/` (việc khác) |
+| D6 | P10 / `React.StrictMode` | **Để Phase 0 quan sát, chưa sửa** | Đã xác minh `[Code]`: StrictMode **BẬT** ở cả hai nhánh (`src/app/main.tsx:19` preview, `:25` application), và `scene.tsx:76` `useEffect(() => () => productModel.dispose(), [productModel])` gọi `constellation.dispose()` → `root.clear()` (`issue-constellation.ts:409-411`) — cơ chế phá là thật. Phép quan sát cần chốt ở Phase 0: sau mount trong dev, model còn bao nhiêu con / có còn đường cam + hạt không. Ảnh capture từ `localhost:5173` (dev, tức có StrictMode) **vẫn thấy** hạt → chưa kết luận được, cần đếm chứ không suy luận |
+
+Bốn ràng buộc tôi tự ghi để không tự ý nới khi thực thi: (1) fingerprint **diff = 0** là gate của mọi phase,
+lệch là dừng và revert riêng phase đó; (2) **Phase 5** — "lệch dù chỉ một vật liệu: **không** xoá
+`TOWER_OPACITY`, dừng và điều tra"; (3) **thứ tự mảng tháp là dữ liệu** (seed hạt riser = chỉ số mảng, hiệu
+chỉnh audit mục 0.4 #8) nên Phase 3 phải so thứ tự với baseline; (4) `SPOOL_CORE.budget.drawCalls = 19` đang
+** đúng trần** (18 mảnh + slot 19 đã chi cho backdrop, xem comment `core-visual-config.ts:353-355`) — refactor
+không thêm mảnh nào vào Core, nên không được phép chạm số đó; muốn chạm là quyết định của human.
+
+Câu hỏi V2/V3 của plan đã có đáp án nên không cần hỏi lại: test runner là **Vitest 5.0.5** (`package.json`
+`"test": "vitest run"`), và **dựng model headless trong jsdom chạy được** (chính harness P31/P32 +
+`holographic-towers.test.ts` đã làm từ trước). Còn mở: **V4** (`holographic-part.types.ts` ở
+`src/types/dataset-3d/`, `neon-cube.*` ở `src/graphics/neon-cube/` — chưa đọc, cần trước Phase 5).

@@ -13,6 +13,8 @@
 //   1. The synthetic ring is checked against the merged mesh's own Box3 (assert < 0.003), so if
 //      spool-core.ts changes the pipeline, this harness goes red instead of lying.
 //   2. Towers are axis-aligned boxes, so point-to-AABB distance is exact — no hull approximation.
+//   3. The spin worst case (§5) is cross-checked against a brute-force sweep of one yaw axis, so
+//      the commutation argument that makes it exact is tested, not trusted.
 
 import * as THREE from 'three'
 import { expect, it } from 'vitest'
@@ -95,8 +97,35 @@ function shellGap(p: THREE.Vector3, radius: number, y0: number, y1: number) {
   return Math.hypot(Math.abs(Math.hypot(p.x, p.z) - radius), dy)
 }
 
-const f = (n: number) => n.toFixed(4)
+// A box spun about the world Y axis sweeps a solid cylindrical shell: every azimuth, radii
+// r0..r1, heights y0..y1. Spinning a point about Y leaves its radius and height untouched, so
+//   min over yaw  min over points   gap        ==   min over points   min over yaw   gap
+// (the two mins commute) and the right-hand side is just the distance to this shell. Exact,
+// no sampling of the angle needed.
+function sweptShellOf(box: THREE.Box3) {
+  const span = (a: number, b: number) => [a > 0 ? a : (b < 0 ? -b : 0), Math.max(Math.abs(a), Math.abs(b))] as const
+  const [minX, maxX] = span(box.min.x, box.max.x)
+  const [minZ, maxZ] = span(box.min.z, box.max.z)
+  return { r0: Math.hypot(minX, minZ), r1: Math.hypot(maxX, maxZ), y0: box.min.y, y1: box.max.y }
+}
 
+function sweptGap(p: THREE.Vector3, s: ReturnType<typeof sweptShellOf>, pad: number) {
+  const r = Math.hypot(p.x, p.z)
+  const dr = Math.max(s.r0 - r, r - s.r1, 0)
+  const dy = Math.max(s.y0 - p.y, p.y - s.y1, 0)
+  const outside = Math.hypot(dr, dy)
+  if (outside > 0) return outside - pad
+  return -(Math.min(r - s.r0, s.r1 - r, p.y - s.y0, s.y1 - p.y) + pad)
+}
+
+// Rotate a point about world Y the way orbitGroup.rotation.y does.
+function spinY(p: THREE.Vector3, theta: number) {
+  const cos = Math.cos(theta)
+  const sin = Math.sin(theta)
+  return new THREE.Vector3(p.x * cos + p.z * sin, p.y, -p.x * sin + p.z * cos)
+}
+
+const f = (n: number) => n.toFixed(4)
 it('orbit vs tower + core clearance (measurement, not an assertion of taste)', () => {
   const { model } = createHolographicCoreProductModel()
   const runtime = model.userData.sculptRuntime as { nodes: Record<string, THREE.Object3D> }
@@ -190,6 +219,65 @@ it('orbit vs tower + core clearance (measurement, not an assertion of taste)', (
   }
   const maxY = Math.max(...points.map(p => p.v.y))
   lines.push(`cap bottomY ${SPOOL_CORE.cap.bottomY} - orbit maxY ${f(maxY)} = ${f(SPOOL_CORE.cap.bottomY - maxY)} vertical (cap clearance is by HEIGHT, not radius)`)
+
+  // 5. The spin. orbitGroup.rotation.y = elapsedSeconds * 0.05 (spool-core.ts:634) and reset()
+  //    returns it to 0 (:618), so every yaw is visited over time. The core surfaces above are
+  //    cylinders on the axis, so they are yaw-invariant; only the towers can get closer.
+  lines.push('')
+  const swept = ALL_IDS.map(id => {
+    const shell = sweptShellOf(boxes.get(id)!)
+    let worst = { gap: Infinity, p: points[0] }
+    for (const p of points) {
+      const g = sweptGap(p.v, shell, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      if (g < worst.gap) worst = { gap: g, p }
+    }
+    return { id, shell, ...worst }
+  }).sort((a, b) => a.gap - b.gap)
+  const sweptMin = swept[0]
+  const staticGapOf = (id: string, tubesOnly = false) => {
+    let g = Infinity
+    for (const p of points) {
+      if (tubesOnly && p.bead) continue
+      g = Math.min(g, boxGap(p.v, boxes.get(id)!) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0))
+    }
+    return g
+  }
+  const sweptGapOf = (s: (typeof swept)[number], tubesOnly: boolean) => {
+    let best = { gap: Infinity, p: points[0] }
+    for (const p of points) {
+      if (p.bead !== !tubesOnly) continue
+      const g = sweptGap(p.v, s.shell, p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      if (g < best.gap) best = { gap: g, p }
+    }
+    return best
+  }
+  lines.push(`yaw-invariant worst case (exact): ${sweptMin.id} ring ${sweptMin.p.ring}${sweptMin.p.bead ? ' bead' : ' tube'}` +
+    ` gap ${f(sweptMin.gap)} at r ${f(Math.hypot(sweptMin.p.v.x, sweptMin.p.v.z))} y ${f(sweptMin.p.v.y)}` +
+    `  [shell r ${f(sweptMin.shell.r0)}..${f(sweptMin.shell.r1)}, y ${f(sweptMin.shell.y0)}..${f(sweptMin.shell.y1)}]`)
+  const tubeWorst = sweptGapOf(sweptMin, true)
+  const beadWorst = sweptGapOf(sweptMin, false)
+  lines.push(`   ${sweptMin.id} split: glass TUBE worst ${f(tubeWorst.gap)} (ring ${tubeWorst.p.ring} r ${f(Math.hypot(tubeWorst.p.v.x, tubeWorst.p.v.z))} y ${f(tubeWorst.p.v.y)})` +
+    ` | BEAD worst ${f(beadWorst.gap)} (ring ${beadWorst.p.ring} r ${f(Math.hypot(beadWorst.p.v.x, beadWorst.p.v.z))} y ${f(beadWorst.p.v.y)})`)
+  for (const s of swept.slice(0, 6)) {
+    lines.push(`   ${s.gap < 0 ? 'PIERCES' : 'clears'} ${s.id} by ${f(s.gap)} over the full spin` +
+      `  (at the captured yaw ${f(staticGapOf(s.id))}, loss ${f(staticGapOf(s.id) - s.gap)})` +
+      `  | tube-only ${f(sweptGapOf(s, true).gap)}`)
+  }
+
+  // Cross-check the commutation argument by actually sweeping one yaw axis, 512 steps.
+  const checkTower = boxes.get(sweptMin.id)!
+  let brute = Infinity
+  for (let step = 0; step < 512; step += 1) {
+    const theta = (step / 512) * Math.PI * 2
+    for (const p of points) {
+      const g = boxGap(spinY(p.v, theta), checkTower) - (p.bead ? SPOOL_CORE.orbits.sphereRadius : 0)
+      if (g < brute) brute = g
+    }
+  }
+  lines.push(`   brute-force 512-yaw sweep of ${sweptMin.id}: ${f(brute)}  -> formula error ${f(Math.abs(brute - sweptMin.gap))}`)
+  expect(Math.abs(brute - sweptMin.gap)).toBeLessThan(0.002)
+  expect(sweptMin.gap).toBeLessThanOrEqual(globalMin)
+
   lines.push('')
   lines.push(`orbit y band ${f(Math.min(...points.map(p => p.v.y)))}..${f(maxY)}, xz bbox ${spread(built)}`)
 
