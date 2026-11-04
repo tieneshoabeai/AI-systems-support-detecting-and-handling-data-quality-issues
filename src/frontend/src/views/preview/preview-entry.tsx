@@ -68,17 +68,9 @@ function renderSection(route: PreviewRoute): ReactNode {
   return <HomePreviewView />
 }
 
-// Viền ngoài cùng: đặt scope dark theme (xem preview.css [data-preview='2d'])
-// và dải cảnh báo "đang xem dữ liệu mẫu" để không nhầm với số liệu backend.
-// Dải này là ngữ cảnh tĩnh nên KHÔNG gán role="status": region live chỉ dùng cho kết quả
-// thao tác (preview-toaster), nếu dải tĩnh cũng là live region thì máy đọc màn hình
-// lặp lại cùng một câu sau mỗi toast.
+// Viền ngoài cùng đặt scope riêng cho giao diện 2D.
 function PreviewFrame({ children }: { children: ReactNode }) {
   return <div data-preview="2d">
-    <p className="preview-demo-strip">
-      <span className="demo-dot" aria-hidden="true" />
-      Preview giao diện 2D · dữ liệu mẫu · chỉ chạy khi yarn dev
-    </p>
     {children}
   </div>
 }

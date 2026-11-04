@@ -71,13 +71,11 @@ export function DetailTabs<T extends string>({ tabs, active, onChange, label }: 
   </div>
 }
 
-export function CoverArt({ hue, seed }: { hue: CoverHue; seed: number }) {
-  return <span className={`cover-art cover-${hue}`} aria-hidden="true" data-seed={seed}>
-    <span className="cover-orbit" />
-    <span className="cover-cube cover-cube-lg" />
-    <span className="cover-cube cover-cube-md" />
-    <span className="cover-cube cover-cube-sm" />
-  </span>
+export function CoverArt({ hue, seed, kind = 'workspace' }: { hue: CoverHue; seed: string | number; kind?: 'workspace' | 'project' }) {
+  // ID ổn định giữ ảnh nhất quán giữa danh sách, chi tiết và hộp sửa;
+  // không chọn ảnh theo vị trí hiện tại hay tên có thể đổi của bản ghi.
+  const hash = Array.from(String(seed)).reduce((value, char) => (Math.imul(value, 31) + char.charCodeAt(0)) >>> 0, 0)
+  return <span className={`cover-art cover-${hue} cover-kind-${kind}`} aria-hidden="true" data-seed={seed} data-art={hash % 3} />
 }
 
 export function Panel({ title, action, children, className }: {
@@ -173,11 +171,11 @@ export function Pagination({
 // Hai biểu đồ dựng bằng CSS thuần (không thêm thư viện — ảnh chỉ cần cột + nhãn + số, và
 // donut + legend). Tái dùng cho cả Home và trang chi tiết workspace để một nguồn một kiểu.
 // Số in ra là text thật nên máy đọc màn hình đọc được; donut không có chữ nên aria-hidden.
-const statusPalette = ['#2f7cf6', '#fbbf24', '#34d399']
+const statusPalette = ['var(--pv-orange)', 'var(--pv-cyan)', 'var(--pv-green)']
 
 export type ChartRow = { id?: string; label: string; value: number }
 
-export function ProgressBar({ data, emptyTitle = 'Chưa có dữ liệu', emptyNote = 'Chưa có bản ghi nào trong dữ liệu mẫu nên biểu đồ trống.' }: {
+export function ProgressBar({ data, emptyTitle = 'Chưa có dữ liệu', emptyNote = 'Biểu đồ sẽ hiển thị khi có dữ liệu.' }: {
   data: readonly ChartRow[]
   emptyTitle?: string
   emptyNote?: string
@@ -198,7 +196,7 @@ export function ProgressBar({ data, emptyTitle = 'Chưa có dữ liệu', emptyN
   </div>
 }
 
-export function StatusDonut({ total, rows, unit = 'project', emptyTitle = 'Chưa có project', emptyNote = 'Chưa có bản ghi nào trong dữ liệu mẫu.' }: {
+export function StatusDonut({ total, rows, unit = 'project', emptyTitle = 'Chưa có project', emptyNote = 'Chưa có project để thống kê.' }: {
   total: number
   rows: readonly { label: string; value: number }[]
   unit?: string

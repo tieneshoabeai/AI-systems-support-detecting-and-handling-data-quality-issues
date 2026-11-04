@@ -67,7 +67,6 @@ function RenameForm({ request, onSubmit, onCancel }: {
           maxLength={80} autoComplete="off" />
       </label>
       {error && <p className="dialog-error" id="rename-error" role="alert">{error}</p>}
-      <p className="dialog-note">Đổi tên chỉ áp dụng trên dữ liệu mẫu trong bộ nhớ tab và luôn có Hoàn tác.</p>
       <footer className="dialog-actions">
         <button type="button" className="button-secondary" onClick={onCancel}>Hủy</button>
         <button type="submit" className="button-primary"><PreviewIcon name="check" /> Lưu tên</button>

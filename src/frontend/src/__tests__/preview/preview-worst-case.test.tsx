@@ -114,20 +114,20 @@ it('danh từ đếm số ít đúng khi số đếm bằng 1', () => {
 it('bộ "empty": khung trống nói đúng nguyên nhân, không đổ cho bộ lọc khi chưa gõ gì', () => {
   previewMockStore.reset('empty')
   renderFrame(<HomePreviewView />)
-  expect(screen.getByText('Chưa có workspace nào trong dữ liệu mẫu.')).toBeDefined()
-  expect(screen.getByText('Chưa có project nào trong dữ liệu mẫu.')).toBeDefined()
+  expect(screen.getByText('Chưa có workspace nào.')).toBeDefined()
+  expect(screen.getByText('Chưa có project nào.')).toBeDefined()
   // Câu "khớp “…”" chỉ được xuất hiện khi người dùng thực sự có từ khóa.
   expect(frameText()).not.toMatch(/khớp “”/)
 
   // Biểu đồ không có bản ghi: vẽ một khung trắng cao bằng biểu đồ có dữ liệu là bug
   // (người đọc tưởng trang đang tải), phải ra lời báo trống.
-  expect(screen.getByText('Chưa có project nào trong dữ liệu mẫu.')).toBeDefined()
+  expect(screen.getByText('Chưa có project nào.')).toBeDefined()
   expect(document.querySelector('.pv-bars')).toBeNull()
   cleanup()
 
   renderFrame(<ProjectsPreviewView />)
   expect(screen.getByText('Không có kết quả')).toBeDefined()
-  expect(frameText()).toContain('chưa có project nào trong dữ liệu mẫu')
+  expect(frameText()).toContain('chưa có project nào')
 })
 
 it('bộ "worst": project không thành viên hiện lời báo thay vì khối trống', () => {
@@ -152,7 +152,7 @@ it('bộ "worst": project không thành viên hiện lời báo thay vì khối 
   // Project" dạng số) nên người role rỗng không còn chỗ để in ra một dòng trắng.
   cleanup()
   renderFrame(<ProjectWorkspaceView projectId={bare.id} />)
-  expect(screen.getByText('project chưa có tập dữ liệu — nạp tệp thuộc module Dataset (batch của bạn T)')).toBeDefined()
+  expect(screen.getByText('Project chưa có tập dữ liệu.')).toBeDefined()
   expect(document.querySelector('.pj-core.is-empty')).not.toBeNull()
   expect(frameText()).not.toMatch(/undefined|NaN/)
 })
@@ -169,7 +169,7 @@ it('bộ "worst": hộp thư chịu được tiêu đề dài, id treo và mô t
   const open = screen.getByRole('button', { name: /Mở Project/ })
   expect((open as HTMLButtonElement).disabled).toBe(true)
   const note = document.getElementById(open.getAttribute('aria-describedby') ?? '')
-  expect(note?.textContent).toContain('đã bị xóa')
+  expect(note?.textContent).toContain('không còn tồn tại')
 })
 
 it('đổi tên workspace phải đổi luôn tên in trên mọi project của nó', () => {

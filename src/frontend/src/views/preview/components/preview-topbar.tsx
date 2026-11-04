@@ -44,12 +44,11 @@ const allId = ''
 // không đoán từ URL: URL do hash router ghi, còn nội dung thật thì shell đang cầm.
 const scopeCarryingSections: readonly PreviewSectionId[] = ['projects', 'workspaces']
 
-function PreviewScopeSelect({ label, value, options, onSelect, footNote }: {
+function PreviewScopeSelect({ label, value, options, onSelect }: {
   label: string
   value: string | null
   options: ScopeOption[]
   onSelect: (id: string) => void
-  footNote: string
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [trigger, setTrigger] = useState<HTMLElement | null>(null)
@@ -96,7 +95,6 @@ function PreviewScopeSelect({ label, value, options, onSelect, footNote }: {
             {option.id === value && <span className="option-check" aria-hidden="true"><PreviewIcon name="check" /></span>}
           </button>)}
       </div>
-      <p className="popover-note">{footNote}</p>
     </PreviewPopover>
   </>
 }
@@ -225,7 +223,6 @@ export function PreviewTopbar({ active, sidebarToggle, state }: {
             meta: `${state.projects.filter(entry => entry.workspaceId === item.id).length} project${item.favorite ? ' · ★' : ''}`,
           })),
         ]}
-        footNote="Chọn ở đây là đổi phạm vi làm việc của cả frame (danh sách Project · trang chi tiết workspace · các modal của workspace) trên dữ liệu mẫu — nó KHÔNG đưa bạn sang trang khác."
         onSelect={id => {
           const workspaceId = id || allId
           session.selectWorkspace(workspaceId)
@@ -242,9 +239,6 @@ export function PreviewTopbar({ active, sidebarToggle, state }: {
           { id: allId, label: 'Tất cả Projects', meta: `${scopedProjects.length} project` },
           ...scopedProjects.map(item => ({ id: item.id, label: item.name, meta: item.code })),
         ]}
-        footNote={workspace
-          ? 'Danh sách project chỉ lấy trong workspace đang chọn ở combobox bên trái — đổi workspace thì danh sách đổi theo. Chọn ở đây không đưa bạn sang trang khác.'
-          : 'Đang ở phạm vi mọi workspace, nên danh sách project gộp của toàn bộ. Chọn ở đây không đưa bạn sang trang khác.'}
         onSelect={id => {
           // "Tất cả Projects" phải là một PHẠM VI, không phải một cú đánh lừa: trước đây nó
           // âm thầm chọn lại project đầu tiên, nên nhãn trên chip không bao giờ khớp cái đã

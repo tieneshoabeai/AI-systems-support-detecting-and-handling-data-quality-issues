@@ -2,11 +2,11 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Project, ProjectModuleId } from '../../types/preview/preview.types'
 import {
-  formatCount, formatDataSize, formatRows, previewNotice, previewNoteIds, previewReasons, projectModules,
+  formatCount, formatDataSize, formatRows, projectModules,
 } from './preview-data'
 import { PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
-import { ActionNote, EmptyHint, StatusBadge } from './components/preview-primitives'
+import { EmptyHint, StatusBadge } from './components/preview-primitives'
 import { usePreviewSession } from './preview-session-context'
 import { projectDatasetMenu } from './preview-menu'
 
@@ -43,9 +43,8 @@ function ProjectUniverse({ project, selected, scene }: { project: Project; selec
           nên khai báo là ảnh không làm mất thông tin, mà lặp lại thành hai lần đọc cho screen
           reader. */}
       <div className="pj-universe" role="img" aria-label={
-        `Mô hình 3D của bạn T: khối tâm là ${dataset ? `tập dữ liệu ${dataset.fileName}` : 'project chưa có tập dữ liệu'},`
-        + ` quanh bốn khối ${projectModules.map(item => item.label).join(', ')}.`
-        + ' Đây là placeholder CSS trong bản preview 2D — scene thật chạy ở route /preview/workspaces-3d.'}>
+        `Minh họa vũ trụ dữ liệu: khối tâm là ${dataset ? `tập dữ liệu ${dataset.fileName}` : 'project chưa có tập dữ liệu'},`
+        + ` quanh bốn khối ${projectModules.map(item => item.label).join(', ')}.`}>
         <span className="pj-orbit pj-orbit-outer" />
         <span className="pj-orbit pj-orbit-inner" />
         <span className={`pj-core${dataset === null ? ' is-empty' : ''}`}>
@@ -68,7 +67,6 @@ function ProjectUniverse({ project, selected, scene }: { project: Project; selec
         <button type="button" className="button-secondary"
           onClick={() => session.run('universe', { kind: 'project', id: project.id, name: project.name })}>
           <PreviewIcon name="sparkle" /> Mở Dataset Universe 3D <span aria-hidden="true">→</span></button>
-        <ActionNote id={previewNoteIds.universe}>{previewReasons.universe}</ActionNote>
       </div>
     </>}
   </section>
@@ -81,8 +79,8 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
   const project = session.state.projects.find(item => item.id === projectId) ?? null
 
   // Id không còn trong store (vừa bị xóa) → về danh sách thay vì vẽ trang trống.
-  if (!project) return <PreviewShell active="workspaces" notice={previewNotice}>
-    <EmptyHint title="Không tìm thấy project" note="Project này không còn trong dữ liệu mẫu — quay lại danh sách để chọn project khác." />
+  if (!project) return <PreviewShell active="workspaces">
+    <EmptyHint title="Không tìm thấy project" note="Project không còn tồn tại. Hãy chọn project khác trong danh sách." />
     <button type="button" className="button-secondary" onClick={() => session.openSection('projects')}>Về danh sách Project</button>
   </PreviewShell>
 
@@ -90,7 +88,7 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
   const menuButton = (element: HTMLElement) =>
     session.openMenu({ ...projectDatasetMenu(project), origin: { kind: 'anchor', element } })
 
-  return <PreviewShell active="workspaces" notice={previewNotice}>
+  return <PreviewShell active="workspaces">
     <div className="pj-head-row">
       <button type="button" className="button-secondary back-button" onClick={() => session.openSection('workspaces', { workspaceId: project.workspaceId })}>
         <PreviewIcon name="chevron" /> <span className="flip" aria-hidden="true" /> Quay lại</button>
@@ -130,7 +128,7 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
               ảnh vẽ: '124.6 MB | 1,250,000 dòng | 24 cột'. */}
           <span>{dataset
             ? `${formatDataSize(dataset.sizeMb)} | ${formatRows(dataset.rows)} | ${formatCount(dataset.columns)} cột`
-            : 'project chưa có tập dữ liệu — nạp tệp thuộc module Dataset (batch của bạn T)'}</span>
+            : 'Project chưa có tập dữ liệu.'}</span>
         </div>
         <button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
           aria-haspopup="menu" onClick={event => menuButton(event.currentTarget)}>
@@ -156,7 +154,6 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
       })}
     </nav>
 
-    <ActionNote id={previewNoteIds.projectModules}>{previewReasons.projectModules}</ActionNote>
     {/* Trang không còn dải lý do cho "Quản lý thành viên" hay các control của trang Projects:
         mục đó đã BẬT THẬT và chính modal của nó mang ghi chú ở chân (id `projectMembersPage`).
         Để note trùng id ở đây là hai phần tử cùng một id trong DOM khi modal mở. */}

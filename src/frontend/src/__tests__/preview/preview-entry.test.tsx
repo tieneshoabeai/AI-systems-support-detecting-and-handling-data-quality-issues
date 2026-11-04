@@ -89,11 +89,11 @@ it('hash route cũng chọn đúng frame (shell điều hướng bằng #/previe
   expect(homeProbe).not.toHaveBeenCalled()
 })
 
-it('URL preview khác fallback về home, dải báo dữ liệu mẫu chỉ là ngữ cảnh tĩnh', () => {
+it('URL preview khác fallback về home, không hiện dải ghi chú nội bộ', () => {
   openUrl('/preview')
   render(<Preview2DEntry />)
   expect(screen.getByText('frame home')).toBeDefined()
-  expect(document.querySelector('.preview-demo-strip')!.textContent).toContain('dữ liệu mẫu')
+  expect(document.querySelector('.preview-demo-strip')).toBeNull()
   // Dải tĩnh KHÔNG được là live region: vùng sống duy nhất phải là toaster, nếu không
   // máy đọc màn hình sẽ lặp lại cùng một câu sau mỗi toast.
   const live = screen.getAllByRole('status')

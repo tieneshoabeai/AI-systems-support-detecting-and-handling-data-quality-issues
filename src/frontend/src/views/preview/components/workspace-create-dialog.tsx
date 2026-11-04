@@ -145,7 +145,7 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
         <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
         <h3>Tạo Workspace thành công!</h3>
         <p>Workspace “{createdName}” đã được tạo và sẵn sàng sử dụng, với {selected.length + 1} thành viên (gồm chủ sở hữu).</p>
-        <p className="dialog-note">Bản ghi sống trong bộ nhớ tab của trình duyệt nên tải lại trang là danh sách về ban đầu; toast vừa rồi luôn có Hoàn tác. {previewNote}</p>
+        <p className="dialog-note">{previewNote}</p>
         <footer className="dialog-actions">
           <button type="button" className="button-secondary" onClick={reset}>Tạo Workspace khác</button>
           <button type="button" className="button-primary" onClick={viewWorkspace}><PreviewIcon name="arrow" /> Xem Workspace</button>

@@ -3,7 +3,7 @@ import type { NotificationFilterTab, PreviewNotification } from '../../types/pre
 import {
   matchNotificationTab, notificationIcon, notificationKindLabels,
   notificationTabsFor, noticeDetailReason,
-  previewNotice, previewNoteIds, previewReasons,
+  previewNoteIds, previewReasons,
 } from './preview-data'
 import type { NoticeOpenGap } from './preview-data'
 import { PreviewShell } from './components/preview-shell'
@@ -174,7 +174,7 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
   })
 
   if (notificationId !== null) {
-    return <PreviewShell active="notifications" notice={previewNotice}>
+    return <PreviewShell active="notifications">
       {notification
         ? <NotificationDetail key={notification.id} notification={notification} />
         : <> {/* id không tồn tại (vừa bị xóa / người review gõ tay trên URL): nói rõ thay vì im lặng trả về trang trắng */}
@@ -185,7 +185,7 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
     </PreviewShell>
   }
 
-  return <PreviewShell active="notifications" notice={previewNotice}>
+  return <PreviewShell active="notifications">
     <BackOutOfInbox />
     <div className="page-head">
       <div className="page-head-text">

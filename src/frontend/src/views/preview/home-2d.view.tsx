@@ -2,12 +2,12 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewMenuOrigin, Project, Workspace } from '../../types/preview/preview.types'
 import {
-  byNewestFirst, homeOverviewStats, pluralEn, previewNotice, previewNoteIds, previewReasons,
+  byNewestFirst, homeOverviewStats, pluralEn,
   projectsOf, projectsPerWorkspaceFor, projectStatusShareFor,
 } from './preview-data'
 import { PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
-import { ActionNote, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut, TextLink } from './components/preview-primitives'
+import { Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut, TextLink } from './components/preview-primitives'
 import { usePreviewSession } from './preview-session-context'
 import { projectMenu, workspaceMenu } from './preview-menu'
 import { originFromEvent, previewCardProps, stopCardBubble } from './preview-card'
@@ -23,14 +23,14 @@ import { originFromEvent, previewCardProps, stopCardBubble } from './preview-car
 // Nhãn để tiếng Anh theo đặc tả ("các nhãn tiếng Anh, còn lại tiếng Việt"); nội dung mô tả
 // vẫn tiếng Việt nhưng product noun giữ nguyên chữ Anh (workspace · project · dataset).
 const heroValues: readonly { icon: string; title: string; caption: string }[] = [
-  { icon: 'grid', title: 'Phân tích dữ liệu thông minh', caption: 'Khám phá insight nhanh chóng.' },
+  { icon: 'chart', title: 'Phân tích dữ liệu thông minh', caption: 'Khám phá insight nhanh chóng.' },
   { icon: 'shield', title: 'Đảm bảo chất lượng dữ liệu', caption: 'Phát hiện và xử lý vấn đề hiệu quả.' },
   { icon: 'sparkle', title: 'Tối ưu quy trình xử lý', caption: 'Làm việc trong không gian Project linh hoạt.' },
 ]
 
 // Khung trống trên Home chỉ còn một nguyên nhân: ô tìm kiếm toàn cục ở topbar đã bỏ (chủ batch
 // 03/11) nên hai danh sách ở đây không lọc theo từ khóa nữa — trống là vì dữ liệu mẫu trống.
-const emptyFor = (unit: string): string => `Chưa có ${unit} nào trong dữ liệu mẫu.`
+const emptyFor = (unit: string): string => `Chưa có ${unit} nào.`
 
 export type UniverseHeroProps = {
   // T truyền scene Three.js vào đây khi làm phần 3D. Khi chưa có, view render placeholder.
@@ -50,13 +50,11 @@ export function UniverseHero({ scene }: UniverseHeroProps) {
       <p>Kết nối con người, dữ liệu và tri thức trong một hệ sinh thái thống nhất — quản lý, khám phá và khai thác giá trị dữ liệu dễ dàng hơn.</p>
       {/* Route 3D của T đã tồn tại nên CTA chuyển trang thật; không còn là nút tắt. */}
       <button type="button" className="hero-cta" onClick={() => session.openUniverse(null)}>Mở Dataset Universe <span aria-hidden="true">→</span></button>
-      <ActionNote id={previewNoteIds.hero}>{previewReasons.hero}</ActionNote>
     </div>
     <div className="hero-stage">
       {scene ?? <div className="hero-stage-placeholder" role="img"
-        aria-label="Khu vực mô phỏng 3D vũ trụ dữ liệu — chưa bật trong bản preview 2D">
+        aria-label="Minh họa vũ trụ dữ liệu">
         <span className="stage-core" aria-hidden="true" />
-        <span className="stage-tag">3D scene · batch của T · placeholder CSS, chưa kéo/cuộn được</span>
       </div>}
     </div>
     <ul className="hero-values">
@@ -141,7 +139,7 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
   const openMenuForProject = (project: Project, origin: PreviewMenuOrigin) =>
     session.openMenu({ ...projectMenu(project), origin })
 
-  return <PreviewShell active="home" notice={previewNotice}>
+  return <PreviewShell active="home">
     <UniverseHero scene={scene} />
 
     <div className="home-overview">

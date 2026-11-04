@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import type { PreviewMenuOrigin, Project, ProjectFilterTab } from '../../types/preview/preview.types'
 import {
-  formatCount, formatDataSize, formatRows, previewNotice, previewNoteIds, previewReasons, projectStatsFor, projectTabsFor, projectsOf,
+  formatCount, formatDataSize, formatRows, projectStatsFor, projectTabsFor, projectsOf,
 } from './preview-data'
 import { Avatar, PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
-import { ActionNote, CoverArt, EmptyHint, FilterTabs, Pagination, StatRow, StatusBadge } from './components/preview-primitives'
+import { CoverArt, EmptyHint, FilterTabs, Pagination, StatRow, StatusBadge } from './components/preview-primitives'
 import { usePreviewSession } from './preview-session-context'
 import { projectMenu } from './preview-menu'
 import { previewCardProps } from './preview-card'
@@ -29,9 +29,8 @@ const sortProjects = (list: readonly Project[], key: SortKey): Project[] => {
   return copy
 }
 
-export function ProjectCard({ project, index, selected, view }: {
+export function ProjectCard({ project, selected, view }: {
   project: Project
-  index: number
   selected: boolean
   view: ViewMode
 }) {
@@ -49,7 +48,7 @@ export function ProjectCard({ project, index, selected, view }: {
       detail: () => session.run('open', target),
       menu: openMenu,
     })}>
-    <div className="card-cover"><CoverArt hue={project.cover} seed={index} />
+    <div className="card-cover"><CoverArt hue={project.cover} seed={project.id} kind="project" />
       {/* Ảnh projects đánh dấu thẻ đang chọn bằng check tròn trên ảnh. */}
       {selected && <span className="card-select-check" aria-hidden="true"><PreviewIcon name="check" /></span>}
       <span className="card-top-actions">
@@ -69,7 +68,7 @@ export function ProjectCard({ project, index, selected, view }: {
           <span className="file-text"><strong>{project.dataset.fileName}</strong>
             <small>{project.dataset.format} · {formatRows(project.dataset.rows)} · {project.dataset.columns} cột</small></span>
         </div>
-        : <p className="file-missing">Chưa có tập dữ liệu — khu vực nạp file sẽ ở batch Dataset.</p>}
+        : <p className="file-missing">Chưa có tập dữ liệu.</p>}
       <dl className="card-metrics">
         <div><dt>{project.dataset ? formatCount(project.dataset.rows) : '0'}</dt><dd>bản ghi</dd></div>
         <div><dt>{project.dataset?.columns ?? 0}</dt><dd>cột</dd></div>
@@ -114,7 +113,7 @@ export function ProjectsPreviewView() {
   const visible = filtered.slice((safePage - 1) * perPage, safePage * perPage)
   const selected = filtered.find(project => project.id === state.selection.projectId) ?? filtered[0] ?? null
 
-  return <PreviewShell active="projects" notice={previewNotice}>
+  return <PreviewShell active="projects">
     <div className="page-head">
       <div className="page-head-text">
         <span className="page-eyebrow">Cấp 2 · Dự án trong {workspaceLabel}</span>
@@ -152,15 +151,14 @@ export function ProjectsPreviewView() {
         </label>
       </div>
     </div>
-    <ActionNote id={previewNoteIds.projects}>{previewReasons.projects}</ActionNote>
 
     {visible.length === 0
       ? <EmptyHint title="Không có kết quả"
         note={scoped.length === 0
-          ? `Trong ${workspaceLabel} chưa có project nào trong dữ liệu mẫu — đổi không gian ở topbar hoặc tạo project mới.`
+          ? `Trong ${workspaceLabel} chưa có project nào. Chọn Workspace khác hoặc tạo project mới.`
           : 'Thử đổi tab lọc hoặc đổi không gian ở topbar.'} />
       : <div className={`card-grid${view === 'list' ? ' is-list' : ''}`}>
-        {visible.map((project, index) => <ProjectCard key={project.id} project={project} index={index}
+        {visible.map(project => <ProjectCard key={project.id} project={project}
           view={view} selected={project.id === selected?.id} />)}
       </div>}
 

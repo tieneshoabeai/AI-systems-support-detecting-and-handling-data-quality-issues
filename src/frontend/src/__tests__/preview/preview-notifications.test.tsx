@@ -239,14 +239,14 @@ it('chi tiết: nút "Đánh dấu đã đọc" bấm rồi thì tắt, và lý 
   const note = document.getElementById('pv-notice-detail-note')!
   // Hai trạng thái tắt khác nhau phải nói hai lý do khác nhau — gộp một câu thì người đọc
   // không biết mình đang thiếu gì.
-  expect(note.textContent).toContain('đã ở trạng thái đã đọc')
-  expect(note.textContent).not.toContain('không gắn project nào')
+  expect(note.textContent).toContain('đã được đánh dấu là đã đọc')
+  expect(note.textContent).not.toContain('không liên kết với Project')
 })
 
 it('chi tiết: thông báo hệ thống và project đã bị xóa là hai lý do "Mở Project" tắt khác nhau', () => {
   detailScreen('nt-09')
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(true)
-  expect(document.getElementById('pv-notice-detail-note')!.textContent).toContain('không gắn project nào')
+  expect(document.getElementById('pv-notice-detail-note')!.textContent).toContain('không liên kết với Project')
 
   // Bản ghi này gắn prj-customer, nhưng project vừa bị gỡ khỏi danh sách mẫu trong tab.
   previewMockStore.remove('project', 'prj-customer')
@@ -254,9 +254,9 @@ it('chi tiết: thông báo hệ thống và project đã bị xóa là hai lý 
   detailScreen('nt-02')
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(true)
   const note = document.getElementById('pv-notice-detail-note')!
-  expect(note.textContent).toContain('Project liên quan đã bị xóa khỏi danh sách mẫu')
-  expect(note.textContent).toContain('tải lại trang')
-  expect(note.textContent).not.toContain('không gắn project nào')
+  expect(note.textContent).toContain('Project liên quan không còn tồn tại')
+  expect(note.textContent).not.toContain('tải lại trang')
+  expect(note.textContent).not.toContain('không liên kết với Project')
 })
 
 it('chi tiết: id không tồn tại nói rõ thay vì trang trắng, và có đường về danh sách', () => {
@@ -284,7 +284,7 @@ it('chi tiết: bản đã đọc sẵn thì "Đánh dấu đã đọc" tắt, n
   detailScreen('nt-06') // bản đã đọc sẵn trong fixture
   expect(screen.getByRole('button', { name: 'Đánh dấu đã đọc' }).hasAttribute('disabled')).toBe(true)
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(false)
-  expect(document.getElementById('pv-notice-detail-note')!.textContent).toContain('đã ở trạng thái đã đọc')
+  expect(document.getElementById('pv-notice-detail-note')!.textContent).toContain('đã được đánh dấu là đã đọc')
 })
 
 it('hai màn thông báo: không còn nút im lặng, mọi nút disabled đều có lý do nhìn thấy', () => {

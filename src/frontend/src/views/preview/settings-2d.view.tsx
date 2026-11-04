@@ -5,11 +5,11 @@ import type {
 } from '../../types/preview/preview.types'
 import { isSettingsNavGroup } from '../../types/preview/preview.types'
 import {
-  notificationPrefRows, previewNotice, previewNoteIds, previewReasons, settingsModules,
+  notificationPrefRows, settingsModules,
 } from './preview-data'
 import { PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
-import { ActionNote, Panel } from './components/preview-primitives'
+import { Panel } from './components/preview-primitives'
 import { usePreviewSession } from './preview-session-context'
 
 // Màn Settings theo Design Board nhóm 04 (đặc tả Shell dòng 9). Khác chuông/báo cáo: hai mục
@@ -371,7 +371,7 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
     </Fragment>
   }
 
-  return <PreviewShell active="settings" notice={previewNotice}>
+  return <PreviewShell active="settings">
     {/* Đầu màn: "← <tên màn>" gọn; ảnh 4.4 đặt "Đăng xuất tất cả các phiên khác" ở góc trên
         phải, ngang hàng tiêu đề, chỉ hiện trên màn Phiên. */}
     <div className="settings-head">
@@ -413,6 +413,5 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
       </div>
     </div>
 
-    <ActionNote id={previewNoteIds.settings}>{previewReasons.settings}</ActionNote>
   </PreviewShell>
 }

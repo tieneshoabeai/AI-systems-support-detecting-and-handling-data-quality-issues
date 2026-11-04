@@ -11,8 +11,6 @@ import { currentUser, people, storageUsage } from '../../services/preview/previe
 // không gọi API, không ghi storage. Production build loại toàn bộ file này
 // vì main.tsx chỉ import nhánh preview khi import.meta.env.DEV.
 
-export const previewNotice = 'Dữ liệu mẫu · khung xem trước giao diện 2D'
-
 // shared-ui.md: "control chưa có chức năng → không được quảng cáo là chạy được" và "nút disabled
 // cần lý do dễ tiếp cận trong text/context, không chỉ tooltip hover". Nên bất biến của frame vẫn
 // còn: mọi `button[disabled]` phải trỏ aria-describedby về một dòng chữ dài ≥20 ký tự. Chỉ đạo
@@ -38,46 +36,10 @@ export const previewNoteIds = {
 } as const
 
 export const previewReasons = {
-  shell: 'Chuông thông báo và nút "?" báo cáo vấn đề đều chạy trọn trong ô popover, không mở ra cả trang. '
-    + 'Mục Settings ở sidebar và hai mục "Hồ sơ cá nhân" / "Cài đặt tài khoản" trong menu đều mở được thật (nhánh Accounts, dựng trên dữ liệu mẫu). '
-    + 'Hai combobox phạm vi, tab lọc, chọn thẻ và phân trang chạy thật nhưng chỉ trên dữ liệu mẫu trong bộ nhớ tab.',
-  hero: '“Mở Dataset Universe” chuyển trang thật sang route /preview/workspaces-3d (batch của T). Khu vực giữa là placeholder CSS cho scene 3D, chưa kéo xoay hay phóng to được.',
-  workspaces: 'Năm thẻ số liệu, ô tìm kiếm, ba bộ lọc (quyền sở hữu · vai trò · sắp xếp), phân trang (tối đa 28 mỗi trang) và “Tạo Workspace” '
-    + 'đều chạy thật nhưng chỉ ghi vào dữ liệu mẫu trong bộ nhớ tab — tải lại trang sẽ về danh sách ban đầu, '
-    + 'và mọi thao tác tạo/sửa đều có Hoàn tác trên toast. “Vai trò” đọc từ roster của chính workspace: chủ sở hữu là Owner, '
-    + 'phần còn lại luân phiên Admin/Member/Viewer, nên cả bốn ô lọc đều có bản ghi trong bộ demo này.',
-  projects: 'Tab lọc trạng thái, ô sắp xếp, chọn thẻ và phân trang chạy thật trên dữ liệu mẫu trong bộ nhớ tab. '
-    + 'Đổi tên / xóa từ ⋯ hoặc chuột phải chỉ sửa bộ nhớ và có Hoàn tác. '
-    + '“Tạo project” mở wizard bốn bước; bước Import Dataset bắt buộc chọn một tệp .csv vì mỗi project gắn với một tập dữ liệu ngay khi tạo.',
-  universe: 'Dataset Universe 3D là batch của T, chạy ở route /preview/workspaces-3d. Nút này chuyển trang thật và mang theo id project; scene 3D chưa nhận danh sách 2D.',
-  // Modal "Quản lý thành viên" của WORKSPACE: cả ba thao tác (thêm · đổi vai trò · gỡ) đều bật
-  // thật vì chúng ghi vào đúng các trường roster trong store. Chủ sở hữu là dòng duy nhất không
-  // có ô thao tác, và đó là ràng buộc nghiệp vụ chứ không phải một chức năng thiếu.
-  wsMembers: 'Bảng liệt kê các thành viên có trong dữ liệu mẫu của tab này. "Thêm thành viên", đổi vai trò và gỡ thành viên đều ghi thật vào bộ nhớ tab và có Hoàn tác. Chủ sở hữu không có hai ô thao tác sau — mỗi Workspace luôn phải còn một người chịu trách nhiệm.',
-  // Modal "Quản lý thành viên" của PROJECT (ảnh DataVerse_Project_Actions_Details_v1 panel 3).
-  // Nói rõ ràng buộc nghiệp vụ đang enforced: nguồn chọn người ĐÚNG LÀ roster của workspace.
-  projectMembers: 'Thành viên của Project lấy từ chính roster của Workspace chứa nó — chỉ người đã thuộc Workspace mới được chủ sở hữu chọn vào Project. Thêm, đổi vai trò và gỡ người ghi vào dữ liệu mẫu trong bộ nhớ tab và luôn có Hoàn tác.',
-  // Thanh 4 module + 4 khối 3D của trang Project. Nhóm chưa chốt màn hình bên trong bốn module
-  // nên nút BẤM ĐƯỢC (hover · focus · đang chọn) nhưng không mở màn nào — nói thẳng để người
-  // review không đoán rằng bấm hư. Scene 3D là của T, placeholder này giữ đúng bố cục của ảnh.
-  projectModules: 'Bốn nút dưới thanh này là bốn module trong scene 3D của bạn T (Tổng quan · Data View · Data Analysis · Detection). Bấm nút nào thì khối tương ứng trong scene sáng lên và nút đó thành "đang chọn" — nhưng NHÓM CHƯA CHỐT màn hình bên trong từng module nên chưa có trang nào để mở. Scene thật chạy ở route /preview/workspaces-3d (nút "Mở Dataset Universe 3D" ở giữa trang chuyển sang đó, mang theo id project).',
-  notificationList: 'Đây là danh sách mẫu trong bộ nhớ tab: đánh dấu đã đọc và xóa chỉ sửa bộ nhớ, '
-    + 'có Hoàn tác, tải lại trang sẽ về 16 thông báo ban đầu. “Đánh dấu đã đọc”, “Xóa” và “Bỏ chọn” tắt khi chưa tích dòng nào; '
-    + '“Đánh dấu tất cả đã đọc” tắt khi cả hộp thư không còn bản chưa đọc.',
-  // Ô popover chuông là NƠI CHÍNH để xem thông báo (đặc tả Shell dòng 5: mọi thứ chạy "trong ô",
-  // không hiển thị cả trang). Lý do này gắn cho các nút tắt bên trong ô.
-  notificationInbox: 'Mọi thứ diễn ra trong ô này — tab lọc, tìm kiếm, chọn hàng loạt và phân trang đều không rời khỏi popover; '
-    + 'đây là dữ liệu mẫu trong bộ nhớ tab nên đánh dấu đã đọc / xóa chỉ sửa bộ nhớ và có Hoàn tác. '
-    + '“Đánh dấu đã đọc”, “Xóa”, “Bỏ chọn” tắt khi chưa tích dòng nào.',
-  // Ô popover nút "?" là NƠI CHÍNH để báo cáo vấn đề (đặc tả Shell dòng 7: tạo/xem/chi tiết
-  // "chỉ hiển thị trên ô nhỏ không hiển thị cả trang").
-  report: 'Mọi thao tác báo cáo diễn ra trong ô này — tạo mới, xem danh sách và chi tiết đều không rời khỏi popover; '
-    + 'báo cáo chỉ được ghi vào dữ liệu mẫu trong bộ nhớ tab và có Hoàn tác. '
-    + 'Tệp đính kèm chỉ ghi nhận tên — frame không tải lên hay đọc nội dung tệp.',
-  // Nhánh "Accounts" của Settings (nhóm 04) — màn hình thật, không phải "trong ô" như chuông/báo cáo.
-  settings: 'Toàn bộ nhánh Accounts chạy trên dữ liệu mẫu trong bộ nhớ tab: lưu hồ sơ, '
-    + 'bật/tắt thông báo và đăng xuất các phiên khác chỉ sửa bộ nhớ và có Hoàn tác; đổi mật khẩu chỉ là xác thực biểu mẫu, không ghi lại. '
-    + 'Các nhánh khác của Settings (ngoài Accounts) sẽ bổ sung sau.',
+  wsMembers: 'Chủ sở hữu luôn thuộc Workspace và không thể bị gỡ khỏi danh sách thành viên.',
+  projectMembers: 'Chỉ người đã thuộc Workspace mới có thể được thêm vào Project.',
+  notificationList: 'Chọn thông báo để đánh dấu đã đọc hoặc xóa. Không còn thông báo mới thì “Đánh dấu tất cả đã đọc” sẽ tắt.',
+  notificationInbox: 'Chọn thông báo để thao tác. “Đánh dấu tất cả đã đọc” chỉ dùng khi còn thông báo chưa đọc.',
 } as const
 
 // Bản ghi (person / workspace / project) nằm ở tầng service: services/preview/preview-fixtures.ts,
@@ -142,12 +104,12 @@ export const workspaceStatsFor = (state: PreviewStoreState): readonly TrendStat[
 }
 
 export const projectStatsFor = (list: readonly Project[]): readonly TrendStat[] => [
-  { id: 'pj-total', label: 'Tổng project', value: String(list.length), delta: '', tone: 'brand' },
-  { id: 'pj-dataset', label: 'Tổng dataset', value: String(count(list, project => project.dataset !== null)), delta: '', tone: 'violet' },
-  { id: 'pj-active', label: 'Đang hoạt động', value: String(count(list, project => project.status === 'active')), delta: '', tone: 'green' },
-  { id: 'pj-paused', label: 'Tạm dừng', value: String(count(list, project => project.status === 'paused')), delta: '', tone: 'orange' },
-  { id: 'pj-done', label: 'Đã hoàn thành', value: String(count(list, project => project.status === 'completed')), delta: '', tone: 'cyan' },
-  { id: 'pj-archived', label: 'Đã lưu trữ', value: String(count(list, project => project.status === 'archived')), delta: '', tone: 'accent' },
+  { id: 'pj-total', label: 'Tổng project', value: String(list.length), delta: '', tone: 'brand', icon: 'projects' },
+  { id: 'pj-dataset', label: 'Tổng dataset', value: String(count(list, project => project.dataset !== null)), delta: '', tone: 'violet', icon: 'datasets' },
+  { id: 'pj-active', label: 'Đang hoạt động', value: String(count(list, project => project.status === 'active')), delta: '', tone: 'green', icon: 'activity' },
+  { id: 'pj-paused', label: 'Tạm dừng', value: String(count(list, project => project.status === 'paused')), delta: '', tone: 'orange', icon: 'pause' },
+  { id: 'pj-done', label: 'Đã hoàn thành', value: String(count(list, project => project.status === 'completed')), delta: '', tone: 'cyan', icon: 'check-circle' },
+  { id: 'pj-archived', label: 'Đã lưu trữ', value: String(count(list, project => project.status === 'archived')), delta: '', tone: 'accent', icon: 'archive' },
 ]
 
 // Số trên thẻ workspace phải khớp danh sách project thật của nó trong mock store: nếu
@@ -366,11 +328,11 @@ export const homeOverviewStats = (state: PreviewStoreState): readonly TrendStat[
   const completed = count(state.projects, project => project.status === 'completed')
   const unprocessed = state.projects.length - processing - completed
   return [
-    { id: 'ov-ws', label: 'Workspaces', value: String(state.workspaces.length), delta: '', tone: 'brand' },
-    { id: 'ov-prj', label: 'Projects', value: String(state.projects.length), delta: '', tone: 'accent' },
-    { id: 'ov-unproc', label: 'Chưa xử lý', value: String(unprocessed), delta: '', tone: 'orange' },
-    { id: 'ov-proc', label: 'Đang xử lý', value: String(processing), delta: '', tone: 'cyan' },
-    { id: 'ov-done', label: 'Đã hoàn thành', value: String(completed), delta: '', tone: 'green' },
+    { id: 'ov-ws', label: 'Workspaces', value: String(state.workspaces.length), delta: '', tone: 'brand', icon: 'workspaces' },
+    { id: 'ov-prj', label: 'Projects', value: String(state.projects.length), delta: '', tone: 'accent', icon: 'projects' },
+    { id: 'ov-unproc', label: 'Chưa xử lý', value: String(unprocessed), delta: '', tone: 'orange', icon: 'clock' },
+    { id: 'ov-proc', label: 'Đang xử lý', value: String(processing), delta: '', tone: 'cyan', icon: 'processing' },
+    { id: 'ov-done', label: 'Đã hoàn thành', value: String(completed), delta: '', tone: 'green', icon: 'check-circle' },
   ]
 }
 
@@ -536,11 +498,10 @@ export type NoticeOpenGap = 'ok' | 'no-project' | 'project-removed'
 // Câu cuối luôn có nên note không bao giờ rỗng — bất biến "nút tắt có lý do nhìn thấy".
 export const noticeDetailReason = (gap: NoticeOpenGap, alreadyRead: boolean): string => {
   const parts: string[] = []
-  if (gap === 'no-project') parts.push('Thông báo này do hệ thống gửi, không gắn project nào nên “Mở Project” tắt.')
-  if (gap === 'project-removed') parts.push('Project liên quan đã bị xóa khỏi danh sách mẫu trong tab này nên “Mở Project” tắt — tải lại trang sẽ đưa nó về.')
-  if (alreadyRead) parts.push('Thông báo đã ở trạng thái đã đọc nên “Đánh dấu đã đọc” tắt, bấm lại cũng không đổi gì.')
-  parts.push('Trạng thái đọc và việc xóa chỉ sửa dữ liệu mẫu trong bộ nhớ tab, có Hoàn tác.')
-  return parts.join(' ')
+  if (gap === 'no-project') parts.push('Thông báo hệ thống này không liên kết với Project.')
+  if (gap === 'project-removed') parts.push('Project liên quan không còn tồn tại.')
+  if (alreadyRead) parts.push('Thông báo này đã được đánh dấu là đã đọc.')
+  return parts.join(' ') || 'Mở Project để xem nội dung liên quan.'
 }
 
 // Tài khoản trong dropdown topbar (mục 8 UI-UX/Global Application Shell). Tên/chức danh/viết tắt
@@ -579,7 +540,7 @@ export const settingsModules: readonly SettingsModule[] = [
     label: 'Accounts',
     icon: 'users',
     items: [
-      { id: 'profile', label: 'Hồ sơ cá nhân', icon: 'users' },
+      { id: 'profile', label: 'Hồ sơ cá nhân', icon: 'user' },
       { label: 'Cài đặt tài khoản', icon: 'settings', children: settingsSections },
     ],
   },
@@ -614,7 +575,7 @@ export const settingsSectionLabel = (id: SettingsSectionId): string =>
 export const notificationPrefRows: readonly { key: NotificationPrefKey; icon: string; label: string; caption: string }[] = [
   { key: 'system', icon: 'bell', label: 'Thông báo trong hệ thống', caption: 'Cập nhật bản vá, phiên bản mới.' },
   { key: 'projects', icon: 'projects', label: 'Dự án và xử lý dữ liệu', caption: 'Trạng thái xử lý, hoàn thành, lỗi.' },
-  { key: 'quality', icon: 'help', label: 'Chất lượng dữ liệu', caption: 'Cảnh báo và vấn đề về chất lượng dữ liệu.' },
+  { key: 'quality', icon: 'alert', label: 'Chất lượng dữ liệu', caption: 'Cảnh báo và vấn đề về chất lượng dữ liệu.' },
   { key: 'workspace', icon: 'users', label: 'Workspace & Project', caption: 'Thay đổi quyền, thành viên, cấu hình.' },
 ]
 

@@ -76,7 +76,7 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
       </header>
 
       <div className="ws-edit-grid">
-        <span className="ws-edit-cover"><CoverArt hue={workspace.cover} seed={workspace.name.length} /></span>
+        <span className="ws-edit-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
         <div className="ws-edit-fields">
           <div className="ws-edit-field">
             <label className="dialog-field">
@@ -109,7 +109,6 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
       </dl>
 
       {error && <p className="dialog-error" id="ws-edit-error" role="alert">{error}</p>}
-      <p className="dialog-note">Lưu thay đổi chỉ áp dụng trên dữ liệu mẫu trong bộ nhớ tab, nên tải lại trang là danh sách về ban đầu; thao tác vừa lưu luôn có Hoàn tác.</p>
       <footer className="dialog-actions">
         <button type="button" className="button-secondary" onClick={onClose}>Hủy</button>
         <button type="submit" className="button-primary"><PreviewIcon name="check" /> Lưu thay đổi</button>

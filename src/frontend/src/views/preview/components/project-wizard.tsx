@@ -223,7 +223,6 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
         <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
         <h3>Tạo Project thành công!</h3>
         <p>Project “{createdName}” đã được thêm vào Workspace “{workspace?.name ?? ''}” cùng {selected.length + 1} thành viên (gồm chủ sở hữu) và tập dữ liệu “{file?.fileName ?? ''}”.</p>
-        <p className="dialog-note">Project và tập dữ liệu sống trong bộ nhớ tab của trình duyệt, nên tải lại trang là danh sách về ban đầu; toast vừa rồi luôn có Hoàn tác. Tập dữ liệu ở trạng thái “chờ xử lý” vì khung preview chưa chạy pipeline làm sạch.</p>
         <footer className="dialog-actions">
           <button type="button" className="button-secondary" onClick={reset}>Tạo Project khác</button>
           <button type="button" className="button-primary" onClick={viewProject}><PreviewIcon name="arrow" /> Xem Project</button>

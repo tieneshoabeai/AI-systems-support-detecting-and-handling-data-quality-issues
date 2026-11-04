@@ -37,6 +37,11 @@ const paths: Record<string, string> = {
   file: 'M7 4.5h7l3.5 3.5v11.5H7zM13.6 4.8v3.6h3.6M9.4 12.6h5.2M9.4 15.6h5.2',
   arrow: 'M5 12h13.5M13 7.5 18.5 12 13 16.5',
   check: 'M5.5 12.5 9.5 16.5 18.5 7.5',
+  'check-circle': 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM8 12l2.5 2.5L16 9',
+  processing: 'M19.5 9a8 8 0 0 0-13-3L4 8.5M4 4v4.5h4.5M4.5 15a8 8 0 0 0 13 3l2.5-2.5M20 20v-4.5h-4.5',
+  activity: 'M3.5 12H7l3-7 4 14 3-7h3.5',
+  pause: 'M7 5h3v14H7zM14 5h3v14h-3z',
+  archive: 'M4 4.5h16v4H4zM5.5 8.5v11h13v-11M9.5 12h5',
   clock: 'M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17zM12 7.8V12l3 1.8',
   pencil: 'M5 19h3.4L19 8.4a2 2 0 0 0-2.8-2.8L5.6 16.2 5 19zM15.4 6.8 17.6 9',
   // Nhóm icon mới cho menu ngữ cảnh + topbar: lưu trữ, xóa, đăng xuất, hoàn tác, đóng.
@@ -50,7 +55,7 @@ const paths: Record<string, string> = {
   // Nhóm icon cho nhánh "Accounts" của Settings (Design Board 04): khiên bảo mật, chìa
   // đổi mật khẩu, ổ khóa cho trường chỉ đọc, màn hình + điện thoại cho danh sách phiên.
   shield: 'M12 4.4 19 7v5.2c0 3.6-2.9 5.7-7 6.9-4.1-1.2-7-3.3-7-6.9V7zM9.6 12.1l1.7 1.8 3.3-3.7',
-  key: 'M12.5 12.5a3.5 3.5 0 1 0-3.5-3.5M12.5 12.5 20 20M15 15l2-2M9 9 6.5 6.5',
+  key: 'M8.5 13a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM11.7 11.7 20 20M16 16l2-2M18.5 18.5l2-2',
   lock: 'M7.5 10.5h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1zM9 10.5V8a3 3 0 0 1 6 0v2.5',
   monitor: 'M4.5 6h15v9h-15zM9.5 18.5h5M12 15v3.5',
   phone: 'M8 4.5h8a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM11 17.5h2',

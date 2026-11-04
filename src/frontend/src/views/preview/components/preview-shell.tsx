@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewSectionId } from '../../../types/preview/preview.types'
-import { navItems, previewNoteIds, previewReasons, sectionLabels } from '../preview-data'
+import { navItems, sectionLabels } from '../preview-data'
 import { usePreviewSession } from '../preview-session-context'
-import { ActionNote } from './preview-primitives'
 import { PreviewIcon } from './preview-icons'
 import { PreviewTopbar } from './preview-topbar'
 
@@ -11,7 +10,6 @@ import { PreviewTopbar } from './preview-topbar'
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
 type PreviewShellProps = {
   active: PreviewSectionId
-  notice: string
   children: ReactNode
 }
 
@@ -45,7 +43,7 @@ export function Avatar({ initials, size = 'md' }: { initials: string; size?: 'sm
 
 // Sidebar nhớ trạng thái thu gọn giữa các lần tải trang.
 export function PreviewShell({
-  active, notice, children,
+  active, children,
 }: PreviewShellProps) {
   const session = usePreviewSession()
   const { state } = session
@@ -110,7 +108,7 @@ export function PreviewShell({
     if (builtSections.includes(id)) { session.openSection(id); return }
     // Module chưa thuộc batch 2D: báo rõ qua cùng một vùng toast mà mọi thao tác khác
     // dùng, thay vì một đoạn <p> riêng lẻ rồi tự ẩn sau 2,6 giây.
-    session.notify(`${label} chưa có trong batch 2D — frame hiện chỉ dựng Home · Workspaces · Projects · Thông báo · Settings.`, 'info')
+    session.notify(`${label} chưa khả dụng.`, 'info')
   }
 
   // Dự án và Thông báo là hai màn thật nhưng không nằm trong nav (nav đúng 3 mục theo ảnh
@@ -118,7 +116,7 @@ export function PreviewShell({
   // ngữ cảnh dưới nav trả lời "đang ở đâu" và cho luôn một lối về Home mà không thêm mục nav.
   const isContextual = !navItems.some(item => item.id === active)
 
-  return <div className={`preview-root${compact ? ' is-compact' : ''}`}>
+  return <div className={`preview-root${compact ? ' is-compact' : ''}`} data-section={active}>
     <aside className="preview-sidebar" aria-label="Điều hướng chính">
       <div className="sidebar-brand">
         <span className="brand-mark" aria-hidden="true"><PreviewIcon name="datasets" /></span>
@@ -129,6 +127,7 @@ export function PreviewShell({
           const selected = item.id === active
           return <button type="button" key={item.id}
             className={`nav-item${selected ? ' is-active' : ''}`}
+            data-nav={item.id}
             aria-current={selected ? 'page' : undefined} title={item.label}
             onClick={() => navigate(item.id, item.label)}>
             <span className="nav-icon" aria-hidden="true"><PreviewIcon name={item.id} /></span>
@@ -155,11 +154,6 @@ export function PreviewShell({
           <PreviewIcon name={compact ? 'expand' : 'collapse'} />
         </button>}
         state={state} />
-      {/* Lý do bằng text cho các control còn tắt + module chưa mở. */}
-      <ActionNote id={previewNoteIds.shell}>{previewReasons.shell}</ActionNote>
-      {/* Dòng chú thích "dữ liệu mẫu" từng nằm ở footer sidebar; footer đã bỏ theo đặc tả
-          nhóm trưởng nên nó dời xuống đây, thành dải trạng thái của khung preview. */}
-      <p className="preview-notice">{notice}</p>
       <div className="preview-content" ref={contentRef}>{children}</div>
     </div>
   </div>

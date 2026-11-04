@@ -41,8 +41,8 @@ it('landing (02): hai nút vào — tạo mới · xem của tôi — là điể
   expect(screen.getByText('Báo cáo vấn đề')).toBeDefined()
   expect(screen.getByRole('button', { name: /Tạo báo cáo mới/ })).toBeDefined()
   expect(screen.getByRole('button', { name: /Xem các báo cáo của tôi/ })).toBeDefined()
-  // Ghi chú phạm vi của ô hiển thị ngay trong popover, không phải tooltip.
-  expect(screen.getByText(/Mọi thao tác báo cáo diễn ra trong ô này/)).toBeDefined()
+  // Không còn phần giải thích nội bộ ở chân popover.
+  expect(screen.queryByText(/Mọi thao tác báo cáo diễn ra trong ô này/)).toBeNull()
 })
 
 it('tạo (3.1): gửi khi thiếu trường thì báo ngay trong form, không thêm bản ghi', () => {

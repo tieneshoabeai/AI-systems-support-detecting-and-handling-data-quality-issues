@@ -4,12 +4,12 @@ import type {
 } from '../../types/preview/preview.types'
 import {
   byNewestFirst, datasetCountOf, matchWorkspaceOwnership, matchWorkspaceQuery, matchWorkspaceRole, monthlyProgressFor,
-  previewNotice, previewNoteIds, previewReasons, projectStatusBuckets, projectsOf, sortWorkspaces,
+  projectStatusBuckets, projectsOf, sortWorkspaces,
   workspaceOwnershipOptions, workspaceRoleOptions, workspaceSortOptions, workspaceStatsFor,
 } from './preview-data'
 import { Avatar, PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
-import { ActionNote, CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut } from './components/preview-primitives'
+import { CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut } from './components/preview-primitives'
 import { WorkspaceCreateDialog } from './components/workspace-create-dialog'
 import { usePreviewSession } from './preview-session-context'
 import { projectMenu, workspaceMenu } from './preview-menu'
@@ -32,9 +32,8 @@ const workspacePerPageOptions: readonly number[] = [10, 20, maxWorkspacesPerPage
 // quy tắc). Ô nhập nằm trong toolbar của chính trang (.toolbar-search), KHÔNG ở topbar — topbar
 // đã bỏ thanh tìm kiếm chung theo yêu cầu 03/11.
 
-export function WorkspaceCard({ workspace, index, selected, view }: {
+export function WorkspaceCard({ workspace, selected, view }: {
   workspace: Workspace
-  index: number
   selected: boolean
   view: ViewMode
 }) {
@@ -51,7 +50,7 @@ export function WorkspaceCard({ workspace, index, selected, view }: {
       universe: () => session.run('universe', target),
       menu: openMenu,
     })}>
-    <div className="card-cover"><CoverArt hue={workspace.cover} seed={index} />
+    <div className="card-cover"><CoverArt hue={workspace.cover} seed={workspace.id} />
       <span className="card-top-actions">
         {/* ★ giờ là nút THẬT: mock store đổi cờ yêu thích + toast Hoàn tác. */}
         <button type="button" className={`fav-button${workspace.favorite ? ' is-on' : ''}`}
@@ -120,16 +119,16 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
   const visible = filtered.slice((safePage - 1) * perPage, safePage * perPage)
 
   const stats = [
-    { id: 'wsd-total', label: 'Tổng Project', value: String(buckets.total), delta: '', tone: 'brand' as const },
-    { id: 'wsd-unproc', label: 'Chưa xử lý', value: String(buckets.unprocessed), delta: '', tone: 'orange' as const },
-    { id: 'wsd-proc', label: 'Đang xử lý', value: String(buckets.processing), delta: '', tone: 'cyan' as const },
-    { id: 'wsd-done', label: 'Đã hoàn thành', value: String(buckets.completed), delta: '', tone: 'green' as const },
+    { id: 'wsd-total', label: 'Tổng Project', value: String(buckets.total), delta: '', tone: 'brand' as const, icon: 'projects' },
+    { id: 'wsd-unproc', label: 'Chưa xử lý', value: String(buckets.unprocessed), delta: '', tone: 'orange' as const, icon: 'clock' },
+    { id: 'wsd-proc', label: 'Đang xử lý', value: String(buckets.processing), delta: '', tone: 'cyan' as const, icon: 'processing' },
+    { id: 'wsd-done', label: 'Đã hoàn thành', value: String(buckets.completed), delta: '', tone: 'green' as const, icon: 'check-circle' },
   ]
 
   const openProjectMenu = (project: Project, origin: PreviewMenuOrigin) =>
     session.openMenu({ ...projectMenu(project), origin })
 
-  return <PreviewShell active="workspaces" notice={previewNotice}>
+  return <PreviewShell active="workspaces">
     <nav className="ws-crumb" aria-label="Path điều hướng">
       <button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</button>
       <span className="crumb-sep" aria-hidden="true">›</span>
@@ -137,7 +136,7 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
     </nav>
 
     <header className="ws-detail-head">
-      <span className="ws-detail-cover"><CoverArt hue={workspace.cover} seed={workspace.name.length} /></span>
+      <span className="ws-detail-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
       <div className="ws-detail-title">
         <div className="ws-detail-name"><h1 id="page-heading" tabIndex={-1}>{workspace.name}</h1><StatusBadge status={workspace.status} /></div>
         <p className="ws-detail-desc">{workspace.description}</p>
@@ -225,7 +224,6 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
       {filtered.length > 0 && <Pagination label="Phân trang project" total={filtered.length}
         page={safePage} perPage={perPage} unit="Project" onPage={setPage} />}
     </Panel>
-    <ActionNote id={previewNoteIds.workspaces}>{previewReasons.workspaces}</ActionNote>
     {/* Hai modal của workspace và wizard "Tạo Project" đều là surface CẤP PHIÊN
        (WorkspacePanelSurface / ProjectWizard trong PreviewSessionProvider) vì ⋯ của THẺ ở trang
        danh sách cũng mở được chúng — render một lần duy nhất thay vì mỗi trang một bản. */}
@@ -265,7 +263,7 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
 
   if (detailWorkspace) return <WorkspaceDetailView key={detailWorkspace.id} workspace={detailWorkspace} />
 
-  return <PreviewShell active="workspaces" notice={previewNotice}>
+  return <PreviewShell active="workspaces">
     <div className="page-head">
       <div className="page-head-text">
         <span className="page-eyebrow">Cấp 1 · Workspaces</span>
@@ -323,12 +321,11 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
         </div>
       </div>
     </div>
-    <ActionNote id={previewNoteIds.workspaces}>{previewReasons.workspaces}</ActionNote>
 
     {visible.length === 0
       ? <EmptyHint title="Không có kết quả" note="Thử đổi một trong ba bộ lọc (quyền sở hữu · vai trò · sắp xếp) hoặc từ khóa tìm kiếm." />
       : <div className={`card-grid${view === 'list' ? ' is-list' : ''}`}>
-        {visible.map((workspace, index) => <WorkspaceCard key={workspace.id} workspace={workspace} index={index}
+        {visible.map(workspace => <WorkspaceCard key={workspace.id} workspace={workspace}
           view={view} selected={workspace.id === selected?.id} />)}
       </div>}
 

@@ -95,17 +95,8 @@
   isolation: isolate;
   background: var(--pv-bg-0);
   color: var(--pv-ink);
-  /* Chữ: bỏ Plus Jakarta Sans trong frame 2D vì phản hồi "rối mắt". Font chữ hoa của nó
-     có 'a'/'g' hình học riêng, đứng dày ở cỡ 10–12px của dashboard thì khó đọc hơn một
-     mặt chữ trung tính (apple-design mục 15: mặc định lấy font hệ thống trước). Font hệ
-     thống Windows còn có hai bản optical-size riêng — Text cho cỡ nhỏ, Display cho cỡ lớn.
-     Plus Jakarta Sans vẫn sống ở design-tokens.css (app thật/login) — không đụng file đó.
-     Thang cỡ cũng dồn về bậc tối thiểu 11px: bản cũ có sáu cỡ nằm lọt giữa 9.5–12.5px (cách
-     nhau đúng 0.5px) — mắt quét cả màn hình chỉ thấy toàn chữ "gần bằng nhau" nhưng không
-     cái nào giống cái, đó chính là cái "rối".
-     Thang duy nhất hiện có: 11 (nhãn vi mô · chip · thời gian) · 12 (chữ phụ, note, bảng con)
-     · 14 (nội dung) · 16 (h3) · 18 (h2) · 21 (số thống kê) · 30 (h1) · 34 (s số lớn).
-     Không còn nửa bậc 11.5/12.5/13/13.5/15/17 — gate trong test/preview-constraints.spec.ts. */
+  /* Chữ nhỏ giữ font hệ thống dễ đọc; tiêu đề và số liệu dùng Jakarta có sẵn.
+     Giữ nguyên thang cỡ chữ và chiều cao dòng, không thu nhỏ nội dung. */
   font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -148,7 +139,8 @@
 
 [data-preview='2d'] h1,
 [data-preview='2d'] h2,
-[data-preview='2d'] h3 { font-family: 'Segoe UI Variable Display', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; }
+[data-preview='2d'] h3 { font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif; font-weight: 600; }
+[data-preview='2d'] :is(.brand-text strong, .stat-value, .donut-hole strong) { font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif; }
 [data-preview='2d'] h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.6px; font-weight: 700; }
 [data-preview='2d'] h2 { font-size: 18px; line-height: 1.35; margin: 0; letter-spacing: -.2px; }
 [data-preview='2d'] h3 { font-size: 16px; margin: 0; }
@@ -220,17 +212,6 @@
   background: rgba(120, 170, 235, .55);
   background-clip: padding-box;
 }
-
-/* ---------- Dải báo dữ liệu mẫu ---------- */
-[data-preview='2d'] .preview-demo-strip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 16px;
-  font-size: 12px; letter-spacing: .3px;
-  color: var(--pv-ink-accent);
-  background: linear-gradient(90deg, rgba(47, 124, 246, .28), rgba(124, 92, 255, .18), rgba(34, 211, 238, .16));
-  border-bottom: 1px solid var(--pv-line);
-}
-[data-preview='2d'] .demo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pv-orange); box-shadow: 0 0 10px var(--pv-orange); }
 
 /* ---------- Layout shell ---------- */
 [data-preview='2d'] .preview-root {
@@ -365,8 +346,7 @@
 [data-preview='2d'] .preview-root.is-compact .brand-text { opacity: 0; }
 /* Footer (vành dung lượng + note) cao nên vẫn ẩn hẳn, nhưng bằng visibility có trễ:
    nó biến mất SAU khi cột đã đóng và hiện lại NGAY khi cột mở, không cắt phựt. */
-[data-preview='2d'] .preview-root.is-compact .sidebar-footer,
-[data-preview='2d'] .preview-root.is-compact .preview-notice {
+[data-preview='2d'] .preview-root.is-compact .sidebar-footer {
   opacity: 0; visibility: hidden;
   transition: opacity var(--pv-d-chrome) var(--pv-ease-out), visibility 0s linear var(--pv-d-chrome);
 }
@@ -393,7 +373,6 @@
   background: conic-gradient(var(--pv-cyan) 0 42%, rgba(120, 170, 235, .18) 42% 100%);
 }
 [data-preview='2d'] .storage-text { display: flex; flex-direction: column; }
-[data-preview='2d'] .preview-notice { font-size: 11px; color: var(--pv-faint); }
 
 /* ---------- Topbar ---------- */
 [data-preview='2d'] .preview-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -527,16 +506,6 @@
   font-size: 12px;
   line-height: 1.45;
   max-width: 88ch;
-}
-/* Note của shell nằm trực tiếp trong cột phải → dải ngang đầy rộng, không bo góc. */
-[data-preview='2d'] .preview-main > .action-note {
-  margin: 0;
-  padding: 7px 18px;
-  border-left: 0;
-  border-radius: 0;
-  border-bottom: 1px solid var(--pv-line);
-  background: var(--pv-bg-1);
-  max-width: none;
 }
 
 [data-preview='2d'] .preview-content { flex: 1; overflow: auto; padding: 20px 22px 32px; }
@@ -707,37 +676,46 @@
 [data-preview='2d'] .fav-button.is-on { color: var(--pv-orange); }
 [data-preview='2d'] .fav { margin-left: 6px; color: var(--pv-orange); font-size: 12px; }
 
-/* ---------- Cover art (CSS thay ảnh mockup) ---------- */
+/* ---------- Ảnh minh họa 2D; giữ nguyên khung và màu cover đã chọn ---------- */
 [data-preview='2d'] .cover-art {
+  --pv-cover-tone: var(--pv-blue);
+  --pv-cover-image: url('../../assets/preview/workspace-data-network-v1.png');
   position: relative; display: block; width: 100%; height: 100%; overflow: hidden;
   background: radial-gradient(120% 130% at 20% 0%, rgba(47, 124, 246, .35), transparent 60%), var(--pv-bg-1);
-}
-[data-preview='2d'] .cover-art::after {
-  content: '';
-  position: absolute; inset: -20% -10% auto;
-  height: 70%;
-  background:
-    radial-gradient(60% 60% at 30% 40%, rgba(255, 255, 255, .1), transparent 70%),
-    repeating-linear-gradient(115deg, rgba(140, 190, 255, .07) 0 2px, transparent 2px 9px);
 }
 [data-preview='2d'] .cover-violet { background: radial-gradient(120% 130% at 25% 0%, rgba(124, 92, 255, .4), transparent 60%), var(--pv-bg-1); }
 [data-preview='2d'] .cover-green { background: radial-gradient(120% 130% at 25% 0%, rgba(52, 211, 153, .34), transparent 60%), var(--pv-bg-1); }
 [data-preview='2d'] .cover-pink { background: radial-gradient(120% 130% at 25% 0%, rgba(244, 114, 182, .34), transparent 60%), var(--pv-bg-1); }
 [data-preview='2d'] .cover-orange { background: radial-gradient(120% 130% at 25% 0%, rgba(251, 191, 36, .32), transparent 60%), var(--pv-bg-1); }
 [data-preview='2d'] .cover-cyan { background: radial-gradient(120% 130% at 25% 0%, rgba(34, 211, 238, .34), transparent 60%), var(--pv-bg-1); }
-[data-preview='2d'] .cover-orbit {
-  position: absolute; left: -10%; right: -10%; bottom: -46%;
-  height: 90%; border-radius: 50%;
-  border: 1px solid rgba(150, 200, 255, .28);
-  box-shadow: 0 0 30px rgba(47, 124, 246, .2) inset;
+[data-preview='2d'] .cover-art.cover-violet { --pv-cover-tone: var(--pv-violet); }
+[data-preview='2d'] .cover-art.cover-green { --pv-cover-tone: var(--pv-green); }
+[data-preview='2d'] .cover-art.cover-pink { --pv-cover-tone: var(--pv-pink); }
+[data-preview='2d'] .cover-art.cover-orange { --pv-cover-tone: var(--pv-orange); }
+[data-preview='2d'] .cover-art.cover-cyan { --pv-cover-tone: var(--pv-cyan); }
+[data-preview='2d'] .cover-art.cover-kind-project {
+  --pv-cover-image: url('../../assets/preview/project-data-flow-v1.png');
 }
-[data-preview='2d'] .cover-cube { position: absolute; border-radius: 4px; border: 1px solid rgba(200, 230, 255, .5); background: linear-gradient(150deg, rgba(255, 255, 255, .28), rgba(47, 124, 246, .55)); box-shadow: 0 0 18px rgba(47, 124, 246, .5); }
-[data-preview='2d'] .cover-violet .cover-cube, [data-preview='2d'] .cover-pink .cover-cube { background: linear-gradient(150deg, rgba(255, 255, 255, .26), rgba(124, 92, 255, .6)); box-shadow: 0 0 18px rgba(124, 92, 255, .5); }
-[data-preview='2d'] .cover-green .cover-cube, [data-preview='2d'] .cover-cyan .cover-cube { background: linear-gradient(150deg, rgba(255, 255, 255, .26), rgba(34, 211, 238, .55)); box-shadow: 0 0 18px rgba(34, 211, 238, .45); }
-[data-preview='2d'] .cover-orange .cover-cube { background: linear-gradient(150deg, rgba(255, 255, 255, .28), rgba(251, 147, 36, .6)); box-shadow: 0 0 18px rgba(251, 147, 36, .45); }
-[data-preview='2d'] .cover-cube-lg { width: 42px; height: 42px; left: 50%; top: 34%; transform: translateX(-50%) rotate(8deg); }
-[data-preview='2d'] .cover-cube-md { width: 26px; height: 26px; left: 26%; bottom: 22%; transform: rotate(-6deg); opacity: .9; }
-[data-preview='2d'] .cover-cube-sm { width: 18px; height: 18px; right: 20%; bottom: 30%; transform: rotate(12deg); opacity: .8; }
+[data-preview='2d'] .cover-kind-workspace[data-art='1'] {
+  --pv-cover-image: url('../../assets/preview/workspace-orbits-v1.png');
+}
+[data-preview='2d'] .cover-kind-workspace[data-art='2'] {
+  --pv-cover-image: url('../../assets/preview/workspace-lattice-v1.png');
+}
+[data-preview='2d'] .cover-art.cover-kind-project[data-art='1'] {
+  --pv-cover-image: url('../../assets/preview/project-scan-v1.png');
+}
+[data-preview='2d'] .cover-art.cover-kind-project[data-art='2'] {
+  --pv-cover-image: url('../../assets/preview/project-branches-v1.png');
+}
+[data-preview='2d'] .cover-art {
+  background-color: var(--pv-bg-0);
+  background-image: linear-gradient(120deg, color-mix(in srgb, var(--pv-cover-tone) 14%, transparent), transparent 55%), var(--pv-cover-image);
+  background-position: center;
+  background-size: cover, contain;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--pv-cover-tone) 65%, transparent);
+}
 
 /* ---------- Panel / detail ---------- */
 [data-preview='2d'] .panel {
@@ -926,11 +904,6 @@
 }
 [data-preview='2d'] .stage-satellite:hover { border-color: var(--pv-blue); background: rgba(47, 124, 246, .18); }
 [data-preview='2d'] .satellite-text { display: flex; flex-direction: column; line-height: 1.2; }
-[data-preview='2d'] .stage-tag {
-  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-  font-size: 11px; color: var(--pv-faint);
-  padding: 3px 9px; border-radius: 999px; background: rgba(4, 7, 15, .7);
-}
 [data-preview='2d'] .stage-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
 [data-preview='2d'] .stage-controls span {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2390,3 +2363,269 @@
    che nội dung khi cuộn và không thuộc thiết kế đang được duyệt. Đường chọn bộ dữ liệu
    vẫn còn nguyên, chỉ không còn nút bấm: đặt `?data=worst|empty|one|many` TRƯỚC hash
    (`/?data=worst#/preview/home`) — xem readSetFromUrl trong preview-mock.service. */
+
+/* ---------- Nút kính neon theo UI-UX: chỉ paint, không đổi geometry ----------
+   Lớp phản chiếu ở mép trên + nền chuyển màu + ánh sáng bên trong tạo độ bóng ngay ở
+   trạng thái nghỉ. Dùng background/box-shadow, không thêm phần tử hay thay box model. */
+[data-preview='2d'] {
+  --pv-gloss-sheen: linear-gradient(180deg, rgba(255, 255, 255, .48) 0, rgba(255, 255, 255, .12) 12%, transparent 48%, rgba(2, 8, 26, .24) 100%);
+  --pv-gloss-action: var(--pv-gloss-sheen), radial-gradient(ellipse at 0 0, rgba(34, 211, 238, .8), transparent 42%), linear-gradient(110deg, var(--pv-blue-deep), var(--pv-blue-fill) 40%, var(--pv-violet-fill));
+  --pv-gloss-selected: var(--pv-gloss-sheen), radial-gradient(ellipse at 0 0, rgba(34, 211, 238, .7), transparent 46%), linear-gradient(115deg, var(--pv-blue-deep), var(--pv-violet-fill));
+  --pv-gloss-quiet: var(--pv-gloss-sheen), radial-gradient(ellipse at 50% 0, rgba(47, 124, 246, .38), transparent 74%), linear-gradient(180deg, var(--pv-bg-2), var(--pv-bg-0));
+  --pv-gloss-danger: var(--pv-gloss-sheen), linear-gradient(130deg, rgba(255, 107, 107, .42), rgba(255, 107, 107, .12)), var(--pv-bg-0);
+  --pv-gloss-action-shadow: inset 0 0 0 1px rgba(147, 197, 253, .65), inset 2px 0 8px rgba(34, 211, 238, .5), inset -2px 0 9px rgba(196, 181, 253, .4), 0 0 14px rgba(47, 124, 246, .38), 0 5px 16px rgba(124, 92, 255, .26);
+  --pv-gloss-quiet-shadow: inset 0 1px 0 rgba(207, 227, 255, .45), inset 0 -3px 10px rgba(47, 124, 246, .24), 0 0 9px rgba(34, 211, 238, .1);
+}
+
+/* Tạo / Lưu / Tiếp theo: xanh điện chuyển tím, hai mép bắt sáng cyan và tím. */
+[data-preview='2d'] .button-primary,
+[data-preview='2d'] .hero-cta {
+  background: var(--pv-gloss-action);
+  box-shadow: var(--pv-gloss-action-shadow);
+}
+[data-preview='2d'] .button-primary:not([disabled]):hover,
+[data-preview='2d'] .hero-cta:not([disabled]):hover {
+  background: var(--pv-gloss-action);
+  box-shadow: var(--pv-gloss-action-shadow), 0 0 23px rgba(34, 211, 238, .28);
+}
+[data-preview='2d'] .button-primary:not([disabled]):active,
+[data-preview='2d'] .hero-cta:not([disabled]):active {
+  box-shadow: inset 0 2px 8px rgba(2, 8, 26, .5), inset 0 0 0 1px rgba(147, 197, 253, .6), 0 0 10px rgba(47, 124, 246, .3);
+}
+
+/* Hủy / Quay lại / thao tác phụ: kính xanh đậm với phản chiếu trên mặt và ánh sáng ở đáy. */
+[data-preview='2d'] .button-secondary,
+[data-preview='2d'] .sidebar-toggle,
+[data-preview='2d'] .scope-select,
+[data-preview='2d'] .page-back {
+  background: var(--pv-gloss-quiet);
+  border-color: var(--pv-line-strong);
+  box-shadow: var(--pv-gloss-quiet-shadow);
+}
+[data-preview='2d'] .button-secondary:not([disabled]):hover,
+[data-preview='2d'] .sidebar-toggle:hover,
+[data-preview='2d'] .scope-select:hover,
+[data-preview='2d'] .page-back:hover {
+  background: var(--pv-gloss-quiet);
+  border-color: var(--pv-blue-edge);
+  box-shadow: var(--pv-gloss-quiet-shadow), 0 0 16px rgba(47, 124, 246, .3);
+}
+[data-preview='2d'] .scope-select[aria-expanded='true'] {
+  border-color: var(--pv-blue-edge);
+  box-shadow: var(--pv-gloss-quiet-shadow), 0 0 0 3px var(--pv-blue-soft);
+}
+/* Giữ vòng focus vốn được page-back dùng thay outline. */
+[data-preview='2d'] .page-back:focus-visible { box-shadow: var(--pv-gloss-quiet-shadow), 0 0 0 3px var(--pv-blue-soft); }
+
+/* Xóa: ánh đỏ riêng, không dùng ánh xanh của nút điều hướng. */
+[data-preview='2d'] .button-danger {
+  background: var(--pv-gloss-danger);
+  border-color: rgba(255, 107, 107, .7);
+  box-shadow: inset 0 1px 0 rgba(255, 228, 230, .55), inset 0 -3px 10px rgba(255, 107, 107, .22), 0 0 13px rgba(255, 107, 107, .2);
+}
+[data-preview='2d'] .button-danger:not([disabled]):hover {
+  background: var(--pv-gloss-danger);
+  box-shadow: inset 0 1px 0 rgba(255, 228, 230, .7), inset 0 -3px 10px rgba(255, 107, 107, .3), 0 0 22px rgba(255, 107, 107, .32);
+}
+
+/* Mục đang chọn: cùng chất liệu, ánh sáng gọn hơn CTA. */
+[data-preview='2d'] .nav-item.is-active,
+[data-preview='2d'] .nav-item.is-active:hover,
+[data-preview='2d'] .filter-tab.is-active,
+[data-preview='2d'] .page-button.is-active,
+[data-preview='2d'] .icon-button.is-active,
+[data-preview='2d'] .icon-button.is-active:not([disabled]):hover {
+  background: var(--pv-gloss-selected);
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, .5), inset 2px 0 9px rgba(34, 211, 238, .4), 0 0 12px rgba(47, 124, 246, .28);
+}
+[data-preview='2d'] .detail-tab.is-active {
+  background: var(--pv-gloss-quiet);
+  box-shadow: inset 0 -2px 0 var(--pv-cyan), inset 0 1px 0 rgba(207, 227, 255, .4);
+}
+[data-preview='2d'] .icon-button:not(.is-active):not([disabled]):hover {
+  background: var(--pv-gloss-quiet);
+  box-shadow: var(--pv-gloss-quiet-shadow);
+}
+
+/* Bốn nút module lấy ánh sáng từ tone đang có: tím / cyan / xanh lá / cam. */
+[data-preview='2d'] .pj-module.is-active {
+  background: var(--pv-gloss-sheen), linear-gradient(135deg, color-mix(in srgb, var(--pj-tone) 30%, var(--pv-bg-0)), var(--pv-bg-1));
+  border-color: var(--pj-tone);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -3px 12px color-mix(in srgb, var(--pj-tone) 30%, transparent), 0 0 18px color-mix(in srgb, var(--pj-tone) 28%, transparent);
+}
+[data-preview='2d'] .button-primary[disabled],
+[data-preview='2d'] .button-secondary[disabled],
+[data-preview='2d'] .button-danger[disabled],
+[data-preview='2d'] .hero-cta[disabled],
+[data-preview='2d'] .icon-button[disabled] { box-shadow: none; }
+
+/* Tăng tương phản: bỏ vật liệu phản chiếu và glow trên mọi trạng thái. */
+@media (prefers-contrast: more) {
+  [data-preview='2d'] {
+    --pv-gloss-sheen: linear-gradient(transparent, transparent);
+    --pv-gloss-action: var(--pv-blue-fill);
+    --pv-gloss-selected: var(--pv-blue-fill);
+    --pv-gloss-quiet: var(--pv-bg-0);
+    --pv-gloss-danger: var(--pv-bg-0);
+  }
+  [data-preview='2d'] :is(.button-primary, .button-secondary, .button-danger, .hero-cta, .sidebar-toggle, .scope-select, .page-back, .nav-item, .filter-tab, .detail-tab, .page-button, .icon-button, .pj-module) { box-shadow: none !important; }
+  [data-preview='2d'] .pj-module.is-active { background: var(--pv-bg-0); }
+  [data-preview='2d'] .page-back:focus-visible { outline: 2px solid var(--pv-cyan); }
+}
+
+/* Màu trang: nền navy chung, điểm nhấn phân theo khu vực; không đổi màu trạng thái. */
+[data-preview='2d'] {
+  --pv-section-tone: var(--pv-violet);
+  --pv-section-ink: var(--pv-ink-violet);
+  --pv-section-secondary: var(--pv-pink);
+}
+[data-preview='2d'] .preview-root[data-section='workspaces'] {
+  --pv-section-tone: var(--pv-violet);
+  --pv-section-ink: var(--pv-ink-violet);
+  --pv-section-secondary: var(--pv-pink);
+}
+[data-preview='2d'] .preview-root[data-section='projects'] {
+  --pv-section-tone: var(--pv-cyan);
+  --pv-section-ink: var(--pv-ink-accent-hi);
+  --pv-section-secondary: var(--pv-violet);
+}
+[data-preview='2d'] .preview-root[data-section='settings'] {
+  --pv-section-tone: var(--pv-green);
+  --pv-section-ink: var(--pv-ink-green);
+  --pv-section-secondary: var(--pv-cyan);
+}
+[data-preview='2d'] .preview-root[data-section='notifications'] {
+  --pv-section-tone: var(--pv-orange);
+  --pv-section-ink: var(--pv-ink-amber);
+  --pv-section-secondary: var(--pv-pink);
+}
+[data-preview='2d'] .preview-content {
+  background-image: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-section-tone) 12%, transparent), transparent 55%), radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--pv-section-secondary) 7%, transparent), transparent 55%);
+}
+[data-preview='2d'] .preview-topbar {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--pv-section-tone) 36%, transparent);
+}
+[data-preview='2d'] :is(.page-eyebrow, .eyebrow) { color: var(--pv-section-ink); }
+[data-preview='2d'] :is(.page-head h1, .settings-head h1) {
+  color: color-mix(in srgb, var(--pv-section-ink) 35%, var(--pv-ink));
+  text-shadow: 0 0 22px color-mix(in srgb, var(--pv-section-tone) 24%, transparent);
+}
+
+/* Các panel giữ nền tối dễ đọc, phân biệt bằng màu ánh sáng ở góc và mép trên. */
+[data-preview='2d'] .panel {
+  --pv-panel-tone: var(--pv-section-tone);
+  background: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-panel-tone) 12%, transparent), transparent 65%), linear-gradient(170deg, var(--pv-bg-2), var(--pv-bg-0));
+  border-color: color-mix(in srgb, var(--pv-panel-tone) 25%, var(--pv-line));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pv-panel-tone) 42%, transparent);
+}
+[data-preview='2d'] .panel:has(.share-chart) { --pv-panel-tone: var(--pv-cyan); }
+[data-preview='2d'] .panel:has(.pv-bars) { --pv-panel-tone: var(--pv-violet); }
+[data-preview='2d'] .panel:has(.ws-tiles) { --pv-panel-tone: var(--pv-pink); }
+[data-preview='2d'] .panel:has(.home-table) { --pv-panel-tone: var(--pv-green); }
+[data-preview='2d'] .panel-head h2 { color: color-mix(in srgb, var(--pv-panel-tone) 22%, var(--pv-ink)); }
+[data-preview='2d'] .hero {
+  background: radial-gradient(ellipse at 0 0, rgba(124, 92, 255, .23), transparent 55%), radial-gradient(ellipse at 100% 100%, rgba(244, 114, 182, .14), transparent 50%), linear-gradient(160deg, var(--pv-panel-from), var(--pv-bg-0));
+  border-color: color-mix(in srgb, var(--pv-violet) 35%, var(--pv-line));
+  box-shadow: inset 0 1px 0 rgba(196, 181, 253, .26);
+}
+[data-preview='2d'] .hero-values li {
+  --pv-value-tone: var(--pv-violet);
+}
+[data-preview='2d'] .hero-values li:nth-child(2) { --pv-value-tone: var(--pv-green); }
+[data-preview='2d'] .hero-values li:nth-child(3) { --pv-value-tone: var(--pv-orange); }
+[data-preview='2d'] .hero-value-icon {
+  color: color-mix(in srgb, var(--pv-value-tone) 45%, var(--pv-ink));
+  background: var(--pv-gloss-sheen), linear-gradient(145deg, color-mix(in srgb, var(--pv-value-tone) 28%, var(--pv-bg-2)), var(--pv-bg-0));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pv-value-tone) 44%, transparent), 0 0 12px color-mix(in srgb, var(--pv-value-tone) 16%, transparent);
+}
+[data-preview='2d'] .nav-item[data-nav='workspaces']:not(.is-active) .nav-icon { color: var(--pv-ink-violet); }
+[data-preview='2d'] .nav-item[data-nav='projects']:not(.is-active) .nav-icon { color: var(--pv-cyan); }
+[data-preview='2d'] .nav-item[data-nav='settings']:not(.is-active) .nav-icon { color: var(--pv-ink-green); }
+[data-preview='2d'] .nav-item[data-nav='notifications']:not(.is-active) .nav-icon { color: var(--pv-ink-amber); }
+[data-preview='2d'] .settings-nav-item.is-active {
+  color: var(--pv-ink-green);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--pv-green) 16%, var(--pv-bg-0)), var(--pv-bg-1));
+  border-color: color-mix(in srgb, var(--pv-green) 65%, var(--pv-line));
+  box-shadow: inset 0 1px 0 rgba(110, 231, 183, .24);
+}
+@media (prefers-contrast: more) {
+  [data-preview='2d'] .preview-content { background-image: none; }
+  [data-preview='2d'] :is(.panel, .hero, .hero-value-icon, .settings-nav-item.is-active) { background: var(--pv-bg-0); border-color: var(--pv-hc-edge); box-shadow: none; }
+  [data-preview='2d'] :is(.page-head h1, .settings-head h1, .panel-head h2) { color: var(--pv-ink); text-shadow: none; }
+  [data-preview='2d'] .preview-topbar { box-shadow: none; }
+}
+
+/* Bề mặt thẻ và biểu đồ: chỉ màu/ánh sáng, giữ nguyên mọi số đo và dữ liệu. */
+[data-preview='2d'] .stat-card {
+  --pv-stat-tone: var(--pv-blue);
+}
+[data-preview='2d'] .stat-tone-brand { --pv-stat-tone: var(--pv-brand); }
+[data-preview='2d'] .stat-tone-accent { --pv-stat-tone: var(--pv-blue); }
+[data-preview='2d'] .stat-tone-violet { --pv-stat-tone: var(--pv-violet); }
+[data-preview='2d'] .stat-tone-cyan { --pv-stat-tone: var(--pv-cyan); }
+[data-preview='2d'] .stat-tone-green { --pv-stat-tone: var(--pv-green); }
+[data-preview='2d'] .stat-tone-orange { --pv-stat-tone: var(--pv-orange); }
+[data-preview='2d'] .stat-card {
+  background: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-stat-tone) 12%, transparent), transparent 70%), linear-gradient(150deg, var(--pv-surface), var(--pv-bg-2));
+  box-shadow: inset 0 1px 0 rgba(207, 227, 255, .12), inset 0 -1px 0 color-mix(in srgb, var(--pv-stat-tone) 20%, transparent);
+}
+[data-preview='2d'] .stat-card:hover {
+  border-color: color-mix(in srgb, var(--pv-stat-tone) 55%, var(--pv-line));
+  box-shadow: inset 0 1px 0 rgba(207, 227, 255, .2), 0 0 16px color-mix(in srgb, var(--pv-stat-tone) 14%, transparent);
+}
+[data-preview='2d'] .stat-card .stat-icon {
+  color: color-mix(in srgb, var(--pv-stat-tone) 48%, var(--pv-ink));
+  background: var(--pv-gloss-sheen), linear-gradient(145deg, color-mix(in srgb, var(--pv-stat-tone) 36%, var(--pv-bg-2)), var(--pv-bg-0));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pv-stat-tone) 48%, transparent), inset 0 -4px 9px color-mix(in srgb, var(--pv-stat-tone) 18%, transparent), 0 0 12px color-mix(in srgb, var(--pv-stat-tone) 16%, transparent);
+}
+
+[data-preview='2d'] :is(.resource-card, .mini-card) {
+  --pv-card-tone: var(--pv-blue);
+}
+[data-preview='2d'] :is(.resource-card, .mini-card):has(.cover-violet) { --pv-card-tone: var(--pv-violet); }
+[data-preview='2d'] :is(.resource-card, .mini-card):has(.cover-cyan) { --pv-card-tone: var(--pv-cyan); }
+[data-preview='2d'] :is(.resource-card, .mini-card):has(.cover-green) { --pv-card-tone: var(--pv-green); }
+[data-preview='2d'] :is(.resource-card, .mini-card):has(.cover-orange) { --pv-card-tone: var(--pv-orange); }
+[data-preview='2d'] :is(.resource-card, .mini-card):has(.cover-pink) { --pv-card-tone: var(--pv-pink); }
+[data-preview='2d'] :is(.resource-card, .mini-card) {
+  background: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-card-tone) 10%, transparent), transparent 65%), linear-gradient(150deg, var(--pv-surface), var(--pv-bg-2));
+  box-shadow: inset 0 1px 0 rgba(207, 227, 255, .14), inset 0 -1px 0 color-mix(in srgb, var(--pv-card-tone) 15%, transparent);
+}
+[data-preview='2d'] :is(.resource-card, .mini-card):hover {
+  border-color: color-mix(in srgb, var(--pv-card-tone) 65%, var(--pv-line));
+  box-shadow: inset 0 1px 0 rgba(207, 227, 255, .22), 0 0 18px color-mix(in srgb, var(--pv-card-tone) 15%, transparent);
+}
+[data-preview='2d'] :is(.resource-card, .mini-card).is-selected {
+  border-color: var(--pv-blue-edge);
+  box-shadow: inset 0 1px 0 rgba(207, 227, 255, .25), 0 0 0 1px var(--pv-blue-edge), 0 0 18px var(--pv-blue-soft);
+}
+[data-preview='2d'] .ws-tile-icon {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), inset 0 -4px 9px rgba(2, 8, 26, .3), 0 0 12px color-mix(in srgb, var(--pv-card-tone) 22%, transparent);
+}
+
+/* Lớp phản chiếu không che nhãn, không đổi chiều cao cột hay góc lát cắt. */
+[data-preview='2d'] .pv-bar {
+  background: linear-gradient(90deg, rgba(255, 255, 255, .25), transparent 35%, rgba(2, 8, 26, .2)), linear-gradient(180deg, var(--pv-cyan), var(--pv-blue) 45%, var(--pv-violet));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65), inset 1px 0 0 rgba(207, 227, 255, .3), 0 0 10px rgba(47, 124, 246, .22);
+  transition: box-shadow var(--pv-d-hover) var(--pv-ease-out);
+}
+[data-preview='2d'] .pv-col:hover .pv-bar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 1px 0 0 rgba(207, 227, 255, .5), 0 0 16px rgba(34, 211, 238, .4);
+}
+[data-preview='2d'] .pv-col:hover :is(.pv-bar-value, .pv-bar-label) { color: var(--pv-ink); }
+[data-preview='2d'] .donut {
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, .55), inset 0 -3px 5px rgba(2, 8, 26, .45), 0 0 18px rgba(34, 211, 238, .14);
+}
+[data-preview='2d'] .donut-hole {
+  background: radial-gradient(ellipse at 50% 0, var(--pv-bg-2), var(--pv-bg-0));
+  box-shadow: 0 -1px 2px rgba(2, 8, 26, .5), 0 2px 1px rgba(255, 255, 255, .25), inset 0 1px 5px rgba(2, 8, 26, .5);
+}
+[data-preview='2d'] .legend-dot { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .55), 0 0 0 1px rgba(207, 227, 255, .15); }
+
+@media (prefers-contrast: more) {
+  [data-preview='2d'] :is(.stat-card, .stat-card .stat-icon, .resource-card, .mini-card, .donut-hole) { background: var(--pv-bg-0); }
+  [data-preview='2d'] :is(.stat-card, .resource-card, .mini-card) { border-color: var(--pv-hc-edge); }
+  [data-preview='2d'] :is(.resource-card, .mini-card).is-selected { border-color: var(--pv-cyan); outline: 2px solid var(--pv-cyan); }
+  [data-preview='2d'] .pv-bar { background: var(--pv-cyan); }
+  [data-preview='2d'] :is(.stat-card, .stat-icon, .resource-card, .mini-card, .ws-tile-icon, .pv-bar, .donut, .donut-hole, .legend-dot) { box-shadow: none !important; }
+}

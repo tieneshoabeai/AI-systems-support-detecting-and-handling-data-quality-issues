@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { PreviewShell } from '../../views/preview/components/preview-shell'
-import { previewNotice, previewNoteIds } from '../../views/preview/preview-data'
+import { previewNoteIds } from '../../views/preview/preview-data'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 import type { PreviewSectionId } from '../../types/preview/preview.types'
 import { renderFrame, resetPreviewStore } from './preview-test-kit'
@@ -14,7 +14,7 @@ import { renderFrame, resetPreviewStore } from './preview-test-kit'
 // prop tìm kiếm nào: mọi test dưới đây gọi shell chỉ với (active, notice).
 
 const shell = (active: PreviewSectionId, children: ReactNode = <p>Nội dung thử</p>) => renderFrame(
-  <PreviewShell active={active} notice={previewNotice}>{children}</PreviewShell>,
+  <PreviewShell active={active}>{children}</PreviewShell>,
 )
 
 // jsdom của repo không cấp matchMedia → gán bản stub rồi trả lại nguyên trạng.
@@ -118,10 +118,11 @@ it('topbar KHÔNG còn ô tìm kiếm toàn cục (ô tìm nằm ở toolbar t�
   expect(document.activeElement).toBe(before)
 })
 
-it('giữ nội dung trang và hiển thị cảnh báo dữ liệu mẫu', () => {
+it('giữ nội dung trang và bỏ dải ghi chú nội bộ', () => {
   shell('projects')
   expect(screen.getByText('Nội dung thử').textContent).toBe('Nội dung thử')
-  expect(screen.getAllByText(previewNotice).length).toBeGreaterThan(0)
+  expect(document.querySelector('.preview-notice')).toBeNull()
+  expect(document.getElementById(previewNoteIds.shell)).toBeNull()
 })
 
 it('topbar dựng đủ các vùng của Global Application Shell, trái sang phải', () => {
@@ -154,7 +155,7 @@ it('nút "?" mở ô báo cáo ngay trong popover (không đổi hash); không c
   expect(window.location.hash).toBe('')
 
   // Dải lý do của shell nói điều ĐÃ LÀM được, không còn kể control nào thiếu.
-  expect(document.getElementById(previewNoteIds.shell)!.textContent).toContain('dữ liệu mẫu trong bộ nhớ tab')
+  expect(document.getElementById(previewNoteIds.shell)).toBeNull()
   for (const label of ['Workspace', 'Projects']) {
     expect(screen.getByRole('combobox', { name: label }).hasAttribute('disabled')).toBe(false)
   }

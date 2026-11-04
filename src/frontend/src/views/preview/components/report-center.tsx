@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { PreviewReport, ReportAttachment, ReportFilterTab, ReportIssueType, ReportStatus } from '../../../types/preview/preview.types'
 import {
-  matchReportQuery, matchReportTab, previewNoteIds, previewReasons,
+  matchReportQuery, matchReportTab,
   reportIssueTypeLabels, reportIssueTypeOptions, reportStatusMeta, reportTabsFor,
 } from '../preview-data'
 import { PreviewIcon } from './preview-icons'
@@ -124,7 +124,6 @@ export function ReportCenter() {
         <button type="button" className="button-secondary" onClick={goList}>
           <PreviewIcon name="list" /> Xem các báo cáo của tôi</button>
       </div>
-      <p className="popover-note" id={previewNoteIds.report}>{previewReasons.report}</p>
     </>}
 
     {view === 'create' && <>
@@ -157,6 +156,7 @@ export function ReportCenter() {
 
         <div className="field">
           <span className="field-label">Tệp đính kèm (tùy chọn)</span>
+          <small>Chỉ lưu thông tin tệp; nội dung chưa được tải lên.</small>
           {attachment === null
             ? <label className="dropzone">
               <input type="file" className="visually-hidden" aria-label="Chọn tệp đính kèm"
@@ -179,7 +179,6 @@ export function ReportCenter() {
           <button type="button" className="button-primary" onClick={submit}>Gửi báo cáo</button>
         </div>
       </div>
-      <p className="popover-note" id={previewNoteIds.report}>{previewReasons.report}</p>
     </>}
 
     {view === 'list' && <>
@@ -212,7 +211,6 @@ export function ReportCenter() {
           "Hiển thị 1–6 của 8 báo cáo" trong Ô; trang vẫn lật được bằng nút số. */}
       <Pagination label="Phân trang báo cáo" total={filtered.length} page={safePage} perPage={perPage}
         onPage={setPage} hideWhenEmpty />
-      <p className="popover-note" id={previewNoteIds.report}>{previewReasons.report}</p>
     </>}
 
     {view === 'detail' && <>
@@ -244,7 +242,6 @@ export function ReportCenter() {
             </div>
             : <p className="notice-empty">Báo cáo này không kèm tệp.</p>}
         </div>}
-      <p className="popover-note" id={previewNoteIds.report}>{previewReasons.report}</p>
     </>}
   </div>
 }

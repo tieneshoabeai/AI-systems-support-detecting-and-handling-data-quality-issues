@@ -63,6 +63,9 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
   expect(wsTotal).toBeGreaterThan(28)
   expect(cardCount()).toBe(28)
   expect(screen.getByText(`Hiển thị 1–28 của ${wsTotal} Workspaces`)).toBeDefined()
+  const coverVariants = new Map(Array.from(document.querySelectorAll<HTMLElement>('.resource-card .cover-art'))
+    .map(cover => [cover.dataset.seed, cover.dataset.art]))
+  expect(new Set(coverVariants.values()).size).toBeGreaterThan(1)
 
   // Tìm kiếm đứng TRONG toolbar của chính trang (chủ batch 03/11 bỏ ô toàn cục ở topbar): nó
   // là control ĐẦU hàng, trước ba bộ lọc, và chỉ tìm thứ trang này liệt kê — workspace.
@@ -70,6 +73,8 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
   fireEvent.change(search(), { target: { value: 'finance' } })
   expect(cardCount()).toBe(1)
   expect(cardTitles()).toEqual(['Finance'])
+  const filteredCover = document.querySelector<HTMLElement>('.resource-card .cover-art')!
+  expect(filteredCover.dataset.art).toBe(coverVariants.get(filteredCover.dataset.seed))
 
   fireEvent.change(search(), { target: { value: 'không tồn tại' } })
   expect(screen.getByText('Không có kết quả')).toBeDefined()
@@ -444,7 +449,7 @@ it('projects: không có ô tìm; thẻ không có dataset hiện khu vực tr�
   expect(cardCount()).toBe(12)
 
   // Thân thẻ nói thẳng project chưa nạp dataset (khu vực nạp thuộc module Dataset của T).
-  expect(within(cardByTitle('Open Questions')).getByText('Chưa có tập dữ liệu — khu vực nạp file sẽ ở batch Dataset.')).toBeDefined()
+  expect(within(cardByTitle('Open Questions')).getByText('Chưa có tập dữ liệu.')).toBeDefined()
   // 1 click = điều hướng sang trang Project riêng (không còn panel kề bên).
   fireEvent.click(cardByTitle('Open Questions'))
   expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-empty')
@@ -452,8 +457,8 @@ it('projects: không có ô tìm; thẻ không có dataset hiện khu vực tr�
 
 it('home: hero là placeholder 2D cho scene 3D của T + dải giá trị, bỏ hết tiện ích thừa', () => {
   renderFrame(<HomePreviewView />)
-  const stage = screen.getByRole('img', { name: /Khu vực mô phỏng 3D/ })
-  expect(stage.textContent).toContain('placeholder CSS')
+  const stage = screen.getByRole('img', { name: /Minh họa vũ trụ dữ liệu/ })
+  expect(stage.querySelector('.stage-tag')).toBeNull()
   expect(screen.queryByRole('canvas')).toBeNull()
   // Ba giá trị dưới hero (ảnh home). Bản cũ kê thêm .stage-satellite / hero-card /
   // hero-module-list — trùng hàng stat bên dưới và không có trong ảnh → đã bỏ.
@@ -637,7 +642,7 @@ it('trang Project: ⋯ của dataset mở đúng ba mục của ảnh, "Quản l
   // Lý do nằm ở CHÂN MODAL với id riêng, vì dải note đáy trang Project đã bỏ: để trùng id ở hai
   // nơi là hai phần tử cùng id trong DOM khi modal mở.
   expect(dialog.querySelector(`#${previewNoteIds.projectMembersPage}`)?.textContent)
-    .toContain('roster của Workspace')
+    .toContain('Chỉ người đã thuộc Workspace')
   expect(document.querySelectorAll(`#${previewNoteIds.projectMembersPage}`)).toHaveLength(1)
   // Ràng buộc nghiệp vụ: ô thêm người chỉ duyệt roster của workspace, không có ô email tự do.
   expect(within(dialog).getByRole('button', { name: 'Thêm thành viên' })).toBeDefined()
@@ -680,7 +685,7 @@ it('trang Project: chọn nút module làm sáng đúng khối tương ứng, kh
   expect(active).toEqual(['Data View'])
 
   expect(window.location.hash).toBe('')
-  expect(document.getElementById(previewNoteIds.projectModules)?.textContent).toContain('CHƯA CHỐT')
+  expect(document.getElementById(previewNoteIds.projectModules)).toBeNull()
 
   // Đường THẬT duy nhất tới scene của T: nút ở khoang giữa, điều hướng qua URL 3D (không hash).
   fireEvent.click(screen.getByRole('button', { name: /Mở Dataset Universe 3D/ }))
