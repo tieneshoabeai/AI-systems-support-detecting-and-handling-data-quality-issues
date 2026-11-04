@@ -11,5 +11,9 @@ export default defineConfig({
     root: fileURLToPath(new URL('../../../', import.meta.url)),
     environment: 'jsdom',
     include: ['.agents/dataset-3d-core/captures/*.measure.ts'],
+    // These harnesses sample thousands of vertices from the real scene graph; 5s is the
+    // default and it is not enough on a loaded machine.
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
   },
 })
