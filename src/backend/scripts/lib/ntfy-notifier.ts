@@ -66,6 +66,7 @@ export async function sendPushNotification(options: PushNotificationOptions): Pr
           port: url.port ? Number(url.port) : isHttps ? 443 : 80,
           path: '/',
           method: 'POST',
+          family: 4,
           headers,
           timeout: timeoutMs,
         },

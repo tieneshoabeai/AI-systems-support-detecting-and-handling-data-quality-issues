@@ -25,14 +25,18 @@
      - Xây dựng `StorageService` với 2 chế độ:
        - **Chế độ Cloud (S3/R2):** Kích hoạt khi có cấu hình `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` trong `.env`.
        - **Chế độ Cục bộ (Local Fallback):** Tự động lưu vào thư mục `./storage/` nếu chưa cấu hình tài khoản đám mây, đảm bảo việc code và test không bị gián đoạn.
+  4. **Tích hợp Kiến trúc Bảo mật Kênh truyền Cloudflare TLS 1.3 Cổng 443:**
+     - Triển khai **Cloudflare Zero Trust Tunnel (`cloudflared`)** kết nối an toàn từ máy chủ cục bộ tới mạng lưới Cloudflare Edge.
+     - Phát hành địa chỉ **HTTPS Cổng 443** có chứng chỉ CA quốc tế hợp lệ 100% (Google Trust Services / DigiCert), hiển thị ổ khóa xanh bảo mật.
+     - Cấu hình `trust proxy` trong NestJS nhận diện IP thực (`CF-Connecting-IP`) và mã định danh luồng (`CF-Ray`).
 - **Lý do:**
-  - Giải quyết dứt điểm giới hạn 512MB của MongoDB Atlas Free Tier mà không vi phạm điều khoản dịch vụ (ToS), không tốn chi phí bản quyền, và tuân thủ đúng chuẩn thiết kế Data Lake hiện đại.
+  - Giải quyết dứt điểm giới hạn 512MB của MongoDB Atlas Free Tier mà không vi phạm điều khoản dịch vụ (ToS), đồng thời đảm bảo an toàn thông tin toàn trình (Data in Transit) trên Cổng 443.
 - **Ảnh hưởng đến đâu:**
-  - Sơ đồ kiến trúc tổng thể, cấu trúc `DatasetSchema` (thêm `storage_key`), module `src/backend/src/core/storage`, và tài liệu kế hoạch triển khai backend (`docs/backend_implementation_plan_v3.md`).
+  - Sơ đồ kiến trúc tổng thể, cấu trúc `DatasetSchema` (thêm `storage_key`), module `src/backend/src/core/storage`, cấu hình NestJS `main.ts`, và tài liệu kế hoạch triển khai backend (`docs/backend_implementation_plan_v3.md`).
 
 ---
 
-## 2. Kiến trúc Tổng thể Hệ thống (Hybrid Cloud Storage Architecture)
+## 2. Kiến trúc Tổng thể Hệ thống (Hybrid Cloud Storage & TLS 1.3 Architecture)
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -42,7 +46,7 @@
 |  - Visualizations: Chart.js (Histogram/Bar) + @xyflow/react (Neo4j Lineage DAG)    |
 +-----------------------------------------------------------------------------------+
                                           |
-                                          | HTTPS (TLS 1.3 - Port 443 / Cloudflare)
+                                          | HTTPS (TLS 1.3 - Port 443 / Cloudflare Tunnel)
                                           v
 +-----------------------------------------------------------------------------------+
 |                         BACKEND SERVICE (NestJS Modular Monolith)                 |
@@ -323,9 +327,34 @@ DatasetVersionSchema.index({ version_hash: 1 });
 
 ---
 
-## 6. Kết luận
+## 6. Kiến trúc Bảo mật Kênh truyền Cloudflare TLS 1.3 & Cổng 443 (Transport Layer Security)
 
-Kiến trúc **Hybrid Cloud Storage (v4.0)** đạt được sự cân bằng tối ưu:
-- **Chi phí & Giới hạn:** 0 đồng (100% Free Tier hợp lệ: Atlas 512MB + R2 10GB + Aura 200k nodes).
+Để bảo đảm dữ liệu lưu thông trên mạng Internet được bảo mật tuyệt đối, toàn bộ lưu lượng giữa Client và Backend được bảo vệ qua hạ tầng **Cloudflare TLS 1.3 trên Cổng 443**:
+
+### 6.1. Cơ chế Cloudflare Zero Trust Tunnel (`cloudflared`)
+- **Tầng Edge (Cloudflare):** Tiếp nhận yêu cầu HTTPS trên Cổng 443 tại 330+ trung tâm dữ liệu. Chứng chỉ số SSL/TLS do Google Trust Services / DigiCert ký duyệt, hiển thị ổ khóa xanh bảo mật trên mọi trình duyệt.
+- **Tầng Kết nối Outbound:** Daemon `cloudflared` trên máy chủ thiết lập 4 kết nối outbound bảo mật mã hóa bằng giao thức QUIC/HTTP2 tới Cloudflare.
+- **Không Mở Cổng Firewall:** Máy chủ không cần mở port-forwarding trên router và không yêu cầu quyền `root` Linux để bind cổng đặc quyền 443.
+
+### 6.2. Cấu hình NestJS Engine
+1. **Tin tưởng Proxy (`trust proxy`):**
+   ```typescript
+   app.getHttpAdapter().getInstance().set('trust proxy', 1);
+   ```
+2. **Nhận diện IP Thực tế của Client:**
+   - Ưu tiên trích xuất từ tiêu đề `req.headers['cf-connecting-ip']` thay vì IP của tunnel proxy, phục vụ Rate Limiting, Audit Logging và Auth Guards.
+   - Ghi nhận mã định danh `CF-Ray` cho mỗi yêu cầu để đối soát lỗi mạng toàn trình.
+3. **Chính sách HSTS (HTTP Strict Transport Security):**
+   - Helmet cấu hình tiêu đề `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, cấm tuyệt đối hạ cấp kết nối xuống HTTP.
+4. **Hỗ trợ Dynamic Swagger Server:**
+   - Swagger OpenAPI tự động nhận diện URL `https://*.trycloudflare.com` trên Cổng 443 để hỗ trợ kiểm thử API trực tiếp qua HTTPS.
+
+---
+
+## 7. Kết luận
+
+Kiến trúc **Hybrid Cloud Storage & Cloudflare TLS 1.3 (v4.0)** đạt được sự cân bằng tối ưu:
+- **Chi phí & Giới hạn:** 0 đồng (100% Free Tier hợp lệ: Atlas 512MB + R2 10GB + Aura 200k nodes + Cloudflare Quick Tunnel Cổng 443).
 - **RAM máy cục bộ:** Không tốn tài nguyên cho database ($\le 512\text{ MB}$ chỉ dành riêng cho NestJS).
-- **Tính khả thi & Chống nghẽn:** Có cơ chế Local Fallback giúp phát triển và kiểm thử ngay lập tức mà không phụ thuộc vào việc tạo tài khoản Cloudflare R2.
+- **Bảo mật Toàn trình:** Mã hóa luồng AES-256-GCM (Data at Rest) kết hợp Cloudflare TLS 1.3 Cổng 443 (Data in Transit).
+- **Tính khả thi & Chống nghẽn:** Có cơ chế Local Fallback và Quick Tunnel giúp phát triển, kiểm thử và nghiệm thu đồ án ngay lập tức mà không phụ thuộc vào chi phí mua domain hay cấu hình hạ tầng phức tạp.

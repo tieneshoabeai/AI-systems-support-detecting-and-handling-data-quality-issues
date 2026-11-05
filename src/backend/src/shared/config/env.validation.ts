@@ -14,6 +14,15 @@ export const EnvironmentSchema = z.object({
   API_PREFIX: z.string().default('api/v1'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 
+  // Cloudflare Zero Trust Tunnel & SSL/TLS Configuration
+  CLOUDFLARE_TUNNEL_ENABLED: boolEnv(true),
+  CLOUDFLARE_PROXY_TRUST: boolEnv(true),
+  CLOUDFLARE_TUNNEL_URL: z.string().optional(),
+  SSL_ENABLED: boolEnv(false),
+  SSL_PORT: z.coerce.number().default(443),
+  SSL_KEY_PATH: z.string().default('certs/privkey.pem'),
+  SSL_CERT_PATH: z.string().default('certs/fullchain.pem'),
+
   // MongoDB Atlas
   MONGODB_URI: z.string().min(1, 'MONGODB_URI không được để trống'),
 

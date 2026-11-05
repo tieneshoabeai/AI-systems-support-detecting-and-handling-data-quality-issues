@@ -11,6 +11,9 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { DatasetsModule } from './modules/datasets/datasets.module';
 import { DataViewModule } from './modules/data-view/data-view.module';
 import { LineageModule } from './modules/lineage/lineage.module';
+import { VersionsModule } from './modules/versions/versions.module';
+import { CleanRulesModule } from './modules/clean-rules/clean-rules.module';
+import { ExportsModule } from './modules/exports/exports.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -30,6 +33,9 @@ import { AppController } from './app.controller';
     DatasetsModule,
     DataViewModule,
     LineageModule,
+    VersionsModule,
+    CleanRulesModule,
+    ExportsModule,
   ],
   controllers: [AppController],
 })

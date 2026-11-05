@@ -12,6 +12,7 @@ import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { computeSha256Buffer } from '../../shared/crypto/crypto.util';
+import { detectDeviceName } from '../../shared/utils/device-detector.util';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
@@ -68,11 +69,14 @@ export class AuthService {
     const refreshTokenHash = computeSha256Buffer(rawRefreshToken);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    // 2. Lưu session vào database
+    // 2. Tự động nhận diện tên thiết bị từ tiêu đề HTTP User-Agent
+    const resolvedDeviceName = detectDeviceName(userAgent);
+
+    // Lưu session vào database
     const session = await this.usersService.createSession({
       user_id: user._id,
       refresh_token_hash: refreshTokenHash,
-      device_name: dto.device_name || 'Web Browser',
+      device_name: resolvedDeviceName,
       ip_address: ipAddress,
       user_agent: userAgent,
       expires_at: expiresAt,
@@ -92,6 +96,7 @@ export class AuthService {
       access_token: accessToken,
       refresh_token: rawRefreshToken,
       expires_in: 15 * 60, // 15 minutes
+      device_name: resolvedDeviceName,
       user: {
         id: user._id.toString(),
         email: user.email,

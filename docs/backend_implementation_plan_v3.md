@@ -23,15 +23,19 @@
        - Một nhánh đưa vào parser (`fast-csv`) để trích xuất 500 dòng đầu nhận diện Schema và ghi các bản ghi vào MongoDB Atlas.
   3. **Lưu trữ Snapshot Phiên bản và Xuất tệp An toàn:**
      - Bản chụp dữ liệu theo từng `DatasetVersion` được lưu dạng tệp trên R2 (`snapshots/`), giải phóng hoàn toàn gánh nặng dung lượng 512MB của MongoDB Atlas.
-- **Lý do:** Người dùng chọn Hướng 2 (Kiến trúc Hybrid Storage) để giải quyết triệt để bài toán dung lượng tệp lớn mà không tốn chi phí và không phụ thuộc vào 1 server CSDL duy nhất.
-- **Ảnh hưởng đến đâu:** Bổ sung Task thiết lập `StorageService` trong Sprint B1; điều chỉnh quy trình Ingestion trong Sprint B2; cập nhật `DatasetSchema` và `.env.example`.
+  4. **Tích hợp Bảo mật Kênh truyền Cloudflare TLS 1.3 & Cổng 443 (HTTPS):**
+     - Xuất bản dịch vụ Backend ra Internet thông qua **Cloudflare Zero Trust Tunnel (`cloudflared`)** trên **Cổng 443** với chứng chỉ số CA quốc tế hợp lệ 100% (Google Trust Services / DigiCert), hiển thị ổ khóa xanh bảo mật.
+     - Cấu hình `trust proxy` trong `main.ts` nhận diện chính xác IP thực (`CF-Connecting-IP`), mã định danh truy vết `CF-Ray` và tiêu đề `X-Forwarded-Proto: https`.
+     - Tự động hóa qua các scripts: `scripts/install-cloudflared.sh`, `scripts/start-cloudflare-tunnel.sh`.
+- **Lý do:** Đáp ứng chuẩn mã hóa đường truyền toàn trình (Data in Transit) trên Cổng 443, bảo vệ JWT Access Token và dữ liệu PII theo đúng tiêu chuẩn an toàn thông tin hiện đại.
+- **Ảnh hưởng đến đâu:** Bổ sung Task thiết lập `StorageService` trong Sprint B1; điều chỉnh quy trình Ingestion trong Sprint B2; cập nhật `main.ts`, `env.validation.ts`, `.env.example`, `package.json` và bổ sung tài liệu `docs/cloudflare_tunnel_setup.md`.
 
 ---
 
 ## 2. Tổng quan & 3 Câu hỏi Cốt lõi (Rule 1)
 
 1. **Đang làm gì?**
-   Xây dựng hoàn chỉnh toàn bộ tầng **Backend Service** tại thư mục `src/backend` theo kiến trúc **Modular Monolith (NestJS 10)**, tích hợp kiến trúc Hybrid Cloud (MongoDB Atlas + Neo4j AuraDB + Cloudflare R2/S3), động cơ Mật mã học (SHA-256 + AES-256-GCM), động cơ Làm sạch dữ liệu xác định (Tầng 1), động cơ AI đa tầng (Tầng 0 Schema, Tầng 2 Unsupervised ML, Tầng 3 Gemini Cloud LLM), và cung cấp tài liệu OpenAPI/Swagger cho 43 RESTful Endpoints.
+   Xây dựng hoàn chỉnh toàn bộ tầng **Backend Service** tại thư mục `src/backend` theo kiến trúc **Modular Monolith (NestJS 11)**, tích hợp kiến trúc Hybrid Cloud (MongoDB Atlas + Neo4j AuraDB + Cloudflare R2/S3), bảo mật kênh truyền **Cloudflare TLS 1.3 Cổng 443**, động cơ Mật mã học (SHA-256 + AES-256-GCM), động cơ Làm sạch dữ liệu xác định (Tầng 1), động cơ AI đa tầng (Tầng 0 Schema, Tầng 2 Unsupervised ML, Tầng 3 Gemini Cloud LLM), và cung cấp tài liệu OpenAPI/Swagger cho 43 RESTful Endpoints.
 2. **Cho ai?**
    Phục vụ đồ án tốt nghiệp kỹ sư và cung cấp một hệ thống API vững chắc, có độ tin cậy cao, độc lập hoàn toàn với giao diện người dùng.
 3. **Để làm gì?**
@@ -46,15 +50,19 @@ src/backend/
 ├── Dockerfile                      # Build container chạy production
 ├── nest-cli.json                   # Cấu hình Nest CLI
 ├── package.json                    # Dependencies & Scripts
-├── tsconfig.json                   # Cấu hình TypeScript Strict mode
+├── tsconfig.json                   # Cấu hình TypeScript Strict mode (Zero Any)
 ├── tsconfig.build.json
-├── .env.example                    # Mẫu biến môi trường kết nối Cloud (Atlas, Aura, R2)
+├── .env.example                    # Mẫu biến môi trường kết nối Cloud (Atlas, Aura, R2, Tunnel)
+├── scripts/                        # Scripts tự động hóa hạ tầng & bảo mật
+│   ├── install-cloudflared.sh      # Tự động tải binary cloudflared chính thức
+│   ├── start-cloudflare-tunnel.sh  # Khởi chạy Cloudflare Quick Tunnel Cổng 443
+│   └── generate-ssl-certs.sh       # Sinh chứng chỉ X.509 tự ký dự phòng cục bộ
 ├── storage/                        # Thư mục lưu file cục bộ (Local Fallback Mode)
 │   ├── raw_files/
 │   ├── snapshots/
 │   └── exports/
 ├── src/
-│   ├── main.ts                     # Điểm khởi chạy: Port 3000, Swagger, Global Pipes/Filters
+│   ├── main.ts                     # Điểm khởi chạy: Trust Proxy Cloudflare, Port 3000, Swagger, Helmet HSTS
 │   ├── app.module.ts               # Root Module tổng hợp 9 feature modules & core modules
 │   │
 │   ├── core/                       # Tầng Dùng chung & Hạ tầng (Infrastructure/Core)
@@ -280,3 +288,5 @@ src/backend/
 4. **Lưu trữ tệp Hybrid:** Tệp thô và snapshot được lưu trữ an toàn trên Cloudflare R2 / S3 (hoặc fallback cục bộ), không làm phình MongoDB Atlas.
 5. **Tài liệu hóa API:** Khai báo đầy đủ Decorators Swagger (`@ApiOperation`, `@ApiResponse`, `@ApiBody`), xuất hiện chuẩn xác trên `/api/v1/docs`.
 6. **Kiểm thử tự động:** Test suite Jest đạt coverage $\ge 85\%$ cho Core Logic (`crypto.util.ts`, `storage.service.ts`, `clean-rules.engine.ts`, `auth.service.ts`).
+7. **Bảo mật Kênh truyền Toàn trình (TLS 1.3 & Cổng 443):** Dịch vụ API xuất bản qua Cloudflare Zero Trust Tunnel đạt chuẩn HTTPS TLS 1.3 Cổng 443, hiển thị chứng chỉ CA quốc tế hợp lệ, tích hợp đầy đủ cơ chế HSTS và `trust proxy` nhận diện IP thực (`CF-Connecting-IP`).
+

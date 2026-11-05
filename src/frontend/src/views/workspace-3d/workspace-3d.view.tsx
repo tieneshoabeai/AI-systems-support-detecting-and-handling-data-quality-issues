@@ -90,7 +90,7 @@ export function Workspace3DView({ resources, onOpenDataset, localFileMode = fals
   const [selectedId, setSelectedId] = useState<string | null>(null)
   return <main className="resource-page">
     <header className="resource-page-header"><a href="/" className="resource-brand" aria-label="Về ứng dụng"><img src={logo} alt="8DA AI Network" width="48" height="48" /><span>Resource explorer</span></a><span className="resource-demo-badge">DEMO · CHỈ XEM THỬ</span></header>
-    <div className="resource-intro"><div><span className="eyebrow"><span className="brand-dot" /> WORKSPACE 3D</span><h1>Bản đồ tài nguyên</h1></div><p>Khám phá Workspace, Project và Dataset.<br />{localFileMode ? 'Đọc file cục bộ trong tab, chưa gửi lên máy chủ.' : 'Dữ liệu minh họa, không kết nối máy chủ.'}</p></div>
+    <div className="resource-intro"><div><span className="eyebrow"><span className="brand-dot" /> WORKSPACE 3D</span><h1>Bản đồ tài nguyên</h1></div><p>Khám phá Workspace, Project và Dataset.<br />{localFileMode ? 'Đọc file CSV trực tiếp trong tab này.' : 'Dữ liệu minh họa trong bộ nhớ tab.'}</p></div>
     <ResourceMap resources={resources} selectedId={selectedId} onSelect={setSelectedId} onOpenDataset={onOpenDataset} localFileMode={localFileMode} />
     <footer className="resource-footer">Preview phát triển · Không upload hoặc thay đổi dữ liệu thật</footer>
   </main>

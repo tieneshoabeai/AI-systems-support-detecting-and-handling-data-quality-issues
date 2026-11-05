@@ -19,6 +19,13 @@ node_modules/
 *.pem
 *.key
 *.cert
+*.crt
+certs/
+**/certs/
+bin/
+**/bin/
+.cloudflared/
+**/.cloudflared/
 Neo4j-*.txt
 **/Neo4j-*.txt
 *credentials*

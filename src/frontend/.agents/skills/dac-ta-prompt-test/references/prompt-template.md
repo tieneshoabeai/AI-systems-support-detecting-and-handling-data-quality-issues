@@ -11,6 +11,13 @@
 ## 2. TASK (Nhiệm vụ)
 Viết hàm `<tên>(<tham số>)` để <mục đích>. Chỉ viết các hàm sau: <danh sách>.
 
+## 2A. SOURCE-OF-TRUTH MAP (chỉ dùng khi migration/integration)
+| Source hiện có | Trách nhiệm | Product destination | Behavior phải giữ | Không port |
+|---|---|---|---|---|
+| <path> | <factory/route/material/lifecycle> | <path> | <điều kiện kiểm chứng> | <lý do> |
+
+Phân loại migration: `port-fidelity` / `approximation` / `redesign`.
+
 ## 3. INPUT (Đầu vào)
 | Tên | Kiểu | Miền hợp lệ |
 |-----|------|-------------|
@@ -38,6 +45,13 @@ Viết hàm `<tên>(<tham số>)` để <mục đích>. Chỉ viết các hàm s
 ## 8. CRITERIA (Tiêu chí đúng)
 - Qua toàn bộ bảng test dưới đây.
 - <tiêu chí phụ>
+
+## 9. MIGRATION ACCEPTANCE (chỉ dùng khi migration/integration)
+- Static evidence: <typecheck/lint/diff>
+- Functional evidence: <unit/component cases>
+- Runtime evidence: <route/failure/cleanup/browser>
+- Fidelity evidence: <ảnh, behavior, component IDs hoặc comparison source>
+- Không tuyên bố port hoàn tất khi một loại evidence còn thiếu.
 
 ### Bảng test
 <dán bảng test case>

@@ -25,6 +25,29 @@ Ngày xác nhận: 28/10/2026. Cập nhật batch UI auth: đã áp dụng màu/
 - Không mặc định trắng trên xanh `#00A878` đạt tương phản cho chữ nhỏ. Màu nút tối hơn `#008563` trong prompt tạo board chỉ là ứng viên kỹ thuật, cần đo tương phản và review ở batch UI.
 - Các token success/info/disabled/focus/hover, màu nền nhạt cho trạng thái và dark mode chưa được đặc tả đầy đủ; không coi palette năm màu là design system hoàn chỉnh.
 
+## 2.1 Theme dark cho preview 2D — ĐANG CHỜ NHÓM TRƯỞNG DUYỆT
+
+Trạng thái: đề đạt ngày 31/10/2026, đo lại toàn bộ ngày 01/11/2026 sau batch nghiệm thu 2D. Đây chưa phải quy chuẩn đã chốt; app thật vẫn dùng theme sáng mục 2.
+
+- Phạm vi: chỉ route dev-only `/preview/{home,workspaces,projects,notifications}`. Toàn bộ màu tối đóng trong scope CSS `[data-preview='2d']` (nạp động trong `views/preview/preview.css`), không đụng `src/app/design-tokens.css`, login, dialog hay shell đang merge. Đã kiểm chứng `yarn build` rồi quét `dist/assets/*.js` và `*.css`: không còn marker preview.
+- Lý do xin giữ dark: cả bốn ảnh nguồn (structure_ui, home, workspaces, projects) đều vẽ nền tối lam; dựng 2D trên nền sáng thì frame không khớp ảnh. Nhánh 3D của T cũng dark.
+- mapping token: `--pv-brand: #00a878` vẫn là màu nhận diện (stat tone "brand", chấm logo); điểm nhấn tương tác trong ảnh lại là lam → cần chốt C2: cho phép lam làm màu tương tác trong preview, hay ép về `#00A878`.
+- Nền đã nhấc một bậc theo phản hồi "nền hơi tối": `--pv-bg-0 #0a1120` · `--pv-bg-1 #0d1728` · `--pv-bg-2 #122033` · `--pv-surface #16263c` · `--pv-surface-2 #1b2f48` (bản đầu `bg-0` là `#04070f`).
+- Tương phản đo lại ngày 01/11/2026 (công thức luminance WCAG, cặp chữ/nền lấy đúng chỗ nó xuất hiện, nền chọn MỨC SÁNG NHẤT mà chữ đó từng đứng là `surface-2`; ngưỡng 4.5:1 chữ thường, 3:1 element đồ hoạ theo mục 5.5):
+  - Thấp nhất toàn hệ: `--pv-faint #8ea6c0` = 5.41. Hai bản trước đó đều HỎNG hoặc sát ngưỡng: `#6e869f` = 4.20, `#7d94ad` = 5.06.
+  - `--pv-ink #e8f1fb` = 11.90 · `--pv-muted #a9bcd6` = 7.02 · nhóm accent đạt 6.38–12.13, thấp nhất trong nhóm là `--pv-ink-eyebrow #7fb4ff` = 6.38.
+  - Chữ trắng trên nền đặc: `--pv-blue-fill #2563eb` = 5.17 · `--pv-fill-deep #1f5fd0` = 5.82 · `--pv-violet-fill #6b46e0` = 5.87 · `--pv-indigo-fill #4f5ee8` = 5.12. Lam gốc `--pv-blue #2f7cf6` = 3.94 HỎNG nên chỉ gánh viền/độ phát sáng, không bao giờ gánh chữ trắng.
+  - Viền ≥3: `--pv-blue-edge` = 4.44 trên `surface-2` · focus ring `--pv-cyan #22d3ee` = 10.43 trên `bg-0`.
+  - Ngoài nền đặc, audit còn lấy pixel THẬT của ảnh tinh vân (1672×941) đã composite qua scrim + saturate/brightness rồi đo từng điểm chữ trên cả bốn màn: 0 fail. Phần này cần browser nên không vào test tự động.
+- Font trong frame 2D KHÔNG dùng Plus Jakarta Sans của mục 3: lấy `'Segoe UI Variable Text' / 'Segoe UI' / system-ui` theo phản hồi "rối mắt" (chữ 'a'/'g' hình học của Jakarta đứng dày ở cỡ 11–12px của dashboard). Chỉ nằm trong scope `[data-preview='2d']`; app thật/login vẫn dùng Jakarta self-host, mục 3 không đổi. Nếu duyệt dark thì phải chốt luôn font nào là chuẩn cho app thật.
+- Thang chữ dồn về bậc nguyên: 11 · 12 · 14 · 16 · 18 · 21 · 30 · 34px, trần dưới 11px. Bản cũ có 11.5/12.5/13/13.5 — mắt không phân biệt được 0.5px nên cả màn thành một đám chữ "gần bằng nhau" nhưng không cái nào giống cái.
+- Vùng chạm: control đo được đều ≥24px theo WCAG 2.5.8; đã sửa `button.row-link` trong danh sách thông báo từng chỉ cao 21px.
+- Ngân sách chuyển động đã chốt: chrome 140ms · hover 110ms · press 80ms · surface 130ms, kèm `prefers-reduced-motion`. Con số này THAY cho 190ms từng ghi trong memory/plan cũ; hai người FE lấy 140ms làm chuẩn.
+- Gate tự động: `src/__tests__/preview/preview-constraints.test.ts` đọc thẳng `preview.css`, chặn hex viết trong rule, chặn `var(--pv-…)` trỏ token chưa khai báo, chặn cỡ chữ nửa bậc và thời lượng viết tay, tính lại toàn bộ bảng tương phản ở trên. Đổi bất kỳ số nào trong mục này là test đỏ — có chủ đích.
+- Route: `#/preview/settings` không còn âm thầm render nội dung Home; hash lạ trong `#/preview/` được đưa về Home kèm thông báo, còn pathname `/preview/workspaces-3d` của nhánh 3D không bị đụng.
+- Rủi ro nếu duyệt: hai bộ token (sáng cho app, dark cho preview). Giảm bằng cách: preview chỉ để duyệt frame, token dark chỉ nằm trong `views/preview/`, và khi app thật cần dark thì lấy lại bảng số đo này.
+- Nếu từ chối: cần làm lại toàn bộ `preview.css` theo nền sáng `#F6F8F7`/chữ `#202A29` và đo lại tương phản; frame và JSX không đổi.
+
 ## 3. Hướng hình ảnh và typography
 
 - Tính cách: chính xác, bình tĩnh, dễ hiểu; con người kiểm tra và quyết định xử lý dữ liệu.

@@ -9,8 +9,8 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start": "tsc -p tsconfig.build.json && nest start",
+    "start:dev": "tsc -p tsconfig.build.json && nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -19,7 +19,12 @@
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "type-check": "tsc --noEmit",
-    "tunnel": "ngrok http 3000",
+    "tunnel": "bash scripts/start-cloudflare-tunnel.sh",
+    "tunnel:install": "bash scripts/install-cloudflared.sh",
+    "tunnel:start": "bash scripts/start-cloudflare-tunnel.sh",
+    "ssl:generate": "bash scripts/generate-ssl-certs.sh",
+    "start:ssl": "bash scripts/generate-ssl-certs.sh && SSL_ENABLED=true SSL_PORT=443 pnpm run start",
+    "start:ssl:dev": "bash scripts/generate-ssl-certs.sh && SSL_ENABLED=true SSL_PORT=8443 pnpm run start:dev",
     "db:seed": "ts-node scripts/seed-initial-data.ts",
     "db:bootstrap": "ts-node scripts/bootstrap-database.ts",
     "db:reset:all": "TARGET=all ts-node scripts/bootstrap-database.ts",
@@ -73,7 +78,8 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.3"
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "jest": {
     "moduleFileExtensions": [

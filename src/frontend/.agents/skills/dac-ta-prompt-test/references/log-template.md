@@ -4,6 +4,7 @@ Ngày: ____  Người thực hiện: ____
 
 | Bước | Nội dung |
 |------|----------|
+| 0. Context gate (migration nếu có) | Source-of-truth map: ... · Context đủ/chưa đủ: ... · Mode: port-fidelity/approximation/redesign · Không port: ... |
 | 1. Yêu cầu | |
 | 2. Đặc tả | Đầu vào / Điều kiện / Xử lý / Đầu ra / Xếp loại / Thứ tự |
 | 3. Test case | (bảng) |

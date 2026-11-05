@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "route": "/workspaces/3d-dataset",
+      "status": 200,
+      "scene": {
+        "towers": [
+          "tower-01-back-high",
+          "tower-02",
+          "tower-03",
+          "tower-04",
+          "tower-07",
+          "tower-08",
+          "tower-09",
+          "tower-10",
+          "tower-12",
+          "tower-13",
+          "tower-14",
+          "tower-16",
+          "tower-17",
+          "tower-18"
+        ],
+        "glass": true,
+        "lower": true,
+        "heroes": 6
+      },
+      "controls": "passed"
+    },
+    {
+      "route": "/preview/home",
+      "status": 200,
+      "heading": "Khám phá vũ trụ dữ liệu của bạn"
+    },
+    {
+      "route": "/preview/workspaces",
+      "status": 200,
+      "heading": "Workspaces"
+    }
+  ],
+  "errors": []
+}

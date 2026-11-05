@@ -1,6 +1,6 @@
 ---
 name: dac-ta-prompt-test
-description: Biến một yêu cầu/chức năng lập trình thành bộ ba "đặc tả → test case → prompt" chặt chẽ trước khi nhờ AI sinh mã (kèm pseudocode và nhật ký AI prompting log). Dùng skill này mỗi khi người dùng đưa một chức năng, hàm, module, bài tập code cần làm, hoặc nói "viết prompt", "đặc tả", "spec", "test case", "trường hợp biên", "pseudocode", "nhờ AI viết hàm", "prompting log", "pipeline làm việc với AI" — kể cả khi họ chưa nói rõ muốn đặc tả. Dùng ngay cả khi người dùng chỉ mô tả sơ yêu cầu bằng một hai câu, vì mục tiêu là làm rõ trước khi sinh mã.
+description: Biến một yêu cầu/chức năng hoặc migration hệ thống có sẵn thành bộ "đặc tả → test case → prompt" chặt chẽ trước khi nhờ AI sinh mã. Dùng khi người dùng nói "viết prompt", "đặc tả", "spec", "test case", "pseudocode", "port", "migration", "refactor giữ nguyên behavior" hoặc cần tích hợp code/model/UI có sẵn.
 ---
 
 # Đặc tả → Prompt + Test case
@@ -25,6 +25,20 @@ Skill này phụ trách bước 1–5 và ghi log (bước 6–8 người dùng 
 ### 0. Làm rõ cùng giả định và phương án
 Phân tích thông tin đã có và chỉ rõ phần còn thiếu. Khi thông tin thiếu ảnh hưởng đến đầu vào, đầu ra, quy tắc xử lý hoặc kết quả mong đợi, hỏi người dùng trước khi hoàn thiện đặc tả. Kết hợp câu hỏi với giả định hoặc phương án đề xuất để người dùng dễ chọn; đánh dấu `[GIẢ ĐỊNH — CHỜ XÁC NHẬN]`, giải thích ảnh hưởng và trade-off. Không chỉ đưa giả định thay cho câu hỏi và không dùng giả định chưa được xác nhận làm yêu cầu chính thức, kết quả test mong đợi hoặc cơ sở implementation. Gom các câu hỏi liên quan, ưu tiên tối đa 3 câu mỗi lượt.
 
+### 0A. Mode Migration / Existing-system integration
+
+Dùng mode này khi yêu cầu là port, migration, refactor giữ behavior, đưa prototype/demo/review vào ứng dụng, hoặc tái sử dụng model/UI/module đã tồn tại. Trước khi viết đặc tả chính, đọc [migration-context-gate.md](references/migration-context-gate.md) và lập bản nháp **Source-of-truth map** trong chat.
+
+Không được gọi kết quả là “end-to-end”, “giống chính xác”, “giữ nguyên behavior” hoặc “port hoàn tất” nếu chưa biết các phần load-bearing: entry/route, factory hoặc logic gốc, config/material/asset, lifecycle/cleanup, interaction/motion và validation/evidence.
+
+Nếu source hiện có và bản mới không thể dùng chung implementation, phải phân loại rõ một trong ba lựa chọn trước code:
+
+1. **Port fidelity**: chuyển source-of-truth sang lớp product mới, giữ behavior đã ghi trong mapping.
+2. **Visual/behavioral approximation**: dựng lại có chủ đích; nêu phần khác biệt, không gọi là port chính xác.
+3. **Redesign**: chỉ giữ mục tiêu sản phẩm; không giữ cấu trúc/behavior cũ.
+
+Không thay `Port fidelity` bằng JSX/mock/visual approximation chỉ vì dễ code hơn. Khi context thiếu, ghi `[CHƯA ĐỦ CONTEXT]`, nêu source hoặc quyết định cần có và dừng trước implementation.
+
 ### 1. Yêu cầu
 Viết 2–3 câu: vấn đề, người dùng của chức năng, thành công trông như thế nào.
 
@@ -39,6 +53,8 @@ Viết 2–3 câu: vấn đề, người dùng của chức năng, thành công 
 
 Càng chi tiết càng tốt. Quy tắc phải xác định trước khi sinh mã, vì chỗ nào bỏ ngỏ AI sẽ tự chọn.
 
+Với mode Migration, bổ sung vào đặc tả: source-of-truth map, bảng `source cũ → product mới → behavior phải giữ → test/evidence`, ownership của geometry/material/event/listener/GPU resource, và phần cố ý không port.
+
 ### 3. Test case
 Viết thành bảng `Mã | Nhóm | Đầu vào | Kết quả mong đợi | Lý do`. Phủ đủ 4 nhóm:
 1. **Thường**: 2–3 ca đại diện.
@@ -48,11 +64,13 @@ Viết thành bảng `Mã | Nhóm | Đầu vào | Kết quả mong đợi | Lý 
 
 Kết quả mong đợi phải do **đặc tả** quyết định, không đoán từ việc mã chạy ra gì. Chọn nhóm nào liên quan bài toán và nói rõ nhóm nào bỏ qua kèm lý do. Nếu người dùng đã có test, rà soát xem thiếu nhóm nào rồi bổ sung.
 
+Với mode Migration, tách riêng bốn loại bằng chứng: static (typecheck/lint/diff), functional (unit/component), runtime (route, failure, cleanup, device/browser) và fidelity (screenshot/góc nhìn/behavior source). Build pass không thay thế browser/fidelity evidence.
+
 ### 4. Pseudocode
-Là "hợp đồng giữa người và máy": mô tả thuật toán độc lập cú pháp, tập trung logic. Dùng bước đánh số, `NẾU / NGƯỢC LẠI / LẶP`. Sau khi viết, tự phản biện: thử chạy tay 2 test case (một thường, một biên) qua pseudocode; nếu lệch thì sửa pseudocode trước khi làm tiếp. Pseudocode sẽ được đưa vào prompt để buộc AI đi đúng thuật toán, và dùng làm chuẩn đối chiếu khi review mã.
+Là "hợp đồng giữa người và máy": mô tả thuật toán độc lập cú pháp, tập trung logic. Dùng bước đánh số, `NẾU / NGƯỢC LẠI / LẶP`. Sau khi viết, tự phản biện: thử chạy tay 2 test case (một thường, một biên) qua pseudocode; nếu lệch thì sửa pseudocode trước khi làm tiếp. Pseudocode sẽ được đưa vào prompt để buộc AI đi đúng thuật toán, và dùng làm chuẩn đối chiếu khi review mã. Với mode Migration, pseudocode phải có init, ownership, update/event loop, resize nếu có, failure fallback và unmount/dispose.
 
 ### 5. Prompt
-Dùng khung trong `references/prompt-template.md` (CONTEXT, TASK, INPUT, CONSTRAINTS, EXAMPLES, OUTPUT, CRITERIA). Lưu ý:
+Dùng khung trong `references/prompt-template.md` (CONTEXT, TASK, INPUT, CONSTRAINTS, EXAMPLES, OUTPUT, CRITERIA). Với mode Migration, dùng thêm `SOURCE-OF-TRUTH MAP` và `MIGRATION ACCEPTANCE` trong khung đó. Lưu ý:
 - CONTEXT nêu ngôn ngữ **và phiên bản**, môi trường chạy, quy ước (ví dụ khai báo hàm thường, không thư viện ngoài).
 - EXAMPLES có ít nhất một ví dụ end-to-end (đầu vào → các bước → đầu ra) và một ví dụ lỗi.
 - OUTPUT yêu cầu AI trả: mã nguồn, **danh sách giả định đã dùng**, và comment trong mã tại chỗ bổ sung hoặc quyết định riêng.
@@ -63,10 +81,10 @@ Dùng khung trong `references/prompt-template.md` (CONTEXT, TASK, INPUT, CONSTRA
 Trước khi giao prompt, quét lại: không có khóa API, mật khẩu, dữ liệu cá nhân, tài liệu có bản quyền. Nếu có, thay bằng giá trị giả và báo người dùng.
 
 ### 7. Nhật ký AI (prompting log)
-Mỗi module có một mục log chạy đủ pipeline từ A đến Z. Dùng mẫu trong `references/log-template.md`. Điền sẵn phần 1–5 (yêu cầu, đặc tả, test, prompt); để trống phần kết quả AI, kiểm chứng, quyết định cho người dùng điền sau, hoặc điền giúp khi họ dán kết quả lên.
+Mỗi module có một mục log chạy đủ pipeline từ A đến Z. Dùng mẫu trong `references/log-template.md`. Điền sẵn phần 1–5 (yêu cầu, đặc tả, test, prompt); để trống phần kết quả AI, kiểm chứng, quyết định cho người dùng điền sau, hoặc điền giúp khi họ dán kết quả lên. Với mode Migration, ghi thêm source map, context gate và phần chưa port.
 
 ## Định dạng đầu ra
-Trình bày bản nháp trong chat để người dùng review, với các phần: Yêu cầu, Đặc tả, Test case, Pseudocode, Prompt (đặt trong khối code để dễ sao chép), Log. Nêu rõ các `[GIẢ ĐỊNH — CHỜ XÁC NHẬN]`. Chỉ tạo tệp `.md` sau khi nội dung và vị trí được người dùng xác nhận. Với tài liệu phụ trợ nội bộ do AI tạo trong project, dùng `.agents/<task>/`; với tài liệu chính thức của người dùng, hỏi vị trí hoặc dùng đúng vị trí đã được chỉ định. Nếu chức năng rất nhỏ, trình bày gọn trong chat.
+Trình bày bản nháp trong chat để người dùng review, với các phần: Yêu cầu, Đặc tả, Test case, Pseudocode, Prompt (đặt trong khối code để dễ sao chép), Log. Với mode Migration, thêm Source-of-truth map, Context completeness gate, Migration mapping và Acceptance evidence. Nêu rõ các `[GIẢ ĐỊNH — CHỜ XÁC NHẬN]`. Chỉ tạo tệp `.md` sau khi nội dung và vị trí được người dùng xác nhận. Với tài liệu phụ trợ nội bộ do AI tạo trong project, dùng `.agents/<task>/`; với tài liệu chính thức của người dùng, hỏi vị trí hoặc dùng đúng vị trí đã được chỉ định. Nếu chức năng rất nhỏ, trình bày gọn trong chat.
 
 Viết bằng ngôn ngữ người dùng đang dùng; mặc định tiếng Việt, giữ nguyên thuật ngữ kỹ thuật phổ biến (prompt, test case, unit test).
 
