@@ -4,183 +4,35 @@ import {
   AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
+  Camera,
   CanvasTexture,
   Color,
-  DoubleSide,
-  PointsMaterial,
+  HalfFloatType,
+  Line,
+  LineBasicMaterial,
+  LinearFilter,
+  MathUtils,
+  Mesh,
+  PlaneGeometry,
+  Points,
+  RepeatWrapping,
+  Scene,
+  ShaderMaterial,
   SRGBColorSpace,
-  Vector3,
+  WebGLCubeRenderTarget,
+  WebGLRenderTarget,
 } from 'three'
-import type { Group, Scene, Texture } from 'three'
+import type { Euler, Group, Texture, WebGLRenderer } from 'three'
+import { NEON_CUBE_CLUSTER_LAYOUT } from '../neon-cube/neon-cube.cluster'
 
-// The reference environment is only a few soft layers: a navy radial wash, a horizon glow,
-// sparse dust, vertical light shafts and a faint reflective floor. Everything stays dimmer
-// than the subject, but the glow band needs enough presence to read against pure black.
-const RAY_PLAN = [
-  { x: -6.6, y: 3.8, width: 1.9, height: 8.6, color: '#1f8ce6', opacity: 0.09, phase: 0.4 },
-  { x: -2.6, y: 4.2, width: 2.6, height: 9.2, color: '#22d3ff', opacity: 0.075, phase: 2.1 },
-  { x: 2.8, y: 3.9, width: 2.0, height: 8.8, color: '#2f7dff', opacity: 0.09, phase: 3.6 },
-  { x: 6.6, y: 4.2, width: 1.5, height: 8.0, color: '#22d3ff', opacity: 0.07, phase: 5.2 },
-  // Wide veil that sits directly behind the core and lifts the centre of the backdrop.
-  { x: 0.2, y: 4.0, width: 3.2, height: 9.4, color: '#2f8fd6', opacity: 0.04, phase: 1.2 },
-]
-
-const RAY_DISTANCE = 28
+// Deep-field nebula: an equirect sky baked on the GPU once, real star Points above it, a
+// rim-fading floor halo and three orbit rings. The sky stays dimmer than the subject and under
+// the bloom threshold (1.0); only hero stars and the meteor may bloom.
+const STAR_COUNT = 1480
+const HERO_STAR_COUNT = 20
+const STAR_RADIUS = 55
 
 const disableRaycast = () => {}
-
-function makeCanvas(width: number, height: number) {
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  return canvas
-}
-
-function toTexture(canvas: HTMLCanvasElement) {
-  const texture = new CanvasTexture(canvas)
-  texture.colorSpace = SRGBColorSpace
-  return texture
-}
-
-function createBackdropTexture() {
-  const width = 1024
-  const height = 576
-  const canvas = makeCanvas(width, height)
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('2D canvas is unavailable for the holographic backdrop')
-  const centerX = width / 2
-  const base = context.createRadialGradient(centerX, height * 0.42, 0, centerX, height * 0.42, width * 0.75)
-  base.addColorStop(0, '#04121f')
-  base.addColorStop(0.5, '#02101c')
-  base.addColorStop(0.75, '#01060d')
-  base.addColorStop(1, '#000000')
-  context.fillStyle = base
-  context.fillRect(0, 0, width, height)
-
-  // Wide elliptical glow behind the pedestal, then a softer horizon core inside it.
-  context.save()
-  context.translate(width * 0.5, height * 0.68)
-  context.scale(2, 0.55)
-  const wash = context.createRadialGradient(0, 0, 0, 0, 0, width * 0.5)
-  wash.addColorStop(0, 'rgba(16, 120, 160, 0.30)')
-  wash.addColorStop(0.55, 'rgba(12, 90, 130, 0.12)')
-  wash.addColorStop(1, 'rgba(16, 120, 160, 0)')
-  context.fillStyle = wash
-  context.fillRect(-width, -height, width * 2, height * 2)
-  context.restore()
-
-  context.save()
-  context.translate(width * 0.5, height * 0.685)
-  context.scale(3, 0.1)
-  const core = context.createRadialGradient(0, 0, 0, 0, 0, width * 0.5)
-  core.addColorStop(0, 'rgba(110, 210, 240, 0.10)')
-  core.addColorStop(1, 'rgba(110, 210, 240, 0)')
-  context.fillStyle = core
-  context.fillRect(-width, -height, width * 2, height * 2)
-  context.restore()
-
-  const veil = context.createLinearGradient(0, 0, width, 0)
-  veil.addColorStop(0, 'rgba(30, 110, 170, 0)')
-  veil.addColorStop(0.5, 'rgba(30, 110, 170, 0.05)')
-  veil.addColorStop(1, 'rgba(30, 110, 170, 0)')
-  context.fillStyle = veil
-  context.fillRect(0, 0, width, height)
-  return toTexture(canvas)
-}
-
-// Vertical shaft mask: bright through the middle band, feathered on every edge.
-function createRayTexture() {
-  const canvas = makeCanvas(64, 256)
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('2D canvas is unavailable for the holographic rays')
-  const vertical = context.createLinearGradient(0, 0, 0, 256)
-  vertical.addColorStop(0, 'rgba(255, 255, 255, 0)')
-  vertical.addColorStop(0.22, 'rgba(255, 255, 255, 0.22)')
-  vertical.addColorStop(0.5, 'rgba(255, 255, 255, 0.75)')
-  vertical.addColorStop(0.78, 'rgba(255, 255, 255, 0.28)')
-  vertical.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  context.fillStyle = vertical
-  context.fillRect(0, 0, 64, 256)
-  const horizontal = context.createLinearGradient(0, 0, 64, 0)
-  horizontal.addColorStop(0, 'rgba(255, 255, 255, 0)')
-  horizontal.addColorStop(0.5, 'rgba(255, 255, 255, 1)')
-  horizontal.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  context.globalCompositeOperation = 'destination-in'
-  context.fillStyle = horizontal
-  context.fillRect(0, 0, 64, 256)
-  return toTexture(canvas)
-}
-
-// One radial spill, a restrained perspective grid and two whisper-thin arcs that echo
-// the base halo as a floor reflection.
-function createGroundTexture() {
-  const size = 1024
-  const canvas = makeCanvas(size, size)
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('2D canvas is unavailable for the holographic ground')
-  const center = size / 2
-  const glow = context.createRadialGradient(center, center, 0, center, center, center)
-  glow.addColorStop(0, 'rgba(70, 60, 190, 0.30)')
-  glow.addColorStop(0.35, 'rgba(48, 40, 140, 0.15)')
-  glow.addColorStop(0.75, 'rgba(14, 18, 70, 0)')
-  glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
-  context.fillStyle = glow
-  context.fillRect(0, 0, size, size)
-
-  // The grid lives on its own layer so the radial fade can erase it without dimming the glow.
-  const grid = makeCanvas(size, size)
-  const gridContext = grid.getContext('2d')
-  if (!gridContext) throw new Error('2D canvas is unavailable for the holographic floor grid')
-  gridContext.strokeStyle = 'rgba(140, 235, 255, 0.07)'
-  gridContext.lineWidth = 1.5
-  const step = size * 0.035
-  const lines = Math.ceil(center / step)
-  for (let index = -lines; index <= lines; index += 1) {
-    const position = center + index * step
-    gridContext.beginPath()
-    gridContext.moveTo(position, 0)
-    gridContext.lineTo(position, size)
-    gridContext.stroke()
-    gridContext.beginPath()
-    gridContext.moveTo(0, position)
-    gridContext.lineTo(size, position)
-    gridContext.stroke()
-  }
-  const fade = gridContext.createRadialGradient(center, center, 0, center, center, center)
-  fade.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  fade.addColorStop(0.34, 'rgba(255, 255, 255, 1)')
-  fade.addColorStop(0.55, 'rgba(255, 255, 255, 0)')
-  fade.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  gridContext.globalCompositeOperation = 'destination-in'
-  gridContext.fillStyle = fade
-  gridContext.fillRect(0, 0, size, size)
-  context.drawImage(grid, 0, 0)
-
-  context.strokeStyle = 'rgba(178, 140, 255, 0.16)'
-  context.shadowColor = 'rgba(178, 140, 255, 0.5)'
-  context.shadowBlur = 6
-  context.lineWidth = 3
-  for (const radius of [0.258, 0.305]) {
-    context.beginPath()
-    context.arc(center, center, center * radius, 0, Math.PI * 2)
-    context.stroke()
-  }
-  return toTexture(canvas)
-}
-
-function createDustTexture() {
-  const size = 32
-  const canvas = makeCanvas(size, size)
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('2D canvas is unavailable for the holographic dust')
-  const glow = context.createRadialGradient(16, 16, 0, 16, 16, 16)
-  glow.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  glow.addColorStop(0.35, 'rgba(255, 255, 255, 0.6)')
-  glow.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  context.fillStyle = glow
-  context.fillRect(0, 0, size, size)
-  return toTexture(canvas)
-}
 
 function createRandom(seed: number) {
   let state = seed >>> 0
@@ -193,8 +45,131 @@ function createRandom(seed: number) {
   }
 }
 
-function setSceneBackground(scene: Scene, texture: Texture | null) {
-  scene.background = texture
+const SKY_VERTEX = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`
+
+// Painted once into an equirect render target by one fragment pass (about a millisecond of GPU,
+// nothing on the main thread). A CPU bake at 2048x1024 cost tens of milliseconds and blocked the
+// first frames. This is the CPU bake's structure ported to the GPU: broad celadon gas over a
+// navy field, a diagonal belt of brighter dust, and only a soft, wide contrast ramp so the gas
+// stays gas instead of turning into veins.
+const NEBULA_FRAGMENT = /* glsl */ `
+  varying vec2 vUv;
+
+  float hash(vec2 p) {
+    vec2 hashed = fract(p * vec2(0.1031, 0.1030));
+    hashed += dot(hashed, hashed.yx + 33.33);
+    return fract((hashed.x + hashed.y) * hashed.x);
+  }
+
+  // Value noise on a lattice periodic every "cellsX" cells in x and "cellsY" in y, so the
+  // longitude seam at u = 0 stays invisible.
+  float valueNoise(vec2 p, vec2 cells) {
+    vec2 base = floor(p);
+    vec2 f = fract(p);
+    vec2 s = f * f * (3.0 - 2.0 * f);
+    vec2 corner = mod(base, cells);
+    float a = hash(corner);
+    float b = hash(mod(corner + vec2(1.0, 0.0), cells));
+    float c = hash(mod(corner + vec2(0.0, 1.0), cells));
+    float d = hash(mod(corner + vec2(1.0, 1.0), cells));
+    return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
+  }
+
+  // The palette is mixed in sRGB (as the CPU bake did) and lifted to linear at the end: the
+  // low opacities here only read as deep navy on top of the base when mixed in sRGB.
+  vec3 toLinear(vec3 srgb) {
+    return mix(srgb / 12.92, pow((srgb + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), srgb));
+  }
+
+  void main() {
+    float u = vUv.x;
+    float v = vUv.y;
+    float latitude = (0.5 - v) * 3.1415926;
+    float phase = (u - 0.17) * 6.2831853;
+    // Diagonal belt: latitude drifts +-tilt*9° along longitude, crossing the sky as a tilted ring.
+    float beltLatitude = 0.5236 + 0.6021 * sin(phase) * 0.1571;
+    float belt = exp(-pow((latitude - beltLatitude) / 0.3491, 2.0));
+    float halo = exp(-pow((latitude - beltLatitude) / 0.5934, 2.0));
+    // Default camera looks down ~30°, so much of the frame samples the lower third of the map.
+    float lower = exp(-pow((v - 0.7) / 0.18, 2.0));
+    float wipe = 0.45 + 0.55 * cos(phase - 3.1415926);
+    float equator = exp(-pow(latitude / 0.9599, 2.0));
+
+    vec3 color = mix(vec3(2.0, 6.0, 15.0), vec3(6.0, 18.0, 52.0), equator) / 255.0;
+
+    // Palette as sRGB; each layer is a broad glow plus its own noise cloud.
+    const vec3 NAVY = vec3(11.0, 42.0, 107.0) / 255.0;
+    const vec3 VIOLET = vec3(107.0, 70.0, 224.0) / 255.0;
+    const vec3 CYAN = vec3(31.0, 184.0, 216.0) / 255.0;
+    vec3 tints[3];
+    tints[0] = NAVY; tints[1] = VIOLET; tints[2] = CYAN;
+    float opacities[3];
+    opacities[0] = 0.38; opacities[1] = 0.14; opacities[2] = 0.18;
+    float gains[3];
+    gains[0] = 1.6; gains[1] = 1.2; gains[2] = 1.7;
+    vec2 cells[3];
+    cells[0] = vec2(4.0, 3.0); cells[1] = vec2(9.0, 6.0); cells[2] = vec2(11.0, 7.0);
+
+    for (int layer = 0; layer < 3; layer++) {
+      vec2 grain = cells[layer];
+      float glow = (halo * wipe * 0.55 + lower * 0.4) * opacities[layer] * gains[layer] * 0.55;
+      color = mix(color, tints[layer], clamp(glow, 0.0, 1.0));
+      float coarse = valueNoise(vec2(u, v) * grain, grain);
+      vec2 fine = grain * 3.0;
+      float detail = valueNoise(vec2(u, v) * fine + 0.37, fine);
+      float cloud = clamp((coarse * 0.7 + detail * 0.3 - 0.44) * 2.8, 0.0, 1.0);
+      float density = cloud * opacities[layer] * (0.15 + belt * wipe * gains[layer] + lower * 0.9);
+      color = mix(color, tints[layer], clamp(density, 0.0, 1.0));
+    }
+
+    gl_FragColor = vec4(toLinear(color), 1.0);
+  }
+`
+
+const SKY_TEXTURE_WIDTH = 1024
+const SKY_TEXTURE_HEIGHT = 512
+
+// three renders only cube textures as a sky that follows the camera; an equirect texture is
+// drawn as a flat screen-space image. The painted map is converted to a cubemap once at mount.
+function createSkyCubeTarget(gl: WebGLRenderer) {
+  // HalfFloat so the pass writes linear light directly (no tone map, no sRGB encode); the cube
+  // background shader then applies the renderer's tone map and colour space exactly once.
+  const target = new WebGLRenderTarget(SKY_TEXTURE_WIDTH, SKY_TEXTURE_HEIGHT, {
+    type: HalfFloatType,
+    wrapS: RepeatWrapping,
+    minFilter: LinearFilter,
+    magFilter: LinearFilter,
+    generateMipmaps: false,
+  })
+  const material = new ShaderMaterial({
+    uniforms: {},
+    vertexShader: SKY_VERTEX,
+    fragmentShader: NEBULA_FRAGMENT,
+    depthTest: false,
+    depthWrite: false,
+  })
+  const quad = new Mesh(new PlaneGeometry(2, 2), material)
+  quad.frustumCulled = false
+  const paintScene = new Scene()
+  paintScene.add(quad)
+  const previousTarget = gl.getRenderTarget()
+  gl.setRenderTarget(target)
+  gl.render(paintScene, new Camera())
+  gl.setRenderTarget(previousTarget)
+  quad.geometry.dispose()
+  material.dispose()
+
+  const cube = new WebGLCubeRenderTarget(1024)
+  cube.fromEquirectangularTexture(gl, target.texture)
+  cube.texture.colorSpace = SRGBColorSpace
+  target.dispose()
+  return cube
 }
 
 function Backdrop({ texture }: { texture: Texture }) {
@@ -206,110 +181,141 @@ function Backdrop({ texture }: { texture: Texture }) {
   return null
 }
 
-type DustLayerProps = {
-  seed: number
-  count: number
-  size: number
-  opacity: number
-  spread: number
-  height: number
-  speed: number
-  map: Texture
-  reducedMotion: boolean
+function setSceneBackground(scene: Scene, texture: Texture | null) {
+  scene.background = texture
 }
 
-function DustLayer({ seed, count, size, opacity, spread, height, speed, map, reducedMotion }: DustLayerProps) {
-  const geometry = useMemo(() => {
-    const random = createRandom(seed)
-    const positions = new Float32Array(count * 3)
-    const colors = new Float32Array(count * 3)
-    const cyan = new Color('#7be9ff')
-    const electric = new Color('#2f7dff')
-    const tint = new Color()
-    for (let index = 0; index < count; index += 1) {
-      positions[index * 3] = (random() - 0.5) * spread * 2
-      positions[index * 3 + 1] = -0.4 + random() * height
-      positions[index * 3 + 2] = (random() - 0.5) * spread * 2
-      tint.copy(cyan).lerp(electric, random())
-      colors[index * 3] = tint.r
-      colors[index * 3 + 1] = tint.g
-      colors[index * 3 + 2] = tint.b
-    }
-    const value = new BufferGeometry()
-    value.setAttribute('position', new BufferAttribute(positions, 3))
-    value.setAttribute('color', new BufferAttribute(colors, 3))
-    return value
-  }, [count, height, seed, spread])
+const STAR_VERTEX = /* glsl */ `
+  attribute float size;
+  attribute float amp;
+  attribute float phase;
+  attribute vec3 tint;
+  uniform float uTime;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    vec4 view = modelViewMatrix * vec4(position, 1.0);
+    float twinkle = 0.82 + 0.18 * sin(uTime * (0.7 + amp * 0.5) + phase);
+    gl_Position = projectionMatrix * view;
+    gl_PointSize = max(1.0, size * twinkle * (220.0 / max(-view.z, 1.0)));
+    vColor = tint * amp;
+    vAlpha = 0.55 + 0.45 * twinkle;
+  }
+`
 
-  const phases = useMemo(() => {
-    const random = createRandom(seed + 977)
-    return Float32Array.from({ length: count }, () => random() * Math.PI * 2)
-  }, [count, seed])
+const STAR_FRAGMENT = /* glsl */ `
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - vec2(0.5));
+    if (d > 0.5) discard;
+    float core = smoothstep(0.5, 0.0, d);
+    gl_FragColor = vec4(vColor, core * core * vAlpha);
+    // Same tone map and transfer as the background pass; these includes define functions and
+    // must stay outside main(), or the shader fails to compile and the stars silently vanish.
+    vec4 texel = gl_FragColor;
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    gl_FragColor = texel;
+  }
+`
 
-  const speedVariation = useMemo(() => {
-    const random = createRandom(seed + 1511)
-    return Float32Array.from({ length: count }, () => 0.55 + random() * 0.9)
-  }, [count, seed])
+type StarField = {
+  points: Points
+  step(elapsed: number, delta: number, drift: number): void
+  dispose(): void
+}
 
-  const material = useMemo(() => new PointsMaterial({
-    map,
-    size,
-    sizeAttenuation: true,
-    vertexColors: true,
+// One draw call for every star. Hero stars carry a higher `amp` so a handful of pixels
+// cross the 1.0 bloom threshold while the rest of the sky stays under it.
+function createStarField(seed: number): StarField {
+  const random = createRandom(seed)
+  const count = STAR_COUNT + HERO_STAR_COUNT
+  const positions = new Float32Array(count * 3)
+  const sizes = new Float32Array(count)
+  const amps = new Float32Array(count)
+  const phases = new Float32Array(count)
+  const tints = new Float32Array(count * 3)
+  const pale = new Color('#cfefff')
+  const violet = new Color('#c9b8ff')
+  const tint = new Color()
+  for (let index = 0; index < count; index += 1) {
+    const hero = index >= STAR_COUNT
+    const theta = random() * Math.PI * 2
+    const y = hero ? 0.1 + random() * 0.85 : -0.3 + random() * 1.3
+    const ring = Math.sqrt(Math.max(0, 1 - y * y))
+    positions[index * 3] = Math.cos(theta) * ring * STAR_RADIUS
+    positions[index * 3 + 1] = y * STAR_RADIUS
+    positions[index * 3 + 2] = Math.sin(theta) * ring * STAR_RADIUS
+    sizes[index] = hero ? 1.5 + random() * 1.1 : 0.4 + random() * 0.8
+    amps[index] = hero ? 1.7 + random() * 0.6 : 0.3 + random() * 0.4
+    phases[index] = random() * Math.PI * 2
+    tint.copy(pale).lerp(violet, random() * 0.65)
+    tints[index * 3] = tint.r
+    tints[index * 3 + 1] = tint.g
+    tints[index * 3 + 2] = tint.b
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(positions, 3))
+  geometry.setAttribute('size', new BufferAttribute(sizes, 1))
+  geometry.setAttribute('amp', new BufferAttribute(amps, 1))
+  geometry.setAttribute('phase', new BufferAttribute(phases, 1))
+  geometry.setAttribute('tint', new BufferAttribute(tints, 3))
+  const uniforms = { uTime: { value: 0 } }
+  const material = new ShaderMaterial({
+    uniforms,
+    vertexShader: STAR_VERTEX,
+    fragmentShader: STAR_FRAGMENT,
     transparent: true,
-    opacity,
-    alphaTest: 0.01,
     depthWrite: false,
     blending: AdditiveBlending,
-    toneMapped: false,
-  }), [map, opacity, size])
-
-  useEffect(() => () => {
-    geometry.dispose()
-    material.dispose()
-  }, [geometry, material])
-
-  useFrame(({ clock }, delta) => {
-    if (reducedMotion) return
-    const attribute = geometry.getAttribute('position') as BufferAttribute
-    const array = attribute.array as Float32Array
-    const elapsed = clock.elapsedTime
-    for (let index = 0; index < count; index += 1) {
-      const at = index * 3
-      array[at + 1] += delta * speed * speedVariation[index]
-      if (array[at + 1] > height - 0.4) array[at + 1] = -0.4
-      array[at] += Math.sin(elapsed * 0.18 + phases[index]) * delta * 0.02
-      array[at + 2] += Math.cos(elapsed * 0.14 + phases[index]) * delta * 0.02
-    }
-    attribute.needsUpdate = true
   })
-
-  return <points geometry={geometry} material={material} renderOrder={3} raycast={disableRaycast} frustumCulled={false} />
+  const points = new Points(geometry, material)
+  points.name = 'nebula-stars'
+  points.renderOrder = -4
+  points.frustumCulled = false
+  points.raycast = disableRaycast
+  return {
+    points,
+    // `drift` is 0 under reduced motion, which also freezes the twinkle and the rotation.
+    step(elapsed, delta, drift) {
+      uniforms.uTime.value = elapsed
+      points.rotation.y += delta * drift
+    },
+    dispose() { geometry.dispose(); material.dispose() },
+  }
 }
 
-function VolumetricRays({ texture, reducedMotion }: { texture: Texture; reducedMotion: boolean }) {
-  const group = useRef<Group>(null)
-  const forward = useMemo(() => new Vector3(), [])
-  useFrame(({ camera, clock }) => {
-    const holder = group.current
-    if (!holder) return
-    camera.getWorldDirection(forward)
-    holder.position.copy(camera.position).addScaledVector(forward, RAY_DISTANCE)
-    holder.quaternion.copy(camera.quaternion)
-    if (reducedMotion) return
-    holder.children.forEach((child, index) => {
-      child.position.x = RAY_PLAN[index].x + Math.sin(clock.elapsedTime * 0.12 + RAY_PLAN[index].phase) * 0.35
-    })
-  })
-  return <group ref={group} renderOrder={-5}>
-    {RAY_PLAN.map(ray => <mesh key={ray.color + ray.x} position={[ray.x, ray.y, 0]}
-      renderOrder={-5} raycast={disableRaycast} frustumCulled={false}>
-      <planeGeometry args={[ray.width, ray.height]} />
-      <meshBasicMaterial map={texture} color={ray.color} transparent opacity={ray.opacity}
-        blending={AdditiveBlending} depthWrite={false} depthTest={false} side={DoubleSide}
-        toneMapped={false} fog={false} />
-    </mesh>)}
-  </group>
+// One draw call for every star. The drift spins the shell slowly; the twinkle lives in the shader.
+function NebulaSky({ reducedMotion }: { reducedMotion: boolean }) {
+  const field = useMemo(() => createStarField(1997), [])
+  useEffect(() => () => field.dispose(), [field])
+  useFrame(({ clock }, delta) => {
+    // Reduced motion keeps a very slow drift but freezes the twinkle.
+    field.step(clock.elapsedTime, delta, reducedMotion ? 0.0006 : 0.004)
+  }, -1)
+  return <primitive object={field.points} />
+}
+
+// One radial spill that fades to black at the rim, so the model floats without a horizon line.
+function createGroundTexture() {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('2D canvas is unavailable for the holographic ground')
+  const center = size / 2
+  const glow = context.createRadialGradient(center, center, 0, center, center, center)
+  glow.addColorStop(0, 'rgba(70, 60, 190, 0.30)')
+  glow.addColorStop(0.35, 'rgba(48, 40, 140, 0.15)')
+  glow.addColorStop(0.68, 'rgba(14, 18, 70, 0.05)')
+  glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  context.fillStyle = glow
+  context.fillRect(0, 0, size, size)
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return texture
 }
 
 function GroundGlow({ texture }: { texture: Texture }) {
@@ -320,27 +326,168 @@ function GroundGlow({ texture }: { texture: Texture }) {
   </mesh>
 }
 
+const ORBIT_RINGS = [
+  { radius: 5, color: '#8a5bff', opacity: 0.1, speed: 0.02 },
+  { radius: 7.5, color: '#b18cff', opacity: 0.08, speed: -0.014 },
+  { radius: 10, color: '#6b46e0', opacity: 0.06, speed: 0.009 },
+] as const
+
+// Sits just under the violet base band (y 0.47–0.52) so the rings read as its continuation.
+const ORBIT_Y = 0.45
+
+function OrbitRings({ reducedMotion }: { reducedMotion: boolean }) {
+  const group = useRef<Group>(null)
+  useFrame((_state, delta) => {
+    if (reducedMotion || !group.current) return
+    group.current.children.forEach((child, index) => {
+      child.rotation.z += delta * ORBIT_RINGS[index]!.speed
+    })
+  })
+  return <group ref={group}>
+    {ORBIT_RINGS.map(ring => <mesh key={ring.radius} position={[0, ORBIT_Y, 0]}
+      rotation={[Math.PI / 2, 0, 0]} renderOrder={1} raycast={disableRaycast}>
+      <torusGeometry args={[ring.radius, 0.012, 6, 160]} />
+      <meshBasicMaterial color={ring.color} transparent opacity={ring.opacity}
+        blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} />
+    </mesh>)}
+  </group>
+}
+
+// Faint constellation linking the satellite cubes. The amber edge to the orange (Detection)
+// cube is the only warm line and the brightest of the set.
+function CubeConstellation() {
+  const geometries = useMemo(() => {
+    const [violet, cyan, blue, orange] = NEON_CUBE_CLUSTER_LAYOUT.map(node => node.position)
+    const cool: number[] = []
+    const warm: number[] = []
+    const edge = (from: readonly number[], to: readonly number[], target: number[]) => target.push(...from, ...to)
+    edge(violet!, blue!, cool)
+    edge(blue!, cyan!, cool)
+    edge(cyan!, violet!, cool)
+    edge(blue!, orange!, cool)
+    edge(orange!, cyan!, warm)
+    const coolGeometry = new BufferGeometry()
+    coolGeometry.setAttribute('position', new BufferAttribute(new Float32Array(cool), 3))
+    const warmGeometry = new BufferGeometry()
+    warmGeometry.setAttribute('position', new BufferAttribute(new Float32Array(warm), 3))
+    return [coolGeometry, warmGeometry] as const
+  }, [])
+  useEffect(() => () => geometries.forEach(geometry => geometry.dispose()), [geometries])
+  return <group raycast={disableRaycast}>
+    <lineSegments geometry={geometries[0]} raycast={disableRaycast}>
+      <lineBasicMaterial color="#7be9ff" transparent opacity={0.07} blending={AdditiveBlending}
+        depthWrite={false} toneMapped={false} fog={false} />
+    </lineSegments>
+    <lineSegments geometry={geometries[1]} raycast={disableRaycast}>
+      <lineBasicMaterial color="#ff9a3c" transparent opacity={0.22} blending={AdditiveBlending}
+        depthWrite={false} toneMapped={false} fog={false} />
+    </lineSegments>
+  </group>
+}
+
+const METEOR_WAIT_SECONDS = [15, 25] as const
+const METEOR_FLIGHT_SECONDS = 0.85
+const METEOR_TRAIL = 7
+
+type MeteorTrail = {
+  line: Line
+  update(camera: Camera, elapsed: number, delta: number): void
+  dispose(): void
+}
+
+function createMeteorTrail(): MeteorTrail {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(6), 3))
+  const material = new LineBasicMaterial({
+    color: '#d8f6ff', transparent: true, opacity: 0, blending: AdditiveBlending,
+    depthWrite: false, toneMapped: false, fog: false,
+  })
+  const line = new Line(geometry, material)
+  line.name = 'meteor-trail'
+  line.renderOrder = 2
+  line.frustumCulled = false
+  line.raycast = disableRaycast
+  const state = { next: 6, progress: -1, from: [0, 0, 0], to: [0, 0, 0] }
+
+  function update(camera: Camera, elapsed: number, delta: number) {
+    if (state.progress < 0 && elapsed >= state.next) {
+      const azimuth = Math.random() * Math.PI * 2
+      const elevation = MathUtils.lerp(0.35, 0.75, Math.random())
+      const distance = 38
+      const start = [
+        camera.position.x + Math.cos(azimuth) * Math.cos(elevation) * distance,
+        Math.max(6, camera.position.y + Math.sin(elevation) * distance),
+        camera.position.z + Math.sin(azimuth) * Math.cos(elevation) * distance,
+      ]
+      const heading = azimuth + Math.PI * 0.5 + (Math.random() - 0.5) * 0.6
+      state.from = start
+      state.to = [start[0] + Math.cos(heading) * METEOR_TRAIL, start[1] - METEOR_TRAIL * 0.35, start[2] + Math.sin(heading) * METEOR_TRAIL]
+      state.progress = 0
+    }
+    if (state.progress < 0) return
+    state.progress += delta / METEOR_FLIGHT_SECONDS
+    const t = state.progress
+    if (t >= 1) {
+      state.progress = -1
+      state.next = elapsed + MathUtils.lerp(METEOR_WAIT_SECONDS[0], METEOR_WAIT_SECONDS[1], Math.random())
+      material.opacity = 0
+      return
+    }
+    const attribute = geometry.getAttribute('position') as BufferAttribute
+    const tail = Math.max(0, t - 0.14)
+    attribute.setXYZ(0,
+      MathUtils.lerp(state.from[0]!, state.to[0]!, t),
+      MathUtils.lerp(state.from[1]!, state.to[1]!, t),
+      MathUtils.lerp(state.from[2]!, state.to[2]!, t))
+    attribute.setXYZ(1,
+      MathUtils.lerp(state.from[0]!, state.to[0]!, tail),
+      MathUtils.lerp(state.from[1]!, state.to[1]!, tail),
+      MathUtils.lerp(state.from[2]!, state.to[2]!, tail))
+    attribute.needsUpdate = true
+    material.opacity = Math.sin(Math.PI * Math.min(1, t * 1.2)) * 0.85
+  }
+
+  return {
+    line,
+    update,
+    dispose() { geometry.dispose(); material.dispose() },
+  }
+}
+
+// A shooting star every 15–25 s on a dome above the camera so it never crosses the model.
+// Unmounted entirely under reduced motion.
+function Meteor() {
+  const trail = useMemo(() => createMeteorTrail(), [])
+  useEffect(() => () => trail.dispose(), [trail])
+  useFrame(({ camera, clock }, delta) => trail.update(camera, clock.elapsedTime, delta))
+  return <primitive object={trail.line} />
+}
+
+function createSkyDrift(backgroundRotation: Euler) {
+  return {
+    step(delta: number, reducedMotion: boolean) {
+      backgroundRotation.y += delta * (reducedMotion ? 0.0012 : 0.004)
+    },
+  }
+}
+
 export function HolographicEnvironment({ reducedMotion }: { reducedMotion: boolean }) {
-  const textures = useMemo(() => ({
-    backdrop: createBackdropTexture(),
-    ray: createRayTexture(),
-    ground: createGroundTexture(),
-    dust: createDustTexture(),
-  }), [])
-
+  const gl = useThree(state => state.gl)
+  const scene = useThree(state => state.scene)
+  const sky = useMemo(() => createSkyCubeTarget(gl), [gl])
+  const drift = useMemo(() => createSkyDrift(scene.backgroundRotation), [scene])
+  const ground = useMemo(() => createGroundTexture(), [])
   useEffect(() => () => {
-    textures.backdrop.dispose()
-    textures.ray.dispose()
-    textures.ground.dispose()
-    textures.dust.dispose()
-  }, [textures])
-
+    sky.dispose()
+    ground.dispose()
+  }, [ground, sky])
+  useFrame((_state, delta) => drift.step(delta, reducedMotion), -1)
   return <>
-    <Backdrop texture={textures.backdrop} />
-    <VolumetricRays texture={textures.ray} reducedMotion={reducedMotion} />
-    <GroundGlow texture={textures.ground} />
-    <DustLayer seed={17} count={120} size={0.05} opacity={0.5} spread={12} height={9.4} speed={0.1} map={textures.dust} reducedMotion={reducedMotion} />
-    <DustLayer seed={41} count={80} size={0.022} opacity={1} spread={10} height={8.6} speed={0.16} map={textures.dust} reducedMotion={reducedMotion} />
-    <DustLayer seed={73} count={14} size={0.09} opacity={0.22} spread={13} height={10} speed={0.07} map={textures.dust} reducedMotion={reducedMotion} />
+    <Backdrop texture={sky.texture} />
+    <NebulaSky reducedMotion={reducedMotion} />
+    <GroundGlow texture={ground} />
+    <OrbitRings reducedMotion={reducedMotion} />
+    <CubeConstellation />
+    {!reducedMotion && <Meteor />}
   </>
 }

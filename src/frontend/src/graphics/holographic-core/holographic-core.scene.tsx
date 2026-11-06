@@ -186,7 +186,7 @@ function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, o
     camera.lookAt(new Vector3(...CAMERA_TARGET))
   }, [camera])
   return <>
-    <fogExp2 attach="fog" args={['#02101a', 0.011]} />
+    <fogExp2 attach="fog" args={['#040c22', 0.0095]} />
     <Lifecycle onContextLost={onContextLost} />
     <ambientLight color="#266bc9" intensity={0.28} />
     <pointLight color="#35e9ff" intensity={20} distance={9} position={[0, 3.5, 1.5]} />
