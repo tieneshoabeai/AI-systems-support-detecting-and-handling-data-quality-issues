@@ -202,6 +202,8 @@ it('combobox Projects chỉ liệt kê project của workspace đang chọn', ()
   fireEvent.click(within(popover).getByRole('option', { name: /^Loyalty Program/ }))
   expect(screen.getByRole('combobox', { name: 'Projects' }).textContent).toContain('Loyalty Program')
   expect(previewMockStore.getState().selection.projectId).toBe('prj-loyalty')
+  expect(window.location.hash).toBe('#/preview/projects/ws-marketing/prj-loyalty')
+  expect(screen.queryByRole('dialog', { name: 'Chọn projects' })).toBeNull()
 
   // "Tất cả Projects" phải nói thật: bấm xong thì chip hiện đúng nhãn vừa chọn và phạm vi
   // project được BỎ (trước đây nó âm thầm nhảy về project đầu tiên của danh sách).

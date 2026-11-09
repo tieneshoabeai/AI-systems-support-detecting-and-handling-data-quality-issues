@@ -12,8 +12,8 @@ import { fixtureSets, isFixtureSetId, type PreviewFixtureSet, type PreviewFixtur
 // hook + view không phải sửa. Rule "không giả lập ACK của server" vẫn được tôn trọng:
 // message luôn nói rõ kết quả chỉ là dữ liệu mẫu trong bộ nhớ tab.
 //
-// undo = khôi phục snapshot trước đó. Một snapshot gọn hơn nhiều so với việc viết
-// inverse cho từng loại mutation, và đảm bảo Hoàn tác trả lại đúng cả selection.
+// Hoàn tác chỉ khôi phục nhóm dữ liệu của chính thao tác đó; không ghi đè
+// chỉnh sửa mới hơn hoặc phạm vi người dùng đã chuyển sang.
 
 const mutationLatencyMs = 160
 
@@ -53,7 +53,7 @@ const seedState = (): PreviewStoreState => {
     notificationPrefs: { ...seedNotificationPrefs },
     // Bộ 'empty' không có bản ghi nào: selection phải chịu được mảng rỗng, nếu
     // `workspaces[0].id` sẽ throw ngay lần vẽ đầu và trang sập vì một Cờ dev.
-    selection: { workspaceId: workspaces[0]?.id ?? '', projectId: projects[0]?.id ?? '' },
+    selection: { workspaceId: workspaces[0]?.id ?? '', projectId: projects.find(item => item.workspaceId === workspaces[0]?.id)?.id ?? '' },
   }
 }
 
@@ -79,8 +79,28 @@ const delay = <T>(result: T): Promise<T> =>
 // "chờ" — người dùng thấy kết quả ở lần click, không phải sau một vòng chờ giả.
 const commit = (mutate: (current: PreviewStoreState) => PreviewStoreState, message: string): Promise<PreviewMutationResult> => {
   const previous = state
-  setState(mutate(state))
-  return delay({ message, undo: () => setState(previous) })
+  const next = mutate(state)
+  const changed = (Object.keys(next) as (keyof PreviewStoreState)[])
+    .filter(key => key !== 'selection' && next[key] !== previous[key])
+  setState(next)
+  let undone = false
+  return delay({ message, undo: () => {
+    if (undone) return
+    if (changed.some(key => state[key] !== next[key])) {
+      throw new Error('Dữ liệu liên quan đã thay đổi. Hãy hoàn tác thao tác mới hơn trước.')
+    }
+    const restored = { ...state }
+    for (const key of changed) Object.assign(restored, { [key]: previous[key] })
+    if (state.selection === next.selection) restored.selection = previous.selection
+    // Không giữ lựa chọn trỏ đến bản ghi vừa bị hoàn tác việc tạo.
+    const workspaceId = restored.workspaces.some(item => item.id === restored.selection.workspaceId)
+      ? restored.selection.workspaceId : ''
+    const project = restored.projects.find(item => item.id === restored.selection.projectId
+      && (!workspaceId || item.workspaceId === workspaceId))
+    restored.selection = { workspaceId, projectId: project?.id ?? '' }
+    undone = true
+    setState(restored)
+  } })
 }
 
 const patchWorkspace = (workspace: Workspace, patch: Partial<Workspace>): Workspace => ({ ...workspace, ...patch })
@@ -109,7 +129,7 @@ const removeWorkspace = (current: PreviewStoreState, id: string): PreviewStoreSt
   // undo khôi phục cả hai mảng nên không cần ghi lại quan hệ thủ công.
   const projects = current.projects.filter(item => item.workspaceId !== id)
   const selection = id === current.selection.workspaceId
-    ? { workspaceId: workspaces[0]?.id ?? '', projectId: projects.find(item => item.workspaceId === workspaces[0]?.id)?.id ?? projects[0]?.id ?? '' }
+    ? { workspaceId: workspaces[0]?.id ?? '', projectId: projects.find(item => item.workspaceId === workspaces[0]?.id)?.id ?? '' }
     : current.selection
   return { ...current, workspaces, projects, selection }
 }
@@ -117,7 +137,7 @@ const removeWorkspace = (current: PreviewStoreState, id: string): PreviewStoreSt
 const removeProject = (current: PreviewStoreState, id: string): PreviewStoreState => {
   const projects = current.projects.filter(item => item.id !== id)
   const selection = id === current.selection.projectId
-    ? { ...current.selection, projectId: projects[0]?.id ?? '' }
+    ? { ...current.selection, projectId: projects.find(item => !current.selection.workspaceId || item.workspaceId === current.selection.workspaceId)?.id ?? '' }
     : current.selection
   return { ...current, projects, selection }
 }
@@ -188,6 +208,11 @@ const nowStamp = (): string => {
 
 const createProject = (input: NewProjectInput): Promise<PreviewMutationResult> => {
   const workspace = state.workspaces.find(item => item.id === input.workspaceId)
+  if (!workspace) return Promise.reject(new Error('Workspace không còn tồn tại. Hãy chọn Workspace khác.'))
+  const workspaceMembers = new Set([workspace.owner.id, ...workspace.memberPreview.map(person => person.id)])
+  if (input.members.some(person => !workspaceMembers.has(person.id))) {
+    return Promise.reject(new Error('Chỉ thành viên của Workspace mới được thêm vào Project.'))
+  }
   const name = input.name.trim()
   const seed = [...name].reduce((total, char) => total + char.charCodeAt(0), 0)
   const id = `prj-${++projectSeq}`
@@ -212,7 +237,7 @@ const createProject = (input: NewProjectInput): Promise<PreviewMutationResult> =
     description: input.description.trim(),
     status: 'active',
     workspaceId: input.workspaceId,
-    workspaceName: workspace?.name ?? '',
+    workspaceName: workspace.name,
     cover: coverBySeed[seed % coverBySeed.length],
     dataset,
     members: input.members,
@@ -279,13 +304,15 @@ export const previewMockStore = {
 
   /** Đổi phạm vi làm việc (combobox Không gian ở topbar). Project chọn theo workspace. */
   selectWorkspace(workspaceId: string): void {
+    if (workspaceId && !state.workspaces.some(item => item.id === workspaceId)) return
     const project = state.projects.find(item => item.workspaceId === workspaceId) ?? null
-    setState({ ...state, selection: { workspaceId, projectId: project?.id ?? state.selection.projectId } })
+    setState({ ...state, selection: { workspaceId, projectId: project?.id ?? '' } })
   },
 
   selectProject(projectId: string): void {
     const project = state.projects.find(item => item.id === projectId) ?? null
-    setState({ ...state, selection: { workspaceId: project?.workspaceId ?? state.selection.workspaceId, projectId } })
+    if (!project) return
+    setState({ ...state, selection: { workspaceId: project.workspaceId, projectId } })
   },
 
   /** Bỏ chọn project nhưng giữ nguyên workspace: đóng "thanh chi tiết kế bên" trên Home,
@@ -356,6 +383,7 @@ export const previewMockStore = {
    *  không còn ai quản lý (business rule của workspace, không phải giới hạn giao diện). */
   setWorkspaceMemberRole(workspaceId: string, personId: string, role: string): Promise<PreviewMutationResult> {
     const target = state.workspaces.find(item => item.id === workspaceId)
+    if (target?.owner.id === personId) return Promise.reject(new Error('Không thể đổi vai trò của chủ sở hữu Workspace.'))
     const person = target?.memberPreview.find(item => item.id === personId)
     if (!target || !person) return Promise.reject(new Error('thành viên không còn trong Workspace này'))
     return commit(current => ({
@@ -368,6 +396,10 @@ export const previewMockStore = {
 
   removeWorkspaceMember(workspaceId: string, personId: string): Promise<PreviewMutationResult> {
     const target = state.workspaces.find(item => item.id === workspaceId)
+    if (target?.owner.id === personId) return Promise.reject(new Error('Không thể gỡ chủ sở hữu Workspace.'))
+    if (state.projects.some(project => project.workspaceId === workspaceId && project.owner.id === personId)) {
+      return Promise.reject(new Error('Không thể gỡ thành viên đang sở hữu Project trong Workspace.'))
+    }
     const person = target?.memberPreview.find(item => item.id === personId)
     if (!target || !person) return Promise.reject(new Error('thành viên không còn trong Workspace này'))
     const roles = { ...target.memberRoles }
@@ -382,7 +414,11 @@ export const previewMockStore = {
           updatedAt: 'vừa xong',
         })
         : item),
-    }), `Đã gỡ ${person.name} khỏi ${target.name}`)
+      projects: current.projects.map(project => project.workspaceId === workspaceId
+        && project.members.some(member => member.id === personId)
+        ? patchProject(project, { members: project.members.filter(member => member.id !== personId), updatedAt: 'vừa xong' })
+        : project),
+    }), `Đã gỡ ${person.name} khỏi ${target.name} và các Project thuộc Workspace`)
   },
 
   /* ---------- Thành viên của PROJECT (⋯ của thẻ dataset → "Quản lý thành viên") ----------
@@ -393,6 +429,10 @@ export const previewMockStore = {
   addProjectMember({ projectId, person, role }: NewProjectMemberInput): Promise<PreviewMutationResult> {
     const target = state.projects.find(item => item.id === projectId)
     if (!target) return Promise.reject(new Error('project không tồn tại'))
+    const workspace = state.workspaces.find(item => item.id === target.workspaceId)
+    if (!workspace || (workspace.owner.id !== person.id && !workspace.memberPreview.some(member => member.id === person.id))) {
+      return Promise.reject(new Error('Chỉ thành viên của Workspace mới được thêm vào Project.'))
+    }
     if (target.owner.id === person.id) return Promise.reject(new Error('Chủ sở hữu luôn thuộc project'))
     if (target.members.some(member => member.id === person.id))
       return Promise.reject(new Error(`${person.name} đã là thành viên của ${target.name}`))
@@ -406,6 +446,7 @@ export const previewMockStore = {
 
   setProjectMemberRole(projectId: string, personId: string, role: string): Promise<PreviewMutationResult> {
     const target = state.projects.find(item => item.id === projectId)
+    if (target?.owner.id === personId) return Promise.reject(new Error('Không thể đổi vai trò của chủ sở hữu Project.'))
     const person = target?.members.find(item => item.id === personId)
     if (!target || !person) return Promise.reject(new Error('thành viên không còn trong project này'))
     return commit(current => ({
@@ -421,6 +462,7 @@ export const previewMockStore = {
 
   removeProjectMember(projectId: string, personId: string): Promise<PreviewMutationResult> {
     const target = state.projects.find(item => item.id === projectId)
+    if (target?.owner.id === personId) return Promise.reject(new Error('Không thể gỡ chủ sở hữu Project.'))
     const person = target?.members.find(item => item.id === personId)
     if (!target || !person) return Promise.reject(new Error('thành viên không còn trong project này'))
     return commit(current => ({

@@ -9,6 +9,7 @@ import { PreviewIcon } from './components/preview-icons'
 import { EmptyHint, StatusBadge } from './components/preview-primitives'
 import { usePreviewSession } from './preview-session-context'
 import { projectDatasetMenu } from './preview-menu'
+import { ResourceAvatar, ResourceAvatarPicker } from './components/resource-avatar'
 
 // Trang "Project Workspace Overview" — ảnh UI-UX/projects/DataVerse_Project_Workspace_Overview_v1,
 // dựng đúng bốn vùng của ảnh, từ trên xuống:
@@ -19,12 +20,8 @@ import { projectDatasetMenu } from './preview-menu'
 //   4. THANH ĐÁY: bốn module. Đặc tả UI-UX/projects/đặc tả.txt: "ấn các nút này cũng tương tự như
 //      ấn vào các ô khối 3d" → bốn nút và bốn khối là MỘT danh sách duy nhất (`projectModules`).
 //
-// Hai điều KHÔNG làm, và vì sao:
-//   · Không dựng màn bên trong bốn module. Nhóm chưa chốt bốn màn đó trông thế nào, nên nút chỉ
-//     CHỌN (hover · focus · đang chọn, khối tương ứng trong scene sáng lên) chứ không mở trang nào.
-//     Lý do nói thẳng trong ActionNote dưới thanh — người bấm không phải đoán là bấm hư.
-//   Không bịa scene 3D bằng CSS rồi gọi nó là "mô hình của T": khoang giữa là placeholder CÓ GHI
-//   NHÃN, nhận `scene` từ T qua prop (cùng khuôn UniverseHero ở trang Home).
+// Bốn nút chọn module trong cùng không gian Project. Scene của T được truyền
+// qua prop; không có nút điều hướng Universe riêng bên trong Project.
 //
 // Dữ liệu trang này đọc từ mock store; project nào cũng có route riêng
 // '#/preview/projects/<workspaceId>/<projectId>' nên F5 vẫn đứng đúng trang.
@@ -33,7 +30,6 @@ import { projectDatasetMenu } from './preview-menu'
 // (trên-trái · trên-phải · dưới-trái · dưới-phải — đúng vị trí ảnh vẽ). Vị trí nằm ở CSS chứ không
 // nằm trong view: thêm một module thứ năm thì chỉ sửa dữ liệu + thêm một ô lưới, không phải sửa JSX.
 function ProjectUniverse({ project, selected, scene }: { project: Project; selected: ProjectModuleId; scene?: ReactNode }) {
-  const session = usePreviewSession()
   const dataset = project.dataset
 
   return <section className="pj-stage" aria-label={`Vũ trụ dữ liệu của ${project.name}`}>
@@ -62,12 +58,6 @@ function ProjectUniverse({ project, selected, scene }: { project: Project; selec
           </span>)}
         </span>
       </div>
-      <div className="pj-stage-foot">
-        {/* Đường thật duy nhất tới scene: route 3D của T, mang theo id project. */}
-        <button type="button" className="button-secondary"
-          onClick={() => session.run('universe', { kind: 'project', id: project.id, name: project.name })}>
-          <PreviewIcon name="sparkle" /> Mở Dataset Universe 3D <span aria-hidden="true">→</span></button>
-      </div>
     </>}
   </section>
 }
@@ -91,7 +81,7 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
   return <PreviewShell active="workspaces">
     <div className="pj-head-row">
       <button type="button" className="button-secondary back-button" onClick={() => session.openSection('workspaces', { workspaceId: project.workspaceId })}>
-        <PreviewIcon name="chevron" /> <span className="flip" aria-hidden="true" /> Quay lại</button>
+        <PreviewIcon name="arrow-left" /> Quay lại</button>
       <nav className="ws-crumb" aria-label="Path điều hướng">
         <button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</button>
         <span className="crumb-sep" aria-hidden="true">›</span>
@@ -106,7 +96,7 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
         PROJECT (Thông tin Project · Quản lý thành viên · Xóa Project — ảnh B khung 1). */}
     <header className="pj-band">
       <div className="pj-band-id">
-        <span className="pj-band-icon" aria-hidden="true"><PreviewIcon name="box" /></span>
+        <span className="pj-band-icon" aria-hidden="true"><ResourceAvatar kind="project" id={project.id} fallback="box" /></span>
         <div className="pj-band-text">
           {/* Badge NẰM NGOÀI <h1>: nhét nó vào trong thì tên project đọc thành "Sales Analytics
               Đang hoạt động" — ảnh chỉ đặt hai thứ cạnh nhau, chúng không phải một tiêu đề. */}
@@ -137,6 +127,7 @@ export function ProjectWorkspaceView({ projectId, scene }: { projectId: string; 
       </div>
     </header>
 
+    <ResourceAvatarPicker key={project.id} kind="project" id={project.id} />
     <ProjectUniverse project={project} selected={selected} scene={scene} />
 
     {/* THANH ĐÁY: bốn module. Cùng một danh sách với bốn khối trong scene ở trên, và nút nào

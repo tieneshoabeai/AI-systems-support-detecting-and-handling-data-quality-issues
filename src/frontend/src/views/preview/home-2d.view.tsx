@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewMenuOrigin, Project, Workspace } from '../../types/preview/preview.types'
 import {
@@ -7,6 +7,9 @@ import {
 } from './preview-data'
 import { PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
+import { ResourceAvatar } from './components/resource-avatar'
+import './home-hero.css'
+const HomeUniverse = lazy(() => import('../../graphics/workspace-3d/home-universe'))
 import { Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut, TextLink } from './components/preview-primitives'
 import { usePreviewSession } from './preview-session-context'
 import { projectMenu, workspaceMenu } from './preview-menu'
@@ -41,22 +44,27 @@ export type UniverseHeroProps = {
 // Bản cũ kê thêm thẻ số liệu và danh sách 7 module — trùng đúng hàng stat bên dưới và không có
 // trong ảnh → đã bỏ để Home gọn đúng thiết kế.
 export function UniverseHero({ scene }: UniverseHeroProps) {
-  const session = usePreviewSession()
-
-  return <section className="hero" aria-labelledby="hero-title">
+  const [paused, setPaused] = useState(false)
+  const fallback = <div className="hero-cosmos" aria-hidden="true">
+    <span className="cosmos-orbit cosmos-orbit-one" /><span className="cosmos-orbit cosmos-orbit-two" />
+    <span className="cosmos-orbit cosmos-orbit-three" /><span className="cosmos-planet" />
+    <span className="cosmos-satellite cosmos-satellite-one" /><span className="cosmos-satellite cosmos-satellite-two" />
+  </div>
+  return <section className="hero universe-hero" aria-labelledby="hero-title">
     <div className="hero-copy">
       <span className="eyebrow">Chào mừng đến với DataVerse</span>
-      <h1 id="hero-title">Khám phá vũ trụ dữ liệu của bạn</h1>
-      <p>Kết nối con người, dữ liệu và tri thức trong một hệ sinh thái thống nhất — quản lý, khám phá và khai thác giá trị dữ liệu dễ dàng hơn.</p>
-      {/* Route 3D của T đã tồn tại nên CTA chuyển trang thật; không còn là nút tắt. */}
-      <button type="button" className="hero-cta" onClick={() => session.openUniverse(null)}>Mở Dataset Universe <span aria-hidden="true">→</span></button>
+      <h1 id="hero-title">Khám phá <span>vũ trụ dữ liệu</span> của bạn</h1>
+      <p>Một không gian để kết nối đội nhóm, khám phá dữ liệu và tìm ra những điều có ý nghĩa.</p>
     </div>
     <div className="hero-stage">
       {scene ?? <div className="hero-stage-placeholder" role="img"
         aria-label="Minh họa vũ trụ dữ liệu">
-        <span className="stage-core" aria-hidden="true" />
+        <Suspense fallback={fallback}><HomeUniverse paused={paused} fallback={fallback} /></Suspense>
       </div>}
     </div>
+    {!scene && <button type="button" className="hero-motion-button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>
+      <PreviewIcon name={paused ? 'processing' : 'pause'} />{paused ? 'Tiếp tục chuyển động' : 'Dừng chuyển động'}
+    </button>}
     <ul className="hero-values">
       {heroValues.map(value => <li key={value.title}>
         <span className="hero-value-icon" aria-hidden="true"><PreviewIcon name={value.icon} /></span>
@@ -81,10 +89,9 @@ function WorkspaceTile({ workspace }: { workspace: Workspace }) {
     {...previewCardProps({
       // Bấm workspace ở Home = xuống Workspaces với phạm vi của nó (đặc tả: menu cũng xuống theo).
       detail: () => session.run('open', target),
-      universe: () => session.run('universe', target),
       menu: openMenu,
     })}>
-    <span className={`ws-tile-icon cover-${workspace.cover}`} aria-hidden="true"><PreviewIcon name="workspaces" /></span>
+    <span className={`ws-tile-icon cover-${workspace.cover}`} aria-hidden="true"><ResourceAvatar kind="workspace" id={workspace.id} fallback="workspaces" /></span>
     <div className="ws-tile-body">
       <h3>{workspace.name}{workspace.favorite && <span className="fav" aria-label="Yêu thích">★</span>}</h3>
       {/* '1 project' / '12 projects': cứng 'projects' sẽ in ra "1 projects" ở workspace lẻ. */}
@@ -171,7 +178,7 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
       <Pagination label="Workspaces pagination" total={wsSorted.length} page={wsSafePage} perPage={wsPerPage} onPage={setWsPage} hideWhenSinglePage />
     </Panel>
 
-    <Panel title="Projects gần đây" action={<TextLink onClick={() => session.openSection('projects')}>View all</TextLink>}>
+    <Panel title="Projects gần đây">
       <div className="table-scroll home-table">
         <table className="preview-table">
           <thead><tr><th scope="col">#</th><th scope="col">Project</th><th scope="col">Workspace</th>
@@ -181,7 +188,7 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
             const target = { kind: 'project' as const, id: project.id, name: project.name }
             return <tr key={project.id}
               onClick={() => session.run('open', target)}
-              onKeyDown={event => { if (event.key === 'Enter') session.run('open', target) }}
+              onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') session.run('open', target) }}
               onContextMenu={event => { event.preventDefault(); openMenuForProject(project, originFromEvent(event)) }}
               tabIndex={0}>
               {/* Cột # đánh số theo vị trí trong danh sách đã phân trang, nên sang trang vẫn 6-7-8… */}

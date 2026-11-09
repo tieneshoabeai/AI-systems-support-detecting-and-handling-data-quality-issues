@@ -10,6 +10,7 @@ import { ProjectWorkspaceView } from './project-workspace-2d.view'
 import { NotificationsPreviewView } from './notifications-2d.view'
 import { SettingsPreviewView } from './settings-2d.view'
 import './preview.css'
+import './preview-theme.css'
 
 // Chỉ app/main.tsx nạp file này khi import.meta.env.DEV và URL thuộc nhóm preview 2D,
 // nên fixture + dark CSS không vào production bundle. App thật không import nó.
@@ -43,17 +44,15 @@ export function Preview2DEntry() {
 
   // Provider bọc CẢ frame nên menu ngữ cảnh, popover, dialog và toast là surface duy
   // nhất cho ba trang — không trang nào tự dựng một bộ riêng rồi lệch hành vi.
-  return <PreviewFrame>
-    <PreviewSessionProvider routeIds={route}>
+  return <PreviewSessionProvider routeIds={route}>
       {renderSection(route)}
     </PreviewSessionProvider>
-  </PreviewFrame>
 }
 
 // Màn Thông báo dùng một URL cho cả hai trạng thái: không có id → danh sách, có id →
 // chi tiết. Nhấn Quay lại của trình duyệt vì thế về đúng danh sách thay vì phải dựng một
 // route 'danh sách' riêng. Màn Settings cũng dùng một URL cho cả nhánh Accounts: segment
-// sau nó là mục con (profile/security/sessions/notifications), null → view tự chọn mặc định.
+// sau nó là mục con; null → tổng quan với các module thu gọn.
 function renderSection(route: PreviewRoute): ReactNode {
   // Workspaces là màn hai tầng: route không có id → danh sách thẻ; có id → trang dashboard
   // chi tiết của chính workspace đó (Design Board "workspaces detail").
@@ -64,13 +63,6 @@ function renderSection(route: PreviewRoute): ReactNode {
     ? <ProjectWorkspaceView key={route.projectId} projectId={route.projectId} />
     : <ProjectsPreviewView />
   if (route.section === 'notifications') return <NotificationsPreviewView notificationId={route.notificationId} />
-  if (route.section === 'settings') return <SettingsPreviewView section={route.settingsSection} />
+  if (route.section === 'settings') return <SettingsPreviewView key={route.settingsSection ?? 'overview'} section={route.settingsSection} />
   return <HomePreviewView />
-}
-
-// Viền ngoài cùng đặt scope riêng cho giao diện 2D.
-function PreviewFrame({ children }: { children: ReactNode }) {
-  return <div data-preview="2d">
-    {children}
-  </div>
 }

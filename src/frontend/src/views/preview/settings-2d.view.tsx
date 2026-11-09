@@ -5,7 +5,7 @@ import type {
 } from '../../types/preview/preview.types'
 import { isSettingsNavGroup } from '../../types/preview/preview.types'
 import {
-  notificationPrefRows, settingsModules,
+  notificationPrefRows, settingsModules, settingsSectionsOfModule,
 } from './preview-data'
 import { PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
@@ -18,8 +18,7 @@ import { usePreviewSession } from './preview-session-context'
 //
 // ĐẶC TẢ dòng 9 chốt bố cục: bấm "hồ sơ cá nhân"/"cài đặt tài khoản" ở menu tài khoản →
 // chuyển sang NHÁNH "Accounts" của Settings (thanh bar bên trái), "các nhánh còn lại để sau".
-// Vì thế rail trái là cây MODULE (settingsModules ở tầng data — thêm module System / Time &
-// Language / Update sau này là thêm một phần tử vào mảng, không sửa view), hiện mới có một:
+// Rail trái là cây module. Accounts giữ các trang theo Design Board; System thêm Color:
 //   Accounts
 //     · Hồ sơ cá nhân            (4.2)
 //     · Cài đặt tài khoản        (4.3–4.5) → Bảo mật · Đăng nhập & phiên · Thông báo
@@ -32,29 +31,47 @@ import { usePreviewSession } from './preview-session-context'
 //   · Đơn vị: ảnh 4.2 vẽ ổ khóa (chỉ đọc) nhưng đặc tả dòng 9 liệt kê rõ "sửa tên, đơn vị, số
 //     điện thoại, giới thiệu" → ĐƠN VỊ SỬA ĐƯỢC, chỉ email + chức vụ bị khóa.
 
-// '#/preview/settings' TRẦN (không kèm mục con) = MÀN TỔNG QUAN: rail mở Accounts nhưng thân
+// '#/preview/settings' TRẦN (không kèm mục con) = MÀN TỔNG QUAN: rail thu gọn module, thân
 // trang chưa chọn mục nào. Trước đây một hằng số `defaultSection = 'security'` khiến cả hai lối
 // vào — "Settings" trên sidebar lẫn "Cài đặt tài khoản" trong menu cá nhân — đều rơi thẳng vào
 // tab Bảo mật; hai đường đi khác nhau mà cùng một đích thì người dùng đọc thành "bấm nhầm".
 // 'profile' (4.2) và ba mục của 'Cài đặt tài khoản' (4.3–4.5) vẫn tới được qua
 // '#/preview/settings/<mục>'.
 function SettingsOverview() {
-  // Nội dung SUY từ settingsModules, không liệt kê tay: thêm module System / Time & Language /
-  // Update sau này thì màn này tự nói thêm một dòng, không phải sửa view.
-  const describeItem = (item: SettingsNavItem): string =>
-    isSettingsNavGroup(item) ? `${item.label} (${item.children.map(child => child.label).join(' · ')})` : item.label
-
-  // Thân trang CHỈ hướng dẫn, không lặp lại nút của rail: hai control cho một việc là hai chỗ
-  // phải sửa khi thêm mục. Rail bên trái đã là lối vào duy nhất.
   return <div className="settings-screen">
     <Panel title="Chuyên mục">
       <p className="settings-hint">Chọn một mục ở thanh bên để bắt đầu.</p>
-      <dl className="settings-overview">
-        {settingsModules.map(module => <Fragment key={module.id}>
-          <dt><span className="settings-nav-icon" aria-hidden="true"><PreviewIcon name={module.icon} /></span>{module.label}</dt>
-          <dd>{module.items.map(describeItem).join(' · ')}</dd>
-        </Fragment>)}
-      </dl>
+    </Panel>
+  </div>
+}
+
+const colorOptions = [
+  { value: 'light', label: 'Light', caption: 'Giao diện sáng', icon: 'sun' },
+  { value: 'dark', label: 'Dark', caption: 'Giao diện tối', icon: 'moon' },
+  { value: 'system', label: 'System', caption: 'Theo cài đặt thiết bị', icon: 'monitor' },
+] as const
+
+function ColorSection() {
+  const { appearance } = usePreviewSession()
+  return <div className="settings-screen">
+    <Panel title="Color">
+      <fieldset className="color-options">
+        <legend className="settings-hint">Chọn chế độ màu cho giao diện</legend>
+        <div className="color-options-grid">
+          {colorOptions.map(option => <label key={option.value} className="color-option">
+            <input type="radio" name="color-scheme" value={option.value} aria-label={option.label}
+              checked={appearance.preference === option.value}
+              onChange={() => appearance.setColorPreference(option.value)} />
+            <span className="color-option-body">
+              <span className={`color-swatch color-swatch-${option.value}`} aria-hidden="true">
+                <span className="color-swatch-sidebar" /><span className="color-swatch-panel" />
+              </span>
+              <span className="color-option-label"><PreviewIcon name={option.icon} /><strong>{option.label}</strong></span>
+              <small>{option.caption}</small>
+            </span>
+          </label>)}
+        </div>
+      </fieldset>
     </Panel>
   </div>
 }
@@ -325,18 +342,14 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
   const active = section
   const isProfile = active === 'profile'
 
-  // Cây MODULE của đặc tả dòng 9 + yêu cầu nhóm trưởng: bật Settings → thanh bar kế bên có
-  // một nút cho mỗi module (hiện mới có "Accounts"); ấn vào module hiện các mục của nó. Mặc
-  // định MỞ để hai mục "Hồ sơ cá nhân" / "Cài đặt tài khoản" hiện ngay (ảnh 4.3 vẽ rail đang
-  // mở), người dùng gập thì ghi theo id module — state nằm ở RECORD chứ không phải một useState
-  // riêng cho Accounts, vì số module thay đổi theo dữ liệu mà hook thì không gọi trong vòng lặp.
-  const [collapsedModules, setCollapsedModules] = useState<Record<string, boolean>>({})
+  // Tổng quan chỉ hiện tên module; đường dẫn trực tiếp mở đúng nhánh đang xem.
+  const [collapsedModules, setCollapsedModules] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(settingsModules.map(module => [module.id, active === null || !settingsSectionsOfModule(module).includes(active)])))
   const toggleModule = (id: string): void =>
     setCollapsedModules(current => ({ ...current, [id]: !current[id] }))
-  // Cấp thứ hai của cây (nhóm "Cài đặt tài khoản" bên trong module "Accounts"): cùng khuôn RECORD
-  // keyed-by-label ở trên, cũng mặc định mở, cũng không liên quan gì tới hash — gập/mở là chuyện
-  // hiển thị của rail, còn đang đứng ở màn nào mới là chuyện của route.
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(settingsModules.flatMap(module => module.items
+      .filter(isSettingsNavGroup).map(item => [item.label, !isGroupActive(item, active)]))))
   const toggleGroup = (label: string): void =>
     setCollapsedGroups(current => ({ ...current, [label]: !current[label] }))
 
@@ -354,10 +367,7 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
   const renderItem = (item: SettingsNavItem): ReactNode => {
     if (!isSettingsNavGroup(item)) return railButton(item)
     const groupActive = isGroupActive(item, active)
-    // Nhóm MẶC ĐỊNH MỞ (gống module Accounts ở dưới): ấn vào tên nhóm chỉ GẬP/MỞ nó, tuyệt đối
-    // không điều hướng. Trước đây nó nhảy thẳng `entry` = Bảo mật, nên cả ba lối đi (sidebar
-    // Settings · menu cá nhân · rail) đều đổ về cùng một màn con — người dùng đọc là "bấm nhầm".
-    // Một nhóm ba mục không có quyền tự chọn mục nào trong ba mục đó hộ ai.
+    // Mở nhóm không tự chọn một trang con.
     const groupExpanded = !collapsedGroups[item.label]
     return <Fragment key={item.label}>
       <button type="button" className={`settings-nav-item${groupActive ? ' is-active' : ''}`}
@@ -376,10 +386,10 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
         phải, ngang hàng tiêu đề, chỉ hiện trên màn Phiên. */}
     <div className="settings-head">
       <button type="button" className="page-back" aria-label="Quay lại trang chính" onClick={() => session.openSection('home')}>
-        <span className="back-arrow" aria-hidden="true">←</span>
+        <PreviewIcon name="arrow-left" />
       </button>
       <h1 id="page-heading" tabIndex={-1}>
-        {active === null ? 'Cài đặt' : isProfile ? 'Hồ sơ cá nhân' : 'Cài đặt tài khoản'}
+        {active === null ? 'Cài đặt' : active === 'color' || active === 'notifications' ? 'System' : isProfile ? 'Hồ sơ cá nhân' : 'Cài đặt tài khoản'}
       </h1>
       {active === 'sessions' && <button type="button" className="button-secondary settings-head-action"
         onClick={session.revokeAllSessions}>
@@ -406,6 +416,7 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
 
       <div className="settings-body">
         {active === null ? <SettingsOverview />
+          : active === 'color' ? <ColorSection />
           : isProfile ? <ProfileSection />
             : active === 'security' ? <SecuritySection />
               : active === 'sessions' ? <SessionsSection />

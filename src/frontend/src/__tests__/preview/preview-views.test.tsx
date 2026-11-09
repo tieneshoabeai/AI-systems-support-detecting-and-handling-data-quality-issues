@@ -6,7 +6,6 @@ import { ProjectWorkspaceView } from '../../views/preview/project-workspace-2d.v
 import { HomePreviewView } from '../../views/preview/home-2d.view'
 import { byNewestFirst, formatCount, formatDataSize, formatRows, previewNoteIds, projectModules, isOwnedByMe } from '../../views/preview/preview-data'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
-import { universePath } from '../../services/preview/preview-route'
 import {
   cardByTitle, everyDisabledButtonHasVisibleReason, menuFor, menuItem, renderFrame,
   resetPreviewStore, rowByTitle, universeNavigator,
@@ -459,6 +458,7 @@ it('home: hero là placeholder 2D cho scene 3D của T + dải giá trị, bỏ 
   renderFrame(<HomePreviewView />)
   const stage = screen.getByRole('img', { name: /Minh họa vũ trụ dữ liệu/ })
   expect(stage.querySelector('.stage-tag')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Mở Dataset Universe/ })).toBeNull()
   expect(screen.queryByRole('canvas')).toBeNull()
   // Ba giá trị dưới hero (ảnh home). Bản cũ kê thêm .stage-satellite / hero-card /
   // hero-module-list — trùng hàng stat bên dưới và không có trong ảnh → đã bỏ.
@@ -466,8 +466,6 @@ it('home: hero là placeholder 2D cho scene 3D của T + dải giá trị, bỏ 
   expect(document.querySelector('.hero-card')).toBeNull()
   // Khong còn nhóm "Thao tác nhanh" (quick actions) bị coi là dư thừa.
   expect(screen.queryByRole('button', { name: 'Tạo dự án mới' })).toBeNull()
-  // CTA hero nay chuyen trang that (khong con la nut tat).
-  expect(screen.getByRole('button', { name: /Mở Dataset Universe/ }).hasAttribute('disabled')).toBe(false)
 })
 
 it('home: đúng năm khối — 3 panel tổng quan + 2 danh sách gần đây', () => {
@@ -687,9 +685,9 @@ it('trang Project: chọn nút module làm sáng đúng khối tương ứng, kh
   expect(window.location.hash).toBe('')
   expect(document.getElementById(previewNoteIds.projectModules)).toBeNull()
 
-  // Đường THẬT duy nhất tới scene của T: nút ở khoang giữa, điều hướng qua URL 3D (không hash).
-  fireEvent.click(screen.getByRole('button', { name: /Mở Dataset Universe 3D/ }))
-  expect(universeNavigator).toHaveBeenCalledWith(expect.stringContaining(`${universePath}#project=prj-sales`))
+  // Universe là không gian của Project, không còn lối mở thứ hai.
+  expect(screen.queryByRole('button', { name: /Mở Dataset Universe/ })).toBeNull()
+  expect(universeNavigator).not.toHaveBeenCalled()
   expect(window.location.hash).toBe('')
 })
 

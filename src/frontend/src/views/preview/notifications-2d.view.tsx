@@ -66,7 +66,7 @@ function BackOutOfInbox() {
       if (window.history.length > 1) window.history.back()
       else session.openSection('home')
     }}>
-      <span className="back-arrow" aria-hidden="true">←</span> Quay lại
+      <PreviewIcon name="arrow-left" /> Quay lại
     </button>
   </div>
 }

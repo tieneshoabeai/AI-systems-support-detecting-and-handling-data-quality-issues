@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { CoverHue, DatasetStatus, ProjectStatus, TrendStat, WorkspaceStatus } from '../../../types/preview/preview.types'
 import { PreviewIcon } from './preview-icons'
+import { SelectedResourceArt, useResourceAvatar } from './resource-avatar'
+import { AdaptiveArt } from './adaptive-art'
 
 const workspaceLabels: Record<WorkspaceStatus, string> = { active: 'Đang hoạt động', paused: 'Tạm dừng', archived: 'Đã lưu trữ' }
 const projectLabels: Record<ProjectStatus, string> = {
@@ -72,10 +74,12 @@ export function DetailTabs<T extends string>({ tabs, active, onChange, label }: 
 }
 
 export function CoverArt({ hue, seed, kind = 'workspace' }: { hue: CoverHue; seed: string | number; kind?: 'workspace' | 'project' }) {
+  const avatar = useResourceAvatar(kind, String(seed))
   // ID ổn định giữ ảnh nhất quán giữa danh sách, chi tiết và hộp sửa;
   // không chọn ảnh theo vị trí hiện tại hay tên có thể đổi của bản ghi.
   const hash = Array.from(String(seed)).reduce((value, char) => (Math.imul(value, 31) + char.charCodeAt(0)) >>> 0, 0)
-  return <span className={`cover-art cover-${hue} cover-kind-${kind}`} aria-hidden="true" data-seed={seed} data-art={hash % 3} />
+  const motif = (kind === 'workspace' ? ['network', 'orbits', 'lattice'] : ['flow', 'scan', 'branches'])[hash % 3]
+  return avatar ? <SelectedResourceArt value={avatar} /> : <span className={`cover-art adaptive-cover cover-${hue} cover-kind-${kind}`} aria-hidden="true" data-seed={seed} data-art={hash % 3}><AdaptiveArt motif={motif} tone={hue} /></span>
 }
 
 export function Panel({ title, action, children, className }: {
@@ -191,7 +195,7 @@ export function ProgressBar({ data, emptyTitle = 'Chưa có dữ liệu', emptyN
     {data.map((item, index) => <div className="pv-col" key={item.id ?? `${item.label}-${index}`}>
       <div className="pv-bar-track"><span className="pv-bar" style={{ height: `${Math.max(2, Math.round(item.value / max * 100))}%` }} /></div>
       <span className="pv-bar-value">{item.value}</span>
-      <span className="pv-bar-label">{item.label}</span>
+      <span className="pv-bar-label" title={item.label}>{item.label}</span>
     </div>)}
   </div>
 }

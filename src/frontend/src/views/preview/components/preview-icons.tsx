@@ -36,6 +36,7 @@ const paths: Record<string, string> = {
   reset: 'M5 12a7 7 0 1 1 2.4 5.3M5 12V7.6M5 12h4.4',
   file: 'M7 4.5h7l3.5 3.5v11.5H7zM13.6 4.8v3.6h3.6M9.4 12.6h5.2M9.4 15.6h5.2',
   arrow: 'M5 12h13.5M13 7.5 18.5 12 13 16.5',
+  'arrow-left': 'M19 12H5M12 5l-7 7 7 7',
   check: 'M5.5 12.5 9.5 16.5 18.5 7.5',
   'check-circle': 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM8 12l2.5 2.5L16 9',
   processing: 'M19.5 9a8 8 0 0 0-13-3L4 8.5M4 4v4.5h4.5M4.5 15a8 8 0 0 0 13 3l2.5-2.5M20 20v-4.5h-4.5',
@@ -58,6 +59,9 @@ const paths: Record<string, string> = {
   key: 'M8.5 13a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM11.7 11.7 20 20M16 16l2-2M18.5 18.5l2-2',
   lock: 'M7.5 10.5h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1zM9 10.5V8a3 3 0 0 1 6 0v2.5',
   monitor: 'M4.5 6h15v9h-15zM9.5 18.5h5M12 15v3.5',
+  sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5',
+  moon: 'M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14z',
+  palette: 'M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.5-3.3 1.5 1.5 0 0 1 1.1-2.5H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3zM7.5 10h.01M10 6.5h.01M14.5 6.5h.01M17.5 10h.01',
   phone: 'M8 4.5h8a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM11 17.5h2',
   // Hai glyph của dải stat trang Workspaces (ảnh Workspaces Overview, khung 1): 'Sở hữu' vẽ
   // MỘT người (quyền sở hữu là chuyện của cá nhân tôi), 'Được chia sẻ' vẽ ba nút nối nhau

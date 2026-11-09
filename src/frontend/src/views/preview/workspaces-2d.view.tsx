@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
+import './workspaces-hero.css'
 import type {
   PreviewMenuOrigin, Project, ProjectStatus, Workspace, WorkspaceOwnershipFilter, WorkspaceRoleFilter, WorkspaceSort,
 } from '../../types/preview/preview.types'
@@ -10,12 +11,15 @@ import {
 import { Avatar, PreviewShell } from './components/preview-shell'
 import { PreviewIcon } from './components/preview-icons'
 import { CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut } from './components/preview-primitives'
+import { ResourceAvatarPicker } from './components/resource-avatar'
 import { WorkspaceCreateDialog } from './components/workspace-create-dialog'
 import { usePreviewSession } from './preview-session-context'
 import { projectMenu, workspaceMenu } from './preview-menu'
 import { previewCardProps, stopCardBubble } from './preview-card'
 
 type ViewMode = 'grid' | 'list'
+const WorkspaceUniverse = lazy(() => import('../../graphics/workspace-3d/workspace-universe'))
+const cubeFallback = <div className="workspace-hero-fallback">{Array.from({ length: 7 }, (_, i) => <i key={i} />)}</div>
 type DetailSort = 'recent' | 'name'
 
 const statusFilterLabels: Record<ProjectStatus, string> = {
@@ -47,7 +51,6 @@ export function WorkspaceCard({ workspace, selected, view }: {
       // Design Board "workspaces detail": bấm một thẻ workspace MỞ TRANG RIÊNG của nó
       // (#/preview/workspaces/<id>) thay vì bật panel kề bên như bản cũ.
       detail: () => session.run('open', target),
-      universe: () => session.run('universe', target),
       menu: openMenu,
     })}>
     <div className="card-cover"><CoverArt hue={workspace.cover} seed={workspace.id} />
@@ -158,6 +161,7 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
       </div>
     </header>
 
+    <ResourceAvatarPicker key={workspace.id} kind="workspace" id={workspace.id} />
     <StatRow stats={stats} />
 
     <div className="detail-charts">
@@ -202,7 +206,7 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
             const projectTarget = { kind: 'project' as const, id: project.id, name: project.name }
             return <tr key={project.id} tabIndex={0}
               onClick={() => session.run('open', projectTarget)}
-              onKeyDown={event => { if (event.key === 'Enter') session.run('open', projectTarget) }}
+              onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') session.run('open', projectTarget) }}
               onContextMenu={event => { event.preventDefault(); openProjectMenu(project, { kind: 'pointer', x: event.clientX, y: event.clientY }) }}>
               <td>{(safePage - 1) * perPage + index + 1}</td>
               <th scope="row"><span className="row-name">{project.name}</span><span className="row-sub">{project.code}</span></th>
@@ -240,6 +244,7 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState<number>(maxWorkspacesPerPage)
   const [creating, setCreating] = useState(false)
+  const [artPaused, setArtPaused] = useState(false)
   const { state } = session
 
   // Có id trong route và id đó còn tồn tại trong store → trang dashboard chi tiết. Id không
@@ -264,23 +269,27 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
   if (detailWorkspace) return <WorkspaceDetailView key={detailWorkspace.id} workspace={detailWorkspace} />
 
   return <PreviewShell active="workspaces">
-    <div className="page-head">
-      <div className="page-head-text">
+    <section className="workspace-hero" aria-labelledby="page-heading">
+      <div className="workspace-hero-art" aria-hidden="true">
+        <Suspense fallback={cubeFallback}>
+          <WorkspaceUniverse light={session.appearance.resolved === 'light'} paused={artPaused} fallback={cubeFallback} />
+        </Suspense>
+      </div>
+      <div className="workspace-hero-copy">
         <span className="page-eyebrow">Cấp 1 · Workspaces</span>
         <h1 id="page-heading" tabIndex={-1}>Workspaces</h1>
         <p>Nơi chứa dự án, tập dữ liệu và thành viên; mỗi workspace là một ranh giới truy cập riêng.
-          Bấm một thẻ để mở trang chi tiết, bấm hai lần để mở Dataset Universe 3D, chuột phải để mở menu thao tác.</p>
-      </div>
-      {/* Ảnh khung 1: nút "Tạo Workspace" nằm ở khối đầu trang, NGAY TRÊN dải art. Art là
-          trang trí (ẩn dưới 900px) nên nút không được đặt bên trong nó — nếu không, màn
-          hẹp mất luôn lối vào duy nhất để tạo. */}
-      <div className="page-head-side">
+          Chọn một Workspace để xem các dự án và thành viên.</p>
         <button type="button" className="button-primary" onClick={() => setCreating(true)}>
           <PreviewIcon name="plus" /> Tạo Workspace
         </button>
-        <div className="page-head-art" aria-hidden="true"><CoverArt hue="cyan" seed={3} /></div>
       </div>
-    </div>
+      <button type="button" className="workspace-hero-motion icon-button" aria-pressed={artPaused}
+        aria-label={artPaused ? 'Tiếp tục chuyển động khối hộp' : 'Tạm dừng chuyển động khối hộp'}
+        onClick={() => setArtPaused(value => !value)}>
+        <PreviewIcon name={artPaused ? 'processing' : 'pause'} />
+      </button>
+    </section>
 
     <StatRow stats={workspaceStatsFor(state)} />
 

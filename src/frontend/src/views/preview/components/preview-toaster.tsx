@@ -18,7 +18,7 @@ export function PreviewToaster({ toasts, onDismiss }: {
       <span className="toast-icon" aria-hidden="true"><PreviewIcon name={toast.tone === 'danger' ? 'help' : 'check'} /></span>
       <p className="toast-text">{toast.text}</p>
       {toast.onUndo && <button type="button" className="toast-action" aria-label={toast.undoLabel ?? 'Hoàn tác'}
-        onClick={() => { toast.onUndo?.(); onDismiss(toast.id) }}>
+        onClick={() => { if (toast.onUndo?.() !== false) onDismiss(toast.id) }}>
         <PreviewIcon name="undo" /> {toast.undoLabel ?? 'Hoàn tác'}
       </button>}
       <button type="button" className="icon-button toast-close" aria-label="Đóng thông báo" onClick={() => onDismiss(toast.id)}>
