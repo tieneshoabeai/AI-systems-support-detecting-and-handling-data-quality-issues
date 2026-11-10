@@ -69,12 +69,9 @@ build_env.md
 .agent/
 remember/
 
-/docs/restructures/
-
-# Bao cao sinh tu dong (.docx) — thu muc sinh, khong commit
-/docs/reports/
 
 # Virtualenv dung cho sinh bao cao
 .venv-doc/
 
-/docs/
+/docs/*
+!/docs/restructures/
