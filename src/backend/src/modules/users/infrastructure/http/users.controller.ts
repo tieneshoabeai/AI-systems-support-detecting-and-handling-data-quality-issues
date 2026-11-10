@@ -8,12 +8,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { UsersService } from './users.service';
-import { UpdateUserSchema, UpdateUserDto } from './dto/update-user.dto';
-import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
-import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
-import { ApiZodBody } from '../../shared/swagger/api-zod.decorator';
+import { UsersService } from '../../application/users.service';
+import { UpdateUserSchema, UpdateUserDto } from './dtos/update-user.dto';
+import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
+import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
+import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth()

@@ -9,6 +9,7 @@ export interface IUser extends Document {
   last_name: string;
   avatar_url?: string;
   role: 'admin' | 'analyst';
+  notifications_enabled: boolean;
   status: 'active' | 'blocked';
   password_reset_token_hash?: string;
   password_reset_expires_at?: Date;
@@ -56,6 +57,10 @@ export const UserSchema = new Schema<IUser>(
       enum: ['admin', 'analyst'],
       default: 'analyst',
       index: true,
+    },
+    notifications_enabled: {
+      type: Boolean,
+      default: true,
     },
     status: {
       type: String,
