@@ -1,15 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { WorkspacesService } from '../src/modules/workspaces/workspaces.service';
-import { WorkspacesRepository } from '../src/modules/workspaces/workspaces.repository';
-import { UsersService } from '../src/modules/users/users.service';
-import { IWorkspace } from '../src/modules/workspaces/schemas/workspace.schema';
+import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
+import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
+import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
   let service: WorkspacesService;
-  let repository: jest.Mocked<Partial<WorkspacesRepository>>;
-  let usersService: jest.Mocked<Partial<UsersService>>;
+  let repository: Record<string, jest.Mock>;
+  let usersPort: { findByEmail: jest.Mock };
 
   const mockAdminUser = {
     userId: new Types.ObjectId().toHexString(),
@@ -23,50 +22,46 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
     role: 'analyst' as const,
   };
 
-  const mockWorkspaceId = new Types.ObjectId();
-  const mockWorkspaceDoc = {
-    _id: mockWorkspaceId,
+  const mockWorkspaceId = new Types.ObjectId().toHexString();
+  const mockWorkspaceRecord = {
+    id: mockWorkspaceId,
     name: 'Research Workspace',
     description: 'Workspace for QA research',
-    owner_id: new Types.ObjectId(mockAdminUser.userId),
-    members: [
-      {
-        user_id: new Types.ObjectId(mockAdminUser.userId),
-        role: 'owner' as const,
-        joined_at: new Date(),
-      },
-    ],
-    deleted_at: null,
-    created_at: new Date(),
-    updated_at: new Date(),
-  } as unknown as IWorkspace;
+    ownerId: mockAdminUser.userId,
+    members: [{ userId: mockAdminUser.userId, role: 'owner' as const, joinedAt: new Date() }],
+    storageUsedBytes: 0,
+    lastAccessedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   beforeEach(async () => {
     repository = {
-      create: jest.fn().mockResolvedValue(mockWorkspaceDoc),
-      findById: jest.fn().mockImplementation((id: string | Types.ObjectId) => {
-        if (id.toString() === mockWorkspaceId.toString()) {
-          return Promise.resolve(mockWorkspaceDoc);
-        }
+      create: jest.fn().mockResolvedValue(mockWorkspaceRecord),
+      findById: jest.fn().mockImplementation((id: string) => {
+        if (id === mockWorkspaceId) return Promise.resolve(mockWorkspaceRecord);
         return Promise.resolve(null);
       }),
-      findByUser: jest.fn().mockResolvedValue([mockWorkspaceDoc]),
-      findAllActive: jest.fn().mockResolvedValue([mockWorkspaceDoc]),
-      updateById: jest.fn().mockResolvedValue(mockWorkspaceDoc),
+      findByUser: jest.fn().mockResolvedValue([mockWorkspaceRecord]),
+      findAllActive: jest.fn().mockResolvedValue([mockWorkspaceRecord]),
+      updateById: jest.fn().mockResolvedValue(mockWorkspaceRecord),
       softDelete: jest.fn().mockResolvedValue(true),
       addMember: jest.fn().mockResolvedValue(true),
       removeMember: jest.fn().mockResolvedValue(true),
+      findByUserPaged: jest.fn().mockResolvedValue({ items: [mockWorkspaceRecord], total: 1 }),
+      touchLastAccessed: jest.fn().mockResolvedValue(undefined),
+      addStorageUsed: jest.fn().mockResolvedValue(undefined),
+      transferOwner: jest.fn().mockResolvedValue(true),
+      updateMemberRole: jest.fn().mockResolvedValue(true),
     };
 
-    usersService = {
-      findByEmail: jest.fn(),
-    };
+    usersPort = { findByEmail: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WorkspacesService,
-        { provide: WorkspacesRepository, useValue: repository },
-        { provide: UsersService, useValue: usersService },
+        { provide: WORKSPACE_REPOSITORY_PORT, useValue: repository },
+        { provide: USER_REPOSITORY_PORT, useValue: usersPort },
       ],
     }).compile();
 
@@ -78,7 +73,6 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
       name: 'Research Workspace',
       description: 'Workspace for QA research',
     });
-
     expect(result).toBeDefined();
     expect(repository.create).toHaveBeenCalled();
   });
@@ -94,47 +88,76 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
   });
 
   it('addMember should add new member with role and reject duplicate members', async () => {
-    const newUserId = new Types.ObjectId();
-    usersService.findByEmail = jest.fn().mockResolvedValue({
-      _id: newUserId,
-      email: 'collaborator@shool.local',
-    });
-
-    await service.addMember(mockWorkspaceId.toHexString(), {
-      email: 'collaborator@shool.local',
-      role: 'editor',
-    });
-
+    const newUserId = new Types.ObjectId().toHexString();
+    usersPort.findByEmail.mockResolvedValueOnce({ id: newUserId, email: 'collaborator@shool.local' });
+    await service.addMember(mockWorkspaceId, { email: 'collaborator@shool.local', role: 'member' });
     expect(repository.addMember).toHaveBeenCalled();
 
-    // Thử thêm lại chính user đã là thành viên (admin)
-    usersService.findByEmail = jest.fn().mockResolvedValue({
-      _id: new Types.ObjectId(mockAdminUser.userId),
-      email: mockAdminUser.email,
-    });
-
+    usersPort.findByEmail.mockResolvedValueOnce({ id: mockAdminUser.userId, email: mockAdminUser.email });
     await expect(
-      service.addMember(mockWorkspaceId.toHexString(), {
-        email: mockAdminUser.email,
-        role: 'viewer',
-      })
+      service.addMember(mockWorkspaceId, { email: mockAdminUser.email, role: 'member' }),
     ).rejects.toThrow(ConflictException);
   });
 
   it('removeMember should reject removing original workspace owner', async () => {
-    await expect(
-      service.removeMember(mockWorkspaceId.toHexString(), mockAdminUser.userId)
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.removeMember(mockWorkspaceId, mockAdminUser.userId)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('deleteWorkspace should soft delete workspace', async () => {
-    const success = await service.deleteWorkspace(mockWorkspaceId.toHexString());
+    const success = await service.deleteWorkspace(mockWorkspaceId);
     expect(success).toBe(true);
-    expect(repository.softDelete).toHaveBeenCalledWith(mockWorkspaceId.toHexString());
+    expect(repository.softDelete).toHaveBeenCalledWith(mockWorkspaceId);
   });
 
   it('getWorkspaceById should throw NotFoundException for non-existent workspace', async () => {
     const randomId = new Types.ObjectId().toHexString();
     await expect(service.getWorkspaceById(randomId)).rejects.toThrow(NotFoundException);
+  });
+
+  it('transferOwner should enforce exactly-one-owner invariant (WS-09)', async () => {
+    const newOwnerId = new Types.ObjectId().toHexString();
+    usersPort.findByEmail.mockResolvedValueOnce({ id: newOwnerId, email: 'newowner@shool.local' });
+    (repository.findById as jest.Mock).mockResolvedValue({
+      ...mockWorkspaceRecord,
+      ownerId: mockAdminUser.userId,
+      members: [
+        { userId: mockAdminUser.userId, role: 'owner' as const, joinedAt: new Date() },
+        { userId: newOwnerId, role: 'member' as const, joinedAt: new Date() },
+      ],
+    });
+    const result = await service.transferOwner(mockWorkspaceId, mockAdminUser.userId, {
+      email: 'newowner@shool.local',
+    });
+    expect(result).toBeDefined();
+    expect(repository.transferOwner).toHaveBeenCalled();
+  });
+
+  it('transferOwner should reject non-owner actor (WS-09)', async () => {
+    await expect(
+      service.transferOwner(mockWorkspaceId, '000000000000000000000099', { email: 'x@shool.local' }),
+    ).rejects.toThrow();
+  });
+
+  it('leaveWorkspace should require owner to transfer first (WS-10)', async () => {
+    await expect(service.leaveWorkspace(mockWorkspaceId, mockAdminUser.userId)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('checkWorkspaceUploadQuota should block when over workspace quota (O24)', async () => {
+    (repository.findById as jest.Mock).mockResolvedValue({ ...mockWorkspaceRecord, storageUsedBytes: 1900 });
+    await expect(service.checkWorkspaceUploadQuota(mockWorkspaceId, 200, 2000)).rejects.toThrow();
+  });
+
+  it('listWorkspaces should support pagination/search/filter/sort (WS-02)', async () => {
+    const r = await service.listWorkspaces(mockAnalystUser as never, {
+      page: 1,
+      limit: 10,
+      sort: 'name_asc',
+    } as never);
+    expect(r.total).toBe(1);
+    expect(r.items).toHaveLength(1);
   });
 });

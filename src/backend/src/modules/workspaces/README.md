@@ -21,13 +21,11 @@ graph TD
         P2["📁 Project Beta"]
         D1["📊 Dataset 1"]
         D2["📊 Dataset 2"]
-        L1["🕸️ Lineage DAG"]
 
         WS --> P1
         WS --> P2
         P1 --> D1
         P2 --> D2
-        D1 --> L1
     end
 
     subgraph Security Layer ["Quy trình Phân quyền CASL"]
@@ -47,7 +45,7 @@ graph TD
 Trong mỗi Workspace, thành viên được gán một trong ba vai trò bất biến:
 - **`owner` (Chủ sở hữu):** Người tạo Workspace. Toàn quyền quản trị: đổi tên, xóa Workspace, mời thành viên, gán vai trò và thu hồi quyền của thành viên khác.
 - **`editor` (Người chỉnh sửa):** Thành viên chuyên môn (Data Engineer / Analyst). Có quyền tạo mới, chỉnh sửa Project, tải lên Dataset và áp dụng các quy tắc làm sạch dữ liệu.
-- **`viewer` (Người xem):** Thành viên quan sát (Auditor / Viewer). Chỉ có quyền xem danh sách tài nguyên, kiểm tra dữ liệu bảng và theo dõi đồ thị phả hệ Lineage.
+- **`viewer` (Người xem):** Thành viên quan sát (Auditor / Viewer). Chỉ có quyền xem danh sách tài nguyên, kiểm tra dữ liệu bảng và xem nhận xét chất lượng AI.
 
 ### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
 - **Tính Bất khả Xâm phạm của Owner:** Người tạo Workspace luôn là `owner` mặc định và không thể bị xóa khỏi danh sách thành viên của chính Workspace đó.

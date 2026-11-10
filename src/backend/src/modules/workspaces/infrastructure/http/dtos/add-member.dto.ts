@@ -5,9 +5,9 @@ export const AddMemberSchema = z.object({
     .string()
     .trim()
     .email('Định dạng email thành viên không hợp lệ'),
-  role: z.enum(['owner', 'editor', 'viewer'], {
-    errorMap: () => ({ message: 'Vai trò phải là owner, editor, hoặc viewer' }),
-  }),
+  role: z.enum(['owner', 'member'], {
+    errorMap: () => ({ message: 'Vai trò workspace phải là owner hoặc member' }),
+  }).default('member'),
 });
 
 export type AddMemberDto = z.infer<typeof AddMemberSchema>;
