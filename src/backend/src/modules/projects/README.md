@@ -39,7 +39,7 @@ stateDiagram-v2
 ## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
 
 ### 3.1. Ràng buộc Một Tập dữ liệu cho Mỗi Dự án (Single Dataset Invariant)
-Nhằm đơn giản hóa quy trình kiểm toán phả hệ (Lineage DAG) và phân tích chất lượng dữ liệu, mỗi Project được thiết kế để xử lý duy nhất **một nguồn dữ liệu bảng tại một thời điểm**:
+Nhằm đơn giản hóa quy trình kiểm toán và phân tích chất lượng dữ liệu, mỗi Project được thiết kế để xử lý duy nhất **một nguồn dữ liệu bảng tại một thời điểm**:
 - Khi mới tạo: `has_dataset = false`.
 - Khi người dùng tải lên tệp CSV/Excel: Cờ chuyển thành `has_dataset = true`. Mọi yêu cầu nạp thêm tệp thứ hai vào Project này sẽ bị từ chối với mã lỗi HTTP 400.
 - Khi tệp dữ liệu bị xóa mềm: Cờ được giải phóng về `false`, cho phép người dùng nạp tệp mới.
@@ -78,7 +78,7 @@ Nhằm đơn giản hóa quy trình kiểm toán phả hệ (Lineage DAG) và ph
 ## 6. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
 
 ### 6.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
-- **Ràng buộc Single Dataset trên Project:** Lựa chọn giới hạn 1 Dataset/Project thay vì cho phép 1 Project chứa nhiều Datasets giúp giữ cho cấu trúc phả hệ Lineage DAG và cơ chế quản lý phiên bản Merkle rõ ràng, không bị phân nhánh quá phức tạp trong giai đoạn hiện tại.
+- **Ràng buộc Single Dataset trên Project:** Lựa chọn giới hạn 1 Dataset/Project thay vì cho phép 1 Project chứa nhiều Datasets giúp giữ cấu trúc phân tích (DQ, tương quan/VIF, AI, feedback) rõ ràng, không bị phân nhánh quá phức tạp trong giai đoạn hiện tại.
 
 ### 6.2. Lịch sử Thay đổi (Change Log)
 - `v1.1.0` (2026-10-24):
