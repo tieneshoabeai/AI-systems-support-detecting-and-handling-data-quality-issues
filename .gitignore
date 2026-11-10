@@ -76,3 +76,5 @@ remember/
 
 # Virtualenv dung cho sinh bao cao
 .venv-doc/
+
+/docs/
