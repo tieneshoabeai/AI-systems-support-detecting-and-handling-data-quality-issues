@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CameraCommand, ResourceKind, ResourceMapProps } from '../../types/workspace-3d/resource-map.types'
 import { layoutResources, resourceTrail, validateResources } from '../../math/workspace-3d/resource-layout'
-import { ResourceScene } from '../../graphics/workspace-3d/resource-scene'
+import { ResourceScene } from '../../components/graphics/workspace-3d/resource-scene'
 import { useSceneMotion } from '../../hooks/workspace-3d/use-scene-motion'
 import logo from '../../assets/8DA AI Network Logo.png'
 import './workspace-3d.css'

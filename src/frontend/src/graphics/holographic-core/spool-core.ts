@@ -18,7 +18,7 @@ export type SpoolCore = {
   dispose(): void
 }
 
-type ParticleKind = 'chamber' | 'stream' | 'floating' | 'spark'
+type ParticleKind = 'chamber' | 'floating' | 'spark'
 
 type ParticleSeed = {
   kind: ParticleKind
@@ -83,11 +83,6 @@ function mergeRings(rings: THREE.BufferGeometry[], useGroups = false) {
   rings.forEach(ring => ring.dispose())
   if (!merged) throw new Error('Không gộp được vòng spool')
   return merged
-}
-
-function smoothstep(edge0: number, edge1: number, value: number) {
-  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)))
-  return t * t * (3 - 2 * t)
 }
 
 function latheBand(points: ReadonlyArray<readonly [number, number]>, segments = 64) {
@@ -553,7 +548,7 @@ export function createSpoolCore(): SpoolCore {
   orbitGroup.add(orbitSpheres)
   parts.fx.add(orbitGroup)
 
-  // --- Particles: chamber motes, falling stream, floating motes and amber sparks in one draw. ---
+  // --- Particles: chamber motes, floating motes and amber sparks in one draw. ---
   const seeds: ParticleSeed[] = []
   const chamberRadius = SPOOL_CORE.particles.chamberRadius
   for (let index = 0; index < SPOOL_CORE.particles.chamber; index += 1) {
@@ -567,14 +562,6 @@ export function createSpoolCore(): SpoolCore {
       z: Math.sin(angle) * radius,
       phase: (index * 0.37) % (Math.PI * 2),
       size: SPOOL_CORE.particles.sizes.chamber * (0.7 + 0.6 * ((index * 0.41) % 1)),
-    })
-  }
-  for (let index = 0; index < SPOOL_CORE.particles.stream; index += 1) {
-    seeds.push({
-      kind: 'stream',
-      x: 0, y: 0, z: 0,
-      phase: index / SPOOL_CORE.particles.stream,
-      size: SPOOL_CORE.particles.sizes.stream * (0.7 + 0.6 * ((index * 0.53) % 1)),
     })
   }
   for (let index = 0; index < SPOOL_CORE.particles.floating; index += 1) {
@@ -617,15 +604,11 @@ export function createSpoolCore(): SpoolCore {
   particles.raycast = () => {}
   seeds.forEach((seed, index) => {
     if (seed.kind === 'spark') tempColor.setRGB(...SPOOL_CORE.palette.amberLinear)
-    else if (seed.kind === 'stream') tempColor.setRGB(0.4, 1.9, 1.75)
     else tempColor.setRGB(0.15, 1.4, 1.3)
     particles.setColorAt(index, tempColor)
   })
   if (particles.instanceColor) particles.instanceColor.needsUpdate = true
   parts.fx.add(particles)
-
-  const streamStart = new THREE.Vector3(...SPOOL_CORE.stream.start)
-  const streamEnd = new THREE.Vector3(...SPOOL_CORE.stream.end)
 
   function applyParticles(elapsedSeconds: number) {
     seeds.forEach((seed, index) => {
@@ -637,12 +620,6 @@ export function createSpoolCore(): SpoolCore {
           seed.z + Math.cos(elapsedSeconds * 0.45 + seed.phase) * 0.02,
         )
         scale *= 0.85 + Math.sin(elapsedSeconds * 1.5 + seed.phase) * 0.15
-      } else if (seed.kind === 'stream') {
-        const progress = (seed.phase + elapsedSeconds * SPOOL_CORE.stream.fallSpeed) % 1
-        tempPosition.lerpVectors(streamStart, streamEnd, progress)
-        tempPosition.x += Math.sin(progress * Math.PI * 3 + seed.phase * 6.283) * 0.09 * (1 - progress)
-        tempPosition.z += Math.cos(progress * Math.PI * 2 + seed.phase * 4.1) * 0.06 * (1 - progress)
-        scale *= smoothstep(0, 0.08, progress) * (1 - smoothstep(0.86, 1, progress))
       } else if (seed.kind === 'floating') {
         const angle = Math.atan2(seed.z, seed.x) + elapsedSeconds * 0.06
         const radius = Math.hypot(seed.x, seed.z)

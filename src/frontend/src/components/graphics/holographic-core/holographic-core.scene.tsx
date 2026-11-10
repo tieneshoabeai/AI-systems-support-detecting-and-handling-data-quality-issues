@@ -1,20 +1,33 @@
-import { Component, useCallback, useEffect, useMemo, useState } from 'react'
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
-import { Vector2, Vector3, setConsoleFunction } from 'three'
+import { DepthTexture, PerspectiveCamera, Vector2, Vector3, setConsoleFunction } from 'three'
 import type { Object3D } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { createHolographicCoreProductModel } from './holographic-core.model'
+import { createHolographicCoreProductModel } from '../../../graphics/holographic-core/holographic-core.model'
 import { HolographicEnvironment } from './holographic-core.environment'
-import { createNeonCubeCluster } from '../neon-cube/neon-cube.cluster'
-import type { HolographicPartInfo } from '../../types/dataset-3d/holographic-part.types'
-import { heroLabelForId } from './tower-gauge-config'
+import { HolographicDecor } from './holographic-core.decor'
+import { createNeonCubeCluster } from '../../../graphics/neon-cube/neon-cube.cluster'
+import type { NeonCubeThemeId } from '../../../types/dataset-3d/cube-focus.types'
+import type { HolographicPartInfo } from '../../../types/dataset-3d/holographic-part.types'
+import { heroLabelForId } from '../../../graphics/holographic-core/tower-gauge-config'
+import { CubeLabels } from './cube-label'
+import { cubeLabelFocusPose } from '../../../graphics/holographic-core/cube-label-layout'
+import type { CubeFocus } from '../../../types/dataset-3d/cube-focus.types'
+import { createGlassFrame, LiquidGlassPass, type GlassFrame } from '../../../graphics/holographic-core/liquid-glass-pass'
+import { HOLOGRAPHIC_CAMERA } from '../../../graphics/holographic-core/core-visual-config'
 
-type HolographicCoreCanvasProps = {
+type CubeFocusProps = {
+  cubeFocus: CubeFocus | null
+  onFocusCube(theme: NeonCubeThemeId): void
+}
+
+type HolographicCoreCanvasProps = CubeFocusProps & {
   reducedMotion: boolean
   detached: boolean
   selectedId: string | null
@@ -26,10 +39,6 @@ setConsoleFunction((type, message, ...params) => {
   if (type === 'warn' && String(message).startsWith('THREE.Clock: This module has been deprecated')) return
   console[type](message, ...params)
 })
-// Human-approved review pose: azimuth ~46°, elevation ~23.5°, distance ~17.3.
-const INITIAL_CAMERA_POSITION = [11.45, 9, 11.45] as const
-const CAMERA_TARGET = [0, 2.1, 0.5] as const
-
 class SceneBoundary extends Component<{ children: ReactNode; onFailure(): void }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
@@ -37,15 +46,31 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure(): void }
   render() { return this.state.failed ? null : this.props.children }
 }
 
-function CameraControls({ reducedMotion }: { reducedMotion: boolean }) {
+type CameraPose = { position: Vector3; target: Vector3 }
+
+function applyCameraPose(controls: OrbitControls, pose: CameraPose, minDistance: number) {
+  const damping = controls.enableDamping
+  controls.enableDamping = false
+  controls.update()
+  controls.minDistance = minDistance
+  controls.object.position.copy(pose.position)
+  controls.target.copy(pose.target)
+  controls.update()
+  controls.enableDamping = damping
+}
+
+function CameraControls({ reducedMotion, cubeFocus }: { reducedMotion: boolean; cubeFocus: CubeFocus | null }) {
   const { camera, gl, invalidate } = useThree()
+  const controlsRef = useRef<OrbitControls | null>(null)
+  const overview = useRef<CameraPose | null>(null)
   useEffect(() => {
+    camera.position.set(...HOLOGRAPHIC_CAMERA.position)
     const controls = new OrbitControls(camera, gl.domElement)
-    controls.target.set(...CAMERA_TARGET)
+    controlsRef.current = controls
+    controls.target.set(...HOLOGRAPHIC_CAMERA.target)
     controls.minDistance = 4.4
     controls.maxDistance = 25
     controls.maxPolarAngle = Math.PI / 2.02
-    controls.enableDamping = !reducedMotion
     controls.dampingFactor = 0.07
     const update = () => invalidate()
     controls.addEventListener('change', update)
@@ -53,8 +78,30 @@ function CameraControls({ reducedMotion }: { reducedMotion: boolean }) {
     return () => {
       controls.removeEventListener('change', update)
       controls.dispose()
+      controlsRef.current = null
+      overview.current = null
     }
-  }, [camera, gl, invalidate, reducedMotion])
+  }, [camera, gl, invalidate])
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (!controls) return
+    controls.enableDamping = !reducedMotion
+    controls.update()
+  }, [camera, gl, reducedMotion])
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (!controls || !(camera instanceof PerspectiveCamera)) return
+    if (!cubeFocus) {
+      if (overview.current) applyCameraPose(controls, overview.current, 4.4)
+      overview.current = null
+      return
+    }
+    const pose = cubeLabelFocusPose(cubeFocus.theme, camera.fov, camera.aspect)
+    if (!pose) return
+    overview.current ??= { position: camera.position.clone(), target: controls.target.clone() }
+    applyCameraPose(controls, pose, 1.35)
+  }, [camera, cubeFocus, gl])
+  useFrame(() => { controlsRef.current?.update() })
   return null
 }
 
@@ -157,34 +204,55 @@ function Lifecycle({ onContextLost }: { onContextLost(): void }) {  const { gl }
   return null
 }
 
-function HolographicBloom({ enabled }: { enabled: boolean }) {
-  const { camera, gl, scene, size } = useThree()
+function renderHolographicFrame(
+  pipeline: { composer: EffectComposer; glass: LiquidGlassPass; bloom: UnrealBloomPass; output: OutputPass },
+  bloomEnabled: boolean, glassEnabled: boolean,
+) {
+  pipeline.glass.enabled = glassEnabled
+  pipeline.bloom.enabled = bloomEnabled
+  pipeline.output.enabled = glassEnabled && !bloomEnabled
+  pipeline.composer.render()
+}
+
+function HolographicBloom({ enabled, frame, detached }: { enabled: boolean; frame: GlassFrame; detached: boolean }) {
+  const { camera, gl, scene, size, viewport } = useThree()
   const pipeline = useMemo(() => {
     const composer = new EffectComposer(gl)
+    composer.renderTarget1.depthTexture = new DepthTexture(1, 1)
+    composer.renderTarget2.depthTexture = new DepthTexture(1, 1)
+    const render = new RenderPass(scene, camera)
+    const glass = new LiquidGlassPass(scene, camera, frame)
     // Product canvas has denser emissive linework than the isolated review scene.
     // Keep bloom limited to hotspots instead of whitening every cyan contour.
-    const bloom = new UnrealBloomPass(new Vector2(size.width, size.height), 0.4, 0.45, 1)
-    bloom.enabled = enabled
-    composer.addPass(new RenderPass(scene, camera))
+    const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.4, 0.45, 1)
+    const output = new OutputPass()
+    composer.addPass(render)
+    composer.addPass(glass)
     composer.addPass(bloom)
-    return composer
-  }, [camera, enabled, gl, scene, size.height, size.width])
-  useEffect(() => {
-    pipeline.setSize(size.width, size.height)
-    return () => pipeline.dispose()
-  }, [pipeline, size.height, size.width])
-  useFrame(() => pipeline.render(), 1)
+    composer.addPass(output)
+    return { composer, render, glass, bloom, output }
+  }, [camera, frame, gl, scene])
+  useLayoutEffect(() => {
+    pipeline.composer.setPixelRatio(viewport.dpr)
+    pipeline.composer.setSize(size.width, size.height)
+  }, [pipeline, size.height, size.width, viewport.dpr])
+  useEffect(() => () => {
+    pipeline.render.dispose()
+    pipeline.glass.dispose()
+    pipeline.bloom.dispose()
+    pipeline.output.dispose()
+    pipeline.composer.dispose()
+  }, [pipeline])
+  useFrame(() => renderHolographicFrame(pipeline, enabled, !detached), 1)
   return null
 }
 
-type HolographicSceneProps = CoreStructureProps & { onContextLost(): void }
+type HolographicSceneProps = CoreStructureProps & CubeFocusProps & {
+  onContextLost(): void
+}
 
-function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, onHeroHover, onContextLost }: HolographicSceneProps) {
-  const { camera } = useThree()
-  useEffect(() => {
-    camera.position.set(...INITIAL_CAMERA_POSITION)
-    camera.lookAt(new Vector3(...CAMERA_TARGET))
-  }, [camera])
+function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, onHeroHover, onContextLost, cubeFocus, onFocusCube }: HolographicSceneProps) {
+  const [glassFrame] = useState(createGlassFrame)
   return <>
     <fogExp2 attach="fog" args={['#040c22', 0.0095]} />
     <Lifecycle onContextLost={onContextLost} />
@@ -193,10 +261,12 @@ function HolographicScene({ reducedMotion, detached, selectedId, onSelectPart, o
     <pointLight color="#9a55ff" intensity={10} distance={8} position={[0, 1.1, -3]} />
     <pointLight color="#3f7dff" intensity={12} distance={10} position={[-5, 4.5, -5]} />
     <HolographicEnvironment reducedMotion={reducedMotion} />
+    <HolographicDecor reducedMotion={reducedMotion} />
     <NeonCubeNodes />
     <CoreStructure reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} onHeroHover={onHeroHover} />
-    <CameraControls reducedMotion={reducedMotion} />
-    <HolographicBloom enabled={!reducedMotion} />
+    <CameraControls reducedMotion={reducedMotion} cubeFocus={detached ? null : cubeFocus} />
+    {!detached && <CubeLabels frame={glassFrame} onFocus={onFocusCube} />}
+    <HolographicBloom enabled={!reducedMotion} frame={glassFrame} detached={detached} />
   </>
 }
 
@@ -210,7 +280,7 @@ function isVisibleInScene(object: Object3D) {
   return true
 }
 
-export function HolographicCoreCanvas({ reducedMotion, detached, selectedId, onSelectPart }: HolographicCoreCanvasProps) {
+export function HolographicCoreCanvas({ reducedMotion, detached, selectedId, onSelectPart, cubeFocus, onFocusCube }: HolographicCoreCanvasProps) {
   const [failed, setFailed] = useState(false)
   const [hover, setHover] = useState<HeroHover | null>(null)
   // Keep the label at its entry point while reading it; no React render on every mouse pixel.
@@ -223,7 +293,8 @@ export function HolographicCoreCanvas({ reducedMotion, detached, selectedId, onS
       onPointerMissed={() => { if (detached) onSelectPart(null) }}
       fallback={<div className="dataset-3d-fallback" role="status"><strong>Trình duyệt không hỗ trợ WebGL</strong><p>Không thể mở không gian Dataset 3D trên trình duyệt này.</p></div>}>
       <HolographicScene reducedMotion={reducedMotion} detached={detached} selectedId={selectedId}
-        onSelectPart={onSelectPart} onHeroHover={onHeroHover} onContextLost={() => setFailed(true)} />
+        onSelectPart={onSelectPart} onHeroHover={onHeroHover} onContextLost={() => setFailed(true)}
+        cubeFocus={cubeFocus} onFocusCube={onFocusCube} />
     </Canvas>
   </SceneBoundary>
     {hover && <div className="dataset-3d-hero-tooltip" role="tooltip" data-tower-id={hover.id}

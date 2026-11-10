@@ -3,8 +3,8 @@ import { render, screen } from '@testing-library/react'
 import { expect, vi } from 'vitest'
 import { PreviewSessionProvider } from '../../views/preview/preview-session'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
-import type { PreviewRouteIds } from '../../services/preview/preview-route'
-import type { PreviewUniverseNavigator } from '../../hooks/preview/use-preview-session'
+import type { PreviewRouteIds } from '../../types/preview/preview-route.types'
+import type { PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
 
 // Khung test chung cho ba suite của batch 2D (shell · views · interactions).
 // File không có đuôi .test nên vitest không coi nó là một suite; tsc -b vẫn kiểm tra.

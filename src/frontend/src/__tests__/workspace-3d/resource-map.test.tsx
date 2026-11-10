@@ -9,7 +9,7 @@ import type { CameraCommand } from '../../types/workspace-3d/resource-map.types'
 
 // UI tests deliberately do not claim to exercise a GPU.
 const sceneProbe = vi.hoisted(() => vi.fn())
-vi.mock('../../graphics/workspace-3d/resource-scene', () => ({ ResourceScene: (props: unknown) => {
+vi.mock('../../components/graphics/workspace-3d/resource-scene', () => ({ ResourceScene: (props: unknown) => {
   sceneProbe(props)
   return <div role="status">WebGL fallback fixture</div>
 } }))

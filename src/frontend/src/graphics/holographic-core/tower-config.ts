@@ -84,8 +84,8 @@ export const DETACH_DISTANCE = { original: 0.85, outer: 0.5, lift: 0.35 }
 export const TOWER_PALETTE = {
   // Steel-blue volume that stays well below the core's HDR cyan.
   glass: {
-    color: '#0a2848', emissive: '#031a42', emissiveIntensity: 0.42, opacity: 0.36,
-    roughness: 0.4, metalness: 0.04, clearcoat: 0.28, clearcoatRoughness: 0.5,
+    color: '#050b1f', emissive: '#000000', emissiveIntensity: 0, opacity: 0.92,
+    roughness: 0.35, metalness: 0.6, clearcoat: 0, clearcoatRoughness: 0.5,
   },
   // No depth write so the interior glow stays visible; the block itself stays faint.
   core: {

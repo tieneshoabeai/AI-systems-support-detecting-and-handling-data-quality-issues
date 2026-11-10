@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
-import { createInboundPaths, type InboundPath } from '../../graphics/holographic-core/inbound-stream-paths'
+import { createInboundGuidePaths, createInboundPaths, type InboundPath } from '../../graphics/holographic-core/inbound-stream-paths'
 
 const POSITION = new THREE.Vector3()
 const TANGENT = new THREE.Vector3()
@@ -24,17 +24,16 @@ describe('inbound stream paths', () => {
     const paths = createInboundPaths()
     expect(paths).toHaveLength(24)
 
-    const offsets = [-4, -2, 0, 2, 4, 6]
-    for (const groupId of ['left-outer', 'left-inner', 'right-outer', 'right-inner']) {
-      const group = paths.filter(path => path.definition.groupId === groupId)
+    const offsets = [-5, -3, -1, 1, 3, 5]
+    for (const azimuth of [0, 90, 180, 270]) {
+      const group = paths.filter(path => path.definition.groupId === `azimuth-${azimuth}`)
       expect(group).toHaveLength(6)
       expect(group.map(path => path.definition.offsetDegrees)).toEqual(offsets)
       expect(group[1].definition.cycleSeconds - group[0].definition.cycleSeconds).toBeCloseTo(0.3, 9)
+      group.forEach((path, index) => {
+        expect(startAzimuth(path)).toBeCloseTo((azimuth + offsets[index] + 360) % 360, 5)
+      })
     }
-
-    const azimuths = paths.map(startAzimuth)
-    expect(azimuths.filter(value => value > 110 && value < 160)).toHaveLength(12)
-    expect(azimuths.filter(value => value > 290 && value < 340)).toHaveLength(12)
 
     for (const path of paths) {
       expect(path.definition.startHeight).toBe(3)
@@ -48,6 +47,24 @@ describe('inbound stream paths', () => {
       const landing = pointAt(path, path.length)
       expect(Math.hypot(landing.x, landing.z)).toBeCloseTo(0.22, 3)
       expect(landing.y).toBeCloseTo(0, 5)
+    }
+  })
+
+  it('alternates across each lane heading and settles back onto it at the landing', () => {
+    const guides = createInboundGuidePaths()
+    expect(guides.map(path => Math.round(startAzimuth(path)) % 360)).toEqual([0, 90, 180, 270])
+
+    for (const path of [...guides, ...createInboundPaths()]) {
+      const sideways = new THREE.Vector3(-Math.sin(path.azimuthRadians), 0, Math.cos(path.azimuthRadians))
+      const offsets = Array.from({ length: path.points.length / 3 }, (_, index) =>
+        readPoint(path.points, index).dot(sideways),
+      )
+      const clearBends = offsets.filter(offset => Math.abs(offset) > 0.025).map(Math.sign)
+      const reversals = clearBends.filter((sign, index) => index > 0 && sign !== clearBends[index - 1])
+
+      expect(reversals.length).toBeGreaterThanOrEqual(5)
+      expect(offsets[0]).toBeCloseTo(0, 5)
+      expect(offsets[offsets.length - 1]).toBeCloseTo(0, 5)
     }
   })
 

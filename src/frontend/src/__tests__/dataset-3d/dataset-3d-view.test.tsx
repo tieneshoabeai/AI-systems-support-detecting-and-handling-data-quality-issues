@@ -5,7 +5,7 @@ import type { HolographicPartInfo } from '../../types/dataset-3d/holographic-par
 import { Dataset3DView } from '../../views/dataset-3d/dataset-3d.view'
 
 const canvasProbe = vi.hoisted(() => vi.fn())
-vi.mock('../../graphics/holographic-core/holographic-core.scene', () => ({ HolographicCoreCanvas: (props: { reducedMotion: boolean; detached: boolean; selectedId: string | null; onSelectPart(part: HolographicPartInfo | null): void }) => {
+vi.mock('../../components/graphics/holographic-core/holographic-core.scene', () => ({ HolographicCoreCanvas: (props: { reducedMotion: boolean; detached: boolean; selectedId: string | null; onSelectPart(part: HolographicPartInfo | null): void }) => {
   canvasProbe(props)
   return <div role="img" aria-label="Holographic core fixture" />
 } }))
@@ -46,12 +46,12 @@ it('renders the conceptual module map without claiming live data', () => {
   expect(content.hidden).toBe(false)
   expect(screen.getByText('Nhân dữ liệu')).toBeDefined()
   expect(screen.getByText('Tổng quan')).toBeDefined()
-  expect(screen.getByText('Data view')).toBeDefined()
-  expect(screen.getByText('Data analysis')).toBeDefined()
+  expect(screen.getByText('Data View').closest('li')?.dataset.tone).toBe('blue')
+  expect(screen.getByText('Data Analysis').closest('li')?.dataset.tone).toBe('cyan')
   expect(screen.getByText('Detection')).toBeDefined()
   expect(screen.getByText(/Nhân trung tâm là một bộ dữ liệu/)).toBeDefined()
   expect(screen.getByText(/chưa nối dữ liệu thật/)).toBeDefined()
-  expect(canvasProbe).toHaveBeenLastCalledWith({ reducedMotion: false, detached: false, selectedId: null, onSelectPart: expect.any(Function) })
+  expect(canvasProbe).toHaveBeenLastCalledWith(expect.objectContaining({ reducedMotion: false, detached: false, selectedId: null, cubeFocus: null }))
 })
 
 it('keeps the module map state independent of detach and selected-part changes', () => {
@@ -72,8 +72,28 @@ it('keeps the module map state independent of detach and selected-part changes',
 it('passes the live reduced-motion preference to the canvas', () => {
   render(<MemoryRouter><Dataset3DView /></MemoryRouter>)
   act(() => { media.matches = true; media.dispatchEvent(new Event('change')) })
-  expect(canvasProbe).toHaveBeenLastCalledWith({ reducedMotion: true, detached: false, selectedId: null, onSelectPart: expect.any(Function) })
+  expect(canvasProbe).toHaveBeenLastCalledWith(expect.objectContaining({ reducedMotion: true, detached: false, selectedId: null }))
   expect(screen.getByText(/đã tắt theo cài đặt thiết bị/)).toBeDefined()
+})
+
+it('focuses cubes from the legend and the scene, then clears focus on Escape or detach', () => {
+  render(<MemoryRouter><Dataset3DView /></MemoryRouter>)
+  const toggle = screen.getByRole('button', { name: 'Mở bản đồ module' })
+  fireEvent.click(toggle)
+  fireEvent.click(screen.getByRole('button', { name: 'Focus Data View' }))
+  expect(canvasProbe.mock.lastCall?.[0].cubeFocus).toEqual({ theme: 'blue' })
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Về góc tổng quan' }))
+  act(() => { canvasProbe.mock.lastCall?.[0].onFocusCube('orange') })
+  expect(canvasProbe.mock.lastCall?.[0].cubeFocus).toEqual({ theme: 'orange' })
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(canvasProbe.mock.lastCall?.[0].cubeFocus).toBeNull()
+  expect(document.activeElement).toBe(toggle)
+
+  act(() => { canvasProbe.mock.lastCall?.[0].onFocusCube('cyan') })
+  fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
+  expect(canvasProbe.mock.lastCall?.[0].cubeFocus).toBeNull()
+  fireEvent.click(toggle)
+  expect((screen.getByRole('button', { name: 'Focus Data Analysis' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 it('explodes the model and reports the original English metadata of a picked part', () => {

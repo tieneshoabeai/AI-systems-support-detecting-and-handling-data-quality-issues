@@ -1,3 +1,4 @@
+import type { PreviewRoute, PreviewRouteIds } from '../../types/preview/preview-route.types'
 import type { PreviewSectionId, SettingsSectionId } from '../../types/preview/preview.types'
 
 // Route của frame preview 2D nằm ở tầng service (không phải view) vì cả main.tsx,
@@ -17,14 +18,6 @@ export const twoDPreviewSections: readonly PreviewSectionId[] = ['home', 'worksp
 // Route 3D của T: pathname chính xác, không có segment sau. main.tsx so sánh
 // pathname === universePath nên mọi helper ở đây phải giữ nguyên điều đó.
 export const universePath = '/preview/workspaces-3d'
-
-export type PreviewRoute = {
-  section: PreviewSectionId
-  workspaceId: string | null
-  projectId: string | null
-  notificationId: string | null
-  settingsSection: SettingsSectionId | null
-}
 
 // main.tsx đưa vào chuỗi nối `${pathname}${hash}` — khi cả hai đều là route preview
 // thì segment sau '/preview/' mang nốt ';' hoặc '#' (dạng 'home#/preview/home'),
@@ -82,8 +75,6 @@ export const normalizePreviewHash = (): void => {
   if (parsePreviewRoute(hash) !== null) return
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/preview/home`)
 }
-
-export type PreviewRouteIds = { workspaceId?: string | null, projectId?: string | null, notificationId?: string | null, settingsSection?: SettingsSectionId | null }
 
 // Hash route: F5 vẫn đúng trang, và production build không cần server rewrite.
 // projectId chỉ có nghĩa khi đã có workspaceId (đường dẫn phân cấp workspace → project).

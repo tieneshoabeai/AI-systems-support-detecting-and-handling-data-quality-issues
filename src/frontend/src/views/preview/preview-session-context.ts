@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { PreviewSessionModel } from '../../hooks/preview/use-preview-session'
+import type { PreviewSessionModel } from '../../types/preview/preview-session.types'
 
 // Context của frame tách khỏi provider (preview-session.tsx) vì eslint bắt
 // react-refresh/only-export-components: một file vừa export component vừa export

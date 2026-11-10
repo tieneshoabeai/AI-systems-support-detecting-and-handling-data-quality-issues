@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { AuthContext } from './auth-context'
+import { AuthContext } from '../../hooks/auth/auth-context'
 import type { AppRuntime } from '../app-runtime'
 import type { AppError } from '../../types/api/api.types'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'

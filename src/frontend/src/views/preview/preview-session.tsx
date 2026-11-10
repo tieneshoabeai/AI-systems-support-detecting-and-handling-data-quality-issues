@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import type { PreviewRouteIds } from '../../services/preview/preview-route'
-import type { PreviewUniverseNavigator } from '../../hooks/preview/use-preview-session'
+import type { PreviewRouteIds } from '../../types/preview/preview-route.types'
+import type { PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
 import { usePreviewSessionModel } from '../../hooks/preview/use-preview-session'
 import { PreviewSessionContext } from './preview-session-context'
 import { PreviewContextMenu } from './components/preview-context-menu'

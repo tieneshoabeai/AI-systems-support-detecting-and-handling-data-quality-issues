@@ -6,4 +6,3 @@ export {
   is2DPreviewUrl, normalizePreviewHash, previewHref, readPreviewRoute, readPreviewSection,
   twoDPreviewSections, universePath, universeUrl,
 } from '../../services/preview/preview-route'
-export type { PreviewRoute, PreviewRouteIds } from '../../services/preview/preview-route'

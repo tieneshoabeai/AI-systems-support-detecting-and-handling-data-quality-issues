@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Workspace3DPreview } from '../../views/workspace-3d/workspace-3d-preview'
 
-vi.mock('../../graphics/workspace-3d/resource-scene', () => ({ ResourceScene: () => <div>Renderer fixture</div> }))
+vi.mock('../../components/graphics/workspace-3d/resource-scene', () => ({ ResourceScene: () => <div>Renderer fixture</div> }))
 let showDescriptor: PropertyDescriptor | undefined
 let closeDescriptor: PropertyDescriptor | undefined
 beforeEach(() => {

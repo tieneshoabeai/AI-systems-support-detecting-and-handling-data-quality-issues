@@ -30,23 +30,25 @@ const START_HEIGHT = 3
 // Lanes land on a ring instead of the exact centre so the cap hotspot is not fed by 24 converging
 // streaks.
 const LANDING_RADIUS = 0.22
+const ZIGZAG_AMPLITUDE = 0.075
+const ZIGZAG_CYCLES = 5
+const ZIGZAG_CORNER_SHARPNESS = 0.85
+const ZIGZAG_PEAK = Math.asin(ZIGZAG_CORNER_SHARPNESS)
 // Adjacent lanes sit 2 degrees apart and differ by 0.3 s per cycle, so their streaks drift in
 // and out of phase instead of running as a rigid train.
 const CYCLE_STEP_SECONDS_PER_DEGREE = 0.15
 
 const LANE_GROUPS = [
-  { groupId: 'left-outer', azimuthDegrees: 119, baseCycleSeconds: 7.2 },
-  { groupId: 'left-inner', azimuthDegrees: 151, baseCycleSeconds: 6 },
-  { groupId: 'right-outer', azimuthDegrees: 299, baseCycleSeconds: 7.2 },
-  { groupId: 'right-inner', azimuthDegrees: 331, baseCycleSeconds: 6 },
+  { groupId: 'azimuth-0', azimuthDegrees: 0, baseCycleSeconds: 7.35 },
+  { groupId: 'azimuth-90', azimuthDegrees: 90, baseCycleSeconds: 6.15 },
+  { groupId: 'azimuth-180', azimuthDegrees: 180, baseCycleSeconds: 7.35 },
+  { groupId: 'azimuth-270', azimuthDegrees: 270, baseCycleSeconds: 6.15 },
 ] as const
 
-const LANE_OFFSETS = [-4, -2, 0, 2, 4, 6] as const
+const LANE_OFFSETS = [-5, -3, -1, 1, 3, 5] as const
 
-// The curve lives in the (radius, height) complex plane and is mapped onto a vertical plane per
-// azimuth, so the plotted path is planar: no twisting cross-section, no radius loops.
-const STREAM_DEFINITIONS: readonly InboundPathDefinition[] = LANE_GROUPS.flatMap(group =>
-  LANE_OFFSETS.map(offset => ({
+function definePath(group: typeof LANE_GROUPS[number], offset: number): InboundPathDefinition {
+  return {
     id: `${group.groupId}@${offset > 0 ? '+' : ''}${offset}`,
     groupId: group.groupId,
     offsetDegrees: offset,
@@ -55,7 +57,11 @@ const STREAM_DEFINITIONS: readonly InboundPathDefinition[] = LANE_GROUPS.flatMap
     startHeight: START_HEIGHT,
     landingRadius: LANDING_RADIUS,
     cycleSeconds: group.baseCycleSeconds + offset * CYCLE_STEP_SECONDS_PER_DEGREE,
-  })),
+  }
+}
+
+const STREAM_DEFINITIONS = LANE_GROUPS.flatMap(group =>
+  LANE_OFFSETS.map(offset => definePath(group, offset)),
 )
 
 const bezierPoint = { re: 0, im: 0 }
@@ -80,15 +86,20 @@ function evaluateBezier(definition: InboundPathDefinition, t: number) {
 
 function buildPath(definition: InboundPathDefinition): InboundPath {
   const azimuthRadians = THREE.MathUtils.degToRad(definition.azimuthDegrees)
-  const cos = Math.cos(azimuthRadians)
-  const sin = Math.sin(azimuthRadians)
 
   const raw = new Float32Array((PARSE_SAMPLES + 1) * 3)
   for (let index = 0; index <= PARSE_SAMPLES; index++) {
-    const point = evaluateBezier(definition, index / PARSE_SAMPLES)
-    raw[index * 3] = point.re * cos
+    const t = index / PARSE_SAMPLES
+    const point = evaluateBezier(definition, t)
+    // A rounded triangle wave alternates sideways without sharp corners in the streak tubes.
+    // The envelope brings the wave back to the lane heading at the start and landing ring.
+    const phase = t * Math.PI * 2 * ZIGZAG_CYCLES
+    const wave = Math.asin(ZIGZAG_CORNER_SHARPNESS * Math.sin(phase)) / ZIGZAG_PEAK
+    const lateralDistance = ZIGZAG_AMPLITUDE * Math.sin(Math.PI * t) * wave
+    const heading = azimuthRadians + lateralDistance / point.re
+    raw[index * 3] = point.re * Math.cos(heading)
     raw[index * 3 + 1] = point.im
-    raw[index * 3 + 2] = point.re * sin
+    raw[index * 3 + 2] = point.re * Math.sin(heading)
   }
 
   const cumulative = new Float32Array(PARSE_SAMPLES + 1)
@@ -158,4 +169,8 @@ function buildPath(definition: InboundPathDefinition): InboundPath {
 
 export function createInboundPaths(): InboundPath[] {
   return STREAM_DEFINITIONS.map(buildPath)
+}
+
+export function createInboundGuidePaths(): InboundPath[] {
+  return LANE_GROUPS.map(group => buildPath(definePath(group, 0)))
 }

@@ -6,7 +6,7 @@
 .dataset-3d-back:hover { color: #d3faff; text-decoration: underline; }
 .dataset-3d-stage { position: relative; width: min(100%, 1500px, calc((100dvh - 210px) * 16 / 9)); aspect-ratio: 16 / 9; min-height: 0; margin-inline: auto; overflow: hidden; border: 1px solid rgb(107 70 224 / 30%); border-radius: 22px; background: #030a1c; box-shadow: inset 0 1px 0 rgb(198 250 255 / 12%), 0 20px 70px rgb(11 42 107 / 45%); }
 .dataset-3d-canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; }
-.dataset-3d-canvas-shell { position: relative; width: 100%; height: 100%; }
+.dataset-3d-canvas-shell { position: relative; width: 100%; height: 100%; isolation: isolate; }
 .dataset-3d-hero-tooltip { position: absolute; top: 0; left: 0; z-index: 5; max-width: min(232px, calc(100% - 16px)); box-sizing: border-box; padding: 7px 10px; border: 1px solid #6b7fb3; border-radius: 7px; background: #0b1430; color: #e4edff; font-size: 12px; line-height: 1.4; pointer-events: none; }
 .dataset-3d-overlay { position: absolute; inset: 0; pointer-events: none; }
 .dataset-3d-legend { pointer-events: auto; position: absolute; top: 18px; left: 18px; width: 44px; max-width: calc(100% - 36px); max-height: calc(100% - 84px); box-sizing: border-box; border: 1px solid rgb(116 231 255 / 24%); border-radius: 14px; background: rgb(4 12 26 / 72%); backdrop-filter: blur(10px); color: #d3f2ff; overflow: auto; }
@@ -21,6 +21,9 @@
 .dataset-3d-legend li { display: grid; grid-template-columns: 9px 1fr; column-gap: 8px; align-items: center; color: #7be9ff; }
 .dataset-3d-legend li i, .dataset-3d-legend-note i { width: 8px; height: 8px; border-radius: 2px; background: currentColor; box-shadow: 0 0 8px currentColor; }
 .dataset-3d-legend li span { color: #e4f8ff; font-size: 11px; font-weight: 600; line-height: 1.2; }
+.dataset-3d-legend-focus { justify-self: start; padding: 2px 0; border: 0; background: none; color: #e4f8ff; font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1.2; cursor: pointer; text-align: left; }
+.dataset-3d-legend-focus:hover:not(:disabled) { text-decoration: underline; }
+.dataset-3d-legend-focus:disabled { opacity: 0.55; cursor: default; }
 .dataset-3d-legend li small { grid-column: 2; margin-top: -1px; color: #7fa6c0; font-size: 9.5px; line-height: 1.25; }
 .dataset-3d-legend li[data-tone="core"] { color: #7be9ff; }
 .dataset-3d-legend li[data-tone="violet"] { color: #a06bff; }
@@ -32,6 +35,8 @@
 .dataset-3d-detach { pointer-events: auto; position: absolute; left: 18px; bottom: 18px; padding: 9px 16px; border: 1px solid rgb(119 234 255 / 55%); border-radius: 999px; color: #bdf4ff; background: rgb(4 16 32 / 72%); backdrop-filter: blur(8px); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; cursor: pointer; transition: background-color .18s ease, color .18s ease, border-color .18s ease; }
 .dataset-3d-detach:hover { border-color: #8ff1ff; color: #e6feff; }
 .dataset-3d-detach:focus-visible { outline: 2px solid #8ff1ff; outline-offset: 2px; }
+.dataset-3d-overview { pointer-events: auto; position: absolute; right: 12px; top: 12px; padding: 8px 12px; border: 1px solid rgb(119 234 255 / 55%); border-radius: 999px; background: #091c30; color: #d9f4ff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dataset-3d-overview:focus-visible, .dataset-3d-legend-focus:focus-visible { outline: 2px solid #8ff1ff; outline-offset: 2px; }
 .dataset-3d-detach[aria-pressed="true"] { color: #031321; background: #7be9ff; border-color: #b7f7ff; }
 .dataset-3d-detach[aria-pressed="true"]:hover { background: #a5f2ff; color: #02101c; }
 .dataset-3d-detail { pointer-events: auto; position: absolute; top: 18px; right: 18px; width: min(320px, 38%); max-height: calc(100% - 36px); overflow: auto; box-sizing: border-box; padding: 14px 16px 16px; border: 1px solid rgb(116 231 255 / 30%); border-radius: 16px; background: rgb(4 12 26 / 84%); backdrop-filter: blur(12px); color: #d3f2ff; box-shadow: 0 18px 44px rgb(0 0 0 / 45%); }

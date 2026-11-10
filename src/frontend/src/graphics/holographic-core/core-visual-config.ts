@@ -3,6 +3,12 @@ import { NEON_CUBE_CLUSTER_LAYOUT, type NeonCubeClusterNode } from '../neon-cube
 
 export type Vec3 = readonly [number, number, number]
 
+// Overview pose approved for the Dataset 3D scene.
+export const HOLOGRAPHIC_CAMERA = {
+  position: [11.45, 9, 11.45],
+  target: [0, 2.1, 0.5],
+} as const
+
 export type CoreVisualRevision = 'v2-tier' | 'v3-constellation' | 'v4-spool'
 
 // Flip to 'v3-constellation' or 'v2-tier' to roll back without touching git history.
@@ -326,16 +332,10 @@ export const SPOOL_CORE = {
   },
   particles: {
     chamber: 90,
-    stream: 36,
     floating: 24,
     sparks: 14,
     chamberRadius: 0.86,
-    sizes: { chamber: 0.016, stream: 0.024, floating: 0.02, spark: 0.018 },
-  },
-  stream: {
-    start: [-1.55, 4.05, -0.85] as Vec3,
-    end: [-0.25, 2.3, -0.25] as Vec3,
-    fallSpeed: 0.16,
+    sizes: { chamber: 0.016, floating: 0.02, spark: 0.018 },
   },
   palette: {
     lowerBody: { color: '#031418', emissive: '#05282c', emissiveIntensity: 0.08, opacity: 0.96 },

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { createInboundPaths, type InboundPath } from './inbound-stream-paths'
+import { createInboundGuidePaths, createInboundPaths, type InboundPath } from './inbound-stream-paths'
 import { createInboundStreaks } from './inbound-stream-streaks'
 
 const CAP_ANCHOR_Y = 0.05
@@ -45,11 +45,8 @@ export function createInboundStreams(capNode: THREE.Object3D): InboundStreams {
     toneMapped: false,
   })
 
-  const paths = createInboundPaths()
-  // Only the four base lanes get a faint guide; the 20 satellites would otherwise read as a
-  // solid wall of lines and bury the moving streaks.
-  for (const path of paths) {
-    if (path.definition.offsetDegrees !== 0) continue
+  // One faint guide runs down the centre of each six-lane group.
+  for (const path of createInboundGuidePaths()) {
     const guide = new THREE.Mesh(
       new THREE.TubeGeometry(new InboundGuideCurve(path), GUIDE_SEGMENTS, GUIDE_RADIUS, GUIDE_RADIAL_SEGMENTS, false),
       guideMaterial,
@@ -60,7 +57,7 @@ export function createInboundStreams(capNode: THREE.Object3D): InboundStreams {
     root.add(guide)
   }
 
-  const streaks = createInboundStreaks(paths)
+  const streaks = createInboundStreaks(createInboundPaths())
   for (const mesh of streaks.meshes) root.add(mesh)
 
   let staticApplied = false

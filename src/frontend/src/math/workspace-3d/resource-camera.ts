@@ -1,8 +1,8 @@
+import type { CameraPose } from '../../types/workspace-3d/camera-pose.types'
 import { Vector3 } from 'three'
 import type { PerspectiveCamera } from 'three'
 import type { PositionedResource, ResourceLayout } from '../../types/workspace-3d/resource-map.types'
 
-export type CameraPose = { position: Vector3; target: Vector3 }
 export const overviewDirection = () => new Vector3(0.35, 0.95, 1.2).normalize()
 
 // Three.js owns this mutable renderer object; this is not React application state.

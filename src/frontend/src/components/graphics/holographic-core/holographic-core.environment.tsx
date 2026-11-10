@@ -2,28 +2,43 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import {
   AdditiveBlending,
+  BackSide,
   BufferAttribute,
   BufferGeometry,
   Camera,
   CanvasTexture,
   Color,
+  CylinderGeometry,
+  FrontSide,
+  EdgesGeometry,
+  Euler,
+  Group,
   HalfFloatType,
+  InstancedMesh,
   Line,
   LineBasicMaterial,
+  LineSegments,
   LinearFilter,
   MathUtils,
+  Matrix4,
   Mesh,
+  NormalBlending,
+  OctahedronGeometry,
   PlaneGeometry,
   Points,
+  Quaternion,
   RepeatWrapping,
   Scene,
   ShaderMaterial,
   SRGBColorSpace,
+  StaticDrawUsage,
+  Vector3,
   WebGLCubeRenderTarget,
   WebGLRenderTarget,
 } from 'three'
-import type { Euler, Group, Texture, WebGLRenderer } from 'three'
-import { NEON_CUBE_CLUSTER_LAYOUT } from '../neon-cube/neon-cube.cluster'
+import type { Texture, WebGLRenderer } from 'three'
+import { ORBIT_RINGS, ORBIT_Y } from '../../../graphics/holographic-core/orbit.config'
+import { NEON_CUBE_CLUSTER_LAYOUT } from '../../../graphics/neon-cube/neon-cube.cluster'
 
 // Deep-field nebula: an equirect sky baked on the GPU once, real star Points above it, a
 // rim-fading floor halo and three orbit rings. The sky stays dimmer than the subject and under
@@ -53,12 +68,25 @@ const SKY_VERTEX = /* glsl */ `
   }
 `
 
+// The palette is mixed in sRGB (as the CPU bake did) and lifted to linear at the end: the low
+// opacities here only read as deep navy on top of the base when mixed in sRGB. Shared by the sky
+// bake, the aurora and the drifting dust so additive layers never wash out to grey.
+const TO_LINEAR_GLSL = /* glsl */ `
+  vec3 toLinear(vec3 srgb) {
+    return mix(srgb / 12.92, pow((srgb + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), srgb));
+  }
+`
+
+// Optional space-crack streaks baked into the sky. The riskiest aesthetic piece; flip to false to
+// drop them without touching the rest of the shader.
+const CRACKS = true
+
 // Painted once into an equirect render target by one fragment pass (about a millisecond of GPU,
 // nothing on the main thread). A CPU bake at 2048x1024 cost tens of milliseconds and blocked the
 // first frames. This is the CPU bake's structure ported to the GPU: broad celadon gas over a
 // navy field, a diagonal belt of brighter dust, and only a soft, wide contrast ramp so the gas
 // stays gas instead of turning into veins.
-const NEBULA_FRAGMENT = /* glsl */ `
+let NEBULA_FRAGMENT = /* glsl */ `
   varying vec2 vUv;
 
   float hash(vec2 p) {
@@ -79,12 +107,6 @@ const NEBULA_FRAGMENT = /* glsl */ `
     float c = hash(mod(corner + vec2(0.0, 1.0), cells));
     float d = hash(mod(corner + vec2(1.0, 1.0), cells));
     return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
-  }
-
-  // The palette is mixed in sRGB (as the CPU bake did) and lifted to linear at the end: the
-  // low opacities here only read as deep navy on top of the base when mixed in sRGB.
-  vec3 toLinear(vec3 srgb) {
-    return mix(srgb / 12.92, pow((srgb + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), srgb));
   }
 
   void main() {
@@ -118,19 +140,40 @@ const NEBULA_FRAGMENT = /* glsl */ `
 
     for (int layer = 0; layer < 3; layer++) {
       vec2 grain = cells[layer];
-      float glow = (halo * wipe * 0.55 + lower * 0.4) * opacities[layer] * gains[layer] * 0.55;
+      float glow = (halo * wipe * 0.55 + lower * 0.22) * opacities[layer] * gains[layer] * 0.55;
       color = mix(color, tints[layer], clamp(glow, 0.0, 1.0));
       float coarse = valueNoise(vec2(u, v) * grain, grain);
       vec2 fine = grain * 3.0;
       float detail = valueNoise(vec2(u, v) * fine + 0.37, fine);
       float cloud = clamp((coarse * 0.7 + detail * 0.3 - 0.44) * 2.8, 0.0, 1.0);
-      float density = cloud * opacities[layer] * (0.15 + belt * wipe * gains[layer] + lower * 0.9);
+      float density = cloud * opacities[layer] * (0.15 + belt * wipe * gains[layer] + lower * 0.5);
       color = mix(color, tints[layer], clamp(density, 0.0, 1.0));
     }
+
+    // Horizon glow: a thin band hugging latitude 0, tinted between violet and cyan along
+    // longitude and pressed a little brighter behind-right to sit under the aurora arc.
+    float band = exp(-pow(latitude / 0.12, 2.0));
+    vec3 bandHue = mix(VIOLET, CYAN, 0.5 + 0.5 * sin(phase * 1.0 + 1.2));
+    color = mix(color, bandHue, clamp(band * 0.07 * (0.6 + 0.4 * wipe), 0.0, 0.07));
+
+    ${CRACKS ? /* glsl */ `
+    // Space cracks: at most three thin streaks, each locked to a narrow latitude band in the
+    // upper sky and off to the sides, well away from the lower region the default camera reads.
+    for (int c = 0; c < 3; c++) {
+      float k = float(c);
+      float line = abs(fract(u * (7.0 + k * 5.0) + sin(v * (5.0 + k * 3.0)) * 0.15) - 0.5);
+      float crack = smoothstep(0.012, 0.0, line);
+      float vCenter = 0.68 + 0.12 * k;
+      float region = exp(-pow((v - vCenter) / 0.08, 2.0));
+      color = mix(color, vec3(177.0, 140.0, 255.0) / 255.0, clamp(crack * region * 0.1, 0.0, 0.1));
+    }
+    ` : ''}
 
     gl_FragColor = vec4(toLinear(color), 1.0);
   }
 `
+
+NEBULA_FRAGMENT = NEBULA_FRAGMENT.replace('void main() {', `${TO_LINEAR_GLSL}\n  void main() {`)
 
 const SKY_TEXTURE_WIDTH = 1024
 const SKY_TEXTURE_HEIGHT = 512
@@ -297,6 +340,114 @@ function NebulaSky({ reducedMotion }: { reducedMotion: boolean }) {
   return <primitive object={field.points} />
 }
 
+const BACK_AZIMUTH = Math.PI * 5 / 4
+
+const AURORA_VERTEX = /* glsl */ `
+  uniform float uTime;
+  varying vec2 vUv;
+  varying float vAngle;
+  void main() {
+    vUv = uv;
+    vAngle = uv.x * 6.2831853;
+    vec3 displaced = position;
+    vec2 radial = normalize(position.xz);
+    float shift = 0.8 * sin(vAngle * 3.0 + uTime * 0.08 + position.y * 0.35)
+      + 0.4 * sin(vAngle * 7.0 - uTime * 0.05);
+    displaced.xz += radial * shift * smoothstep(0.0, 0.5, uv.y);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+  }
+`
+
+const AURORA_FRAGMENT = /* glsl */ `
+  uniform float uTime;
+  varying vec2 vUv;
+  varying float vAngle;
+
+  ${TO_LINEAR_GLSL}
+
+  float curtain(float x, float base, float seed) {
+    float h = vUv.y - base;
+    float rise = max(h, 0.0);
+    float fold = sin(13.0 * x + seed + uTime * 0.03);
+    float phase = x * 103.0 + 2.4 * fold + rise * (4.0 + 2.0 * fold);
+    float rays = smoothstep(0.08, 0.94, 0.5 + 0.32 * sin(phase) + 0.18 * sin(phase * 1.67));
+    float lip = exp(-rise * 70.0);
+    float veil = exp(-rise * mix(20.0, 8.0, rays));
+    return smoothstep(-0.014, 0.006, h) * (0.36 * lip + (0.16 + 0.6 * rays) * veil);
+  }
+
+  void main() {
+    // Positive x points right in the default camera view.
+    float x = mod(${BACK_AZIMUTH} - vAngle + 3.1415926, 6.2831853) - 3.1415926;
+    float arc = 1.0 - smoothstep(0.68, 1.12, abs(x));
+    if (arc <= 0.0) discard;
+    float drift = 0.015 * sin(uTime * 0.045);
+    float bend = x + drift;
+    float mainBase = 0.26 + 0.40 * smoothstep(0.04, 0.58, bend) + 0.04 * sin(9.0 * bend);
+    float violetBase = 0.49 - 0.22 * smoothstep(-0.48, -0.25, x - drift)
+      + 0.08 * sin(6.0 * x + drift);
+    float cyan = curtain(x, mainBase, 0.0) * 0.48;
+    float violet = curtain(x, violetBase, 2.3) * 0.42
+      * (1.0 - smoothstep(0.08, 0.52, x));
+    float wispBase = 0.14 + 0.12 * sin(5.0 * bend - 1.0);
+    float wisp = 0.12 * curtain(x, wispBase, 4.7) * smoothstep(0.18, 0.52, sin(8.0 * x - 1.1));
+    float total = cyan + violet + wisp;
+    vec3 color = (cyan * toLinear(vec3(0.12, 0.76, 0.94))
+      + violet * toLinear(vec3(0.64, 0.38, 1.0))
+      + wisp * toLinear(vec3(0.31, 0.46, 0.86))) / max(total, 0.001);
+    gl_FragColor = vec4(color, arc * min(total, 0.50) * (1.0 - smoothstep(0.84, 1.0, vUv.y)));
+    vec4 texel = gl_FragColor;
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    gl_FragColor = texel;
+  }
+`
+
+type AuroraCurtainField = {
+  mesh: Mesh
+  step(elapsed: number): void
+  dispose(): void
+}
+
+// A single open cylinder behind the tower, seen from inside, with the arc and curtain folds
+// computed in the shader. One draw call; the sway and shimmer live entirely on the GPU.
+function createAuroraCurtain(): AuroraCurtainField {
+  const geometry = new CylinderGeometry(30, 30, 12, 96, 12, true)
+  const uniforms = { uTime: { value: 0 } }
+  const material = new ShaderMaterial({
+    uniforms,
+    vertexShader: AURORA_VERTEX,
+    fragmentShader: AURORA_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    side: BackSide,
+    blending: AdditiveBlending,
+    toneMapped: false,
+    fog: false,
+  })
+  const mesh = new Mesh(geometry, material)
+  // Frame both upper folds and lower wisps behind the skyline at the review pose.
+  mesh.position.y = 0
+  mesh.renderOrder = -3
+  mesh.frustumCulled = false
+  mesh.raycast = disableRaycast
+  return {
+    mesh,
+    step(elapsed) { uniforms.uTime.value = elapsed },
+    dispose() { geometry.dispose(); material.dispose() },
+  }
+}
+
+function AuroraCurtain({ reducedMotion }: { reducedMotion: boolean }) {
+  const curtain = useMemo(() => createAuroraCurtain(), [])
+  useEffect(() => () => curtain.dispose(), [curtain])
+  useFrame(({ clock }) => {
+    // Reduced motion freezes the shimmer at a fixed phase rather than toggling the layer.
+    curtain.step(reducedMotion ? 12 : clock.elapsedTime)
+  }, -1)
+  return <primitive object={curtain.mesh} />
+}
+
 // One radial spill that fades to black at the rim, so the model floats without a horizon line.
 function createGroundTexture() {
   const size = 256
@@ -325,15 +476,6 @@ function GroundGlow({ texture }: { texture: Texture }) {
       depthWrite={false} toneMapped={false} fog={false} />
   </mesh>
 }
-
-const ORBIT_RINGS = [
-  { radius: 5, color: '#8a5bff', opacity: 0.1, speed: 0.02 },
-  { radius: 7.5, color: '#b18cff', opacity: 0.08, speed: -0.014 },
-  { radius: 10, color: '#6b46e0', opacity: 0.06, speed: 0.009 },
-] as const
-
-// Sits just under the violet base band (y 0.47–0.52) so the rings read as its continuation.
-const ORBIT_Y = 0.45
 
 function OrbitRings({ reducedMotion }: { reducedMotion: boolean }) {
   const group = useRef<Group>(null)
@@ -383,6 +525,136 @@ function CubeConstellation() {
         depthWrite={false} toneMapped={false} fog={false} />
     </lineSegments>
   </group>
+}
+
+const CRYSTAL_COUNT = 10
+const CRYSTAL_FLANK_DEG = [42, 110] as const // lệch khỏi hướng sau core, chia đều trái/phải
+
+const CRYSTAL_VERTEX = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  void main() {
+    // Pháp tuyến đúng cho scale không đều: R·S⁻¹·n.
+    vec3 s = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+    vNormal = normalize(mat3(modelMatrix) * (mat3(instanceMatrix) * (normal / (s * s))));
+    vec4 worldPosition = modelMatrix * instanceMatrix * vec4(position, 1.0);
+    vViewDir = cameraPosition - worldPosition.xyz;
+    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+  }
+`
+
+const CRYSTAL_FRAGMENT = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+
+  ${TO_LINEAR_GLSL}
+
+  void main() {
+    float fresnel = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 3.0);
+    vec3 core = vec3(6.0, 16.0, 44.0) / 255.0;
+    vec3 rim = mix(vec3(107.0, 70.0, 224.0) / 255.0, vec3(31.0, 184.0, 216.0) / 255.0, smoothstep(0.3, 1.0, fresnel));
+    vec3 color = mix(core, rim, fresnel) * 0.75;
+    gl_FragColor = vec4(toLinear(color), mix(0.04, 0.3, fresnel));
+    vec4 texel = gl_FragColor;
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    gl_FragColor = texel;
+  }
+`
+
+type CrystalField = {
+  group: Group
+  step(delta: number): void
+  dispose(): void
+}
+
+// 10 tinh thể xa ở hai cánh phía sau. Vị trí dựng một lần, 2 draw call (thân + viền).
+function createCrystalField(seed: number): CrystalField {
+  const random = createRandom(seed)
+  const geometry = new OctahedronGeometry(1, 0)
+  const material = new ShaderMaterial({
+    vertexShader: CRYSTAL_VERTEX,
+    fragmentShader: CRYSTAL_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    side: FrontSide,
+    blending: NormalBlending,
+    toneMapped: false,
+    fog: false,
+  })
+  const mesh = new InstancedMesh(geometry, material, CRYSTAL_COUNT)
+  mesh.renderOrder = -3
+  mesh.frustumCulled = false
+  mesh.raycast = disableRaycast
+  mesh.instanceMatrix.setUsage(StaticDrawUsage)
+
+  const matrices: Matrix4[] = []
+  const matrix = new Matrix4()
+  const position = new Vector3()
+  const scale = new Vector3()
+  const quaternion = new Quaternion()
+  const euler = new Euler()
+  for (let index = 0; index < CRYSTAL_COUNT; index += 1) {
+    const side = index % 2 === 0 ? -1 : 1
+    const theta = BACK_AZIMUTH + side * MathUtils.degToRad(MathUtils.lerp(CRYSTAL_FLANK_DEG[0], CRYSTAL_FLANK_DEG[1], random()))
+    const radius = MathUtils.lerp(18, 28, random())
+    position.set(Math.cos(theta) * radius, 0.5 + random() * 8.5, Math.sin(theta) * radius)
+    const width = 0.3 + random() * 0.35
+    scale.set(width, 1.1 + random() * 1.3, width)
+    euler.set(random() * 0.3 - 0.15, random() * Math.PI * 2, random() * 0.3 - 0.15)
+    quaternion.setFromEuler(euler)
+    matrix.compose(position, quaternion, scale)
+    mesh.setMatrixAt(index, matrix)
+    matrices.push(matrix.clone())
+  }
+  mesh.instanceMatrix.needsUpdate = true
+
+  const edges = new EdgesGeometry(geometry, 1)
+  const edgePositions: number[] = []
+  const edgeAttribute = edges.getAttribute('position')
+  const vertex = new Vector3()
+  for (const instanceMatrix of matrices) {
+    for (let i = 0; i < edgeAttribute.count; i += 1) {
+      vertex.fromBufferAttribute(edgeAttribute, i).applyMatrix4(instanceMatrix)
+      edgePositions.push(vertex.x, vertex.y, vertex.z)
+    }
+  }
+  edges.dispose()
+  const edgeGeometry = new BufferGeometry()
+  edgeGeometry.setAttribute('position', new BufferAttribute(new Float32Array(edgePositions), 3))
+  const edgeMaterial = new LineBasicMaterial({
+    color: '#8a5bff', transparent: true, opacity: 0.12, blending: AdditiveBlending,
+    depthWrite: false, toneMapped: false, fog: false,
+  })
+  const edgesLine = new LineSegments(edgeGeometry, edgeMaterial)
+  edgesLine.renderOrder = -2
+  edgesLine.frustumCulled = false
+  edgesLine.raycast = disableRaycast
+
+  const group = new Group()
+  group.add(mesh)
+  group.add(edgesLine)
+  let elapsed = 0
+  return {
+    group,
+    // Chỉ lắc ±4° quanh vị trí gốc: tinh thể không bao giờ trôi sang phía camera.
+    step(delta) {
+      elapsed += delta
+      group.rotation.y = Math.sin(elapsed * 0.04) * MathUtils.degToRad(4)
+    },
+    dispose() {
+      geometry.dispose(); material.dispose(); edgeGeometry.dispose(); edgeMaterial.dispose()
+    },
+  }
+}
+
+function CrystalField({ reducedMotion }: { reducedMotion: boolean }) {
+  const field = useMemo(() => createCrystalField(2026), [])
+  useEffect(() => () => field.dispose(), [field])
+  useFrame((_state, delta) => {
+    if (!reducedMotion) field.step(delta)
+  }, -1)
+  return <primitive object={field.group} />
 }
 
 const METEOR_WAIT_SECONDS = [15, 25] as const
@@ -463,6 +735,114 @@ function Meteor() {
   return <primitive object={trail.line} />
 }
 
+const DUST_COUNT = 160
+
+const DUST_VERTEX = /* glsl */ `
+  attribute float size;
+  attribute float phase;
+  attribute vec3 tint;
+  attribute float amp;
+  uniform float uTime;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    vec3 pos = position;
+    float travel = fract(phase / 6.2831853 + uTime * 0.012 * (0.6 + amp));
+    pos.y = position.y + travel * 6.0;
+    pos.x += sin(uTime * 0.2 + phase) * 0.25;
+    pos.z += cos(uTime * 0.17 + phase) * 0.25;
+    vec4 view = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * view;
+    gl_PointSize = clamp(size * 55.0 / max(-view.z, 1.0), 1.5, 4.5);
+    vColor = tint;
+    vAlpha = sin(travel * 3.14159) * (0.6 + 0.4 * sin(uTime * 0.5 + phase));
+  }
+`
+
+const DUST_FRAGMENT = /* glsl */ `
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - vec2(0.5));
+    if (d > 0.5) discard;
+    float core = 1.0 - smoothstep(0.05, 0.5, d);
+    gl_FragColor = vec4(vColor, core * core * vAlpha * 0.45);
+    vec4 texel = gl_FragColor;
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    gl_FragColor = texel;
+  }
+`
+
+type LightDustField = {
+  points: Points
+  step(elapsed: number): void
+  dispose(): void
+}
+
+// A slow drift of luminous motes around the base. One draw call; the rise, sway and fade all run
+// in the vertex shader off a single uTime uniform.
+function createLightDust(seed: number): LightDustField {
+  const random = createRandom(seed)
+  const positions = new Float32Array(DUST_COUNT * 3)
+  const sizes = new Float32Array(DUST_COUNT)
+  const phases = new Float32Array(DUST_COUNT)
+  const tints = new Float32Array(DUST_COUNT * 3)
+  const amps = new Float32Array(DUST_COUNT)
+  const violet = new Color('#b18cff')
+  const cyan = new Color('#7be9ff')
+  const tint = new Color()
+  for (let index = 0; index < DUST_COUNT; index += 1) {
+    const radius = Math.sqrt(MathUtils.lerp(64, 324, random()))
+    const theta = BACK_AZIMUTH + MathUtils.degToRad((random() * 2 - 1) * 100)
+    positions[index * 3] = Math.cos(theta) * radius
+    positions[index * 3 + 1] = random() * 8
+    positions[index * 3 + 2] = Math.sin(theta) * radius
+    sizes[index] = 0.6 + random() * 0.8
+    phases[index] = random() * Math.PI * 2
+    tint.copy(violet).lerp(cyan, random())
+    tints[index * 3] = tint.r
+    tints[index * 3 + 1] = tint.g
+    tints[index * 3 + 2] = tint.b
+    amps[index] = 0.25 + random() * 0.2
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(positions, 3))
+  geometry.setAttribute('size', new BufferAttribute(sizes, 1))
+  geometry.setAttribute('phase', new BufferAttribute(phases, 1))
+  geometry.setAttribute('tint', new BufferAttribute(tints, 3))
+  geometry.setAttribute('amp', new BufferAttribute(amps, 1))
+  const uniforms = { uTime: { value: 0 } }
+  const material = new ShaderMaterial({
+    uniforms,
+    vertexShader: DUST_VERTEX,
+    fragmentShader: DUST_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    toneMapped: false,
+    fog: false,
+  })
+  const points = new Points(geometry, material)
+  points.renderOrder = -1
+  points.frustumCulled = false
+  points.raycast = disableRaycast
+  return {
+    points,
+    step(elapsed) { uniforms.uTime.value = elapsed },
+    dispose() { geometry.dispose(); material.dispose() },
+  }
+}
+
+function LightDust({ reducedMotion }: { reducedMotion: boolean }) {
+  const field = useMemo(() => createLightDust(77), [])
+  useEffect(() => () => field.dispose(), [field])
+  useFrame(({ clock }) => {
+    field.step(reducedMotion ? 12 : clock.elapsedTime)
+  }, -1)
+  return <primitive object={field.points} />
+}
+
 function createSkyDrift(backgroundRotation: Euler) {
   return {
     step(delta: number, reducedMotion: boolean) {
@@ -485,6 +865,9 @@ export function HolographicEnvironment({ reducedMotion }: { reducedMotion: boole
   return <>
     <Backdrop texture={sky.texture} />
     <NebulaSky reducedMotion={reducedMotion} />
+    <AuroraCurtain reducedMotion={reducedMotion} />
+    <CrystalField reducedMotion={reducedMotion} />
+    <LightDust reducedMotion={reducedMotion} />
     <GroundGlow texture={ground} />
     <OrbitRings reducedMotion={reducedMotion} />
     <CubeConstellation />

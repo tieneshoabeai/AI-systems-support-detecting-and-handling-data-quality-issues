@@ -4,6 +4,8 @@ import type { ProceduralModelRuntime } from './generated-core'
 import { CELL_GAIN, CONTEXT_GAUGES, DIMENSIONS, GAUGE_COLOR, HERO_CELL_COUNT, HERO_GAUGES, heroGaugeDimensions, stateOf, type GaugeTarget, type HeroGaugeTarget } from './tower-gauge-config'
 import { deriveCells, type CellKind } from './tower-gauge-data'
 
+const CONTEXT_CELL_EXPOSURE = 0.45
+
 function cellColors(score: number): Record<CellKind, THREE.Color> {
   const state = stateOf(score)
   const base = new THREE.Color(GAUGE_COLOR[state]).multiplyScalar(CELL_GAIN[state])
@@ -45,14 +47,23 @@ function scoresOf(rows: readonly DimensionScore[]) {
   return scores
 }
 
-type ContextWindows = { target: GaugeTarget; mesh: THREE.InstancedMesh; heights: number[]; levels: number[]; levelIndex: Map<number, number> }
+type ContextWindows = { target: GaugeTarget; mesh: THREE.InstancedMesh; markLevels: number[]; levelCount: number }
 type HeroColumn = { target: HeroGaugeTarget; mesh: THREE.InstancedMesh }
 
 function paintContext(binding: ContextWindows, score: number) {
-  const cells = deriveCells(binding.target.dimension, score, binding.levels.length)
+  const cells = deriveCells(binding.target.dimension, score, binding.levelCount)
   const colors = cellColors(score)
-  binding.heights.forEach((height, index) => {
-    binding.mesh.setColorAt(index, colors[cells[binding.levelIndex.get(height)!]])
+  // Several cell kinds share a Color instance. Apply exposure once per distinct color.
+  for (const color of new Set(Object.values(colors))) color.multiplyScalar(CONTEXT_CELL_EXPOSURE)
+  colors.off.set('#14203f')
+  const green = new THREE.Color(GAUGE_COLOR.good).multiplyScalar(CELL_GAIN.good * CONTEXT_CELL_EXPOSURE)
+  binding.markLevels.forEach((level, index) => {
+    let color = colors[cells[level]]
+    if (binding.target.towerId === 'tower-01-back-high' && cells[level] === 'off') {
+      const fromTop = binding.levelCount - 1 - level
+      color = fromTop % 2 === 0 ? green : colors.invalid
+    }
+    binding.mesh.setColorAt(index, color)
   })
   if (binding.mesh.instanceColor) binding.mesh.instanceColor.needsUpdate = true
 }
@@ -106,9 +117,12 @@ export function createTowerGauge(runtime: ProceduralModelRuntime, rows: readonly
   const contexts: ContextWindows[] = CONTEXT_GAUGES.map(target => {
     const mesh = runtime.meshes[target.towerId]?.getObjectByName('tower-window-panel')
     if (!(mesh instanceof THREE.InstancedMesh)) throw new Error(`Tower gauge: missing window panel for ${target.towerId}`)
-    const heights = Array.from({ length: mesh.count }, (_, index) => mesh.instanceMatrix.array[index * 16 + 13])
-    const levels = [...new Set(heights)].sort((a, b) => a - b)
-    return { target, mesh, heights, levels, levelIndex: new Map(levels.map((height, index) => [height, index])) }
+    const markLevels: unknown = mesh.userData.markLevels
+    if (!Array.isArray(markLevels) || markLevels.length !== mesh.count || !markLevels.length ||
+        !markLevels.every(level => Number.isInteger(level) && level >= 0)) {
+      throw new Error(`Tower gauge: invalid mark levels for ${target.towerId}`)
+    }
+    return { target, mesh, markLevels, levelCount: Math.max(...markLevels) + 1 }
   })
   for (const target of HERO_GAUGES) {
     const tower = runtime.meshes[target.towerId]

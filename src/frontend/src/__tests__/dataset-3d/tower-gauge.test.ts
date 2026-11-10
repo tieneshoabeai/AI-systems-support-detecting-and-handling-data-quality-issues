@@ -15,12 +15,15 @@ it('updates context color buffers without altering windows, then survives reset 
       const mesh = windows(target.towerId)
       return { mesh, colors: mesh.instanceColor!.array.slice(), matrices: mesh.instanceMatrix.array.slice(), material: mesh.material, geometry: mesh.geometry }
     })
-    // Zero completeness must turn every window off; one must turn every window cyan.
+    // At zero the entire tower uses the alternating upper-floor pattern.
     for (const score of [0, 1]) {
       api.applyQualityScores(MOCK_QUALITY_SCORES.map(row => ({ ...row, score })))
       const mesh = windows('tower-01-back-high')
-      const expected = new THREE.Color(score === 0 ? '#2a2150' : '#34d399').multiplyScalar(score === 0 ? 0.35 : 1.7)
+      const levels: number[] = mesh.userData.markLevels
+      const top = Math.max(...levels)
       for (let index = 0; index < mesh.count; index += 1) {
+        const red = score === 0 && (top - levels[index]) % 2 === 1
+        const expected = new THREE.Color(red ? '#f43f5e' : '#34d399').multiplyScalar((red ? 4.7 : 1.7) * 0.45)
         const actual = new THREE.Color()
         mesh.getColorAt(index, actual)
         expect(actual.r).toBeCloseTo(expected.r, 6)
@@ -60,15 +63,18 @@ it('paints every bay on a floor together, with missing completeness at the top',
     const mesh = runtime.meshes['tower-01-back-high'].getObjectByName('tower-window-panel') as THREE.InstancedMesh
     const floors = new Map<number, string>()
     for (let index = 0; index < mesh.count; index += 1) {
-      const y = mesh.instanceMatrix.array[index * 16 + 13]
+      const level = mesh.userData.markLevels[index]
       const color = Array.from(mesh.instanceColor!.array.slice(index * 3, index * 3 + 3)).join(',')
-      if (floors.has(y)) expect(color).toBe(floors.get(y))
-      floors.set(y, color)
+      if (floors.has(level)) expect(color).toBe(floors.get(level))
+      floors.set(level, color)
     }
     const ordered = [...floors].sort(([a], [b]) => a - b).map(([, color]) => color)
     const on = Math.round(ordered.length / 2)
     expect(new Set(ordered.slice(0, on)).size).toBe(1)
-    expect(new Set(ordered.slice(on)).size).toBe(1)
+    expect(new Set(ordered.slice(on)).size).toBe(2)
+    for (let level = on + 1; level < ordered.length; level++) {
+      expect(ordered[level]).not.toBe(ordered[level - 1])
+    }
     expect(ordered[0]).not.toBe(ordered.at(-1))
   } finally {
     api.dispose()

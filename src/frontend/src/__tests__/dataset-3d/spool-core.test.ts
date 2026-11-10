@@ -114,9 +114,9 @@ describe('spool core config', () => {
     expect(g).toBeGreaterThan(r)
     expect(b).toBeGreaterThan(r)
     expect(SPOOL_CORE.palette.amberLinear[0]).toBeGreaterThan(SPOOL_CORE.palette.amberLinear[1])
-    const { chamber, stream, floating, sparks } = SPOOL_CORE.particles
-    expect(chamber + stream + floating + sparks).toBe(164)
-    expect(stream).toBeGreaterThan(sparks)
+    const { chamber, floating, sparks } = SPOOL_CORE.particles
+    expect(chamber + floating + sparks).toBe(128)
+    expect(floating).toBeGreaterThan(sparks)
   })
 })
 
@@ -291,10 +291,10 @@ describe('spool core model', () => {
     expect(spheres.count).toBe(SPOOL_CORE.orbits.sphereCount)
 
     const particles = spool.parts.fx.children.find(
-      child => child instanceof THREE.InstancedMesh && child.count === 164,
+      child => child instanceof THREE.InstancedMesh && child.count === 128,
     ) as THREE.InstancedMesh
     expect(particles).toBeInstanceOf(THREE.InstancedMesh)
-    expect(particles.count).toBe(164)
+    expect(particles.count).toBe(128)
 
     spool.dispose()
   })
@@ -449,7 +449,7 @@ describe('spool core model', () => {
     const orbitGroup = findByName(spool.parts.fx, 'spool-orbits')
     const nucleusLight = findByName(spool.parts.chamber, 'spool-nucleus-light') as THREE.PointLight
     const particles = spool.parts.fx.children.find(
-      child => child instanceof THREE.InstancedMesh && child.count === 164,
+      child => child instanceof THREE.InstancedMesh && child.count === 128,
     ) as THREE.InstancedMesh
 
     // The light rides the same pulse as the capsule, so core and pool breathe as one object. reset()

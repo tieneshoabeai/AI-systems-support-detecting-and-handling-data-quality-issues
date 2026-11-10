@@ -1,14 +1,13 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { useAuth } from '../../hooks/auth/use-auth'
+import { PageSkeleton } from '../../components/loading/page-skeleton'
 
 export const SessionStatus = () => {
   const { snapshot } = useAuth()
-  return <main className="session-wait" aria-busy="true">
-    <span className="loading-mark" aria-hidden="true" />
-    <h1 id="page-heading" tabIndex={-1}>Đang kiểm tra phiên</h1>
-    <p role="status">{snapshot.phase === 'checking-health' ? 'Đang kiểm tra kết nối dịch vụ…' : 'Vui lòng chờ trong giây lát.'}</p>
-  </main>
+  const { pathname } = useLocation()
+  const message = snapshot.phase === 'checking-health' ? 'Đang kiểm tra kết nối dịch vụ…' : 'Đang kiểm tra phiên'
+  return <PageSkeleton pathname={pathname} message={message} />
 }
 
 export const ProtectedRoute = ({ children }: { children: ReactNode }) => {

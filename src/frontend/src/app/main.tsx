@@ -1,8 +1,10 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { PageSkeleton } from '../components/loading/page-skeleton'
 import { is2DPreviewUrl } from '../views/preview/preview-url'
 import './design-tokens.css'
 import './style.css'
+import '../views/auth/login-glass.css'
 
 const rootElement = document.getElementById('root')
 
@@ -11,7 +13,7 @@ if (!rootElement) {
 }
 
 const root = createRoot(rootElement)
-root.render(<main className="session-wait" role="status" aria-busy="true"><span className="loading-mark" aria-hidden="true" /><h1>Đang mở ứng dụng</h1></main>)
+root.render(<PageSkeleton pathname={window.location.pathname} message="Đang mở ứng dụng" />)
 
 // Build-time DEV removes these imports (including fixtures/Three) from production.
 // Branch before importing auth composition: preview never constructs a session runtime.

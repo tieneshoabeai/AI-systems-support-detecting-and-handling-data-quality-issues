@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { PreviewRoute } from './preview-url'
+import type { PreviewRoute } from '../../types/preview/preview-route.types'
 import { normalizePreviewHash, readPreviewRoute } from './preview-url'
 import { PreviewSessionProvider } from './preview-session'
 import { HomePreviewView } from './home-2d.view'

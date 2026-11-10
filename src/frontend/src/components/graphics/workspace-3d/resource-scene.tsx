@@ -3,13 +3,13 @@ import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Matrix4, Vector3 } from 'three'
 import type { Mesh } from 'three'
-import type { CameraCommand, ResourceLayout } from '../../types/workspace-3d/resource-map.types'
-import { advanceFlow } from '../../math/workspace-3d/resource-layout'
-import { shouldShowResourceLabel } from '../../math/workspace-3d/resource-label-policy'
+import type { CameraCommand, ResourceLayout } from '../../../types/workspace-3d/resource-map.types'
+import { advanceFlow } from '../../../math/workspace-3d/resource-layout'
+import { shouldShowResourceLabel } from '../../../math/workspace-3d/resource-label-policy'
 import { ResourceHardware } from './resource-hardware'
 import { HardwareLighting } from './hardware-lighting'
 import { ResourceCameraController } from './resource-camera-controller'
-import { routeCurve } from '../../math/workspace-3d/resource-routing'
+import { routeCurve } from '../../../math/workspace-3d/resource-routing'
 
 type Props = {
   layout: ResourceLayout

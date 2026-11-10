@@ -1,3 +1,4 @@
+import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
@@ -63,8 +64,6 @@ export const NEON_CUBE = {
     target: [0, 0.6, 0] as const,
   },
 } as const
-
-export type NeonCubeThemeId = 'violet' | 'cyan' | 'orange' | 'blue'
 
 export type NeonCubeTheme = {
   id: NeonCubeThemeId
@@ -455,13 +454,8 @@ function resolveTheme(theme?: NeonCubeThemeId | NeonCubeTheme): NeonCubeTheme {
   return typeof theme === 'string' ? NEON_CUBE_THEMES[theme] : theme
 }
 
-export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeModel {
-  const theme = resolveTheme(options.theme)
-  const group = new THREE.Group()
-  group.name = 'neon-glass-cube'
-  group.userData.partId = 'root'
-
-  const glassPanel = new THREE.MeshPhysicalMaterial({
+function createGlassPanel(theme: NeonCubeTheme) {
+  return new THREE.MeshPhysicalMaterial({
     color: theme.pane,
     emissive: theme.paneEmissive,
     emissiveIntensity: 0.9,
@@ -476,6 +470,83 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     clearcoatRoughness: 0.5,
     toneMapped: false,
   })
+}
+
+function createNeonEdge() {
+  return new THREE.MeshBasicMaterial({
+    color: '#ffffff',
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  })
+}
+
+function buildOuterShell(theme: NeonCubeTheme, glassPanel: THREE.Material, neonEdge: THREE.Material) {
+  const cubeOuter = new THREE.Group()
+  cubeOuter.name = 'cube-outer'
+  cubeOuter.userData.partId = 'cube-outer'
+
+  const panels = buildPanes(glassPanel)
+  panels.name = 'panel-grid'
+  panels.userData.partId = 'panel-grid'
+  panels.position.y = NEON_CUBE.cubeHalf
+  cubeOuter.add(panels)
+
+  const seamMesh = new THREE.Mesh(buildSeams(theme.neonLinear), neonEdge)
+  seamMesh.name = 'seam-grid'
+  seamMesh.userData.partId = 'seam-grid'
+  seamMesh.position.y = NEON_CUBE.cubeHalf
+  cubeOuter.add(seamMesh)
+
+  const edgeMesh = new THREE.Mesh(
+    buildEdgeFrame(NEON_CUBE.cubeSide, NEON_CUBE.outerEdgeRod, OUTER_EDGE_MULTIPLIER, theme.neonLinear),
+    neonEdge,
+  )
+  edgeMesh.name = 'cube-edges'
+  edgeMesh.userData.partId = 'cube-edges'
+  edgeMesh.position.y = NEON_CUBE.cubeHalf
+  cubeOuter.add(edgeMesh)
+
+  const cubeCornerMesh = new THREE.Mesh(
+    buildCornerMarkers(NEON_CUBE.cubeSide / 2, NEON_CUBE.cubeSide, theme.neonLinear),
+    neonEdge,
+  )
+  cubeCornerMesh.name = 'corner-markers-cube'
+  cubeCornerMesh.userData.partId = 'corner-markers-cube'
+  cubeOuter.add(cubeCornerMesh)
+  return { cubeOuter, panels, seamMesh, edgeMesh, cubeCornerMesh }
+}
+
+function createLightSheetMaterial(theme: NeonCubeTheme) {
+  const material = new THREE.MeshBasicMaterial({
+    map: createLightSheetTexture(), transparent: true, opacity: 0.8,
+    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.FrontSide, toneMapped: false,
+  })
+  material.color.setRGB(...theme.lightSheet)
+  return material
+}
+
+export function createDataViewRoofSheets(side: number, height: number) {
+  const material = createLightSheetMaterial(NEON_CUBE_THEMES.cyan)
+  material.addEventListener('dispose', () => material.map?.dispose())
+  const geometry = buildLightSheets()
+  geometry.translate(0, -NEON_CUBE.lightSheetBottomY, 0)
+  const sheets = new THREE.Mesh(geometry, material)
+  const span = side / (2 * NEON_CUBE.lightSheetOffset)
+  sheets.scale.set(span, height / NEON_CUBE.lightSheetHeight, span)
+  sheets.name = 'light-sheets'
+  return sheets
+}
+
+export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeModel {
+  const theme = resolveTheme(options.theme)
+  const group = new THREE.Group()
+  group.name = 'neon-glass-cube'
+  group.userData.partId = 'root'
+
+  const glassPanel = createGlassPanel(theme)
   const glassBase = new THREE.MeshPhysicalMaterial({
     color: theme.base,
     emissive: theme.baseEmissive,
@@ -503,14 +574,7 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     clearcoat: 1,
     clearcoatRoughness: 0.45,
   })
-  const neonEdge = new THREE.MeshBasicMaterial({
-    color: '#ffffff',
-    vertexColors: true,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    toneMapped: false,
-  })
+  const neonEdge = createNeonEdge()
   const coreGlass = new THREE.MeshPhysicalMaterial({
     color: theme.core,
     emissive: theme.coreEmissive,
@@ -534,17 +598,7 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     depthWrite: false,
     toneMapped: false,
   })
-  const lightSheetTexture = createLightSheetTexture()
-  const lightSheetMaterial = new THREE.MeshBasicMaterial({
-    map: lightSheetTexture,
-    transparent: true,
-    opacity: 0.8,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.FrontSide,
-    toneMapped: false,
-  })
-  lightSheetMaterial.color.setRGB(...theme.lightSheet)
+  const lightSheetMaterial = createLightSheetMaterial(theme)
 
   const baseOuter = new THREE.Group()
   baseOuter.name = 'base-outer'
@@ -632,40 +686,9 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
   rimInnerMesh.position.y = NEON_CUBE.rimInnerY
   baseInner.add(rimInnerMesh)
 
-  const cubeOuter = new THREE.Group()
-  cubeOuter.name = 'cube-outer'
-  cubeOuter.userData.partId = 'cube-outer'
+  const { cubeOuter, panels, seamMesh, edgeMesh, cubeCornerMesh } = buildOuterShell(theme, glassPanel, neonEdge)
   cubeOuter.position.y = NEON_CUBE.cubeBottomY
   baseInner.add(cubeOuter)
-
-  const panels = buildPanes(glassPanel)
-  panels.name = 'panel-grid'
-  panels.userData.partId = 'panel-grid'
-  panels.position.y = NEON_CUBE.cubeHalf
-  cubeOuter.add(panels)
-
-  const seamMesh = new THREE.Mesh(buildSeams(theme.neonLinear), neonEdge)
-  seamMesh.name = 'seam-grid'
-  seamMesh.userData.partId = 'seam-grid'
-  seamMesh.position.y = NEON_CUBE.cubeHalf
-  cubeOuter.add(seamMesh)
-
-  const edgeMesh = new THREE.Mesh(
-    buildEdgeFrame(NEON_CUBE.cubeSide, NEON_CUBE.outerEdgeRod, OUTER_EDGE_MULTIPLIER, theme.neonLinear),
-    neonEdge,
-  )
-  edgeMesh.name = 'cube-edges'
-  edgeMesh.userData.partId = 'cube-edges'
-  edgeMesh.position.y = NEON_CUBE.cubeHalf
-  cubeOuter.add(edgeMesh)
-
-  const cubeCornerMesh = new THREE.Mesh(
-    buildCornerMarkers(NEON_CUBE.cubeSide / 2, NEON_CUBE.cubeSide, theme.neonLinear),
-    neonEdge,
-  )
-  cubeCornerMesh.name = 'corner-markers-cube'
-  cubeCornerMesh.userData.partId = 'corner-markers-cube'
-  cubeOuter.add(cubeCornerMesh)
 
   const cubeInner = new THREE.Group()
   cubeInner.name = 'cube-inner'

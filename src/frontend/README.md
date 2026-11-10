@@ -2,27 +2,27 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại:** đã setup structure, dependency, UI khởi động và Foundation API (config, types/error, Axios client và unit test). Client chưa nối vào UI; các module nghiệp vụ, auth, 3D và IndexedDB/sync chưa được tích hợp vào ứng dụng.
+**Trạng thái hiện tại.** Frontend đã có luồng đăng nhập và quản lý phiên, preview 2D và Workspace 3D dành cho dev, trang review Dataset 3D và repository bản nháp IndexedDB. Xem [bản đồ module](#bản-đồ-module-frontend) để tra điểm vào và phân biệt luồng chính với preview.
 
 ## 1. Project Overview
 
 Mục tiêu của hệ thống là hỗ trợ phát hiện các vấn đề chất lượng dữ liệu như giá trị thiếu, ngoại lai, trùng lặp và định dạng không nhất quán; giúp người dùng xem xét, xử lý và theo dõi nguồn gốc thay đổi. FE là lớp giao diện cho luồng này, không phải tên của một dự án quản lý dữ liệu khác.
 
-Theo tài liệu dự án, lộ trình chia hai giai đoạn: **Core Platform trước**, gồm auth, workspace/project/dataset, khám phá dữ liệu và các thao tác được backend hỗ trợ; **AI hỗ trợ sau**, phục vụ phát hiện, giải thích và gợi ý xử lý. Người dùng vẫn kiểm tra và phê duyệt thao tác xử lý dữ liệu. Không gian làm việc và trực quan dữ liệu 3D là hướng phát triển FE đã chọn; chưa có runtime AI hoặc 3D trong FE hiện tại.
+Theo tài liệu dự án, lộ trình gồm **Core Platform** trước, sau đó là **AI hỗ trợ** phát hiện, giải thích và gợi ý xử lý. Người dùng kiểm tra và phê duyệt thao tác xử lý dữ liệu. Scene 3D hiện phục vụ trực quan và review giao diện, còn việc nối dữ liệu phân tích thật phụ thuộc hợp đồng của từng tính năng.
 
 Nguồn đối chiếu: [README dự án](../../README.md), [báo cáo tổng quan v5](../../docs/report_overview_v5.md), [đặc tả tính năng giai đoạn 1](../../docs/feature_spec_v4.md) và source backend. Mô tả mục tiêu trong docs không được dùng thay cho bằng chứng chức năng đã chạy.
 
-Frontend dùng **React + TypeScript + Vite**, quản lý package bằng **Yarn**. Entry hiện tại là **src/app/main.tsx**; UI khởi động nằm trong **src/app/App.tsx**.
+Frontend dùng **React + TypeScript + Vite** và quản lý package bằng **Yarn**. Entry là [src/app/main.tsx](src/app/main.tsx).
 
 | Công cụ | Vai trò dự kiến | Trạng thái |
 |---|---|---|
 | React, TypeScript, Vite | UI, type checking, dev server và build | Đang dùng |
-| React Router | Điều hướng và layout | Đã cài, chưa tích hợp |
-| Axios | HTTP client dùng chung | Đã có client Foundation, chưa nối UI |
-| TanStack Query | Dữ liệu server và cache | Đã cài, chưa tích hợp |
-| Three.js + React Three Fiber | Scene, camera và tương tác 3D | Đã cài, chưa tích hợp |
-| Dexie / IndexedDB | File, bản nháp và thao tác chờ | Đã cài, chưa tích hợp |
-| Vitest, Testing Library, jsdom | Kiểm thử logic và component | 88 test Foundation/session/UI startup pass; chưa test nghiệp vụ |
+| React Router | Điều hướng và layout | Luồng chính có router và guard |
+| Axios | HTTP client dùng chung | Được runtime truyền vào service auth, users và health |
+| TanStack Query | Dữ liệu server và cache | QueryClientProvider và dọn cache phiên đã ghép |
+| Three.js + React Three Fiber | Scene, camera và tương tác 3D | Có scene cho login, Workspace và Dataset |
+| Dexie / IndexedDB | File và metadata bản nháp | Repository đã ghép vào runtime |
+| Vitest, Testing Library, jsdom | Kiểm thử logic và component | Có suite theo nhóm tại [__tests__](src/__tests__/README.md) |
 
 Version và script thực tế xem [package.json](package.json). Đã cài thư viện không đồng nghĩa chức năng tương ứng đã hoạt động.
 
@@ -44,12 +44,12 @@ Frontend cần giải quyết các yêu cầu:
 
 | Module | Phạm vi mục tiêu | Hiện trạng FE |
 |---|---|---|
-| Auth | Đăng nhập/đăng ký, quản lý phiên, gia hạn theo xác nhận người dùng | Có plan, chưa triển khai |
-| User | Xem và cập nhật hồ sơ | Có plan, chưa triển khai |
-| Workspace | Danh sách, chi tiết và quản lý workspace/thành viên theo quyền | Có plan, chưa triển khai |
-| Project | Quản lý project trong workspace | Có plan, chưa triển khai |
-| Dataset | Upload, metadata, schema, đổi tên và xóa | Có plan, chưa triển khai |
-| Visualization | Cursor grid, thống kê cột, sửa ô trực tuyến và ranh giới data 3D | Có plan, chưa triển khai |
+| Auth | Đăng nhập/đăng ký, quản lý phiên, gia hạn theo xác nhận người dùng | Có login, phiên và gia hạn. Panel đăng ký là UI thử |
+| User | Xem và cập nhật hồ sơ | Service đọc hồ sơ phiên. Settings preview dùng mock |
+| Workspace | Danh sách, chi tiết và quản lý workspace/thành viên theo quyền | Có khung bảo vệ theo phiên và màn hình preview dùng fixture |
+| Project | Quản lý project trong workspace | Có các màn hình preview dùng fixture |
+| Dataset | Upload, metadata, schema, đổi tên và xóa | Có repository draft cục bộ và luồng thử CSV trong Workspace 3D |
+| Visualization | Cursor grid, thống kê cột, sửa ô trực tuyến và ranh giới data 3D | Có trang review Dataset 3D với nguồn điểm mẫu |
 | Transformation | Chuẩn bị, xem trước và thực thi phép biến đổi | Có plan; contract backend còn cần xác nhận |
 | Version / Lineage | Graph, truy vết và kiểm tra toàn vẹn; history/rollback khi có contract | Có plan; một số phần chờ backend |
 | Export | Preview, download và save-as-new khi có API phù hợp | Có plan; contract backend còn cần xác nhận |
@@ -61,14 +61,57 @@ Các phần dùng chung gồm Foundation, Screen flow và Shared UI. Xem [master
 ### Luồng đang chạy
 
 ~~~text
-index.html
-  → src/app/main.tsx
-      → React.StrictMode
-          → App.tsx
-              → UI khởi động tối giản
+index.html → src/app/main.tsx
+  ├─ URL preview hợp lệ ở dev → Preview 2D hoặc Workspace 3D
+  └─ Luồng chính → Application → providers → BrowserRouter → AppRouter → guard/view
 ~~~
 
-Style được import từ entry. **layout.tsx** hiện chỉ là component khung, chưa ghép vào luồng render.
+`/workspaces` đi qua guard trước khi render `layout.tsx`. `/workspaces/3d-dataset` tạm bỏ guard để review giao diện theo ghi chú trong [AppRouter](src/app/router/app-router.tsx).
+
+### Bản đồ module frontend
+
+| Module | Trách nhiệm | Tài liệu |
+| --- | --- | --- |
+| `app` | Entry, runtime, provider và router | [app](src/app/README.md) |
+| `views` | Màn hình và state riêng của màn hình | [views](src/views/README.md) |
+| `components` | UI cấp ứng dụng và các scene React Three Fiber | [components](src/components/README.md) |
+| `hooks` | Nối state và thao tác vào React | [hooks](src/hooks/README.md) |
+| `services` | Endpoint, mapping response, điều phối phiên và mock preview | [services](src/services/README.md) |
+| `repositories` | Schema và thao tác draft IndexedDB | [repositories](src/repositories/README.md) |
+| `sync` | Vị trí dự kiến cho điều phối đồng bộ | [sync](src/sync/README.md) |
+| `lib` | HTTP, lỗi, cache và lưu phiên | [lib](src/lib/README.md) |
+| `configs` | Cấu hình API và hạn mức draft | [configs](src/configs/README.md) |
+| `types` | Hợp đồng TypeScript dùng chung qua tầng | [types](src/types/README.md) |
+| `utils` | Helper thuần như đọc claim token | [utils](src/utils/README.md) |
+| `graphics` | Model, geometry, vật liệu và render pass Three.js | [graphics](src/graphics/README.md) |
+| `math` | Layout, đường nối, camera và parse CSV cho Workspace 3D | [math](src/math/README.md) |
+| `assets` | Ảnh, logo và font | [assets](src/assets/README.md) |
+| `__tests__` | Kiểm thử theo hành vi và tính năng | [__tests__](src/__tests__/README.md) |
+
+### Thứ tự đọc theo tính năng
+
+- **Đăng nhập.** Đọc `types/auth/auth.types.ts` để biết input/output, sau đó qua `services/auth/auth.service.ts`, `services/auth/session-coordinator.ts`, `app/context/auth-provider.tsx`, `hooks/auth/use-auth.ts`, `hooks/auth/use-login.ts` và `views/auth/login.view.tsx`. Khi submit, lời gọi bắt đầu ở view và đi xuống service. Khi có kết quả, snapshot mới đi qua provider để UI hoặc guard cập nhật.
+- **Workspace 3D.** Đọc `types/workspace-3d/resource-map.types.ts`, `math/workspace-3d/resource-layout.ts`, `graphics/workspace-3d/connection-geometry.ts`, `components/graphics/workspace-3d/resource-scene.tsx` rồi `views/workspace-3d/workspace-3d.view.tsx` để lần từ cây tài nguyên tới mesh, nhãn và thao tác chọn.
+
+### Phụ thuộc và vị trí đặt code
+
+Trong bảng này, `A → B` nghĩa là **A import B**. Đây là các ví dụ đã đối chiếu trong source.
+
+| Import hiện có | Lý do |
+| --- | --- |
+| `app/context/auth-provider.tsx` và `hooks/auth/use-auth.ts` → `hooks/auth/auth-context.ts` | Provider và hook dùng chung một context |
+| `views/preview/preview-url.ts` → `services/preview/preview-route.ts` | View re-export helper URL dùng chung cho preview |
+| `lib/axios-client.ts` → `configs/api.config.ts` | HTTP client đọc cấu hình đã kiểm |
+| `configs/api.config.ts` → `lib/api-error.ts` | Config dùng định dạng lỗi chuẩn |
+| `components/graphics/workspace-3d/resource-scene.tsx` → `math/workspace-3d/` | Scene dùng kết quả toán học để dựng đường và nhãn |
+
+**Vị trí JSX.** Trong `src/`, dùng `.tsx` ở `app/`, `views/` và `components/`. `__tests__/` được dùng JSX để render UI trong test. File không viết JSX dùng `.ts`. Ví dụ hook `useAuth` dùng React nhưng vẫn là `.ts`.
+
+**Chiều import.** `app` lắp runtime và giao diện. `views` ghép màn hình từ component và các tầng hỗ trợ. `components` không import `views` hoặc `app`. `hooks` không import tầng render. Các tầng xử lý và hạ tầng không import tầng UI hoặc hooks. `types` có thể import kiểu nội bộ và từ thư viện. `graphics` dùng Three.js và để phần React Three Fiber ở `components/graphics`.
+
+`yarn lint` kiểm tra vị trí `.tsx` và các hướng import bị cấm trong source, gồm import và re-export tĩnh cùng lazy import dùng chuỗi đường dẫn cố định. Xem **Vị trí & phụ thuộc** và **Quy ước & bất biến** của tầng sở hữu trước khi thêm dependency.
+
+**Quy tắc kiểu đã chốt.** Kiểu chỉ dùng trong một file đặt cạnh code sử dụng. Hợp đồng dùng chung qua các tầng đặt ở nhóm tương ứng trong `types/`. Ví dụ `Props` của `ResourceScene` đặt cạnh component, còn `ResourceLayout` dùng giữa math và graphics đặt trong `types/workspace-3d/`.
 
 ### Kiến trúc mục tiêu
 
@@ -80,8 +123,8 @@ Route / Page
           → Repository → IndexedDB
           → Sync coordinator (sau khi đủ contract backend)
 
-Graphics → nhận scene model và phát selection callback
-Math     → hàm số phức, vector, Quaternion độc lập UI/API
+Components/graphics → Graphics → Math
+Components/graphics → phát selection callback về View
 ~~~
 
 - Component không trực tiếp gọi Axios hoặc IndexedDB.
@@ -94,7 +137,7 @@ Chi tiết: [architecture](.agents/Structure/frontend-architecture-plan.md), [Fo
 
 ## 5. Folder Structure
 
-Cây dưới đây thể hiện các thư mục chính, không phải mọi file trong repository. Nhiều thư mục mới có **.gitkeep**, chưa có code nghiệp vụ.
+Cây dưới đây liệt kê các thư mục chính. Xem README từng module để tra file và trách nhiệm cụ thể.
 
 ~~~text
 frontend/
@@ -113,18 +156,18 @@ frontend/
 │   │   └── style.css
 │   ├── assets/
 │   ├── views/              # Màn hình theo domain
-│   ├── components/         # UI component
+│   ├── components/         # UI component và scene JSX
 │   ├── hooks/              # State và điều phối flow
 │   ├── services/           # API theo domain
 │   ├── repositories/      # IndexedDB
 │   ├── sync/              # Hàng đợi và đồng bộ
-│   ├── graphics/          # Scene, camera, interaction
-│   ├── math/              # Số phức, vector, Quaternion
+│   ├── graphics/          # Model, geometry, shader và render pass Three.js
+│   ├── math/              # Layout, camera, routing và CSV
 │   ├── lib/               # Client dùng chung
 │   ├── types/             # DTO và UI/local models
 │   ├── configs/           # Cấu hình công khai
 │   ├── utils/             # Helper thuần
-│   └── __tests__/         # Vị trí test chính thức dự kiến
+│   └── __tests__/         # Suites Vitest theo tính năng
 ├── .agents/               # Rules, skills và plan nội bộ
 ├── README.md
 ├── AI-usage.md
@@ -167,17 +210,15 @@ Build chạy TypeScript build và Vite production build. Preview phục vụ b�
 
 ### Test
 
-Chạy **yarn test** để kiểm tra Foundation API và UI khởi động bằng Vitest/Testing Library/jsdom. Test HTTP dùng adapter giả, không gọi backend thật.
-
-Các test nghiệp vụ trong plan chưa triển khai. Build/lint và test mô phỏng không thay browser hoặc API integration.
+Chạy `yarn test` để kiểm tra các suite frontend bằng Vitest, Testing Library và jsdom. Dùng [bản đồ test](src/__tests__/README.md) để chạy nhóm cụ thể. HTTP adapter giả và test DOM chỉ kiểm tra hành vi mô phỏng. Xác nhận API và WebGL cần môi trường tích hợp hoặc trình duyệt.
 
 ### Quản lý phiên nền tảng
 
-`src/lib/session-storage.ts` cung cấp factory `createSessionStorage()` với `read`, `write`, `clear`, `readToken`. Dữ liệu chỉ lưu tại key `data-quality.auth.v1`, gồm schemaVersion/accessToken/refreshToken/accountId; không lưu password/role. Đọc phiên trả `empty`, `invalid`, `valid` hoặc `expired`. Phiên hết hạn được giữ cho flow gia hạn sau nhưng `readToken()` trả null; dữ liệu hỏng bị xóa riêng key phiên. Lỗi storage được báo bằng error kind `storage`, không fallback sang nơi lưu khác. Truyền `readToken` vào `createAxiosClient({ readToken })` để client lấy token hiện tại. Chưa nối vào UI/AuthProvider, chưa refresh hoặc redirect. Đọc claim JWT chỉ phục vụ điều phối FE, không xác minh chữ ký/quyền.
+Runtime ghép session storage và coordinator. AuthProvider theo dõi trạng thái phiên để cập nhật guard và UI. Coordinator điều phối khôi phục, gia hạn và kết thúc phiên. Xem [lib](src/lib/README.md) để tra cách lưu phiên và [services](src/services/README.md) để theo dõi điều kiện gia hạn.
 
 ### Cấu hình địa chỉ API
 
-UI khởi động hiện chưa gọi API. **src/configs/api.config.ts** đọc **VITE_API_BASE_URL** (địa chỉ server HTTP/HTTPS, không kèm đường dẫn) và **VITE_API_PREFIX** (prefix API riêng) khi tạo client. Config ghép hai phần đúng một lần; service chỉ truyền endpoint. Prefix chấp nhận có/không dấu `/` đầu và một dấu `/` cuối; không nhận URL, query/hash hoặc traversal. Thiếu/sai cấu hình gây lỗi **config** ở vùng API, không chặn UI khởi động và không fallback sang backend khác. Không dùng đường dẫn Swagger làm prefix. Timeout mặc định 30 giây; caller health dùng 5 giây; upload cần chính sách riêng.
+[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Luồng chính đọc cấu hình khi tạo runtime. Nếu cấu hình sai, bootstrap chuyển lỗi tới UI. Hai nhánh preview dev được chọn trước khi nạp runtime chính.
 
 Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin FE. Không đưa token, API key, password hoặc secret backend vào cấu hình FE; không in nội dung **.env** vào chat/tài liệu. Xem [AI usage](AI-usage.md).
 
@@ -185,16 +226,9 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 
 ### Ví dụ theo hiện trạng source
 
-**Input:** chạy dev server và mở URL Local của Vite.
+**Đầu vào.** Chạy dev server và mở `/#/preview/workspaces`.
 
-**Output UI theo source hiện tại:**
-
-~~~text
-AI-systems-support-detecting-and-handling-data-quality-issues
-Ứng dụng đã khởi động
-~~~
-
-Đây là UI bootstrap; không có dữ liệu dataset hoặc kết quả AI ở màn hình này.
+**Kết quả theo source.** Entry preview chọn màn hình Workspaces và hiển thị fixture mẫu. Thao tác trong preview cập nhật mock store. Xem [views](src/views/README.md) để tra URL, các bộ dữ liệu và lệnh test.
 
 ### Ví dụ luồng mục tiêu — chưa triển khai
 
@@ -207,30 +241,24 @@ AI-systems-support-detecting-and-handling-data-quality-issues
 | Hạng mục | Kết quả và giới hạn bằng chứng |
 |---|---|
 | Structure và dependency | Đã setup; version nằm trong manifest và yarn.lock |
-| Bootstrap UI | Source hiện render tiêu đề và thông báo khởi động |
-| Build/lint | Đã chạy lại và đạt trong lượt chuẩn hóa tên dự án ngày 26/10/2026; không xác nhận chức năng nghiệp vụ |
-| Browser UI | Đã kiểm tra heading/tên tab đúng tên dự án và nội dung UI khởi động; không xác nhận các module nghiệp vụ |
-| Plan | Có architecture, plan 9 module và đặc tả Foundation/Screen flow/Shared UI |
-| Auth/API/3D/IndexedDB/sync | Chưa tích hợp vào runtime FE |
-| Test nghiệp vụ và kết quả AI | Chưa có kết quả thực thi; không công bố độ chính xác, FPS hoặc tỷ lệ test pass |
+| Bootstrap, auth và router | Có entry, provider, guard và màn hình đăng nhập trong source |
+| 3D và draft | Có preview Workspace 3D, route review Dataset 3D và repository draft trong source |
+| Kiểm chứng | Xem README từng module để chọn test và biết phạm vi mô phỏng |
 
 ## 9. Limitations
 
-- UI mới là màn hình khởi động; chưa có đăng nhập, router hoặc flow nghiệp vụ hoàn chỉnh.
-- Nhiều folder là structure chuẩn bị cho nhóm, không phải module đã implement.
+- Preview 2D và Workspace 3D dùng dữ liệu mẫu. Dataset 3D đang phục vụ review hình ảnh.
 - Một số contract backend còn thiếu hoặc cần đối chiếu DTO/service và response thật; xem ngày/bằng chứng trong contract audit, không coi snapshot cũ là xác nhận server hiện tại.
 - Chưa chốt toàn bộ UX, permission presentation, data 3D mapping và tiêu chí hiệu năng.
-- Chưa có schema/quota/retention IndexedDB hoặc replay đã kiểm chứng. Chống ghi trùng/xử lý conflict cần backend hỗ trợ.
-- Resilience không yêu cầu hỗ trợ khi mất Internet; chỉ cho thao tác đã duyệt khi token còn hạn. Phần này chưa triển khai.
-- Đã cấu hình test runner Foundation; chưa có CI hoặc production deployment.
+- Repository có schema và quota cục bộ. Luồng replay và đối soát server chờ contract đồng bộ.
 
 ## 10. Future Improvements
 
 1. Review quyết định UX/UI còn chờ; thống nhất interface cho hai người FE.
-2. Triển khai Foundation theo batch đã duyệt: config, client, query, auth/session, router và login tối giản.
+2. Kiểm thử đăng nhập, gia hạn và đăng xuất với backend được phép.
 3. Tích hợp module có API thực tế, kèm validation, permission và error handling.
-4. Đặc tả rồi triển khai scene 3D/math; data mapping và hiệu năng cần dữ liệu/thiết bị mục tiêu.
-5. Triển khai bản nháp IndexedDB và chỉ bật sync sau khi đủ contract chống trùng/đối soát/xung đột.
+4. Xác nhận data mapping và hiệu năng 3D với dữ liệu/thiết bị mục tiêu.
+5. Nối bản nháp IndexedDB vào luồng upload sau khi chốt contract chống trùng, đối soát và xử lý xung đột.
 6. Bổ sung Transformation/Version/Export theo contract backend được xác nhận, không tự tạo endpoint.
 7. Thêm automated tests, browser/API integration, accessibility, CI và deployment checks.
 

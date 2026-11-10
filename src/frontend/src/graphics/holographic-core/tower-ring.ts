@@ -3,9 +3,10 @@
 // factory block it was cut from and must keep running at exactly that position: the I1-I7 conditions at
 // the top of the factory say which later steps read what it leaves in runtime.meshes and runtime.nodes.
 import * as THREE from 'three'
+import { createDataViewRoofSheets } from '../neon-cube/neon-cube.model'
 import type { ProceduralModelRuntime } from './generated-core'
-import { ORIGINAL_TOWERS, OUTER_TOWERS, TOWER_BASE_Y, TOWER_DETAIL_PLAN, TOWER_IDS, type TowerRecord } from './tower-config'
-import { addTowerCornerPosts, addTowerDataMarks, buildTowerArchitecture, createOctagonalTowerGeometry, createTowerMaterials } from './tower-architecture'
+import { ORIGINAL_TOWERS, OUTER_TOWERS, TOWER_BASE_Y, TOWER_IDS, type TowerRecord } from './tower-config'
+import { buildTowerArchitecture, createOctagonalTowerGeometry, createTowerMaterials } from './tower-architecture'
 import { HERO_GAUGES } from './tower-gauge-config'
 
 const heroShapes = new Map(HERO_GAUGES.map(target => [target.towerId, target.shape]))
@@ -23,72 +24,6 @@ export function removeInactiveGeneratedTowers(runtime: ProceduralModelRuntime) {
     delete runtime.meshes[id]
     delete runtime.colliders[id]
     delete runtime.destructionGroups[id]
-  }
-}
-
-type TowerRiser = {
-  mesh: THREE.InstancedMesh
-  baseX: Float32Array
-  baseZ: Float32Array
-  phases: Float32Array
-  speeds: Float32Array
-  lengths: Float32Array
-  height: number
-}
-
-const riserMatrix = new THREE.Matrix4()
-const riserPosition = new THREE.Vector3()
-const riserScale = new THREE.Vector3()
-const riserQuaternion = new THREE.Quaternion()
-
-// Data motes drift up inside each glass tower, from the deck to the tower top.
-function addTowerRiser(parent: THREE.Object3D, width: number, depth: number, height: number, seed: number): TowerRiser {
-  const count = Math.max(14, Math.round(height * 12))
-  const baseX = new Float32Array(count)
-  const baseZ = new Float32Array(count)
-  const phases = new Float32Array(count)
-  const speeds = new Float32Array(count)
-  const lengths = new Float32Array(count)
-  const mesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.012, 1, 0.012),
-    // Dim steel-blue motes so they read through the glass without turning into white sparks.
-    new THREE.MeshBasicMaterial({ color: '#5b9cf0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
-    count,
-  )
-  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-  for (let index = 0; index < count; index += 1) {
-    const angle = (index * 2.399963 + seed * 1.7) % (Math.PI * 2)
-    const radial = 0.10 + 0.30 * ((index * 0.618 + seed * 0.37) % 1)
-    baseX[index] = Math.cos(angle) * width * radial
-    baseZ[index] = Math.sin(angle) * depth * radial
-    phases[index] = (index * 0.377 + seed * 0.21) % 1
-    speeds[index] = 0.35 + ((index * 0.733 + seed * 0.19) % 1) * 0.55
-    lengths[index] = 0.08 + ((index * 0.291 + seed * 0.53) % 1) * 0.12
-  }
-  mesh.name = 'tower-rising-particles'
-  mesh.renderOrder = 7
-  parent.add(mesh)
-  const riser = { mesh, baseX, baseZ, phases, speeds, lengths, height }
-  syncTowerRisers([riser], 0)
-  return riser
-}
-
-function syncTowerRisers(risers: TowerRiser[], elapsedSeconds: number) {
-  for (const riser of risers) {
-    const { mesh, baseX, baseZ, phases, speeds, lengths, height } = riser
-    for (let index = 0; index < phases.length; index += 1) {
-      const travel = (phases[index] + elapsedSeconds * speeds[index] * 0.32) % 1
-      riserPosition.set(
-        baseX[index] + Math.sin(elapsedSeconds * 1.6 + phases[index] * 6.283) * 0.012,
-        // Trails overshoot the tower roof by a fifth of the tower height.
-        -height / 2 + travel * height * 1.2,
-        baseZ[index] + Math.cos(elapsedSeconds * 1.3 + phases[index] * 6.283) * 0.012,
-      )
-      riserScale.set(1, lengths[index], 1)
-      riserMatrix.compose(riserPosition, riserQuaternion, riserScale)
-      mesh.setMatrixAt(index, riserMatrix)
-    }
-    mesh.instanceMatrix.needsUpdate = true
   }
 }
 
@@ -156,34 +91,114 @@ export function conformOriginalTowers(runtime: ProceduralModelRuntime) {
 }
 
 // Everything the factory used to do between the core decoration and the orbit runner, in the same order.
-export function createTowerRing(runtime: ProceduralModelRuntime, model: THREE.Object3D) {
+type TowerRiser = {
+  mesh: THREE.InstancedMesh
+  baseX: Float32Array
+  baseZ: Float32Array
+  phases: Float32Array
+  speeds: Float32Array
+  lengths: Float32Array
+  height: number
+  travelHeight: number
+}
+
+const riserMatrix = new THREE.Matrix4()
+const riserPosition = new THREE.Vector3()
+const riserScale = new THREE.Vector3()
+const riserQuaternion = new THREE.Quaternion()
+
+// Data motes drift up inside each glass tower, from the deck to the tower top.
+function addTowerRiser(parent: THREE.Object3D, width: number, depth: number, height: number, floorHeight: number, seed: number): TowerRiser {
+  const count = Math.max(14, Math.round(height * 12))
+  const baseX = new Float32Array(count)
+  const baseZ = new Float32Array(count)
+  const phases = new Float32Array(count)
+  const speeds = new Float32Array(count)
+  const lengths = new Float32Array(count)
+  const mesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.012, 1, 0.012),
+    // Dim steel-blue motes so they read through the glass without turning into white sparks.
+    new THREE.MeshBasicMaterial({ color: '#5b9cf0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    count,
+  )
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  for (let index = 0; index < count; index += 1) {
+    const angle = (index * 2.399963 + seed * 1.7) % (Math.PI * 2)
+    const radial = 0.10 + 0.30 * ((index * 0.618 + seed * 0.37) % 1)
+    baseX[index] = Math.cos(angle) * width * radial
+    baseZ[index] = Math.sin(angle) * depth * radial
+    phases[index] = (index * 0.377 + seed * 0.21) % 1
+    speeds[index] = 0.35 + ((index * 0.733 + seed * 0.19) % 1) * 0.55
+    lengths[index] = 0.08 + ((index * 0.291 + seed * 0.53) % 1) * 0.12
+  }
+  mesh.name = 'tower-rising-particles'
+  mesh.renderOrder = 7
+  parent.add(mesh)
+  const riser = { mesh, baseX, baseZ, phases, speeds, lengths, height, travelHeight: height + 2 * floorHeight }
+  syncTowerRisers([riser], 0)
+  return riser
+}
+
+function syncTowerRisers(risers: TowerRiser[], elapsedSeconds: number) {
+  for (const riser of risers) {
+    const { mesh, baseX, baseZ, phases, speeds, lengths, height } = riser
+    for (let index = 0; index < phases.length; index += 1) {
+      const travel = (phases[index] + elapsedSeconds * speeds[index] * 0.32) % 1
+      riserPosition.set(
+        baseX[index] + Math.sin(elapsedSeconds * 1.6 + phases[index] * 6.283) * 0.012,
+        // The leading tip reaches two floors above the roof.
+        -height / 2 + travel * (riser.travelHeight - lengths[index]) + lengths[index] / 2,
+        baseZ[index] + Math.cos(elapsedSeconds * 1.3 + phases[index] * 6.283) * 0.012,
+      )
+      riserScale.set(1, lengths[index], 1)
+      riserMatrix.compose(riserPosition, riserQuaternion, riserScale)
+      mesh.setMatrixAt(index, riserMatrix)
+    }
+    mesh.instanceMatrix.needsUpdate = true
+  }
+}
+
+const cyanRoofTowers = new Set(['tower-01-back-high', 'tower-08', 'tower-03'])
+const riserTowers = new Set(['tower-09', 'tower-07', 'tower-16', 'tower-02', 'tower-04'])
+
+export function createTowerRing(runtime: ProceduralModelRuntime, model: THREE.Object3D): {
+  update(elapsedSeconds: number): void
+  reset(): void
+} {
   // Shared architectural palette: deep-blue glass volumes, dark structural frames and a soft
   // window glow, with shared materials across all active towers.
   const materials = createTowerMaterials()
-  const { tone: towerTone, cornerPost: cornerPostMaterial, plinth } = materials
+  const { tone: towerTone, plinth } = materials
   createOuterTowers(runtime, model, plinth)
   // Build order: retained generated originals first, then the second ring. Several things key off
   // this list — the detach registry walks it as it stands.
   const towerPlan: TowerRecord[] = [...ORIGINAL_TOWERS, ...OUTER_TOWERS]
+  const risers: TowerRiser[] = []
   for (const tower of towerPlan) {
     const mesh = runtime.meshes[tower.id]
     if (!mesh) continue
     const shape = heroShapes.get(tower.id) ?? 'box'
-    buildTowerArchitecture(runtime, tower.id, tower.width, tower.height, tower.depth, tower.crowned, towerTone, shape, materials)
-    if (shape === 'box') addTowerCornerPosts(mesh, tower.width, tower.height, tower.depth, cornerPostMaterial)
+    buildTowerArchitecture(runtime, tower.id, tower.width, tower.height, tower.depth, towerTone, shape, materials)
+    const floorHeight = tower.height / THREE.MathUtils.clamp(Math.round(tower.height / 0.22), 3, 16)
+    if (cyanRoofTowers.has(tower.id)) {
+      const side = tower.width * 2 / 3
+      const height = floorHeight * 2 / 3
+      const sheets = createDataViewRoofSheets(side, height)
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(side, height, side), towerTone.glass)
+      pillar.name = 'tower-roof-pillar'
+      pillar.position.y = tower.height / 2 + height / 2
+      sheets.position.y = tower.height / 2 + height
+      pillar.renderOrder = 1
+      sheets.renderOrder = 3
+      sheets.raycast = () => {}
+      pillar.raycast = () => {}
+      mesh.add(pillar, sheets)
+    } else if (riserTowers.has(tower.id)) {
+      risers.push(addTowerRiser(mesh, tower.width, tower.depth, tower.height, floorHeight, tower.riserSeed))
+    }
   }
-  for (const { id, density } of TOWER_DETAIL_PLAN) {
-    if (heroShapes.has(id)) continue
-    const tower = towerPlan.find(entry => entry.id === id)
-    if (!tower) continue
-    addTowerDataMarks(runtime.meshes[id] ?? model, tower.width, tower.height, tower.depth, density)
-  }
-  // Hero cells carry the data now; omit decorative vertical particle trails along with mullions.
-  const risers = towerPlan.filter(tower => !heroShapes.has(tower.id)).map(tower =>
-    addTowerRiser(runtime.nodes[tower.id] ?? model, tower.width, tower.depth, tower.height, tower.riserSeed),
-  )
   return {
-    update: (elapsedSeconds: number) => syncTowerRisers(risers, elapsedSeconds),
+    update: elapsedSeconds => syncTowerRisers(risers, elapsedSeconds),
     reset: () => syncTowerRisers(risers, 0),
   }
 }

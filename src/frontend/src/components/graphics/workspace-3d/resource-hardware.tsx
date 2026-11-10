@@ -2,9 +2,9 @@ import { useEffect, useMemo } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { DoubleSide, ExtrudeGeometry, Path, Quaternion, Shape, Vector3 } from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import type { PositionedResource, ResourcePort } from '../../types/workspace-3d/resource-map.types'
-import { CONNECTION } from '../../math/workspace-3d/resource-connection-profile'
-import { hubSocketWall, socketPanel } from './connection-geometry'
+import type { PositionedResource, ResourcePort } from '../../../types/workspace-3d/resource-map.types'
+import { CONNECTION } from '../../../math/workspace-3d/resource-connection-profile'
+import { hubSocketWall, socketPanel } from '../../../graphics/workspace-3d/connection-geometry'
 
 type Finish = 'shell' | 'edge' | 'dark' | 'signal' | 'glass'
 type PartProps = {

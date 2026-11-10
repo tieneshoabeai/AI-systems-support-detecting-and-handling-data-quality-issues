@@ -7,7 +7,7 @@ update this table and the matching test in `src/__tests__/dataset-3d/`.
 
 | File | Responsibility |
 |---|---|
-| `src/graphics/holographic-core/inbound-stream-paths.ts` | Lane table, complex Bézier, arc-length LUT (256), `sampleAt` |
+| `src/graphics/holographic-core/inbound-stream-paths.ts` | Lane table, Bézier with lateral zigzag, arc-length LUT (256), `sampleAt` |
 | `src/graphics/holographic-core/inbound-stream-streaks.ts` | 24 streak meshes, particle classes, 3-tube buffer, per-frame write |
 | `src/graphics/holographic-core/inbound-streams.ts` | Root anchored to `core-cap`, 4 faint guides, counter-rotation, static reset |
 | `holographic-core.model.ts` | Wiring only: create (`createInboundStreams`), `update(elapsedSeconds)`, `resetMotion()` |
@@ -15,19 +15,20 @@ update this table and the matching test in `src/__tests__/dataset-3d/`.
 | `src/__tests__/dataset-3d/inbound-streams.test.ts` | T1–T10 structure, motion, reset, cap coupling, picking |
 | `.agents/holographic-core/captures/capture-inbound.cjs` | Desktop/mobile/reduced-motion captures |
 
-## Current knobs (v3)
+## Current knobs (v4)
 
-Lane geometry — all lanes share H and R, only azimuth and cycle differ.
+All lanes share the same height, radial curve and zigzag profile. Their azimuths and cycle durations differ.
 
 | Knob | Value |
 |---|---|
-| `LANE_GROUPS` base azimuth | 119 (left-outer), 151 (left-inner), 299 (right-outer), 331 (right-inner) |
-| `LANE_OFFSETS` | −4, −2, 0, +2, +4, +6 (degrees) → 24 lanes |
+| `LANE_GROUPS` base azimuth | 0° (+X), 90° (+Z), 180° (−X), 270° (−Z) |
+| `LANE_OFFSETS` | −5, −3, −1, +1, +3, +5 (degrees) → 24 lanes |
 | `START_HEIGHT` | 3.0 (cap-local; world ≈ 5.9 at the rim, intentionally cropped) |
 | `START_RADIUS` | 1.45 |
 | `LANDING_RADIUS` | 0.22 (ring around the cap hotspot; keeps the centre from burning) |
-| Cycle | `baseCycle + offsetDegrees × 0.15` → outer 6.6–8.1 s, inner 5.4–6.9 s (0.3 s per 2°; ~1.5× slower than v2) |
-| Path length L | ≈ 3.4199 world (all lanes identical) |
+| Zigzag | 5 rounded triangle cycles, nominal lateral amplitude 0.075 world, tapered to zero at both ends |
+| Cycle | `baseCycle + offsetDegrees × 0.15` → 6.6–8.1 s at 0°/180°, 5.4–6.9 s at 90°/270° (0.3 s per 2°) |
+| Path length L | ≈ 3.6128 world (all lanes identical) |
 
 Streak rendering — fixed buffer layout, never changes with class.
 
@@ -38,7 +39,7 @@ Streak rendering — fixed buffer layout, never changes with class.
 | `STATIONS` / `RINGS` / `RADIAL` | 12 segments / 13 rings / 6 |
 | Vertices per lane | 6 × 3 × 13 × 6 = **1404** (24 lanes → 33,696) |
 | Indices per lane | 6 × 3 × 12 × 6 × 6 = **7776** |
-| `STREAK_LENGTH_RATIO` | 0.0825 L ≈ 0.2821 world (short dash, wide gaps) |
+| `STREAK_LENGTH_RATIO` | 0.0825 L ≈ 0.2981 world (short dash, wide gaps) |
 | Grain classes | 6 pairs of head/tail radius, one colour per class (see below) |
 | Wisp radius | 0.30 × main tube |
 | Jitter | lane-wide ±0.035 cycle + per-streak ±0.008 cycle (deterministic hash) |
@@ -73,7 +74,7 @@ Composition.
 | Knob | Value |
 |---|---|
 | Root | name `inbound-data-streams`, child of `core-cap`, local y 0.05 |
-| Guides | only the 4 base lanes (`offsetDegrees === 0`), tube radius 0.0055, opacity 0.11, renderOrder 5 |
+| Guides | 4 centre paths at the group azimuths, tube radius 0.0055, opacity 0.11, renderOrder 5 |
 | Streaks | 24 meshes, renderOrder 7, additive, opacity 0.36, `depthWrite=false`, `toneMapped=false` |
 | Counter-rotation | `root.rotation.y = -cap.rotation.y` every update |
 
@@ -81,7 +82,8 @@ Composition.
 
 - Raise/lower the whole bundle: `START_HEIGHT` in `inbound-stream-paths.ts`.
 - Move lanes in/out: `START_RADIUS`; landing ring: `LANDING_RADIUS` (0.22, must stay inside cap 0.92).
-- Slower/faster: scale the `LANE_GROUPS` base cycles (7.2 / 6.0) or `CYCLE_STEP_SECONDS_PER_DEGREE`.
+- Slower/faster: scale the `LANE_GROUPS` base cycles (7.35 / 6.15) or `CYCLE_STEP_SECONDS_PER_DEGREE`.
+- Zigzag: tune `ZIGZAG_AMPLITUDE` for width and `ZIGZAG_CYCLES` for bend count.
 - More/less chaos: change `CYCLE_STEP_SECONDS_PER_DEGREE` (0.15) or `LANE_PHASE_JITTER`.
 - More/less density per lane: `STREAKS_PER_LANE` (+ its use in `createStreakProfiles` and the test constants).
 - Grain sizes/colours: the `GRAIN_DEFINITIONS` table (`headRadius`, `tailRadius`, `spread`, `brightness`, `hex`).
@@ -119,6 +121,7 @@ Writes `desktop-attached-{a,b}.png` (0.4 s apart), `desktop-exploded-{a,b}.png`,
 - v3: cycles ×1.5 (outer 6.6–8.1 s, inner 5.4–6.9 s), six grain classes with six cool hues,
   landing ring 0.22, dash 0.0825 L with a longer/thinner tail, ~45% dimmer. Centre hotspot is no
   longer fed by the streams.
+- v4: cardinal azimuths, symmetric lane offsets, and a lateral zigzag along the same Bézier.
 
 ## Known issues
 
@@ -127,5 +130,5 @@ Writes `desktop-attached-{a,b}.png` (0.4 s apart), `desktop-exploded-{a,b}.png`,
   untouched and stays visible, but is no longer fed by the streams.
 - Additive overlap still whitens lane crossings; lower `HEAD_LUMA` or opacity before changing the
   model/scene bloom.
-- Mobile crops the outer half of both bundles (same as the outer towers).
+- Camera framing can crop the outer ends of the streams, especially on mobile.
 - 24 lanes = 28 draw calls and ~0.8 MB of attribute writes per frame; acceptable but not free.

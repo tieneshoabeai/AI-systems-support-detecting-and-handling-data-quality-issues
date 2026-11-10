@@ -39,7 +39,7 @@ export function createTowerMaterials(): TowerMaterials {
         roughness: TOWER_PALETTE.glass.roughness, metalness: TOWER_PALETTE.glass.metalness,
         clearcoat: TOWER_PALETTE.glass.clearcoat, clearcoatRoughness: TOWER_PALETTE.glass.clearcoatRoughness,
         emissive: TOWER_PALETTE.glass.emissive, emissiveIntensity: TOWER_PALETTE.glass.emissiveIntensity,
-        depthWrite: false, side: THREE.DoubleSide,
+        depthWrite: true, side: THREE.FrontSide,
       }),
       core: new THREE.MeshStandardMaterial({
         color: TOWER_PALETTE.core.color, emissive: TOWER_PALETTE.core.emissive,
@@ -54,8 +54,7 @@ export function createTowerMaterials(): TowerMaterials {
         metalness: TOWER_PALETTE.frame.metalness, depthWrite: false, side: THREE.DoubleSide,
       }),
       window: new THREE.MeshBasicMaterial({
-        color: TOWER_PALETTE.window.color, transparent: true, opacity: TOWER_PALETTE.window.opacity,
-        depthWrite: false, blending: THREE.NormalBlending, toneMapped: false,
+        color: '#ffffff', toneMapped: false,
       }),
     },
     cornerPost: new THREE.MeshBasicMaterial({
@@ -81,23 +80,23 @@ const TOWER_FACES: TowerFace[] = [
 ]
 
 const TOWER_UP = new THREE.Vector3(0, 1, 0)
+// Fractions of face width and floor height. Size is decorative and independent of score.
+const SHORT_BAR = { width: 0.24, height: 0.16 }
+const UPRIGHT = { width: 0.10, height: 0.50 }
+const WIDE_MARK = { width: 0.42, height: 0.40 }
+const MARK_SEQUENCE = [SHORT_BAR, UPRIGHT, SHORT_BAR, WIDE_MARK, UPRIGHT, SHORT_BAR, UPRIGHT]
 const towerMatrix = new THREE.Matrix4()
 const towerQuaternion = new THREE.Quaternion()
 const towerPosition = new THREE.Vector3()
 const towerScale = new THREE.Vector3()
 const towerColor = new THREE.Color()
 
-function towerPatternHash(id: string, first: number, second: number) {
-  let hash = 2166136261
-  for (let index = 0; index < id.length; index += 1) hash = Math.imul(hash ^ id.charCodeAt(index), 16777619)
-  const value = Math.sin((hash >>> 0) * 0.000011 + first * 12.9898 + second * 78.233) * 43758.5453
-  return value - Math.floor(value)
-}
+export const TOWER_BEVEL = 0.01
 
 // Solid beveled prism: rounded vertical corners plus chamfered top and bottom caps give the
 // volume a real architectural edge instead of a wireframe cage.
 export function createBeveledTowerGeometry(width: number, height: number, depth: number) {
-  const bevel = 0.01
+  const bevel = TOWER_BEVEL
   const halfWidth = width / 2
   const halfDepth = depth / 2
   const corner = Math.min(THREE.MathUtils.clamp(0.08 * Math.min(width, depth), 0.012, 0.03), halfWidth - 0.002, halfDepth - 0.002)
@@ -256,7 +255,6 @@ export function buildTowerArchitecture(
   width: number,
   height: number,
   depth: number,
-  crowned: boolean,
   tone: TowerTone,
   shape: TowerShape = 'box',
   heroMaterials?: Pick<TowerMaterials, 'heroMetal' | 'heroProxy' | 'heroCore' | 'heroEdge'>,
@@ -273,107 +271,68 @@ export function buildTowerArchitecture(
   }
   mesh.geometry = createBeveledTowerGeometry(width, height, depth)
 
-  const core = new THREE.Mesh(
-    new THREE.BoxGeometry(Math.max(width - 0.03, 0.02), Math.max(height - 0.02, 0.02), Math.max(depth - 0.03, 0.02)),
-    tone.core,
-  )
-  core.name = 'tower-solid-core'
-  core.renderOrder = 1
-  mesh.add(core)
-
+  mesh.geometry.computeBoundingBox()
+  const bounds = mesh.geometry.boundingBox!
   const floorCount = THREE.MathUtils.clamp(Math.round(height / 0.22), 3, 16)
   const floorHeight = height / floorCount
-  const slabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = []
-  const addSlab = (x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
-    slabs.push({ x, y, z, sx, sy, sz })
+  const thickness = 0.007
+  const rodOffset = thickness / 2 + 0.002
+  const x = bounds.max.x + rodOffset
+  const z = bounds.max.z + rodOffset
+  const segments: number[] = []
+  for (const sx of [-x, x]) {
+    for (const sz of [-z, z]) segments.push(sx, bounds.min.y, sz, sx, bounds.max.y, sz)
   }
-  addSlab(0, -height / 2 + 0.012, 0, width + 0.026, 0.024, depth + 0.026)
-  for (let floor = 1; floor < floorCount; floor += 1) {
-    addSlab(0, -height / 2 + floor * floorHeight, 0, width + 0.014, 0.012, depth + 0.014)
+  for (let floor = 0; floor <= floorCount; floor += 1) {
+    const y = bounds.min.y + floor * floorHeight
+    segments.push(-x,y,-z, x,y,-z, x,y,-z, x,y,z, x,y,z, -x,y,z, -x,y,z, -x,y,-z)
   }
-  addSlab(0, height / 2 - 0.012, 0, width + 0.022, 0.024, depth + 0.022)
-  addSlab(0, height / 2 - 0.03, 0, Math.max(width - 0.05, 0.04), 0.006, Math.max(depth - 0.05, 0.04))
-  if (crowned) {
-    // The tallest tower carries a setback crown so the skyline reads at a glance.
-    addSlab(0, height / 2 + 0.05, 0, width * 0.62, 0.1, depth * 0.62)
-    addSlab(0, height / 2 + 0.106, 0, width * 0.5, 0.012, depth * 0.5)
-  }
-
-  const bays = Math.max(2, Math.round(width / 0.11))
-  const sideBays = Math.max(2, Math.round(depth / 0.11))
-  const finHeight = Math.max(height - 0.08, 0.1)
-  const finZ = depth / 2 + 0.005
-  const finX = width / 2 + 0.005
-  for (let bay = 1; bay < bays; bay += 1) {
-    const offset = -width / 2 + (bay / bays) * width
-    addSlab(offset, 0, finZ, 0.012, finHeight, 0.014)
-    addSlab(offset, 0, -finZ, 0.012, finHeight, 0.014)
-  }
-  for (let bay = 1; bay < sideBays; bay += 1) {
-    const offset = -depth / 2 + (bay / sideBays) * depth
-    addSlab(finX, 0, offset, 0.014, finHeight, 0.012)
-    addSlab(-finX, 0, offset, 0.014, finHeight, 0.012)
-  }
-
-  const frames = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), tone.frame, slabs.length)
-  towerQuaternion.identity()
-  slabs.forEach((slab, index) => {
-    towerPosition.set(slab.x, slab.y, slab.z)
-    towerScale.set(slab.sx, slab.sy, slab.sz)
-    towerMatrix.compose(towerPosition, towerQuaternion, towerScale)
-    frames.setMatrixAt(index, towerMatrix)
+  addTechnicalRods(mesh, segments, {
+    name: 'tower-ledger-edges', thickness, opacity: 0.85, color: '#cfe6ff', blending: THREE.NormalBlending,
   })
-  frames.instanceMatrix.needsUpdate = true
-  frames.name = 'tower-floor-frame'
-  frames.renderOrder = 3
-  frames.frustumCulled = false
-  frames.raycast = () => {}
-  mesh.add(frames)
 
-  // Window panels sit behind the glass surface while the floor slabs and fins stand proud,
-  // so every bay reads recessed into the facade.
-  const windowCount = (floorCount - 1) * (bays * 2 + sideBays * 2)
-  const windows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), tone.window, windowCount)
-  const panelHeight = floorHeight * 0.52
-  let windowIndex = 0
+  const panelDepth = 0.012
+  const panelCenterOffset = 0.002 + panelDepth / 2
+  let seed = Array.from(id).reduce((hash, char) => Math.imul(hash, 31) + char.charCodeAt(0), 1)
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+    return seed / 0x100000000
+  }
+  const markLevels: number[] = []
+  const windows = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), tone.window, (floorCount - 1) * 8)
+  towerColor.set('#ffffff')
+  let index = 0
   for (let floor = 1; floor < floorCount; floor += 1) {
-    const y = -height / 2 + (floor - 0.5) * floorHeight
+    const y = bounds.min.y + (floor - 0.5) * floorHeight
     for (const face of TOWER_FACES) {
-      const faceBays = face.axis === 'z' ? bays : sideBays
-      const span = face.axis === 'z' ? width : depth
-      const inset = (face.axis === 'z' ? depth / 2 : width / 2) - 0.005
+      const surface = face.sign > 0 ? bounds.max[face.axis] : bounds.min[face.axis]
+      const center = surface + face.sign * panelCenterOffset
+      const front = face.axis === 'z'
+      const span = front ? width : depth
+      const pair = random() < 0.22
+      const firstRegion = Math.floor(random() * 9)
+      const regions = pair ? [firstRegion, (firstRegion + 1 + Math.floor(random() * 8)) % 9] : [firstRegion]
       towerQuaternion.setFromAxisAngle(TOWER_UP, face.rotation)
-      for (let bay = 0; bay < faceBays; bay += 1) {
-        const offset = -span / 2 + ((bay + 0.5) / faceBays) * span
-        if (face.axis === 'z') towerPosition.set(offset, y, face.sign * inset)
-        else towerPosition.set(face.sign * inset, y, offset)
-        towerScale.set((span / faceBays) * 0.62, panelHeight, 1)
-        towerMatrix.compose(towerPosition, towerQuaternion, towerScale)
-        windows.setMatrixAt(windowIndex, towerMatrix)
-        const lit = towerPatternHash(id, floor, bay + face.index * 13) < 0.38
-        towerColor.set(lit ? '#4f97e8' : '#0a2136')
-        windows.setColorAt(windowIndex, towerColor)
-        windowIndex += 1
+      for (const region of regions) {
+        const mark = pair ? SHORT_BAR : MARK_SEQUENCE[Math.floor(random() * MARK_SEQUENCE.length)]
+        const markWidth = pair ? mark.width / 2 : mark.width
+        const horizontal = (region % 3 - 1 + (random() - 0.5) * 0.18) * (0.42 - markWidth / 2) * span
+        const vertical = (Math.floor(region / 3) - 1 + (random() - 0.5) * 0.18) * (0.42 - mark.height / 2) * floorHeight
+        towerPosition.set(front ? horizontal : center, y + vertical, front ? center : horizontal)
+        towerScale.set(span * markWidth, floorHeight * mark.height, panelDepth)
+        windows.setMatrixAt(index, towerMatrix.compose(towerPosition, towerQuaternion, towerScale))
+        windows.setColorAt(index++, towerColor)
+        markLevels.push(floor - 1)
       }
     }
   }
-  windows.instanceMatrix.needsUpdate = true
-  if (windows.instanceColor) windows.instanceColor.needsUpdate = true
   windows.name = 'tower-window-panel'
-  windows.renderOrder = 2
-  windows.frustumCulled = false
+  windows.count = index
+  windows.userData.markLevels = markLevels
+  windows.instanceMatrix.needsUpdate = true
+  windows.instanceColor!.needsUpdate = true
   windows.raycast = () => {}
   mesh.add(windows)
-
-  const roofY = crowned ? height / 2 + 0.112 : height / 2
-  const roofHalfWidth = (crowned ? width * 0.5 : width) / 2
-  const roofHalfDepth = (crowned ? depth * 0.5 : depth) / 2
-  addTechnicalRods(mesh, [
-    -roofHalfWidth, roofY, -roofHalfDepth, roofHalfWidth, roofY, -roofHalfDepth,
-    roofHalfWidth, roofY, -roofHalfDepth, roofHalfWidth, roofY, roofHalfDepth,
-    roofHalfWidth, roofY, roofHalfDepth, -roofHalfWidth, roofY, roofHalfDepth,
-    -roofHalfWidth, roofY, roofHalfDepth, -roofHalfWidth, roofY, -roofHalfDepth,
-  ], { thickness: 0.008, opacity: 0.45, name: 'tower-roof-outline', color: '#6fa8ff', blending: THREE.NormalBlending })
 }
 
 export function addTowerCornerPosts(parent: THREE.Object3D, width: number, height: number, depth: number, material: THREE.Material, shape: TowerShape = 'box') {

@@ -11,7 +11,7 @@ const STATIONS = 12
 const RINGS = STATIONS + 1
 const RADIAL = 6
 const VERTICES_PER_LANE = STREAKS_PER_LANE * TUBES_PER_STREAK * RINGS * RADIAL
-const LANE_ID = 'left-outer@0'
+const LANE_ID = 'azimuth-0@-1'
 
 const projectionStart = new THREE.Vector3()
 const projectionEnd = new THREE.Vector3()
@@ -157,7 +157,7 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
       expect(guide.userData.pathId).toBeTruthy()
     }
     expect(new Set(guides.map(guide => guide.userData.pathId))).toEqual(
-      new Set(['left-outer', 'left-inner', 'right-outer', 'right-inner']),
+      new Set(['azimuth-0', 'azimuth-90', 'azimuth-180', 'azimuth-270']),
     )
     expect(guideMaterial.opacity).toBeLessThanOrEqual(0.15)
     expect(guideMaterial.blending).toBe(THREE.AdditiveBlending)
