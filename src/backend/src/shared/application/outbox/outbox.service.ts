@@ -2,9 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
 import { IOutboxEvent } from './outbox-event.schema';
+import type { OutboxPort } from '../../../shared/ports/outbox.port';
 
 @Injectable()
-export class OutboxService {
+export class OutboxService implements OutboxPort {
   private readonly logger = new Logger(OutboxService.name);
 
   constructor(
@@ -47,7 +48,7 @@ export class OutboxService {
   }
 
   /**
-   * Đánh dấu sự kiện đã đồng bộ thành công sang Neo4j AuraDB
+   * Đánh dấu sự kiện đã xử lý thành công (relay outbox)
    */
   async markAsProcessed(eventId: string): Promise<void> {
     await this.outboxModel.updateOne(
