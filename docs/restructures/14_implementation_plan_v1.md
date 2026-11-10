@@ -1,0 +1,931 @@
+# 14. Kế hoạch thực hiện tái cấu trúc
+
+- **Version:** v1
+- **Ngày tạo:** 2026-11-02
+- **Cập nhật gần nhất:** 2026-11-05
+- **Trạng thái:** Đã chốt 16 quyết định triển khai và thiết kế chi tiết **chiến lược Hybrid**, **6 đợt giao hàng**, **cấu trúc monorepo pnpm**, **feature flag chuyển traffic theo module**, **migrate dữ liệu theo từng nhóm module**, quy trình commit/PR, ước tính khối lượng theo module và lịch trình, bảng phân bổ 92 quy tắc kiểm thử theo đợt, cùng **cảnh báo lệch lịch do chênh lệch ước tính**.
+- **Giai đoạn:** Sẵn sàng implementation
+- **Thứ tự thực hiện:** Phần 14 — cuối cùng trước khi viết code.
+- **Quan hệ với các phần khác:** hiện thực hóa toàn bộ Phần 1–13; dùng ma trận 92 quy tắc của Phần 13 làm danh sách kiểm tra bắt buộc cho từng đợt.
+
+## 1. Mục tiêu
+
+Chuyển từ bộ tài liệu thiết kế (Phần 1–13) sang kế hoạch thực thi cụ thể: chia việc thành các đợt giao hàng có thể kiểm chứng được, với tiêu chí nghiệm thu rõ ràng cho từng đợt.
+
+## 2. Nội dung cần bàn luận
+
+- Chiến lược chuyển đổi từ hệ thống cũ sang hệ thống mới mà không mất dịch vụ.
+- Cấu trúc repo mục tiêu và cách chia đợt.
+- Ước lượng khối lượng, lịch trình và rủi ro.
+
+## 3. Quyết định và thiết kế chi tiết
+
+### 3.1. Các quyết định nền tảng
+
+| # | Quyết định | Ghi chú |
+|---|---|---|
+| 1 | Cấu trúc repo: **monorepo pnpm workspaces** — `apps/api`, `apps/worker`, `packages/core`, `packages/contracts` | Đúng như Phần 5 / Phần 13 đã thiết kế |
+| 2 | Chiến lược: **Hybrid** — dựng nền tảng trước, chuyển module theo nhóm nghiệp vụ | Giữ API cũ chạy tới khi nhóm module mới sẵn sàng |
+| 3 | Chia **6 đợt giao hàng** | Khớp 21 module + hạ tầng |
+| 4 | Nhánh: **một nhánh `Hoa24102026`**, không nhánh con, commit theo từng đợt với message `[Đợt N]` | Đơn giản, khó review từng phần — chấp nhận |
+| 5 | Giữ code legacy **đến khi cutover xong** rồi xoá hết một lần | Đúng kịch bản Phần 11 (legacy drop ngay khi verify pass) |
+| 6 | **TDD nghiêm** — test trước, mỗi use case chỉ xong khi đã có test | Đúng tinh thần Phần 13 |
+| 7 | Chuyển traffic bằng **feature flag theo module** | Rollback tức thì |
+| 8 | Commit theo **Conventional Commits** (`feat(project):`, `refactor(dataset):`) + scope theo module | Chuẩn, sinh changelog tự động |
+| 9 | PR: **tự review + tự đính kèm bằng chứng** (báo cáo test Phần 13) | Không có người review thứ hai (đội 1 người) |
+| 10 | Migrate dữ liệu **theo từng nhóm module** — migrate module nào thì chuyển traffic module đó | Khớp chiến lược Hybrid |
+| 11 | Staging: **chỉ local + Docker** (docker-compose + Mongo replica set container) | Không tốn tiền, đủ cho đội 1 người |
+| 12 | Thời lượng đợt: **1 tuần** | Cảnh báo lệch lịch ở mục 3.8 |
+| 13 | Ước lượng: **cả hai** — tổng ngày công chi tiết theo module, kèm phân bổ theo đợt | |
+| 14 | Làm việc **tuần tự, 1 người** — mỗi đợt xong mới sang đợt sau | Không overlap |
+| 15 | **Không chia đợt cứng như ràng buộc lịch** — 6 đợt giữ làm **đơn vị công việc logic** (checkpoint nghiệm thu), không phải mốc thời gian | Tiến độ do người dùng + AI làm liên tục, ưu tiên tốc độ |
+| 16 | **Ước lượng lịch tính theo mô hình người + AI cùng làm** — không phải 1 người 8h/ngày | Xem mục 3.6 |
+
+### 3.2. Chiến lược Hybrid — giải thích cụ thể
+
+**Vấn đề của Big Bang (phương án B) mà bạn đã hỏi:** trong Big Bang, toàn bộ API cũ bị thay bằng API mới chưa hoàn chỉnh. Mọi endpoint chưa chuyển sẽ trả 404, nên **không thể demo cho khách dùng thật hay chạy staging nghiệm thu** cho tới khi dựng xong cả 21 module. Giai đoạn giữa là một hệ thống không dùng được.
+
+**Hybrid giải quyết như thế nào:**
+
+```
+        API CŨ (controller hiện tại)          API MỚI (apps/api theo hexagonal)
+        ┌──────────────────────┐             ┌──────────────────────────┐
+        │  auth, users, ...    │             │  auth, users, ...        │
+        │  (NestJS + Mongoose) │             │  (domain/use/adapter)    │
+        └──────────┬───────────┘             └──────────┬───────────────┘
+                   │                                      │
+                   │        ┌─────────────────────────┐   │
+                   └───────►│  ROUTER + FEATURE FLAG  │◄──┘
+                            └─────────────────────────┘
+                             flag ON  → route tới API MỚI
+                             flag OFF → route tới API CŨ
+```
+
+**Cơ chế thực tế — không phải proxy, mà là 1 router trong 1 tiến trình:**
+
+Vì `apps/api` mới và controller cũ đều là NestJS, ta dùng một `ModuleRouter` tập trung:
+
+```typescript
+// packages/core/src/routing/module-router.ts
+export type ModuleKey =
+  | 'auth' | 'users' | 'audit' | 'workspaces' | 'projects'
+  | 'notifications' | 'issues' | 'datasets' | 'data-view'
+  | 'analysis' | 'ai' | 'summary' | 'reports' | 'versions';
+
+export interface ModuleRouter {
+  resolve(module: ModuleKey): 'legacy' | 'new';
+}
+```
+
+Cơ chế ở tầng HTTP:
+
+| Bước | Hành động |
+|---|---|
+| 1 | Mỗi controller mới đăng ký kèm `ModuleKey` qua decorator `@ModuleRoute('auth')` |
+| 2 | Request vào được `LegacyAwareInterceptor` đọc `ModuleKey` từ metadata |
+| 3 | `ModuleRouter.resolve()` tra cờ trong `MODULE_FLAGS` (đọc từ env hoặc MongoDB `feature_flag`) |
+| 4 | Nếu `legacy` → forward sang controller cũ; nếu `new` → xử lý tại controller mới |
+
+**Ưu điểm so với proxy/tiền tố path:**
+
+| Tiêu chí | Feature flag trong tiến trình | Proxy path `/api/v2` |
+|---|---|---|
+| Frontend phải sửa | Không — URL giữ nguyên | Phải sửa 2 lần |
+| Rollback | Tắt cờ → về API cũ trong vài giây | Phải sửa config proxy |
+| Chi phí hạ tầng | 0 | Thêm reverse proxy + DNS |
+| Độ phức tạp | Trung bình | Thấp |
+
+**Quy tắc bắt buộc:**
+1. Cờ mặc định **`legacy`** — chỉ bật `new` khi đợt tương ứng đã pass toàn bộ tiêu chí nghiệm thu (mục 3.7).
+2. Cờ được lưu trong MongoDB collection `feature_flag` (doc `{ module, mode, updated_at, updated_by }`) — **không** dùng biến môi trường, vì cần bật/tắt không cần restart container.
+3. Bật cờ là **hành động có kiểm soát**: bật cho 1 module → chạy smoke test → quan sát 24h → mới bật module kế tiếp.
+4. Cờ được bật **theo workspace** trước khi bật toàn cục (rollout dần): `mode: 'legacy' | 'new' | 'canary'`, `canary` áp cho 10% workspace đầu tiên.
+5. Tắt cờ = rollback trong vài giây, không cần deploy.
+
+### 3.3. Cấu trúc repo mục tiêu
+
+```
+src/backend/
+├── apps/
+│   ├── api/                       # NestJS HTTP server
+│   │   ├── src/
+│   │   │   ├── main.ts
+│   │   │   ├── app.module.ts
+│   │   │   ├── modules/           # 21 module theo hexagonal (mục 3.4)
+│   │   │   │   ├── auth/
+│   │   │   │   │   ├── domain/         # aggregate, value object, domain error
+│   │   │   │   │   ├── application/    # use case handler
+│   │   │   │   │   ├── infrastructure/ # Mongo adapter, port impl
+│   │   │   │   │   ├── interfaces/    # controller (HTTP adapter)
+│   │   │   │   │   └── module.ts
+│   │   │   │   └── ...
+│   │   │   └── shared/            # config, logger, filter, guard, interceptor
+│   │   └── test/                  # E2E + security của api
+│   └── worker/                    # BullMQ consumer + outbox relay
+│       └── src/
+│           ├── main.ts
+│           ├── relay/                 # outbox relay (change stream + polling)
+│           ├── consumers/             # inbox consumer theo từng event
+│           └── jobs/                  # AI job, PDF job, cleanup job
+├── packages/
+│   ├── core/                       # framework-free: aggregate, ID, domain error, stats
+│   │   └── src/
+│   │       ├── id/                   # ULID với prefix
+│   │       ├── domain/               # base aggregate, DomainError
+│   │       ├── stats/                # 7 hàm thống kê (Phần 12)
+│   │       └── routing/              # ModuleRouter, ModuleKey
+│   ├── contracts/                   # Zod schema + sinh OpenAPI
+│   │   └── src/
+│   │       ├── auth/ workspace/ project/ ...
+│   │       └── openapi/              # generator
+│   └── config/                      # Zod env validation dùng chung
+├── scripts/
+│   ├── check-architecture.mjs        # 12 quy tắc A1–A12 (Phần 13)
+│   ├── generate-test-report.mjs      # báo cáo tự động (Phần 13)
+│   ├── migrate-*.ts                  # 8 script migration (Phần 11)
+│   └── seed-*.ts
+├── test/
+│   ├── factories/  fixtures/  seed/  k6/
+│   ├── integration/
+│   └── setup-env.ts
+├── docker-compose.test.yml
+├── jest.unit.json
+├── package.json                     # workspace root
+└── pnpm-workspace.yaml
+```
+
+**Quy tắc bắt buộc về cấu trúc:**
+1. `packages/core` và `packages/contracts` **không** import từ `apps/` (quy tắc A8, A9 của Phần 13).
+2. `apps/worker` **không** import từ `apps/api` (quy tắc A12).
+3. Mỗi module trong `apps/api/src/modules/` có đủ 6 thư mục: `domain/`, `application/`, `infrastructure/`, `interfaces/`, `tests/`, `module.ts` (quy tắc A6).
+4. `domain/` không import NestJS/Mongoose (A1, A2) — bắt buộc ngay từ đợt 1.
+5. Test domain nằm **cạnh file nguồn** (`*.spec.ts` trong `domain/`), test E2E ở `apps/api/test/`, test adapter ở `test/integration/`.
+
+### 3.4. Sáu đợt giao hàng
+
+#### 3.4.1. Tổng quan
+
+| Đợt | Tên | Module | Số module | Use case | Endpoint | Quy tắc test | Ngày công (ước) |
+|---|---|---|---|---|---|---|---|
+| **Đợt 1** | Nền tảng & hạ tầng test | `shared`, `packages/*` | 1 + 3 pkg | 4 | 3 | 24 | 12–14 |
+| **Đợt 2** | Tài khoản & phiên | `auth`, `users`, `audit` | 3 | 20 | 16 | 20 | 12–14 |
+| **Đợt 3** | Không gian làm việc | `workspaces`, `projects` | 2 | 26 | 22 | 18 | 11–13 |
+| **Đợt 4** | Dữ liệu | `datasets`, `data-view`, `versions` | 3 | 24 | 15 | 16 | 11–13 |
+| **Đợt 5** | Phân tích & AI | `analysis`, `ai`, `summary`, `reports` | 4 | 16 | 12 | 12 | 11–13 |
+| **Đợt 6** | Hoàn tất & cutover | `notifications`, `issues` + migration + xoá legacy | 2 | 8 | 8 | 2 | 9–11 |
+| **Tổng** | | | **15 module** | **~98** | **~76** | **92** | **154,5** |
+
+**Cột "ngày công"** là đơn vị chuẩn hóa để so sánh — xét theo mô hình người + AI thì rút còn ~45–60 (mục 3.6.3). Không phải mốc thời gian cam kết (quyết định 15).
+
+**Ghi chú về số lượng use case / endpoint:** bảng Phần 13 ghi 67 use case và 85 endpoint. Bảng trên ghi "~98" và "~76" vì:
+- **Use case**: mỗi endpoint có thể phát sinh nhiều use case con (VD `GET /workspaces` → list + filter + sort + paginate + count). 67 là số use case **nghiệp vụ** đã chốt; ~98 là số **use case hành vi** cần test (bao gồm các nhánh hành vi).
+- **Endpoint**: 85 là tổng cuối cùng của toàn hệ thống; các đợt trên chưa bao gồm endpoint của `notifications`/`issues` chi tiết và một số endpoint bổ sung phát sinh từ feature flag/canary. Con số chính xác chốt lại ở đợt 1 khi sinh OpenAPI snapshot.
+
+**Thứ tự phụ thuộc — tại sao đợt này trước đợt kia:**
+
+```
+Đợt 1 (nền tảng)
+   │
+   ├──► Đợt 2 (auth) ──┐
+   │        │           │
+   │        ▼           ▼
+   │   Đợt 3 (ws/proj) ──► Đợt 4 (datasets) ──► Đợt 5 (analysis/AI)
+   │        │                                     │
+   └────────┴─────────────────────────────────────┴──► Đợt 6 (thông báo, sự cố, cutover)
+```
+
+| Phụ thuộc | Lý do |
+|---|---|
+| Đợt 1 → mọi đợt | Mọi module dùng `packages/core` (ID, DomainError, outbox port) và `packages/contracts` (Zod schema) |
+| Đợt 1 → Đợt 6 | Cần `shared` (outbox relay + inbox) để mọi use case phát event đúng chuẩn |
+| Đợt 2 → Đợt 3 | Mọi endpoint từ Đợt 3 trở đi cần guard + token + phân quyền từ `auth` |
+| Đợt 3 → Đợt 4 | `data-view` cần port `DatasetReader`/`DatasetWriter` của `datasets`; `analysis` cần `project` |
+| Đợt 4 → Đợt 5 | `analysis` đọc `dataset_record`; `summary` cần trạng thái phiên do `data-view` ghi |
+| Đợt 5 → Đợt 6 | `notifications` tiêu thụ event từ `analysis`/`ai`; `issues` cần `project` |
+
+#### 3.4.2. Đợt 1 — Nền tảng & hạ tầng kiểm thử
+
+**Mục tiêu:** dựng nền để mọi đợt sau viết code mà không phải sửa hạ tầng.
+
+| Hạng mục | Nội dung |
+|---|---|
+| **Cấu trúc repo** | `pnpm-workspace.yaml`, `apps/api`, `apps/worker`, `packages/core`, `packages/contracts`, `packages/config` |
+| **Hạ tầng test** | `jest.unit.json` với 4 project (domain/application/infrastructure/contract), `test/jest-e2e.json`, `docker-compose.test.yml` (Mongo replica set + Redis + MinIO), `test/setup-env.ts` |
+| **Script kiến trúc** | `scripts/check-architecture.mjs` — 12 quy tắc A1–A12 |
+| **`packages/core`** | `id/` (ULID có prefix), `domain/` (base aggregate + `DomainError`), `stats/` (7 hàm thống kê), `routing/` (`ModuleRouter`, `ModuleKey`) |
+| **`packages/contracts`** | Khung Zod + generator OpenAPI + `packages/contracts/src/openapi/` |
+| **`packages/config`** | Zod validation 11 nhóm biến môi trường (Phần 10) |
+| **Module `shared`** | Port `OutboxPort`, `InboxPort`, adapter Mongo cho `outbox_event` + `processed_event`, `ModuleRouter` implementation đọc `feature_flag` |
+| **`apps/worker`** | Khung: BullMQ queue setup, outbox relay (change stream + polling fallback), cấu trúc consumer theo event |
+| **Đăng ký index** | Script tạo toàn bộ index của 22 collection (Phần 8) |
+| **Feature flag infra** | Collection `feature_flag` + `LegacyAwareInterceptor` (chỉ khung, chưa áp cho module nào) |
+
+**Quy tắc kiểm thử thuộc đợt này:**
+
+| Nhóm | Quy tắc | File test |
+|---|---|---|
+| Kiến trúc | A1–A12 | `scripts/check-architecture.mjs` |
+| Contract | C1–C8 | `apps/api/test/contract/*.spec.ts` |
+| Vận hành | O1, O2, O3, O4, O9, O10, O11, O13 | `test/integration/*.spec.ts` |
+| Integration | I1, I2, I3, I4, I5, I6, I7 | `test/integration/outbox-relay.spec.ts`, `inbox.spec.ts` |
+| Schema | S16, S17 | `test/integration/outbox-relay.spec.ts`, `inbox.spec.ts` |
+
+**Tiêu chí nghiệm thu Đợt 1:**
+1. `pnpm test:all` chạy được từ 1 lệnh, tự bật/tắt container, exit code đúng.
+2. Coverage `packages/core` ≥ 90% lines (đặt ngưỡng ngay từ đợt 1 — không có giai đoạn đầu cho qua).
+3. `pnpm test:arch` fail khi cố tình vi phạm A1/A2/A5 (test ngược — chứng minh checker hoạt động).
+4. `docs/contracts/openapi.json` được commit và sinh lại khớp.
+5. Outbox relay chạy được end-to-end trên replica set container: ghi event → relay phát → inbox nhận → `processed_event` có bản ghi.
+6. Coverage tổng ≥ 70% (chỉ tính phần đã viết).
+
+#### 3.4.3. Đợt 2 — Tài khoản & phiên
+
+**Module:** `auth`, `users`, `audit`
+
+| Nội dung | Chi tiết |
+|---|---|
+| `auth` | 13 endpoint (Phần 7): register, login, refresh, logout, sessions, sessions/:id, OTP, đổi mật khẩu, quên mật khẩu. Refresh rotation + reuse detection (Phần 6) |
+| `users` | 2 endpoint: `GET /users/me`, `PATCH /users/me`. Bỏ `DELETE /users/me` (ngoài 84 tính năng) |
+| `audit` | Ghi log hành động nhạy cảm — hạ tầng cho `ADMIN-01`, `WS-09`, `PROJ-10`, `PROJ-11` |
+| Domain mới | `User` aggregate (trạng thái `active/blocked`), `Session` aggregate, `AuthToken` value object, `OtpChallenge` |
+| Hạ tầng | `JWTGuard`, `CASL` ability factory (5 vai trò), `ThrottlerGuard` (rate-limit theo endpoint), `AuditService` |
+
+**Quy tắc kiểm thử thuộc đợt này:**
+
+| Nhóm | Quy tắc |
+|---|---|
+| Schema | S1, S2, S3, S4, S6, S7, S11 |
+| Contract | C3, C4, C5, C6 |
+| Vận hành | O5, O6, O7, O8, O12, O21 |
+| Bảo mật | 6 tình huống "không đăng nhập" + 3 "token bị thu hồi" + rate-limit + OTP |
+
+**Tiêu chí nghiệm thu Đợt 2:**
+1. 16 endpoint `auth`+`users` có ≥ 2 ca test; endpoint nhạy cảm (`users/me`, `audit`) ≥ 4 ca.
+2. 9 tình huống phân quyền của Đợt 2 đều xanh, assert cả status + mã lỗi + không có side effect.
+3. Coverage domain `auth`+`users` ≥ 90%, application ≥ 80%.
+4. Refresh token rotation: dùng lại refresh cũ → thu hồi **toàn bộ** phiên (test đỏ trước, xanh sau).
+5. Rate-limit: login sai 5 lần → 429; register 4 lần → 429.
+6. Log không chứa password/token/giá trị ô dữ liệu (test O10, O11).
+7. Báo cáo `docs/test-reports/2026-XX-XX-dot-2.md` đính kèm.
+
+#### 3.4.4. Đợt 3 — Không gian làm việc
+
+**Module:** `workspaces`, `projects`
+
+| Nội dung | Chi tiết |
+|---|---|
+| `workspaces` | 10 endpoint. Đổi vai trò `owner\|editor\|viewer` → `owner\|member`. Bảng `workspace_member` tách collection. Nhượng quyền Owner, `last_accessed_at`, phân trang/tìm kiếm/lọc/sắp xếp |
+| `projects` | 12 endpoint. Thêm `project_member` (vai trò `owner\|member\|viewer`). Bỏ `has_dataset`, thêm `status` theo vòng đời (`draft\|in_progress\|completed`) |
+| Domain mới | `Workspace` aggregate (quota storage, vòng đời), `WorkspaceMember` aggregate, `Project` aggregate (vòng đời status), `ProjectMember` aggregate |
+| Migration | Migrate `workspaces` + `projects` + sinh `workspace_member` + `project_member` (quy tắc M8–M11) |
+| Tính năng | `WS-01`→`WS-10`, `PROJ-01`→`PROJ-05`, `PROJ-09`→`PROJ-12` |
+
+**Quy tắc kiểm thử thuộc đợt này:**
+
+| Nhóm | Quy tắc |
+|---|---|
+| Schema | S2, S3, S4, S5, S6, S7, S10 |
+| Contract | C1, C2, C4 |
+| Migration | M5, M7, M8, M9, M10, M11, M14, M16, M17 |
+| Bảo mật | 8 "truy cập chéo workspace" + 6 "truy cập chéo project" + 8 "vai trò không đủ" |
+| Vận hành | O24 (upload vượt quota bị chặn), O23 |
+
+**Tiêu chí nghiệm thu Đợt 3:**
+1. 22 endpoint có ≥ 2 ca test; endpoint nhạy cảm (`workspaces/:id/members`, `projects/:id/members`) ≥ 4 ca.
+2. 22 tình huống phân quyền của Đợt 3 đều xanh.
+3. Quy tắc mời: workspace có **đúng 1 Owner** sau mọi thao tác nhượng quyền; project có đúng 1 Owner.
+4. Migration 4 mức (Phần 11) pass cho `workspace`/`project`/`workspace_member`/`project_member`.
+5. Vòng đời `project.status` đúng: `draft` → `in_progress` → `completed`; chuyển sai bị domain error.
+6. Cờ `feature_flag` bật cho `workspaces` và `projects` đã chạy canary 10% workspace.
+
+#### 3.4.5. Đợt 4 — Dữ liệu
+
+**Module:** `datasets`, `data-view`, `versions`
+
+| Nội dung | Chi tiết |
+|---|---|
+| `datasets` | 4 endpoint. Import file (CSV/XLSX nhiều sheet), `dataset_sheet` với `columns` key `c0`/`c1`, `dataset_record` với `props`. Sửa lỗi đuôi file (ghi `.csv` cho cả `.xlsx`), dọn file tạm khi lỗi giữa chừng |
+| `data-view` | 8 endpoint. Lọc, sắp xếp, tìm kiếm, xoá dòng, sửa ô, reset. Đọc/ghi qua port `DatasetReader`/`DatasetWriter` — **không sở hữu collection** |
+| `versions` | 3 endpoint. `dataset_version` — lịch sử phiên bản, diff, rollback. Được kéo vào phạm vi giao hàng (Đợt 3 theo Phần 2, nay là Đợt 4 của kế hoạch này) |
+| Batch | Import 5.000 record/lần bằng `bulkWrite` unordered; giới hạn 50 MB/file |
+| Domain mới | `Dataset`, `DatasetSheet`, `DatasetRecord`, `DatasetVersion` aggregate; `ColumnSchema` value object |
+| Migration | `dataset` → `dataset_sheet` + `dataset_record` (props), quy tắc M13–M15 |
+
+**Quy tắc kiểm thử thuộc đợt này:**
+
+| Nhóm | Quy tắc |
+|---|---|
+| Schema | S8, S9, S10, S13, S14, S15 |
+| Contract | C5, C7 |
+| Migration | M6, M12, M13, M14, M15 |
+| Vận hành | O24 |
+| Tích hợp | — |
+
+**Tiêu chí nghiệm thu Đợt 4:**
+1. 15 endpoint có ≥ 2 ca test.
+2. Import 50.000 dòng × 10 cột hoàn tất, `row_count` khớp `dataset_sheet`, `props` đúng key `c0..c9`.
+3. Import file có tên cột trùng → lỗi rõ ràng, file tạm **không** còn sót trong storage.
+4. Đảo ngược `props` → tên cột gốc giống hệt file nguồn (quy tắc M15).
+5. `storage_key` không lộ ra response (S14).
+6. Rollback phiên bản dataset khôi phục đúng nội dung bản ghi trước.
+7. Migration hash mẫu 1% — sai lệch 0.
+
+#### 3.4.6. Đợt 5 — Phân tích & AI
+
+**Module:** `analysis`, `ai`, `summary`, `reports`
+
+| Nội dung | Chi tiết |
+|---|---|
+| `analysis` | 7 endpoint + DQ-01→DQ-05. `analysis_run`, `analysis_result`, `cell_evidence`. Dùng `simple-statistics` + `ml-matrix` (Phần 12). Tương quan, VIF, mất cân bằng lớp |
+| `ai` | 1 endpoint. Port AI + adapter Gemini, job bất đồng bộ, **che PII trước khi gửi**. Timeout 60s |
+| `summary` | 3 endpoint. `project_save` — tạo Tổng kết, lưu trạng thái project, khôi phục |
+| `reports` | 1 endpoint. Xuất PDF — **sinh ở worker**, không ở API |
+| Domain mới | `AnalysisRun`, `AnalysisResult`, `CellEvidence`, `AiJob`, `ProjectSave` aggregate |
+| Tính năng | `DQ-01`→`DQ-05`, `ANALYSIS-01`→`ANALYSIS-07`, `AI-01`, `SUMMARY-01`, `REPORT-01` |
+
+**Quy tắc kiểm thử thuộc đợt này:**
+
+| Nhóm | Quy tắc |
+|---|---|
+| Schema | S2, S3, S4, S7 |
+| Contract | C6, C7 |
+| Tích hợp | I11, I12, I13 |
+| Vận hành | O22 (outbox pending > 300s) |
+| Domain | 7 hàm thống kê — mỗi hàm ≥ 1 ca biên |
+
+**Tiêu chí nghiệm thu Đợt 5:**
+1. 12 endpoint có ≥ 2 ca test.
+2. **7 hàm thống kê có ca biên bắt buộc**: mẫu rỗng, 1 phần tử, toàn hằng (IQR = 0, MAD = 0), ma trận không khả nghịch (VIF → `null`, không ném).
+3. `ai` test **không bao giờ** gọi network ra ngoài — verify bằng network mock.
+4. Che PII: giá trị ô dữ liệu không xuất hiện trong payload gửi Gemini (test I12).
+5. PDF sinh ở worker — test kiểm tra API **không** chứa mã sinh PDF (quy tắc I13, kiến trúc).
+6. Job AI timeout 60s → chuyển trạng thái thất bại có kiểm soát, không treo.
+7. Coverage `packages/core/src/stats/` ≥ 95% branches.
+
+#### 3.4.7. Đợt 6 — Hoàn tất & cutover
+
+**Module:** `notifications`, `issues` + toàn bộ migration & dọn dẹp.
+
+| Nội dung | Chi tiết |
+|---|---|
+| `notifications` | 3 endpoint. Trung tâm thông báo, công tắc bật/tắt, tiêu thụ sự kiện. `source_event_id` unique partial → idempotent |
+| `issues` | 4 endpoint. Báo cáo sự cố, vòng đời trạng thái, duyệt báo cáo, upload tệp đính kèm |
+| **Migration cutover** | Toàn bộ 8 script `scripts/migrate-*.ts` chạy theo 8 bước Phần 11: backup → verify → migrate → verify → đổi cờ → xoá legacy → drop collection → rollback window 30 ngày |
+| **Dọn dẹp** | Xoá module `clean-rules`, `lineage`, `exports`; gỡ `neo4j-driver` khỏi `package.json`; xoá `Neo4j-*` config |
+| **Bàn giao** | `docs/test-reports/index.md`, tài liệu vận hành, checklist Phần 15 |
+
+**Quy tắc kiểm thử thuộc đợt này:**
+
+| Nhóm | Quy tắc |
+|---|---|
+| Schema | S18 (notification unique partial), S15 |
+| Migration | M1, M2, M3, M4, M18, M19, M20, M21, M22, M24 |
+| Vận hành | O14, O15, O16, O17, O19, O20, O25, O26, O27, O28 |
+| Bảo mật | 3 "đối tượng đã xoá" + 4 "SYS-ADMIN vượt phạm vi" |
+
+**Tiêu chí nghiệm thu Đợt 6:**
+1. Migration chạy 2 lần cho kết quả giống nhau (idempotent — M3).
+2. Verify 4 mức pass: counts khớp công thức, hash mẫu 1% sai lệch 0, 0 orphan, 0 membership trùng.
+3. Script drop từ chối chạy khi chưa verify (M20) và chỉ xoá đúng 5 collection LEGACY (M21).
+4. `migrate` mặc định dry-run; `--apply` yêu cầu `MIGRATION_CONFIRM=yes`.
+5. Sau cutover, request trả đúng dữ liệu (smoke test toàn bộ 85 endpoint).
+6. Module `clean-rules`, `lineage`, `exports` đã xoá khỏi repo; `neo4j-driver` không còn trong `package.json`.
+7. **85/92 quy tắc tự động xanh; 7 quy tắc thủ công có dòng ghi nhận tên người + ngày.**
+8. `pnpm test:all` xanh, coverage đạt cả 5 ngưỡng tầng.
+
+### 3.5. Ước lượng khối lượng — chi tiết theo module
+
+**Đơn vị: ngày công** (1 ngày = 8 giờ công thực hiện). Bao gồm cả viết code **và** viết test theo tầng.
+
+#### 3.5.1. Phần hạ tầng (Đợt 1)
+
+| Hạng mục | Ngày công |
+|---|---|
+| Monorepo setup + cấu trúc `apps/`, `packages/` | 1,5 |
+| `packages/core` — id, domain base, DomainError | 1,5 |
+| `packages/core/stats` — 7 hàm + test biên | 3 |
+| `packages/contracts` — khung Zod + generator OpenAPI | 2 |
+| `packages/config` — Zod env validation 11 nhóm | 1 |
+| `jest.unit.json` 4 project + `jest-e2e.json` + setup-env | 1 |
+| `docker-compose.test.yml` + hướng dẫn replica set | 1,5 |
+| `scripts/check-architecture.mjs` — 12 quy tắc | 2 |
+| Module `shared` — outbox/inbox port + adapter | 2,5 |
+| `apps/worker` khung — BullMQ + relay | 2,5 |
+| Script tạo index 22 collection | 1 |
+| Feature flag infra + interceptor | 1,5 |
+| `scripts/generate-test-report.mjs` | 1 |
+| **Tổng Đợt 1** | **22** |
+
+#### 3.5.2. Phần module (Đợt 2–6)
+
+| Module | Use case | Endpoint | Domain | Application | Adapter | Test (tầng 3/5/7) | Tổng |
+|---|---|---|---|---|---|---|---|
+| `auth` | 13 | 13 | 3,5 | 4 | 2 | 5 | 14,5 |
+| `users` | 3 | 2 | 1 | 1 | 0,5 | 1,5 | 4 |
+| `audit` | 1 | 0 | 0,5 | 1 | 0,5 | 1 | 3 |
+| `workspaces` | 10 | 10 | 2,5 | 3 | 1,5 | 4 | 11 |
+| `projects` | 12 | 12 | 3 | 3,5 | 1,5 | 4,5 | 12,5 |
+| `datasets` | 8 | 4 | 3 | 3 | 3 | 5 | 14 |
+| `data-view` | 10 | 8 | 2 | 3 | 1 | 4 | 10 |
+| `versions` | 4 | 3 | 1,5 | 2 | 1 | 2,5 | 7 |
+| `analysis` | 10 | 7 | 4 | 3,5 | 2 | 5 | 14,5 |
+| `ai` | 3 | 1 | 1 | 1,5 | 1,5 | 2 | 6 |
+| `summary` | 3 | 3 | 1 | 1,5 | 1 | 2 | 5,5 |
+| `reports` | 2 | 1 | 0,5 | 1 | 1 | 1,5 | 4 |
+| `notifications` | 4 | 3 | 1 | 1,5 | 1 | 2 | 5,5 |
+| `issues` | 5 | 4 | 1,5 | 2 | 1 | 2,5 | 7 |
+| **Tổng module** | **78** | **73** | **25** | **31** | **19** | **39,5** | **119** |
+
+#### 3.5.3. Phần migration & bàn giao (Đợt 6)
+
+| Hạng mục | Ngày công |
+|---|---|
+| 8 script `migrate-*.ts` | 6 |
+| Verify 4 mức | 2,5 |
+| Cutover + rollback window giám sát | 2 |
+| Xoá 3 module LEGACY + gỡ Neo4j | 1 |
+| Tài liệu bàn giao + `test-reports/index.md` | 2 |
+| **Tổng** | **13,5** |
+
+#### 3.5.4. Tổng hợp
+
+| Nhóm | Ngày công |
+|---|---|
+| Hạ tầng (Đợt 1) | 22 |
+| 15 module (Đợt 2–6) | 119 |
+| Migration & bàn giao (Đợt 6) | 13,5 |
+| **TỔNG** | **154,5 ngày công** |
+
+**Ước lượng theo mô hình người + AI:** 154,5 ngày công chuẩn hóa ↔ **~45–60 đơn vị thực thi** (mục 3.6.3).
+
+**Đối chiếu với Phần 13:** Phần 13 ước lượng **~38 ngày công chỉ cho phần test**. Con số 154,5 ngày công ở đây **bao gồm cả 38 ngày test đó** → phần code = **~116 ngày công**. Tỷ lệ test/code ≈ 25/75, hợp lý với TDD nghiêm.
+
+**Ghi chú quan trọng:** 154,5 ngày công là đơn vị **chuẩn hóa** (1 người, 8 giờ/ngày), dùng để so sánh giữa các đợt và giữ quy mô khối lượng. **Không phải dự đoán lịch thực tế** — mô hình thực thi là người + AI, xem mục 3.6.3.
+
+**Chi tiết 154,5 ngày công theo đợt:**
+
+| Đợt | Hạ tầng | Module | Migration | Tổng | So với bảng 3.4.1 |
+|---|---|---|---|---|---|
+| Đợt 1 | 22 | — | — | **22** | 12–14 (ước thấp, đã cập nhật) |
+| Đợt 2 | — | 21,5 | — | **21,5** | 12–14 (đã cập nhật) |
+| Đợt 3 | — | 23,5 | 2 | **25,5** | 11–13 (đã cập nhật) |
+| Đợt 4 | — | 31 | 2 | **33** | 11–13 (đã cập nhật) |
+| Đợt 5 | — | 30 | — | **30** | 11–13 (đã cập nhật) |
+| Đợt 6 | — | 12,5 | 11,5 | **22** | 9–11 (đã cập nhật) |
+| **Tổng** | **22** | **119** | **15,5** | **154,5** | |
+
+### 3.6. Lịch trình và cách ước lượng thực tế
+
+#### 3.6.1. Vấn đề phát hiện khi đối chiếu
+
+Bảng ước lượng ở mục 3.5 cho **154,5 ngày công** theo chuẩn "1 người, 8 giờ/ngày". Quyết định ban đầu "1 tuần/đợt × 6 đợt = 6 tuần" mâu thuẫn với con số đó.
+
+| Vấn đề | Số liệu |
+|---|---|
+| Nếu 1 người, 8 giờ/ngày, 5 ngày/tuần | 154,5 ngày công ≈ **31 tuần** |
+| Quyết định "1 tuần/đợt" | 6 tuần |
+| **Chênh lệch** | ~25 tuần |
+
+**Nhưng quyết định cuối cùng của người dùng là: không cần chia đợt như một ràng buộc lịch.** Việc thực thi sẽ do **người dùng + AI làm liên tục**, nên con số "ngày công của 1 người" không phản ánh thực tế.
+
+#### 3.6.2. Cách hiểu mới về "đợt"
+
+| Khái niệm | Ý nghĩa |
+|---|---|
+| **Đợt = đơn vị công việc logic** | Một nhóm module có phụ thuộc chặt chẽ, xong thì có 1 checkpoint nghiệm thu rõ ràng |
+| **Đợt ≠ mốc thời gian** | Không có cam kết "Đợt 3 xong trong 1 tuần". Tiến độ thực tế phụ thuộc tốc độ làm việc chung |
+| **Đợt ≠ hạn chót nghiệm thu khách hàng** | Cổng nghiệm thu là **điều kiện kỹ thuật để đi tiếp**, không phải mốc giao hàng |
+| **Cổng nghiệm thu vẫn giữ nguyên** | Không vì bỏ ràng buộc lịch mà bỏ tiêu chí chất lượng — 9 mục ở mục 3.8 vẫn bắt buộc |
+
+**Lý do giữ cấu trúc 6 đợt:** đơn vị công việc này quá lớn để làm một lần, và phụ thuộc giữa các đợt là **kỹ thuật chứ không phải thời gian** (Đợt 3 cần `auth` xong; Đợt 5 cần `datasets` xong). Giữ ranh giới đợt giúp:
+
+- Mỗi đợt có một **điểm kiểm soát** rõ ràng → phát hiện sai sót sớm.
+- Nếu cần **dừng giữa chừng** (hết thời gian, đổi ưu tiên), vẫn có một trạng thái chạy được.
+- Đối chiếu trực tiếp với **6 đơn vị đánh giá** của Phần 15.
+
+#### 3.6.3. Ước lượng theo mô hình người + AI
+
+Bảng 3.5.4 chia 154,5 ngày công thành 3 phần. Với mô hình làm việc chung, mỗi phần được ước lượng lại:
+
+| Phần | Ngày công (1 người) | Mô hình người + AI | Ghi chú |
+|---|---|---|---|
+| **Thiết kế & quyết định** | ~15 | **~3–5** | Người dùng chốt, AI đối chiếu tài liệu đã chốt ở Phần 1–14 |
+| **Viết code** | ~100 | **~30–40** | AI viết phần lớn; người dùng review + sửa chỗ logic nhạy cảm (quyền, migration, transaction) |
+| **Viết test** | ~38 | **~12–16** | AI sinh test theo ma trận 92 quy tắc; người dùng xác nhận ca bắt buộc |
+| **Tổng** | **154,5** | **~45–60** | |
+
+**Con số này cũng là ước lượng, không phải cam kết** — cùng cảnh báo với K18.
+
+#### 3.6.4. Ba phương án giữ nguyên phạm vi (tham khảo, không bắt buộc chọn)
+
+Nếu sau này cần rút ngắn thêm, các phương án đã được phân tích:
+
+| Phương án | Cách làm | Lợi | Hại |
+|---|---|---|---|
+| **A. Chia việc cho AI nhiều hơn** | AI viết cả test lẫn code, người dùng tập trung review quyền/migration/transaction | Giảm rõ rệt thời gian | Chất lượng review phụ thuộc kỷ luật |
+| **B. Cắt phạm vi** | Hoãn `versions` (7 ngày công), PDF `reports` (4 ngày), `data-view` nâng cao (4 ngày) | Giảm ~15 ngày công | Tạo nợ kỹ thuật với tính năng đã chốt trong 84 — **không khuyến nghị** |
+| **C. Thêm người** | Người A làm Đợt 1 + review chéo; người B làm Đợt 2–3 | Giảm thời gian còn lại | Phải bổ sung quy trình review 2 người (quyết định 9 hiện là "tự review") |
+
+**Khuyến nghị:** **Phương án A** — phù hợp với mô hình đã chốt (người + AI), không cắt tính năng, không cần thêm người.
+
+#### 3.6.5. Quy tắc về điều chỉnh giữa chứng
+
+| # | Quy tắc |
+|---|---|
+| 1 | Ước lượng ở mục 3.5 được **cập nhật sau mỗi đợt** (quy tắc K17) |
+| 2 | Nếu tốc độ thực tế lệch > 30% so với ước lượng → **dừng lại, điều chỉnh phạm vi** trước khi tiếp tục (K16) |
+| 3 | Việc "dừng lại" được phép xảy ra **giữa đợt**, không phải chỉ giữa các đợt — luôn giữ được trạng thái chạy được |
+| 4 | Ước lượng phải ghi kèm **ngày đo**, không chỉ con số |
+| 5 | Không dùng ước lượng để áp lợi ép tốc độ — mục tiêu là **đúng và kiểm chứng được**, không phải nhanh nhất |
+
+### 3.7. Quy trình commit, branch và PR
+
+#### 3.7.1. Nhánh
+
+| Quy tắc | Nội dung |
+|---|---|
+| 1 | Nhánh duy nhất: **`Hoa24102026`** |
+| 2 | Không tạo nhánh con — quyết định 4 |
+| 3 | Không merge vào `main` cho tới khi Phần 15 (đánh giá cuối) xác nhận |
+| 4 | Nhánh này là nơi chứa toàn bộ quá trình tái cấu trúc |
+| 5 | Trước khi bắt đầu: tạo tag `pre-refactor` trên commit hiện tại để rollback được |
+
+#### 3.7.2. Quy ước commit
+
+**Conventional Commits + scope theo module (quyết định 8):**
+
+```
+<type>(<scope>): <mô tả>
+
+[body: giải thích "tại sao", không phải "cái gì"]
+
+[refs: UC-xx, RULE-xx]
+```
+
+| Kiểu | Dùng khi nào | Ví dụ |
+|---|---|---|
+| `feat` | Thêm tính năng mới | `feat(auth): thêm refresh token rotation và reuse detection` |
+| `refactor` | Đổi cấu trúc không đổi hành vi | `refactor(projects): tách domain khỏi Mongoose schema` |
+| `test` | Chỉ thêm/sửa test | `test(auth): bổ sung ca OTP hết hạn` |
+| `fix` | Sửa lỗi | `fix(datasets): xoá file tạm khi import lỗi giữa chừng` |
+| `docs` | Tài liệu | `docs(contracts): cập nhật openapi snapshot` |
+| `chore` | Tooling, config | `chore(deps): thêm simple-statistics và ml-matrix` |
+| `refactor!` | Breaking change | `refactor(datasets)!: đổi `data` sang `props` (M14)` |
+
+**Scope:** tên module — `auth`, `users`, `audit`, `workspaces`, `projects`, `datasets`, `data-view`, `versions`, `analysis`, `ai`, `summary`, `reports`, `notifications`, `issues`, `shared`, `core`, `contracts`, `worker`, `test`, `infra`.
+
+**Tiền tố đợt trong body (không phải trong type):**
+
+```
+feat(auth): thêm refresh token rotation
+
+Đợt 2 — refactor(auth) theo hexagonal.
+Áp dụng UC-32, UC-33, UC-34.
+Quy tắc liên quan: O12, C3.
+```
+
+**Quy tắc bắt buộc:**
+1. Một commit = một ý nghĩa. Không gộp 3 module vào 1 commit.
+2. Commit message **tiếng Việt hoặc tiếng Anh đều được**, nhưng phải nhất quán trong cùng nhánh.
+3. Body phải nêu **UC nào** và **quy tắc test nào** được áp dụng → giúp tra ngược khi có sự cố.
+4. Không commit file `.env`, `atlas-credentials.env`, `certs/`, `*.pem`.
+5. Không commit `dist/`, `coverage/`, `node_modules/` — kiểm tra `.gitignore` ở đợt 1.
+
+#### 3.7.3. Quy trình PR (tự review — quyết định 9)
+
+Không có người review thứ hai, nên bằng chứng thay cho người review:
+
+**Checklist PR (bắt buộc, đính kèm trong mô tả PR):**
+
+| # | Mục kiểm tra | Nguồn |
+|---|---|---|
+| 1 | `pnpm test:all` xanh | Phần 13 mục 3.13.1 |
+| 2 | `pnpm test:coverage` đạt ngưỡng 5 tầng | Phần 13 mục 3.13.2 |
+| 3 | `pnpm test:arch` xanh (12 quy tắc A1–A12) | Phần 13 mục 3.8 |
+| 4 | Ước lượng khối lượng đợt — cập nhật sau khi làm | Mục 3.5 |
+| 5 | Danh sách quy tắc test đã đạt (mã S/C/I/O/M) | Phần 13 mục 3.11 |
+| 6 | Ưu tiên cao: thao tác xoá dữ liệu — đã có xác nhận | Mục 3.9 |
+| 7 | Đã đọc lại diff — không có debug log, `console.log`, `TODO` bỏ quên | — |
+| 8 | Đã đính kèm báo cáo `docs/test-reports/<đợt>-<ngày>.md` | Phần 13 mục 3.14 |
+| 9 | Migration script chạy được `--dry-run` không lỗi | Phần 11 |
+| 10 | Feature flag mặc định `legacy` | Mục 3.2 |
+| 11 | Không có phụ thuộc chéo module mới (A5) | Phần 13 mục 3.8 |
+| 12 | `pnpm type-check` xanh | — |
+
+**Quy tắc bắt buộc:**
+1. Không merge nếu còn mục checklist chưa tick.
+2. Mục 8 (báo cáo test) là bắt buộc — không có báo cáo thì PR không hoàn tất.
+3. Với đợt 3–6, bắt buộc chạy `pnpm test:perf` (k6) trước khi merge — nằm ngoài `test:all`.
+4. Nếu một mục checklist **không thể** tick → ghi rõ lý do trong PR và ghi vào `docs/test-reports/flaky.md` nếu liên quan test lỗi.
+5. PR quá 1.500 dòng thay đổi → **phải tách** thành nhiều PR, dù không có nhánh con.
+
+### 3.8. Cổng nghiệm thu giữa các đợt
+
+Mỗi đợt kết thúc phải qua một cổng (gate) trước khi sang đợt sau:
+
+```
+  ┌─────────────────────────────────────────────────────────┐
+  │                  CỔNG NGHIỆM THU ĐỢT N                 │
+  │                                                         │
+  │  1. Test tự động        pnpm test:all        → xanh    │
+  │  2. Coverage 5 tầng     pnpm test:coverage    → đạt     │
+  │  3. Kiến trúc           pnpm test:arch        → xanh    │
+  │  4. Hiệu năng           pnpm test:perf        → đạt    │  (Đợt 3+)
+  │  5. Quy tắc đợt         ma trận 92 quy tắc    → đạt    │
+  │  6. Báo cáo             docs/test-reports/    → có     │
+  │  7. Tự review           checklist 12 mục      → tick   │
+  │  8. Cập nhật ước lượng  mục 3.5               → cập nhật│
+  │  9. Tag phiên bản       git tag dot-N         → có     │
+  │                                                         │
+  │            FAIL bất kỳ mục nào → KHÔNG sang đợt sau   │
+  └─────────────────────────────────────────────────────────┘
+```
+
+**Quy tắc bắt buộc:**
+1. Đợt sau **không bắt đầu** khi đợt hiện tại chưa qua cổng.
+2. Mỗi đợt kết thúc → `git tag dot-N` → điểm rollback.
+3. Khi đợt 6 cutover thành công → `git tag v2.0.0`.
+
+### 3.9. Quy trình cutover theo từng nhóm module
+
+**Khác biệt so với Phần 11:** Phần 11 mô tả **một lần cutover lớn** (8 bước, dừng cả API lẫn worker). Phần 14 này áp dụng **cắt nhỏ theo nhóm module** (quyết định 10) — vẫn giữ nguyên 8 bước, chỉ chạy cho tập collection của nhóm đó.
+
+| Bước | Nội dung | Áp dụng cho nhóm module |
+|---|---|---|
+| 1 | **Backup** trước cutover (`mongodump` → R2) | Nhóm collection bị ảnh hưởng |
+| 2 | **Dry-run** script migrate (`--dry-run`) — không ghi | Nhóm đó |
+| 3 | **Migrate** (`--apply`) theo batch 5.000 | Nhóm đó |
+| 4 | **Verify** 4 mức (counts, hash 1%, referential, permissions) | Nhóm đó |
+| 5 | **Bật cờ** `feature_flag` cho module → canary 10% → 100% | Module đó |
+| 6 | Theo dõi 24h (error rate, p95, outbox pending) | — |
+| 7 | **Xoá collection cũ** của nhóm (sau khi cờ đã ổn định 7 ngày) | Nhóm đó |
+| 8 | **Giữ rollback window 30 ngày** — trước khi drop | — |
+
+**Quy tắc bắt buộc:**
+1. Mỗi nhóm module có **một lần cutover riêng**, không gộp — giảm rủi ro và blast radius.
+2. Bước 1–4 có thể chạy **khi worker đang chạy** (vì mới ghi vào collection MỚI, không đụng collection cũ).
+3. Bước 5–7 cần **dừng worker** trong 1 phút (để không có ghi vào collection cũ trong lúc đổi cờ) — đây là điểm khác biệt so với cutover lớn của Phần 11 vốn dừng cả API lẫn worker.
+4. Nếu verify mức 2 (hash) lệch > 0 → **dừng**, không bật cờ, rollback.
+5. Drop collection cũ **chỉ sau 7 ngày** cờ ổn định 100% — không drop ngay sau khi bật.
+6. Script drop **từ chối chạy** nếu chưa có file verify pass (quy tắc M20).
+
+**Lịch cắt nhóm (nhúng vào đợt tương ứng):**
+
+| Đợt | Nhóm cắt | Collection liên quan | Script |
+|---|---|---|---|
+| Đợt 2 | Tài khoản | `users` → `user`, `sessions` → `user_session` | `migrate-users.ts`, `migrate-sessions.ts` |
+| Đợt 3 | Không gian | `workspaces` → `workspace` + `workspace_member`, `projects` → `project` + `project_member` | `migrate-workspaces.ts`, `migrate-projects.ts` |
+| Đợt 4 | Dữ liệu | `datasets` → `dataset` + `dataset_sheet` + `dataset_record` | `migrate-datasets.ts`, `migrate-records.ts` |
+| Đợt 5 | Phân tích | `analysis_runs` → `analysis_run` + `analysis_result` + `cell_evidence` | `migrate-analysis.ts` |
+| Đợt 6 | Hoàn tất | `notifications`, `issue_reports`, `versions`, `audit_logs` + drop LEGACY | `migrate-misc.ts`, `drop-legacy.ts` |
+
+### 3.10. Staging cục bộ
+
+**Quyết định 11:** không có staging trên cloud. Môi trường thử trước cutover là **docker-compose local**.
+
+```yaml
+# docker-compose.dev.yml (dùng cho staging cục bộ)
+name: dq-staging
+
+services:
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports: ["27018:27017"]
+  redis:
+    image: redis:7-alpine
+    ports: ["6380:6379"]
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: staging
+      MINIO_ROOT_PASSWORD: stagingpass
+    ports: ["9000:9000"]
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongo:27017/dq-staging?replicaSet=rs0
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+    ports: ["3000:3000"]
+    depends_on: [mongo, redis, minio]
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    depends_on: [mongo, redis]
+```
+
+**Quy tắc bắt buộc:**
+1. Staging dùng **dữ liệu đã migrate từ dev** — không dùng dữ liệu thật của khách hàng.
+2. Mỗi lần cutover nhóm: chạy smoke test toàn bộ endpoint của nhóm đó trên staging trước khi bật cờ ở dev.
+3. Staging phải có **khả năng rollback**: giữ snapshot Mongo trước khi migrate (bước 1).
+4. Không dùng staging để test hiệu năng tải nặng — k6 chạy ở local với dữ liệu sinh từ factory, tránh phụ thuộc mạng.
+
+### 3.11. Phân bổ 92 quy tắc kiểm thử theo đợt
+
+| Quy tắc | Đợt | Ghi chú |
+|---|---|---|
+| A1–A12 (kiến trúc, 12) | **Đợt 1** | Checker viết trước, áp dụng cho mọi module về sau |
+| C1–C8 (contract, 8) | **Đợt 1** | Snapshot OpenAPI + validate runtime |
+| S16, S17 (outbox, inbox) | **Đợt 1** | Schema hạ tầng |
+| I1–I7 (outbox/inbox, 7) | **Đợt 1** | Relay + idempotency — nền cho mọi module |
+| O1–O4, O9–O11, O13 (7) | **Đợt 1** | Env, capability, logger, metrics |
+| S1–S7 (schema cơ bản, 7) | **Đợt 2** | `user`, `user_session`, `audit_log` |
+| O5–O8, O12, O21 (5) | **Đợt 2** | Health, request-id, Redis alert |
+| O14, O16, O17, O27, O28 (5) | **Đợt 2** | Script backup/deploy, idempotent |
+| S8–S10, S13–S15 (7) | **Đợt 4** | `dataset_record`, `dataset_sheet`, R2 |
+| S18 (1) | **Đợt 6** | `notification.source_event_id` |
+| I8–I14 (7) | **Đợt 5–6** | Worker, BullMQ, AI, PDF, cleanup |
+| O19, O20, O23, O25, O26 (5) | **Đợt 6** | Container user, secret, cleanup, cutover |
+| O15, O24 (2) | **Đợt 3–4** | Restore thử, quota |
+| M1–M24 (migration, 24) | **Đợt 2–6** | Theo nhóm cắt (mục 3.9) |
+
+**Tổng kết:**
+
+| Đợt | Số quy tắc |
+|---|---|
+| Đợt 1 | 43 |
+| Đợt 2 | 17 |
+| Đợt 3 | 12 |
+| Đợt 4 | 8 |
+| Đợt 5 | 4 |
+| Đợt 6 | 8 (+7 quy tắc thủ công ghi nhận) |
+| **Tổng** | **92** |
+
+**Ghi chú:** một số quy tắc được kiểm tra bởi nhiều đợt (VD S2 "collection có đúng trường bắt buộc" — mỗi đợt thêm collection mới đều phải pass lại). Con số trên là **quy tắc được "chốt"** lần đầu.
+
+### 3.12. Rủi ro và kế hoạch xử lý
+
+| # | Rủi ro | Khả năng | Tác động | Kế hoạch xử lý |
+|---|---|---|---|---|
+| R1 | Lệch lịch do ước lượng sai | Cao | Cao | Mục 3.6: dừng + điều chỉnh phạm vi khi lệch > 30%; cập nhật ước lượng mỗi đợt |
+| R2 | Migration làm mất dữ liệu | Thấp | Rất cao | Verify 4 mức + backup + rollback 3 cấp (Phần 11) + cắt nhỏ theo nhóm |
+| R3 | Hạ tầng test làm chậm vòng lặp phát triển | Trung bình | Trung bình | Tách project Jest; `test:unit` chạy < 30s; container chỉ bật khi cần |
+| R4 | Feature flag gây trạng thái lẫn lộn (một request đi 2 nhánh) | Trung bình | Trung bình | Gắn cờ ở **tầng interceptor**, không gắn trong controller; test phải chứng minh 1 request chỉ đi 1 nhánh |
+| R5 | Không có người review thứ hai (đội 1 người) | Chắc chắn | Cao | Checklist 12 mục + bằng chứng test bắt buộc + tự review bằng checklist; cân nhắc AI review cho đợt 3–6 |
+| R6 | Test AI lộ PII ra ngoài | Thấp | Rất cao | Test network mock bắt buộc từ Đợt 5; assert payload không chứa giá trị ô |
+| R7 | `clean-rules`/`lineage`/`exports` xoá muộn gây rối | Trung bình | Thấp | Xoá đúng 1 lần ở Đợt 6 sau khi cutover pass (quyết định 5) |
+| R8 | Dữ liệu thực tế lệch mạnh so với giả định schema | Trung bình | Cao | Câu hỏi còn mở của Phần 11 (số lượng `dataset_record` thực tế) — cần đo trước Đợt 4 |
+| R9 | Monorepo làm chậm CI/local do cài lại | Thấp | Thấp | pnpm workspace dùng store chung; chỉ 4 package nên nhẹ |
+| R10 | Phạm vi 84 tính năng bị "nở" khi code | Cao | Trung bình | Mọi tính năng mới phải thêm vào Phần 2 v4 trước khi code; không code ngoài danh mục |
+
+### 3.13. Đối chiếu với code hiện tại
+
+**Hiện trạng:** `src/backend/` — 7.880 dòng TypeScript, 10 module NestJS (`auth`, `clean-rules`, `datasets`, `data-view`, `exports`, `lineage`, `projects`, `users`, `versions`, `workspaces`), 16 file `*.spec.ts` gọi Mongo thật, 1 `package.json` đơn, chưa có monorepo.
+
+| Vấn đề hiện tại | Xử lý trong kế hoạch |
+|---|---|
+| Cấu trúc phẳng (`dto/`, `schemas/`, `*.service.ts`, `*.repository.ts`) | Chuyển sang hexagonal 6 thư mục — Đợt 1 tạo khung, mỗi đợt sau áp vào module của mình |
+| 10 module, trong đó 3 phải xoá | Xoá `clean-rules`, `lineage`, `exports` ở Đợt 6 |
+| `neo4j-driver` trong dependencies | Gỡ ở Đợt 6 |
+| `jest` config nằm trong `package.json`, không tách project | `jest.unit.json` với 4 project — Đợt 1 |
+| Test gọi Mongo thật (Atlas) | Chuyển sang container replica set — Đợt 1 |
+| `pnpm-workspace.yaml` đã tồn tại nhưng chưa dùng | Tận dụng cho monorepo — Đợt 1 |
+| Script `bootstrap-database.ts` có nhánh `TARGET=neo4j` | Bỏ nhánh Neo4j — Đợt 6 |
+
+**Đối chiếu với mô hình triển khai thông dụng:**
+
+| Khả năng của mẫu | Có dùng không | Lý do |
+|---|---|---|
+| Monorepo pnpm | ✅ Có — 4 package | Quyết định 1 |
+| `jest.config.js` + `test/jest-e2e.json` | ✅ Có | Phần 13 đã chốt |
+| `scripts/check-module.mjs` | ✅ Có — mở rộng thành `check-architecture.mjs` | Quyết định 12 của Phần 13 |
+| `test/k6/smoke.js` + `stress.js` | ✅ Có | Quyết định 13 của Phần 13 |
+| `test/factories/`, `test/fixtures/` | ✅ Có | Quyết định 14 của Phần 13 |
+| `docs/17` làm nơi lưu ngưỡng hiệu năng | ✅ Có — chuyển thành `docs/test-reports/perf-*.md` | Quyết định 2 của Phần 14 |
+| Quy trình PR có bằng chứng | ✅ Có — nhưng tự review thay vì người thứ hai | Quyết định 9 |
+| Có CI (GitHub Actions) | ❌ **Không dùng** | Quyết định 11 của Phần 13 |
+| Có `husky` pre-commit | ❌ **Không dùng** | Câu hỏi mở #1 của Phần 13 — chưa chốt, sẽ chốt khi bắt đầu Đợt 1 |
+
+### 3.14. Quy tắc kế hoạch
+
+| # | Quy tắc |
+|---|---|
+| K1 | Đợt sau không bắt đầu khi đợt hiện tại chưa qua cổng nghiệm thu (mục 3.8) |
+| K2 | Mỗi đợt kết thúc → `git tag dot-N` |
+| K3 | Không có nhánh con; tất cả trên `Hoa24102026` |
+| K4 | Không merge `main` trước Phần 15 |
+| K5 | Feature flag mặc định `legacy`; bật `new` chỉ sau khi đợt pass cổng |
+| K6 | Bật cờ theo thứ tự: canary 10% → 100% → giữ 7 ngày → mới drop collection cũ |
+| K7 | Mọi commit có Conventional Commits + scope module + body nêu UC và quy tắc test |
+| K8 | PR đính kèm báo cáo test + checklist 12 mục |
+| K9 | PR > 1.500 dòng thay đổi phải tách |
+| K10 | TDD nghiêm: use case chỉ xong khi đã có test |
+| K11 | Mọi module mới phải pass `pnpm test:arch` (12 quy tắc A) |
+| K12 | Không thêm tính năng ngoài danh mục 84 — thêm phải cập nhật Phần 2 v4 trước |
+| K13 | Không commit secret, `.env`, `dist/`, `coverage/` |
+| K14 | Cutover cắt nhỏ theo nhóm module; mỗi nhóm 1 lần cutover riêng |
+| K15 | Verify hash mẫu lệch > 0 → dừng, không bật cờ, rollback |
+| K16 | Lệch ước lượng > 30% → dừng, điều chỉnh phạm vi trước khi tiếp tục |
+| K17 | Ước lượng được cập nhật sau mỗi đợt (mục 3.5) |
+| K18 | Số liệu trong tài liệu này là ước lượng, không phải cam kết |
+| K19 | Đợt là **đơn vị công việc logic**, không phải mốc thời gian — được phép dừng giữa đợt mà vẫn giữ trạng thái chạy được |
+| K20 | Ước lượng phải ghi kèm **ngày đo**, không chỉ con số |
+
+### 3.15. Điều kiện hoàn tất phần này
+
+Kế hoạch thực hiện đã thống nhất trước khi viết code.
+
+**Trạng thái v1:** 16 quyết định triển khai đã chốt; chiến lược Hybrid với feature flag trong tiến trình; cấu trúc monorepo 4 package + 2 app; 6 đợt với scope, quy tắc test và tiêu chí nghiệm thu riêng; ước lượng 154,5 ngày công chi tiết theo module; **cảnh báo lệch lịch** 6 tuần vs 36 tuần với 3 phương án; quy trình commit/PR/checklist 12 mục; cổng nghiệm thu 9 mục; quy trình cutover cắt nhỏ theo nhóm; staging local; phân bổ 92 quy tắc theo đợt; 10 rủi ro kèm kế hoạch xử lý; 20 quy tắc kế hoạch K1–K20. Còn 1 câu hỏi mở tại mục 6.2 (thêm `husky` pre-commit).
+
+## 4. Đầu vào và đầu ra
+
+**Đầu vào**
+- Phần 2 v3 — 84 tính năng, danh mục module LEGACY.
+- Phần 4 v2 — 15 module mới + `shared`, bảng sở hữu collection, đồ thị phụ thuộc, đợt giao hàng gợi ý.
+- Phần 5 v1 — hexagonal, 6 thư mục tầng, Rich Domain Model.
+- Phần 6 v3 — 5 vai trò, 36 tình huống truy cập trái phép.
+- Phần 7 v1 — 85 endpoint, quy ước response/lỗi.
+- Phần 8 v2 — 22 collection, 18 quy tắc S.
+- Phần 9 v1 — 13 sự kiện, outbox/inbox, 14 quy tắc I.
+- Phần 10 v2 — 28 quy tắc O, biến môi trường, health check, backup.
+- Phần 11 v1 — 24 quy tắc M, quy trình cutover 8 bước, rollback 3 cấp.
+- Phần 12 v2 — thuật toán thống kê, che PII.
+- Phần 13 v1 — 8 tầng test, ma trận 92 quy tắc, ngưỡng coverage, quy trình nghiệm thu 3 bước, ước tính ~38 ngày công test.
+- Mã nguồn hiện tại — 7.880 dòng, 10 module NestJS, 16 file spec gọi Mongo thật, `pnpm-workspace.yaml` đã có nhưng chưa dùng.
+- Mô hình triển khai thông dụng — monorepo, `jest.config.js` có `projects`, `scripts/check-module.mjs`, `test/k6/`, `docs/17`.
+- Quyết định của người dùng — 14 lựa chọn triển khai (2026-11-05).
+
+**Đầu ra**
+- 16 quyết định triển khai nền tảng.
+- Cơ chế `ModuleRouter` + `feature_flag` collection + `LegacyAwareInterceptor` — 3 trạng thái (`legacy`/`canary`/`new`).
+- Cấu trúc monorepo mục tiêu (2 app + 3 package) với 5 quy tắc cấu trúc bắt buộc.
+- 6 đợt giao hàng — scope, quy tắc test, tiêu chí nghiệm thu riêng cho từng đợt.
+- Ước lượng 154,5 ngày công chi tiết theo hạng mục, module và đợt.
+- **Cách hiểu mới về "đợt"**: đơn vị công việc logic, không phải mốc thời gian (mục 3.6.2).
+- **Ước lượng theo mô hình người + AI**: 154,5 ngày công chuẩn hóa ↔ ~45–60 đơn vị thực thi (mục 3.6.3).
+- Quy ước Conventional Commits + 8 kiểu + scope module + mẫu body tham chiếu UC/quy tắc.
+- Checklist PR 12 mục + quy tắc tách PR > 1.500 dòng.
+- Cổng nghiệm thu 9 mục giữa các đợt.
+- Quy trình cutover cắt nhỏ theo 5 nhóm module, lịch cắt theo đợt.
+- Cấu hình staging local (`docker-compose.dev.yml`).
+- Bảng phân bổ 92 quy tắc theo đợt.
+- 10 rủi ro R1–R10 kèm kế hoạch xử lý.
+- 18 quy tắc kế hoạch K1–K18.
+
+## 5. Điều kiện hoàn tất phần này
+
+Kế hoạch thực hiện đã thống nhất trước khi viết code.
+
+**Trạng thái v1:** 14 quyết định đã chốt; chiến lược Hybrid; 6 đợt; 154,5 ngày công ước lượng; quy trình commit/PR/cổng nghiệm thu; cutover theo nhóm; 92 quy tắc phân bổ theo đợt; 10 rủi ro; 18 quy tắc K1–K18. Còn 2 câu hỏi mở tại mục 6.2.
+
+## 6. Câu hỏi và phụ thuộc còn mở
+
+### 6.1. Đã chốt ở v1
+
+| # | Câu hỏi | Kết quả |
+|---|---|---|
+| 1 | Cấu trúc repo mục tiêu | **Monorepo pnpm** — `apps/api`, `apps/worker`, `packages/core`, `packages/contracts` (+ `packages/config`) — mục 3.3 |
+| 2 | Chiến lược triển khai | **Hybrid** — dựng nền tảng trước, chuyển module theo nhóm — mục 3.2 |
+| 3 | Chia đợt | **6 đợt** — mục 3.4 |
+| 4 | Nhánh | **`Hoa24102026`**, không nhánh con, commit theo đợt — mục 3.7.1 |
+| 5 | Giữ code legacy | **Đến khi cutover xong rồi xoá hết một lần** — mục 3.5 (Đợt 6) |
+| 6 | Thứ tự test | **TDD nghiêm** — mục 3.14 K10 |
+| 7 | Chuyển traffic | **Feature flag theo module** — mục 3.2 |
+| 8 | Quy ước commit | **Conventional Commits + scope module** — mục 3.7.2 |
+| 9 | Review PR | **Tự review + bằng chứng đính kèm** — mục 3.7.3 |
+| 10 | Thời điểm migrate dữ liệu | **Theo từng nhóm module** — mục 3.9 |
+| 11 | Staging | **Chỉ local + Docker** — mục 3.10 |
+| 12 | Thời lượng đợt | **1 tuần** (cadence) — **cảnh báo lệch lịch** ở mục 3.6 |
+| 13 | Cách ước lượng | **Cả hai** — tổng ngày công theo module + phân bổ theo đợt — mục 3.5 |
+| 14 | Song song | **Tuần tự, 1 người** — mục 3.14 K1 |
+| 15 | Chia đợt có ràng buộc lịch không? | **Không** — 6 đợt là đơn vị công việc logic, không phải mốc thời gian — mục 3.6.2 |
+| 16 | Ước lượng lịch theo mô hình nào? | **Người + AI cùng làm** — 154,5 ngày công chuẩn hóa ↔ ~45–60 đơn vị thực thi — mục 3.6.3 |
+
+### 6.2. Còn mở
+
+| # | Câu hỏi | Ảnh hưởng | Nơi xử lý |
+|---|---|---|---|
+| 1 | ~~Dùng phương án nào để xử lý chênh lệch lịch 6 tuần vs ~36 tuần?~~ | **Đã chốt:** không chia đợt cứng như ràng buộc lịch — 6 đợt là **đơn vị công việc logic**, tiến độ do người dùng + AI làm liên tục (quyết định 15, mục 3.6.2) | Đã xử lý |
+| 2 | Có nên thêm **`husky` pre-commit** chạy `pnpm test:unit && pnpm test:arch`? Nhẹ, chặn lỗi sớm, nhưng thêm dependency và có thể làm chậm commit | Trải nghiệm commit — với quy trình 1 người thì lợi ích khá rõ | Chốt ở **Đợt 1** (nằm trong checklist mục 3.13) |
+
+### 6.3. Phụ thuộc bên ngoài
+
+- **Docker** — cần cho `docker-compose.test.yml` (Mongo replica set, Redis, MinIO) và `docker-compose.dev.yml` (staging cục bộ).
+- **k6** — cài riêng, chạy ở Đợt 3+.
+- **MongoDB Atlas M0** — chỉ dùng cho dev; **không** dùng cho test (thiếu replica set).
+- **R2 / MinIO** — MinIO container ở test và staging; R2 thật chỉ ở production.
+- **Gemini API** — không dùng trong test; adapter thật chỉ ở dev/production.
+- **Nhân sự** — mô hình thực thi là **người dùng + AI** (quyết định 15, 16), không phụ thuộc nhân sự bên ngoài.
+
+### 6.4. Phụ thuộc chéo với Phần 15
+
+| Phụ thuộc | Mô tả |
+|---|---|
+| **Bắt buộc** | Phần 15 (đánh giá cuối) dùng ma trận 92 quy tắc + 3 bảng mapping của Phần 13 làm tiêu chí đánh giá cuối |
+| **Bắt buộc** | Phần 15 dùng 6 đợt của Phần 14 làm đơn vị đánh giá (mỗi đợt 1 mục đánh giá) |
+| **Bắt buộc** | Phần 15 phải xác nhận việc xoá 3 module LEGACY và gỡ Neo4j (Đợt 6) |
+| **Ràng buộc** | Chỉ merge `main` sau khi Phần 15 xác nhận (K4) |
+| **Ghi nhận** | Câu hỏi mở #1 của Phần 13 (soak test) và #2 (husky) — #2 đã đưa sang mục 6.2 của Phần 14; #1 vẫn treo ở Phần 13 |
+
+## 7. Prompting log và lịch sử thay đổi
+
+- **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
+- **v1 / 2026-11-02:** Tạo khung phần 14 / Chuẩn bị thảo luận tuần tự / Chỉ tạo tài liệu, chưa thực thi thay đổi backend hoặc dữ liệu.
+- **v1 / 2026-11-05 (bổ sung):** Bổ sung quyết định 15–16 sau khi người dùng chốt "không cần chia đợt, làm nhanh nhất có thể". Viết lại mục 3.6: đợt = đơn vị công việc logic (không phải mốc thời gian); thêm ước lượng theo mô hình người + AI (154,5 ngày công chuẩn hóa ↔ ~45–60 đơn vị thực thi); thêm quy tắc K19–K20; đóng câu hỏi mở #1 (xử lý chênh lệch lịch).
+- **v1 / 2026-11-05:** Hoàn thiện vòng đầu. Chốt 14 quyết định triển khai; thiết kế chiến lược Hybrid với `ModuleRouter` + `feature_flag` collection + `LegacyAwareInterceptor` (3 trạng thái legacy/canary/new); cấu trúc monorepo 2 app + 3 package với 5 quy tắc cấu trúc; 6 đợt giao hàng — mỗi đợt có scope, quy tắc test, tiêu chí nghiệm thu; ước lượng 154,5 ngày công chi tiết theo hạng mục/module/đợt; **cảnh báo lệch lịch** (6 tuần vs ~36 tuần) với 3 phương án xử lý; quy ước Conventional Commits với 8 kiểu + scope module + mẫu body tham chiếu UC/quy tắc; checklist PR 12 mục; cổng nghiệm thu 9 mục; quy trình cutover cắt nhỏ theo 5 nhóm module; staging local docker-compose; bảng phân bổ 92 quy tắc theo đợt; 10 rủi ro R1–R10; đối chiếu code hiện tại và hệ thống tham chiếu; 18 quy tắc K1–K18.
