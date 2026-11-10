@@ -10,10 +10,11 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { DatasetsModule } from './modules/datasets/datasets.module';
 import { DataViewModule } from './modules/data-view/data-view.module';
-import { LineageModule } from './modules/lineage/lineage.module';
-import { VersionsModule } from './modules/versions/versions.module';
-import { CleanRulesModule } from './modules/clean-rules/clean-rules.module';
-import { ExportsModule } from './modules/exports/exports.module';
+import { AnalysisModule } from './modules/analysis/analysis.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { IssuesModule } from './modules/issues/issues.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -32,10 +33,11 @@ import { AppController } from './app.controller';
     ProjectsModule,
     DatasetsModule,
     DataViewModule,
-    LineageModule,
-    VersionsModule,
-    CleanRulesModule,
-    ExportsModule,
+    AnalysisModule,
+    NotificationsModule,
+    IssuesModule,
+    FeedbackModule,
+    RealtimeModule,
   ],
   controllers: [AppController],
 })

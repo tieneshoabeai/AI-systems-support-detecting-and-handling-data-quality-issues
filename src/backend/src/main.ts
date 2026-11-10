@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, RequestMethod } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -41,6 +42,7 @@ async function bootstrap(): Promise<void> {
     AppModule,
     httpsOptions ? { httpsOptions } : {}
   );
+  app.useWebSocketAdapter(new IoAdapter(app));
   const config = app.get(ConfigService);
 
   const port = config.get<number>('PORT', 3000);
@@ -89,7 +91,10 @@ async function bootstrap(): Promise<void> {
 
   // 4. Global Prefix (/api/v1) - Loại trừ endpoint health check phục vụ monitoring
   app.setGlobalPrefix(apiPrefix, {
-    exclude: [{ path: 'health', method: RequestMethod.GET }],
+    exclude: [
+      { path: 'health', method: RequestMethod.GET },
+      { path: 'health/ready', method: RequestMethod.GET },
+    ],
   });
 
   // 5. Global Exception Filter & Response Transform Interceptor
@@ -101,7 +106,7 @@ async function bootstrap(): Promise<void> {
     .setTitle('AI-Driven Data Quality Management Platform API')
     .setDescription(
       'Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ. ' +
-        'Cung cấp 43 RESTful endpoints cho Ingestion, Virtual Grid, Neo4j Lineage, Cryptographic Audit Chaining và AI Detection.'
+        'Cung cấp RESTful endpoints cho Ingestion, Virtual Grid, Data Quality, Notifications, Issues và AI Detection.'
     )
     .setVersion('1.0.0')
     .addBearerAuth(
@@ -119,6 +124,10 @@ async function bootstrap(): Promise<void> {
   const localListenPort = httpsOptions ? sslPort : port;
   const protocol = httpsOptions ? 'https' : 'http';
 
+  // Server mac dinh la '/' (same-origin): Swagger UI goi dung domain dang mo trang,
+  // nguoi dung mo qua tunnel thi request di qua tunnel, mo o local thi di localhost.
+  // Khong dung localhost cung giup tranh loi 'Failed to fetch' khi nguoi khac truy cap.
+  swaggerBuilder.addServer('/', 'Current origin (tu dong dung khi qua tunnel)');
   swaggerBuilder.addServer(`${protocol}://localhost:${localListenPort}`, 'Local Development Server');
 
   if (cloudflareTunnelUrl) {
