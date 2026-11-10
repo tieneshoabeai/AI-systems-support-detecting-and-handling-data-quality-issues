@@ -2,8 +2,10 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { UsersService } from '../../users/users.service';
-import { CurrentUserPayload } from '../../../shared/decorators/current-user.decorator';
+import { UsersService } from '../../../users/application/users.service';
+import { canUserLogin } from '../../../users/domain/value-objects/user-role.vo';
+
+import { CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
 
 export interface JwtPayload {
   sub: string;
@@ -29,12 +31,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload): Promise<CurrentUserPayload> {
     const user = await this.usersService.findById(payload.sub);
-    if (!user || user.status === 'blocked' || user.deleted_at !== null) {
+    if (!user || !canUserLogin(user.status, user.deletedAt)) {
       throw new UnauthorizedException('Tài khoản không tồn tại, đã bị khóa hoặc đã bị xóa mềm');
     }
 
     return {
-      userId: user._id.toString(),
+      userId: user.id,
       email: user.email,
       role: user.role,
       sessionId: payload.sessionId,

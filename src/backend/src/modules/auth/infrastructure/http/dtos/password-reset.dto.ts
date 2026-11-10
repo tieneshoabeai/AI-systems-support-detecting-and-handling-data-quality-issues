@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EmailSchema, PasswordSchema } from '../../../shared/validation/common-schemas';
+import { EmailSchema, PasswordSchema } from '../../../../../shared/validation/common-schemas';
 
 export const ForgotPasswordSchema = z.object({
   email: EmailSchema,

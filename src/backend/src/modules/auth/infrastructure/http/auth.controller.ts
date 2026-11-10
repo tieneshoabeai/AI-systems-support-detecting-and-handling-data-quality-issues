@@ -13,15 +13,15 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
-import { AuthService } from './auth.service';
-import { RegisterSchema, RegisterDto } from './dto/register.dto';
-import { LoginSchema, LoginDto } from './dto/login.dto';
-import { RefreshTokenSchema, RefreshTokenDto } from './dto/refresh-token.dto';
-import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
-import { Public } from '../../shared/decorators/public.decorator';
-import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
-import { ApiZodBody } from '../../shared/swagger/api-zod.decorator';
+import { AuthService } from '../../application/auth.service';
+import { RegisterSchema, RegisterDto } from './dtos/register.dto';
+import { LoginSchema, LoginDto } from './dtos/login.dto';
+import { RefreshTokenSchema, RefreshTokenDto } from './dtos/refresh-token.dto';
+import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
+import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { Public } from '../../../../shared/decorators/public.decorator';
+import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
+import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
