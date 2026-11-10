@@ -1,21 +1,18 @@
 /**
- * Reset độc lập hoặc toàn bộ CSDL (MongoDB Atlas, Neo4j AuraDB, Cloudflare R2) + Bắn ntfy.sh cảnh báo.
+ * Reset độc lập hoặc toàn bộ CSDL (MongoDB Atlas, Cloudflare R2) + Bắn ntfy.sh cảnh báo.
  *
  * Cách dùng:
  *   CONFIRM_RESET=DROP_ALL_DATA TARGET=all pnpm run db:bootstrap
  *   CONFIRM_RESET=DROP_ALL_DATA TARGET=mongo pnpm run db:bootstrap
- *   CONFIRM_RESET=DROP_ALL_DATA TARGET=neo4j pnpm run db:bootstrap
  *   CONFIRM_RESET=DROP_ALL_DATA TARGET=storage pnpm run db:bootstrap
  *
  * Hoặc qua các script rút gọn trong package.json:
  *   CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:all
  *   CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:mongo
- *   CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:neo4j
  *   CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:storage
  */
 import './lib/load-env';
 import mongoose from 'mongoose';
-import neo4j from 'neo4j-driver';
 import {
   S3Client,
   ListObjectsV2Command,
@@ -25,10 +22,10 @@ import {
 } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
-import { seedMongoData, seedNeo4jData } from './seed-initial-data';
+import { seedMongoData } from './seed-initial-data';
 import { sendPushNotification } from './lib/ntfy-notifier';
 
-type ResetTarget = 'all' | 'mongo' | 'neo4j' | 'storage';
+type ResetTarget = 'all' | 'mongo' | 'storage';
 
 function parseTarget(): ResetTarget {
   // Ưu tiên đọc biến môi trường TARGET hoặc đối số dòng lệnh --target=...
@@ -37,7 +34,7 @@ function parseTarget(): ResetTarget {
   const argTarget = cliArg ? cliArg.split('=')[1]?.toLowerCase().trim() : undefined;
 
   const target = envTarget || argTarget || 'all';
-  if (target === 'mongo' || target === 'neo4j' || target === 'storage' || target === 'all') {
+  if (target === 'mongo' || target === 'storage' || target === 'all') {
     return target;
   }
 
@@ -66,39 +63,6 @@ async function resetMongo(): Promise<void> {
   console.log('Đang tái khởi tạo tài khoản Quản trị viên và Workspace mặc định trên MongoDB...');
   await seedMongoData(db);
   await mongoose.disconnect();
-}
-
-async function resetNeo4j(): Promise<void> {
-  const neo4jUri = process.env.NEO4J_URI;
-  const neo4jUser = process.env.NEO4J_USERNAME;
-  const neo4jPass = process.env.NEO4J_PASSWORD;
-
-  if (!neo4jUri || !neo4jUser || !neo4jPass) {
-    console.warn('[Neo4j AuraDB] Bỏ qua: thiếu cấu hình kết nối trong .env');
-    return;
-  }
-
-  console.log('Đang kết nối tới Neo4j AuraDB...');
-  const driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPass));
-  const session = driver.session({ database: process.env.NEO4J_DATABASE || 'neo4j' });
-
-  try {
-    console.log('\n[Cảnh Báo] Đang dọn sạch toàn bộ đồ thị trên Neo4j AuraDB...');
-    await session.run(`MATCH (n) DETACH DELETE n`);
-    console.log('[Neo4j AuraDB] Đã xóa toàn bộ nodes và relationships cũ.');
-  } finally {
-    await session.close();
-    await driver.close();
-  }
-
-  console.log('Đang tái tạo Constraints và Node Quản trị viên & Workspace trên Neo4j AuraDB...');
-  const defaultOrgId = process.env.ORGANIZATION_ID?.trim() ?? '556d6a37bcf86cd799439013';
-  const email = (process.env.OWNER_EMAIL ?? 'admin@shool.local').toLowerCase().trim();
-  await seedNeo4jData({
-    userId: '000000000000000000000001',
-    email,
-    workspaceId: defaultOrgId,
-  });
 }
 
 async function resetStorage(): Promise<void> {
@@ -167,7 +131,7 @@ async function main(): Promise<void> {
       `  CONFIRM_RESET=DROP_ALL_DATA TARGET=${target} pnpm run db:bootstrap\n\n` +
       `Hoặc dùng các script chuyên biệt:\n` +
       `  CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:mongo\n` +
-      `  CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:neo4j\n` +
+      
       `  CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:storage\n` +
       `  CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:all\n`
     );
@@ -180,27 +144,21 @@ async function main(): Promise<void> {
 
   if (target === 'mongo') {
     console.warn(`[Cảnh Báo Tính Toàn Vẹn] Bạn đang chỉ reset MongoDB Atlas.`);
-    console.warn(`Các Node Dataset/Version cũ trên Neo4j AuraDB có thể trở thành mồ côi (Orphan Nodes) nếu không được đồng bộ!\n`);
+    console.warn(`[Cảnh Báo Tính Toàn Vẹn] Reset MongoDB sẽ xóa toàn bộ dữ liệu nghiệp vụ.\n`);
     await resetMongo();
-  } else if (target === 'neo4j') {
-    console.warn(`[Cảnh Báo Tính Toàn Vẹn] Bạn đang chỉ reset Neo4j AuraDB.`);
-    console.warn(`Dữ liệu Datasets/Versions trên MongoDB Atlas sẽ tạm mất liên kết đồ thị cho đến khi được đồng bộ lại qua Outbox Worker!\n`);
-    await resetNeo4j();
   } else if (target === 'storage') {
     console.warn(`[Cảnh Báo] Toàn bộ tệp snapshots và raw_files trên Storage sẽ bị xóa vĩnh viễn!\n`);
     await resetStorage();
   } else {
     // target === 'all'
     await resetMongo();
-    await resetNeo4j();
     await resetStorage();
   }
 
   const targetComponentMap: Record<ResetTarget, { name: string; targetId: string }> = {
-    all: { name: 'Full Infrastructure (MongoDB Atlas + Neo4j AuraDB + Cloudflare R2)', targetId: 'INFRASTRUCTURE_ALL' },
+    all: { name: 'Full Infrastructure (MongoDB Atlas + Cloudflare R2)', targetId: 'INFRASTRUCTURE_ALL' },
     mongo: { name: 'Document Store (MongoDB Atlas)', targetId: 'DATABASE_MONGODB' },
-    neo4j: { name: 'Graph Store (Neo4j AuraDB)', targetId: 'DATABASE_NEO4J' },
-    storage: { name: 'Object Storage (Cloudflare R2)', targetId: 'STORAGE_R2' },
+      storage: { name: 'Object Storage (Cloudflare R2)', targetId: 'STORAGE_R2' },
   };
 
   const comp = targetComponentMap[target];
