@@ -7,18 +7,18 @@
 - **Dự án:** Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu *(Full-Stack Data Quality Management Platform with AI Assistance)*
 - **Tập tin:** `docs/update_ts_version.md`
 - **Phiên bản kế hoạch:** v1.0
-- **Dự án mẫu tham chiếu đối chuẩn duy nhất:** `/home/hoa/Documents/BACK-END/Property Rental Management System -project/sgod-rental-management`
+- **Chuẩn tham chiếu công nghệ:** cấu hình npm alias `typescript` / `@typescript/native` theo thông lệ TypeScript Native 7.x
 - **Ngày lập:** 25/10/2026
 
 ---
 
 ## 1. Bối cảnh & 3 Câu hỏi Cốt lõi (Rule 1)
 
-- **Đang làm gì?** Thực hiện nâng cấp và đồng bộ hóa phiên bản TypeScript của dự án hiện tại (`src/backend`) từ `typescript: "^5.6.3"` sang cấu hình npm alias tương thích chuẩn dự án mẫu: `"typescript": "npm:@typescript/typescript6@^6.0.2"` và `"@typescript/native": "npm:typescript@^7.0.2"` (nhị phân thực thi `tsc -v` đạt **Version 7.0.2**).
-- **Cho ai?** Cho Đội ngũ phát triển, Giảng viên và Người đánh giá dự án để bảo đảm 100% tính đồng nhất về ngăn xếp công nghệ và công cụ biên dịch giữa dự án thực tế và dự án mẫu chuẩn.
+- **Đang làm gì?** Thực hiện nâng cấp và đồng bộ hóa phiên bản TypeScript của dự án hiện tại (`src/backend`) từ `typescript: "^5.6.3"` sang cấu hình npm alias tương thích chuẩn công nghệ đã chọn: `"typescript": "npm:@typescript/typescript6@^6.0.2"` và `"@typescript/native": "npm:typescript@^7.0.2"` (nhị phân thực thi `tsc -v` đạt **Version 7.0.2**).
+- **Cho ai?** Cho Đội ngũ phát triển, Giảng viên và Người đánh giá dự án để bảo đảm 100% tính đồng nhất về ngăn xếp công nghệ và công cụ biên dịch giữa dự án thực tế và chuẩn công nghệ đã chọn.
 - **Để làm gì?**
   - Tận dụng hiệu năng biên dịch vượt trội của trình biên dịch TypeScript Native 7.x.
-  - Tối ưu hóa tính tương thích kiến trúc với dự án mẫu `sgod-rental-management`.
+  - Tối ưu hóa tính tương thích kiến trúc với chuẩn công nghệ đã chọn.
   - Kiểm soát và giải quyết triệt để mọi rủi ro về Breaking Changes của TypeScript 7 đối với NestJS Decorator Metadata, `ts-jest` và nguyên tắc bất biến **Zero Any Policy** (Mục 13 WORKING RULE).
 
 ---
@@ -27,18 +27,18 @@
 
 ### 2.1. Đối chiếu Thay đổi trong `package.json`
 
-| Gói Phụ thuộc (`devDependencies`) | Phiên bản Hiện tại (`src/backend`) | Cấu hình Đích theo Dự án Mẫu |
+| Gói Phụ thuộc (`devDependencies`) | Phiên bản Hiện tại (`src/backend`) | Cấu hình Đích theo Chuẩn Công Nghệ |
 | :--- | :--- | :--- |
 | `typescript` | `"^5.6.3"` | `"npm:@typescript/typescript6@^6.0.2"` |
 | `@typescript/native` | *Chưa khai báo* | `"npm:typescript@^7.0.2"` |
 | `ts-jest` | `"^29.4.9"` | `"^29.4.9"` *(Giữ nguyên hoặc cập nhật tương thích)* |
-| `@types/node` | `"^20.16.11"` | `"^25.8.0"` *(Đồng bộ nâng cao theo dự án mẫu)* |
+| `@types/node` | `"^20.16.11"` | `"^25.8.0"` *(Đồng bộ nâng cao theo chuẩn công nghệ)* |
 
 ### 2.2. Tinh chỉnh Cấu hình Biên dịch trong `tsconfig.json`
-Đồng bộ các cờ compiler quan trọng từ dự án mẫu nhằm bảo đảm NestJS Dependency Injection hoạt động trơn tru:
+Đồng bộ các cờ compiler quan trọng từ chuẩn công nghệ nhằm bảo đảm NestJS Dependency Injection hoạt động trơn tru:
 - `experimentalDecorators: true` (Bắt buộc cho NestJS)
 - `emitDecoratorMetadata: true` (Bắt buộc cho NestJS runtime injection)
-- `target: "ES2022"` (Nâng từ `ES2021` lên `ES2022` như dự án mẫu)
+- `target: "ES2022"` (Nâng từ `ES2021` lên `ES2022` như chuẩn công nghệ)
 - `moduleResolution: "bundler"` (hoặc `"node"` đảm bảo tương thích đường dẫn)
 - `skipLibCheck: true` (Bỏ qua kiểm tra type của thư viện bên thứ ba trong `node_modules`)
 - `strict: true`, `noImplicitAny: true`, `strictNullChecks: true` (Giữ nguyên cam kết Zero Any)
@@ -94,7 +94,7 @@ flowchart TD
 - Chỉnh sửa `src/backend/package.json`:
   - Thêm `@typescript/native: "npm:typescript@^7.0.2"`.
   - Cập nhật `typescript: "npm:@typescript/typescript6@^6.0.2"`.
-  - Cập nhật `@types/node` lên tương đương dự án mẫu nếu cần thiết.
+  - Cập nhật `@types/node` lên tương đương chuẩn công nghệ nếu cần thiết.
 - Tinh chỉnh `src/backend/tsconfig.json`:
   - Nâng `target: "ES2022"`.
   - Bổ sung `moduleResolution: "bundler"` (hoặc giữ `"node"` nếu bundler gây conflict với ts-node).

@@ -12,10 +12,23 @@
     "outDir": "./dist",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
-    "types": ["node", "jest"],
+    "types": [
+      "node",
+      "jest"
+    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@casl/ability": ["./node_modules/@casl/ability/dist/types/index.d.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@casl/ability": [
+        "./node_modules/@casl/ability/dist/types/index.d.ts"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@modules/*": [
+        "./src/modules/*"
+      ]
     },
     "incremental": true,
     "skipLibCheck": true,
@@ -26,6 +39,11 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
