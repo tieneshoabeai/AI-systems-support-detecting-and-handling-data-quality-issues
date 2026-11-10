@@ -9,7 +9,7 @@ export interface CurrentUser {
   role: 'admin' | 'analyst';
   sessionId?: string;
   workspaceId?: string;
-  workspaceRole?: 'owner' | 'editor' | 'viewer';
+  workspaceRole?: 'owner' | 'member';
 }
 
 export type AppAbility = MongoAbility<[Action, AppSubjects]>;
@@ -27,6 +27,9 @@ export class CaslAbilityFactory {
 
     // 2. Quyền cá nhân: Xem/sửa profile của chính mình và quản lý sessions cá nhân
     can([Action.Read, Action.Update], 'User', { id: user.userId });
+    can(Action.Read, 'Notification', { user_id: user.userId });
+    can(Action.Update, 'Notification', { user_id: user.userId });
+    can([Action.Create, Action.Read], 'IssueReport', { user_id: user.userId });
     can([Action.Read, Action.Delete], 'Session', { user_id: user.userId });
 
     // 3. Phân quyền theo vai trò trong Workspace hiện tại
@@ -40,53 +43,25 @@ export class CaslAbilityFactory {
               'Project',
               'Dataset',
               'DataRecord',
-              'CleanRule',
-              'DatasetVersion',
-              'Lineage',
-              'ExportTask',
+              'Analysis',
             ],
             { workspace_id: user.workspaceId }
           );
           break;
 
-        case 'editor':
+        case 'member':
+          // WS-MEMBER (v3): quyền ĐỌC ở cấp workspace — xem workspace,
+          // danh sách thành viên, tổng quan và danh sách project.
+          // Đồng thời là PROJ-VIEWER mặc định trong mọi project -> được đọc
+          // dữ liệu project (Project/Dataset/...) nhưng không ghi.
           can(Action.Read, 'Workspace', { id: user.workspaceId });
-          can(
-            [
-              Action.Create,
-              Action.Read,
-              Action.Update,
-              Action.Execute,
-              Action.Export,
-            ],
-            [
-              'Project',
-              'Dataset',
-              'DataRecord',
-              'CleanRule',
-              'DatasetVersion',
-              'Lineage',
-              'ExportTask',
-            ],
-            { workspace_id: user.workspaceId }
-          );
-          // Editor không được quyền xóa Workspace hoặc Dataset
-          cannot(Action.Delete, 'Workspace');
-          cannot(Action.Delete, 'Dataset');
-          break;
-
-        case 'viewer':
           can(
             Action.Read,
             [
-              'Workspace',
               'Project',
               'Dataset',
               'DataRecord',
-              'CleanRule',
-              'DatasetVersion',
-              'Lineage',
-              'ExportTask',
+              'Analysis',
             ],
             { workspace_id: user.workspaceId }
           );
