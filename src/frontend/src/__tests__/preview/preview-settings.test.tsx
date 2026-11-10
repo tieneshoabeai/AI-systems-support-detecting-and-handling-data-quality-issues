@@ -20,7 +20,7 @@ afterEach(() => { cleanup(); window.location.hash = '' })
 // '#/preview/settings' TRẦN không còn tự mở Bảo mật: hằng số `defaultSection = 'security'` khiến
 // "Settings" trên sidebar và "Cài đặt tài khoản" trong menu cá nhân cùng rơi về MỘT đích, nên
 // người dùng thấy "bấm đâu cũng ra Bảo mật". Route trần nay là màn tổng quan.
-it('"#/preview/settings" trần = màn tổng quan: chưa chọn mục nào, rail vẫn mở Accounts', () => {
+it('Settings chỉ hiện Accounts và System, chưa mở các mục con', () => {
   open(null)
   expect(screen.getByRole('heading', { level: 1, name: 'Cài đặt' })).toBeDefined()
   expect(screen.getByRole('heading', { level: 2, name: 'Chuyên mục' })).toBeDefined()
@@ -30,21 +30,15 @@ it('"#/preview/settings" trần = màn tổng quan: chưa chọn mục nào, rai
   expect(screen.queryByRole('heading', { level: 2, name: 'Thông tin cá nhân' })).toBeNull()
   expect(screen.queryAllByRole('switch')).toHaveLength(0)
 
-  // Rail "Accounts" = CÂY MỘT NHÁNH (đặc tả dòng 9), mở SẴN CẢ HAI CẤP: màn tổng quan phải cho
-  // thấy hết những gì chọn được (2 nút gập + 4 lá), thay vì ẩn ba mục con sau một cú click.
-  // Không lá nào được "đứng" hộ: aria-current không tồn tại ở tổng quan.
-  expect(settingsSections).toHaveLength(3)
+  expect(settingsSections).toHaveLength(2)
   const nav = screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' })
   expect(within(nav).getAllByRole('button').map(item => item.textContent))
-    .toEqual(['Accounts', 'Hồ sơ cá nhân', 'Cài đặt tài khoản', ...settingsSections.map(item => item.label)])
-  expect(within(nav).getByRole('button', { name: 'Accounts' }).getAttribute('aria-expanded')).toBe('true')
-  expect(within(nav).getByRole('button', { name: 'Cài đặt tài khoản' }).getAttribute('aria-expanded')).toBe('true')
+    .toEqual(['Accounts', 'System'])
+  expect(within(nav).getByRole('button', { name: 'Accounts' }).getAttribute('aria-expanded')).toBe('false')
+  expect(within(nav).getByRole('button', { name: 'System' }).getAttribute('aria-expanded')).toBe('false')
   const chosen = within(nav).getAllByRole('button').filter(item => item.getAttribute('aria-current') === 'page')
   expect(chosen).toHaveLength(0)
 
-  // Thân trang LiỆT KÊ đúng những gì dữ liệu có (không bịa module), và không lặp lại nút của
-  // rail: thêm module sau này chỉ sửa settingsModules, màn này tự nói thêm một dòng.
-  expect(screen.getByText(/Hồ sơ cá nhân · Cài đặt tài khoản \(Bảo mật · Đăng nhập & phiên · Thông báo\)/)).toBeDefined()
   // Ảnh 4.4: "Đăng xuất tất cả các phiên khác" CHỈ ở màn Phiên.
   expect(screen.queryByRole('button', { name: 'Đăng xuất tất cả các phiên khác' })).toBeNull()
 })
@@ -52,11 +46,11 @@ it('"#/preview/settings" trần = màn tổng quan: chưa chọn mục nào, rai
 it('ấn nhóm "Cài đặt tài khoản" trên rail CHỈ gập/mở — không đổi hash, không chọn màn hộ ai', () => {
   open(null)
   const nav = screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' })
+  fireEvent.click(within(nav).getByRole('button', { name: 'Accounts' }))
   const group = within(nav).getByRole('button', { name: 'Cài đặt tài khoản' })
   // Trước đây nút này điều hướng thẳng '#/preview/settings/security'. Một nhóm ba mục mà bấm là
   // nhảy vào một mục thì mục đó luôn là "màn" người dùng thấy, dù họ chỉ muốn xem có gì bên
   // trong → nay hash phải đứng yên ('' vì test render trực tiếp, không qua route).
-  fireEvent.click(group)
   expect(group.getAttribute('aria-expanded')).toBe('false')
   expect(within(nav).queryByRole('button', { name: 'Bảo mật' })).toBeNull()
   expect(window.location.hash).toBe('')
@@ -64,10 +58,15 @@ it('ấn nhóm "Cài đặt tài khoản" trên rail CHỈ gập/mở — không
   expect(group.getAttribute('aria-expanded')).toBe('true')
   expect(within(nav).getByRole('button', { name: 'Bảo mật' })).toBeDefined()
   expect(window.location.hash).toBe('')
+  fireEvent.click(group)
+  expect(within(nav).queryByRole('button', { name: 'Bảo mật' })).toBeNull()
 })
 
 it('chính lá "Bảo mật" trong rail mới là lối vào #/preview/settings/security', () => {
   open(null)
+  const nav = screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' })
+  fireEvent.click(within(nav).getByRole('button', { name: 'Accounts' }))
+  fireEvent.click(within(nav).getByRole('button', { name: 'Cài đặt tài khoản' }))
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' }))
     .getByRole('button', { name: 'Bảo mật' }))
   expect(window.location.hash).toBe('#/preview/settings/security')
@@ -78,7 +77,7 @@ it('chính lá "Bảo mật" trong rail mới là lối vào #/preview/settings/
   open('security')
   const accountNav = screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' })
   expect(within(accountNav).getAllByRole('button').map(item => item.textContent))
-    .toEqual(['Accounts', 'Hồ sơ cá nhân', 'Cài đặt tài khoản', ...settingsSections.map(item => item.label)])
+    .toEqual(['Accounts', 'Hồ sơ cá nhân', 'Cài đặt tài khoản', ...settingsSections.map(item => item.label), 'System'])
   expect(within(accountNav).getByRole('button', { name: 'Bảo mật' }).getAttribute('aria-current')).toBe('page')
   expect(screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' })).toBeDefined()
 })

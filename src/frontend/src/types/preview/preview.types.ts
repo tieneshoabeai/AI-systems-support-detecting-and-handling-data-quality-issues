@@ -301,7 +301,7 @@ export type PreviewToast = {
   // undo chỉ sống trong cửa sổ hiển thị của toast — hết toast là hết đường hoàn tác,
   // vì snapshot nằm trong closure của mock store chứ không ghi ra đâu.
   undoLabel?: string
-  onUndo?: () => void
+  onUndo?: () => boolean | void
 }
 
 export type PreviewNotification = {
@@ -370,15 +370,10 @@ export type NewReportInput = {
 // Nhánh "Accounts" của Settings có bốn màn. Đặc tả dòng 9: bấm "Hồ sơ cá nhân" và
 // "Cài đặt tài khoản" đều chuyển sang Settings, nên chúng là một SECTION điều hướng thật
 // (có hash riêng '#/preview/settings/<mục>') chứ không chạy "trong ô" như chuông/báo cáo.
-export type SettingsSectionId = 'profile' | 'security' | 'sessions' | 'notifications'
+export type SettingsSectionId = 'profile' | 'security' | 'sessions' | 'notifications' | 'color'
 
-// Cấu trúc thanh bar phụ của Settings (ảnh 4.2–4.5 + yêu cầu nhóm trưởng): vào Settings là
-// hiện một cột chứa CÁC MODULE (System · Accounts · Time & Language · Update …); bấm một module
-// thì mở các mục của nó. Batch này CHẮC CHẮN chỉ có Accounts (ảnh chỉ vẽ nhánh đó) nên danh sách
-// dưới chỉ một phần tử — thêm module mới là thêm một đối tượng vào mảng, không sửa view.
-// 'accounts' là id DUY NHẤT đã được kiểm chứng; id cho System/Time/Update chưa có trong ảnh hay
-// đặc tả nên KHÔNG đặt trước (một id không ai mở là module chết).
-export type SettingsModuleId = 'accounts'
+// Settings mở theo từng cấp: module → nhóm hoặc trang con.
+export type SettingsModuleId = 'accounts' | 'system'
 
 // Lá = một màn điều hướng được (nhấn → '#/preview/settings/<id>').
 export type SettingsNavLeaf = { id: SettingsSectionId; label: string; icon: string }

@@ -518,22 +518,13 @@ export const accountInfo = {
 
 /* ---------- Nhãn cho nhánh "Accounts" của Settings (Design Board nhóm 04) ---------- */
 
-// Sidebar phụ của "Cài đặt tài khoản" (ảnh 4.3→4.5) = ĐÚNG BA mục: Bảo mật · Đăng nhập &
-// phiên · Thông báo. "Hồ sơ cá nhân" (4.2) KHÔNG nằm trong nav này — nó là màn RIÊNG reached
-// từ menu tài khoản, ảnh 4.2 vẽ nó không có sidebar phụ. Đặc tả dòng 9 nói "các nhánh còn lại
-// thì để sau" nên danh sách CHỈ có nhánh Accounts; view không bịa thêm.
+// Bảo mật và phiên thuộc tài khoản; tùy chọn thông báo thuộc System.
 export const settingsSections: readonly SettingsNavLeaf[] = [
   { id: 'security', label: 'Bảo mật', icon: 'shield' },
   { id: 'sessions', label: 'Đăng nhập & phiên', icon: 'monitor' },
-  { id: 'notifications', label: 'Thông báo', icon: 'bell' },
 ]
 
-// Cột MODULE của Settings (đặc tả + yêu cầu nhóm trưởng): vào Settings là hiện thêm một thanh
-// bar kế bên chứa các module (System · Accounts · Time & Language · Update …); bấm một module
-// thì mở các mục của nó. Ảnh 4.2–4.5 CHỈ vẽ nhánh Accounts nên danh sách chỉ MỘT phần tử, và
-// 'profile' + 'Cài đặt tài khoản' là hai mục con của nó — không phải module ngang hàng.
-// Thêm module mới (System/Time & Language/Update) = thêm một đối tượng vào mảng khi ảnh hoặc
-// đặc tả vẽ nó; settings-2d.view render theo mảng nên không phải sửa view.
+// Module được mở khi người dùng chọn; System hiện có trang Color.
 export const settingsModules: readonly SettingsModule[] = [
   {
     id: 'accounts',
@@ -544,6 +535,10 @@ export const settingsModules: readonly SettingsModule[] = [
       { label: 'Cài đặt tài khoản', icon: 'settings', children: settingsSections },
     ],
   },
+  { id: 'system', label: 'System', icon: 'monitor', items: [
+    { id: 'color', label: 'Color', icon: 'palette' },
+    { id: 'notifications', label: 'Thông báo', icon: 'bell' },
+  ] },
 ]
 
 // Mọi màn một module chứa (lá + con của nhóm) — view dùng để module tự mở khi người dùng vào
@@ -568,7 +563,8 @@ export const projectModules: readonly ProjectModule[] = [
 ]
 
 export const settingsSectionLabel = (id: SettingsSectionId): string =>
-  settingsSections.find(item => item.id === id)?.label ?? id
+  settingsModules.flatMap(module => module.items.flatMap(item => isSettingsNavGroup(item) ? item.children : [item]))
+    .find(item => item.id === id)?.label ?? id
 
 // Bốn công tắc "Tùy chọn thông báo" (4.5). key trùng với NotificationPrefs để setNotificationPref
 // lấy đúng trường; caption là dòng chữ nhỏ dưới nhãn, đúng như ảnh vẽ.

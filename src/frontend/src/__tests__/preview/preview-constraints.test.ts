@@ -19,6 +19,8 @@ const css = readFileSync(join(process.cwd(), 'src/views/preview/preview.css'), '
 // chạy, nên mọi gate đều làm việc trên bản đã cắt comment — nhưng cắt thành đúng số dòng
 // trống để số dòng báo ra khi test đỏ vẫn là số dòng thật trong file.
 const code = css.replace(/\/\*[\s\S]*?\*\//g, comment => '\n'.repeat((comment.match(/\n/g) ?? []).length))
+const themeCode = readFileSync(join(process.cwd(), 'src/views/preview/preview-theme.css'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
 
 const definitions = new Map<string, string>()
 for (const match of code.matchAll(/^\s*(--pv-[\w-]+):\s*([^;]+);/gm)) definitions.set(match[1], match[2].trim())
@@ -32,7 +34,7 @@ const token = (name: string): string => {
 // ---------- Màu ----------
 
 it('mọi hex nằm trong khối token — không rule nào được viết màu thẳng', () => {
-  const offenders = code.split('\n')
+  const offenders = `${code}\n${themeCode}`.split('\n')
     .map((line, index) => ({ line, number: index + 1 }))
     .filter(({ line }) => /#[0-9a-fA-F]{3,8}\b/.test(line) && !/^\s*--pv-/.test(line))
     .map(({ line, number }) => `${number}: ${line.trim()}`)
@@ -44,9 +46,10 @@ it('không var(--pv-…) nào trỏ tới token chưa khai báo', () => {
   // ResizeObserver) nên nó KHÔNG có chỗ trong khối token — đó là biến kênh truyền, không
   // phải màu hay thời lượng. Danh sách này dài ra là một tín hiệu đáng nghi.
   const injectedByJs = new Set(['--pv-viewport-h'])
-  const missing = [...code.matchAll(/var\((--pv-[\w-]+)/g)]
+  const themeDefinitions = new Set([...themeCode.matchAll(/(--pv-[\w-]+):/g)].map(match => match[1]))
+  const missing = [...`${code}\n${themeCode}`.matchAll(/var\((--pv-[\w-]+)/g)]
     .map(match => match[1])
-    .filter(name => !definitions.has(name) && !injectedByJs.has(name))
+    .filter(name => !definitions.has(name) && !themeDefinitions.has(name) && !injectedByJs.has(name))
   // CSS bỏ qua cả thuộc tính khi var() không phân giải được → triệu chứng là "mất màu",
   // rất khó nhìn ra trong review nên phải bắt bằng test.
   expect([...new Set(missing)]).toEqual([])
@@ -172,6 +175,19 @@ it('chữ trắng trên nền đặc đạt 4.5:1, viền/độ phát sáng đ�
   expect(contrast(token('--pv-blue-edge'), token('--pv-surface-2'))).toBeGreaterThanOrEqual(3)
   expect(contrast(token('--pv-hc-edge'), token('--pv-bg-0'))).toBeGreaterThanOrEqual(3)
   expect(contrast(token('--pv-ink-link'), token('--pv-surface-2'))).toBeGreaterThanOrEqual(3)
+})
+
+it('Light giữ tương phản chữ chính, chữ phụ và màu trạng thái trên các nền sáng', () => {
+  const light = new Map([...themeCode.matchAll(/^\s*(--pv-[\w-]+):\s*(#[\da-f]+);/gm)]
+    .map(match => [match[1], match[2]]))
+  const inks = ['--pv-ink', '--pv-muted', '--pv-faint', '--pv-ink-link', '--pv-ink-accent',
+    '--pv-ink-accent-hi', '--pv-ink-accent-soft', '--pv-ink-eyebrow', '--pv-ink-green',
+    '--pv-ink-green-hi', '--pv-ink-green-glow', '--pv-ink-amber', '--pv-ink-rose', '--pv-ink-rose-hi', '--pv-ink-violet']
+  for (const ink of inks) {
+    for (const background of ['--pv-bg-0', '--pv-bg-1', '--pv-bg-2', '--pv-surface-2']) {
+      expect(contrast(light.get(ink)!, light.get(background)!), `${ink} on ${background}`).toBeGreaterThanOrEqual(4.5)
+    }
+  }
 })
 
 // ---------- Khung tự cuộn của Home ----------

@@ -162,7 +162,7 @@ function TopbarAccount() {
   // Settings hay bấm 'Cài đặt tài khoản' đều nhảy vào Bảo mật": hàng này vốn trỏ thẳng
   // 'security', tức một NHÓM ba mục bị đại diện bởi một màn con tùy chọn. Từ menu, người dùng
   // mới nói "tôi muốn vào cài đặt tài khoản", chưa nói họ muốn mục nào trong ba mục → về tổng
-  // quan để họ chọn; rail đã mở sẵn nhóm nên ba mục con hiện ra ngay tại chỗ.
+  // quan để họ mở Accounts rồi chọn trang cần dùng.
   const rows: readonly { label: string; icon: string; to: SettingsSectionId | 'overview' }[] = [
     { label: 'Hồ sơ cá nhân', icon: 'users', to: 'profile' },
     { label: 'Cài đặt tài khoản', icon: 'settings', to: 'overview' },
@@ -240,13 +240,8 @@ export function PreviewTopbar({ active, sidebarToggle, state }: {
           ...scopedProjects.map(item => ({ id: item.id, label: item.name, meta: item.code })),
         ]}
         onSelect={id => {
-          // "Tất cả Projects" phải là một PHẠM VI, không phải một cú đánh lừa: trước đây nó
-          // âm thầm chọn lại project đầu tiên, nên nhãn trên chip không bao giờ khớp cái đã
-          // bấm. Bỏ chọn là trang Projects tự hiển thị dòng đầu làm chi tiết (xem
-          // projects-2d.view.tsx: selected = find(...) ?? filtered[0]) — không có trạng thái
-          // trống không lối ra, mà ô chọn thì nói đúng nơi người dùng đang đứng.
-          // Nhánh này cũng KHÔNG đổi màn hình nữa: chip Projects và chip Workspace phải cùng
-          // một quy tắc (apple-design mục 4 — trông giống nhau thì hành xử giống nhau).
+          // Bỏ chọn quay về danh sách trong Workspace hiện tại;
+          // chọn một Project cụ thể mở đúng trang Project đó.
           if (!id) {
             session.clearProject()
             if (scopeCarryingSections.includes(active)) {
@@ -254,10 +249,9 @@ export function PreviewTopbar({ active, sidebarToggle, state }: {
             }
             return
           }
-          session.selectProject(id)
           // Chọn project ở topbar = mở chi tiết của nó, giống hệt một click lên thẻ
           // (một hành vi một quy tắc, không phân nhánh theo lối vào).
-          session.run('detail', { kind: 'project', id, name: state.projects.find(item => item.id === id)?.name ?? id })
+          session.run('open', { kind: 'project', id, name: state.projects.find(item => item.id === id)?.name ?? id })
         }} />
     </div>
 

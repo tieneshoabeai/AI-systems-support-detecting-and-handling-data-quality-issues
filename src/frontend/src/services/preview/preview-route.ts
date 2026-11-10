@@ -32,7 +32,7 @@ const routeSegments = (source: string): string[] => {
 
 // '[0]' chứ không phải destructuring có default: segment thiếu phải là null để
 // readPreviewRoute biết mà giữ selection hiện tại thay vì nhảy về workspace đầu.
-const settingsSectionValues: readonly SettingsSectionId[] = ['profile', 'security', 'sessions', 'notifications']
+const settingsSectionValues: readonly SettingsSectionId[] = ['profile', 'security', 'sessions', 'notifications', 'color']
 
 export const parsePreviewRoute = (source: string): PreviewRoute | null => {
   const segments = routeSegments(source)

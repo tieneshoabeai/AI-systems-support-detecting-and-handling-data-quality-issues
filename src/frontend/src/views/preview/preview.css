@@ -860,16 +860,6 @@
 [data-preview='2d'] .eyebrow { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--pv-ink-eyebrow); }
 [data-preview='2d'] .hero-copy h1 { font-size: 34px; margin: 8px 0 10px; }
 [data-preview='2d'] .hero-copy p { color: var(--pv-muted); max-width: 44ch; margin-bottom: 14px; }
-[data-preview='2d'] .hero-cta {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 11px 18px; border-radius: 12px; font-weight: 700; color: var(--pv-on-fill);
-  /* #4c7dff/#7c5cff đo được 3.69/4.35 với chữ trắng → thay bằng cặp đạt 4.5. */
-  background: linear-gradient(120deg, var(--pv-indigo-fill), var(--pv-violet-fill));
-  box-shadow: 0 12px 30px rgba(124, 92, 255, .4);
-  transition: transform var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out);
-}
-[data-preview='2d'] .hero-cta:not([disabled]):hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(124, 92, 255, .55); }
-[data-preview='2d'] .hero-cta:not([disabled]):active { transform: translateY(0) scale(.99); }
 
 [data-preview='2d'] .hero-stage { position: relative; z-index: 1; min-height: 260px; }
 [data-preview='2d'] .hero-stage-placeholder {
@@ -1018,14 +1008,30 @@
 [data-preview='2d'] .ws-detail-menu { align-self: start; flex: none; }
 [data-preview='2d'] .detail-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 [data-preview='2d'] .detail-charts .panel { margin-bottom: 0; }
-/* Bar "Tiến độ Project theo thời gian" — cột CSS thuần._track cao flex:1 nên chiều cao
-   cột tính theo % không tràn khỏi khung (giá trị + nhãn nằm ngoài vùng vẽ). */
+/* Equal plot, value and label rows keep every bar on the same baseline.
+   Long labels must never consume the percentage-based plot height. */
 [data-preview='2d'] .pv-bars { display: flex; align-items: stretch; gap: 10px; height: 150px; }
-[data-preview='2d'] .pv-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-[data-preview='2d'] .pv-bar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+[data-preview='2d'] .pv-col { flex: 1; min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) 18px 33px; justify-items: center; gap: 6px; }
+[data-preview='2d'] .pv-bar-track { min-height: 0; height: 100%; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
 [data-preview='2d'] .pv-bar { width: 100%; max-width: 34px; min-height: 2px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--pv-blue), var(--pv-violet)); }
 [data-preview='2d'] .pv-bar-value { font-size: 11px; color: var(--pv-muted); }
-[data-preview='2d'] .pv-bar-label { font-size: 11px; color: var(--pv-faint); text-align: center; }
+[data-preview='2d'] .pv-bar-label {
+  width: 100%; min-width: 0; font-size: 11px; line-height: 1.5;
+  color: var(--pv-faint); text-align: center; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+
+/* User-entered names and unbroken filenames may shrink inside flex/grid cells. */
+[data-preview='2d'] :is(.panel, .panel-head h2, .card-body, .hero-copy) { min-width: 0; }
+[data-preview='2d'] :is(.panel-head h2, .card-title, .card-desc, .ws-detail-name h1, .ws-detail-desc, .row-name, .row-sub, .file-chip) { overflow-wrap: anywhere; }
+[data-preview='2d'] .panel-head { flex-wrap: wrap; }
+[data-preview='2d'] .home-table .preview-table { table-layout: fixed; min-width: 760px; }
+[data-preview='2d'] .home-table .preview-table :is(th, td) { overflow-wrap: anywhere; }
+[data-preview='2d'] .home-table .preview-table :is(th, td):first-child { width: 44px; }
+[data-preview='2d'] .home-table .preview-table :is(th, td):last-child { width: 48px; }
+[data-preview='2d'] .file-chip { max-width: 100%; min-width: 0; }
+[data-preview='2d'] .file-chip .preview-icon { flex-shrink: 0; }
 
 /* ---------- Home: hàng tổng quan (3 panel) + dải giá trị hero ----------
    ĐÚNG ba khối ảnh home: Activity Overview (rộng hơn) + Projects by Status + Projects per
@@ -1165,8 +1171,6 @@
   background: color-mix(in srgb, var(--pj-tone) 16%, rgba(6, 12, 24, .82));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--pj-tone) 45%, transparent), 0 10px 26px rgba(2, 8, 20, .5);
 }
-[data-preview='2d'] .pj-stage-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-[data-preview='2d'] .pj-stage-foot .action-note { flex: 1 1 340px; min-width: 0; margin: 0; }
 
 /* Thanh đáy: bốn module. Nút nào đang chọn thì khối cùng id trong scene sáng lên (cùng `selected`). */
 [data-preview='2d'] .pj-modules {
@@ -2303,8 +2307,7 @@
   [data-preview='2d'] .resource-card:hover,
   [data-preview='2d'] .stat-card:hover,
   [data-preview='2d'] .quick-card:hover,
-  [data-preview='2d'] .mini-card:hover,
-  [data-preview='2d'] .hero-cta:hover { transform: none; }
+  [data-preview='2d'] .mini-card:hover { transform: none; }
   [data-preview='2d'] .resource-card:active,
   [data-preview='2d'] .mini-card:active,
   [data-preview='2d'] .scope-select:active,
@@ -2378,18 +2381,15 @@
 }
 
 /* Tạo / Lưu / Tiếp theo: xanh điện chuyển tím, hai mép bắt sáng cyan và tím. */
-[data-preview='2d'] .button-primary,
-[data-preview='2d'] .hero-cta {
+[data-preview='2d'] .button-primary {
   background: var(--pv-gloss-action);
   box-shadow: var(--pv-gloss-action-shadow);
 }
-[data-preview='2d'] .button-primary:not([disabled]):hover,
-[data-preview='2d'] .hero-cta:not([disabled]):hover {
+[data-preview='2d'] .button-primary:not([disabled]):hover {
   background: var(--pv-gloss-action);
   box-shadow: var(--pv-gloss-action-shadow), 0 0 23px rgba(34, 211, 238, .28);
 }
-[data-preview='2d'] .button-primary:not([disabled]):active,
-[data-preview='2d'] .hero-cta:not([disabled]):active {
+[data-preview='2d'] .button-primary:not([disabled]):active {
   box-shadow: inset 0 2px 8px rgba(2, 8, 26, .5), inset 0 0 0 1px rgba(147, 197, 253, .6), 0 0 10px rgba(47, 124, 246, .3);
 }
 
@@ -2456,7 +2456,6 @@
 [data-preview='2d'] .button-primary[disabled],
 [data-preview='2d'] .button-secondary[disabled],
 [data-preview='2d'] .button-danger[disabled],
-[data-preview='2d'] .hero-cta[disabled],
 [data-preview='2d'] .icon-button[disabled] { box-shadow: none; }
 
 /* Tăng tương phản: bỏ vật liệu phản chiếu và glow trên mọi trạng thái. */
@@ -2468,7 +2467,7 @@
     --pv-gloss-quiet: var(--pv-bg-0);
     --pv-gloss-danger: var(--pv-bg-0);
   }
-  [data-preview='2d'] :is(.button-primary, .button-secondary, .button-danger, .hero-cta, .sidebar-toggle, .scope-select, .page-back, .nav-item, .filter-tab, .detail-tab, .page-button, .icon-button, .pj-module) { box-shadow: none !important; }
+  [data-preview='2d'] :is(.button-primary, .button-secondary, .button-danger, .sidebar-toggle, .scope-select, .page-back, .nav-item, .filter-tab, .detail-tab, .page-button, .icon-button, .pj-module) { box-shadow: none !important; }
   [data-preview='2d'] .pj-module.is-active { background: var(--pv-bg-0); }
   [data-preview='2d'] .page-back:focus-visible { outline: 2px solid var(--pv-cyan); }
 }

@@ -4,7 +4,6 @@ import { HomePreviewView } from '../../views/preview/home-2d.view'
 import { WorkspacesPreviewView } from '../../views/preview/workspaces-2d.view'
 import { ProjectsPreviewView } from '../../views/preview/projects-2d.view'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
-import { universePath } from '../../services/preview/preview-route'
 import {
   cardByTitle, everyDisabledButtonHasVisibleReason, menuFor, menuItem,
   miniCardByTitle, renderFrame, resetPreviewStore, universeNavigator,
@@ -193,10 +192,10 @@ it('Home: bấm workspace xuống Workspaces kèm phạm vi; bấm dòng project
   fireEvent.doubleClick(firstRow!)
   expect(universeNavigator).not.toHaveBeenCalled()
 
-  // NGƯỢC LẠI, thẻ workspace vẫn giữ chuột kép sang universe của T — hai loại đối tượng đi hai
-  // luật. Test này chặn luôn trường hợp ai đó xóa `universe` ở cả workspace lẫn project.
+  // Bấm kép Workspace cùng đích đến với click đơn, không mở nhầm Project của phạm vi trước.
   fireEvent.doubleClick(miniCardByTitle('Marketing'))
-  expect(universeNavigator).toHaveBeenCalledWith(expect.stringContaining(universePath))
+  expect(window.location.hash).toBe('#/preview/workspaces/ws-marketing')
+  expect(universeNavigator).not.toHaveBeenCalled()
 })
 
 // Đổi tên workspace KHÔNG còn là một mục của ⋯: ảnh "a_detailed_high_fidelity_ui_screenshot_of_the_sam"

@@ -10,6 +10,7 @@ import { previewMockStore } from '../../services/preview/preview-mock.service'
 import { previewHref, previewNavigateEvent, universeUrl } from '../../services/preview/preview-route'
 import type { PreviewRouteIds } from '../../types/preview/preview-route.types'
 import { usePreviewStore } from './use-preview-store'
+import { usePreviewColorScheme } from './use-preview-color-scheme'
 
 // Flow của frame preview: một chỗ duy nhất quyết định "bấm vào thì hệ thống làm gì".
 // Menu ngữ cảnh, nút ⋯, dropdown "Thao tác ▾" và các nút trong panel chi tiết đều gọi
@@ -46,6 +47,7 @@ export const usePreviewSessionModel = (
   // state lấy qua hook để mọi thẻ/panel/topbar cùng dựng lại khi mock store đổi;
   // gọi thẳng getState() trong render sẽ trả về snapshot cũ và giao diện "không nhận" thao tác.
   const state = usePreviewStore()
+  const appearance = usePreviewColorScheme()
   const toastTimers = useRef(new Map<string, number>())
   const toastSeq = useRef(0)
   // Nơi focus đang đứng trước khi menu mở — đóng menu phải trả về đúng chỗ cũ,
@@ -62,7 +64,7 @@ export const usePreviewSessionModel = (
     setToasts(current => current.filter(toast => toast.id !== id))
   }, [])
 
-  const pushToast = useCallback((text: string, tone: PreviewToastTone, onUndo?: () => void) => {
+  const pushToast = useCallback((text: string, tone: PreviewToastTone, onUndo?: () => boolean | void) => {
     const id = `tst-${++toastSeq.current}`
     setToasts(current => [...current.slice(-2), { id, text, tone, undoLabel: onUndo ? 'Hoàn tác' : undefined, onUndo }])
     toastTimers.current.set(id, window.setTimeout(() => dismissToast(id), onUndo ? toastLifetimeMs : shortToastLifetimeMs))
@@ -119,11 +121,23 @@ export const usePreviewSessionModel = (
   // phải rút lại được ngay mà không phải tải lại trang (shared-ui: không khóa người dùng).
   const applyMutation = useCallback((operation: Promise<PreviewMutationResult>) => {
     void operation
-      .then(result => pushToast(result.message, 'success', () => {
-        result.undo()
-        pushToast('Đã hoàn tác thao tác vừa rồi.', 'info')
-      }))
-      .catch(() => pushToast('Thao tác không áp dụng được lên dữ liệu mẫu này.', 'danger'))
+      .then(result => {
+        const undoAction = (): boolean => {
+          try {
+            result.undo()
+            pushToast('Đã hoàn tác thao tác vừa rồi.', 'info')
+            return true
+          } catch (error) {
+            // Giữ nút Hoàn tác để có thể thử lại sau khi hoàn tác thay đổi mới hơn.
+            setToasts(current => current.map(toast => toast.onUndo === undoAction
+              ? { ...toast, tone: 'danger', text: error instanceof Error ? error.message : 'Không thể hoàn tác thao tác này.' }
+              : toast))
+            return false
+          }
+        }
+        pushToast(result.message, 'success', undoAction)
+      })
+      .catch(error => pushToast(error instanceof Error ? error.message : 'Không thể thực hiện thao tác. Vui lòng thử lại.', 'danger'))
   }, [pushToast])
 
   const run = useCallback((action: PreviewActionId, target: PreviewTarget) => {
@@ -145,8 +159,9 @@ export const usePreviewSessionModel = (
           openSection('workspaces', { workspaceId: target.id })
         } else {
           const project = current.projects.find(item => item.id === target.id)
+          if (!project) { pushToast('Project không còn tồn tại.', 'info'); break }
           previewMockStore.selectProject(target.id)
-          openSection('projects', { workspaceId: project?.workspaceId ?? null, projectId: target.id })
+          openSection('projects', { workspaceId: project.workspaceId, projectId: project.id })
         }
         break
       case 'ws-info':
@@ -195,7 +210,7 @@ export const usePreviewSessionModel = (
         })
         break
     }
-  }, [applyMutation, closeMenu, openSection, openUniverse])
+  }, [applyMutation, closeMenu, openSection, openUniverse, pushToast])
 
   const notify = useCallback((text: string, tone: PreviewToastTone = 'info') => pushToast(text, tone), [pushToast])
 
@@ -214,6 +229,7 @@ export const usePreviewSessionModel = (
   }, [applyMutation, dialog])
 
   return {
+    appearance,
     state,
     toasts,
     menu,

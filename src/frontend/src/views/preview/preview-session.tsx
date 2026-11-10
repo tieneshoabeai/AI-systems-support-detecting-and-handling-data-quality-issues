@@ -31,6 +31,7 @@ export function PreviewSessionProvider({ routeIds, navigateUniverse, children }:
   const remove = model.dialog?.mode === 'remove' ? model.dialog : null
 
   return <PreviewSessionContext.Provider value={model}>
+    <div data-preview="2d" data-theme={model.appearance.resolved}>
     {children}
     <PreviewContextMenu request={model.menu} onRun={model.run} onClose={model.closeMenu}
       onInfoHover={(projectId, element) => model.openInfo({ projectId, origin: { kind: 'anchor', element }, side: 'right' })}
@@ -55,5 +56,6 @@ export function PreviewSessionProvider({ routeIds, navigateUniverse, children }:
     {model.projectWizard !== null && <ProjectWizard
       initialWorkspaceId={model.projectWizard.workspaceId} onClose={model.closeProjectWizard} />}
     <PreviewToaster toasts={model.toasts} onDismiss={model.dismissToast} />
+    </div>
   </PreviewSessionContext.Provider>
 }

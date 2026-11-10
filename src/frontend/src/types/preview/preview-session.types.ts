@@ -6,7 +6,16 @@ import type {
   PreviewToastTone, PreviewWorkspacePanel, ProfileEdit, WorkspaceEdit,
 } from './preview.types'
 
+export type PreviewColorPreference = 'light' | 'dark' | 'system'
+
+export type PreviewAppearance = {
+  preference: PreviewColorPreference
+  resolved: 'light' | 'dark'
+  setColorPreference: (value: PreviewColorPreference) => void
+}
+
 export type PreviewSessionModel = {
+  appearance: PreviewAppearance
   state: PreviewStoreState
   toasts: PreviewToast[]
   menu: PreviewMenuRequest | null
