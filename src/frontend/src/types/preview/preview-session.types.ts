@@ -86,3 +86,4 @@ export type PreviewSessionModel = {
 }
 
 export type PreviewUniverseNavigator = (url: string) => void
+export type PreviewSectionNavigator = (url: string) => void

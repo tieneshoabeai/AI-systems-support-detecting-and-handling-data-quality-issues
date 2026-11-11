@@ -27,7 +27,8 @@ function isInsideGlass(uv: Vector2 | undefined) {
   return Math.hypot(x, y) <= 0.2
 }
 
-function CubeLabel({ layout, frame, onFocus }: {
+function CubeLabel({ layout, frame, onFocus, colorMode }: {
+  colorMode: 'light' | 'dark'
   layout: (typeof CUBE_LABEL_LAYOUT)[number]
   frame: GlassFrame
   onFocus(theme: NeonCubeThemeId): void
@@ -40,10 +41,11 @@ function CubeLabel({ layout, frame, onFocus }: {
     let dispose = () => {}
     void loadCubeLabelFont().then(() => {
       if (!active) return
-      const texture = createCubeLabelTexture(theme)
+      const texture = createCubeLabelTexture(theme, colorMode)
       if (!texture) return
       const color = NEON_CUBE_THEMES[theme].glow
       const glass = createCubeGlassMaterial(frame, texture, color, height)
+      glass.uniforms.uTint.value.set(colorMode === 'light' ? '#e4eef8' : '#06223a')
       const glow = createCubeGlassGlowMaterial(frame, color)
       dispose = () => {
         glass.dispose()
@@ -53,7 +55,7 @@ function CubeLabel({ layout, frame, onFocus }: {
       setMaterials({ glass, glow })
     })
     return () => { active = false; dispose() }
-  }, [frame, height, theme])
+  }, [frame, height, theme, colorMode])
 
   const focusLabel = (event: ThreeEvent<MouseEvent>) => {
     if (event.delta > 6 || !isInsideGlass(event.uv) || event.ray.direction.dot(front) >= 0) return
@@ -91,11 +93,11 @@ function CubeLabel({ layout, frame, onFocus }: {
   </group>
 }
 
-export function CubeLabels({ frame, onFocus }: { frame: GlassFrame; onFocus(theme: NeonCubeThemeId): void }) {
+export function CubeLabels({ frame, onFocus, colorMode = 'dark' }: { frame: GlassFrame; colorMode?: 'light' | 'dark'; onFocus(theme: NeonCubeThemeId): void }) {
   const raycaster = useThree(state => state.raycaster)
   useEffect(() => {
     raycaster.layers.enable(CUBE_GLASS_LAYER)
     return () => { raycaster.layers.disable(CUBE_GLASS_LAYER) }
   }, [raycaster])
-  return <>{CUBE_LABEL_LAYOUT.map(layout => <CubeLabel key={layout.theme} layout={layout} frame={frame} onFocus={onFocus} />)}</>
+  return <>{CUBE_LABEL_LAYOUT.map(layout => <CubeLabel key={layout.theme} layout={layout} frame={frame} onFocus={onFocus} colorMode={colorMode} />)}</>
 }

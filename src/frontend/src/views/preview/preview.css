@@ -1,6 +1,6 @@
 /* Preview 2D — dark "DataVerse" theo UI-UX/structure_ui + UI-UX/home|workspaces|projects.
    Scope [data-preview='2d'] để không ảnh hưởng login/dialog đang dùng theme sáng đã merge.
-   Chỉ route dev-only /preview/{home,workspaces,projects} nạp file này. */
+   Dùng chung cho Management và Processing; login giữ bộ style riêng. */
 
 [data-preview='2d'] {
   /* Dải nền đã nhấc lên một bậc so với bản đầu (bg-0 từng là #04070f) theo phản hồi

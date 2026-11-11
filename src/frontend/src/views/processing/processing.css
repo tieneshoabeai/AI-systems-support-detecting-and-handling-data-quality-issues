@@ -1,0 +1,11 @@
+/* The shared shell owns the page background, typography and light/dark tokens. */
+[data-preview='2d'] .processing-content { width: min(1040px, 100%); margin-inline: auto; min-width: 0; }
+[data-preview='2d'] .processing-content h1 { margin: 12px 0 20px; font-size: clamp(28px, 4vw, 42px); }
+[data-preview='2d'] .processing-panel { margin-top: 32px; padding: clamp(20px, 4vw, 40px); }
+[data-preview='2d'] .processing-panel h2 { margin-top: 0; }
+[data-preview='2d'] .processing-panel p { color: var(--pv-muted); line-height: 1.7; }
+[data-preview='2d'] .processing-panel .text-link { display: inline-block; margin: 16px; }
+[data-preview='2d'] .processing-fields { display: grid; gap: 20px; padding: 0; border: 0; min-width: 0; }
+[data-preview='2d'] .processing-fields label { display: grid; gap: 8px; }
+[data-preview='2d'] .processing-fields :is(input, textarea) { width: 100%; padding: 12px; border: 1px solid var(--pv-line-strong); border-radius: 8px; background: var(--pv-bg-2); color: var(--pv-ink); font: inherit; }
+[data-preview='2d'] .processing-panel button:disabled { cursor: not-allowed; opacity: .55; }

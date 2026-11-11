@@ -1,0 +1,10 @@
+[data-preview='2d'] .result-rating { margin: 16px 0; padding: 0; border: 0; min-width: 0; }
+[data-preview='2d'] .result-rating-options { display: flex; gap: 8px; margin-top: 10px; }
+[data-preview='2d'] .result-rating-option { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--pv-line-strong); border-radius: 10px; color: var(--pv-muted); cursor: pointer; }
+[data-preview='2d'] .result-rating-option input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+[data-preview='2d'] .result-rating-option.is-filled { color: var(--pv-ink-amber); background: color-mix(in srgb, var(--pv-orange) 14%, var(--pv-bg-1)); border-color: var(--pv-orange); }
+[data-preview='2d'] .result-rating-option:focus-within { outline: 2px solid var(--pv-cyan); outline-offset: 2px; }
+[data-preview='2d'] .result-rating-option.is-filled .preview-icon { fill: currentColor; }
+[data-preview='2d'] .project-result-actions { margin-top: 20px; }
+[data-preview='2d'] .project-result-buttons { display: flex; gap: 12px; flex-wrap: wrap; margin-block: 16px; }
+[data-preview='2d'] .project-file-selection { overflow-wrap: anywhere; }

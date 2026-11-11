@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
 import {
   createHolographicOrbitalDataCoreV2Model,
   type ProceduralModelRuntime,
@@ -20,13 +21,14 @@ import {
   type HolographicPartInfo,
 } from '../../types/dataset-3d/holographic-part.types'
 
-type HolographicCoreProductModel = {
+export type HolographicCoreProductModel = {
   model: THREE.Group
   update(elapsedSeconds: number, deltaSeconds: number): void
   resetMotion(): void
   snapDetach(): void
   setDetached(detached: boolean): void
   setSelected(componentId: string | null): void
+  setConnection(theme: NeonCubeThemeId | null, progress: number): void
   applyQualityScores(rows: readonly DimensionScore[]): void
   resolvePart(object: THREE.Object3D): HolographicPartInfo | null
   dispose(): void
@@ -633,7 +635,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     }
   }
   // The constellation lives in world space (core root is at the origin) so issue lanes can
-  // reach the orange Detection cube. It is hidden while the model is exploded.
+  // reach the selected satellite cube. It is hidden while the model is exploded.
   const constellation = CORE_VISUAL_REVISION !== 'v2-tier' && ISSUE_CONSTELLATION.enabled
     ? createIssueConstellation({ nucleusBands: CORE_VISUAL_REVISION !== 'v4-spool' })
     : null
@@ -952,6 +954,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       })
     },
     resetMotion,
+    setConnection(theme, progress) { constellation?.setConnection(theme, progress) },
     setDetached(detached) {
       detachTarget = detached ? 1 : 0
       constellation?.setDetached(detached)

@@ -5,6 +5,10 @@ import { HomePreviewView } from '../../views/preview/home-2d.view'
 import { WorkspacesPreviewView } from '../../views/preview/workspaces-2d.view'
 import { ProjectsPreviewView } from '../../views/preview/projects-2d.view'
 import { ProjectWorkspaceView } from '../../views/preview/project-workspace-2d.view'
+// This suite exercises extreme Project data, while WebGL is covered separately.
+vi.mock('../../views/dataset-3d/dataset-3d.view', () => ({
+  Dataset3DView: () => <div data-testid="dataset-scene" />,
+}))
 import { NotificationsPreviewView } from '../../views/preview/notifications-2d.view'
 import { formatCount, formatDataSize, formatRows, emailForPerson, pluralEn, projectsPerWorkspaceFor } from '../../views/preview/preview-data'
 import { people } from '../../services/preview/preview-fixtures'
@@ -153,7 +157,7 @@ it('bộ "worst": project không thành viên hiện lời báo thay vì khối 
   cleanup()
   renderFrame(<ProjectWorkspaceView projectId={bare.id} />)
   expect(screen.getByText('Project chưa có tập dữ liệu.')).toBeDefined()
-  expect(document.querySelector('.pj-core.is-empty')).not.toBeNull()
+  expect(screen.getByTestId('dataset-scene')).toBeDefined()
   expect(frameText()).not.toMatch(/undefined|NaN/)
 })
 

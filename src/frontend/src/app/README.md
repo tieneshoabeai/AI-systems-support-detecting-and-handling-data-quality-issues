@@ -14,7 +14,9 @@ Là điểm lắp ráp ứng dụng. Tầng này chọn entry, tạo runtime, g�
 - `createAppRuntime(options: RuntimeOptions): AppRuntime` nhận `clearSessionCache` bắt buộc, tùy chọn `client`, `storage`, `database`, `now`. Trả `coordinator`, `drafts`, `retain()` và `dispose()`. Cấu hình API sai hoặc gọi `retain` sau khi đóng runtime có thể ném `ApiError`.
 - `AppProviders({ queryClient, runtime, configurationError, children })` và `AuthProvider({ runtime, configurationError?, children })` trả về JSX. `AuthContext` có kiểu `AuthContextValue | null`.
 - `ProtectedRoute({ children })`, `PublicOnlyRoute({ children })` và `SessionStatus()` chọn nội dung hoặc chuyển hướng theo snapshot. `Layout()` (default) render khung workspace.
-- `validReturnTarget(value: unknown): string` chỉ chấp nhận đường dẫn hợp lệ tới `/workspaces`.
+- `validReturnTarget(value: unknown): string` chấp nhận `/workspaces` và route hợp lệ dưới `/management`, `/processing`; đích không hợp lệ rơi về `/processing`. Root của người đã đăng nhập cũng trỏ tới `/processing`; không thay đổi logic kết nối API.
+- `WorkbenchRoutes({ protect })` đăng ký route 2D chính thức và chuyển hướng URL cũ. `WorkbenchEntry()` bọc BrowserRouter cho review UI ở dev. Production luôn truyền `protect=true` từ AppRouter.
+- Các route Management/Processing nằm dưới `ApplicationFrame` (tầng views), giữ chung phiên UI/theme qua `Outlet`. Guard vẫn bao bên ngoài; việc dùng chung giao diện không thay đổi xác thực hay kết nối API.
 
 ## 4. Cách dùng (ví dụ)
 
@@ -22,7 +24,7 @@ Là điểm lắp ráp ứng dụng. Tầng này chọn entry, tạo runtime, g�
 import { validReturnTarget } from './app/router/return-target'
 
 console.log(validReturnTarget('/workspaces?tab=recent')) // /workspaces?tab=recent
-console.log(validReturnTarget('https://example.test')) // /workspaces
+console.log(validReturnTarget('https://example.test')) // /processing
 ```
 
 Chạy trong ngữ cảnh TypeScript dưới `src`. Để đi từ entry thật, chạy `yarn dev` và mở `/`.
@@ -70,7 +72,7 @@ Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/a
 
 ## 10. Giới hạn & lưu ý
 
-Preview 2D và Workspace 3D chỉ ở dev. `/workspaces/3d-dataset` đang tạm bỏ `ProtectedRoute` để review hình ảnh. Các test bootstrap/auth mô phỏng transport.
+Management và khung Processing dùng URL chính thức `/management`, `/processing`. Dev cho review không cần runtime API; production đi qua guard. Các màn này vẫn chưa nối API nghiệp vụ. Workspace 3D preview chỉ ở dev. `/workspaces/3d-dataset` đang tạm bỏ `ProtectedRoute` để review hình ảnh. Các test bootstrap/auth mô phỏng transport. Xem bảng URL và yêu cầu SPA fallback trong [README frontend](../../README.md#route-management-và-ai-data-processing).
 
 ## 11. Hướng cải tiến
 

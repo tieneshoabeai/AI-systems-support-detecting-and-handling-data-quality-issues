@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import { CUBE_CONNECTIONS } from './cube-connection-paths'
 import {
   CLEAN_LOOP_POINTS,
   CORE_VISUAL_REVISION,
@@ -19,6 +21,7 @@ export type IssueConstellation = {
   update(elapsedSeconds: number, deltaSeconds: number): void
   reset(): void
   setDetached(detached: boolean): void
+  setConnection(theme: NeonCubeThemeId | null, progress: number): void
   dispose(): void
 }
 
@@ -91,8 +94,8 @@ function createGlowTexture(): THREE.DataTexture {
       const alpha = Math.round(255 * Math.pow(Math.max(0, 1 - radius), 2.2))
       const offset = (y * size + x) * 4
       data[offset] = 255
-      data[offset + 1] = 170
-      data[offset + 2] = 70
+      data[offset + 1] = 255
+      data[offset + 2] = 255
       data[offset + 3] = alpha
     }
   }
@@ -195,23 +198,45 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
   root.add(beads)
   disposables.push(beadGeometry, beadMaterial)
 
-  // 3. Lane geometry: three issue lanes plus one closed clean loop, vertex-coloured in one draw.
-  const issueLanes = ISSUE_LANES.map(lane => buildLaneSamples(
-    [lane.start, lane.controls[0], lane.controls[1], lane.end],
-    false,
-    ISSUE_CONSTELLATION.laneSegments,
-  ))
+  // All four bundles exist, but only the selected bundle is drawn. The clean loop
+  // stays independent so revealing a connection never clips the core decoration.
+  const connectionBundles = CUBE_CONNECTIONS.map(connection => {
+    const samples = connection.curves.map(curve => buildLaneSamples(
+      curve.points.map(point => [point.x, point.y, point.z] as Vec3), false, ISSUE_CONSTELLATION.laneSegments,
+    ))
+    const material = new THREE.LineBasicMaterial({
+      color: new THREE.Color().setRGB(...connection.color), transparent: true,
+      opacity: ISSUE_CONSTELLATION.laneOpacity, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false,
+    })
+    const group = new THREE.Group()
+    group.name = `cube-connection-${connection.theme}`
+    group.visible = false
+    const lines = samples.map((lane, index) => {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(lane.points.slice(), 3))
+      geometry.setDrawRange(0, 0)
+      const line = new THREE.Line(geometry, material)
+      line.name = `connection-lane-${index}`
+      line.renderOrder = 6
+      line.raycast = () => {}
+      group.add(line)
+      disposables.push(geometry)
+      return line
+    })
+    root.add(group)
+    disposables.push(material)
+    return { ...connection, samples, group, lines }
+  })
+  let activeBundle: (typeof connectionBundles)[number] | undefined
+  let connectionProgress = 0
   const cleanLane = buildLaneSamples(CLEAN_LOOP_POINTS, true, ISSUE_CONSTELLATION.laneSegments)
-  const lanes = [...issueLanes, cleanLane]
   const lanePositions: number[] = []
   const laneColors: number[] = []
   const laneColorBanks = [
-    ISSUE_CONSTELLATION.laneColors.issue,
-    ISSUE_CONSTELLATION.laneColors.issue,
-    ISSUE_CONSTELLATION.laneColors.issue,
     ISSUE_CONSTELLATION.laneColors.clean,
   ]
-  lanes.forEach((lane, laneIndex) => {
+  ;[cleanLane].forEach((lane, laneIndex) => {
     const laneColor = laneColorBanks[laneIndex]
     const count = lane.closed ? lane.segments : lane.segments + 1
     for (let index = 0; index < lane.segments; index += 1) {
@@ -289,7 +314,7 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
   root.add(particles)
   disposables.push(particleGeometry, particleMaterial)
 
-  // 5. Detection beacon: an amber ring facing the nucleus plus a soft sprite.
+  // 5. Arrival beacon: follows the selected satellite and its theme color.
   const [beaconX, beaconY, beaconZ] = DETECTION_ANCHOR.center
   const beaconRingGeometry = new THREE.TorusGeometry(
     ISSUE_CONSTELLATION.beacon.ringRadius,
@@ -354,14 +379,15 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
   function applyParticles(elapsedSeconds: number) {
     let arrival = 0
     particleSeeds.forEach((seed, index) => {
-      const lane = lanes[seed.laneIndex]
+      const lane = seed.issue ? activeBundle?.samples[seed.laneIndex] : cleanLane
       const progress = (seed.phase + elapsedSeconds * seed.speed) % 1
-      sampleLane(lane, progress, particlePosition)
+      if (lane) sampleLane(lane, progress, particlePosition)
       let scale = seed.size
       if (seed.issue) {
+        if (!activeBundle || progress > connectionProgress) scale = 0
         const fade = ISSUE_CONSTELLATION.edgeFade
         scale *= smoothstep(0, fade, progress) * smoothstep(0, fade, 1 - progress)
-        if (progress > 0.9) arrival = Math.max(arrival, smoothstep(0.9, 1, progress))
+        if (scale > 0 && progress > 0.9) arrival = Math.max(arrival, smoothstep(0.9, 1, progress))
       } else {
         scale *= 0.9 + Math.sin(elapsedSeconds * 1.7 + seed.phase * Math.PI * 2) * 0.1
       }
@@ -374,6 +400,7 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
   }
 
   function applyBeacon() {
+    beaconRing.visible = beaconSprite.visible = !!activeBundle && connectionProgress === 1
     beaconRing.scale.setScalar(1 + beaconLevel * 0.18)
     beaconRingMaterial.opacity = 0.2 + beaconLevel * 0.6
     beaconSpriteMaterial.opacity = 0.12 + beaconLevel * 0.4
@@ -392,6 +419,48 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
 
   return {
     root,
+    setConnection(theme, progress) {
+      const next = connectionBundles.find(bundle => bundle.theme === theme)
+      const value = Number.isFinite(progress) ? THREE.MathUtils.clamp(progress, 0, 1) : 0
+      if (activeBundle === next && connectionProgress === value) return
+      if (activeBundle !== next && next) {
+        color.setRGB(...next.color)
+        particleSeeds.forEach((seed, index) => { if (seed.issue) particles.setColorAt(index, color) })
+        if (particles.instanceColor) particles.instanceColor.needsUpdate = true
+        beaconRing.position.copy(next.center)
+        beaconRing.lookAt(0, next.center.y, 0)
+        beaconSprite.position.copy(next.center)
+        beaconRingMaterial.color.copy(color)
+        beaconSpriteMaterial.color.copy(color)
+      }
+      activeBundle = next
+      connectionProgress = value
+      connectionBundles.forEach(bundle => {
+        bundle.group.visible = bundle === next && value > 0
+        if (bundle !== next) return
+        bundle.lines.forEach((line, index) => {
+          const lane = bundle.samples[index]
+          const scaled = value * lane.segments
+          const complete = Math.floor(scaled)
+          const attribute = line.geometry.getAttribute('position') as THREE.BufferAttribute
+          attribute.array.set(lane.points)
+          // Interpolate the tip between samples: spatial reveal, not whole-line fading.
+          if (complete < lane.segments) {
+            const start = complete * 3
+            const tip = (complete + 1) * 3
+            for (let axis = 0; axis < 3; axis += 1) {
+              attribute.array[tip + axis] = lane.points[start + axis]
+                + (lane.points[tip + axis] - lane.points[start + axis]) * (scaled - complete)
+            }
+          }
+          attribute.needsUpdate = true
+          line.geometry.setDrawRange(0, value === 0 ? 0 : Math.min(complete + 2, lane.segments + 1))
+        })
+      })
+      staticApplied = false
+      applyParticles(0)
+      applyBeacon()
+    },
     update(elapsedSeconds, deltaSeconds) {
       if (!root.visible) return
       staticApplied = false

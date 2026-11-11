@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PreviewSessionModel, PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
+import type { PreviewSectionNavigator, PreviewSessionModel, PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
 import type {
   NewReportInput, NotificationPrefKey, Person, PreviewActionId, PreviewDialogRequest, PreviewInfoRequest, PreviewMenuOrigin,
   PreviewMenuRequest, PreviewMutationResult, PreviewProjectPanel, PreviewProjectWizard, PreviewWorkspacePanel,
@@ -36,6 +36,7 @@ const statusLabels: Record<ProjectStatus | WorkspaceStatus, string> = {
 export const usePreviewSessionModel = (
   routeIds: PreviewRouteIds,
   navigateUniverse: PreviewUniverseNavigator = defaultUniverseNavigator,
+  navigateSection?: PreviewSectionNavigator,
 ): PreviewSessionModel => {
   const [menu, setMenu] = useState<PreviewMenuRequest | null>(null)
   const [dialog, setDialog] = useState<PreviewDialogRequest | null>(null)
@@ -75,13 +76,14 @@ export const usePreviewSessionModel = (
     return () => { timers.forEach(timer => window.clearTimeout(timer)); timers.clear() }
   }, [])
 
-  // URL thắng, nhưng chỉ khi nó thật sự mang id: hash '#/preview/projects' trần thì
-  // phải giữ phạm vi người dùng đang chọn, không nhảy về workspace đầu danh sách.
+  // Resource IDs from the route restore context on reload. An explicit empty workspace
+  // scope means the all-projects list; routes without scope keep the current selection.
   const { workspaceId: routeWorkspaceId, projectId: routeProjectId } = routeIds
   useEffect(() => {
+    if (navigateSection && routeWorkspaceId === '' && !routeProjectId) previewMockStore.selectWorkspace('')
     if (routeWorkspaceId) previewMockStore.selectWorkspace(routeWorkspaceId)
     if (routeProjectId) previewMockStore.selectProject(routeProjectId)
-  }, [routeWorkspaceId, routeProjectId])
+  }, [routeWorkspaceId, routeProjectId, navigateSection])
 
   const closeMenu = useCallback(() => {
     setMenu(null)
@@ -103,14 +105,17 @@ export const usePreviewSessionModel = (
   const closeInfo = useCallback(() => setInfo(null), [])
 
   const openSection = useCallback((section: PreviewSectionId, ids: PreviewRouteIds = {}) => {
-    // Ghi hash chứ không lịch sử push: cùng một tab, F5 vẫn về đúng trang + đúng phạm vi.
     const href = previewHref(section, ids)
-    if (window.location.hash !== href) window.location.hash = href
+    if (navigateSection) navigateSection(href)
+    else if (`${window.location.pathname}${window.location.search}` !== href || window.location.hash) {
+      window.history.pushState(null, '', href)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
     // Kể cả khi hash không đổi (người dùng đã đứng ở đích), đây vẫn là một chuyến ĐI: surface
     // nổi nghe tín hiệu này để khép lại. Thiếu nó thì bấm "Mở Project" của chính project đang
     // mở sẽ để popover thông báo treo nguyên trên trang vừa mở.
     window.dispatchEvent(new Event(previewNavigateEvent))
-  }, [])
+  }, [navigateSection])
 
   const openUniverse = useCallback((projectId?: string | null) => {
     const selected = previewMockStore.getState().selection.projectId

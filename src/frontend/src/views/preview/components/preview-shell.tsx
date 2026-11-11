@@ -1,21 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { Link, useInRouterContext } from 'react-router'
 import type { PreviewSectionId } from '../../../types/preview/preview.types'
 import { navItems, sectionLabels } from '../preview-data'
 import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
 import { PreviewTopbar } from './preview-topbar'
+import applicationLogo from '../../../assets/8DA AI Network Logo.png'
 
 // Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
 type PreviewShellProps = {
   active: PreviewSectionId
   children: ReactNode
+  area?: 'management' | 'processing'
+  context?: ReactNode
+  contentClassName?: string
+  headerAction?: ReactNode
 }
 
 // Sidebar của shell mới chỉ có 3 module (Home · Workspaces · Settings — xem navItems).
 // Settings giờ đã có màn 2D (nhánh Accounts, Design Board nhóm 04) nên nó nằm trong danh sách
-// dựng thật; bấm vào điều hướng sang '#/preview/settings' chứ không còn báo toast nữa.
+// dựng thật; bấm vào điều hướng sang '/management/settings'.
 // 'notifications' có trong danh sách này dù không nằm ở nav: màn Thông báo mở từ chuông
 // topbar (Design Board 1.1 → 1.2), không phải một module điều hướng.
 const builtSections: readonly PreviewSectionId[] = ['home', 'workspaces', 'projects', 'notifications', 'settings']
@@ -43,7 +49,7 @@ export function Avatar({ initials, size = 'md' }: { initials: string; size?: 'sm
 
 // Sidebar nhớ trạng thái thu gọn giữa các lần tải trang.
 export function PreviewShell({
-  active, children,
+  active, children, area = 'management', context, contentClassName = '', headerAction,
 }: PreviewShellProps) {
   const session = usePreviewSession()
   const { state } = session
@@ -114,15 +120,24 @@ export function PreviewShell({
   // Dự án và Thông báo là hai màn thật nhưng không nằm trong nav (nav đúng 3 mục theo ảnh
   // shell), nên vào đó thì sidebar vẫn sáng Home — người dùng báo lại đúng điểm này. Dải
   // ngữ cảnh dưới nav trả lời "đang ở đâu" và cho luôn một lối về Home mà không thêm mục nav.
-  const isContextual = !navItems.some(item => item.id === active)
+  const processing = area === 'processing'
+  const isContextual = !processing && !navItems.some(item => item.id === active)
+  const inRouter = useInRouterContext()
+  const processingLink = <>
+    <span className="nav-icon" aria-hidden="true"><PreviewIcon name="processing" /></span>
+    <span className="nav-label">Xử lý dữ liệu</span>
+  </>
 
-  return <div className={`preview-root${compact ? ' is-compact' : ''}`} data-section={active}>
-    <aside className="preview-sidebar" aria-label="Điều hướng chính">
+  return <div className={`preview-root${!processing && compact ? ' is-compact' : ''}`} data-section={processing ? 'processing' : active}>
+    {!processing && <aside className="preview-sidebar" aria-label="Điều hướng chính">
       <div className="sidebar-brand">
         <span className="brand-mark" aria-hidden="true"><PreviewIcon name="datasets" /></span>
         <span className="brand-text"><strong>DataVerse</strong><small>Your Data. Our Universe.</small></span>
       </div>
       <nav className="sidebar-nav">
+        {inRouter
+          ? <Link className="nav-item" to="/processing" title="AI Data Processing">{processingLink}</Link>
+          : <a className="nav-item" href="/processing" title="AI Data Processing">{processingLink}</a>}
         {navItems.map(item => {
           const selected = item.id === active
           return <button type="button" key={item.id}
@@ -140,21 +155,29 @@ export function PreviewShell({
         <strong>{sectionLabels[active] ?? active}</strong>
         <button type="button" className="text-link" onClick={() => navigate('home', 'Home')}>Về Home</button>
       </div>}
-    </aside>
+    </aside>}
 
     <div className="preview-main">
       {/* Màn hẹp thì sidebar đã buộc thu nên nút toggle ẩn đi — để lại nút
           "thu gọn" khi đang ở 64px sẽ nói dối người dùng (aria-expanded sai). */}
       <PreviewTopbar
         active={active}
-        sidebarToggle={!narrow && <button type="button" className="sidebar-toggle"
+        context={processing ? <span className="processing-brand-actions">
+          {inRouter ? <Link to="/processing" aria-label="Trang chủ Processing"><img src={applicationLogo} alt="8DA AI" /></Link>
+            : <a href="/processing" aria-label="Trang chủ Processing"><img src={applicationLogo} alt="8DA AI" /></a>}
+          {headerAction}
+        </span> : context}
+        sidebarToggle={!processing && !narrow && <button type="button" className="sidebar-toggle"
           aria-label={compact ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
           aria-expanded={!compact}
           onClick={() => setCollapsed(value => !value)}>
           <PreviewIcon name={compact ? 'expand' : 'collapse'} />
         </button>}
         state={state} />
-      <div className="preview-content" ref={contentRef}>{children}</div>
+      <div className={`preview-content ${contentClassName}`} ref={contentRef}>
+        {!processing && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}
+        {children}
+      </div>
     </div>
   </div>
 }

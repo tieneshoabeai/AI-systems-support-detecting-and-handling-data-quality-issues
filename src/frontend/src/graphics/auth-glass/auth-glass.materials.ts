@@ -1,5 +1,6 @@
 import { Color, MeshPhysicalMaterial, ShaderMaterial, Vector2, Vector4 } from 'three'
 import { authGlassConfig } from './auth-glass.config'
+import { CONVEX_LENS_GLSL } from '../convex-lens.glsl'
 
 const { slab, glass } = authGlassConfig
 
@@ -123,9 +124,7 @@ export function createAuthLensMaterial() {
         return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - uCorner;
       }
 
-      float refractedRayX(vec3 lensNormal, float ior) {
-        return refract(vec3(0.0, 0.0, -1.0), lensNormal, 1.0 / ior).x;
-      }
+      ${CONVEX_LENS_GLSL}
 
       vec3 diskBlur(vec2 uv, vec2 redOffset, vec2 blueOffset, bool splitChannels) {
         if (uBlurPixels <= 0.0) {
@@ -177,7 +176,7 @@ export function createAuthLensMaterial() {
         vec2 edgeDirection = pixelsPerWorld / max(projectedScale, 0.0001);
 
         // Regularize the circular slope at the outer rim and ease into the flat center.
-        float slope = smoothstep(0.0, 0.15, profile) * profile / sqrt(1.0 - 0.75 * profile * profile);
+        float slope = convexLensSlope(profile);
         vec3 lensNormal = normalize(vec3(slope, 0.0, 1.0));
         // Bound ray travel relative to the projected bezel to avoid folded samples.
         float thickness = min(uThickness, 0.7 * uLensWidth * projectedScale);

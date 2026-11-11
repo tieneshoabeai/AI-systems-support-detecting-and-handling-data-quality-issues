@@ -163,7 +163,7 @@ it('hộp thư: xóa hàng loạt gỡ dòng khỏi bảng, Hoàn tác trả l�
 it('hộp thư: bấm một dòng ghi URL chi tiết; route phẳng không bị hiểu nhầm thành workspace', () => {
   listScreen()
   fireEvent.click(screen.getByRole('button', { name: 'Có 12 vấn đề chất lượng dữ liệu' }))
-  expect(window.location.hash).toBe('#/preview/notifications/nt-02')
+  expect(window.location.pathname).toBe('/management/notifications/nt-02')
 
   // Segment sau 'notifications' là id của CHÍNH thông báo, không phải workspace — diễn
   // giải theo phân cấp cũ thì màn chi tiết mở sai bản ghi mà không ai biết.
@@ -173,7 +173,7 @@ it('hộp thư: bấm một dòng ghi URL chi tiết; route phẳng không bị 
     .toEqual({ section: 'notifications', workspaceId: null, projectId: null, notificationId: null, settingsSection: null })
   expect(parsePreviewRoute('#/preview/workspaces/ws-acme/prj-sales')!.notificationId).toBeNull()
   expect(previewHref('notifications', { workspaceId: 'ws-acme', notificationId: 'nt-02' }))
-    .toBe('#/preview/notifications/nt-02')
+    .toBe('/management/notifications/nt-02')
 })
 
 it('danh sách: có nút Quay lại — history còn thì back(), history trống thì về Home', () => {
@@ -190,7 +190,7 @@ it('danh sách: có nút Quay lại — history còn thì back(), history trốn
   stubHistoryLength(1)
   listScreen()
   fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }))
-  expect(window.location.hash).toBe('#/preview/home')
+  expect(window.location.pathname).toBe('/management')
   clearHistoryStub()
 })
 
@@ -200,7 +200,7 @@ it('danh sách: sidebar nói rõ đang ở Thông báo và cho lối về Home',
   expect(context.textContent).toContain('Đang mở')
   expect(context.textContent).toContain('Thông báo')
   fireEvent.click(screen.getByRole('button', { name: 'Về Home' }))
-  expect(window.location.hash).toBe('#/preview/home')
+  expect(window.location.pathname).toBe('/management')
 })
 
 it('chi tiết: meta đủ mốc tuyệt đối và nhãn loại; vào project là sang thẳng vũ trụ 3D', () => {
@@ -219,7 +219,7 @@ it('chi tiết: meta đủ mốc tuyệt đối và nhãn loại; vào project l
   // này nhảy thẳng sang màn 3D của T; nay mọi lối vào project phải đáp ở trang đó trước, còn 3D
   // là một nút bên trong trang. Hash là bằng chứng, spy universe là bằng chứng KHÔNG đi 3D.
   fireEvent.click(screen.getByRole('button', { name: /^Mở Project/ }))
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-customer')
+  expect(window.location.pathname).toBe('/processing/projects/prj-customer')
   expect(universeNavigator).not.toHaveBeenCalled()
 
   // Nút "Đánh dấu đã đọc" nằm ngay trong màn chi tiết (Design Board 1.3) là mutation thật.
@@ -266,7 +266,7 @@ it('chi tiết: id không tồn tại nói rõ thay vì trang trắng, và có �
   expect(document.querySelector('.panel')).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: 'Danh sách thông báo' }))
-  expect(window.location.hash).toBe('#/preview/notifications')
+  expect(window.location.pathname).toBe('/management/notifications')
 })
 
 it('chi tiết: không còn ô tìm kiếm ở màn chi tiết, đường về danh sách là nút thật', () => {
@@ -277,7 +277,7 @@ it('chi tiết: không còn ô tìm kiếm ở màn chi tiết, đường về d
   expect(screen.queryByRole('textbox', { name: /tìm/i })).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: 'Danh sách thông báo' }))
-  expect(window.location.hash).toBe('#/preview/notifications')
+  expect(window.location.pathname).toBe('/management/notifications')
 })
 
 it('chi tiết: bản đã đọc sẵn thì "Đánh dấu đã đọc" tắt, nhưng vẫn mở được trang Project', () => {

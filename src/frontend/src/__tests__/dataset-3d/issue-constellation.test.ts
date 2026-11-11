@@ -15,6 +15,7 @@ import {
   type Vec3,
 } from '../../graphics/holographic-core/core-visual-config'
 import { createIssueConstellation } from '../../graphics/holographic-core/issue-constellation'
+import { NEON_CUBE_THEMES } from '../../graphics/neon-cube/neon-cube.model'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
 
 function distance(a: Vec3, b: Vec3) {
@@ -82,6 +83,26 @@ describe('core visual config', () => {
 })
 
 describe('issue constellation model', () => {
+  it.each(['orange', 'cyan', 'blue', 'violet'] as const)('uses %s color and never shows motes ahead of the reveal', theme => {
+    const constellation = createIssueConstellation()
+    constellation.setConnection(theme, 0.25)
+    constellation.update(0, 0)
+    const group = constellation.root.getObjectByName(`cube-connection-${theme}`) as THREE.Group
+    const line = group.children[0] as THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>
+    expect(line.material.color.toArray()).toEqual([...NEON_CUBE_THEMES[theme].neonLinear])
+    const particles = constellation.root.getObjectByName('constellation-particles') as THREE.InstancedMesh
+    const matrix = new THREE.Matrix4()
+    // Lane zero's third mote starts at t=2/6, beyond the visible quarter.
+    particles.getMatrixAt(2, matrix)
+    expect(new THREE.Vector3().setFromMatrixScale(matrix).length()).toBe(0)
+    constellation.setConnection(null, 0)
+    for (let i = 0; i < 18; i++) {
+      particles.getMatrixAt(i, matrix)
+      expect(new THREE.Vector3().setFromMatrixScale(matrix).length()).toBe(0)
+    }
+    constellation.dispose()
+  })
+
   it('builds the expected draw groups and updates without allocation errors', () => {
     const constellation = createIssueConstellation()
     expect(constellation.root.name).toBe('issue-constellation')
@@ -96,6 +117,7 @@ describe('issue constellation model', () => {
     expect(constellation.root.getObjectByName('detection-beacon-sprite')).toBeInstanceOf(THREE.Sprite)
 
     const before = new THREE.Matrix4()
+    constellation.setConnection('orange', 1)
     particles.getMatrixAt(0, before)
     const beforeElements = [...before.elements]
     constellation.update(2.5, 1 / 60)
@@ -108,6 +130,30 @@ describe('issue constellation model', () => {
     expect(constellation.root.visible).toBe(false)
     constellation.setDetached(false)
     expect(constellation.root.visible).toBe(true)
+    constellation.dispose()
+  })
+
+  it('starts hidden, reveals three paths, and hides the old bundle immediately', () => {
+    const constellation = createIssueConstellation()
+    const bundles = ['orange', 'cyan', 'blue', 'violet'].map(theme =>
+      constellation.root.getObjectByName(`cube-connection-${theme}`) as THREE.Group)
+    expect(bundles.every(bundle => !bundle.visible && bundle.children.length === 3)).toBe(true)
+    constellation.setConnection('orange', 0.5)
+    const line = bundles[0].children[0] as THREE.Line
+    expect(line.geometry.drawRange.count).toBe(34)
+    expect(bundles[0].visible).toBe(true)
+    expect(constellation.root.getObjectByName('detection-beacon-ring')?.visible).toBe(false)
+    constellation.setConnection('orange', 1)
+    expect(line.geometry.drawRange.count).toBe(65)
+    expect(constellation.root.getObjectByName('detection-beacon-ring')?.visible).toBe(true)
+    constellation.setConnection('cyan', 0)
+    expect(bundles.every(bundle => !bundle.visible)).toBe(true)
+    constellation.setConnection('cyan', 1)
+    expect(bundles.map(bundle => bundle.visible)).toEqual([false, true, false, false])
+    constellation.reset()
+    expect(bundles[1].visible).toBe(true)
+    constellation.setConnection(null, 0)
+    expect(bundles.every(bundle => !bundle.visible)).toBe(true)
     constellation.dispose()
   })
 

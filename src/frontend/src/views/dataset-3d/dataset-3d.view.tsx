@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { HolographicCoreCanvas } from '../../components/graphics/holographic-core/holographic-core.scene'
 import type { CubeFocus } from '../../types/dataset-3d/cube-focus.types'
@@ -27,18 +27,36 @@ function formatDimensions({ width, height, depth, units }: HolographicPartInfo['
   return `${format(width)} × ${format(height)} × ${format(depth)} · ${units}`
 }
 
-export function Dataset3DView() {
+type Dataset3DViewProps = {
+  glassPanel?: HTMLElement | null
+  embedded?: boolean
+  colorMode?: 'light' | 'dark'
+  focus?: CubeFocus | null
+  onFocusChange?: (focus: CubeFocus | null) => void
+  onDetachedChange?: (detached: boolean) => void
+  onFocusComplete?: (theme: NeonCubeThemeId) => void
+}
+
+export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onFocusChange, onDetachedChange, onFocusComplete, glassPanel }: Dataset3DViewProps) {
   const reducedMotion = useReducedMotion()
   const [detached, setDetached] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false)
   const [part, setPart] = useState<HolographicPartInfo | null>(null)
-  const [cubeFocus, setCubeFocus] = useState<CubeFocus | null>(null)
+  const [localFocus, setLocalFocus] = useState<CubeFocus | null>(null)
+  const cubeFocus = focus === undefined ? localFocus : focus
+  const setCubeFocus = useCallback((next: CubeFocus | null) => {
+    setLocalFocus(next)
+    onFocusChange?.(next)
+  }, [onFocusChange])
+  const [cameraToolbar, setCameraToolbar] = useState<HTMLDivElement | null>(null)
   const overviewButton = useRef<HTMLButtonElement>(null)
   const legendButton = useRef<HTMLButtonElement>(null)
   const selectedId = detached ? part?.id ?? null : null
+  const Container = embedded ? 'div' : 'main'
 
   const toggleDetached = () => {
-    setDetached(value => !value)
+    setDetached(!detached)
+    onDetachedChange?.(!detached)
     setPart(null)
     setCubeFocus(null)
   }
@@ -49,10 +67,10 @@ export function Dataset3DView() {
     setLegendOpen(false)
   }
 
-  const returnToOverview = () => {
+  const returnToOverview = useCallback(() => {
     setCubeFocus(null)
     legendButton.current?.focus({ preventScroll: true })
-  }
+  }, [setCubeFocus])
 
   useEffect(() => {
     if (cubeFocus) overviewButton.current?.focus({ preventScroll: true })
@@ -67,18 +85,21 @@ export function Dataset3DView() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [cubeFocus, detached])
+  }, [cubeFocus, detached, returnToOverview])
 
-  return <main className="dataset-3d-page">
-    <header className="dataset-3d-header">
+  return <Container data-color-mode={colorMode} className={`dataset-3d-page${embedded ? ' dataset-3d-embedded' : ''}`}>
+    {!embedded && <header className="dataset-3d-header">
       <div>
         <Link className="dataset-3d-back" to="/workspaces">Không gian làm việc</Link>
         <h1 id="page-heading" tabIndex={-1}>Dataset 3D</h1>
       </div>
       <p>{reducedMotion ? 'Chuyển động tự động đã tắt theo cài đặt thiết bị.' : 'Kéo để xoay, cuộn để phóng to hoặc thu nhỏ.'}</p>
-    </header>
+      <div ref={setCameraToolbar} />
+    </header>}
     <section className="dataset-3d-stage" aria-label="Không gian trực quan Dataset 3D">
-      <HolographicCoreCanvas reducedMotion={reducedMotion} detached={detached}
+      <HolographicCoreCanvas colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} cameraToolbar={cameraToolbar}
+        glassPanel={glassPanel}
+        onFocusComplete={onFocusComplete}
         selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} />
       <div className="dataset-3d-overlay">
         <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>
@@ -107,7 +128,7 @@ export function Dataset3DView() {
               ))}
             </ul>
             <p className="dataset-3d-legend-note">
-              <i aria-hidden="true" data-tone="issue" />Hạt cam: vấn đề chất lượng → Detection
+              Chọn một module để xem ba đường nối từ core, theo màu của module đó.
             </p>
           </div>
         </aside>
@@ -141,6 +162,6 @@ export function Dataset3DView() {
         )}
       </div>
     </section>
-    <p className="dataset-3d-boundary">Nhân trung tâm là một bộ dữ liệu; bốn khối neon là bốn module. Hạt cyan/violet là bản ghi sạch lưu chuyển, hạt cam là vấn đề chất lượng được đẩy sang Detection. Đây là minh hoạ khái niệm, chưa nối dữ liệu thật.</p>
-  </main>
+    {!embedded && <p className="dataset-3d-boundary">Nhân trung tâm là một bộ dữ liệu; bốn khối neon là bốn module. Chọn một khối để xem ba đường nối sáng dần từ core; camera giữ góc nhìn của khối đó khi hoàn tất. Đây là minh hoạ khái niệm, chưa nối dữ liệu thật.</p>}
+  </Container>
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { PreviewRouteIds } from '../../types/preview/preview-route.types'
-import type { PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
+import type { PreviewSectionNavigator, PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
 import { usePreviewSessionModel } from '../../hooks/preview/use-preview-session'
 import { PreviewSessionContext } from './preview-session-context'
 import { PreviewContextMenu } from './components/preview-context-menu'
@@ -21,12 +21,13 @@ import { WorkspacePanelSurface } from './components/workspace-detail-dialogs'
 // Context + usePreviewSession tách sang preview-session-context.ts: file này chỉ export
 // component để Fast Refresh còn hoạt động (react-refresh/only-export-components).
 
-export function PreviewSessionProvider({ routeIds, navigateUniverse, children }: {
+export function PreviewSessionProvider({ routeIds, navigateUniverse, navigateSection, children }: {
   routeIds: PreviewRouteIds
   navigateUniverse?: PreviewUniverseNavigator
+  navigateSection?: PreviewSectionNavigator
   children: ReactNode
 }) {
-  const model = usePreviewSessionModel(routeIds, navigateUniverse)
+  const model = usePreviewSessionModel(routeIds, navigateUniverse, navigateSection)
   const rename = model.dialog?.mode === 'rename' ? model.dialog : null
   const remove = model.dialog?.mode === 'remove' ? model.dialog : null
 

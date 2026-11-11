@@ -1,5 +1,28 @@
-/* Theme is scoped to the 2D frame, including its dialogs and menus. */
+/* Shared theme for Management and Processing, including dialogs and menus. */
+[data-preview='2d'] .processing-brand-actions { display: inline-flex; align-items: center; gap: 12px; }
+[data-preview='2d'] .processing-brand-actions a { display: flex; align-items: center; }
+[data-preview='2d'] .processing-brand-actions img { display: block; width: 48px; height: 36px; object-fit: contain; }
 [data-preview='2d'][data-theme='dark'] { color-scheme: dark; }
+
+/* Header controls use the same theme/session as Settings > Color. */
+[data-preview='2d'] a.nav-item { text-decoration: none; }
+[data-preview='2d'] .preview-root[data-section='processing'] { grid-template-columns: minmax(0, 1fr); }
+[data-preview='2d'] .topbar-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--pv-ink); font-weight: 600; }
+[data-preview='2d'] .topbar-color-options { margin: 0; padding: 14px; border: 0; min-width: 0; }
+[data-preview='2d'] .topbar-color-options legend { padding: 0 0 8px; font-weight: 650; }
+[data-preview='2d'] .topbar-color-option { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--pv-ink); }
+[data-preview='2d'] .topbar-color-option:hover,
+[data-preview='2d'] .topbar-color-option:has(input:checked) { background: var(--pv-blue-soft); }
+[data-preview='2d'] .topbar-color-option input { accent-color: var(--pv-blue-fill); }
+[data-preview='2d'] .topbar-color-option:focus-within { outline: 2px solid var(--pv-cyan); outline-offset: 2px; }
+@media (max-width: 1100px) {
+  [data-preview='2d'] .preview-topbar { flex-wrap: wrap; }
+}
+@media (max-width: 620px) {
+  [data-preview='2d'] .topbar-chips,
+  [data-preview='2d'] .topbar-context { flex-basis: 100%; }
+  [data-preview='2d'] .topbar-actions { flex: none; }
+}
 [data-preview='2d'][data-theme='light'] {
   color-scheme: light;
   --pv-bg-0: #f3f6fc;

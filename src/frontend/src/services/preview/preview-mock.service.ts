@@ -24,7 +24,8 @@ const clone = <T>(value: readonly T[]): T[] => value.map(item => ({ ...item }))
    dữ liệu phải đi vào đúng biên mà dữ liệu demo vẫn vào — fixtures → seedState(). Vì vậy
    bộ bản ghi chọn theo tham số `?data=worst|empty|one|many` đặt trước hash
    (`/?data=worst#/preview/home`), nên link giữ nguyên trạng thái khi tải lại trang.
-   Production không có đường này: cả thư mục preview chỉ được main.tsx nạp khi DEV. */
+   Tham số chọn fixture chỉ có hiệu lực ở DEV. Management hiện vẫn dùng dữ liệu mẫu
+   và ghi rõ trên UI; production mở các màn này qua guard của ứng dụng. */
 const demoBundle: PreviewFixtureSet = {
   ...fixtureSets[0], workspaces: seedWorkspaces, projects: seedProjects, notifications: seedNotifications,
 }

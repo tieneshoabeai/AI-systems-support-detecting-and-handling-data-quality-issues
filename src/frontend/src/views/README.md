@@ -10,7 +10,17 @@ Hiển thị màn hình và giữ state tương tác của màn hình. Gửi req
 
 ## 3. Public API
 
-- `LoginView()`, `Dataset3DView()`, `Workspace3DPreview()`, `Preview2DEntry()` trả JSX. Login cần AuthProvider và router. Dataset 3D cần router và trình duyệt hỗ trợ WebGL để thấy scene.
+Project detail chỉ dùng `/processing/projects/:projectId`; `/management/projects` giữ trang danh sách, route chi tiết Management đã bỏ. `ProjectWorkspaceView` dùng shell Processing không sidebar, header/nav toàn chiều ngang và `Dataset3DView embedded` lấp đầy phần còn lại. Chế độ embedded giữ tương tác scene nhưng ẩn header/mô tả demo; chưa nối dữ liệu thật của Project vào mô hình.
+
+Project sở hữu `focus: CubeFocus | null`, truyền vào `Dataset3DView` cùng `onFocusChange`: nav và click khối dùng chung lựa chọn (overview/violet, data-view/blue, data-analysis/cyan, detection/orange). Về góc tổng quan xóa lựa chọn; tách mô hình khóa nav. `colorMode` nhận theme đã resolve từ UI session, cập nhật nền/fog/bloom/nhãn và đường nối mà không remount mô hình/camera. Light dùng nền trắng xanh và sàn/lưới sáng; standalone Dataset 3D mặc định dark.
+
+Panel module chỉ mở từ `onFocusComplete` sau camera + reveal, không dùng timeout. Chọn module khác đóng panel và thay lựa chọn chờ; reduced motion báo hoàn tất ngay khi snap. Panel rộng 40% scene trên desktop, gần toàn chiều ngang trên mobile. Detection đặt phần đánh giá ở cuối panel; tải kết quả nằm riêng cạnh logo header. Project chưa nhận `ConfirmedProjectResult` thì không bật tải/đánh giá. Breadcrumb và Dataset cùng một hàng, không còn khung thông tin Project lớn hoặc nút Quay lại.
+
+Kính panel Project được render bằng `project-glass-pass.ts` sau output màu của scene. Pass lấy mẫu scene động theo biên DOM đo bằng ResizeObserver/resize/scroll, dùng chung profile thấu kính lồi và hàm refract với Login trong `graphics/convex-lens.glsl.ts`. Nội dung HTML không bị khúc xạ. Thuộc tính `data-refractive` tắt nền/blur CSS khi pass được gắn, được dọn khi đóng/unmount; CSS còn lại là fallback khi WebGL không chạy. Panel chỉ khúc xạ nội dung canvas, không lấy mẫu các overlay HTML.
+
+`HolographicBloomPass` giữ thứ tự màu trước khi thêm kính Project: tone mapping/chuyển màu base trước, cộng bloom sau. Không tone-map tổng base+bloom lần nữa. Cùng một ảnh đầu ra được dùng khi panel đóng hoặc mở; pass kính chỉ thay đổi pixel trong panel. Giữ nguyên cường độ ánh sáng/vật liệu và cấu hình bloom riêng của light/dark trong lần sửa pipeline này.
+
+- `LoginView()`, `Dataset3DView()`, `Workspace3DPreview()`, `ManagementArea()` và `ProcessingView()` trả JSX. Management/Processing cần React Router; WorkbenchRoutes bọc cả hai bằng `ApplicationFrame` để dùng một UI session/theme. Login cần AuthProvider và router. Dataset 3D cần router và trình duyệt hỗ trợ WebGL để thấy scene.
 - `ResourceMap(props: ResourceMapProps)` nhận resources, ID chọn, callback chọn/mở dataset và `localFileMode?`. `Workspace3DView` nhận `resources`, `onOpenDataset`, `localFileMode?`. `LocalCsvViewer({ document: LocalCsvDocument, onClose: () => void })` render bảng mẫu.
 - `HomePreviewView` và `UniverseHero` nhận `UniverseHeroProps` với scene tùy chọn. `WorkspacesPreviewView({ workspaceId? })`, `ProjectsPreviewView()`, `ProjectWorkspaceView({ projectId, scene? })`, `NotificationsPreviewView({ notificationId })`, `SettingsPreviewView({ section })` trả JSX theo phạm vi preview. `WorkspaceCard({ workspace, selected, view })` và `ProjectCard({ project, selected, view })` render thẻ cho view tương ứng.
 - `PreviewSessionProvider({ routeIds, navigateUniverse?, children })` cấp model tương tác. Các export con về menu, card, dialog, icon và URL là điểm dùng trong preview, xem file tương ứng ở mục 5 để tra props và kiểu trả về.
@@ -33,6 +43,10 @@ Render bằng React/Vite. Viewer hiện cột `id` và một dòng `1`. Nút đ�
 ## 5. Cấu trúc thư mục
 
 **Khi thêm code.** Màn hình, bố cục và state riêng của màn hình nằm trong thư mục tính năng dưới `views/`. Đưa logic gọi API sang [services](../services/README.md) và geometry sang [graphics](../graphics/README.md).
+
+`application/application-frame.tsx` ghép provider và CSS chung; `preview/components/preview-shell.tsx` nhận `area` và `context` để dùng chung header/theme. Management có sidebar; Processing chỉ có header và nội dung rộng toàn trang, không render sidebar hoặc nút thu gọn. `preview/components/topbar-color-mode.tsx` mở bộ chọn Sáng/Tối/Theo hệ thống trên header; `processing/processing.css` chỉ định dạng nội dung và dùng token theme hiện có, không tạo nền hay palette riêng.
+
+Processing và Home Management dùng chung `preview/components/universe-hero.tsx` và `recent-projects.tsx`; bảng giữ sắp xếp, phân trang, menu và đường dẫn project như Home hiện có. Processing thêm nút Tạo Project ở tiêu đề bảng. `project-data-actions.tsx` cung cấp hộp chọn tệp và khu vực lưu kết quả của Project; `result-review-dialog.tsx` kiểm tra sao/nội dung và đợi callback lưu, không tự gọi endpoint. Trạng thái dataset mẫu không đủ để bật lưu: cần kết quả đã được server xác nhận.
 
 ### Auth, Dataset 3D và Workspace 3D
 
@@ -109,7 +123,7 @@ Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview sr
 
 ## 10. Giới hạn & lưu ý
 
-Preview 2D/Workspace 3D chỉ chạy dev. Thao tác preview dùng fixture và form đăng ký login hiện là UI thử. Route Dataset 3D tạm bỏ guard để review. Test DOM có mock scene và không chứng minh render WebGL.
+Management dùng các màn 2D hiện có tại `/management`; `/processing` là trang mở đầu chào mừng và danh sách project. URL 2D cũ chuyển hướng tới Management; các URL Processing từng bước cũ về trang Project tương ứng. Dev cho review không cần API session; production yêu cầu đăng nhập. Dữ liệu quản lý vẫn là fixture. Upload, lưu đánh giá/kết quả và tải file thật chưa được tích hợp. Workspace 3D preview chỉ chạy dev, form đăng ký login hiện là UI thử. Route Dataset 3D tạm bỏ guard để review. Test DOM có mock scene và không chứng minh render WebGL. Xem [bảng route và yêu cầu hosting](../../README.md#route-management-và-ai-data-processing).
 
 ## 11. Hướng cải tiến
 

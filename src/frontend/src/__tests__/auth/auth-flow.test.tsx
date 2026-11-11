@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { StrictMode } from 'react'
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter, useLocation } from 'react-router'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Outlet, useLocation } from 'react-router'
 import { AxiosError, AxiosHeaders } from 'axios'
 import type { AxiosAdapter } from 'axios'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +12,13 @@ import { createQueryClient, clearSessionQueries } from '../../lib/query-client'
 import { createSessionStorage } from '../../lib/session-storage'
 import { UploadDraftDatabase } from '../../repositories/datasets/upload-draft.database'
 import { validReturnTarget } from '../../app/router/return-target'
+
+// Auth tests exercise session/return-target behavior, not WebGL or fixture screens.
+// Route UI is covered by preview-entry/theme suites with the real application frame.
+vi.mock('../../views/application/application-frame', () => ({ ApplicationFrame: () => <Outlet /> }))
+vi.mock('../../views/processing/processing.view', () => ({ ProcessingView: () => <h1>AI Data Processing</h1> }))
+vi.mock('../../views/preview/project-workspace-2d.view', () => ({ ProjectWorkspaceView: () => <h1>Project</h1> }))
+vi.mock('../../views/preview/preview-entry', () => ({ ManagementArea: () => <h1>Quản lý</h1> }))
 
 const disposers: Array<() => Promise<void>> = []
 afterEach(async () => {
@@ -71,13 +78,21 @@ const submitLogin = async () => {
 const requests = (adapter: ReturnType<typeof vi.fn<AxiosAdapter>>, path: string) => adapter.mock.calls.filter(([config]) => config.url?.endsWith(path))
 
 describe('login, routes and session cleanup', () => {
+  it.each(['/processing/projects/prj-sales', '/processing/projects/prj-sales/upload'])('protects %s and preserves its post-login destination', async path => {
+    await mount({ path })
+    expect(screen.getByTestId('location').textContent).toBe('/auth/login')
+    expect(JSON.parse(screen.getByTestId('location-state').textContent!).returnTo).toBe(path)
+    await submitLogin()
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/processing/projects/prj-sales'))
+  })
+
   it('submits actual login service, preserves password and opens shell without me', async () => {
     const s = await mount()
     fireEvent.click(screen.getByRole('button', { name: 'Hiện mật khẩu' }))
     expect((screen.getByLabelText('Mật khẩu') as HTMLInputElement).type).toBe('text')
     await submitLogin()
-    expect(screen.getByTestId('location').textContent).toBe('/workspaces')
-    expect(screen.getByRole('heading', { name: 'Xin chào, Test User' })).toBeDefined()
+    expect(screen.getByTestId('location').textContent).toBe('/processing')
+    expect(await screen.findByRole('heading', { name: 'AI Data Processing' })).toBeDefined()
     expect(requests(s.adapter, '/users/me')).toHaveLength(0)
     expect(JSON.parse(requests(s.adapter, '/auth/login')[0][0].data).password).toBe(' x ')
   })
@@ -123,12 +138,12 @@ describe('login, routes and session cleanup', () => {
   it('bootstraps under StrictMode once and redirects public login to private shell', async () => {
     const s = await mount({ storedExp: Math.floor(Date.now() / 1000) + 60 })
     expect(requests(s.adapter, '/users/me')).toHaveLength(1)
-    expect(screen.getByTestId('location').textContent).toBe('/workspaces')
+    expect(screen.getByTestId('location').textContent).toBe('/processing')
     expect(s.runtime.coordinator.draftAccess.read()?.accountId).toBe('a')
   })
 
   it('renders a limited shell on outage without inventing profile or workspace list', async () => {
-    await mount({ storedExp: Math.floor(Date.now() / 1000) + 60, meFailure: true })
+    await mount({ path: '/workspaces', storedExp: Math.floor(Date.now() / 1000) + 60, meFailure: true })
     expect(screen.getByRole('heading', { name: 'Kết nối đang gián đoạn' })).toBeDefined()
     expect(screen.queryByText('test@example.com')).toBeNull()
     expect(screen.getByText(/thao tác trực tuyến đang bị khóa/)).toBeDefined()
@@ -140,7 +155,7 @@ describe('login, routes and session cleanup', () => {
   })
 
   it.each(['https://evil.invalid', '//evil.invalid', '/auth/login', '/unknown', '/\\evil.invalid', ' /workspaces'])('rejects unsafe return target %s', value => {
-    expect(validReturnTarget(value)).toBe('/workspaces')
+    expect(validReturnTarget(value)).toBe('/processing')
   })
 })
 

@@ -70,7 +70,7 @@ it('màn ngoài nav (Dự án · Thông báo) có dải "Đang mở", còn màn 
   expect(screen.getByRole('button', { name: 'Home' }).hasAttribute('aria-current')).toBe(false)
 
   fireEvent.click(screen.getByRole('button', { name: 'Về Home' }))
-  expect(window.location.hash).toBe('#/preview/home')
+  expect(window.location.pathname).toBe('/management')
 
   cleanup()
   // Home · Workspaces · Settings đã có mục nav sáng lên thì chính nó là câu trả lời
@@ -96,13 +96,13 @@ it('nút navigation thu gọn sidebar, đổi nhãn và nhớ trạng thái', ()
 it('cả ba module nav đều đã dựng → bấm là đổi hash (Settings giờ là màn Accounts thật)', () => {
   shell('home')
   fireEvent.click(screen.getByRole('button', { name: 'Workspaces' }))
-  expect(window.location.hash).toBe('#/preview/workspaces')
+  expect(window.location.pathname).toBe('/management/workspaces')
 
   // Nhóm 04 đã dựng nhánh Accounts → Settings là mục nav THẬT, bấm phải điều hướng chứ không còn
   // báo "chưa có trong batch 2D" (toast đó giờ chỉ còn cho module ngoài 2D thật sự chưa dựng).
   window.location.hash = ''
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-  expect(window.location.hash).toBe('#/preview/settings')
+  expect(window.location.pathname).toBe('/management/settings')
   expect(screen.queryByText(/chưa có trong batch 2D/)).toBeNull()
 })
 
@@ -134,7 +134,7 @@ it('topbar dựng đủ các vùng của Global Application Shell, trái sang ph
   expect(regions).toEqual(['sidebar-toggle', 'topbar-chips', 'topbar-actions'])
   expect(container.querySelectorAll('.scope-select')).toHaveLength(2)
   // Ba nút hành động: chuông · "?" (báo cáo) · avatar. Đặc tả dòng 11 bỏ nút Trợ giúp riêng.
-  expect(container.querySelectorAll('.topbar-actions > button')).toHaveLength(3)
+  expect(container.querySelectorAll('.topbar-actions > button')).toHaveLength(4)
   // Ô chọn trên topbar chỉ còn NHÃN + GIÁ TRỊ: đếm số ở đó làm chuỗi dài giãn cả chip
   // (phản hồi của user) mà con số đã hiện trên trang rồi.
   expect(container.querySelectorAll('.scope-meta')).toHaveLength(0)
@@ -184,7 +184,7 @@ it('combobox Workspace tìm được trong danh sách, chọn thì đổi phạm
   expect(rows.map(row => row.textContent)).toEqual(['Research & Development1 project · ★'])
 
   fireEvent.click(rows[0])
-  expect(window.location.hash).toBe('#/preview/workspaces/ws-rnd')
+  expect(window.location.pathname).toBe('/management/workspaces/ws-rnd')
   expect(previewMockStore.getState().selection.workspaceId).toBe('ws-rnd')
   expect(screen.queryByRole('dialog', { name: 'Chọn workspace' })).toBeNull()
 })
@@ -202,7 +202,7 @@ it('combobox Projects chỉ liệt kê project của workspace đang chọn', ()
   fireEvent.click(within(popover).getByRole('option', { name: /^Loyalty Program/ }))
   expect(screen.getByRole('combobox', { name: 'Projects' }).textContent).toContain('Loyalty Program')
   expect(previewMockStore.getState().selection.projectId).toBe('prj-loyalty')
-  expect(window.location.hash).toBe('#/preview/projects/ws-marketing/prj-loyalty')
+  expect(window.location.pathname).toBe('/processing/projects/prj-loyalty')
   expect(screen.queryByRole('dialog', { name: 'Chọn projects' })).toBeNull()
 
   // "Tất cả Projects" phải nói thật: bấm xong thì chip hiện đúng nhãn vừa chọn và phạm vi
@@ -211,7 +211,7 @@ it('combobox Projects chỉ liệt kê project của workspace đang chọn', ()
   fireEvent.click(screen.getByRole('option', { name: 'Tất cả Projects' }))
   expect(screen.getByRole('combobox', { name: 'Projects' }).textContent).toContain('Tất cả Projects')
   expect(previewMockStore.getState().selection.projectId).toBe('')
-  expect(window.location.hash).toBe('#/preview/projects/ws-marketing')
+  expect(`${window.location.pathname}${window.location.search}`).toBe('/management/projects?workspace=ws-marketing')
 })
 
 it('bỏ chọn phạm vi thì combobox Workspace báo "Tất cả Workspace"', () => {

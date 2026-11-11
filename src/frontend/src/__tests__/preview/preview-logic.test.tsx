@@ -71,7 +71,7 @@ it('Enter trên nút menu của dòng Project ở Home không mở trang ngoài 
   fireEvent.keyDown(menu, { key: 'Enter' })
   expect(window.location.hash).toBe('')
   fireEvent.keyDown(row, { key: 'Enter' })
-  expect(window.location.hash).toContain('#/preview/projects/')
+  expect(window.location.pathname).toContain('/processing/projects/')
 })
 
 it('chuyển tới workspace rỗng bỏ project của phạm vi cũ; id không tồn tại không đổi phạm vi', () => {

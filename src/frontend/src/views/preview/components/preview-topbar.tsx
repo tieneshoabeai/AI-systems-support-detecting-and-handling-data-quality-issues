@@ -7,6 +7,7 @@ import { ReportCenter } from './report-center'
 import { PreviewIcon } from './preview-icons'
 import { PreviewPopover } from './preview-popover'
 import { usePreviewSession } from '../preview-session-context'
+import { TopbarColorMode } from './topbar-color-mode'
 
 // Topbar theo "UI-UX/Global Application Shell" (Design Board + đặc tả.txt dòng 11), thứ tự trái
 // sang phải đúng như DOM — (1) toggle sidebar, (2) combobox Workspace, (3) combobox Projects,
@@ -201,10 +202,11 @@ function TopbarAccount() {
   </>
 }
 
-export function PreviewTopbar({ active, sidebarToggle, state }: {
+export function PreviewTopbar({ active, sidebarToggle, state, context }: {
   active: PreviewSectionId
   sidebarToggle: ReactNode
   state: PreviewStoreState
+  context?: ReactNode
 }) {
   const session = usePreviewSession()
   const workspace = state.workspaces.find(item => item.id === state.selection.workspaceId) ?? null
@@ -214,7 +216,7 @@ export function PreviewTopbar({ active, sidebarToggle, state }: {
   return <header className="preview-topbar">
     {sidebarToggle}
 
-    <div className="topbar-chips">
+    {context ? <div className="topbar-context">{context}</div> : <div className="topbar-chips">
       <PreviewScopeSelect label="Workspace" value={workspace?.id ?? allId}
         options={[
           { id: allId, label: 'Tất cả Workspace', meta: `${state.workspaces.length} workspace` },
@@ -253,9 +255,10 @@ export function PreviewTopbar({ active, sidebarToggle, state }: {
           // (một hành vi một quy tắc, không phân nhánh theo lối vào).
           session.run('open', { kind: 'project', id, name: state.projects.find(item => item.id === id)?.name ?? id })
         }} />
-    </div>
+    </div>}
 
     <div className="topbar-actions">
+      <TopbarColorMode />
       <TopbarBell notifications={state.notifications} />
       <TopbarReport />
       <TopbarAccount />

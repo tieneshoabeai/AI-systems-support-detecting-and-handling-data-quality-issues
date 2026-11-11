@@ -1,7 +1,6 @@
 // Tương thích lối ra cũ: quy tắc route đã chuyển xuống services/preview/preview-route.ts
 // để hook và shell dùng chung mà không import ngược lên tầng view.
-// main.tsx vẫn import file này — nó chỉ re-export hàm thuần, không kéo theo CSS/fixture,
-// nên nhánh import.meta.env.DEV === false bị loại sạch khi build production.
+// Chỉ re-export hàm thuần; không nạp CSS, fixture hay khởi tạo runtime.
 export {
   is2DPreviewUrl, normalizePreviewHash, previewHref, readPreviewRoute, readPreviewSection,
   twoDPreviewSections, universePath, universeUrl,

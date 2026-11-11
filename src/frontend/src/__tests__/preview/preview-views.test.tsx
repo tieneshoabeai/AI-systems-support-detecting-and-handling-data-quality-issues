@@ -1,8 +1,21 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { WorkspacesPreviewView } from '../../views/preview/workspaces-2d.view'
 import { ProjectsPreviewView } from '../../views/preview/projects-2d.view'
 import { ProjectWorkspaceView } from '../../views/preview/project-workspace-2d.view'
+vi.mock('../../views/dataset-3d/dataset-3d.view', () => ({
+  Dataset3DView: ({ embedded, focus, onFocusChange, onDetachedChange, onFocusComplete, colorMode }: {
+    onFocusComplete: (theme: string) => void
+    embedded?: boolean; focus: { theme: string } | null; colorMode: string
+    onFocusChange: (focus: { theme: string } | null) => void; onDetachedChange: (value: boolean) => void
+  }) => <div data-testid="dataset-scene" data-embedded={embedded} data-focus={focus?.theme} data-color-mode={colorMode}>
+    <button onClick={() => onFocusChange({ theme: 'orange' })}>Chọn khối cam</button>
+    <button onClick={() => focus && onFocusComplete(focus.theme)}>Focus hoàn tất</button>
+    <button onClick={() => onFocusComplete('orange')}>Focus cam cũ hoàn tất</button>
+    <button onClick={() => onFocusChange(null)}>Về góc tổng quan</button>
+    <button onClick={() => onDetachedChange(true)}>Tách mô hình</button>
+  </div>,
+}))
 import { HomePreviewView } from '../../views/preview/home-2d.view'
 import { byNewestFirst, formatCount, formatDataSize, formatRows, previewNoteIds, projectModules, isOwnedByMe } from '../../views/preview/preview-data'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
@@ -118,7 +131,7 @@ it('bấm một thẻ workspace mở TRANG CHI TIẾT riêng (route), không cò
   expect(screen.queryByRole('complementary', { name: 'Chi tiết Acme Corp' })).toBeNull()
 
   fireEvent.click(cardByTitle('Acme Corp'))
-  expect(window.location.hash).toBe('#/preview/workspaces/ws-acme')
+  expect(window.location.pathname).toBe('/management/workspaces/ws-acme')
   expect(previewMockStore.getState().selection.workspaceId).toBe('ws-acme')
 })
 
@@ -142,7 +155,7 @@ it('trang chi tiết: bấm dòng project sang đúng project, breadcrumb về d
   // đúng như nhãn "Tìm theo tên project…" nó quảng cáo.
   fireEvent.change(screen.getByRole('textbox', { name: 'Tìm project theo tên trong workspace này' }), { target: { value: 'Open Questions' } })
   fireEvent.click(rowByTitle('Open Questions'))
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-empty')
+  expect(window.location.pathname).toBe('/processing/projects/prj-empty')
 
   // Bấm breadcrumb "Workspaces" trả về danh sách (hash không còn id). Phân biệt với nút
   // 'Workspaces' của sidebar bằng cách giới hạn trong nav breadcrumb.
@@ -150,7 +163,7 @@ it('trang chi tiết: bấm dòng project sang đúng project, breadcrumb về d
   renderFrame(<WorkspacesPreviewView workspaceId="ws-acme" />)
   const crumb = screen.getByRole('navigation', { name: 'Path điều hướng' })
   fireEvent.click(within(crumb).getByRole('button', { name: 'Workspaces' }))
-  expect(window.location.hash).toBe('#/preview/workspaces')
+  expect(window.location.pathname).toBe('/management/workspaces')
 })
 
 // Ảnh "a_detailed_high_fidelity_ui_screenshot_of_the_sam" vẽ header trang chi tiết CHỈ có một
@@ -291,7 +304,7 @@ it('wizard "Tạo Project": 4 bước, bước Import bắt buộc một .csv, r
   expect(await screen.findByText('Đã tạo project “Đánh giá chất lượng dữ liệu” trong Acme Corp kèm orders.csv')).toBeDefined()
 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Xem Project' }))
-  expect(window.location.hash).toContain('#/preview/projects/ws-acme/')
+  expect(window.location.pathname).toContain('/processing/projects/')
 })
 
 // BẤT BIẾN NGHIỆP VỤ chủ batch nhắc lại, và nó là điều kiện ĐÚNG của hệ: chỉ thành viên đã thuộc
@@ -451,7 +464,7 @@ it('projects: không có ô tìm; thẻ không có dataset hiện khu vực tr�
   expect(within(cardByTitle('Open Questions')).getByText('Chưa có tập dữ liệu.')).toBeDefined()
   // 1 click = điều hướng sang trang Project riêng (không còn panel kề bên).
   fireEvent.click(cardByTitle('Open Questions'))
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-empty')
+  expect(window.location.pathname).toBe('/processing/projects/prj-empty')
 })
 
 it('home: hero là placeholder 2D cho scene 3D của T + dải giá trị, bỏ hết tiện ích thừa', () => {
@@ -587,13 +600,11 @@ it('shell đo chiều cao vùng cuộn và truyền --pv-viewport-h cho panel ch
 
 // Nhãn bốn khối quanh tâm scene — đọc từ DOM, so với `projectModules` chứ không so với một
 // mảng nhãn viết tay trong test (hai nguồn sẽ lệch nhau ngay khi ảnh đổi module).
-const universeBlockLabels = (): string[] =>
-  Array.from(document.querySelectorAll('.pj-block strong')).map(element => element.textContent ?? '')
 
 // Trang Project Workspace Overview — ảnh UI-UX/projects/DataVerse_Project_Workspace_Overview_v1.
 // Ba dải của ảnh, mọi số liệu suy từ mock store: dải đầu (tên + mô tả project | dataset + shape),
 // khoang giữa (một khối tâm + bốn khối module), thanh đáy (bốn nút module).
-it('trang Project: dải đầu dataset+shape, khoang giữa có tâm và bốn khối, thanh đáy bốn nút module', () => {
+it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút module', () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.getByRole('heading', { level: 1, name: /Sales Analytics/ })).toBeDefined()
   const crumb = screen.getByRole('navigation', { name: 'Path điều hướng' })
@@ -609,14 +620,16 @@ it('trang Project: dải đầu dataset+shape, khoang giữa có tâm và bốn 
   expect(band).toContain(formatRows(dataset!.rows))
   expect(band).toContain(`${formatCount(dataset!.columns)} cột`)
 
-  // Khoang giữa: MỘT khối tâm mang tên tệp + bốn khối quanh tâm, theo đúng thứ tự ảnh vẽ.
-  expect(document.querySelector('.pj-core')?.textContent).toContain(dataset!.fileName)
-  expect(universeBlockLabels()).toEqual(projectModules.map(module => module.label))
+  // Project embeds the existing scene instead of the former 2D illustration.
+  expect(screen.getByTestId('dataset-scene').getAttribute('data-embedded')).toBe('true')
+  expect(document.querySelector('.pj-universe')).toBeNull()
+  expect(screen.queryByRole('complementary', { name: 'Điều hướng chính' })).toBeNull()
+  expect(screen.queryByText('Quản lý · Dữ liệu mẫu, chưa kết nối API')).toBeNull()
 
   // Thanh đáy: bốn NÚT bấm được (không phải bốn nhãn trang trí), và 'Tổng quan' đang bật vì
-  // ảnh vẽ ô đó active. Scene của T chưa được inject nên placeholder phải còn tại chỗ.
+  // ảnh vẽ ô đó active.
   for (const module of projectModules) expect(screen.getByRole('button', { name: module.label })).toBeDefined()
-  expect(screen.getByRole('button', { name: 'Tổng quan' }).getAttribute('aria-current')).toBe('true')
+  expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
   everyDisabledButtonHasVisibleReason()
 })
 
@@ -671,16 +684,26 @@ it('trang Project: ⋯ của dataset mở đúng ba mục của ảnh, "Quản l
 // Đặc tả UI-UX/projects/đặc tả.txt: "ấn các nút [module] cũng tương tự như ấn vào các ô khối 3d".
 // Nhóm chưa chốt màn bên trong bốn module, nên điều test được là NỐI nút ↔ khối: chọn nút thì
 // đúng một khối sáng, route không đổi, và lý do "chưa có trang" hiện ra nhìn thấy được.
-it('trang Project: chọn nút module làm sáng đúng khối tương ứng, không đổi route', () => {
+it('trang Project: chọn module cập nhật nav, giữ scene và không đổi route', () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   const button = screen.getByRole('button', { name: 'Data View' })
   fireEvent.click(button)
 
   expect(button.getAttribute('aria-current')).toBe('true')
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
-  const active = Array.from(document.querySelectorAll('.pj-block.is-active strong'))
-    .map(element => element.textContent)
-  expect(active).toEqual(['Data View'])
+  expect(screen.getByTestId('dataset-scene')).toBeDefined()
+  expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
+  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan'], ['Detection', 'orange']]) {
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe(theme)
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn khối cam' }))
+  expect(screen.getByRole('button', { name: 'Detection' }).getAttribute('aria-current')).toBe('true')
+  fireEvent.click(screen.getByRole('button', { name: 'Về góc tổng quan' }))
+  expect(screen.getByRole('button', { name: 'Detection' }).hasAttribute('aria-current')).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
+  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(true)
 
   expect(window.location.hash).toBe('')
   expect(document.getElementById(previewNoteIds.projectModules)).toBeNull()
@@ -691,11 +714,34 @@ it('trang Project: chọn nút module làm sáng đúng khối tương ứng, kh
   expect(window.location.hash).toBe('')
 })
 
+it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh giá riêng', () => {
+  renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
+  expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull()
+  expect(document.querySelector('.pj-band')).toBeNull()
+  expect(document.querySelector('.pj-dataset')?.parentElement?.className).toBe('pj-head-row')
+  expect(screen.getByRole('link', { name: 'Trang chủ Processing' }).getAttribute('href')).toBe('/processing')
+  expect((screen.getByRole('button', { name: 'Tải file kết quả' }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
+  expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
+  fireEvent.click(screen.getByText('Focus hoàn tất'))
+  const panel = screen.getByRole('complementary', { name: 'Detection' })
+  expect(within(panel).getByRole('heading', { name: 'Đánh giá' })).toBeDefined()
+  expect(within(panel).queryByRole('button', { name: /Tải file/ })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
+  expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
+  fireEvent.click(screen.getByText('Focus cam cũ hoàn tất'))
+  expect(screen.queryByRole('complementary', { name: 'Data View' })).toBeNull()
+  fireEvent.click(screen.getByText('Focus hoàn tất'))
+  expect(screen.getByRole('complementary', { name: 'Data View' })).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng bảng module' }))
+  expect(screen.queryByRole('complementary', { name: 'Data View' })).toBeNull()
+})
+
 it('trang Project: id không còn trong store → về danh sách, không vẽ trang trống', () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-khong-ton-tai" />)
   expect(screen.getByText('Không tìm thấy project')).toBeDefined()
   fireEvent.click(screen.getByRole('button', { name: 'Về danh sách Project' }))
-  expect(window.location.hash).toBe('#/preview/projects')
+  expect(window.location.pathname).toBe('/management/projects')
 })
 
 // Ba bảng "gần đây" trên Home tự hứa thứ tự theo độ mới. Bản cũ cắt theo thứ tự fixture,

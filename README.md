@@ -152,6 +152,8 @@ Hệ thống được phát triển tuân thủ nghiêm ngặt các nguyên tắ
 
 ## 6. Cấu trúc Thư mục Dự án (Project Directory Structure)
 
+Để tìm điểm vào theo tính năng, xem [bản đồ module và thứ tự đọc frontend](src/frontend/README.md#bản-đồ-module-frontend).
+
 ```
 .
 ├── .agent/                      # Quy tắc và hướng dẫn cấu hình AI Agent

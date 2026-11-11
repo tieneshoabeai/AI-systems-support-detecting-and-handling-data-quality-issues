@@ -7,7 +7,7 @@ import { createQueryClient, clearSessionQueries } from '../lib/query-client'
 import { normalizeApiError } from '../lib/api-error'
 import type { AppError } from '../types/api/api.types'
 
-// Original application composition, loaded only outside the dev preview.
+// Application composition for login and protected production routes.
 const queryClient = createQueryClient()
 let runtime: AppRuntime | null = null
 let configurationError: AppError | null = null

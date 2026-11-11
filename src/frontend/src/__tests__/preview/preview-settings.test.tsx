@@ -69,7 +69,7 @@ it('chính lá "Bảo mật" trong rail mới là lối vào #/preview/settings/
   fireEvent.click(within(nav).getByRole('button', { name: 'Cài đặt tài khoản' }))
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' }))
     .getByRole('button', { name: 'Bảo mật' }))
-  expect(window.location.hash).toBe('#/preview/settings/security')
+  expect(window.location.pathname).toBe('/management/settings/security')
 
   // Route đã mang mục con → rail giữ nguyên sáu nút, lá "Bảo mật" đang đứng (aria-current) và
   // đầu màn đổi thành "Cài đặt tài khoản".
@@ -137,7 +137,7 @@ it('"Hủy" ở màn Hồ sơ đưa về trang chính (đặc tả dòng 9: "h�
   fireEvent.change(screen.getByRole('textbox', { name: 'Họ và tên' }), { target: { value: 'Tên chưa lưu' } })
   fireEvent.click(screen.getByRole('button', { name: 'Hủy' }))
   // Đặc tả dòng 9 nói rõ Hủy → về Home (không chỉ xóa nháp tại chỗ).
-  expect(window.location.hash).toBe('#/preview/home')
+  expect(window.location.pathname).toBe('/management')
 })
 
 it('Bảo mật: bỏ 2FA theo đặc tả, chỉ còn "Đổi mật khẩu" — validate trong form rồi báo toast', async () => {
@@ -239,7 +239,7 @@ it('rail không có ô tìm kiếm; gập nhóm rồi mở lại, bấm một m�
   fireEvent.click(group)
   expect(within(nav).getByRole('button', { name: 'Đăng nhập & phiên' })).toBeDefined()
   fireEvent.click(within(nav).getByRole('button', { name: 'Đăng nhập & phiên' }))
-  expect(window.location.hash).toBe('#/preview/settings/sessions')
+  expect(window.location.pathname).toBe('/management/settings/sessions')
 })
 
 it('màn Settings không có nút chết im lặng (mọi control đều tương tác được)', () => {

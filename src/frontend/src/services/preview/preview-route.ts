@@ -1,12 +1,10 @@
 import type { PreviewRoute, PreviewRouteIds } from '../../types/preview/preview-route.types'
 import type { PreviewSectionId, SettingsSectionId } from '../../types/preview/preview.types'
+import { managementHref, parseManagementRoute, parseProjectRoute } from '../navigation/application-route'
 
-// Route của frame preview 2D nằm ở tầng service (không phải view) vì cả main.tsx,
-// preview-entry, shell lẫn session hook đều cần đọc/ghi URL. Để ở view thì hook
-// phải import ngược lên view — phá chiều phụ thuộc View → Hook → Service.
-//
-// Module này không được import CSS hay fixture: main.tsx tham chiếu tĩnh nó trước
-// nhánh import.meta.env.DEV, nên bất cứ thứ gì kéo theo preview.css sẽ vào build thật.
+// Legacy 2D URL compatibility and the existing 3D entry URL.
+// Canonical management/processing rules live in navigation/application-route.ts.
+// Keep this module independent of CSS, fixtures and runtime construction.
 
 export const twoDPreviewSections: readonly PreviewSectionId[] = ['home', 'workspaces', 'projects', 'notifications', 'settings']
 
@@ -53,43 +51,34 @@ export const parsePreviewRoute = (source: string): PreviewRoute | null => {
 export const is2DPreviewUrl = (url: string): boolean => parsePreviewRoute(url) !== null
 
 export const readPreviewRoute = (): PreviewRoute =>
-  parsePreviewRoute(window.location.hash) ?? parsePreviewRoute(window.location.pathname)
+  (parseProjectRoute(window.location.pathname) ? { section: 'projects', projectId: parseProjectRoute(window.location.pathname), workspaceId: null, notificationId: null, settingsSection: null } : null)
+  ??
+  parseManagementRoute(`${window.location.pathname}${window.location.search}`)
+  ?? parsePreviewRoute(window.location.hash) ?? parsePreviewRoute(window.location.pathname)
   ?? { section: 'home', workspaceId: null, projectId: null, notificationId: null, settingsSection: null }
 
 export const readPreviewSection = (): PreviewSectionId => readPreviewRoute().section
 
-// '#/preview/settings' (mục có thật trong sidebar nhưng batch này chưa dựng màn) và
-// '#/preview/homes' (gõ nhầm) đều parse ra null → readPreviewRoute rơi về Home. Kết quả là
-// màn hình hiện Home trong khi URL nói một chỗ khác: copy link gửi cho nhóm là một lời hứa
-// sai. Viết lại hash về đúng màn đang hiện để URL và nội dung không lệch nhau.
-// Chỉ đụng hash mở đầu bằng '#/preview/'. Route 3D của T quyết định bằng PATHNAME
-// (universePath, main.tsx dòng is3DPreview) và mang hash riêng '#project=…' — không chuỗi
-// nào khớp mẫu này, nên phần của họ không bao giờ bị sửa. '#/preview/workspaces-3d' thì
-// KHÔNG phải của T: frame 2D không mount cho hash đó lúc tải trang, còn nếu người dùng gõ
-// vào khi đang ở trong frame thì nội dung hiện là Home — đúng ra phải sửa hash về Home.
+// Old callers may still normalize on startup. New routes redirect via React Router.
 const previewHashSection = /^#\/preview\/([^/?#]+)/
 
 export const normalizePreviewHash = (): void => {
-  const hash = window.location.hash
-  if (!previewHashSection.test(hash)) return
-  if (parsePreviewRoute(hash) !== null) return
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/preview/home`)
+  const destination = legacyManagementRedirect(window.location.pathname, window.location.hash)
+  if (destination) window.history.replaceState(null, '', destination)
 }
 
-// Hash route: F5 vẫn đúng trang, và production build không cần server rewrite.
-// projectId chỉ có nghĩa khi đã có workspaceId (đường dẫn phân cấp workspace → project).
-export const previewHref = (section: PreviewSectionId, ids: PreviewRouteIds = {}): string => {
-  if (section === 'notifications') {
-    const notificationId = ids.notificationId ?? null
-    return `#/preview/${section}${notificationId ? `/${notificationId}` : ''}`
-  }
-  if (section === 'settings') {
-    const settingsSection = ids.settingsSection ?? null
-    return `#/preview/${section}${settingsSection ? `/${settingsSection}` : ''}`
-  }
-  const workspaceId = ids.workspaceId ?? null
-  const projectId = workspaceId ? ids.projectId ?? null : null
-  return `#/preview/${section}${workspaceId ? `/${workspaceId}` : ''}${projectId ? `/${projectId}` : ''}`
+// Compatibility adapter: existing management actions now generate canonical URLs.
+export const previewHref = (section: PreviewSectionId, ids: PreviewRouteIds = {}): string =>
+  managementHref(section, ids)
+
+export const legacyManagementRedirect = (pathname: string, hash: string): string | null => {
+  if (pathname === universePath) return null
+  // Only migrate old preview entry points; unrelated pages/anchors stay untouched.
+  const legacyPath = pathname === '/preview' || pathname.startsWith('/preview/')
+  const legacyHash = previewHashSection.test(hash)
+  if (!legacyPath && !(pathname === '/' && legacyHash)) return null
+  const route = (legacyHash ? parsePreviewRoute(hash) : null) ?? parsePreviewRoute(pathname)
+  return route ? managementHref(route.section, route) : '/management'
 }
 
 // Trang 3D của T là cả một lần tải trang (React root khác, scene Three.js khác) nên
@@ -99,9 +88,5 @@ export const previewHref = (section: PreviewSectionId, ids: PreviewRouteIds = {}
 export const universeUrl = (projectId?: string | null): string =>
   `${window.location.origin}${universePath}${projectId ? `#project=${projectId}` : ''}`
 
-// "Vừa có một chuyến đi trong frame" — tín hiệu cho surface nổi (popover · menu · combobox)
-// tự khép lại. `hashchange` chỉ fire khi hash THỰC SỰ đổi, mà điều hướng vẫn là một lệnh hợp lệ
-// khi người dùng đã đứng ở đích: bấm "Mở Project" của chính project đang mở trong popover thông
-// báo. Không có tín hiệu thì popover treo nguyên trên trang vừa mở. openSection phát event này
-// VÔ ĐIỀU KIỆN nên quy tắc "điều hướng thì đóng surface" không phụ thuộc trình duyệt đổi hash.
+// Close floating surfaces even when navigating to the current URL.
 export const previewNavigateEvent = 'preview-navigate'

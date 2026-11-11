@@ -1,150 +1,124 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-
-const homeProbe = vi.hoisted(() => vi.fn())
-vi.mock('../../views/preview/home-2d.view', () => ({ HomePreviewView: () => { homeProbe(); return <p>frame home</p> } }))
-vi.mock('../../views/preview/workspaces-2d.view', () => ({ WorkspacesPreviewView: () => <p>frame workspaces</p> }))
-vi.mock('../../views/preview/projects-2d.view', () => ({ ProjectsPreviewView: () => <p>frame projects</p> }))
-// Trang Project Workspace Overview (nhánh có id) cũng mock lại để test route chứng minh
-// entry truyền đúng projectId xuống view, chứ không chỉ "có dựng frame".
-vi.mock('../../views/preview/project-workspace-2d.view', () => ({
-  ProjectWorkspaceView: ({ projectId }: { projectId: string }) => <p>{`frame project ${projectId}`}</p>,
-}))
-// Màn Thông báo dùng MỘT URL cho hai trạng thái, nên mock phải báo lại id nó nhận được
-// — nếu không test route chi tiết chỉ chứng minh "có dựng frame", không chứng minh đúng bản ghi.
-vi.mock('../../views/preview/notifications-2d.view', () => ({
-  NotificationsPreviewView: ({ notificationId }: { notificationId: string | null }) =>
-    <p>{notificationId ? `frame notification ${notificationId}` : 'frame notifications'}</p>,
-}))
-// Màn Settings (nhóm 04) cũng mock lại để test route chứng minh entry truyền đúng mục con
-// 'settingsSection' xuống view, chứ không chỉ "có dựng frame".
-vi.mock('../../views/preview/settings-2d.view', () => ({
-  SettingsPreviewView: ({ section }: { section: string | null }) =>
-    <p>{section ? `frame settings ${section}` : 'frame settings'}</p>,
-}))
-
-import { Preview2DEntry } from '../../views/preview/preview-entry'
-import { is2DPreviewUrl, normalizePreviewHash } from '../../views/preview/preview-url'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
+import { Link } from 'react-router'
+import { WorkbenchEntry } from '../../app/router/workbench-routes'
+import { legacyManagementRedirect, universePath } from '../../services/preview/preview-route'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 
-// Route preview dev-only: mỗi URL /preview/<section> dựng đúng frame,
-// và Home (frame nặng nhất) chỉ dựng khi thực sự cần.
+vi.mock('../../views/preview/home-2d.view', () => ({ HomePreviewView: () => <><p>frame home</p><Link to="/management/projects">Projects</Link><Link to="/processing/projects/prj-sales/upload">Processing</Link></> }))
+vi.mock('../../views/preview/workspaces-2d.view', () => ({ WorkspacesPreviewView: ({ workspaceId }: { workspaceId?: string }) => <p>{workspaceId ? `frame workspace ${workspaceId}` : 'frame workspaces'}</p> }))
+vi.mock('../../views/preview/projects-2d.view', () => ({ ProjectsPreviewView: () => <p>frame projects</p> }))
+vi.mock('../../views/preview/project-workspace-2d.view', () => ({ ProjectWorkspaceView: ({ projectId }: { projectId: string }) => <p>{`frame project ${projectId}`}</p> }))
+vi.mock('../../views/preview/notifications-2d.view', () => ({ NotificationsPreviewView: ({ notificationId }: { notificationId: string | null }) => <p>{notificationId ? `frame notification ${notificationId}` : 'frame notifications'}</p> }))
+vi.mock('../../views/preview/settings-2d.view', () => ({ SettingsPreviewView: ({ section }: { section: string | null }) => <p>{section ? `frame settings ${section}` : 'frame settings'}</p> }))
 
 const openUrl = (url: string): void => { window.history.replaceState({}, '', url) }
-
-// PreviewSessionProvider ghi phạm vi đã đọc từ URL xuống mock store (singleton cấp
-// module), nên mỗi test phải bắt đầu từ fixture gốc — nếu không id do test trước để
-// lại sẽ làm route của test sau nhảy sai.
-beforeEach(() => { homeProbe.mockClear(); previewMockStore.reset(); window.localStorage.clear(); openUrl('/') })
+// These tests verify routing, not module transform speed. Load lazy views before
+// assertions so a cold Vite transform cannot consume Testing Library's wait window.
+beforeAll(async () => {
+  await Promise.all([import('../../views/application/application-frame'), import('../../views/preview/preview-entry'), import('../../views/processing/processing.view')])
+})
+beforeEach(() => { previewMockStore.reset(); window.localStorage.clear(); openUrl('/') })
 afterEach(() => { cleanup(); openUrl('/') })
 
-it('mở /preview/workspaces thì dựng frame workspaces, không dựng home', () => {
-  openUrl('/preview/workspaces')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame workspaces')).toBeDefined()
-  expect(homeProbe).not.toHaveBeenCalled()
+it.each([
+  ['/management', 'frame home'],
+  ['/management/workspaces', 'frame workspaces'],
+  ['/management/workspaces/ws-acme', 'frame workspace ws-acme'],
+  ['/management/projects', 'frame projects'],
+  ['/processing/projects/prj-sales', 'frame project prj-sales'],
+  ['/management/notifications/nt-02', 'frame notification nt-02'],
+  ['/management/settings/sessions', 'frame settings sessions'],
+])('opens %s directly and after remount', async (url, text) => {
+  openUrl(url)
+  const mounted = render(<WorkbenchEntry />)
+  expect(await screen.findByText(text)).toBeDefined()
+  expect(window.location.hash).toBe('')
+  mounted.unmount()
+  render(<WorkbenchEntry />)
+  expect(await screen.findByText(text)).toBeDefined()
 })
 
-it('mở /preview/projects dựng danh sách; thêm id thì dựng trang Project đúng bản ghi', () => {
-  openUrl('/preview/projects')
-  const { unmount } = render(<Preview2DEntry />)
-  expect(screen.getByText('frame projects')).toBeDefined()
-  unmount()
-
-  openUrl('/preview/projects/ws-acme/prj-sales')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame project prj-sales')).toBeDefined()
+it.each([
+  ['/preview/home#/preview/projects/ws-acme/prj-sales', '/processing/projects/prj-sales', 'frame project prj-sales'],
+  ['/#/preview/workspaces/ws-acme', '/management/workspaces/ws-acme', 'frame workspace ws-acme'],
+  ['/preview/projects/ws-acme', '/management/projects?workspace=ws-acme', 'frame projects'],
+  ['/preview/settings/color', '/management/settings/color', 'frame settings color'],
+])('migrates old URL %s without keeping its hash', async (url, destination, text) => {
+  openUrl(url)
+  render(<WorkbenchEntry />)
+  expect(await screen.findByText(text)).toBeDefined()
+  expect(`${window.location.pathname}${window.location.search}`).toBe(destination)
+  expect(window.location.hash).toBe('')
 })
 
-it('/preview/notifications dựng hộp thư, thêm id thì dựng màn chi tiết đúng bản ghi', () => {
-  openUrl('/preview/notifications')
-  const { unmount } = render(<Preview2DEntry />)
-  expect(screen.getByText('frame notifications')).toBeDefined()
-  expect(homeProbe).not.toHaveBeenCalled()
-  unmount()
-
-  openUrl('/preview/notifications/nt-02')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame notification nt-02')).toBeDefined()
+it.each(['/management/unknown', '/management/settings/unknown', '/management/projects/prj-sales', '/management/projects/missing', '/management/workspaces/missing', '/processing/projects/missing', '/processing/projects/missing/upload', '/processing/projects/prj-sales/unknown'])('shows a missing resource/page for %s', async url => {
+  openUrl(url)
+  render(<WorkbenchEntry />)
+  expect(await screen.findByText('404')).toBeDefined()
 })
 
-it('/preview/settings dựng màn Cài đặt, thêm mục con thì truyền đúng settingsSection', () => {
-  openUrl('/preview/settings')
-  const { unmount } = render(<Preview2DEntry />)
-  expect(screen.getByText('frame settings')).toBeDefined()
-  expect(homeProbe).not.toHaveBeenCalled()
-  unmount()
-
-  // Segment sau 'settings' là MỤC CON Accounts (profile/security/sessions/notifications), không
-  // phải workspaceId → view phải nhận đúng 'sessions' để mở sẵn đúng màn, không bao giờ về Home.
-  openUrl('/preview/settings/sessions')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame settings sessions')).toBeDefined()
+it('opens the processing entry, creation form, and cross-area navigation', async () => {
+  openUrl('/processing')
+  render(<WorkbenchEntry />)
+  expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
+  expect(screen.getByRole('heading', { name: 'Projects gần đây' })).toBeDefined()
+  expect(screen.queryByRole('list', { name: 'Các bước xử lý dữ liệu' })).toBeNull()
+  fireEvent.click(await screen.findByRole('link', { name: 'Tạo Project' }))
+  expect(await screen.findByRole('heading', { name: 'Tạo Project mới' })).toBeDefined()
+  expect((screen.getByRole('button', { name: 'Tạo Project và tiếp tục' }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(screen.getByRole('link', { name: 'Trang chủ Processing' }))
+  expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
+  expect(window.location.pathname).toBe('/processing')
 })
 
-it('hash route cũng chọn đúng frame (shell điều hướng bằng #/preview/<section>)', () => {
-  openUrl('/#/preview/workspaces')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame workspaces')).toBeDefined()
-  expect(homeProbe).not.toHaveBeenCalled()
+it.each(['upload', 'analysis', 'review', 'results'])('redirects old step %s to the existing project page', async step => {
+  openUrl(`/processing/projects/prj-sales/${step}`)
+  render(<WorkbenchEntry />)
+  expect(await screen.findByText('frame project prj-sales')).toBeDefined()
+  expect(window.location.pathname).toBe('/processing/projects/prj-sales')
 })
 
-it('URL preview khác fallback về home, không hiện dải ghi chú nội bộ', () => {
-  openUrl('/preview')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame home')).toBeDefined()
-  expect(document.querySelector('.preview-demo-strip')).toBeNull()
-  // Dải tĩnh KHÔNG được là live region: vùng sống duy nhất phải là toaster, nếu không
-  // máy đọc màn hình sẽ lặp lại cùng một câu sau mỗi toast.
-  const live = screen.getAllByRole('status')
-  expect(live).toHaveLength(1)
-  expect(live[0].classList.contains('preview-toaster')).toBe(true)
+it('keeps navigation in browser history for Back and Forward', async () => {
+  openUrl('/management')
+  render(<WorkbenchEntry />)
+  fireEvent.click(await screen.findByRole('link', { name: 'Projects' }))
+  expect(await screen.findByText('frame projects')).toBeDefined()
+  act(() => window.history.back())
+  await waitFor(() => expect(screen.getByText('frame home')).toBeDefined())
+  act(() => window.history.forward())
+  await waitFor(() => expect(screen.getByText('frame projects')).toBeDefined())
 })
 
-it('is2DPreviewUrl nhận diện pathname + hash nhưng chừa route 3D của T', () => {
-  expect(is2DPreviewUrl('/preview/home')).toBe(true)
-  expect(is2DPreviewUrl('/#/preview/workspaces')).toBe(true)
-  expect(is2DPreviewUrl('/#/preview/notifications/nt-02')).toBe(true)
-  expect(is2DPreviewUrl('/workspaces')).toBe(false)
-  expect(is2DPreviewUrl('/auth/login')).toBe(false)
-  expect(is2DPreviewUrl('/preview/workspaces-3d')).toBe(false)
+it('restores workspace scope from query and clears it for all projects', async () => {
+  openUrl('/management/projects?workspace=ws-marketing')
+  const mounted = render(<WorkbenchEntry />)
+  await screen.findByText('frame projects')
+  expect(previewMockStore.getState().selection.workspaceId).toBe('ws-marketing')
+  mounted.unmount()
+  openUrl('/management/projects')
+  render(<WorkbenchEntry />)
+  await screen.findByText('frame projects')
+  expect(previewMockStore.getState().selection.workspaceId).toBe('')
 })
 
-// '#/preview/homes' (gõ nhầm, không có section nào tên đó) parse ra null → readPreviewRoute rơi
-// về Home, màn hình hiện Home trong khi URL nói chỗ khác. Để nguyên URL là gửi một lời hứa sai
-// (copy link, F5, history). Test đi qua component thật vì chính effect của entry gọi normalize
-// TRƯỚC khi vẽ.
-it('hash preview không parse được bị viết lại về đúng màn đang vẽ', () => {
-  openUrl('/#/preview/homes')
-  render(<Preview2DEntry />)
-  expect(screen.getByText('frame home')).toBeDefined()
-  expect(window.location.hash).toBe('#/preview/home')
+it('does not migrate the existing 3D path or unrelated anchors', () => {
+  expect(legacyManagementRedirect(universePath, '#project=prj-sales')).toBeNull()
+  expect(legacyManagementRedirect('/auth/login', '#section-2')).toBeNull()
 })
 
-it('hash hợp lệ (kể cả id chi tiết) không bị đụng tới', () => {
-  openUrl('/#/preview/projects/ws-dataeng/prj-sales')
-  render(<Preview2DEntry />)
-  expect(window.location.hash).toBe('#/preview/projects/ws-dataeng/prj-sales')
+it('redirects a trailing-slash step URL to the existing project', async () => {
+  openUrl('/processing/projects/prj-sales/upload/')
+  render(<WorkbenchEntry />)
+  expect(await screen.findByText('frame project prj-sales')).toBeDefined()
+  expect(window.location.pathname).toBe('/processing/projects/prj-sales')
 })
 
-// Route 3D của T chọn bằng PATHNAME và mang hash riêng '#project=…'; main.tsx không đọc
-// hash khi quyết định route nên không được sửa vào phần của họ. Hash ngoài '#/preview/'
-// (neo của trang khác) cũng nằm ngoài phạm vi hàm này.
-it('hash của trang 3D và hash ngoài preview được để yên', () => {
-  openUrl('/preview/workspaces-3d')
-  window.location.hash = '#project=prj-sales'
-  normalizePreviewHash()
-  expect(window.location.hash).toBe('#project=prj-sales')
-  openUrl('/auth/login')
-  window.location.hash = '#section-2'
-  normalizePreviewHash()
-  expect(window.location.hash).toBe('#section-2')
-})
-
-// '#/preview/workspaces-3d' nghe như trang của T nhưng không phải: của T nằm ở pathname.
-// Ai gõ tay hash này khi đang ở frame 2D thì nội dung là Home → URL phải sửa theo.
-it('#/preview/workspaces-3d trong frame 2D quy về Home vì không có màn nào ở đó', () => {
-  openUrl('/#/preview/workspaces-3d')
-  normalizePreviewHash()
-  expect(window.location.hash).toBe('#/preview/home')
+it('shares the same project data when navigating between management and processing', async () => {
+  await previewMockStore.rename('project', 'prj-sales', 'Project đã đổi tên')
+  openUrl('/processing')
+  render(<WorkbenchEntry />)
+  fireEvent.click(await screen.findByText('Project đã đổi tên', { selector: '.row-name' }))
+  expect(await screen.findByText('frame project prj-sales')).toBeDefined()
+  expect(previewMockStore.getState().projects.find(project => project.id === 'prj-sales')?.name).toBe('Project đã đổi tên')
 })

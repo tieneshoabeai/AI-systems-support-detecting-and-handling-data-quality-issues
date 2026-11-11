@@ -2,7 +2,7 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại.** Frontend đã có luồng đăng nhập và quản lý phiên, preview 2D và Workspace 3D dành cho dev, trang review Dataset 3D và repository bản nháp IndexedDB. Xem [bản đồ module](#bản-đồ-module-frontend) để tra điểm vào và phân biệt luồng chính với preview.
+**Trạng thái hiện tại.** Frontend đã có luồng đăng nhập và quản lý phiên, khu vực Management 2D dùng dữ liệu mẫu, khung route AI Data Processing, Workspace 3D dành cho dev, trang review Dataset 3D và repository bản nháp IndexedDB. Management và Processing chưa nối API nghiệp vụ.
 
 ## 1. Project Overview
 
@@ -62,11 +62,38 @@ Các phần dùng chung gồm Foundation, Screen flow và Shared UI. Xem [master
 
 ~~~text
 index.html → src/app/main.tsx
-  ├─ URL preview hợp lệ ở dev → Preview 2D hoặc Workspace 3D
+  ├─ /management, /processing hoặc URL 2D cũ ở dev → WorkbenchEntry (dữ liệu mẫu, không khởi tạo auth runtime)
+  ├─ /preview/workspaces-3d ở dev → Workspace 3D
   └─ Luồng chính → Application → providers → BrowserRouter → AppRouter → guard/view
 ~~~
 
 `/workspaces` đi qua guard trước khi render `layout.tsx`. `/workspaces/3d-dataset` tạm bỏ guard để review giao diện theo ghi chú trong [AppRouter](src/app/router/app-router.tsx).
+
+### Route Management và AI Data Processing
+
+React Router điều hướng bằng pathname; URL 2D mới không dùng `/preview` hoặc hash.
+
+| Route | Nội dung |
+| --- | --- |
+| `/management` | Home của khu vực quản lý |
+| `/management/workspaces`, `/management/workspaces/:workspaceId` | Danh sách và chi tiết workspace |
+| `/management/projects`, `/management/projects/:projectId` | Danh sách và chi tiết project |
+| `/management/projects?workspace=:workspaceId` | Danh sách project lọc theo workspace |
+| `/management/settings`, `/management/settings/:settingsSection` | Cài đặt và mục con |
+| `/management/notifications`, `/management/notifications/:notificationId` | Thông báo |
+| `/processing` | Trang mở đầu: chào mừng và Projects gần đây, không có sidebar |
+| `/processing/new` | Khung thông tin project mới, chờ kết nối dịch vụ tạo |
+| `/processing/projects/:projectId/upload`, `/analysis`, `/review`, `/results` | Các URL từng bước cũ chuyển hướng tới `/management/projects/:projectId` |
+
+Ví dụ URL cũ `/preview/home#/preview/projects/ws-acme/prj-sales` được chuyển hướng bằng `replace` tới `/management/projects/prj-sales`. Workspace không nằm trong định danh URL của project. ID hiện hỗ trợ chữ, số, `_` và `-`; workspace ở query là bộ lọc danh sách.
+
+Production đi qua `ProtectedRoute` cho cả hai khu vực và giữ URL đích hợp lệ khi đăng nhập. Đích mặc định sau đăng nhập được cấu hình là `/processing`; đây chỉ là điều hướng, không thay đổi hoặc chứng minh kết nối Login/API. Dev cho phép review UI mẫu khi API chưa sẵn sàng. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project trên Processing mở `/processing/new`, còn một dòng project mở trang Project hiện tại với Tổng quan, Data View, Data Analysis, Detection. Không có luồng upload/phân tích/đánh giá riêng theo từng trang nữa.
+
+**Upload và lưu kết quả:** Project chưa có dataset có nút Upload data và hộp chọn tệp trên thiết bị; upload thật chưa nối dịch vụ nên không gửi tệp hoặc gắn dataset giả. Mục Detection chuẩn bị khu vực lưu kết quả, hiện không khả dụng vì chưa có kết quả server xác nhận. `ConfirmedProjectResult` là biên tích hợp UI, không phải DTO backend: chỉ truyền vào khi có kết quả thật; callback `save` chỉ được resolve sau khi cả đánh giá và kết quả đã lưu trong hệ thống. Biểu mẫu bắt buộc 1–5 sao và nội dung không trắng, giữ nội dung để thử lại khi lưu lỗi, chặn gửi trùng khi đang chờ. Tải file là tùy chọn và chỉ được bật sau khi lưu thành công, nếu có dịch vụ download. Chưa tự tạo endpoint đánh giá hoặc nối API upload/lưu/xuất; quy tắc nơi lưu khi bỏ qua workspace vẫn chờ chốt.
+
+**Hosting:** cần cấu hình SPA fallback: request giao diện như `/management/projects/prj-sales` và `/processing/new` phải trả `index.html`; giữ riêng đường dẫn API và static assets. Vite dev/preview hỗ trợ tải lại các route này. Repository chưa xác định nền tảng hosting production nên chưa có cấu hình triển khai cho một nhà cung cấp cụ thể.
+
+**Layout và theme dùng chung:** `views/application/application-frame.tsx` giữ một UI session cho cả Management và Processing. Hai khu vực dùng `PreviewShell`/`PreviewTopbar`, cùng nền và token light/dark. Processing chỉ giữ header, không có sidebar hoặc nút thu gọn; nội dung dùng toàn bộ chiều ngang. Header Processing có lối về Quản lý và ngữ cảnh project thay cho bộ chọn phạm vi. Header có bộ chọn Sáng / Tối / Theo hệ thống trước chuông thông báo, dùng cùng lựa chọn với Settings → System → Color. Lựa chọn được lưu trên thiết bị khi storage khả dụng; nếu storage bị chặn, vẫn giữ trong phiên khi chuyển giữa hai khu vực nhưng không bảo đảm qua tải lại trang. Management giữ sidebar thu gọn; hai khu vực dùng chung menu tài khoản/thông báo/báo cáo.
 
 ### Bản đồ module frontend
 
@@ -226,7 +253,7 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 
 ### Ví dụ theo hiện trạng source
 
-**Đầu vào.** Chạy dev server và mở `/#/preview/workspaces`.
+**Đầu vào.** Chạy dev server và mở `/management/workspaces`.
 
 **Kết quả theo source.** Entry preview chọn màn hình Workspaces và hiển thị fixture mẫu. Thao tác trong preview cập nhật mock store. Xem [views](src/views/README.md) để tra URL, các bộ dữ liệu và lệnh test.
 

@@ -148,7 +148,7 @@ it('thẻ project: cả một lẫn hai click đều đáp ở trang Project Ove
 
   // 1 click = điều hướng tới Project Workspace Overview (khong con panel ke ben).
   fireEvent.click(card)
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-customer')
+  expect(window.location.pathname).toBe('/processing/projects/prj-customer')
   expect(screen.queryByRole('complementary', { name: 'Chi tiết Customer 360' })).toBeNull()
   expect(universeNavigator).not.toHaveBeenCalled()
 
@@ -156,7 +156,7 @@ it('thẻ project: cả một lẫn hai click đều đáp ở trang Project Ove
   // trang này, nên chuột kép không được nhảy thẳng sang scene của T nữa; ai thật sự muốn sang
   // 3D thì bấm nút "Mở Dataset Universe 3D" nằm ngay trong trang Overview.
   fireEvent.doubleClick(card)
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-customer')
+  expect(window.location.pathname).toBe('/processing/projects/prj-customer')
   expect(universeNavigator).not.toHaveBeenCalled()
 })
 
@@ -164,7 +164,7 @@ it('bàn phím đi cùng một lối với chuột: Enter trên thẻ project = 
   renderFrame(<ProjectsPreviewView />)
   const card = cardByTitle('Finance Data')
   fireEvent.keyDown(card, { key: 'Enter' })
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-finance')
+  expect(window.location.pathname).toBe('/processing/projects/prj-finance')
   expect(universeNavigator).not.toHaveBeenCalled()
 })
 
@@ -173,7 +173,7 @@ it('Home: bấm workspace xuống Workspaces kèm phạm vi; bấm dòng project
 
   fireEvent.click(miniCardByTitle('Marketing'))
   // Yêu cầu: "ấn vào thì hiện số project gần đây nhất đồng thời thanh menu cũng đi xuống workspaces".
-  expect(window.location.hash).toBe('#/preview/workspaces/ws-marketing')
+  expect(window.location.pathname).toBe('/management/workspaces/ws-marketing')
   expect(previewMockStore.getState().selection.workspaceId).toBe('ws-marketing')
 
   // Bảng Project sắp theo `updatedAt`, nên lấy đúng dòng đầu + tra ws/id từ store thay vì đóng đinh tên.
@@ -185,7 +185,7 @@ it('Home: bấm workspace xuống Workspaces kèm phạm vi; bấm dòng project
 
   // 1 click = mở trang Project riêng (route mang ws + id project).
   fireEvent.click(firstRow!)
-  expect(window.location.hash).toBe(`#/preview/projects/${project!.workspaceId}/${project!.id}`)
+  expect(window.location.pathname).toBe(`/processing/projects/${project!.id}`)
 
   // Chuột kép trên DÒNG PROJECT không còn là đường tắt sang 3D: đặc tả UI-UX/projects bắt mọi
   // lối vào project đi qua trang Overview. Handler dblclick đã bỏ khỏi dòng nên spy phải im lặng.
@@ -194,7 +194,7 @@ it('Home: bấm workspace xuống Workspaces kèm phạm vi; bấm dòng project
 
   // Bấm kép Workspace cùng đích đến với click đơn, không mở nhầm Project của phạm vi trước.
   fireEvent.doubleClick(miniCardByTitle('Marketing'))
-  expect(window.location.hash).toBe('#/preview/workspaces/ws-marketing')
+  expect(window.location.pathname).toBe('/management/workspaces/ws-marketing')
   expect(universeNavigator).not.toHaveBeenCalled()
 })
 
@@ -459,7 +459,7 @@ it('"Tạo Workspace" mở dialog: chặn tên trống · trùng · chặn email
   expect(within(dialog).getByText(/với 1 thành viên \(gồm chủ sở hữu\)/)).toBeDefined()
 
   fireEvent.click(within(dialog).getByRole('button', { name: /Xem Workspace/ }))
-  expect(window.location.hash).toBe(`#/preview/workspaces/${second?.id}`)
+  expect(window.location.pathname).toBe(`/management/workspaces/${second?.id}`)
   expect(previewMockStore.getState().selection.workspaceId).toBe(second?.id)
   // Mở từ dialog cũng ghi mốc "truy cập gần nhất" như bấm thẻ thường — ô sắp xếp mặc định dựa
   // vào đúng mốc này, nên nó không được là bản sao của "Cập nhật gần nhất".
@@ -522,20 +522,20 @@ it('chuông: "Mở Project" là một chuyến ĐI — popover khép lại, kể
   const popover = screen.getByRole('dialog', { name: 'Thông báo' })
   fireEvent.click(within(popover).getByRole('button', { name: /^Có 12 vấn đề chất lượng dữ liệu/ }))
   fireEvent.click(within(popover).getByRole('button', { name: /^Mở Project/ }))
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-customer')
+  expect(window.location.pathname).toBe('/processing/projects/prj-customer')
   expect(screen.queryByRole('dialog', { name: 'Thông báo' })).toBeNull()
 
   // Đường KHÔNG đổi hash (lỗi thật đã bắt được khi duyệt browser): đã đứng trên đúng project
   // đó thì openSection không ghi hash, hashchange không fire → tín hiệu 'preview-navigate' là
   // thứ duy nhất khép popover. Set hash TRƯỚC khi render để listener chưa kịp nghe hashchange.
   cleanup()
-  window.location.hash = '#/preview/projects/ws-acme/prj-customer'
+  window.history.replaceState(null, '', '/processing/projects/prj-customer')
   renderFrame(<HomePreviewView />)
   fireEvent.click(screen.getByRole('button', { name: 'Thông báo · 5 chưa đọc' }))
   const again = screen.getByRole('dialog', { name: 'Thông báo' })
   fireEvent.click(within(again).getByRole('button', { name: /^Có 12 vấn đề chất lượng dữ liệu/ }))
   fireEvent.click(within(again).getByRole('button', { name: /^Mở Project/ }))
-  expect(window.location.hash).toBe('#/preview/projects/ws-acme/prj-customer')
+  expect(window.location.pathname).toBe('/processing/projects/prj-customer')
   expect(screen.queryByRole('dialog', { name: 'Thông báo' })).toBeNull()
 })
 
@@ -595,7 +595,7 @@ it('menu tài khoản: Hồ sơ/Cài đặt ĐIỀU HƯỚNG sang Settings, khô
 
   // Hai mục đầu nay điều hướng (khác chuông/báo cáo chạy "trong ô") → hash trỏ đúng mục con Accounts.
   fireEvent.click(within(popover).getByRole('button', { name: /Hồ sơ cá nhân/ }))
-  expect(window.location.hash).toBe('#/preview/settings/profile')
+  expect(window.location.pathname).toBe('/management/settings/profile')
   expect(screen.queryByRole('dialog', { name: /Tài khoản/ })).toBeNull()
 })
 
@@ -616,7 +616,7 @@ it('menu tài khoản (4.1): ĐÚNG HAI hàng điều hướng được, "Cài �
   // KHÔNG nhảy vào Bảo mật: hàng này đại diện cả NHÓM ba mục (Bảo mật · Đăng nhập & phiên ·
   // Thông báo), nên đích là route trần — nơi người dùng tự chọn mục. Chủ batch 03/11 hỏi đúng
   // câu "tại sao bấm đâu cũng ra Bảo mật"; hai hàng menu khác nhau nay có hai đích khác nhau.
-  expect(window.location.hash).toBe('#/preview/settings')
+  expect(window.location.pathname).toBe('/management/settings')
 })
 
 // Regression cho lỗi đo thật trên browser: pv-materialize mở surface bằng scale(.97), nên

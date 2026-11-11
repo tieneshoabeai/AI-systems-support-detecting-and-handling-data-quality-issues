@@ -851,7 +851,38 @@ function createSkyDrift(backgroundRotation: Euler) {
   }
 }
 
-export function HolographicEnvironment({ reducedMotion }: { reducedMotion: boolean }) {
+function LightEnvironment() {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 32
+    canvas.height = 512
+    const context = canvas.getContext('2d')!
+    const gradient = context.createLinearGradient(0, 0, 0, 512)
+    gradient.addColorStop(0, '#ffffff')
+    gradient.addColorStop(0.55, '#edf5fc')
+    gradient.addColorStop(1, '#dce9f5')
+    context.fillStyle = gradient
+    context.fillRect(0, 0, 32, 512)
+    const result = new CanvasTexture(canvas)
+    result.colorSpace = SRGBColorSpace
+    return result
+  }, [])
+  useEffect(() => () => texture.dispose(), [texture])
+  return <>
+    <Backdrop texture={texture} />
+    <mesh rotation-x={-Math.PI / 2} position-y={-0.08}>
+      <planeGeometry args={[160, 160]} />
+      <meshBasicMaterial color="#eff5fb" toneMapped={false} />
+    </mesh>
+    <gridHelper args={[100, 100, '#a1b9cf', '#c2d3e3']} position-y={-0.06} />
+  </>
+}
+
+export function HolographicEnvironment({ reducedMotion, colorMode = 'dark' }: { reducedMotion: boolean; colorMode?: 'light' | 'dark' }) {
+  return colorMode === 'light' ? <LightEnvironment /> : <DarkEnvironment reducedMotion={reducedMotion} />
+}
+
+function DarkEnvironment({ reducedMotion }: { reducedMotion: boolean }) {
   const gl = useThree(state => state.gl)
   const scene = useThree(state => state.scene)
   const sky = useMemo(() => createSkyCubeTarget(gl), [gl])

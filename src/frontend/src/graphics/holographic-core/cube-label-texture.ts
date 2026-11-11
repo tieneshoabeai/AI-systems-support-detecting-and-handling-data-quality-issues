@@ -58,7 +58,7 @@ function drawIcon(context: CanvasRenderingContext2D, theme: NeonCubeThemeId) {
   context.restore()
 }
 
-export function createCubeLabelTexture(theme: NeonCubeThemeId) {
+export function createCubeLabelTexture(theme: NeonCubeThemeId, colorMode: 'light' | 'dark' = 'dark') {
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH * 2
   canvas.height = HEIGHT * 2
@@ -82,10 +82,10 @@ export function createCubeLabelTexture(theme: NeonCubeThemeId) {
 
   context.textBaseline = 'middle'
   const titleY = lines.length === 1 ? 76 : 60
-  context.fillStyle = '#cfe3f1'
+  context.fillStyle = colorMode === 'light' ? '#334e68' : '#cfe3f1'
   lines.forEach((line, index) => context.fillText(line, textX, titleY + 53 + index * 37, maxWidth))
   context.font = `700 48px ${FONT}`
-  context.fillStyle = '#f5fbff'
+  context.fillStyle = colorMode === 'light' ? '#102b46' : '#f5fbff'
   context.fillText(label, textX, titleY, maxWidth)
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
