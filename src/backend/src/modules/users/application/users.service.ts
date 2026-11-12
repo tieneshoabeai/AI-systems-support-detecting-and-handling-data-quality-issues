@@ -30,6 +30,10 @@ export class UsersService {
     return this.users.findById(id);
   }
 
+  async findPaged(opts: { search?: string; role?: string; status?: string; page: number; limit: number }) {
+    return (this.users as unknown as { findPaged(o: unknown): Promise<{ items: UserRecord[]; total: number }> }).findPaged(opts);
+  }
+
   async createUser(data: {
     email: string;
     password_hash: string;

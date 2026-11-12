@@ -57,15 +57,32 @@ export interface CreateSessionInput {
   expiresAt: Date;
 }
 
+export interface PasswordResetState {
+  tokenHash: string | null;
+  expiresAt: Date | null;
+  attempts: number;
+  sentCount: number;
+  windowStart: Date | null;
+}
+
 export interface UserRepositoryPort {
   findByEmail(email: string, includePassword?: boolean): Promise<UserRecord | null>;
   findById(id: string): Promise<UserRecord | null>;
+  findByIdWithResetSecret(id: string): Promise<(UserRecord & PasswordResetState) | null>;
+  findByEmailWithResetSecret(email: string): Promise<(UserRecord & PasswordResetState) | null>;
+  setPasswordResetOtp(email: string, tokenHash: string, expiresAt: Date, sentCount: number, windowStart: Date | null): Promise<boolean>;
+  incrementResetAttempts(email: string): Promise<number>;
+  clearPasswordReset(email: string): Promise<boolean>;
+  setPasswordHash(userId: string, passwordHash: string): Promise<boolean>;
+  findPaged(opts: { search?: string; role?: string; status?: string; page: number; limit: number }): Promise<{ items: UserRecord[]; total: number }>;
+
   create(data: CreateUserInput): Promise<UserRecord>;
   updateProfile(userId: string, data: UpdateProfileInput): Promise<UserRecord | null>;
   updateNotificationPreferences(userId: string, enabled: boolean): Promise<boolean>;
   softDeleteUser(userId: string): Promise<boolean>;
 
   createSession(data: CreateSessionInput): Promise<UserSessionRecord>;
+  findSessionByTokenHashIncludingRevoked(refreshTokenHash: string): Promise<UserSessionRecord | null>;
   findActiveSessions(userId: string): Promise<UserSessionRecord[]>;
   findSessionByTokenHash(refreshTokenHash: string): Promise<UserSessionRecord | null>;
   revokeSession(userId: string, sessionId: string): Promise<boolean>;

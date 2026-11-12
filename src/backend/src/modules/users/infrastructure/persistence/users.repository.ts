@@ -8,6 +8,7 @@ import {
   type CreateSessionInput,
   type CreateUserInput,
   type UpdateProfileInput,
+  type PasswordResetState,
   type UserRecord,
   type UserRepositoryPort,
   type UserSessionRecord,
@@ -69,6 +70,59 @@ export class UsersRepository implements UserRepositoryPort {
       .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
       .exec();
     return doc ? toUserRecord(doc) : null;
+  }
+
+  async findByIdWithResetSecret(id: string): Promise<(UserRecord & PasswordResetState) | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const doc = await this.userModel.findOne({ _id: new Types.ObjectId(id), deleted_at: null }).select('+password_hash +password_reset_token_hash +password_reset_expires_at +password_reset_attempts +password_reset_sent_count +password_reset_sent_window_start').exec();
+    if (!doc) return null;
+    const base = toUserRecord(doc);
+    return { ...base, tokenHash: doc.password_reset_token_hash ?? null, expiresAt: doc.password_reset_expires_at ?? null, attempts: doc.password_reset_attempts ?? 0, sentCount: doc.password_reset_sent_count ?? 0, windowStart: doc.password_reset_sent_window_start ?? null };
+  }
+
+  async findByEmailWithResetSecret(email: string): Promise<(UserRecord & PasswordResetState) | null> {
+    const doc = await this.userModel.findOne({ email, deleted_at: null }).select('+password_hash +password_reset_token_hash +password_reset_expires_at +password_reset_attempts +password_reset_sent_count +password_reset_sent_window_start').exec();
+    if (!doc) return null;
+    const base = toUserRecord(doc);
+    return { ...base, tokenHash: doc.password_reset_token_hash ?? null, expiresAt: doc.password_reset_expires_at ?? null, attempts: doc.password_reset_attempts ?? 0, sentCount: doc.password_reset_sent_count ?? 0, windowStart: doc.password_reset_sent_window_start ?? null };
+  }
+
+  async setPasswordResetOtp(email: string, tokenHash: string, expiresAt: Date, sentCount: number, windowStart: Date | null): Promise<boolean> {
+    const r = await this.userModel.updateOne({ email, deleted_at: null }, { $set: { password_reset_token_hash: tokenHash, password_reset_expires_at: expiresAt, password_reset_attempts: 0, password_reset_sent_count: sentCount, password_reset_sent_window_start: windowStart } }).exec();
+    return r.modifiedCount > 0;
+  }
+
+  async incrementResetAttempts(email: string): Promise<number> {
+    const doc = await this.userModel.findOneAndUpdate({ email, deleted_at: null }, { $inc: { password_reset_attempts: 1 } }, { new: true }).select('+password_reset_attempts').exec();
+    return doc?.password_reset_attempts ?? 0;
+  }
+
+  async clearPasswordReset(email: string): Promise<boolean> {
+    const r = await this.userModel.updateOne({ email, deleted_at: null }, { $set: { password_reset_token_hash: null, password_reset_expires_at: null, password_reset_attempts: 0 } }).exec();
+    return r.matchedCount > 0;
+  }
+
+  async setPasswordHash(userId: string, passwordHash: string): Promise<boolean> {
+    if (!Types.ObjectId.isValid(userId)) return false;
+    const r = await this.userModel.updateOne({ _id: new Types.ObjectId(userId), deleted_at: null }, { $set: { password_hash: passwordHash } }).exec();
+    return r.modifiedCount > 0;
+  }
+
+  async findPaged(opts: { search?: string; role?: string; status?: string; page: number; limit: number }): Promise<{ items: UserRecord[]; total: number }> {
+    const filter: Record<string, unknown> = { deleted_at: null };
+    if (opts.search?.trim()) {
+      const s = opts.search.trim();
+      filter.$or = [{ email: { $regex: s, $options: 'i' } }, { first_name: { $regex: s, $options: 'i' } }, { last_name: { $regex: s, $options: 'i' } }];
+    }
+    if (opts.role) filter.role = opts.role;
+    if (opts.status) filter.status = opts.status;
+    const page = Math.max(1, opts.page || 1);
+    const limit = Math.min(100, Math.max(1, opts.limit || 15));
+    const [docs, total] = await Promise.all([
+      this.userModel.find(filter).sort({ created_at: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.userModel.countDocuments(filter).exec(),
+    ]);
+    return { items: docs.map(toUserRecord), total };
   }
 
   async create(data: CreateUserInput): Promise<UserRecord> {
@@ -149,6 +203,13 @@ export class UsersRepository implements UserRepositoryPort {
       .sort({ created_at: -1 })
       .exec();
     return docs.map(toSessionRecord);
+  }
+
+  async findSessionByTokenHashIncludingRevoked(refreshTokenHash: string): Promise<UserSessionRecord | null> {
+    const doc = await this.sessionModel
+      .findOne({ refresh_token_hash: refreshTokenHash })
+      .exec();
+    return doc ? toSessionRecord(doc) : null;
   }
 
   async findSessionByTokenHash(refreshTokenHash: string): Promise<UserSessionRecord | null> {

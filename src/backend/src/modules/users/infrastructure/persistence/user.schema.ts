@@ -13,6 +13,9 @@ export interface IUser extends Document {
   status: 'active' | 'blocked';
   password_reset_token_hash?: string;
   password_reset_expires_at?: Date;
+  password_reset_attempts?: number;
+  password_reset_sent_count?: number;
+  password_reset_sent_window_start?: Date;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -74,6 +77,21 @@ export const UserSchema = new Schema<IUser>(
       select: false,
     },
     password_reset_expires_at: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    password_reset_attempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    password_reset_sent_count: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    password_reset_sent_window_start: {
       type: Date,
       default: null,
       select: false,

@@ -17,6 +17,9 @@ export class UsersAuthSessionAdapter implements AuthSessionPort {
     });
     return { id: s.id, userId: s.userId, refreshTokenHash: s.refreshTokenHash, deviceName: s.deviceName ?? null, ipAddress: s.ipAddress ?? null, userAgent: s.userAgent ?? null, isRevoked: s.isRevoked, expiresAt: s.expiresAt };
   }
+  findSessionByTokenHashIncludingRevoked(refreshTokenHash: string): Promise<AuthSessionRecord | null> {
+    return this.users.findSessionByTokenHashIncludingRevoked(refreshTokenHash) as unknown as Promise<AuthSessionRecord | null>;
+  }
   findSessionByTokenHash(refreshTokenHash: string): Promise<AuthSessionRecord | null> {
     return this.users.findSessionByTokenHash(refreshTokenHash) as unknown as Promise<AuthSessionRecord | null>;
   }
@@ -28,5 +31,8 @@ export class UsersAuthSessionAdapter implements AuthSessionPort {
   }
   revokeSessionById(sessionId: string): Promise<boolean> {
     return this.users.revokeSessionById(sessionId);
+  }
+  revokeAllUserSessions(userId: string): Promise<number> {
+    return this.users.revokeAllUserSessions(userId);
   }
 }

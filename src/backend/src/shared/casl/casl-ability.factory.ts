@@ -65,9 +65,11 @@ export class CaslAbilityFactory {
             ],
             { workspace_id: user.workspaceId }
           );
+          // Chi khoa ghi tren tai nguyen workspace (PROJ-VIEWER mac dinh);
+          // quyen ca nhan (IssueReport/Notification/Session/User cua chinh minh) van giu.
           cannot(
             [Action.Create, Action.Update, Action.Delete, Action.Execute],
-            'all'
+            ['Workspace', 'Project', 'Dataset', 'DataRecord', 'Analysis'],
           );
           break;
       }
