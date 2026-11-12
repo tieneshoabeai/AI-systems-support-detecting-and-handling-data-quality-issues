@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo cáo Công nghệ – Kỹ thuật – AI – Kiến trúc | AI Data Quality Platform v1.1.0</title>
+<style>
+:root{--bg:#0b1220;--card:#16233f;--accent:#38bdf8;--accent2:#a78bfa;--accent3:#34d399;--warn:#fbbf24;--text:#e8eefc;--muted:#9fb0cc;--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}body{margin:0;font-family:"Be Vietnam Pro",Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 20% -10%,#1d3a6e 0%,transparent 60%),radial-gradient(900px 500px at 110% 10%,#4c1d95 0%,transparent 55%),var(--bg);color:var(--text);min-height:100vh}
+.deck{max-width:1120px;margin:0 auto;padding:22px 20px 100px}
+.topbar{position:sticky;top:0;z-index:10;backdrop-filter:blur(10px);background:rgba(11,18,32,.85);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.badge{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#04122b;font-weight:800;padding:6px 14px;border-radius:999px;font-size:13px}
+.progress{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;flex:1}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width .3s}
+.slide{display:none;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:20px;padding:36px;margin-top:18px;min-height:540px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.slide.active{display:block;animation:fade .35s ease}@keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.kicker{color:var(--accent);font-weight:800;letter-spacing:.12em;font-size:12px;text-transform:uppercase}
+h1{font-size:42px;line-height:1.15;margin:10px 0}h2{font-size:30px;margin:8px 0 14px}h3{font-size:17px;margin:0 0 8px}p,li{color:#c8d5ee;line-height:1.7}p{font-size:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}.card.full{grid-column:1/-1}
+ul{margin:8px 0;padding-left:20px;color:#c8d5ee;line-height:1.7;font-size:14.5px}
+.tag{display:inline-block;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.4);padding:3px 10px;border-radius:99px;font-size:12.5px;margin:3px 4px 3px 0;color:#c9ecff}
+.tag.g{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.45);color:#c8ffe9}.tag.v{background:rgba(167,139,250,.16);border-color:rgba(167,139,250,.5);color:#e2d8ff}.tag.y{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.45);color:#fde9b8}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}th,td{border:1px solid var(--line);padding:8px 9px;text-align:left;vertical-align:top}th{background:rgba(56,189,248,.15);font-size:13px}td{color:#c8d5ee}
+.flow{background:#0a1326;border:1px dashed rgba(56,189,248,.5);border-radius:14px;padding:14px;font-family:Consolas,monospace;font-size:13px;line-height:1.75;white-space:pre-wrap;color:#bfe6ff;margin-top:12px;overflow-x:auto}
+.nav{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:10px;align-items:center;z-index:20}
+button{background:linear-gradient(90deg,#0ea5e9,#8b5cf6);border:0;color:#fff;font-weight:700;padding:12px 22px;border-radius:999px;cursor:pointer;font-size:15px}button.ghost{background:rgba(255,255,255,.1);border:1px solid var(--line)}
+.count{color:var(--muted);font-size:14px}.cover{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:center}.big{font-size:54px;font-weight:900}.stat{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.stat div{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}.stat b{font-size:25px;display:block}.num{font-size:44px;font-weight:900;color:var(--accent)}
+@media(max-width:820px){.grid,.grid3,.cover{grid-template-columns:1fr}h1{font-size:30px}h2{font-size:24px}.slide{padding:22px}.stat{grid-template-columns:1fr 1fr}}
+@media print{.nav,.topbar{display:none}.slide{display:block;break-inside:avoid;min-height:auto}}
+</style>
+</head>
+<body>
+<div class="topbar"><span class="badge">AI DATA QUALITY PLATFORM • v1.1.0 • 12/11/2026</span><div class="progress"><i id="bar"></i></div><span class="count" id="count"></span></div>
+<div class="deck">
+
+<!-- 1 COVER -->
+<section class="slide active"><div class="kicker">Báo cáo tổng thể • Rà soát 203 file backend + 17 spec test</div>
+<div class="cover"><div>
+<h1 class="big">Công nghệ • Kỹ thuật • AI • Kiến trúc • Module • Kiểm thử</h1>
+<p>Nền tảng AI hỗ trợ phát hiện và xử lý vấn đề chất lượng dữ liệu. Hexagonal + Ports &amp; Adapters, suy luận AI cục bộ corr-v1 chống ảo giác, ingestion streaming 50MB, lưới ảo keyset, realtime an toàn.</p>
+<div><span class="tag">NestJS 11</span><span class="tag g">MongoDB Atlas</span><span class="tag v">Cloudflare R2</span><span class="tag">Qwen3-14B</span><span class="tag g">CASL</span><span class="tag v">Socket.IO</span><span class="tag y">Zod</span></div>
+<div class="stat"><div><b>203</b>file src</div><div><b>17</b>ports</div><div><b>11</b>modules</div><div><b>145</b>tests</div></div>
+</div>
+<div class="card"><h3>6 phần trình bày</h3><ul>
+<li><b>1.</b> Công nghệ sử dụng</li><li><b>2.</b> Kỹ thuật &amp; mẫu thiết kế</li><li><b>3.</b> AI corr-v1 + RAG</li><li><b>4.</b> Kiến trúc hệ thống</li><li><b>5.</b> 11 modules nghiệp vụ</li><li><b>6.</b> 17 suites kiểm thử</li></ul>
+<p style="font-size:13px">Nguồn: 00_cong_nghe_ky_thuat_kien_truc_hien_tai.md (424 dòng) • main.ts • app.module.ts • env.validation.ts • test/*.spec.ts</p></div></div></section>
+
+<!-- 2 TECH 1 -->
+<section class="slide"><div class="kicker">1 • Công nghệ</div><h2>Nền tảng ngôn ngữ &amp; Framework</h2>
+<div class="grid"><div class="card"><h3>Ngôn ngữ &amp; Runtime</h3><ul>
+<li>TypeScript strict, target ES2022, alias @/*</li><li>Node.js 22, ts-node, tsconfig-paths</li><li>pnpm 11.3.0, prettier, eslint, husky</li><li>Build: <code>tsc</code> trước rồi <code>nest start</code></li><li><code>type-check: tsc --noEmit</code> 0 lỗi</li></ul></div>
+<div class="card"><h3>NestJS 11 đầy đủ</h3><ul>
+<li>common / core / config / jwt / mongoose</li><li>passport / passport-jwt / platform-express</li><li>platform-socket.io / websockets / swagger</li><li>throttler (dự phòng), rxjs, reflect-metadata</li><li>AppModule: 13 khối + AppController health</li></ul></div></div>
+<div class="card full" style="margin-top:14px"><h3>main.ts — 7 việc khi boot</h3><p style="font-size:14px">SSL (nếu bật) → trust proxy=1 → Helmet HSTS 1 năm → CORS (dev/*, *.trycloudflare.com, CORS_ORIGIN) → prefix /api/v1 trừ /health → Filter + 2 Interceptor toàn cục → Swagger 3 servers + persistAuthorization, fallback 443→8443.</p></div></section>
+
+<!-- 3 TECH 2 -->
+<section class="slide"><div class="kicker">1 • Công nghệ (tiếp)</div><h2>Dữ liệu • Lưu trữ • Bảo mật</h2>
+<div class="grid"><div class="card"><h3>MongoDB Atlas</h3><ul>
+<li>DatabaseModule @Global, pool 20/5, timeout 10s/45s</li><li>19 collections: users, sessions, workspaces, projects, datasets, records, runs, results, configs, ai_jobs, few-shot, evidences, saves, reports, notifications, issues, feedbacks, outbox</li><li>ID domain = chuỗi hex 24, chỉ infra dùng ObjectId</li><li>TTL duy nhất: notifications expires_at</li></ul></div>
+<div class="card"><h3>R2 + Local + Quota</h3><ul>
+<li>AWS SDK v3 (S3Client, Upload, Head/List)</li><li>Đủ 3 biến S3 → CLOUD, thiếu → LOCAL storage/</li><li>6 API: upload/download/delete/exists/usage/quota</li><li>10GB toàn cục (warn 90%) + 2GB/workspace, vượt → 413</li></ul></div></div>
+<div class="grid"><div class="card"><h3>JWT + Crypto + CASL</h3><ul>
+<li>Access 15 phút, refresh 40 byte hex 7 ngày (SHA-256)</li><li>bcrypt 12 vòng; AES-256-GCM PBKDF2 100k</li><li>admin→manage all; owner→manage WS; member→read</li><li>JwtAuthGuard + PoliciesGuard 3 tầng + RolesGuard</li></ul></div>
+<div class="card"><h3>Validate + Tài liệu + Tính toán</h3><ul>
+<li>Zod 100% DTO, Pipe → 400 VALIDATION_ERROR</li><li>Swagger /api/v1/docs từ Zod, Bearer Auth</li><li>Busboy 50MB, fast-csv, simple-statistics, ml-matrix</li><li>Health ngoài prefix: /health, /health/ready</li></ul></div></div></section>
+
+<!-- 4 TECHNIQUE 1 -->
+<section class="slide"><div class="kicker">2 • Kỹ thuật</div><h2>Hexagonal 3 tầng + Zero-Any</h2>
+<div class="grid"><div class="card"><h3>Luật tách tầng</h3><ul>
+<li><b>Domain:</b> entity, VO, event, util, port Symbol — thuần TS</li><li><b>Application:</b> chỉ @Inject(PORT), input interface thuần</li><li><b>Infrastructure:</b> controller, Zod DTO, schema, repo, mapper, adapter, gateway</li><li>Wiring: { provide: PORT, useExisting: Repo }</li></ul></div>
+<div class="card"><h3>Chất lượng mã</h3><ul>
+<li>Cấm as any / : any toàn src/scripts/test</li><li>Mapper gõ chặt Parameters&lt;typeof find&gt;</li><li>zero-any.spec.ts quét từng dòng, vi phạm fail CI</li><li>16 ports Symbol + AiInferencePort, 12 controllers, 1 gateway</li></ul></div></div>
+<div class="flow">Domain (entity/VO/event/util/port Symbol)
+  ↑ phụ thuộc ngược qua port
+Application (11 services + 2 workers, chỉ @Inject PORT)
+  ↑ gọi qua port
+Infrastructure (controller / DTO-Zod / schema / repo / mapper / adapter / gateway)
+  ↑ wiring
+NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
+
+<!-- 5 TECHNIQUE 2 -->
+<section class="slide"><div class="kicker">2 • Kỹ thuật (tiếp)</div><h2>Envelope • Phân trang • Streaming</h2>
+<div class="grid"><div class="card"><h3>Request → Response</h3><ul>
+<li>ZodValidationPipe safeParse → 400 {field,message,code}</li><li>OK: {success:true,data} (TransformInterceptor)</li><li>Lỗi: {success:false,error:{code,message,timestamp,path}}</li><li>Trùng key 11000 → 409 DUPLICATE_RESOURCE</li><li>CursorCodec base64url: {row_index}, {createdAt,id}</li></ul></div>
+<div class="card"><h3>Ingestion 3 nhánh song song</h3><ul>
+<li>PassThrough: SHA-256 + upload R2/local + parse CSV</li><li>Không nạp RAM, không file tạm, vượt 50MB hủy cả 3</li><li>Schema 100 dòng đầu, bulk 5000, props c0..cN</li><li>1 project = 1 dataset; lỗi → rollback + FAILED</li></ul></div></div>
+<div class="card full" style="margin-top:14px"><h3>Lưới ảo keyset + Auth đa phiên</h3><p style="font-size:14px">Lọc <code>dataset_id + row_index &gt; cursor</code>, lấy <code>limit+1</code> biết hasMore; 14 toán tử → $regex/$gt/$in/$exists; aggregate histogram 10 buckets. Login: bcrypt → refresh thô → SHA-256 → detectDevice → session(ip+UA) → access {sub,email,role,sessionId}. Issues khóa lạc quan expectedVersion.</p></div></section>
+
+<!-- 6 AI 1 -->
+<section class="slide"><div class="kicker">3 • AI sử dụng</div><h2>Engine cục bộ + Luồng corr-v1</h2>
+<div class="grid"><div class="card"><h3>Cấu hình suy luận</h3><ul>
+<li>AI_ENGINE: ollama (dev) / vLLM (prod)</li><li>Qwen3-14B chính, Qwen3-8B nhanh, /models</li><li>Qwen3-Embedding-0.6B 1024 chiều (RAG nội bộ)</li><li>Timeout 180s, retry 2 (chỉ lỗi mạng/5xx), concurrency 1</li><li>Che PII bật, RAM guard 85%, GEMINI = legacy</li></ul></div>
+<div class="card"><h3>7 bước chống ảo giác</h3><ul>
+<li>1. Chạy DQ đồng bộ + tạo ai_job pending</li><li>2. Dựng prompt từ số liệu thật + mẫu che PII</li><li>3. Worker gọi inference (AbortController)</li><li>4. Tách JSON, sai → failed</li><li>5. groundAiAssessment vs ma trận thật (Zod strict)</li><li>6. Gắn vào analysis_result</li><li>7. Poll job / retry thủ công</li></ul></div></div></section>
+
+<!-- 7 AI 2 -->
+<section class="slide"><div class="kicker">3 • AI (tiếp)</div><h2>Thuật toán Domain + RAG Few-Shot</h2>
+<div class="grid"><div class="card"><h3>DQ • Tương quan • VIF</h3><ul>
+<li>DQ-01 thiếu, 02 trùng fingerprint, 03 sai kiểu, 04 outlier IQR + modified z-score (n≥4)</li><li><code>0/false/'NA'</code> không tính là thiếu</li><li>Pearson/Spearman + n/missing/computable/reason</li><li>VIF nghịch đảo ml-matrix, cờ ok/review/high</li><li>Evidence ≤20/cột, summary top 50</li></ul></div>
+<div class="card"><h3>RAG học từ feedback (T1)</h3><ul>
+<li>Tối đa 50.000 mẫu FIFO, TTL 180 ngày</li><li>trust ≥ 0.6, topK 5, cosine thuần trong Mongo</li><li>5 nhãn → 3 nhãn kho; 3 nhãn bắt buộc reason</li><li>Trùng → update trust, mới → save + enforce cap</li><li>Lỗi RAG trả rỗng, không chặn AI</li></ul></div></div>
+<div class="card full" style="margin-top:14px"><h3>Worker báo cáo</h3><p style="font-size:14px">POST /report chỉ tạo job pending + {reportId, pollUrl} → ReportWorker poll 10s → đọc project_save mới nhất → upload reports/&lt;project&gt;/&lt;report&gt;.txt → succeeded{storageKey,fileSizeBytes} → GET file trả 202 khi chưa xong, stream text/plain khi xong.</p></div></section>
+
+<!-- 8 ARCH 1 -->
+<section class="slide"><div class="kicker">4 • Kiến trúc</div><h2>Sơ đồ tổng thể &amp; Vòng đời request</h2>
+<div class="flow">Browser / Swagger (tunnel hoặc localhost)
+  → Cloudflare Tunnel → http://localhost:3000
+  → NestJS prefix /api/v1 (trừ /health, /health/ready)
+  → JwtAuthGuard → PoliciesGuard / RolesGuard
+  → Controller (Zod) → Service (Port)
+  → Repository / Adapter → MongoDB Atlas + R2/local
+  → Socket.IO → rooms user: / project: / analysis:
+  → Worker setInterval (AI job + Report job)</div>
+<div class="grid"><div class="card"><h3>7 bước / request</h3><ul>
+<li>Helmet/CORS/prefix → Auth → CASL → Zod</li><li>Service: isObjectIdHex + kiểm quyền</li><li>Repo: Mongoose → mapper snake→camel</li><li>Interceptor bọc envelope / Filter bọc lỗi</li></ul></div>
+<div class="card"><h3>Luồng dữ liệu</h3><ul>
+<li>Upload → records + outbox DATASET_INGESTED</li><li>Data-View → config → run đồng bộ</li><li>AI job async → Summary → Report async</li><li>Feedback → RAG → Notify + Issue → Realtime</li></ul></div></div></section>
+
+<!-- 9 ARCH 2 -->
+<section class="slide"><div class="kicker">4 • Kiến trúc (tiếp)</div><h2>Ma trận 17 Ports</h2>
+<table><tr><th>Port</th><th>Cung cấp</th><th>Sử dụng</th></tr>
+<tr><td>ANALYSIS_REPOSITORY</td><td>AnalysisRepository</td><td>Analysis, Summary, Report, RAG, AiWorker</td></tr>
+<tr><td>DATASET_REPOSITORY</td><td>DatasetsRepository</td><td>Datasets, Analysis, DataView</td></tr>
+<tr><td>RECORD_QUERY</td><td>RecordQueryRepository</td><td>DataView, Analysis</td></tr>
+<tr><td>PROJECT / WORKSPACE / USER</td><td>Repo tương ứng</td><td>Hầu hết services + RealtimeAuth</td></tr>
+<tr><td>NOTIFICATION / ISSUE / FEEDBACK</td><td>Repo tương ứng</td><td>Notify, Issues, Feedback</td></tr>
+<tr><td>REALTIME / STORAGE / OUTBOX</td><td>Service @Global</td><td>Mọi module cần (@Optional realtime)</td></tr>
+<tr><td>AUTH ×4 + AiInference</td><td>Bcrypt/JWT/Lookup/Session, LocalInference</td><td>AuthService, AiWorker</td></tr></table></section>
+
+<!-- 10 MOD 1 -->
+<section class="slide"><div class="kicker">5 • Các module (11)</div><h2>Auth • Users • Workspaces • Projects</h2>
+<div class="grid"><div class="card"><h3>Auth / Users</h3><ul>
+<li>POST register/login/refresh/logout, GET/DELETE sessions</li><li>Thiết bị suy từ user-agent, 4 ports + 4 adapters</li><li>Users: GET/PATCH/DELETE /users/me, xóa mềm</li><li>Cấp lookup cho Auth + Realtime</li></ul></div>
+<div class="card"><h3>Workspaces / Projects</h3><ul>
+<li>WS: owner/member, add/remove/transfer/leave, quota 2GB</li><li>Sort: last_accessed/updated/name/joined</li><li>Project: owner/member/viewer, trùng tên → 409</li><li>1 project = 1 dataset; not_started→in_progress→completed</li></ul></div></div>
+<div class="card full" style="margin-top:14px"><h3>API chính</h3><p style="font-size:14px"><code>POST /auth/*</code> • <code>/users/me</code> • <code>/workspaces CRUD + :id/members + transfer-owner + leave</code> • <code>/workspaces/:wid/projects + /projects/:id (+members, transfer-owner)</code></p></div></section>
+
+<!-- 11 MOD 2 -->
+<section class="slide"><div class="kicker">5 • Modules (tiếp)</div><h2>Datasets • Data-View • Analysis</h2>
+<div class="grid"><div class="card"><h3>Datasets + Data-View</h3><ul>
+<li>POST upload multipart, GET theo project/id/schema</li><li>PATCH đổi tên, reset cột, DELETE xóa mềm</li><li>GET records keyset, POST query 14 toán tử</li><li>GET stats + histogram 10 buckets</li><li>Giải key cN / tên hiển thị / tên gốc</li></ul></div>
+<div class="card"><h3>Analysis — lớn nhất (9 schemas)</h3><ul>
+<li>runAnalysis + fingerprint SHA-256 (dataset+checksum+rows+config)</li><li>summary: create/get, gom DQ top 50</li><li>report: request job → worker → download file</li><li>RAG service + AiWorker + LocalInferenceAdapter</li><li>run/result/config/job/few-shot/evidence/save/report</li></ul></div></div></section>
+
+<!-- 12 MOD 3 -->
+<section class="slide"><div class="kicker">5 • Modules (tiếp)</div><h2>Notifications • Issues • Feedback • Realtime</h2>
+<div class="grid"><div class="card"><h3>Notify + Issues</h3><ul>
+<li>10 loại; bắt buộc: issue_needs_info, security_alert</li><li>TTL expires_at, chống trùng sourceEventId</li><li>Tự mark-read khi xem chi tiết, realtime notification.created</li><li>Issues: new→in_progress→resolved→closed</li><li>expectedVersion sai → 409/412; /admin/* khóa admin</li></ul></div>
+<div class="card"><h3>Feedback + Realtime</h3><ul>
+<li>POST feedback theo finding / theo run; PATCH/DELETE của tôi</li><li>GET ai-quality-metrics; cấm admin (FB-*)</li><li>Gateway /api/v1/realtime, websocket+polling</li><li>Rooms user/project/analysis; 7 events</li><li>Envelope chỉ id+trạng thái, cấm reason/email/value</li></ul></div></div></section>
+
+<!-- 13 TEST -->
+<section class="slide"><div class="kicker">6 • Kiểm thử</div><h2>17 suites • 145 tests • tsc 0 lỗi</h2>
+<div class="grid"><div class="card"><h3>Lệnh &amp; cách viết</h3><ul>
+<li>test:unit (trừ 3 spec kiến trúc), test:arch (chỉ 3), test:all</li><li>TestingModule + {provide: PORT, useValue: mock}</li><li>Không Mongo/S3 thật trong unit — mock qua port</li><li>e2e theo test/jest-e2e.json, supertest</li></ul></div>
+<div class="card"><h3>4 nhóm test</h3><ul>
+<li><b>Domain (5):</b> wave5 DQ, mask-pii, crypto, device, corr-vif-ai</li><li><b>Service (9):</b> ingestion, wave4, data-view, projects, workspaces, notify-issues, feedback, realtime, storage</li><li><b>Kiến trúc (4):</b> casl, guard-coverage, zero-any, zod-openapi</li></ul></div></div>
+<div class="card full" style="margin-top:14px"><h3>Đọc lỗi đỏ + mở rộng</h3><p style="font-size:14px">Thiếu provide(PORT) → Nest báo dependency (lỗi wiring). Sai mapper → rowIndex/camelCase lệch (lỗi infra). Module mới cần: test domain + test service mock port + bổ sung route vào guard-coverage.</p></div></section>
+
+<!-- 14 CLOSE -->
+<section class="slide"><div class="kicker">Kết luận</div><h2>Điểm mạnh &amp; Hướng mở rộng</h2>
+<div class="grid"><div class="card"><h3><span class="num">✓</span> Đã đạt</h3><ul>
+<li>Hexagonal nghiêm, zero-any, Swagger sinh từ Zod</li><li>AI cục bộ có căn cứ, không rò PII/API ngoài</li><li>Streaming 50MB không nạp RAM, keyset 200k dòng</li><li>Quota 2 lớp, outbox retry 5, worker lease+heartbeat</li><li>145 tests xanh, tsc sạch, health ngoài prefix</li></ul></div>
+<div class="card"><h3><span class="num">→</span> Tiếp theo</h3><ul>
+<li>Bật Redis cache + rate-limit + Socket.IO adapter</li><li>Bật Throttler toàn cục, SMTP + ntfy cảnh báo</li><li>Vector DB riêng khi few-shot &gt; 50k</li><li>E2E tunnel + k6 tải ingestion/analysis</li><li>Tách worker ra tiến trình riêng khi tải cao</li></ul></div></div>
+<p style="margin-top:14px;font-size:13px">Nguồn: docs/restructures/00_cong_nghe_ky_thuat_kien_truc_hien_tai.md (424 dòng) • main.ts • app.module.ts • env.validation.ts • 17 ports • 11 services • test/*.spec.ts • scripts/* • deploy/*</p></section>
+
+</div>
+<div class="nav"><button class="ghost" onclick="go(-1)">← Trước</button><span class="count" id="count2"></span><button onclick="go(1)">Tiếp →</button></div>
+<script>
+let i=0;const s=[...document.querySelectorAll('.slide')];
+function show(){s.forEach((e,k)=>e.classList.toggle('active',k===i));const p=Math.round((i+1)/s.length*100);document.getElementById('bar').style.width=p+'%';const t=(i+1)+' / '+s.length;document.getElementById('count').textContent=t;document.getElementById('count2').textContent=t;window.scrollTo({top:0,behavior:'smooth'})}
+function go(d){i=(i+d+s.length)%s.length;show()}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1)});show();
+</script>
+</body>
+</html>
