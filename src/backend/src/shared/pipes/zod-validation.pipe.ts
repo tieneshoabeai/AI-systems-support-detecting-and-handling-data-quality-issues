@@ -20,9 +20,10 @@ export class ZodValidationPipe implements PipeTransform {
       }));
 
       throw new BadRequestException({
-        message: 'Dữ liệu đầu vào không hợp lệ (Validation Failed)',
-        errors: formattedErrors,
-      });
+        message: 'Dữ liệu gửi lên không hợp lệ.',
+        error: 'VALIDATION_ERROR',
+        details: { fields: formattedErrors },
+      } as never);
     }
 
     return result.data;

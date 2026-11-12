@@ -33,7 +33,7 @@ export const EnvironmentSchema = z.object({
   S3_BUCKET_NAME: z.string().default('data-quality-storage'),
   S3_REGION: z.string().default('auto'),
   STORAGE_MAX_QUOTA_BYTES: z.coerce.number().default(10 * 1024 * 1024 * 1024), // 10 GB
-  WORKSPACE_STORAGE_QUOTA_BYTES: z.coerce.number().default(2 * 1024 * 1024 * 1024), // 2 GB/workspace (O24)
+  WORKSPACE_STORAGE_QUOTA_BYTES: z.coerce.number().default(500 * 1024 * 1024), // 500 MB/workspace (§3.8)
   STORAGE_WARN_THRESHOLD_RATIO: z.coerce.number().min(0).max(1).default(0.9), // Cảnh báo khi đạt 90%
 
   // JWT & Cryptography
@@ -64,6 +64,10 @@ export const EnvironmentSchema = z.object({
     if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
     return Boolean(v);
   }, z.boolean()),
+
+  KAFKA_BROKERS: z.string().default(''),
+  OUTBOX_RELAY_ENABLED: boolEnv(true),
+  WORKER_MODE: z.enum(['api', 'worker', 'all']).default('all'),
 
   // Redis (Phần 10 v6 §6.2b): BẮT BUỘC cho cache + rate-limit + Socket.IO adapter
   REDIS_URL: z.string().default('redis://localhost:6379'),

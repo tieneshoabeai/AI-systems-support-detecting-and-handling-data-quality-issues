@@ -22,15 +22,33 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message: unknown = 'Lỗi máy chủ nội bộ (Internal Server Error)';
     let code = 'INTERNAL_ERROR';
 
+    let details: unknown = undefined;
+    const isThrottle =
+      (exception as { name?: string })?.name === 'ThrottlerException' ||
+      ((exception instanceof HttpException) && exception.getStatus() === HttpStatus.TOO_MANY_REQUESTS && String((exception as Error).message || '').includes('Throttler'));
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
       if (typeof res === 'string') {
         message = res;
       } else if (typeof res === 'object' && res !== null) {
-        const resObj = res as { message?: unknown; error?: string };
+        const resObj = res as { message?: unknown; error?: string; details?: unknown; errors?: unknown };
         message = resObj.message ?? message;
         code = resObj.error ?? `HTTP_${status}`;
+        details = (resObj as Record<string, unknown>).details ?? (resObj as Record<string, unknown>).errors;
+        // Chuẩn hợp đồng: Zod pipe bắn { errors: [...] } -> map sang VALIDATION_ERROR + details.fields
+        if (Array.isArray((resObj as Record<string, unknown>).errors) && code === `HTTP_${status}`) {
+          code = 'VALIDATION_ERROR';
+        }
+        if (Array.isArray(details) && code === 'VALIDATION_ERROR') {
+          details = { fields: details };
+        }
+        if (status === HttpStatus.TOO_MANY_REQUESTS && (isThrottle || code === `HTTP_${status}`)) {
+          code = 'LIMIT_EXCEEDED';
+          if (message === 'ThrottlerException: Too Many Requests' || message === `HTTP_${status}`) {
+            message = 'Bạn thao tác quá nhanh. Vui lòng thử lại sau.';
+          }
+        }
       }
     } else if (exception instanceof ZodError) {
       status = HttpStatus.BAD_REQUEST;
@@ -72,6 +90,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: {
         code,
         message,
+        ...(details !== undefined ? { details } : {}),
         timestamp: new Date().toISOString(),
         path: request.url,
       },

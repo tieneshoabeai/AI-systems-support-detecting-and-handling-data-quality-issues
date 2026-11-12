@@ -8,6 +8,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
+import { useRedisAdapterIfConfigured } from './shared/adapters/redis-io.adapter';
+import { RequestIdMiddleware } from './shared/middleware/request-id.middleware';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
 
@@ -42,7 +44,8 @@ async function bootstrap(): Promise<void> {
     AppModule,
     httpsOptions ? { httpsOptions } : {}
   );
-  app.useWebSocketAdapter(new IoAdapter(app));
+  const realtimeAdapter = await useRedisAdapterIfConfigured(app);
+  if (realtimeAdapter === 'memory') app.useWebSocketAdapter(new IoAdapter(app));
   const config = app.get(ConfigService);
 
   const port = config.get<number>('PORT', 3000);
@@ -158,6 +161,7 @@ async function bootstrap(): Promise<void> {
     }
   }
 
+  logger.log(`✓ Realtime adapter: ${realtimeAdapter === 'redis' ? 'redis (Socket.IO Redis adapter)' : 'memory (single-instance)'}`);
   logger.log(`✓ Server is running at: ${protocol}://localhost:${actualPort}/${apiPrefix}`);
   logger.log(`✓ Swagger OpenAPI Docs: ${protocol}://localhost:${actualPort}/${apiPrefix}/docs`);
   logger.log(`✓ Cloudflare Proxy Trust: ${cloudflareProxyTrust ? 'ENABLED' : 'DISABLED'}`);

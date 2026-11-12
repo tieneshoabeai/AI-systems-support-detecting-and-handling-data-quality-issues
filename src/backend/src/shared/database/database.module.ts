@@ -1,8 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-import { OutboxEventSchema } from '../application/outbox/outbox-event.schema';
-import { OutboxService } from '../application/outbox/outbox.service';
 import { MongooseTransactionService } from './mongoose-transaction.service';
 
 @Global()
@@ -20,11 +18,8 @@ import { MongooseTransactionService } from './mongoose-transaction.service';
       }),
       inject: [ConfigService],
     }),
-    MongooseModule.forFeature([
-      { name: 'OutboxEvent', schema: OutboxEventSchema },
-    ]),
   ],
-  providers: [OutboxService, MongooseTransactionService],
-  exports: [MongooseModule, OutboxService, MongooseTransactionService],
+  providers: [MongooseTransactionService],
+  exports: [MongooseModule, MongooseTransactionService],
 })
 export class DatabaseModule {}
