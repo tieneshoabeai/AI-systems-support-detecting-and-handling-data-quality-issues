@@ -1,0 +1,63 @@
+# Phần 13 v7 §3.6 + §3.13.1 — Compose RIÊNG cho test (tách khỏi dev).
+# - Mongo single-node replica set (rs0) để đủ transaction cho outbox/inbox.
+# - Redis bắt buộc cho cache + rate-limit + Socket.IO adapter.
+# - MinIO giả lập R2/S3 để test upload không tốn phí, không phụ thuộc mạng.
+# - Cổng test né dev: mongo 27018, redis 6380, minio 9002/9003.
+# Cách chạy: docker compose -f deploy/docker-compose.test.yml up -d
+# Kiểm tra: mongosh --port 27018 --eval "rs.initiate()" (tự initiate qua healthcheck dưới đây)
+services:
+  mongo-test:
+    image: mongo:7
+    container_name: dq-mongo-test
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-test-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+    networks: [dq-test-net]
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: dq-redis-test
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [dq-test-net]
+
+  minio-test:
+    image: minio/minio:latest
+    container_name: dq-minio-test
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: testminio
+      MINIO_ROOT_PASSWORD: testminio123
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    volumes:
+      - minio-test-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [dq-test-net]
+
+volumes:
+  mongo-test-data:
+  minio-test-data:
+
+networks:
+  dq-test-net:
+    driver: bridge
