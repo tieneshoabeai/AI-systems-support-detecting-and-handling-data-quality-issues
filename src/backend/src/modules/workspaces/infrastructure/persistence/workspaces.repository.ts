@@ -49,10 +49,18 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     return doc ? this.toRecord(doc) : null;
   }
 
-  async updateById(id: string, update: { name?: string; description?: string }): Promise<WorkspaceRecord | null> {
+  async updateById(
+    id: string,
+    update: { name?: string; description?: string },
+    expectedVersion?: number,
+  ): Promise<WorkspaceRecord | null> {
     if (!Types.ObjectId.isValid(id)) return null;
+    const filter: Record<string, unknown> =
+      expectedVersion !== undefined
+        ? { _id: new Types.ObjectId(id), deleted_at: null, version: expectedVersion }
+        : { _id: new Types.ObjectId(id), deleted_at: null };
     const doc = await this.workspaceModel
-      .findOneAndUpdate({ _id: new Types.ObjectId(id), deleted_at: null }, { $set: update }, { new: true })
+      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { new: true })
       .exec();
     return doc ? this.toRecord(doc) : null;
   }
@@ -123,13 +131,34 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     return result.modifiedCount > 0;
   }
 
-  async updateMemberRole(workspaceId: string, userId: string, role: 'owner' | 'member'): Promise<boolean> {
+  async updateMemberRole(
+    workspaceId: string,
+    userId: string,
+    role: 'owner' | 'member',
+    expectedVersion?: number,
+  ): Promise<boolean | null> {
     const s = resolveMongoSession(undefined);
+    const filter: Record<string, unknown> = {
+      _id: new Types.ObjectId(workspaceId),
+      deleted_at: null,
+      'members.user_id': new Types.ObjectId(userId),
+    };
+    if (expectedVersion !== undefined) filter.version = expectedVersion;
     const result = await this.workspaceModel.updateOne(
-      { _id: new Types.ObjectId(workspaceId), deleted_at: null, 'members.user_id': new Types.ObjectId(userId) },
-      { $set: { 'members.$.role': role } },
+      filter,
+      { $set: { 'members.$.role': role }, $inc: { version: 1 } },
       { session: s },
     );
+    if (result.modifiedCount > 0) return true;
+    if (expectedVersion !== undefined) {
+      const exists = await this.workspaceModel
+        .findOne({ _id: new Types.ObjectId(workspaceId), deleted_at: null })
+        .select('_id version')
+        .lean()
+        .exec();
+      if (exists) return null;
+      return false;
+    }
     return result.modifiedCount > 0;
   }
 
@@ -151,15 +180,21 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     ).exec();
   }
 
-  async transferOwner(workspaceId: string, newOwnerId: string): Promise<boolean> {
+  async transferOwner(workspaceId: string, newOwnerId: string, expectedVersion: number): Promise<boolean | null> {
     const s = resolveMongoSession(undefined);
     const wsId = new Types.ObjectId(workspaceId);
     const newId = new Types.ObjectId(newOwnerId);
-    await this.workspaceModel.updateOne(
-      { _id: wsId, deleted_at: null },
-      { $set: { 'members.$[o].role': 'member' } },
+    const scoped: Record<string, unknown> = { _id: wsId, deleted_at: null, version: expectedVersion };
+    const demote = await this.workspaceModel.updateOne(
+      scoped,
+      { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } },
       { arrayFilters: [{ 'o.role': 'owner' }], session: s } as never,
     ).exec();
+    if (demote.matchedCount === 0) {
+      const exists = await this.workspaceModel.findOne({ _id: wsId, deleted_at: null }).select('_id version').lean().exec();
+      if (exists) return null;
+      return false;
+    }
     const r = await this.workspaceModel.updateOne(
       { _id: wsId, deleted_at: null, 'members.user_id': newId },
       { $set: { owner_id: newId, 'members.$.role': 'owner' } },

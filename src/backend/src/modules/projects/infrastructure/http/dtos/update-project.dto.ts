@@ -12,6 +12,7 @@ export const UpdateProjectSchema = z.object({
     .trim()
     .max(500, 'Mô tả tối đa 500 ký tự')
     .optional(),
+  expectedVersion: z.number().int().min(1).optional(),
 });
 
 export type UpdateProjectDto = z.infer<typeof UpdateProjectSchema>;

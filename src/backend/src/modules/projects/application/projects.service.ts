@@ -17,10 +17,10 @@ import {
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
 
 export interface CreateProjectInput { name: string; description?: string }
-export interface UpdateProjectInput { name?: string; description?: string }
+export interface UpdateProjectInput { name?: string; description?: string; expectedVersion?: number }
 export interface AddProjectMemberInput { email: string; role?: 'member' | 'viewer' }
-export interface UpdateProjectMemberInput { role: 'member' | 'viewer' }
-export interface TransferProjectOwnerInput { email: string }
+export interface UpdateProjectMemberInput { role: 'member' | 'viewer'; expectedVersion: number }
+export interface TransferProjectOwnerInput { email: string; expectedVersion: number }
 
 /**
  * PROJECTS — Application orchestrator.
@@ -81,8 +81,19 @@ export class ProjectsService {
       const dup = await this.projects.findOneByWorkspaceAndName(existing.workspaceId, dto.name.trim());
       if (dup && dup.id !== id) throw new ConflictException('Tên project đã tồn tại trong workspace');
     }
-    const updated = await this.projects.updateById(id, dto);
-    if (!updated) throw new NotFoundException('Không tìm thấy dự án để cập nhật');
+    const { expectedVersion, ...patch } = dto;
+    const updated = await this.projects.updateById(id, patch, expectedVersion);
+    if (!updated) {
+      if (expectedVersion !== undefined) {
+        const actual = (await this.getProjectById(id).catch(() => existing)).version;
+        throw new ConflictException({
+          message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+          error: 'CONFLICT',
+          details: { expectedVersion, actualVersion: actual },
+        } as never);
+      }
+      throw new NotFoundException('Không tìm thấy dự án để cập nhật');
+    }
     return updated;
   }
 
@@ -101,10 +112,25 @@ export class ProjectsService {
     return ok;
   }
 
-  async markCompleted(projectId: string): Promise<boolean> {
+  async markCompleted(projectId: string, expectedVersion?: number): Promise<boolean> {
     const p = await this.getProjectById(projectId);
+    if (expectedVersion === undefined) {
+      throw new BadRequestException({
+        message: 'Thiếu expectedVersion cho PROJ-12 (optimistic locking)',
+        error: 'VALIDATION_ERROR',
+      } as never);
+    }
     if (p.status !== 'in_progress') throw new BadRequestException('Chỉ project in_progress mới được lưu hoàn tất (completed)');
-    return this.projects.setStatus(projectId, 'completed');
+    const ok = await this.projects.markCompleted(projectId, expectedVersion);
+    if (ok === null) {
+      const actual = (await this.getProjectById(projectId).catch(() => p)).version;
+      throw new ConflictException({
+        message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+        error: 'CONFLICT',
+        details: { expectedVersion, actualVersion: actual },
+      } as never);
+    }
+    return !!ok;
   }
 
   async resolveUserProjectRole(projectId: string, userId: string, workspaceRole?: 'owner' | 'member' | null): Promise<'owner' | 'member' | 'viewer' | null> {
@@ -132,7 +158,15 @@ export class ProjectsService {
     const m = (p.members || []).find((x) => x.userId === memberUserId);
     if (!m) throw new NotFoundException('Người dùng không thuộc project này');
     if (m.role === 'owner') throw new BadRequestException('Không đổi vai trò Owner tại đây — dùng nhượng quyền (PROJ-11)');
-    await this.projects.updateMemberRole(projectId, memberUserId, dto.role);
+    const okRole = await this.projects.updateMemberRole(projectId, memberUserId, dto.role, dto.expectedVersion);
+    if (okRole === null) {
+      const actual = (await this.getProjectById(projectId)).version;
+      throw new ConflictException({
+        message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+        error: 'CONFLICT',
+        details: { expectedVersion: dto.expectedVersion, actualVersion: actual },
+      } as never);
+    }
     return this.getProjectById(projectId);
   }
 
@@ -154,7 +188,15 @@ export class ProjectsService {
     if (target.id === actorUserId) throw new BadRequestException('Không thể nhượng cho chính mình');
     const isMember = (p.members || []).some((m) => m.userId === target.id);
     if (!isMember) throw new BadRequestException('Chỉ nhượng cho thành viên project');
-    const ok = await this.projects.transferOwner(projectId, target.id);
+    const ok = await this.projects.transferOwner(projectId, target.id, dto.expectedVersion);
+    if (ok === null) {
+      const actual = (await this.getProjectById(projectId)).version;
+      throw new ConflictException({
+        message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+        error: 'CONFLICT',
+        details: { expectedVersion: dto.expectedVersion, actualVersion: actual },
+      } as never);
+    }
     if (!ok) throw new NotFoundException('Nhượng quyền thất bại');
     this.logger.log(`PROJ-11 transfer owner ${projectId}: ${actorUserId} -> ${target.id}`);
     return this.getProjectById(projectId);

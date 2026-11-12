@@ -89,13 +89,19 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     return { items: items.map(toProjectRecord), total };
   }
 
-  async updateById(id: string, update: { name?: string; description?: string }): Promise<ProjectRecord | null> {
+  async updateById(
+    id: string,
+    update: { name?: string; description?: string },
+    expectedVersion?: number,
+  ): Promise<ProjectRecord | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(id)) return null;
     const set: Record<string, unknown> = {};
     if (update.name !== undefined) set.name = update.name.trim();
     if (update.description !== undefined) set.description = update.description;
+    const filter: Record<string, unknown> = { _id: new Types.ObjectId(id), deleted_at: null };
+    if (expectedVersion !== undefined) filter.version = expectedVersion;
     const doc = await this.model
-      .findOneAndUpdate({ _id: new Types.ObjectId(id), deleted_at: null }, { $set: set }, { new: true })
+      .findOneAndUpdate(filter, { $set: set, $inc: { version: 1 } }, { new: true })
       .exec();
     return doc ? toProjectRecord(doc) : null;
   }
@@ -114,6 +120,20 @@ export class ProjectsRepository implements ProjectRepositoryPort {
       .updateOne({ _id: new Types.ObjectId(projectId), deleted_at: null }, { $set: { has_dataset: hasDataset } })
       .exec();
     return r.modifiedCount > 0;
+  }
+
+  async markCompleted(projectId: string, expectedVersion: number): Promise<boolean | null> {
+    if (!/^[0-9a-fA-F]{24}$/.test(projectId)) return false;
+    const r = await this.model
+      .updateOne(
+        { _id: new Types.ObjectId(projectId), deleted_at: null, status: 'in_progress', version: expectedVersion },
+        { $set: { status: 'completed' }, $inc: { version: 1 } },
+      )
+      .exec();
+    if (r.modifiedCount > 0) return true;
+    const exists = await this.model.findOne({ _id: new Types.ObjectId(projectId), deleted_at: null }).select('_id status version').lean().exec();
+    if (exists) return null;
+    return false;
   }
 
   async setStatus(projectId: string, status: ProjectStatus): Promise<boolean> {
@@ -153,24 +173,43 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     return r.modifiedCount > 0;
   }
 
-  async updateMemberRole(projectId: string, userId: string, role: ProjectMemberRole): Promise<boolean> {
+  async updateMemberRole(projectId: string, userId: string, role: ProjectMemberRole, expectedVersion?: number): Promise<boolean | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(userId)) return false;
+    const filter: Record<string, unknown> = {
+      _id: new Types.ObjectId(projectId),
+      deleted_at: null,
+      'members.user_id': new Types.ObjectId(userId),
+    };
+    if (expectedVersion !== undefined) filter.version = expectedVersion;
     const r = await this.model
-      .updateOne(
-        { _id: new Types.ObjectId(projectId), deleted_at: null, 'members.user_id': new Types.ObjectId(userId) },
-        { $set: { 'members.$.role': role } },
-      )
+      .updateOne(filter, { $set: { 'members.$.role': role }, $inc: { version: 1 } })
       .exec();
+    if (r.modifiedCount > 0) return true;
+    if (expectedVersion !== undefined) {
+      const exists = await this.model.findOne({ _id: new Types.ObjectId(projectId), deleted_at: null }).select('_id version').lean().exec();
+      if (exists) return null;
+      return false;
+    }
     return r.modifiedCount > 0;
   }
 
-  async transferOwner(projectId: string, newOwnerId: string): Promise<boolean> {
+  async transferOwner(projectId: string, newOwnerId: string, expectedVersion?: number): Promise<boolean | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(newOwnerId)) return false;
     const prjId = new Types.ObjectId(projectId);
     const newId = new Types.ObjectId(newOwnerId);
-    await this.model
-      .updateOne({ _id: prjId, deleted_at: null }, { $set: { 'members.$[o].role': 'member' } }, { arrayFilters: [{ 'o.role': 'owner' }] } as never)
+    const scoped: Record<string, unknown> = { _id: prjId, deleted_at: null };
+    if (expectedVersion !== undefined) scoped.version = expectedVersion;
+    const demote = await this.model
+      .updateOne(scoped, { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } }, { arrayFilters: [{ 'o.role': 'owner' }] } as never)
       .exec();
+    if (demote.matchedCount === 0) {
+      if (expectedVersion !== undefined) {
+        const exists = await this.model.findOne({ _id: prjId, deleted_at: null }).select('_id version').lean().exec();
+        if (exists) return null;
+        return false;
+      }
+      return false;
+    }
     const r = await this.model
       .updateOne({ _id: prjId, deleted_at: null, 'members.user_id': newId }, { $set: { 'members.$.role': 'owner' } })
       .exec();

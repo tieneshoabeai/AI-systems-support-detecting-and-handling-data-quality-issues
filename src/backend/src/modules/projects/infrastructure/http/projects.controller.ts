@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Param,
@@ -23,6 +24,8 @@ import {
   UpdateProjectMemberDto,
   TransferProjectOwnerSchema,
   TransferProjectOwnerDto,
+  MarkCompletedSchema,
+  MarkCompletedDto,
 } from './dtos/project-member.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
@@ -92,14 +95,24 @@ export class ProjectsController {
   }
 
   @Delete('projects/:id')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'PROJ-05: Xóa mềm dự án' })
   @CheckPolicies((ability) => ability.can(Action.Delete, 'Project'))
-  async deleteProject(@Param('id') id: string) {
+  async deleteProject(@Param('id') id: string): Promise<void> {
     await this.projectsService.deleteProject(id);
-    return {
-      message: 'Xóa dự án thành công',
-    };
+  }
+
+  @Put('projects/:id/snapshot')
+  @ApiOperation({ summary: 'PROJ-12: Lưu trạng thái project (optimistic locking)' })
+  @ApiZodBody(MarkCompletedSchema)
+  @CheckPolicies((ability) => ability.can(Action.Update, 'Project'))
+  async markCompleted(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(MarkCompletedSchema)) dto: MarkCompletedDto,
+  ) {
+    await this.projectsService.markCompleted(id, dto.expectedVersion);
+    const project = await this.projectsService.getProjectById(id);
+    return { project };
   }
 
   @Get('projects/:id/members')

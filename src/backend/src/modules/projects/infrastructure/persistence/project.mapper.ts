@@ -18,6 +18,7 @@ export function toProjectRecord(doc: IProject): ProjectRecord {
       }),
     ),
     lastAccessedAt: doc.last_accessed_at ?? null,
+    version: (doc as unknown as { version?: number }).version ?? 1,
     createdBy: doc.created_by.toString(),
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,

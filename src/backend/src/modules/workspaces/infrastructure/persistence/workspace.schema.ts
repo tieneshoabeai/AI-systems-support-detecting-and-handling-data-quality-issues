@@ -18,6 +18,7 @@ export interface IWorkspace extends Document, BaseEntity {
   storage_used_bytes: number;
   last_accessed_at: Date | null;
   deleted_at: Date | null;
+  version: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -40,6 +41,7 @@ export const WorkspaceSchema = new Schema<IWorkspace>(
     storage_used_bytes: { type: Number, required: true, default: 0 },
     last_accessed_at: { type: Date, default: null, index: true },
     deleted_at: { type: Date, default: null, index: true },
+    version: { type: Number, required: true, default: 1 },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

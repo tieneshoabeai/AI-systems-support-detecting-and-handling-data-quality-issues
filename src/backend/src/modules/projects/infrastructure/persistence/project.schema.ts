@@ -22,6 +22,7 @@ export interface IProject extends Document, BaseEntity {
   last_accessed_at: Date | null;
   created_by: Types.ObjectId;
   deleted_at: Date | null;
+  version: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -52,6 +53,7 @@ export const ProjectSchema = new Schema<IProject>(
     last_accessed_at: { type: Date, default: null, index: true },
     created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     deleted_at: { type: Date, default: null, index: true },
+    version: { type: Number, required: true, default: 1 },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

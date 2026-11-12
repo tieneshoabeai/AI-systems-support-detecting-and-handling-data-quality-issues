@@ -22,6 +22,7 @@ export function toWorkspaceRecord(doc: IWorkspace): WorkspaceRecord {
     members: (doc.members ?? []).map(toMemberRecord),
     storageUsedBytes: doc.storage_used_bytes ?? 0,
     lastAccessedAt: doc.last_accessed_at ?? null,
+    version: (doc as unknown as { version?: number }).version ?? 1,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
   };

@@ -29,6 +29,7 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
     description: 'Workspace for QA research',
     ownerId: mockAdminUser.userId,
     members: [{ userId: mockAdminUser.userId, role: 'owner' as const, joinedAt: new Date() }],
+    version: 2,
     storageUsedBytes: 0,
     lastAccessedAt: null,
     createdAt: new Date(),
@@ -129,6 +130,7 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
     });
     const result = await service.transferOwner(mockWorkspaceId, mockAdminUser.userId, {
       email: 'newowner@shool.local',
+      expectedVersion: 2,
     });
     expect(result).toBeDefined();
     expect(repository.transferOwner).toHaveBeenCalled();
@@ -136,7 +138,7 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
 
   it('transferOwner should reject non-owner actor (WS-09)', async () => {
     await expect(
-      service.transferOwner(mockWorkspaceId, '000000000000000000000099', { email: 'x@shool.local' }),
+      service.transferOwner(mockWorkspaceId, '000000000000000000000099', { email: 'x@shool.local', expectedVersion: 2 }),
     ).rejects.toThrow();
   });
 

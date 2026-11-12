@@ -12,6 +12,7 @@ export const UpdateWorkspaceSchema = z.object({
     .trim()
     .max(500, 'Mô tả tối đa 500 ký tự')
     .optional(),
+  expectedVersion: z.number().int().min(1).optional(),
 });
 
 export type UpdateWorkspaceDto = z.infer<typeof UpdateWorkspaceSchema>;

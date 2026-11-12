@@ -20,6 +20,7 @@ export interface WorkspaceRecord {
   members: WorkspaceMemberRecord[];
   storageUsedBytes: number;
   lastAccessedAt: Date | null;
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,12 +48,12 @@ export interface WorkspaceRepositoryPort {
     userId: string,
     opts?: WorkspaceListQuery,
   ): Promise<{ items: WorkspaceRecord[]; total: number }>;
-  updateById(id: string, update: { name?: string; description?: string }): Promise<WorkspaceRecord | null>;
+  updateById(id: string, update: { name?: string; description?: string }, expectedVersion?: number): Promise<WorkspaceRecord | null>;
   softDelete(id: string): Promise<boolean>;
   addMember(workspaceId: string, member: WorkspaceMemberRecord): Promise<boolean>;
   removeMember(workspaceId: string, userId: string): Promise<boolean>;
-  updateMemberRole(workspaceId: string, userId: string, role: 'owner' | 'member'): Promise<boolean>;
+  updateMemberRole(workspaceId: string, userId: string, role: 'owner' | 'member', expectedVersion?: number): Promise<boolean | null>;
   touchLastAccessed(workspaceId: string): Promise<void>;
   addStorageUsed(workspaceId: string, deltaBytes: number): Promise<void>;
-  transferOwner(workspaceId: string, newOwnerId: string): Promise<boolean>;
+  transferOwner(workspaceId: string, newOwnerId: string, expectedVersion: number): Promise<boolean | null>;
 }

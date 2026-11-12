@@ -5,7 +5,8 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
-  PayloadTooLargeException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import {
@@ -23,9 +24,9 @@ import type { CurrentUser } from '../../../shared/casl/casl-ability.factory';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
 
 export interface CreateWorkspaceInput { name: string; description?: string }
-export interface UpdateWorkspaceInput { name?: string; description?: string }
+export interface UpdateWorkspaceInput { name?: string; description?: string; expectedVersion?: number }
 export interface AddWorkspaceMemberInput { email: string; role?: 'owner' | 'member' }
-export interface TransferWorkspaceOwnerInput { email: string }
+export interface TransferWorkspaceOwnerInput { email: string; expectedVersion: number }
 
 @Injectable()
 export class WorkspacesService {
@@ -89,9 +90,19 @@ export class WorkspacesService {
   }
 
   async updateWorkspace(id: string, dto: UpdateWorkspaceInput): Promise<WorkspaceRecord> {
-    await this.getWorkspaceById(id);
-    const updated = await this.workspaces.updateById(id, dto);
-    if (!updated) throw new NotFoundException('Không tìm thấy không gian làm việc để cập nhật');
+    const existing = await this.getWorkspaceById(id);
+    const { expectedVersion, ...patch } = dto;
+    const updated = await this.workspaces.updateById(id, patch, expectedVersion);
+    if (!updated) {
+      if (expectedVersion !== undefined && existing.version !== expectedVersion) {
+        throw new ConflictException({
+          message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+          error: 'CONFLICT',
+          details: { expectedVersion, actualVersion: (await this.getWorkspaceById(id).catch(() => existing)).version },
+        } as never);
+      }
+      throw new NotFoundException('Không tìm thấy không gian làm việc để cập nhật');
+    }
     return updated;
   }
 
@@ -144,7 +155,15 @@ export class WorkspacesService {
       }
       throw e;
     }
-    const ok = await this.workspaces.transferOwner(workspaceId, targetId);
+    const ok = await this.workspaces.transferOwner(workspaceId, targetId, dto.expectedVersion);
+    if (ok === null) {
+      const actual = (await this.getWorkspaceById(workspaceId)).version;
+      throw new ConflictException({
+        message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+        error: 'CONFLICT',
+        details: { expectedVersion: dto.expectedVersion, actualVersion: actual },
+      } as never);
+    }
     if (!ok) throw new NotFoundException('Nhượng quyền thất bại');
     this.logger.log(`WS-09 transfer owner ${workspaceId}: ${actorUserId} -> ${targetId}`);
     return this.getWorkspaceById(workspaceId);
@@ -166,7 +185,14 @@ export class WorkspacesService {
     const ws = await this.getWorkspaceById(workspaceId);
     const used = ws.storageUsedBytes ?? 0;
     if (used + incomingBytes > quotaBytes) {
-      throw new PayloadTooLargeException(`Vượt quota workspace (O24): đã dùng ${used}B + thêm ${incomingBytes}B > giới hạn ${quotaBytes}B`);
+      throw new HttpException(
+        {
+          message: `Vượt quota workspace: đã dùng ${used}B + thêm ${incomingBytes}B > giới hạn ${quotaBytes}B (§3.8: 500 MB/workspace)`,
+          error: 'LIMIT_EXCEEDED',
+          details: { usedBytes: used, incomingBytes, quotaBytes },
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 

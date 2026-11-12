@@ -23,6 +23,7 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
     hasDataset: false,
     status: 'not_started' as const,
     members: [{ userId: mockUserId, role: 'owner' as const, joinedAt: new Date() }],
+    version: 3,
     lastAccessedAt: null,
     createdBy: mockUserId,
     createdAt: new Date(),
@@ -43,6 +44,7 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
       softDelete: jest.fn().mockResolvedValue(true),
       setHasDataset: jest.fn().mockResolvedValue(true),
       setStatus: jest.fn().mockResolvedValue(true),
+      markCompleted: jest.fn().mockResolvedValue(true),
       touchLastAccessed: jest.fn().mockResolvedValue(undefined),
       addMember: jest.fn().mockResolvedValue(true),
       removeMember: jest.fn().mockResolvedValue(true),
@@ -117,8 +119,9 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
   it('markCompleted should require in_progress status', async () => {
     (repository.findById as jest.Mock).mockResolvedValue({ ...mockProjectRecord, status: 'not_started' });
     await expect(service.markCompleted(mockProjectId)).rejects.toThrow();
+    await expect(service.markCompleted(mockProjectId, 3)).rejects.toThrow();
     (repository.findById as jest.Mock).mockResolvedValue({ ...mockProjectRecord, status: 'in_progress' });
-    await service.markCompleted(mockProjectId);
-    expect(repository.setStatus).toHaveBeenCalledWith(mockProjectId, 'completed');
+    await service.markCompleted(mockProjectId, 3);
+    expect(repository.markCompleted).toHaveBeenCalledWith(mockProjectId, 3);
   });
 });

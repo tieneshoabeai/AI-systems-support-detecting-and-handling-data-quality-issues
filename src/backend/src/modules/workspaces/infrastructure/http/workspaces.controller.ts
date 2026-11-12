@@ -89,14 +89,11 @@ export class WorkspacesController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'WS-05: Xóa mềm không gian làm việc' })
   @CheckPolicies((ability) => ability.can(Action.Delete, 'Workspace'))
-  async deleteWorkspace(@Param('id') id: string) {
+  async deleteWorkspace(@Param('id') id: string): Promise<void> {
     await this.workspacesService.deleteWorkspace(id);
-    return {
-      message: 'Xóa không gian làm việc thành công',
-    };
   }
 
   @Get(':id/members')

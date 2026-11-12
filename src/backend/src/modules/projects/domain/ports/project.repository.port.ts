@@ -23,6 +23,7 @@ export interface ProjectRecord {
   status: ProjectStatus;
   members: ProjectMemberRecord[];
   lastAccessedAt: Date | null;
+  version: number;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -57,13 +58,14 @@ export interface ProjectRepositoryPort {
     workspaceId: string,
     opts?: ProjectListQuery,
   ): Promise<{ items: ProjectRecord[]; total: number }>;
-  updateById(id: string, update: { name?: string; description?: string }): Promise<ProjectRecord | null>;
+  updateById(id: string, update: { name?: string; description?: string }, expectedVersion?: number): Promise<ProjectRecord | null>;
   softDelete(id: string): Promise<boolean>;
   setHasDataset(projectId: string, hasDataset: boolean): Promise<boolean>;
   setStatus(projectId: string, status: ProjectStatus): Promise<boolean>;
   touchLastAccessed(projectId: string): Promise<void>;
   addMember(projectId: string, member: AddProjectMemberRecord): Promise<boolean>;
   removeMember(projectId: string, userId: string): Promise<boolean>;
-  updateMemberRole(projectId: string, userId: string, role: ProjectMemberRole): Promise<boolean>;
-  transferOwner(projectId: string, newOwnerId: string): Promise<boolean>;
+  updateMemberRole(projectId: string, userId: string, role: ProjectMemberRole, expectedVersion?: number): Promise<boolean | null>;
+  transferOwner(projectId: string, newOwnerId: string, expectedVersion?: number): Promise<boolean | null>;
+  markCompleted(projectId: string, expectedVersion: number): Promise<boolean | null>;
 }
