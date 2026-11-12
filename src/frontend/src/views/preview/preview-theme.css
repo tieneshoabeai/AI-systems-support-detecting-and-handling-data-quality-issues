@@ -1,7 +1,8 @@
 /* Shared theme for Management and Processing, including dialogs and menus. */
 [data-preview='2d'] .processing-brand-actions { display: inline-flex; align-items: center; gap: 12px; }
-[data-preview='2d'] .processing-brand-actions a { display: flex; align-items: center; }
-[data-preview='2d'] .processing-brand-actions img { display: block; width: 48px; height: 36px; object-fit: contain; }
+[data-preview='2d'] .processing-brand-actions a { display: flex; align-items: center; gap: 10px; color: var(--pv-ink); text-decoration: none; }
+[data-preview='2d'] .processing-brand-mark { display: block; flex: none; width: 28px; height: 34px; }
+[data-preview='2d'] .processing-brand-actions strong { font-size: 19px; font-weight: 650; }
 [data-preview='2d'][data-theme='dark'] { color-scheme: dark; }
 
 /* Header controls use the same theme/session as Settings > Color. */

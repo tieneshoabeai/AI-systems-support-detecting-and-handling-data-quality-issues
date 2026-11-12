@@ -107,7 +107,7 @@ Chạy `yarn test src/__tests__/dataset-3d src/__tests__/neon-cube src/__tests__
 
 ## 10. Giới hạn & lưu ý
 
-Điểm gauge hiện có nguồn mẫu. Test hình học và DOM không đo GPU hay xác nhận chất lượng kính trên thiết bị thật. Suite hiện có các lỗi baseline về model/clearance và spool. Three.js báo `#bcc2c0ff` là màu hex không hợp lệ trong cấu hình hiện tại.
+Điểm gauge hiện có nguồn mẫu. Test hình học và DOM không đo GPU hay xác nhận chất lượng kính trên thiết bị thật. Suite hiện có các lỗi baseline về model/clearance và spool. Màu kính dùng RGB `#bcc2c0`; độ trong đặt riêng bằng `opacity`, không truyền hex RGBA 8 ký tự vào `THREE.Color`.
 
 ## 11. Hướng cải tiến
 

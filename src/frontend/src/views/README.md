@@ -18,6 +18,12 @@ Panel module chỉ mở từ `onFocusComplete` sau camera + reveal, không dùng
 
 Kính panel Project được render bằng `project-glass-pass.ts` sau output màu của scene. Pass lấy mẫu scene động theo biên DOM đo bằng ResizeObserver/resize/scroll, dùng chung profile thấu kính lồi và hàm refract với Login trong `graphics/convex-lens.glsl.ts`. Nội dung HTML không bị khúc xạ. Thuộc tính `data-refractive` tắt nền/blur CSS khi pass được gắn, được dọn khi đóng/unmount; CSS còn lại là fallback khi WebGL không chạy. Panel chỉ khúc xạ nội dung canvas, không lấy mẫu các overlay HTML.
 
+Thân kính mô phỏng Regular: tán xạ bằng mẫu đĩa cố định, giới hạn dải sáng theo theme và độ sáng nền, cạnh giữ khúc xạ/phản sáng có hướng. Không thay đổi pixel ngoài vùng kính hay pipeline màu của scene. Phần Đánh giá dùng cùng bề mặt, không lồng thêm một panel kính. Đây là mô phỏng web, không phải vật liệu hệ thống iOS; chưa đo hiệu năng trên thiết bị thật.
+
+`project-glass-motion.ts` giữ chung tiến trình hình học cho HTML và shader: sau focus hoàn tất, kính morph 250 ms từ nút nav bằng rounded-box SDF kết hợp smooth union; đóng đảo từ tiến trình hiện tại. Nav nằm trong stage, canvas phủ cả vùng nav với camera view offset để giữ khung hình scene. Shader cập nhật DOM và uniforms trong cùng frame; fallback dùng RAF riêng. Nội dung chỉ hiện và nhận tương tác khi kính mở xong. Keyboard và reduced motion chuyển ngay.
+
+Vật liệu có blur đĩa, saturation/luminance thích ứng, khúc xạ rìa, specular theo pointer, Schlick Fresnel, bóng viền trong và tách màu nhẹ. Pointer/touch nhấn làm sáng và nén nhẹ bằng spring (stiffness 100, damping 10); không chặn thao tác mặc định hay capture pointer. `?glassPerf=1` chỉ ở dev đo CPU submit của composer sau 60 frame làm nóng, lấy 60 mẫu; số này không đại diện GPU time hoặc FPS trên điện thoại.
+
 `HolographicBloomPass` giữ thứ tự màu trước khi thêm kính Project: tone mapping/chuyển màu base trước, cộng bloom sau. Không tone-map tổng base+bloom lần nữa. Cùng một ảnh đầu ra được dùng khi panel đóng hoặc mở; pass kính chỉ thay đổi pixel trong panel. Giữ nguyên cường độ ánh sáng/vật liệu và cấu hình bloom riêng của light/dark trong lần sửa pipeline này.
 
 - `LoginView()`, `Dataset3DView()`, `Workspace3DPreview()`, `ManagementArea()` và `ProcessingView()` trả JSX. Management/Processing cần React Router; WorkbenchRoutes bọc cả hai bằng `ApplicationFrame` để dùng một UI session/theme. Login cần AuthProvider và router. Dataset 3D cần router và trình duyệt hỗ trợ WebGL để thấy scene.

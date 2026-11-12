@@ -22,8 +22,9 @@ import { createCubeConnectionFocus } from '../../../graphics/holographic-core/cu
 import type { CubeFocus } from '../../../types/dataset-3d/cube-focus.types'
 import { createGlassFrame, LiquidGlassPass, type GlassFrame } from '../../../graphics/holographic-core/liquid-glass-pass'
 import { HOLOGRAPHIC_CAMERA } from '../../../graphics/holographic-core/core-visual-config'
-import { bindProjectGlassPass, createProjectGlassPass } from '../../../graphics/holographic-core/project-glass-pass'
+import { bindProjectGlassPass, createProjectGlassPass, updateProjectGlassPass } from '../../../graphics/holographic-core/project-glass-pass'
 import { HolographicBloomPass } from '../../../graphics/holographic-core/holographic-bloom-pass'
+import { createProjectGlassProfiler } from '../../../graphics/holographic-core/project-glass-profiler'
 
 type CubeFocusProps = {
   glassPanel?: HTMLElement | null
@@ -370,8 +371,31 @@ function setLightConnections(root: Object3D) {
   return () => restores.forEach(restore => restore())
 }
 
+function ProjectCanvasViewport() {
+  const { camera, gl, size } = useThree()
+  useLayoutEffect(() => {
+    const stage = gl.domElement.closest('.pj-stage')
+    const nav = stage?.querySelector<HTMLElement>('.pj-modules')
+    if (!stage || !nav || !(camera instanceof PerspectiveCamera)) return
+    const measure = () => {
+      // Extend the backing canvas under nav for morphing without changing the
+      // scene's original framing above nav (the extra pixels are below it).
+      const height = Math.max(1, size.height - nav.offsetHeight - 10)
+      camera.setViewOffset(size.width, height, 0, 0, size.width, size.height)
+      camera.updateProjectionMatrix()
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(nav)
+    return () => { observer.disconnect(); camera.clearViewOffset() }
+  }, [camera, gl, size.width, size.height])
+  return null
+}
+
 function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { enabled: boolean; frame: GlassFrame; detached: boolean; light: boolean; glassPanel?: HTMLElement | null }) {
   const { camera, gl, scene, size, viewport } = useThree()
+  const profile = useMemo(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('glassPerf')
+    ? createProjectGlassProfiler() : null, [])
   const pipeline = useMemo(() => {
     const composer = new EffectComposer(gl)
     composer.renderTarget1.depthTexture = new DepthTexture(1, 1)
@@ -408,7 +432,12 @@ function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { ena
     pipeline.panelGlass.dispose()
     pipeline.composer.dispose()
   }, [pipeline])
-  useFrame(() => renderHolographicFrame(pipeline, enabled, !detached), 1)
+  useFrame(() => {
+    const started = profile ? performance.now() : 0
+    updateProjectGlassPass(pipeline.panelGlass, glassPanel)
+    renderHolographicFrame(pipeline, enabled, !detached)
+    profile?.(performance.now() - started, Boolean(glassPanel))
+  }, 1)
   return null
 }
 
@@ -425,6 +454,7 @@ function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSe
   useEffect(() => () => productModel.dispose(), [productModel])
   return <>
     <fogExp2 attach="fog" args={[light ? '#edf5fc' : '#040c22', light ? 0.018 : 0.0095]} />
+    <ProjectCanvasViewport />
     <Lifecycle onContextLost={onContextLost} />
     <ambientLight color={light ? '#e6f1ff' : '#266bc9'} intensity={light ? 1.1 : 0.28} />
     <pointLight color="#35e9ff" intensity={20} distance={9} position={[0, 3.5, 1.5]} />

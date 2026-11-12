@@ -6,7 +6,7 @@ import { navItems, sectionLabels } from '../preview-data'
 import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
 import { PreviewTopbar } from './preview-topbar'
-import applicationLogo from '../../../assets/8DA AI Network Logo.png'
+import { DataVerseMark } from '../../../components/branding/dataverse-mark'
 
 // Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
@@ -163,9 +163,11 @@ export function PreviewShell({
       <PreviewTopbar
         active={active}
         context={processing ? <span className="processing-brand-actions">
-          {inRouter ? <Link to="/processing" aria-label="Trang chủ Processing"><img src={applicationLogo} alt="8DA AI" /></Link>
-            : <a href="/processing" aria-label="Trang chủ Processing"><img src={applicationLogo} alt="8DA AI" /></a>}
+          {inRouter ? <Link to="/processing" aria-label="Trang chủ Processing"><DataVerseMark className="processing-brand-mark" /><strong>DataVerse</strong></Link>
+            : <a href="/processing" aria-label="Trang chủ Processing"><DataVerseMark className="processing-brand-mark" /><strong>DataVerse</strong></a>}
           {headerAction}
+          {inRouter ? <Link className="button-secondary" to="/management"><PreviewIcon name="workspaces" /> Quản lý</Link>
+            : <a className="button-secondary" href="/management"><PreviewIcon name="workspaces" /> Quản lý</a>}
         </span> : context}
         sidebarToggle={!processing && !narrow && <button type="button" className="sidebar-toggle"
           aria-label={compact ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}

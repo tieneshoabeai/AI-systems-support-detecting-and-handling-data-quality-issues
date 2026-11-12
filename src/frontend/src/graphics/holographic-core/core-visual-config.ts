@@ -287,7 +287,7 @@ export const SPOOL_CORE = {
     centerY: 1.65,
     outerGlass: {
       innerRadius: 1.14, outerRadius: 1.17,
-      material: { color: '#bcc2c0ff', opacity: 0.2, roughness: 0.1, lightMapIntensity: 0.3 },
+      material: { color: '#bcc2c0', opacity: 0.2, roughness: 0.1, lightMapIntensity: 0.3 },
     },
     backdrop: { radiusInset: 0.001, heightInset: 0.001 },
   },
