@@ -62,6 +62,34 @@ function unsupportedFileType(fileName: string): BadRequestException {
   } as never);
 }
 
+function assertCsvMagicBytes(head: Buffer, fileName: string): void {
+  if (head.length === 0) return;
+  // Excel OOXML (PK..) hoặc OLE2 (D0 CF..) có mật khẩu -> từ chối rõ lý do
+  if (head.length >= 4 && head[0] === 0x50 && head[1] === 0x4b) {
+    throw new BadRequestException({
+      message: 'File Excel không được chấp nhận. Vui lòng xuất sang CSV.',
+      error: 'VALIDATION_ERROR',
+      details: { reason: 'excel_not_allowed', fileName },
+    } as never);
+  }
+  if (head.length >= 8 && head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0) {
+    throw new BadRequestException({
+      message: 'File Excel có mật khẩu không được hỗ trợ.',
+      error: 'VALIDATION_ERROR',
+      details: { reason: 'password_protected', fileName },
+    } as never);
+  }
+  // Từ chối nhị phân (NUL bytes / không phải text)
+  const nul = head.includes(0x00);
+  if (nul) {
+    throw new BadRequestException({
+      message: `Chi ho tro file .csv (nhan duoc: ${fileName})`,
+      error: 'UNSUPPORTED_FILE_TYPE',
+      details: { reason: 'binary_not_csv', fileName },
+    } as never);
+  }
+}
+
 function newHexId(): string {
   return crypto.randomBytes(12).toString('hex');
 }
@@ -103,6 +131,14 @@ export class DatasetsService {
     } catch {
       throw unsupportedFileType(fileName);
     }
+    // Không tin Content-Type header: chặn Excel giả danh CSV ngay từ mimeType
+    if (typeof mimeType === 'string' && /excel|spreadsheet|officedocument|ms-excel/i.test(mimeType)) {
+      throw new BadRequestException({
+        message: 'File Excel không được chấp nhận. Vui lòng xuất sang CSV.',
+        error: 'VALIDATION_ERROR',
+        details: { reason: 'excel_not_allowed', mimeType, fileName },
+      } as never);
+    }
     if (contentLength > MAX_FILE_BYTES) {
       throw new PayloadTooLargeException({
         message: `File vuot qua gioi han 50MB (nhan duoc ${contentLength} bytes)`,
@@ -124,7 +160,7 @@ export class DatasetsService {
           'Dung luong luu tru vuot qua gioi han 10GB cua Cloudflare R2 (Hard Block 100%).',
         );
       }
-      const wsQuota = Number(this.configService.get<number>('WORKSPACE_STORAGE_QUOTA_BYTES', 2147483648));
+      const wsQuota = Number(this.configService.get<number>('WORKSPACE_STORAGE_QUOTA_BYTES', 524288000));
       await this.workspacesService.checkWorkspaceUploadQuota(
         project.workspaceId,
         contentLength,
@@ -161,9 +197,31 @@ export class DatasetsService {
 
     let bytesTransferred = 0;
     let uploadFailed = false;
+    let headChecked = false;
+    let headAcc = Buffer.alloc(0);
+    let magicError: unknown = null;
 
-    fileStream.on('data', (chunk: Buffer) => {
-      bytesTransferred += chunk.length;
+    fileStream.on('data', (chunk: Buffer | string) => {
+      if (magicError) return;
+      const buf: Buffer = typeof chunk === 'string' ? Buffer.from(chunk, 'utf-8') : (chunk as Buffer);
+      if (!headChecked) {
+        headAcc = Buffer.concat([headAcc, buf]).subarray(0, 32);
+        // Đủ 8 bytes là có thể kết luận magic (PK/OOXML, OLE2, NUL)
+        if (headAcc.length >= 8) {
+          try {
+            assertCsvMagicBytes(headAcc, fileName);
+          } catch (e) {
+            magicError = e;
+            uploadFailed = true;
+            uploadPassThrough.destroy(e as Error);
+            parsePassThrough.destroy(e as Error);
+            fileStream.destroy(e as never);
+            return;
+          }
+          headChecked = true;
+        }
+      }
+      bytesTransferred += buf.length;
       if (bytesTransferred > MAX_FILE_BYTES) {
         uploadFailed = true;
         const err = new PayloadTooLargeException({
@@ -175,12 +233,24 @@ export class DatasetsService {
         fileStream.destroy(err as never);
         return;
       }
-      hashStream.update(chunk);
-      uploadPassThrough.write(chunk);
-      parsePassThrough.write(chunk);
+      hashStream.update(buf);
+      uploadPassThrough.write(buf);
+      parsePassThrough.write(buf);
     });
 
     fileStream.on('end', () => {
+      if (!headChecked && !magicError && headAcc.length > 0) {
+        try {
+          assertCsvMagicBytes(headAcc, fileName);
+        } catch (e) {
+          magicError = e;
+          uploadFailed = true;
+          uploadPassThrough.destroy(e as Error);
+          parsePassThrough.destroy(e as Error);
+          return;
+        }
+        headChecked = true;
+      }
       uploadPassThrough.end();
       parsePassThrough.end();
     });
@@ -201,6 +271,7 @@ export class DatasetsService {
     };
 
     try {
+      if (magicError) throw magicError;
       const uploadPromise = this.storage.uploadStream(storageKey, uploadPassThrough, mimeType);
       const parsePromise = this.processCsvStream(datasetId, parsePassThrough);
 
@@ -346,14 +417,38 @@ export class DatasetsService {
     if (!dataset) {
       throw new NotFoundException('Khong tim thay tap du lieu hoac tap du lieu da bi xoa');
     }
-    return dataset;
+    // S14: khong de lo storageKey/storage_key ra API response
+    const { storageKey: _sk, ...safe } = dataset as DatasetRecord & { storageKey?: string };
+    void _sk;
+    return safe as DatasetRecord;
   }
 
   async getDatasetByProjectId(projectId: string): Promise<DatasetRecord | null> {
     if (!isObjectIdHex(projectId)) {
       throw new BadRequestException('ID Du an khong hop le');
     }
-    return this.datasets.findByProject(projectId);
+    const found = await this.datasets.findByProject(projectId);
+    if (!found) return null;
+    const { storageKey: _sk2, ...safe } = found as DatasetRecord & { storageKey?: string };
+    void _sk2;
+    return safe as DatasetRecord;
+  }
+
+  async downloadDatasetFile(id: string): Promise<{ stream: Readable; filename: string; fileSizeBytes: number; contentType: string; workspaceId: string; projectId: string }> {
+    if (!isObjectIdHex(id)) throw new BadRequestException('ID Tap du lieu khong hop le');
+    const dataset = await this.datasets.findById(id);
+    if (!dataset) throw new NotFoundException('Khong tim thay tap du lieu hoac tap du lieu da bi xoa');
+    if (!dataset.storageKey) throw new NotFoundException('Khong tim thay file goc cua tap du lieu');
+    const stream = await this.storage.downloadStream(dataset.storageKey);
+    const filename = dataset.originalFileName?.endsWith('.csv') ? dataset.originalFileName : `${dataset.originalFileName || dataset.name}.csv`;
+    return {
+      stream,
+      filename,
+      fileSizeBytes: dataset.fileSizeBytes ?? 0,
+      contentType: 'text/csv; charset=utf-8',
+      workspaceId: dataset.workspaceId,
+      projectId: dataset.projectId,
+    };
   }
 
   async getDatasetSchema(id: string): Promise<DatasetRecord['columns']> {

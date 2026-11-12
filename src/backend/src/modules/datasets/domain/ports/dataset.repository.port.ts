@@ -30,6 +30,7 @@ export interface DatasetRecord {
   fileFormat: 'csv';
   fileSizeBytes: number;
   fileChecksum: string;
+  storageKey: string;
   rowCount: number;
   columnCount: number;
   columns: DatasetColumnRecord[];

@@ -29,6 +29,8 @@ export class AiWorkerService implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
+    const mode = ((this.config.get<string>('WORKER_MODE') ?? 'all') as string).toLowerCase();
+    if (mode === 'api') { this.logger.log('AI worker tat trong API process (WORKER_MODE=api) - worker rieng dam nhan'); return; }
     const enabled = this.config.get<boolean>('AI_WORKER_ENABLED') ?? false;
     if (!enabled) {
       this.logger.log('AI worker tat (AI_WORKER_ENABLED != true). Job corr-v1 cho ingest thu cong.');

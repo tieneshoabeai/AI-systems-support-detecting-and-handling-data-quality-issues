@@ -7,15 +7,18 @@ import {
   Param,
   Body,
   Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
-import { Request } from 'express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import busboy from 'busboy';
 import { DatasetsService } from '../../application/datasets.service';
+import { AuditService } from '../../../audit/application/audit.service';
+import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
 import { UpdateDatasetSchema, UpdateDatasetDto } from './dtos/update-dataset.dto';
 import { RenameColumnsSchema, RenameColumnsDto } from './dtos/rename-columns.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
@@ -30,11 +33,25 @@ import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller()
 export class DatasetsController {
-  constructor(private readonly datasetsService: DatasetsService) {}
+  constructor(
+    private readonly datasetsService: DatasetsService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Post('projects/:projectId/datasets/upload')
   @ApiOperation({ summary: 'F4.1 (Wave 4): Streaming upload file CSV duy nhat (1 file = 1 bang) vao Project' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'File CSV duy nhat (field name: file)',
+    required: true,
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
   @CheckPolicies((ability) => ability.can(Action.Create, 'Dataset'))
   async uploadDataset(
     @Param('projectId') projectId: string,
@@ -133,14 +150,42 @@ export class DatasetsController {
   }
 
   @Delete('datasets/:id')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'F4.5: Xoa mem tap du lieu va giai phong du an' })
   @CheckPolicies((ability) => ability.can(Action.Delete, 'Dataset'))
-  async deleteDataset(@Param('id') id: string) {
+  async deleteDataset(@Param('id') id: string): Promise<void> {
     await this.datasetsService.deleteDataset(id);
-    return {
-      message: 'Xoa tap du lieu thanh cong, du an da san sang cho du lieu moi',
-    };
+  }
+
+  @Get('datasets/:id/file')
+  @ApiOperation({ summary: 'FILE-01: Tải file gốc .csv (stream trực tiếp, có audit log)' })
+  @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
+  async downloadDatasetFile(
+    @Param('id') id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.datasetsService.downloadDatasetFile(id);
+    res.setHeader('Content-Type', file.contentType);
+    const safe = encodeURIComponent(file.filename).replace(/['()]/g, escape);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safe}`);
+    if (typeof file.fileSizeBytes === 'number' && file.fileSizeBytes > 0) {
+      res.setHeader('Content-Length', String(file.fileSizeBytes));
+    }
+    await this.audit.log({
+      actorId: actor?.userId ?? null,
+      actorRole: (actor as unknown as Record<string, unknown>)?.role as string ?? null,
+      action: 'DATASET_FILE_DOWNLOADED',
+      targetType: 'dataset',
+      targetId: id,
+      workspaceId: file.workspaceId,
+      projectId: file.projectId,
+      ipAddress: (req.ip ?? null) as string | null,
+      userAgent: (req.headers['user-agent'] as string ?? null),
+      metadata: { datasetId: id, fileSizeBytes: file.fileSizeBytes },
+    });
+    file.stream.pipe(res);
   }
 
   @Get('datasets/:id/schema')

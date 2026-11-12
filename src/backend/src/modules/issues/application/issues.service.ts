@@ -31,6 +31,9 @@ import {
   type RealtimePort,
 } from '../../realtime/domain/ports/realtime.port';
 import { isMandatoryNotification, shouldDispatch } from '../../notifications/domain/value-objects/notification-type.vo';
+import { STORAGE_PORT, type StoragePort } from '../../../shared/ports/storage.port';
+import { randomBytes } from 'crypto';
+import { Readable } from 'stream';
 
 /** Application inputs — controller map DTO sang, không import DTO http. */
 export interface CreateIssueInput {
@@ -68,7 +71,10 @@ function toResponse(doc: IssueReportRecord): Record<string, unknown> {
     title: doc.title,
     description: doc.description,
     status: doc.status,
-    attachments: doc.attachments,
+    attachments: (doc.attachments ?? []).map((a) => ({
+      ...(a as unknown as Record<string, unknown>),
+      downloadUrl: `/api/v1/issues/${doc.id}/attachments/${(a as unknown as { id: string }).id}`,
+    })),
     context: doc.context,
     version: doc.version,
     createdAt: doc.createdAt,
@@ -123,6 +129,8 @@ export class IssuesService {
     private readonly users: UserRepositoryPort,
     @Optional() @Inject(REALTIME_PORT)
     private readonly realtime?: RealtimePort,
+    @Optional() @Inject(STORAGE_PORT)
+    private readonly storage?: StoragePort,
   ) {}
 
   async createReport(userId: string, dto: CreateIssueInput): Promise<Record<string, unknown>> {
@@ -256,4 +264,72 @@ export class IssuesService {
     }
     return toResponse(updated);
   }
+
+  private assertAttachmentAccess(doc: IssueReportRecord, userId: string, role: string): void {
+    if (role === 'admin') return;
+    if (doc.userId !== userId) {
+      throw new NotFoundException('Không tìm thấy tệp đính kèm');
+    }
+  }
+
+  async uploadAttachment(userId: string, role: string, issueId: string, file: { filename: string; mimeType: string; size: number; stream: Readable }): Promise<Record<string, unknown>> {
+    const doc = await this.repo.findById(issueId);
+    if (!doc) throw new NotFoundException('Không tìm thấy báo cáo sự cố');
+    this.assertAttachmentAccess(doc, userId, role);
+    const allowed: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'application/pdf': 'pdf' };
+    const ext = allowed[file.mimeType];
+    if (!ext) {
+      const err = new BadRequestException({
+        message: `Định dạng tệp không được hỗ trợ: ${file.mimeType}. Chỉ chấp nhận png/jpg/pdf.`,
+        error: 'UNSUPPORTED_MEDIA_TYPE',
+      } as never);
+      throw err;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      const err = new BadRequestException({
+        message: 'Tệp đính kèm vượt quá 10MB',
+        error: 'ATTACHMENT_TOO_LARGE',
+      } as never);
+      throw err;
+    }
+    if ((doc.attachments ?? []).length >= 3) {
+      throw new BadRequestException('Mỗi báo cáo chỉ được đính kèm tối đa 3 tệp');
+    }
+    if (!this.storage) throw new BadRequestException('Storage chưa sẵn sàng');
+    const attachmentId = randomBytes(12).toString('hex');
+    const key = `issue_attachments/${issueId}/${attachmentId}.${ext}`;
+    await this.storage.uploadStream(key, file.stream, file.mimeType);
+    const updated = await this.repo.addAttachment(issueId, {
+      id: attachmentId,
+      filename: file.filename.slice(0, 255),
+      storageKey: key,
+      sizeBytes: file.size,
+      contentType: file.mimeType,
+    });
+    if (!updated) throw new NotFoundException('Không tìm thấy báo cáo sự cố');
+    return toResponse(updated);
+  }
+
+  async downloadAttachment(userId: string, role: string, issueId: string, attachmentId: string): Promise<{ stream: Readable; filename: string; contentType: string; sizeBytes: number; workspaceId: string | null }> {
+    const doc = isObjectIdHex(issueId)
+      ? role === 'admin'
+        ? await this.repo.findById(issueId)
+        : await this.repo.findByIdForUser(issueId, userId)
+      : null;
+    if (!doc) throw new NotFoundException('Không tìm thấy tệp đính kèm');
+    const att = (doc.attachments ?? []).find((a) => String((a as Record<string, unknown>).id) === String(attachmentId)) as unknown as Record<string, unknown> | undefined;
+    if (!att) throw new NotFoundException('Không tìm thấy tệp đính kèm');
+    const storageKey = String((att as Record<string, unknown>).storageKey ?? '');
+    if (!storageKey || !this.storage) throw new NotFoundException('Không tìm thấy tệp đính kèm');
+    const stream = await this.storage.downloadStream(storageKey);
+    return {
+      stream,
+      filename: String((att as Record<string, unknown>).filename ?? 'attachment'),
+      contentType: String((att as Record<string, unknown>).contentType ?? 'application/octet-stream'),
+      sizeBytes: Number((att as Record<string, unknown>).sizeBytes ?? 0),
+      workspaceId: doc.workspaceId,
+    };
+  }
+
 }
+

@@ -14,6 +14,7 @@ export function toIssueRecord(doc: IIssueReport): IssueReportRecord {
     attachments: (doc.attachments ?? []).map((a) => ({
       id: a.id.toString(),
       filename: a.filename,
+      storageKey: (a as unknown as Record<string, unknown>).storage_key as string,
       sizeBytes: a.size_bytes,
       contentType: a.content_type,
     })),

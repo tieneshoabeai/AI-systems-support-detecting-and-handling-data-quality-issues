@@ -41,6 +41,7 @@ export function toDatasetRecord(doc: IDataset): DatasetRecord {
     fileFormat: doc.file_format,
     fileSizeBytes: doc.file_size_bytes ?? 0,
     fileChecksum: doc.file_checksum,
+    storageKey: (doc as unknown as Record<string, unknown>).storage_key as string ?? '',
     rowCount: doc.row_count ?? 0,
     columnCount: doc.column_count ?? 0,
     columns: (doc.columns ?? []).map(toColumnRecord),

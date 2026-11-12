@@ -64,6 +64,28 @@ export class IssuesRepository implements IssueReportRepositoryPort {
     return docs.map(toIssueRecord);
   }
 
+  async addAttachment(id: string, attachment: { id: string; filename: string; storageKey: string; sizeBytes: number; contentType: string }): Promise<IssueReportRecord | null> {
+    if (!isObjectIdHex(id)) return null;
+    const doc = await this.model
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id), deleted_at: null },
+        {
+          $push: {
+            attachments: {
+              id: new Types.ObjectId(attachment.id),
+              filename: attachment.filename,
+              storage_key: attachment.storageKey,
+              size_bytes: attachment.sizeBytes,
+              content_type: attachment.contentType,
+            },
+          },
+        },
+        { new: true },
+      )
+      .exec();
+    return doc ? toIssueRecord(doc) : null;
+  }
+
   async updateStatus(id: string, status: IssueStatus, expectedVersion: number): Promise<IssueReportRecord | null> {
     if (!isObjectIdHex(id)) return null;
     const doc = await this.model
