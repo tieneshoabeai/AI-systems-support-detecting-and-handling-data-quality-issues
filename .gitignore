@@ -75,3 +75,5 @@ remember/
 
 /docs/*
 !/docs/restructures/
+!/docs/reports/
+/docs/reports/_internal/
