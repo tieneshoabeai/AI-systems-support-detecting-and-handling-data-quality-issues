@@ -28,7 +28,7 @@ python3 docs/generate_reports.py
 |---|---|
 | `01-luong-nghiep-vu-va-use-case.docx` | `3_business_workflows_v5.md` |
 | `02-thiet-ke-ports-and-adapters.docx` | `5_ports_adapters_design_v2.md` |
-| `03-ho-dong-api.docx` | `7_api_contracts_v4.md` |
+| `03-hop-dong-api.docx` | `7_api_contracts_v4.md` |
 | `04-cong-nghe-ky-thuat.docx` | `_cong_nghe_ky_thuat.md` (tổng hợp từ Phần 1–14) |
 | `05-danh-muc-tinh-nang.docx` | `2_feature_catalog_v9.md` |
 | `06-ranh-gioui-module.docx` | `4_module_boundaries_v4.md` |
@@ -299,3 +299,7 @@ Tiếp theo: **phần 15 — Đánh giá cuối và bàn giao**. Các câu hỏi
 
 
 **Cập nhật 2026-11-06 (lần 18 — DQ-05 có điều kiện + ma trận tương quan/VIF do AI đánh giá):** DQ-05 mặc định `unassessed`, kích hoạt khi có quy tắc được xác nhận (checklist 5 điểm, kiểm tra theo dòng); hệ thống tạo ma trận tương quan + bảng VIF (VIF>5 tham khảo, >10 cao); AI diễn giải trên số đã có, cấm suy quy tắc/kết luận nhân quả/yêu cầu xóa cột (Phần 2 v7, 12 v6, 3 v5, 7 v4, 13 v6, 14 v6). Quy tắc kiểm thử 120 → 125 (S24/C14/I22/I23/O36); tổng ~189,5 ngày công.
+
+## Quyết định đồng bộ ngày 14 tháng 11 năm 2026
+
+[Xem các quyết định APPROVED và đề xuất PROPOSED](quyet-dinh-dong-bo-2026-11-14.md). Tổng chính thức hiện hành: **64 Use Case**; kiểm kê mới xác định 62 mã hợp lệ triển khai, 2 mã còn OPEN. Không dùng UC-31 LEGACY hoặc UC-57 đang mâu thuẫn để lấp số. Snapshot lưu cả phân tích/hiển thị; lịch sử feedback collection riêng; PDF/CSV/JSON; thông báo TTL90 và chính chủ được xóa. Các bảng66UC/21collection và diễn giải cũ giữ làm lịch sử; không phải kết quả kiểm kê sau đồng bộ. C10/C11 OPEN. Báo cáo01 v1.2 Under Review; chưa có Báo cáo02.
