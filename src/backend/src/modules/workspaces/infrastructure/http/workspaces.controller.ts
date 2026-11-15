@@ -24,6 +24,7 @@ import {
 import { AddMemberSchema, AddMemberDto } from './dtos/add-member.dto';
 import { TransferOwnerSchema, TransferOwnerDto } from './dtos/transfer-owner.dto';
 import { ListWorkspacesQuerySchema } from './dtos/list-workspaces-query.dto';
+import { ListWorkspaceMembersQuerySchema } from './dtos/list-workspace-members-query.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
 import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
@@ -103,11 +104,20 @@ export class WorkspacesController {
   }
 
   @Get(':id/members')
-  @ApiOperation({ summary: 'WS-06: Danh sách thành viên workspace' })
+  @ApiOperation({
+    summary: 'WS-06: Danh sách thành viên workspace (tìm kiếm/lọc/phân trang cursor)',
+    description:
+      'Phân trang keyset: dùng `meta.nextCursor` làm tham số `cursor` của request kế tiếp. ' +
+      'Response: `{ items, meta: { nextCursor, hasMore, limit } }` — không có `total`/`page`.',
+  })
+  @ApiZodQuery(ListWorkspaceMembersQuerySchema)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
-  async listMembers(@Param('id') id: string) {
-    const ws = await this.workspacesService.getWorkspaceById(id);
-    return { members: ws.members, total: ws.members.length };
+  async listMembers(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(ListWorkspaceMembersQuerySchema)) query: Record<string, unknown>,
+  ) {
+    const result = await this.workspacesService.listMembers(id, query as never);
+    return { ...result };
   }
 
   @Post(':id/members')

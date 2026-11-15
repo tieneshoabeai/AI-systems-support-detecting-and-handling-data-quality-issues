@@ -36,13 +36,14 @@ export class ProjectsRepository implements ProjectRepositoryPort {
   constructor(@InjectModel('Project') private readonly model: Model<IProject>) {}
 
   async create(data: CreateProjectRecord): Promise<ProjectRecord> {
+    const ownerId = data.ownerId ?? data.createdBy;
     const inst = new this.model({
       workspace_id: new Types.ObjectId(data.workspaceId),
       name: data.name.trim(),
       description: data.description ?? '',
       has_dataset: false,
       status: 'not_started',
-      members: [{ user_id: new Types.ObjectId(data.createdBy), role: 'owner', joined_at: new Date() }],
+      members: [{ user_id: new Types.ObjectId(ownerId), role: 'owner', joined_at: new Date() }],
       last_accessed_at: new Date(),
       created_by: new Types.ObjectId(data.createdBy),
       deleted_at: null,
@@ -72,6 +73,24 @@ export class ProjectsRepository implements ProjectRepositoryPort {
       .sort({ updated_at: -1 })
       .exec();
     return docs.map(toProjectRecord);
+  }
+
+  async countByWorkspace(workspaceId: string, status?: ProjectStatus): Promise<number> {
+    if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return 0;
+    const filter: Record<string, unknown> = {
+      workspace_id: new Types.ObjectId(workspaceId),
+      deleted_at: null,
+    };
+    if (status) filter.status = status;
+    return this.model.countDocuments(filter).exec();
+  }
+
+  async countByUser(userId: string): Promise<number> {
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) return 0;
+    const uid = new Types.ObjectId(userId);
+    return this.model
+      .countDocuments({ deleted_at: null, $or: [{ created_by: uid }, { 'members.user_id': uid }] })
+      .exec();
   }
 
   async findByWorkspacePaged(

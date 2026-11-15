@@ -11,6 +11,20 @@ export const CreateWorkspaceSchema = z.object({
     .trim()
     .max(500, 'Mô tả tối đa 500 ký tự')
     .optional(),
+  /**
+   * H2 — Danh sách email thành viên được mời kèm lúc tạo workspace.
+   * Email phải hợp lệ; email chưa có tài khoản sẽ bị báo lỗi rõ ràng (400).
+   */
+  member_emails: z
+    .array(
+      z
+        .string()
+        .trim()
+        .email('Định dạng email không hợp lệ')
+        .toLowerCase(),
+    )
+    .max(50, 'Tối đa 50 email thành viên')
+    .optional(),
 });
 
 export type CreateWorkspaceDto = z.infer<typeof CreateWorkspaceSchema>;

@@ -12,6 +12,8 @@ import {
 import {
   WORKSPACE_REPOSITORY_PORT,
   type WorkspaceListInput,
+  type WorkspaceMembersListInput,
+  type WorkspaceMemberView,
   type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../domain/ports/workspace.repository.port';
@@ -33,13 +35,56 @@ import {
   isAfterCursor,
   sortValueOf,
 } from '../../../shared/pagination/keyset-memory.util';
+import {
+  compareGeneric,
+  genericSortValue,
+  isAfterGenericCursor,
+  type GenericSortSpec,
+  type SortValueAccessor,
+} from '../../../shared/pagination/keyset-generic-memory.util';
 import type { CursorMeta } from '../../../shared/pagination/cursor-paginated.response';
 import { createCursorPage } from '../../../shared/pagination/cursor-paginated.response';
 
 /** Số bản ghi mặc định cho mỗi trang. */
 const DEFAULT_LIMIT = 15;
 
-export interface CreateWorkspaceInput { name: string; description?: string }
+/**
+ * Đặc tả sắp xếp cho danh sách thành viên (dùng chung cho workspace & project).
+ * Tên hiển thị được ghép từ `firstName` + `lastName`; nếu thiếu hồ sơ thì
+ * dùng email, cuối cùng là `userId` (để thứ tự luôn ổn định).
+ */
+export function memberSortSpec<
+  T extends {
+    role: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    joinedAt: Date;
+  },
+>(sort: string): GenericSortSpec<T> {
+  const displayName = (item: T): string => {
+    const full = `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim();
+    return full || item.email || '';
+  };
+  switch (sort) {
+    case 'name_desc':
+      return { code: sort, accessor: displayName as SortValueAccessor<T>, direction: -1 };
+    case 'joined':
+      return {
+        code: sort,
+        accessor: ((item: T) => item.joinedAt.toISOString()) as SortValueAccessor<T>,
+        toNumber: (v: string) => Date.parse(v),
+        direction: -1,
+      };
+    case 'role':
+      return { code: sort, accessor: ((item: T) => item.role) as SortValueAccessor<T>, direction: 1 };
+    case 'name_asc':
+    default:
+      return { code: 'name_asc', accessor: displayName as SortValueAccessor<T>, direction: 1 };
+  }
+}
+
+export interface CreateWorkspaceInput { name: string; description?: string; member_emails?: string[] }
 export interface UpdateWorkspaceInput { name?: string; description?: string; expectedVersion?: number }
 export interface AddWorkspaceMemberInput { email: string; role?: 'owner' | 'member' }
 export interface TransferWorkspaceOwnerInput { email: string; expectedVersion: number }
@@ -61,8 +106,42 @@ export class WorkspacesService {
       description: dto.description ?? '',
       ownerId: userId,
     });
+
+    // H2 — Thêm các thành viên được mời kèm lúc tạo workspace.
+    // Email chưa có tài khoản → báo lỗi rõ ràng (400), không tạo "pending" ẩn.
+    const emails = Array.from(new Set((dto.member_emails ?? []).map((e) => e.trim().toLowerCase())));
+    if (emails.length > 0) {
+      const creator = await this.users.findById(userId);
+      const creatorEmail = creator?.email.toLowerCase();
+      const missing: string[] = [];
+      const targets: { id: string; email: string }[] = [];
+      for (const email of emails) {
+        if (creatorEmail && email === creatorEmail) continue;
+        const u = await this.users.findByEmail(email);
+        if (!u) {
+          missing.push(email);
+          continue;
+        }
+        targets.push({ id: u.id, email });
+      }
+      if (missing.length > 0) {
+        throw new BadRequestException({
+          message: `Không tìm thấy tài khoản cho các email: ${missing.join(', ')}. Vui lòng mời họ đăng ký trước.`,
+          error: 'VALIDATION_ERROR',
+          details: { missingEmails: missing },
+        } as never);
+      }
+      for (const t of targets) {
+        await this.workspaces.addMember(workspace.id, {
+          userId: t.id,
+          role: 'member',
+          joinedAt: new Date(),
+        });
+      }
+    }
+
     this.logger.log(`Tạo Workspace mới: ${workspace.name} (ID: ${workspace.id}) bởi User: ${userId}`);
-    return workspace;
+    return this.workspaces.findById(workspace.id).then((w) => w ?? workspace);
   }
 
   async getWorkspaces(user: CurrentUser): Promise<WorkspaceRecord[]> {
@@ -163,6 +242,92 @@ export class WorkspacesService {
     const deleted = await this.workspaces.softDelete(id);
     this.logger.log(`Đã xóa mềm Workspace ID: ${id}`);
     return deleted;
+  }
+
+  /**
+   * WS-06 — Danh sách thành viên workspace kèm:
+   *   - tìm kiếm theo tên/email (E1),
+   *   - lọc theo vai trò (`owner` | `member`),
+   *   - phân trang keyset (cursor/limit).
+   *
+   * Thành viên nằm trong embedded array nên bộ lọc/sắp xếp/phân trang thực hiện
+   * trong bộ nhớ sau khi populate hồ sơ người dùng (E6).
+   */
+  async listMembers(
+    workspaceId: string,
+    q: WorkspaceMembersListInput,
+  ): Promise<{ items: WorkspaceMemberView[]; meta: CursorMeta }> {
+    const workspace = await this.getWorkspaceById(workspaceId);
+    const limit = Math.min(100, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
+    const sort = q.sort || 'name_asc';
+
+    let cursor: ListCursor | undefined;
+    try {
+      cursor = parseListCursor(q.cursor, sort);
+    } catch (e: unknown) {
+      if (e instanceof InvalidCursorError) {
+        throw new BadRequestException({
+          message: e.message,
+          error: 'VALIDATION_ERROR',
+        } as never);
+      }
+      throw e;
+    }
+
+    // Populate hồ sơ (tên/email) cho các thành viên — E6.
+    const userIds = workspace.members.map((m) => m.userId);
+    const profiles = await this.users.findByIds(userIds);
+    const profileById = new Map(profiles.map((p) => [p.id, p]));
+
+    let rows: WorkspaceMemberView[] = workspace.members.map((m) => {
+      const p = profileById.get(m.userId);
+      return {
+        id: m.userId,
+        userId: m.userId,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        email: p?.email ?? null,
+        firstName: p?.firstName ?? null,
+        lastName: p?.lastName ?? null,
+        avatarUrl: p?.avatarUrl ?? null,
+      };
+    });
+
+    // Lọc theo vai trò.
+    if (q.role) rows = rows.filter((r) => r.role === q.role);
+
+    // Tìm kiếm theo tên/email (partial, không phân biệt hoa/thường).
+    if (q.search?.trim()) {
+      const needle = q.search.trim().toLowerCase();
+      rows = rows.filter((r) => {
+        const haystack = [r.email ?? '', r.firstName ?? '', r.lastName ?? '',
+          `${r.firstName ?? ''} ${r.lastName ?? ''}`].join(' ').toLowerCase();
+        return haystack.includes(needle);
+      });
+    }
+
+    const spec = memberSortSpec(sort);
+    rows = [...rows].sort((a, b) => compareGeneric(a, b, spec));
+
+    const sliced = cursor ? rows.filter((r) => isAfterGenericCursor(r, cursor, spec)) : rows;
+    const hasMore = sliced.length > limit;
+    const page = hasMore ? sliced.slice(0, limit) : sliced;
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const sv = genericSortValue(last, spec.accessor);
+        nextCursor = encodeKeysetCursor({
+          s: sort,
+          k: sv.value,
+          n: sv.isNull ? 1 : 0,
+          id: last.id,
+        });
+      }
+    }
+
+    return createCursorPage(page, limit, nextCursor, hasMore);
   }
 
   async addMember(workspaceId: string, dto: AddWorkspaceMemberInput): Promise<WorkspaceRecord> {

@@ -102,6 +102,28 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     return docs.map((d) => this.toRecord(d));
   }
 
+  async countActive(): Promise<number> {
+    const s = resolveMongoSession(undefined);
+    return this.workspaceModel.countDocuments({ deleted_at: null }, { session: s }).exec();
+  }
+
+  async countOwnedByUser(userId: string): Promise<number> {
+    const s = resolveMongoSession(undefined);
+    return this.workspaceModel
+      .countDocuments({ deleted_at: null, owner_id: new Types.ObjectId(userId) }, { session: s })
+      .exec();
+  }
+
+  async countSharedByUser(userId: string): Promise<number> {
+    const s = resolveMongoSession(undefined);
+    return this.workspaceModel
+      .countDocuments(
+        { deleted_at: null, owner_id: { $ne: new Types.ObjectId(userId) }, 'members.user_id': new Types.ObjectId(userId) },
+        { session: s },
+      )
+      .exec();
+  }
+
   async findByUserPaged(
     userId: string,
     opts: DomainListQuery = {},

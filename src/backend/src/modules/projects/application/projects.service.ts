@@ -2,6 +2,8 @@ import { Inject, Injectable, NotFoundException, BadRequestException, ConflictExc
 import {
   PROJECT_REPOSITORY_PORT,
   type ProjectListInput,
+  type ProjectMembersListInput,
+  type ProjectMemberView,
   type ProjectRecord,
   type ProjectRepositoryPort,
 } from '../domain/ports/project.repository.port';
@@ -17,15 +19,58 @@ import { isObjectIdHex } from '../../../shared/utils/object-id.util';
 import type { ListCursor } from '../../../shared/utils/list-cursor';
 import {
   InvalidCursorError,
+  encodeKeysetCursor,
   parseListCursor,
 } from '../../../shared/pagination/keyset-cursor';
+import {
+  compareGeneric,
+  genericSortValue,
+  isAfterGenericCursor,
+  type GenericSortSpec,
+  type SortValueAccessor,
+} from '../../../shared/pagination/keyset-generic-memory.util';
 import type { CursorMeta } from '../../../shared/pagination/cursor-paginated.response';
 import { createCursorPage } from '../../../shared/pagination/cursor-paginated.response';
 
 /** Số bản ghi mặc định cho mỗi trang. */
 const DEFAULT_LIMIT = 15;
 
-export interface CreateProjectInput { name: string; description?: string }
+/**
+ * Đặc tả sắp xếp cho danh sách thành viên project.
+ * Tên hiển thị ghép từ `firstName` + `lastName`; fallback email.
+ */
+export function projectMemberSortSpec<
+  T extends {
+    role: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    joinedAt: Date;
+  },
+>(sort: string): GenericSortSpec<T> {
+  const displayName = (item: T): string => {
+    const full = `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim();
+    return full || item.email || '';
+  };
+  switch (sort) {
+    case 'name_desc':
+      return { code: sort, accessor: displayName as SortValueAccessor<T>, direction: -1 };
+    case 'joined':
+      return {
+        code: sort,
+        accessor: ((item: T) => item.joinedAt.toISOString()) as SortValueAccessor<T>,
+        toNumber: (v: string) => Date.parse(v),
+        direction: -1,
+      };
+    case 'role':
+      return { code: sort, accessor: ((item: T) => item.role) as SortValueAccessor<T>, direction: 1 };
+    case 'name_asc':
+    default:
+      return { code: 'name_asc', accessor: displayName as SortValueAccessor<T>, direction: 1 };
+  }
+}
+
+export interface CreateProjectInput { name: string; description?: string; owner_id?: string }
 export interface UpdateProjectInput { name?: string; description?: string; expectedVersion?: number }
 export interface AddProjectMemberInput { email: string; role?: 'member' | 'viewer' }
 export interface UpdateProjectMemberInput { role: 'member' | 'viewer'; expectedVersion: number }
@@ -51,13 +96,36 @@ export class ProjectsService {
     if (!ws) throw new NotFoundException('Không tìm thấy không gian làm việc');
     const dup = await this.projects.findOneByWorkspaceAndName(workspaceId, dto.name.trim());
     if (dup) throw new ConflictException('Tên project đã tồn tại trong workspace');
+
+    // F1/F2 — Nếu chỉ định Project Owner thì phải là thành viên của workspace.
+    let ownerId = userId;
+    if (dto.owner_id && dto.owner_id !== userId) {
+      const isWorkspaceMember =
+        ws.ownerId === dto.owner_id || ws.members.some((m) => m.userId === dto.owner_id);
+      if (!isWorkspaceMember) {
+        throw new BadRequestException({
+          message: 'owner_id không hợp lệ — Project Owner phải là thành viên của không gian làm việc',
+          error: 'VALIDATION_ERROR',
+        } as never);
+      }
+      const ownerUser = await this.users.findById(dto.owner_id);
+      if (!ownerUser) {
+        throw new BadRequestException({
+          message: 'owner_id không tồn tại trong hệ thống',
+          error: 'VALIDATION_ERROR',
+        } as never);
+      }
+      ownerId = dto.owner_id;
+    }
+
     const project = await this.projects.create({
       workspaceId,
       name: dto.name.trim(),
       description: dto.description ?? '',
       createdBy: userId,
+      ownerId,
     });
-    this.logger.log(`Tạo Project mới: ${project.name} (ID: ${project.id}) trong Workspace: ${workspaceId}`);
+    this.logger.log(`Tạo Project mới: ${project.name} (ID: ${project.id}) trong Workspace: ${workspaceId} — owner=${ownerId}`);
     return project;
   }
 
@@ -99,12 +167,101 @@ export class ProjectsService {
     return createCursorPage(items, limit, nextCursor, hasMore);
   }
 
+  /**
+   * PROJ-09 — Danh sách thành viên project kèm:
+   *   - tìm kiếm theo tên/email (E2),
+   *   - lọc theo vai trò (`owner` | `member` | `viewer`),
+   *   - phân trang keyset (cursor/limit).
+   *
+   * Thành viên nằm trong embedded array nên bộ lọc/sắp xếp/phân trang thực hiện
+   * trong bộ nhớ sau khi populate hồ sơ người dùng (E6).
+   */
+  async listMembers(
+    projectId: string,
+    q: ProjectMembersListInput,
+  ): Promise<{ items: ProjectMemberView[]; meta: CursorMeta }> {
+    const project = await this.getProjectById(projectId);
+    const limit = Math.min(100, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
+    const sort = q.sort || 'name_asc';
+
+    let cursor: ListCursor | undefined;
+    try {
+      cursor = parseListCursor(q.cursor, sort);
+    } catch (e: unknown) {
+      if (e instanceof InvalidCursorError) {
+        throw new BadRequestException({
+          message: e.message,
+          error: 'VALIDATION_ERROR',
+        } as never);
+      }
+      throw e;
+    }
+
+    const userIds = (project.members ?? []).map((m) => m.userId);
+    const profiles = await this.users.findByIds(userIds);
+    const profileById = new Map(profiles.map((p) => [p.id, p]));
+
+    let rows: ProjectMemberView[] = (project.members ?? []).map((m) => {
+      const p = profileById.get(m.userId);
+      return {
+        id: m.userId,
+        userId: m.userId,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        email: p?.email ?? null,
+        firstName: p?.firstName ?? null,
+        lastName: p?.lastName ?? null,
+        avatarUrl: p?.avatarUrl ?? null,
+      };
+    });
+
+    if (q.role) rows = rows.filter((r) => r.role === q.role);
+
+    if (q.search?.trim()) {
+      const needle = q.search.trim().toLowerCase();
+      rows = rows.filter((r) => {
+        const haystack = [r.email ?? '', r.firstName ?? '', r.lastName ?? '',
+          `${r.firstName ?? ''} ${r.lastName ?? ''}`].join(' ').toLowerCase();
+        return haystack.includes(needle);
+      });
+    }
+
+    const spec = projectMemberSortSpec(sort);
+    rows = [...rows].sort((a, b) => compareGeneric(a, b, spec));
+
+    const sliced = cursor ? rows.filter((r) => isAfterGenericCursor(r, cursor, spec)) : rows;
+    const hasMore = sliced.length > limit;
+    const page = hasMore ? sliced.slice(0, limit) : sliced;
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const sv = genericSortValue(last, spec.accessor);
+        nextCursor = encodeKeysetCursor({
+          s: sort,
+          k: sv.value,
+          n: sv.isNull ? 1 : 0,
+          id: last.id,
+        });
+      }
+    }
+
+    return createCursorPage(page, limit, nextCursor, hasMore);
+  }
+
   async getProjectById(id: string, touch = false): Promise<ProjectRecord> {
     if (!isObjectIdHex(id)) throw new BadRequestException('ID Dự án không hợp lệ');
     const project = await this.projects.findById(id);
     if (!project) throw new NotFoundException('Không tìm thấy dự án hoặc dự án đã bị xóa');
     if (touch) await this.projects.touchLastAccessed(id).catch(() => undefined);
     return project;
+  }
+
+  /** H3 — Tên workspace của một project (populate tên workspace). */
+  async getWorkspaceName(workspaceId: string): Promise<string | null> {
+    const ws = await this.workspaces.findById(workspaceId);
+    return ws?.name ?? null;
   }
 
   async updateProject(id: string, dto: UpdateProjectInput): Promise<ProjectRecord> {

@@ -9,6 +9,10 @@ export interface IUser extends Document {
   first_name: string;
   last_name: string;
   avatar_url?: string;
+  /** Số điện thoại (E.164-ish). Duy nhất nếu có, sparse. */
+  phone?: string;
+  /** Giới thiệu ngắn, tối đa 500 ký tự. */
+  bio?: string;
   role: 'admin' | 'analyst';
   notifications_enabled: boolean;
   status: 'active' | 'blocked';
@@ -54,6 +58,18 @@ export const UserSchema = new Schema<IUser>(
     },
     avatar_url: {
       type: String,
+      default: null,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 500,
       default: null,
     },
     role: {
@@ -115,4 +131,10 @@ UserSchema.index({ created_at: -1, _id: -1 });
 UserSchema.index(
   { email: 1 },
   { unique: true, partialFilterExpression: { deleted_at: null } }
+);
+
+// Partial Unique Index: số điện thoại phải duy nhất (chỉ khi có giá trị).
+UserSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: 'string' } } }
 );

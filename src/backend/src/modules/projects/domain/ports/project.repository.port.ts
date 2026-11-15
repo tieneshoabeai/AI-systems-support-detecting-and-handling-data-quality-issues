@@ -17,6 +17,16 @@ export const PROJECT_SORT_OPTIONS = [
 
 export type ProjectSort = (typeof PROJECT_SORT_OPTIONS)[number];
 
+/** Các kiểu sắp xếp được hỗ trợ cho danh sách thành viên project. */
+export const PROJECT_MEMBER_SORT_OPTIONS = [
+  'name_asc',
+  'name_desc',
+  'joined',
+  'role',
+] as const;
+
+export type ProjectMemberSort = (typeof PROJECT_MEMBER_SORT_OPTIONS)[number];
+
 export type ProjectMemberRole = 'owner' | 'member' | 'viewer';
 export type ProjectStatus = 'not_started' | 'in_progress' | 'completed';
 
@@ -24,6 +34,19 @@ export interface ProjectMemberRecord {
   userId: string;
   role: ProjectMemberRole;
   joinedAt: Date;
+}
+
+/**
+ * Thành viên project kèm thông tin hồ sơ (đã populate tên/email — E6).
+ * Được dùng cho endpoint PROJ-09 (danh sách + tìm kiếm thành viên).
+ */
+export interface ProjectMemberView extends ProjectMemberRecord {
+  /** Khóa duy nhất của dòng (dùng làm tiebreaker cho keyset cursor). */
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  avatarUrl: string | null;
 }
 
 export interface ProjectRecord {
@@ -62,11 +85,25 @@ export interface ProjectListInput {
   limit?: number;
 }
 
+/**
+ * Input của use-case PROJ-09 — danh sách thành viên project.
+ * `cursor` ở đây là chuỗi opaque do client gửi lên, chưa giải mã.
+ */
+export interface ProjectMembersListInput {
+  search?: string;
+  role?: ProjectMemberRole;
+  sort?: ProjectMemberSort;
+  cursor?: string;
+  limit?: number;
+}
+
 export interface CreateProjectRecord {
   workspaceId: string;
   name: string;
   description: string;
   createdBy: string;
+  /** Project Owner được chỉ định (F1). Mặc định = `createdBy`. */
+  ownerId?: string;
 }
 
 export interface AddProjectMemberRecord {
@@ -79,6 +116,10 @@ export interface ProjectRepositoryPort {
   findById(id: string): Promise<ProjectRecord | null>;
   findOneByWorkspaceAndName(workspaceId: string, name: string): Promise<ProjectRecord | null>;
   findByWorkspace(workspaceId: string): Promise<ProjectRecord[]>;
+  /** E3/E4 — đếm project theo workspace (và theo trạng thái nếu có). */
+  countByWorkspace(workspaceId: string, status?: ProjectStatus): Promise<number>;
+  /** E3 — đếm project mà user là thành viên/owner. */
+  countByUser(userId: string): Promise<number>;
   findByWorkspacePaged(
     workspaceId: string,
     opts?: ProjectListQuery,

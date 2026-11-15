@@ -14,6 +14,10 @@ export interface UserRecord {
   firstName: string;
   lastName: string;
   avatarUrl?: string | null;
+  /** Số điện thoại (E.164-ish) — duy nhất nếu có. */
+  phone?: string | null;
+  /** Giới thiệu ngắn, tối đa 500 ký tự. */
+  bio?: string | null;
   role: 'admin' | 'analyst';
   notificationsEnabled: boolean;
   status: 'active' | 'blocked';
@@ -50,6 +54,8 @@ export interface UpdateProfileInput {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string | null;
+  phone?: string | null;
+  bio?: string | null;
 }
 
 export interface CreateSessionInput {
@@ -74,6 +80,10 @@ export interface PasswordResetState {
 export interface UserRepositoryPort {
   findByEmail(email: string, includePassword?: boolean): Promise<UserRecord | null>;
   findById(id: string): Promise<UserRecord | null>;
+  /** Tìm user theo số điện thoại (kiểm tra duy nhất — G1). */
+  findByPhone(phone: string): Promise<UserRecord | null>;
+  /** Lấy nhiều user theo id (populate tên/email thành viên — E6). */
+  findByIds(ids: string[]): Promise<UserRecord[]>;
   findByIdWithResetSecret(id: string): Promise<(UserRecord & PasswordResetState) | null>;
   findByEmailWithResetSecret(email: string): Promise<(UserRecord & PasswordResetState) | null>;
   setPasswordResetOtp(email: string, tokenHash: string, expiresAt: Date, sentCount: number, windowStart: Date | null): Promise<boolean>;

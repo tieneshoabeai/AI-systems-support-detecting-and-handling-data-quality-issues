@@ -18,6 +18,7 @@ import { IssuesModule } from './modules/issues/issues.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { OverviewModule } from './modules/overview/overview.module';
 import { OutboxModule } from './shared/application/outbox/outbox.module';
 import { EventsModule } from './shared/events/events.module';
 import { AppController } from './app.controller';
@@ -55,6 +56,7 @@ import { RequestIdMiddleware } from './shared/middleware/request-id.middleware';
     FeedbackModule,
     RealtimeModule,
     AuditModule,
+    OverviewModule,
   ],
   controllers: [AppController],
   providers: [

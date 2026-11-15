@@ -22,6 +22,8 @@ function toUserRecord(doc: IUser): UserRecord {
     firstName: doc.first_name,
     lastName: doc.last_name,
     avatarUrl: doc.avatar_url ?? null,
+    phone: doc.phone ?? null,
+    bio: doc.bio ?? null,
     role: doc.role,
     notificationsEnabled: doc.notifications_enabled !== false,
     status: doc.status,
@@ -71,6 +73,22 @@ export class UsersRepository implements UserRepositoryPort {
       .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
       .exec();
     return doc ? toUserRecord(doc) : null;
+  }
+
+  async findByPhone(phone: string): Promise<UserRecord | null> {
+    const trimmed = phone.trim();
+    if (!trimmed) return null;
+    const doc = await this.userModel.findOne({ phone: trimmed, deleted_at: null }).exec();
+    return doc ? toUserRecord(doc) : null;
+  }
+
+  async findByIds(ids: string[]): Promise<UserRecord[]> {
+    const valid = ids.filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return [];
+    const docs = await this.userModel
+      .find({ _id: { $in: valid.map((id) => new Types.ObjectId(id)) }, deleted_at: null })
+      .exec();
+    return docs.map(toUserRecord);
   }
 
   async findByIdWithResetSecret(id: string): Promise<(UserRecord & PasswordResetState) | null> {
@@ -148,6 +166,8 @@ export class UsersRepository implements UserRepositoryPort {
             ...(data.firstName !== undefined ? { first_name: data.firstName } : {}),
             ...(data.lastName !== undefined ? { last_name: data.lastName } : {}),
             ...(data.avatarUrl !== undefined ? { avatar_url: data.avatarUrl } : {}),
+            ...(data.phone !== undefined ? { phone: data.phone } : {}),
+            ...(data.bio !== undefined ? { bio: data.bio } : {}),
           },
         },
         { new: true },

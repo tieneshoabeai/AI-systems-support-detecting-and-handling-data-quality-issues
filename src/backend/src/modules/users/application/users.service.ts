@@ -58,12 +58,21 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    data: { first_name?: string; last_name?: string; avatar_url?: string },
+    data: { first_name?: string; last_name?: string; avatar_url?: string; phone?: string | null; bio?: string | null },
   ): Promise<UserRecord> {
+    // Số điện thoại phải duy nhất trong hệ thống (nếu được cung cấp).
+    if (data.phone !== undefined && data.phone !== null && data.phone !== '') {
+      const owner = await this.users.findByPhone(data.phone);
+      if (owner && owner.id !== userId) {
+        throw new ConflictException('Số điện thoại này đã được sử dụng bởi một tài khoản khác');
+      }
+    }
     const input: UpdateProfileInput = {
       ...(data.first_name !== undefined ? { firstName: data.first_name } : {}),
       ...(data.last_name !== undefined ? { lastName: data.last_name } : {}),
       ...(data.avatar_url !== undefined ? { avatarUrl: data.avatar_url } : {}),
+      ...(data.phone !== undefined ? { phone: data.phone === '' ? null : data.phone } : {}),
+      ...(data.bio !== undefined ? { bio: data.bio === '' ? null : data.bio } : {}),
     };
     const updated = await this.users.updateProfile(userId, input);
     if (!updated) {

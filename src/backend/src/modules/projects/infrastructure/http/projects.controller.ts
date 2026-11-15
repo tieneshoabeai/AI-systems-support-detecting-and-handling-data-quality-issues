@@ -17,6 +17,7 @@ import { ProjectsService } from '../../application/projects.service';
 import { CreateProjectSchema, CreateProjectDto } from './dtos/create-project.dto';
 import { UpdateProjectSchema, UpdateProjectDto } from './dtos/update-project.dto';
 import { ListProjectsQuerySchema } from './dtos/list-projects-query.dto';
+import { ListProjectMembersQuerySchema } from './dtos/list-project-members-query.dto';
 import {
   AddProjectMemberSchema,
   AddProjectMemberDto,
@@ -82,7 +83,11 @@ export class ProjectsController {
   @CheckPolicies((ability) => ability.can(Action.Read, 'Project'))
   async getProjectById(@Param('id') id: string) {
     const project = await this.projectsService.getProjectById(id, true);
-    return { project };
+    // H3 — kèm tên workspace để frontend không cần gọi thêm 1 request.
+    const workspaceName = await this.projectsService.getWorkspaceName(project.workspaceId);
+    return {
+      project: { ...project, workspaceName },
+    };
   }
 
   @Patch('projects/:id')
@@ -122,11 +127,20 @@ export class ProjectsController {
   }
 
   @Get('projects/:id/members')
-  @ApiOperation({ summary: 'PROJ-09: Danh sách thành viên project' })
+  @ApiOperation({
+    summary: 'PROJ-09: Danh sách thành viên project (tìm kiếm/lọc/phân trang cursor)',
+    description:
+      'Phân trang keyset: dùng `meta.nextCursor` làm tham số `cursor` của request kế tiếp. ' +
+      'Response: `{ items, meta: { nextCursor, hasMore, limit } }` — không có `total`/`page`.',
+  })
+  @ApiZodQuery(ListProjectMembersQuerySchema)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Project'))
-  async listMembers(@Param('id') id: string) {
-    const p = await this.projectsService.getProjectById(id);
-    return { members: p.members ?? [], total: (p.members ?? []).length };
+  async listMembers(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(ListProjectMembersQuerySchema)) query: Record<string, unknown>,
+  ) {
+    const result = await this.projectsService.listMembers(id, query as never);
+    return { ...result };
   }
 
   @Post('projects/:id/members')
