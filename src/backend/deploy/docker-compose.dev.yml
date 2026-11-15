@@ -1,0 +1,64 @@
+# Phan 10 v6 §6.2b — Docker Compose cho dev/test local.
+#
+# - MongoDB: single-node replica set (`mongod --replSet rs0`) — MIEN PHI, du transaction cho outbox.
+#   (Atlas M0 free chi dung cho dev nhanh; khong dung cho test/staging.)
+# - Redis: BAT BUOC cho cache + rate-limit + Socket.IO adapter.
+# - AI engine: Ollama (dev). Khong publish port ra host.
+#
+# Cach chay:
+#   docker compose -f deploy/docker-compose.dev.yml up -d
+#   docker compose -f deploy/docker-compose.dev.yml exec mongo mongosh --eval "rs.initiate()"
+#
+services:
+  mongo:
+    image: mongo:7
+    container_name: dq-mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [dq-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: dq-redis
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [dq-net]
+
+  ai-engine:
+    image: ollama/ollama:latest
+    container_name: dq-ai-engine
+    # KHONG publish port ra host — chi goi duoc tu trong mang compose.
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks: [dq-net]
+
+volumes:
+  mongo-data:
+  redis-data:
+  ollama-models:
+
+networks:
+  dq-net:
+    driver: bridge

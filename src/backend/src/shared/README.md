@@ -1,7 +1,7 @@
 # SHARED ARCHITECTURE & CROSS-CUTTING FOUNDATION
 
 ## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
-Module `shared` là khung xương sống hạ tầng (Infrastructural Backbone) của toàn bộ hệ thống. Module này tập trung giải quyết các bài toán kỹ thuật dùng chung (Cross-cutting Concerns) theo chuẩn Enterprise, cung cấp các khối xây dựng cốt lõi (Building Blocks) cho toàn bộ 9 Feature Modules (`auth`, `users`, `workspaces`, `projects`, `datasets`, `data-view`, `versions`, `lineage`, `clean-rules`).
+Module `shared` là khung xương sống hạ tầng (Infrastructural Backbone) của toàn bộ hệ thống. Module này tập trung giải quyết các bài toán kỹ thuật dùng chung (Cross-cutting Concerns) theo chuẩn Enterprise, cung cấp các khối xây dựng cốt lõi (Building Blocks) cho toàn bộ các Feature Modules (`auth`, `users`, `workspaces`, `projects`, `datasets`, `data-view`, `analysis`, `notifications`, `issues`, `feedback`, `realtime`).
 
 - **Các Trụ cột Hạ tầng Chính:**
   - **Phân quyền Thuộc tính Thực thể CASL (ABAC/PBAC):** Phân quyền động theo ngữ cảnh Workspace và giải quyết triệt để lỗi truy vấn CSDL 2 lần (Double Database Query).
@@ -21,7 +21,7 @@ graph TD
         FM1["Auth & Users"]
         FM2["Workspaces & Projects"]
         FM3["Datasets & Data View"]
-        FM4["Lineage & Versions"]
+        FM4["Analysis & Feedback"]
     end
 
     subgraph Shared Layer ["Tầng Hạ tầng Dùng chung (SharedModule)"]
@@ -36,19 +36,20 @@ graph TD
     subgraph Infrastructure ["Hạ tầng Bên ngoài (Infrastructure)"]
         Mongo[("MongoDB Atlas M0")]
         R2[("Cloudflare R2 Bucket")]
-        Aura[("Neo4j AuraDB DAG")]
+        Redis[("Redis Cache + Rate-limit")]
+        Kafka[("Kafka Event Bus")]
     end
 
     FM1 --> CASL & CRYPTO & REPO
     FM2 --> CASL & REPO
     FM3 --> STORE & TX & REPO & SWAGGER
-    FM4 --> TX & STORE & REPO
+    FM4 --> TX & REPO
 
     CASL -.->|"Kiểm tra quyền trên Document"| REPO
     TX -->|"Tự động đính kèm ClientSession"| REPO
     REPO -->|"Mongoose queries"| Mongo
     STORE -->|"Stream Put/Get Object"| R2
-    FM4 -.->|"Cypher Queries qua Driver"| Aura
+    REPO -->|"Outbox events"| Kafka
 ```
 
 ---

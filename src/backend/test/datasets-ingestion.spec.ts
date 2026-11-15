@@ -1,55 +1,68 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Readable } from 'stream';
-import { DatasetsService } from '../src/modules/datasets/datasets.service';
-import { DatasetsRepository } from '../src/modules/datasets/datasets.repository';
-import { ProjectsService } from '../src/modules/projects/projects.service';
-import { StorageService } from '../src/shared/storage/storage.service';
-import { OutboxService } from '../src/shared/application/outbox/outbox.service';
-import { SchemaInferenceService } from '../src/modules/datasets/services/schema-inference.service';
+import { DatasetsService } from '../src/modules/datasets/application/datasets.service';
+import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
+import { ProjectsService } from '../src/modules/projects/application/projects.service';
+import { STORAGE_PORT } from '../src/shared/ports/storage.port';
+import { OUTBOX_PORT } from '../src/shared/ports/outbox.port';
+import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
+import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
+import { ConfigService } from '@nestjs/config';
 import { ConflictException, PayloadTooLargeException } from '@nestjs/common';
-import { IDataset } from '../src/modules/datasets/schemas/dataset.schema';
 
 describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
   let service: DatasetsService;
-  let datasetsRepository: jest.Mocked<Partial<DatasetsRepository>>;
-  let projectsService: jest.Mocked<Partial<ProjectsService>>;
-  let storageService: jest.Mocked<Partial<StorageService>>;
-  let outboxService: jest.Mocked<Partial<OutboxService>>;
+  let datasetsRepository: Record<string, jest.Mock>;
+  let projectsService: Record<string, jest.Mock>;
+  let storageService: Record<string, jest.Mock>;
+  let outboxService: Record<string, jest.Mock>;
+  let workspacesService: Record<string, jest.Mock>;
 
-  const mockProjectId = new Types.ObjectId();
-  const mockWorkspaceId = new Types.ObjectId();
-  const mockDatasetId = new Types.ObjectId();
+  const mockProjectId = new Types.ObjectId().toHexString();
+  const mockWorkspaceId = new Types.ObjectId().toHexString();
+  const mockDatasetId = new Types.ObjectId().toHexString();
 
-  const mockProjectDoc = {
-    _id: mockProjectId,
-    workspace_id: mockWorkspaceId,
+  const mockProjectRecord = {
+    id: mockProjectId,
+    workspaceId: mockWorkspaceId,
     name: 'Customer Project',
-    has_dataset: false,
+    hasDataset: false,
   };
 
-  const mockDatasetDoc = {
-    _id: mockDatasetId,
-    project_id: mockProjectId,
-    workspace_id: mockWorkspaceId,
+  const mockDatasetRecord = {
+    id: mockDatasetId,
+    projectId: mockProjectId,
+    workspaceId: mockWorkspaceId,
     name: 'customers',
-    original_file_name: 'customers.csv',
-    row_count: 3,
-    column_count: 4,
+    originalFileName: 'customers.csv',
+    fileFormat: 'csv' as const,
+    fileSizeBytes: 100,
+    fileChecksum: 'sha256:abc',
+    rowCount: 3,
+    columnCount: 4,
+    columns: [],
+    columnIssues: [],
+    hasHeader: true,
+    delimiter: ',' as const,
+    currentVersion: 1,
     status: 'READY' as const,
-  } as unknown as IDataset;
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   beforeEach(async () => {
     datasetsRepository = {
-      create: jest.fn().mockResolvedValue(mockDatasetDoc),
-      updateById: jest.fn().mockResolvedValue(mockDatasetDoc),
-      findById: jest.fn().mockResolvedValue(mockDatasetDoc),
+      create: jest.fn().mockResolvedValue(mockDatasetRecord),
+      updateById: jest.fn().mockResolvedValue(mockDatasetRecord),
+      findById: jest.fn().mockResolvedValue(mockDatasetRecord),
+      findByProject: jest.fn().mockResolvedValue(null),
       bulkInsertRecords: jest.fn().mockResolvedValue(3),
       softDeleteDatasetWithRecords: jest.fn().mockResolvedValue(true),
     };
 
     projectsService = {
-      getProjectById: jest.fn().mockResolvedValue(mockProjectDoc as never),
+      getProjectById: jest.fn().mockResolvedValue(mockProjectRecord),
       setHasDataset: jest.fn().mockResolvedValue(true),
     };
 
@@ -62,20 +75,31 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
         usageRatio: 0.0001,
       }),
       uploadStream: jest.fn().mockResolvedValue('raw_files/test_storage_key.csv'),
+      deleteFile: jest.fn().mockResolvedValue(true),
     };
 
-    outboxService = {
-      recordEvent: jest.fn().mockResolvedValue({} as never),
+    outboxService = { recordEvent: jest.fn().mockResolvedValue({}) };
+    workspacesService = {
+      checkWorkspaceUploadQuota: jest.fn().mockResolvedValue(undefined),
+      incrementStorageUsed: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatasetsService,
         SchemaInferenceService,
-        { provide: DatasetsRepository, useValue: datasetsRepository },
+        { provide: DATASET_REPOSITORY_PORT, useValue: datasetsRepository },
         { provide: ProjectsService, useValue: projectsService },
-        { provide: StorageService, useValue: storageService },
-        { provide: OutboxService, useValue: outboxService },
+        { provide: STORAGE_PORT, useValue: storageService },
+        { provide: OUTBOX_PORT, useValue: outboxService },
+        { provide: WorkspacesService, useValue: workspacesService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string, def?: unknown) =>
+              key === 'WORKSPACE_STORAGE_QUOTA_BYTES' ? 2147483648 : def,
+          },
+        },
       ],
     }).compile();
 
@@ -83,20 +107,17 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
   });
 
   it('ingestDatasetStream should reject upload when Project already has an active Dataset (1 Project = 1 Dataset)', async () => {
-    projectsService.getProjectById = jest.fn().mockResolvedValue({
-      ...mockProjectDoc,
-      has_dataset: true,
-    } as never);
-
+    projectsService.getProjectById = jest
+      .fn()
+      .mockResolvedValue({ ...mockProjectRecord, hasDataset: true });
     const stream = Readable.from(['id,name\n1,Alice']);
-
     await expect(
       service.ingestDatasetStream({
-        projectId: mockProjectId.toHexString(),
+        projectId: mockProjectId,
         fileStream: stream,
         fileName: 'another_file.csv',
         mimeType: 'text/csv',
-      })
+      }),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -108,17 +129,15 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
       maxBytes: 10737418240,
       usageRatio: 1.0,
     });
-
     const stream = Readable.from(['id,name\n1,Alice']);
-
     await expect(
       service.ingestDatasetStream({
-        projectId: mockProjectId.toHexString(),
+        projectId: mockProjectId,
         fileStream: stream,
         fileName: 'data.csv',
         mimeType: 'text/csv',
         contentLength: 5000000,
-      })
+      }),
     ).rejects.toThrow(PayloadTooLargeException);
   });
 
@@ -130,15 +149,13 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
       { id: '102', is_vip: 'false', joined_date: '2026-02-20', notes: 'Standard' },
       { id: '103', is_vip: 'true', joined_date: '2026-03-10', notes: '' },
     ];
-
     const columns = inference.inferSchema(headers, sampleRows);
-
     expect(columns).toHaveLength(4);
-    expect(columns[0].data_type).toBe('number');
-    expect(columns[1].data_type).toBe('boolean');
-    expect(columns[2].data_type).toBe('date');
-    expect(columns[3].data_type).toBe('string');
-    expect(columns[3].missing_count).toBe(1);
+    expect(columns[0].dataType).toBe('number');
+    expect(columns[1].dataType).toBe('boolean');
+    expect(columns[2].dataType).toBe('date');
+    expect(columns[3].dataType).toBe('string');
+    expect(columns[3].missingCount).toBe(1);
   });
 
   it('ingestDatasetStream should stream, infer schema, bulkWrite records and trigger outbox event', async () => {
@@ -147,26 +164,20 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
       '1,true,1990-05-12,alice@example.com\n' +
       '2,false,1985-08-25,bob@example.com\n' +
       '3,true,1995-12-01,charlie@example.com\n';
-
     const fileStream = Readable.from([Buffer.from(csvContent, 'utf8')]);
-
     const result = await service.ingestDatasetStream({
-      projectId: mockProjectId.toHexString(),
+      projectId: mockProjectId,
       fileStream,
       fileName: 'customers.csv',
       mimeType: 'text/csv',
       contentLength: csvContent.length,
     });
-
     expect(result).toBeDefined();
     expect(storageService.uploadStream).toHaveBeenCalled();
     expect(datasetsRepository.bulkInsertRecords).toHaveBeenCalled();
-    expect(projectsService.setHasDataset).toHaveBeenCalledWith(mockProjectId.toHexString(), true);
+    expect(projectsService.setHasDataset).toHaveBeenCalledWith(mockProjectId, true);
     expect(outboxService.recordEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        aggregate_type: 'DATASET',
-        event_type: 'DATASET_INGESTED',
-      })
+      expect.objectContaining({ aggregate_type: 'DATASET', event_type: 'DATASET_INGESTED' }),
     );
   });
 });

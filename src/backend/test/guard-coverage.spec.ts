@@ -1,15 +1,17 @@
 import { Reflector } from '@nestjs/core';
 import { AppController } from '../src/app.controller';
-import { AuthController } from '../src/modules/auth/auth.controller';
-import { UsersController } from '../src/modules/users/users.controller';
-import { WorkspacesController } from '../src/modules/workspaces/workspaces.controller';
-import { ProjectsController } from '../src/modules/projects/projects.controller';
-import { DatasetsController } from '../src/modules/datasets/datasets.controller';
-import { DataViewController } from '../src/modules/data-view/data-view.controller';
-import { LineageController } from '../src/modules/lineage/lineage.controller';
-import { VersionsController } from '../src/modules/versions/versions.controller';
-import { CleanRulesController } from '../src/modules/clean-rules/clean-rules.controller';
-import { ExportsController } from '../src/modules/exports/exports.controller';
+import { AuthController } from '../src/modules/auth/infrastructure/http/auth.controller';
+import { UsersController } from '../src/modules/users/infrastructure/http/users.controller';
+import { WorkspacesController } from '../src/modules/workspaces/infrastructure/http/workspaces.controller';
+import { ProjectsController } from '../src/modules/projects/infrastructure/http/projects.controller';
+import { DatasetsController } from '../src/modules/datasets/infrastructure/http/datasets.controller';
+import { DataViewController } from '../src/modules/data-view/infrastructure/http/data-view.controller';
+import { AnalysisController } from '../src/modules/analysis/infrastructure/http/analysis.controller';
+import { SummaryController } from '../src/modules/analysis/infrastructure/http/summary.controller';
+import { ReportController } from '../src/modules/analysis/infrastructure/http/report.controller';
+import { NotificationsController } from '../src/modules/notifications/infrastructure/http/notifications.controller';
+import { IssuesController } from '../src/modules/issues/infrastructure/http/issues.controller';
+import { FeedbackController } from '../src/modules/feedback/infrastructure/http/feedback.controller';
 import { IS_PUBLIC_KEY } from '../src/shared/decorators/public.decorator';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 
@@ -23,10 +25,12 @@ describe('Architectural Guard Coverage (Zero-Trust Security)', () => {
     ProjectsController,
     DatasetsController,
     DataViewController,
-    LineageController,
-    VersionsController,
-    CleanRulesController,
-    ExportsController,
+    AnalysisController,
+    SummaryController,
+    ReportController,
+    NotificationsController,
+    IssuesController,
+    FeedbackController,
   ];
 
   it('every endpoint across all controllers must be explicitly guarded by JwtAuthGuard or decorated with @Public()', () => {

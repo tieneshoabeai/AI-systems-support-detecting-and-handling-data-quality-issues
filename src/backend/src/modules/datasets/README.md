@@ -6,7 +6,7 @@ Module `datasets` là cổng tiếp nhận dữ liệu đầu vào (Ingestion Ga
 - **Vị trí trong hệ thống:**
   - **Đầu vào (Input):** Người dùng (`Editor` hoặc `Owner`) tải lên tệp CSV/Excel qua REST API Multipart Form.
   - **Hạ tầng lưu trữ:** Tệp thô nguyên bản được lưu trữ trên **Cloudflare R2**; Từng dòng dữ liệu sau phân tách được lưu vào **MongoDB Atlas** (`dataset_records`).
-  - **Đầu ra (Output):** Phát sự kiện `DATASET_INGESTED` vào bảng `outbox_events` để kích hoạt dựng đồ thị nguồn gốc dữ liệu bên **LineageModule** và phục vụ hiển thị trên **DataViewModule**.
+  - **Đầu ra (Output):** Phát sự kiện `DATASET_INGESTED` vào bảng `outbox_events` để ghi nhận nội bộ và phục vụ hiển thị trên **DataViewModule** (dữ liệu bất biến — không dựng đồ thị phả hệ).
 
 ---
 
@@ -36,7 +36,7 @@ sequenceDiagram
     end
 
     Svc->>Mongo: Ghi Metadata vào collection datasets
-    Svc->>Outbox: Ghi sự kiện DATASET_INGESTED (để Lineage xử lý)
+    Svc->>Outbox: Ghi sự kiện DATASET_INGESTED (ghi nhận nội bộ)
     Svc-->>Client: Trả về Metadata Dataset & Cấu trúc Schema
 ```
 
@@ -81,7 +81,7 @@ Nhằm tối ưu hóa hiệu năng đọc/ghi, cấu trúc dữ liệu được 
 ### 5.2. Sự kiện Bất đồng bộ (Asynchronous Events)
 - **`DATASET_INGESTED`**: Phát sinh ngay sau khi nạp thành công.
   - *Payload tóm tắt:* `{ dataset_id, project_id, file_checksum, row_count, storage_key }`.
-  - *Mục đích:* Báo hiệu cho `OutboxProcessorWorker` đồng bộ tạo Node `Dataset` trên đồ thị phả hệ Neo4j AuraDB.
+  - *Mục đích:* Báo hiệu cho `OutboxProcessorWorker` ghi nhận sự kiện nạp dataset (dữ liệu bất biến — không dựng đồ thị nguồn gốc, các module đồ thị cũ đã loại bỏ).
 
 ---
 

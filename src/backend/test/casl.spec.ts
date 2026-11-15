@@ -20,7 +20,7 @@ describe('CASL Authorization Engine (casl-ability.factory.ts)', () => {
       const ability = factory.createForUser(adminUser);
       expect(ability.can(Action.Manage, 'all')).toBe(true);
       expect(ability.can(Action.Delete, 'Workspace')).toBe(true);
-      expect(ability.can(Action.Execute, 'CleanRule')).toBe(true);
+      expect(ability.can(Action.Manage, 'Dataset')).toBe(true);
     });
   });
 
@@ -44,46 +44,28 @@ describe('CASL Authorization Engine (casl-ability.factory.ts)', () => {
     });
   });
 
-  describe('Workspace Editor', () => {
-    const editorUser: CurrentUser = {
-      userId: 'user_editor',
-      email: 'editor@workspace.com',
+  describe('Workspace Member (v3: owner|member)', () => {
+    const memberUser: CurrentUser = {
+      userId: 'user_member',
+      email: 'member@workspace.com',
       role: 'analyst',
       workspaceId: 'ws_123',
-      workspaceRole: 'editor',
+      workspaceRole: 'member',
     };
 
-    it('should be able to create, read, update, execute rules in workspace, but cannot delete workspace or dataset', () => {
-      const ability = factory.createForUser(editorUser);
+    it('should only be able to read resources in its workspace, and cannot create/update/delete/execute', () => {
+      const ability = factory.createForUser(memberUser);
       const myDataset = buildSubject('Dataset', { id: 'ds_1', workspace_id: 'ws_123' });
-      const myCleanRule = buildSubject('CleanRule', { id: 'cr_1', workspace_id: 'ws_123' });
-
-      expect(ability.can(Action.Create, 'Dataset')).toBe(true);
-      expect(ability.can(Action.Update, myDataset)).toBe(true);
-      expect(ability.can(Action.Execute, myCleanRule)).toBe(true);
-      expect(ability.can(Action.Delete, myDataset)).toBe(false);
-      expect(ability.can(Action.Delete, 'Workspace')).toBe(false);
-    });
-  });
-
-  describe('Workspace Viewer', () => {
-    const viewerUser: CurrentUser = {
-      userId: 'user_viewer',
-      email: 'viewer@workspace.com',
-      role: 'analyst',
-      workspaceId: 'ws_123',
-      workspaceRole: 'viewer',
-    };
-
-    it('should only be able to read resources in its workspace, and cannot create or update', () => {
-      const ability = factory.createForUser(viewerUser);
-      const myDataset = buildSubject('Dataset', { id: 'ds_1', workspace_id: 'ws_123' });
+      const myProject = buildSubject('Project', { id: 'prj_1', workspace_id: 'ws_123' });
 
       expect(ability.can(Action.Read, myDataset)).toBe(true);
+      expect(ability.can(Action.Read, myProject)).toBe(true);
       expect(ability.can(Action.Create, 'Dataset')).toBe(false);
+      expect(ability.can(Action.Create, 'Project')).toBe(false);
       expect(ability.can(Action.Update, myDataset)).toBe(false);
       expect(ability.can(Action.Delete, myDataset)).toBe(false);
-      expect(ability.can(Action.Execute, 'CleanRule')).toBe(false);
+      expect(ability.can(Action.Execute, 'Dataset')).toBe(false);
+      expect(ability.can(Action.Delete, 'Workspace')).toBe(false);
     });
   });
 

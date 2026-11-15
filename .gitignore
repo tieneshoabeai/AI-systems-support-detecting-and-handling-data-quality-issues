@@ -68,3 +68,10 @@ pnpm-debug.log*
 build_env.md
 .agent/
 remember/
+
+
+# Virtualenv dung cho sinh bao cao
+.venv-doc/
+
+/docs/*
+!/docs/restructures/

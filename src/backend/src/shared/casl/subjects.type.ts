@@ -4,11 +4,11 @@ export type SubjectName =
   | 'Project'
   | 'Dataset'
   | 'DataRecord'
-  | 'CleanRule'
-  | 'DatasetVersion'
-  | 'Lineage'
-  | 'ExportTask'
+  | 'Analysis'
   | 'User'
-  | 'Session';
+  | 'Session'
+  | 'Notification'
+  | 'IssueReport'
+  | 'FindingFeedback';
 
 export type AppSubjects = SubjectName | Record<string, unknown>;
