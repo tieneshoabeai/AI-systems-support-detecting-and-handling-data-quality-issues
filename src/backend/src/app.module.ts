@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
@@ -21,6 +21,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { OutboxModule } from './shared/application/outbox/outbox.module';
 import { EventsModule } from './shared/events/events.module';
 import { AppController } from './app.controller';
+import { RequestIdMiddleware } from './shared/middleware/request-id.middleware';
 
 @Module({
   imports: [
@@ -63,4 +64,12 @@ import { AppController } from './app.controller';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Gắn X-Request-Id cho mọi request (có thể nhận sẵn từ header `x-request-id`
+   * để trace xuyên qua Cloudflare Tunnel / gateway).
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

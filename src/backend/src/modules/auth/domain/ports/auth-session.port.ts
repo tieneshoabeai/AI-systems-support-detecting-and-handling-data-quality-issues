@@ -14,7 +14,12 @@ export interface AuthSessionRecord {
   ipAddress?: string | null;
   userAgent?: string | null;
   isRevoked: boolean;
+  /** Cờ "ghi nhớ đăng nhập" — phiên sống 30 ngày thay vì 7 ngày. */
+  rememberMe: boolean;
+  /** Lần cuối phiên được dùng (refresh). */
+  lastUsedAt: Date | null;
   expiresAt: Date;
+  createdAt: Date;
 }
 
 export interface AuthUserLookup {
@@ -51,11 +56,17 @@ export interface AuthSessionPort {
     deviceName?: string | null;
     ipAddress?: string | null;
     userAgent?: string | null;
+    /** Phiên "ghi nhớ đăng nhập" — hạn 30 ngày. */
+    rememberMe?: boolean;
     expiresAt: Date;
   }): Promise<AuthSessionRecord>;
   findSessionByTokenHash(refreshTokenHash: string): Promise<AuthSessionRecord | null>;
   findSessionByTokenHashIncludingRevoked(refreshTokenHash: string): Promise<AuthSessionRecord | null>;
   findActiveSessions(userId: string): Promise<AuthSessionRecord[]>;
+  /** Tra cứu 1 phiên theo id (dùng cho `GET /auth/sessions/:id`, chống IDOR). */
+  findSessionById(sessionId: string): Promise<AuthSessionRecord | null>;
+  /** Đánh dấu phiên vừa được dùng (cập nhật `last_used_at`). */
+  touchSession(sessionId: string, lastUsedAt: Date): Promise<boolean>;
   revokeSession(userId: string, sessionId: string): Promise<boolean>;
   revokeSessionById(sessionId: string): Promise<boolean>;
   revokeAllUserSessions(userId: string): Promise<number>;
@@ -94,4 +105,17 @@ export interface AuthTokenPayload {
 export interface AuthTokenIssuerPort {
   sign(payload: AuthTokenPayload): string;
   verify(token: string): AuthTokenPayload;
+}
+
+/**
+ * Policy hạn phiên đăng nhập — đọc từ biến môi trường (infrastructure adapter).
+ *
+ * Lý do tách port: tầng `application` không được chạm `process.env`/ConfigService
+ * trực tiếp (nguyên tắc Dependency Rule — xem test/clean-architecture.spec.ts).
+ */
+export const AUTH_SESSION_POLICY_PORT = Symbol('AuthSessionPolicyPort');
+
+export interface AuthSessionPolicyPort {
+  /** Hạn phiên (mili giây) cho từng trường hợp: thường (7 ngày) hoặc "ghi nhớ đăng nhập" (30 ngày). */
+  refreshTtlMs(rememberMe: boolean): number;
 }

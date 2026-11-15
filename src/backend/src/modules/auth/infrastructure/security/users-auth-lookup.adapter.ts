@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  AUTH_USER_LOOKUP_PORT,
   type AuthUserCreateInput,
   type AuthUserLookup,
   type AuthUserLookupPort,

@@ -4,7 +4,6 @@ import { Model, Types } from 'mongoose';
 import { IWorkspace } from './workspace.schema';
 import { resolveMongoSession } from '../../../../shared/database/mongo-session-context';
 import {
-  WORKSPACE_REPOSITORY_PORT,
   type CreateWorkspaceRecord,
   type WorkspaceListQuery as DomainListQuery,
   type WorkspaceMemberRecord,
@@ -13,7 +12,7 @@ import {
 } from '../../domain/ports/workspace.repository.port';
 import { toMemberPersistence, toWorkspaceRecord } from './workspace.mapper';
 
-export interface WorkspaceListQuery extends DomainListQuery {}
+export type WorkspaceListQuery = DomainListQuery;
 
 /**
  * WORKSPACES — Infrastructure adapter (driven).

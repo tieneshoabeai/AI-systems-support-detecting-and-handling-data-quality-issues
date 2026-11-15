@@ -55,7 +55,7 @@ export async function useRedisAdapterIfConfigured(app: INestApplication): Promis
     ]);
     app.useWebSocketAdapter(
       new (class extends IoAdapter {
-        createIOServer(port: number, opts?: Record<string, unknown>) {
+        override createIOServer(port: number, opts?: Record<string, unknown>) {
           const s = super.createIOServer(port, { ...(opts ?? {}) });
           (s as unknown as { adapter(a: unknown): void }).adapter(createAdapter(pubClient, subClient));
           return s;

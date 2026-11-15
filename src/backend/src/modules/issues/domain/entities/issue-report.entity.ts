@@ -1,4 +1,4 @@
-import { assertAllowedIssueTransition, type IssueStatus } from '../value-objects/issue-status.vo';
+import { ALLOWED_ISSUE_TRANSITIONS, assertAllowedIssueTransition, type IssueStatus } from '../value-objects/issue-status.vo';
 import type { IssueType } from '../value-objects/issue-type.vo';
 
 export interface IssueReportProps {
@@ -17,8 +17,8 @@ export class IssueReport {
   }
 
   canTransitionTo(next: IssueStatus): boolean {
-    const allowed = { new: ['in_progress'], in_progress: ['resolved', 'new'], resolved: ['closed'], closed: [] } as Record<IssueStatus, IssueStatus[]>;
-    return (allowed[this.props.status] ?? []).includes(next);
+    const allowed = ALLOWED_ISSUE_TRANSITIONS[this.props.status] ?? [];
+    return allowed.includes(next);
   }
 
   assertCanTransitionTo(next: IssueStatus): void {

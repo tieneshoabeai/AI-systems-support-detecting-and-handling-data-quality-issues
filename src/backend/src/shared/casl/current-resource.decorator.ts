@@ -1,4 +1,5 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
+import { createParamDecorator } from '@nestjs/common';
 
 /**
  * Decorator trích xuất đối tượng tài nguyên (Resource) đã được nạp sẵn từ PoliciesGuard

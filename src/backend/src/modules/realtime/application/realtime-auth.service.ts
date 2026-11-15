@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../../users/application/users.service';
@@ -18,8 +18,6 @@ export interface RealtimeClientIdentity {
  */
 @Injectable()
 export class RealtimeAuthService {
-  private readonly logger = new Logger(RealtimeAuthService.name);
-
   constructor(
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,

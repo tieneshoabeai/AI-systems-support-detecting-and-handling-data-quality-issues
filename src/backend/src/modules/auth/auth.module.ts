@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
 import { AuthService } from './application/auth.service';
 import {
+  AUTH_SESSION_POLICY_PORT,
   AUTH_SESSION_PORT,
   AUTH_TOKEN_ISSUER_PORT,
   AUTH_USER_LOOKUP_PORT,
@@ -13,6 +14,7 @@ import {
 import { AuthController } from './infrastructure/http/auth.controller';
 import { JwtStrategy } from './infrastructure/auth/jwt.strategy';
 import { BcryptHasherAdapter } from './infrastructure/security/bcrypt-hasher.adapter';
+import { EnvAuthSessionPolicyAdapter } from './infrastructure/security/env-auth-session-policy.adapter';
 import { JwtIssuerAdapter } from './infrastructure/security/jwt-issuer.adapter';
 import { UsersAuthLookupAdapter } from './infrastructure/security/users-auth-lookup.adapter';
 import { UsersAuthSessionAdapter } from './infrastructure/security/users-auth-session.adapter';
@@ -43,6 +45,8 @@ import { UsersAuthSessionAdapter } from './infrastructure/security/users-auth-se
     { provide: AUTH_USER_LOOKUP_PORT, useExisting: UsersAuthLookupAdapter },
     UsersAuthSessionAdapter,
     { provide: AUTH_SESSION_PORT, useExisting: UsersAuthSessionAdapter },
+    EnvAuthSessionPolicyAdapter,
+    { provide: AUTH_SESSION_POLICY_PORT, useExisting: EnvAuthSessionPolicyAdapter },
   ],
   exports: [AuthService, JwtStrategy, PassportModule],
 })

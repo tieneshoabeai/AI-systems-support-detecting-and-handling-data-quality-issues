@@ -39,7 +39,7 @@ export function ApiZodQuery(schema: z.ZodType<unknown>, description?: string): M
       required: required.has(name),
       enum: prop.enum,
       type: prop.type === 'integer' || prop.type === 'number' ? Number : String,
-      description: prop.description,
+      description: prop.description ?? description,
     })
   );
   return applyDecorators(...decorators);

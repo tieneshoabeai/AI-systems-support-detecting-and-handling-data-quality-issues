@@ -1,29 +1,29 @@
-import { Inject, Injectable, UnauthorizedException, BadRequestException, ConflictException, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
+import { Inject, Injectable, UnauthorizedException, BadRequestException, NotFoundException, ConflictException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_BYTES,
   isAccountLocked,
-  refreshTokenExpiry,
 } from '../domain/value-objects/auth-policy.vo';
 import { computeSha256Buffer } from '../../../shared/crypto/crypto.util';
 import { detectDeviceName } from '../../../shared/utils/device-detector.util';
 import {
+  AUTH_SESSION_POLICY_PORT,
   AUTH_TOKEN_ISSUER_PORT,
   AUTH_USER_LOOKUP_PORT,
   PASSWORD_HASHER_PORT,
+  type AuthSessionPolicyPort,
   type AuthTokenIssuerPort,
   type AuthUserLookupPort,
   type PasswordHasherPort,
 } from '../domain/ports/auth-session.port';
 import {
-  AUTH_SESSION_PORT,
+    AUTH_SESSION_PORT,
   type AuthSessionPort,
 } from '../domain/ports/auth-session.port';
 
 export interface RegisterInput { email: string; password: string; first_name: string; last_name: string; role?: 'admin' | 'analyst' }
-export interface LoginInput { email: string; password: string }
+export interface LoginInput { email: string; password: string; remember_me?: boolean }
 
 @Injectable()
 export class AuthService {
@@ -34,6 +34,7 @@ export class AuthService {
     @Inject(AUTH_SESSION_PORT) private readonly sessions: AuthSessionPort,
     @Inject(PASSWORD_HASHER_PORT) private readonly hasher: PasswordHasherPort,
     @Inject(AUTH_TOKEN_ISSUER_PORT) private readonly tokens: AuthTokenIssuerPort,
+    @Inject(AUTH_SESSION_POLICY_PORT) private readonly policy: AuthSessionPolicyPort,
   ) {}
 
   async register(dto: RegisterInput) {
@@ -69,7 +70,9 @@ export class AuthService {
     if (!ok) throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     const rawRefreshToken = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
     const refreshTokenHash = computeSha256Buffer(rawRefreshToken);
-    const expiresAt = refreshTokenExpiry();
+    // Hạn phiên do policy quyết định (7 ngày mặc định, 30 ngày nếu "ghi nhớ đăng nhập").
+    const rememberMe = dto.remember_me === true;
+    const expiresAt = new Date(Date.now() + this.policy.refreshTtlMs(rememberMe));
     const resolvedDeviceName = detectDeviceName(userAgent);
     const session = await this.sessions.createSession({
       userId: user.id,
@@ -77,6 +80,7 @@ export class AuthService {
       deviceName: resolvedDeviceName,
       ipAddress,
       userAgent,
+      rememberMe,
       expiresAt,
     });
     const accessToken = this.tokens.sign({ sub: user.id, email: user.email, role: user.role, sessionId: session.id });
@@ -85,6 +89,8 @@ export class AuthService {
       refresh_token: rawRefreshToken,
       expires_in: ACCESS_TOKEN_TTL_SECONDS,
       device_name: resolvedDeviceName,
+      remember_me: rememberMe,
+      expires_at: expiresAt.toISOString(),
       user: { id: user.id, email: user.email, role: user.role },
     };
   }
@@ -94,24 +100,37 @@ export class AuthService {
     const refreshTokenHash = computeSha256Buffer(rawRefreshToken);
     const session = await this.sessions.findSessionByTokenHash(refreshTokenHash);
     if (session) {
+      // `session.expires_at` là nguồn sự thật của hạn phiên (không phải `exp` của JWT).
+      if (new Date(session.expiresAt).getTime() <= Date.now()) {
+        throw new UnauthorizedException({ message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', error: 'TOKEN_EXPIRED' } as never);
+      }
       const user = await this.users.findById(session.userId);
       if (!user || isAccountLocked(user.status) || user.deletedAt !== null) {
         throw new UnauthorizedException('Tài khoản liên kết không còn hoạt động');
       }
-      // Rotation: revoke session cũ, tạo session mới
+      // Rotation: revoke session cũ, tạo session mới (giữ nguyên cờ remember-me & hạn còn lại)
       await this.sessions.revokeSessionById(session.id).catch(() => undefined);
       const rawNew = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
       const newHash = computeSha256Buffer(rawNew);
+      const rememberMe = session.rememberMe === true;
       const created = await this.sessions.createSession({
         userId: session.userId,
         refreshTokenHash: newHash,
         deviceName: session.deviceName ?? undefined,
         ipAddress: session.ipAddress ?? undefined,
         userAgent: session.userAgent ?? undefined,
-        expiresAt: refreshTokenExpiry(),
+        rememberMe,
+        expiresAt: new Date(Date.now() + this.policy.refreshTtlMs(rememberMe)),
       });
+      await this.sessions.touchSession(created.id, new Date()).catch(() => undefined);
       const newAccessToken = this.tokens.sign({ sub: user.id, email: user.email, role: user.role, sessionId: created.id });
-      return { access_token: newAccessToken, refresh_token: rawNew, expires_in: ACCESS_TOKEN_TTL_SECONDS };
+      return {
+        access_token: newAccessToken,
+        refresh_token: rawNew,
+        expires_in: ACCESS_TOKEN_TTL_SECONDS,
+        remember_me: rememberMe,
+        expires_at: created.expiresAt.toISOString(),
+      };
     }
     // Không thấy session còn hiệu lực => kiểm tra có phải reuse token cũ đã revoke không
     try {
@@ -236,7 +255,38 @@ export class AuthService {
   }
 
   async getSessions(userId: string) {
-    return this.sessions.findActiveSessions(userId);
+    const sessions = await this.sessions.findActiveSessions(userId);
+    return sessions.map((s) => ({
+      id: s.id,
+      device_name: s.deviceName ?? null,
+      ip_address: s.ipAddress ?? null,
+      user_agent: s.userAgent ?? null,
+      is_revoked: s.isRevoked,
+      remember_me: s.rememberMe === true,
+      last_used_at: s.lastUsedAt ? new Date(s.lastUsedAt).toISOString() : null,
+      expires_at: new Date(s.expiresAt).toISOString(),
+      created_at: s.createdAt ? new Date(s.createdAt).toISOString() : null,
+    }));
+  }
+
+  /** H1 — chi tiết 1 phiên; chặn IDOR bằng cách kiểm tra `user_id` khớp. */
+  async getSessionById(userId: string, sessionId: string) {
+    const session = await this.sessions.findSessionById(sessionId);
+    // Trả về 404 (không phải 403) để không lộ sự tồn tại của phiên của người khác.
+    if (!session || session.userId !== userId) {
+      throw new NotFoundException('Không tìm thấy phiên đăng nhập');
+    }
+    return {
+      id: session.id,
+      device_name: session.deviceName ?? null,
+      ip_address: session.ipAddress ?? null,
+      user_agent: session.userAgent ?? null,
+      is_revoked: session.isRevoked,
+      remember_me: session.rememberMe === true,
+      last_used_at: session.lastUsedAt ? new Date(session.lastUsedAt).toISOString() : null,
+      expires_at: new Date(session.expiresAt).toISOString(),
+      created_at: session.createdAt ? new Date(session.createdAt).toISOString() : null,
+    };
   }
 
   async revokeSession(userId: string, sessionId: string) {

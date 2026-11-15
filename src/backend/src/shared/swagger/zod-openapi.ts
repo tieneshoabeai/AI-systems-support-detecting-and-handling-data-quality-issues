@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export function zodToOpenApiSchema(schema: z.ZodType<unknown>): Record<string, unknown> {

@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Producer } from 'kafkajs';
 import type { DomainEventEnvelope, EventPublisherPort } from '../ports/event-publisher.port';
-import { EVENT_PUBLISHER_PORT } from '../ports/event-publisher.port';
 
 function topicFor(eventType: string): string {
   if (eventType.startsWith('ai.')) return 'ai.jobs';
@@ -43,7 +42,7 @@ export class KafkaEventPublisher implements EventPublisherPort, OnModuleInit, On
     try { await this.producer?.disconnect(); } catch { /* bo qua */ }
   }
 
-  isEnabled(): boolean { return this.enabled && !!this.producer; }
+  isEnabled(): boolean { return this.enabled && this.producer !== null && this.producer !== undefined; }
 
   async publish(envelope: DomainEventEnvelope): Promise<void> {
     if (!this.isEnabled() || !this.producer) throw new Error('KAFKA_DISABLED');

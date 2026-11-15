@@ -3,11 +3,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { type IIssueReport } from './issue-report.schema';
 import {
-  ISSUE_REPORT_REPOSITORY_PORT,
   type CreateIssueRecord,
   type IssueListQuery,
   type IssueReportRecord,
   type IssueReportRepositoryPort,
+  type UpdateIssueByUserInput,
 } from '../../domain/ports/issue-report.repository.port';
 import type { IssueStatus } from '../../domain/value-objects/issue-status.vo';
 import { toIssuePersistence, toIssueRecord } from './issue.mapper';
@@ -92,6 +92,37 @@ export class IssuesRepository implements IssueReportRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), version: expectedVersion, deleted_at: null },
         { $set: { status }, $inc: { version: 1 } },
+        { new: true },
+      )
+      .exec();
+    return doc ? toIssueRecord(doc) : null;
+  }
+
+  async updateByUser(id: string, input: UpdateIssueByUserInput): Promise<IssueReportRecord | null> {
+    if (!isObjectIdHex(id) || !isObjectIdHex(input.userId)) return null;
+
+    const set: Record<string, unknown> = { status: 'in_progress' };
+    if (input.title !== undefined) set.title = input.title.trim();
+    if (input.description !== undefined) set.description = input.description.trim();
+
+    const update: Record<string, unknown> = { $set: set, $inc: { version: 1 } };
+
+    // Gỡ tệp đính kèm theo yêu cầu của người dùng.
+    const removeIds = (input.removeAttachmentIds ?? []).filter((aid) => isObjectIdHex(aid));
+    if (removeIds.length > 0) {
+      update.$pull = { attachments: { id: { $in: removeIds.map((aid) => new Types.ObjectId(aid)) } } };
+    }
+
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          user_id: new Types.ObjectId(input.userId),
+          status: 'needs_info',
+          version: input.expectedVersion,
+          deleted_at: null,
+        },
+        update,
         { new: true },
       )
       .exec();

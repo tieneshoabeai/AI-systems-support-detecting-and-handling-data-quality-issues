@@ -151,11 +151,11 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
     ];
     const columns = inference.inferSchema(headers, sampleRows);
     expect(columns).toHaveLength(4);
-    expect(columns[0].dataType).toBe('number');
-    expect(columns[1].dataType).toBe('boolean');
-    expect(columns[2].dataType).toBe('date');
-    expect(columns[3].dataType).toBe('string');
-    expect(columns[3].missingCount).toBe(1);
+    expect(columns[0]?.dataType).toBe('number');
+    expect(columns[1]?.dataType).toBe('boolean');
+    expect(columns[2]?.dataType).toBe('date');
+    expect(columns[3]?.dataType).toBe('string');
+    expect(columns[3]?.missingCount).toBe(1);
   });
 
   it('ingestDatasetStream should stream, infer schema, bulkWrite records and trigger outbox event', async () => {

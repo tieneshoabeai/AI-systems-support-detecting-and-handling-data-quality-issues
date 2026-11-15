@@ -4,7 +4,6 @@ import { Model, Types } from 'mongoose';
 import { IDataset } from './dataset.schema';
 import { IDatasetRecord } from './dataset-record.schema';
 import {
-  DATASET_REPOSITORY_PORT,
   type CreateDatasetRecord,
   type DatasetRecord,
   type DatasetRepositoryPort,

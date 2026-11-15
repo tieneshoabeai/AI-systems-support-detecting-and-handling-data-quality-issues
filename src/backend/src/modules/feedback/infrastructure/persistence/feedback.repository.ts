@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IFindingFeedback } from './finding-feedback.schema';
 import {
-  FEEDBACK_REPOSITORY_PORT,
   type CreateFeedbackRecord,
   type FeedbackListQuery,
   type FeedbackRecord,

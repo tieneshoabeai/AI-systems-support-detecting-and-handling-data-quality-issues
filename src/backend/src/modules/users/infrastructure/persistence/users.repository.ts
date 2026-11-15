@@ -4,7 +4,6 @@ import { Model, Types } from 'mongoose';
 import { IUser } from './user.schema';
 import { IUserSession } from './user-session.schema';
 import {
-  USER_REPOSITORY_PORT,
   type CreateSessionInput,
   type CreateUserInput,
   type UpdateProfileInput,
@@ -41,6 +40,8 @@ function toSessionRecord(doc: IUserSession): UserSessionRecord {
     ipAddress: doc.ip_address ?? null,
     userAgent: doc.user_agent ?? null,
     isRevoked: doc.is_revoked,
+    rememberMe: doc.remember_me === true,
+    lastUsedAt: doc.last_used_at ?? null,
     expiresAt: doc.expires_at,
     createdAt: doc.created_at,
   };
@@ -163,7 +164,7 @@ export class UsersRepository implements UserRepositoryPort {
         { new: true },
       )
       .exec();
-    return !!doc;
+    return doc !== null;
   }
 
   async softDeleteUser(userId: string): Promise<boolean> {
@@ -187,6 +188,8 @@ export class UsersRepository implements UserRepositoryPort {
       ip_address: data.ipAddress ?? null,
       user_agent: data.userAgent ?? null,
       is_revoked: false,
+      remember_me: data.rememberMe === true,
+      last_used_at: new Date(),
       expires_at: data.expiresAt,
     });
     const saved = await inst.save();
@@ -217,6 +220,24 @@ export class UsersRepository implements UserRepositoryPort {
       .findOne({ refresh_token_hash: refreshTokenHash, is_revoked: false, expires_at: { $gt: new Date() } })
       .exec();
     return doc ? toSessionRecord(doc) : null;
+  }
+
+  async findSessionById(sessionId: string): Promise<UserSessionRecord | null> {
+    if (!Types.ObjectId.isValid(sessionId)) return null;
+    const doc = await this.sessionModel
+      .findOne({ _id: new Types.ObjectId(sessionId) })
+      .select('+refresh_token_hash')
+      .exec();
+    return doc ? toSessionRecord(doc) : null;
+  }
+
+  async touchSession(sessionId: string, lastUsedAt: Date): Promise<boolean> {
+    if (!Types.ObjectId.isValid(sessionId)) return false;
+    const result = await this.sessionModel.updateOne(
+      { _id: new Types.ObjectId(sessionId) },
+      { $set: { last_used_at: lastUsedAt } },
+    );
+    return result.matchedCount > 0;
   }
 
   async revokeSession(userId: string, sessionId: string): Promise<boolean> {

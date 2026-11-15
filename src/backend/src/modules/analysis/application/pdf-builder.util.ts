@@ -105,13 +105,16 @@ export function buildReportPdf(opts: { title: string; sections: PdfSection[] }):
   objects[4] = `4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`;
 
   for (let i = 0; i < pageCount; i++) {
-    const content = pages[i].join('\n');
+    const content = (pages[i] ?? []).join('\n');
     const len = Buffer.byteLength(content, 'utf-8');
-    objects[contentObjNums[i]] =
-      `${contentObjNums[i]} 0 obj\n<< /Length ${len} >>\nstream\n${content}\nendstream\nendobj\n`;
-    objects[pageObjNums[i]] =
-      `${pageObjNums[i]} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] ` +
-      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjNums[i]} 0 R >>\nendobj\n`;
+    const contentObjNum = contentObjNums[i];
+    const pageObjNum = pageObjNums[i];
+    if (contentObjNum === undefined || pageObjNum === undefined) continue;
+    objects[contentObjNum] =
+      `${contentObjNum} 0 obj\n<< /Length ${len} >>\nstream\n${content}\nendstream\nendobj\n`;
+    objects[pageObjNum] =
+      `${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] ` +
+      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj\n`;
   }
 
   const header = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';

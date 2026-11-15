@@ -62,7 +62,7 @@ describe('vif.util (3.23.2)', () => {
     const out = computeVif(['x1', 'x2'], rows);
     expect(out.singular).toBe(true);
     expect(out.rows.every((r) => r.vif === null)).toBe(true);
-    expect(out.rows[0].reason).toMatch(/perfect_linear_dependency/);
+    expect(out.rows[0]?.reason).toMatch(/perfect_linear_dependency/);
   });
   it('cột hằng bị loại riêng, không âm thầm bỏ', () => {
     const rows = Array.from({ length: 10 }, (_, i) => ({ x1: i + 1, x2: 5, x3: i * 2 + 1 }));
@@ -256,7 +256,7 @@ describe('v8: RAG few-shot (cosine trong MongoDB, cap 50k FIFO)', () => {
     ];
     const out = rankFewShot(examples, { embedding: [1, 0, 0], errorType: 'DQ-03', language: 'vi' });
     expect(out).toHaveLength(1);
-    expect(out[0].errorType).toBe('DQ-03');
+    expect(out[0]?.errorType).toBe('DQ-03');
   });
 
   it('top-k = 5 mac dinh, sap xep theo score giam dan', () => {

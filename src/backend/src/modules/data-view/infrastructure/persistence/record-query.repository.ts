@@ -152,7 +152,8 @@ export class RecordQueryRepository implements RecordQueryPort {
     }
     for (const val of numericValues) {
       const index = Math.min(Math.floor((val - min) / step), bucketCount - 1);
-      if (index >= 0 && index < bucketCount) histogram[index].count++;
+      const bucket = histogram[index];
+      if (index >= 0 && index < bucketCount && bucket) bucket.count++;
     }
     return { columnKey, columnName: columnKey, totalRecords, nullCount, missingRatio, min, max, average: Number(average.toFixed(2)), histogram };
   }
@@ -177,7 +178,10 @@ export class RecordQueryRepository implements RecordQueryPort {
         const part = this.buildOneCondition(path, f.operator, f.value);
         if (part) orParts.push(part);
       }
-      if (orParts.length > 0) conditions.push(orParts.length === 1 ? orParts[0] : { $or: orParts });
+      const first = orParts[0];
+      if (orParts.length > 0 && first) {
+        conditions.push(orParts.length === 1 ? first : { $or: orParts });
+      }
     }
     if (search && search.value.length > 0) {
       const needle = search.value;
@@ -185,7 +189,10 @@ export class RecordQueryRepository implements RecordQueryPort {
         const key = resolveKey(column);
         return { [`props.${key}`]: { $regex: escapeRegExp(needle), $options: 'i' } };
       });
-      conditions.push(orParts.length === 1 ? orParts[0] : { $or: orParts });
+      const firstSearch = orParts[0];
+      if (firstSearch) {
+        conditions.push(orParts.length === 1 ? firstSearch : { $or: orParts });
+      }
     }
     return conditions;
   }

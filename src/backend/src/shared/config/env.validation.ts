@@ -41,6 +41,8 @@ export const EnvironmentSchema = z.object({
   JWT_ACCESS_EXPIRATION: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET phải có tối thiểu 16 ký tự'),
   JWT_REFRESH_EXPIRATION: z.string().default('7d'),
+  /** Hạn phiên khi người dùng chọn "ghi nhớ đăng nhập" (remember me). */
+  JWT_REFRESH_REMEMBER_EXPIRATION: z.string().default('30d'),
   SALT_ROUNDS: z.coerce.number().default(12),
   DATA_ENCRYPTION_KEY: z.string().optional(),
 

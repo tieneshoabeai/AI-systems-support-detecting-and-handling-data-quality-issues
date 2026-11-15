@@ -1,5 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, Controller, Get, Param } from '@nestjs/common';
+import {
+  INestApplication,
+  Controller,
+  Get,
+  Param,
+  BadRequestException,
+} from '@nestjs/common';
 import request from 'supertest';
 import { AllExceptionsFilter } from '../../src/shared/filters/all-exceptions.filter';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
@@ -11,7 +17,6 @@ class FakeWorkspacesController {
   getOne(@Param('id') id: string): unknown {
     if (id === 'notfound') throw Object.assign(new Error('404'), { status: 404 });
     if (!/^[0-9a-f]{24}$/i.test(id)) {
-      const { BadRequestException } = require('@nestjs/common');
       throw new BadRequestException({ message: 'ID khong hop le', error: 'VALIDATION_ERROR' } as never);
     }
     return { workspace: { id, name: 'Workspace mau' } };

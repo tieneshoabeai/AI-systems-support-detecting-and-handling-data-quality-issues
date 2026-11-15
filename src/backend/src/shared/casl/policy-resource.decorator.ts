@@ -1,4 +1,5 @@
-import { SetMetadata, Type } from '@nestjs/common';
+import type { Type } from '@nestjs/common';
+import { SetMetadata } from '@nestjs/common';
 import type { SubjectName } from './subjects.type';
 
 export const POLICY_RESOURCE_KEY = 'policy_resource';

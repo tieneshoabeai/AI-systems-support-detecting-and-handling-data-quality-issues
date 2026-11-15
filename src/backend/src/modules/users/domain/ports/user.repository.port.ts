@@ -30,6 +30,10 @@ export interface UserSessionRecord {
   ipAddress?: string | null;
   userAgent?: string | null;
   isRevoked: boolean;
+  /** Cờ "ghi nhớ đăng nhập" — phiên sống lâu hơn. */
+  rememberMe: boolean;
+  /** Lần cuối phiên được dùng. */
+  lastUsedAt: Date | null;
   expiresAt: Date;
   createdAt: Date;
 }
@@ -54,6 +58,8 @@ export interface CreateSessionInput {
   deviceName?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
+  /** Phiên "ghi nhớ đăng nhập" — hạn 30 ngày thay vì 7 ngày. */
+  rememberMe?: boolean;
   expiresAt: Date;
 }
 
@@ -85,6 +91,9 @@ export interface UserRepositoryPort {
   findSessionByTokenHashIncludingRevoked(refreshTokenHash: string): Promise<UserSessionRecord | null>;
   findActiveSessions(userId: string): Promise<UserSessionRecord[]>;
   findSessionByTokenHash(refreshTokenHash: string): Promise<UserSessionRecord | null>;
+  findSessionById(sessionId: string): Promise<UserSessionRecord | null>;
+  /** Cập nhật `last_used_at` khi phiên được dùng (refresh token). */
+  touchSession(sessionId: string, lastUsedAt: Date): Promise<boolean>;
   revokeSession(userId: string, sessionId: string): Promise<boolean>;
   revokeSessionById(sessionId: string): Promise<boolean>;
   revokeAllUserSessions(userId: string): Promise<number>;

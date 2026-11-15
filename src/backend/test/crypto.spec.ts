@@ -49,11 +49,27 @@ describe('Cryptographic Engine (crypto.util.ts)', () => {
     it('should fail decryption when ciphertext is tampered with (Auth Tag violation)', () => {
       const encrypted = encryptAes256GcmBuffer(sampleBuffer, samplePassword);
       // Alter a single byte in the payload
-      encrypted[40] = encrypted[40] ^ 0xff;
+      encrypted[40] = (encrypted[40] ?? 0) ^ 0xff;
 
       expect(() => {
         decryptAes256GcmBuffer(encrypted, samplePassword);
       }).toThrow();
+    });
+  });
+
+  describe('PBKDF2 Key Derivation', () => {
+    it('deriveKeyPbkdf2 should be deterministic for the same salt', () => {
+      const salt = Buffer.from('fixed-salt-value');
+      const key1 = deriveKeyPbkdf2(samplePassword, salt);
+      const key2 = deriveKeyPbkdf2(samplePassword, salt);
+      expect(key1).toEqual(key2);
+      expect(key1.length).toBeGreaterThan(0);
+    });
+
+    it('deriveKeyPbkdf2 should produce different keys for different salts', () => {
+      const key1 = deriveKeyPbkdf2(samplePassword, Buffer.from('salt-a'));
+      const key2 = deriveKeyPbkdf2(samplePassword, Buffer.from('salt-b'));
+      expect(key1).not.toEqual(key2);
     });
   });
 

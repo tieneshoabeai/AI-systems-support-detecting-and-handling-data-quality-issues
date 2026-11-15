@@ -15,7 +15,7 @@ export class LocalInferenceAdapter extends AiInferencePort {
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
     super();
     const raw = (config.get<string>('AI_ENGINE') ?? 'ollama').toLowerCase();
     this.engine = raw === 'vllm' ? 'vllm' : 'ollama';

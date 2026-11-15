@@ -32,12 +32,43 @@
     },
     "incremental": true,
     "skipLibCheck": true,
+
+    // ── Strict mode ────────────────────────────────────────────────────────
     "strict": true,
     "strictNullChecks": true,
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    // ── Nhóm K0 — Đợt 1 (đã bật) ───────────────────────────────────────────
+    // Bắt buộc `override` khi ghi đè thành viên của lớp cha.
+    "noImplicitOverride": true,
+    // `catch (e)` → `e: unknown`.
+    "useUnknownInCatchVariables": true,
+    // Bắt code thừa (biến/import không dùng).
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // ── Nhóm K0 — Đợt 2 (đã bật) ───────────────────────────────────────────
+    // `arr[0]` trả về `T | undefined` — quan trọng cho code phân trang cursor
+    // (Nhóm A) vì truy cập phần tử theo chỉ số luôn có thể vắng mặt.
+    "noUncheckedIndexedAccess": true,
+
+    // ── Nhóm K0 — Đợt 3 (CHƯA bật — cần dọn trước) ───────────────────────
+    // Đo lỗi hiện tại:
+    //   - "exactOptionalPropertyTypes": 65 lỗi (chủ yếu do truyền `string | undefined`
+    //     vào optional property của port/repository).
+    //   - "noPropertyAccessFromIndexSignature": 271 lỗi (chủ yếu `process.env.X`
+    //     và truy cập record không khai báo index signature).
+    // Cần refactor Nhóm A–I xong rồi mới bật để tránh sửa 2 lần.
+    // "exactOptionalPropertyTypes": true,
+    // "noPropertyAccessFromIndexSignature": true,
+    //
+    // ── Nhóm K0 — Đợt 4 (CHƯA bật) ────────────────────────────────────────
+    // Bắt buộc `import type` tường minh. Bật sau khi dùng
+    // `@typescript-eslint/consistent-type-imports --fix` trên toàn repo.
+    // "verbatimModuleSyntax": true
   },
   "include": [
     "src/**/*"

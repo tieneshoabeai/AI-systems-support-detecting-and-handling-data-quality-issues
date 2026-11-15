@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
-import { Readable, Transform, TransformCallback } from 'stream';
+import type { Readable, TransformCallback } from 'stream';
+import { Transform } from 'stream';
 
 export const MAGIC_HEADER = Buffer.from('DATAQUAL', 'utf8'); // 8 bytes
 export const SALT_LENGTH = 16;

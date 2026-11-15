@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Logger,
   Inject,
 } from '@nestjs/common';
 import {
@@ -113,8 +112,6 @@ function resolveColumnKey(
 
 @Injectable()
 export class DataViewService {
-  private readonly logger = new Logger(DataViewService.name);
-
   constructor(
     @Inject(RECORD_QUERY_PORT)
     private readonly records: RecordQueryPort,
@@ -153,7 +150,7 @@ export class DataViewService {
     let nextCursor: string | null = null;
     if (hasMore && resultItems.length > 0) {
       const last = resultItems[resultItems.length - 1];
-      nextCursor = CursorCodec.encode({ row_index: last.rowIndex });
+      if (last) nextCursor = CursorCodec.encode({ row_index: last.rowIndex });
     }
     return {
       items: resultItems,
@@ -210,7 +207,8 @@ export class DataViewService {
     void createCursorPaginatedResponse;
     let nextCursor: string | null = null;
     if (hasMore && items.length > 0) {
-      nextCursor = CursorCodec.encode({ row_index: items[items.length - 1].rowIndex });
+      const lastItem = items[items.length - 1];
+      if (lastItem) nextCursor = CursorCodec.encode({ row_index: lastItem.rowIndex });
     }
     return {
       items,

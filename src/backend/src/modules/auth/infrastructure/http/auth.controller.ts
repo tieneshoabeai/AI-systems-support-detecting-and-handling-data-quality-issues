@@ -10,7 +10,6 @@ import {
   HttpCode,
   HttpException,
   HttpStatus,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -45,7 +44,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Đăng nhập hệ thống (F1.2)' })
+  @ApiOperation({ summary: 'Đăng nhập hệ thống (F1.2) — hỗ trợ "ghi nhớ đăng nhập"' })
   @ApiZodBody(LoginSchema, 'Thông tin đăng nhập hệ thống')
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token' })
   async login(@Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto, @Req() req: Request) {
@@ -136,6 +135,19 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Danh sách các phiên đăng nhập' })
   async getSessions(@CurrentUser() user: CurrentUserPayload) {
     return this.authService.getSessions(user.userId);
+  }
+
+  @Get('sessions/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Chi tiết 1 phiên đăng nhập (chỉ chính user đó)' })
+  @ApiResponse({ status: 200, description: 'Chi tiết phiên đăng nhập' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy phiên hoặc phiên thuộc user khác' })
+  async getSessionById(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') sessionId: string,
+  ) {
+    return this.authService.getSessionById(user.userId, sessionId);
   }
 
   @Delete('sessions/:id')

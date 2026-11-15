@@ -118,10 +118,12 @@ export class FeedbackService {
     let nextCursor: string | null = null;
     if (hasMore && page.length > 0) {
       const last = page[page.length - 1];
-      nextCursor = CursorCodec.encode({
-        createdAt: last.createdAt.toISOString(),
-        id: last.id,
-      });
+      if (last) {
+        nextCursor = CursorCodec.encode({
+          createdAt: last.createdAt.toISOString(),
+          id: last.id,
+        });
+      }
     }
     const items = page.map((d) => toPlain(d, viewerId, names.get(d.authorId) ?? null));
     return { items, meta: { nextCursor, hasMore } };
@@ -258,8 +260,8 @@ export class FeedbackService {
     const { run, projectRole, workspaceRole } = await this.resolveRunProject(analysisId, userId);
 
     let modelId: string | null = null;
-    let aiConfidence: number | null = null;
-    let aiRationale: string | null = null;
+    const aiConfidence: number | null = null;
+    const aiRationale: string | null = null;
     try {
       const result = await this.analysisRepository.findResultByRun(analysisId);
       const assess = result?.aiCorrelationAssessment as unknown as { modelId?: string | null } | null;

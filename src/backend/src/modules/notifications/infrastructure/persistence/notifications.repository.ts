@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { INotification } from './notification.schema';
 import {
-  NOTIFICATION_REPOSITORY_PORT,
   type CreateNotificationRecord,
   type NotificationListQuery,
   type NotificationRecord,

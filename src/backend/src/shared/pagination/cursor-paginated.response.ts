@@ -25,7 +25,9 @@ export function createCursorPaginatedResponse<T>(
   let nextCursor: string | null = null;
   if (hasMore && resultItems.length > 0) {
     const lastItem = resultItems[resultItems.length - 1];
-    nextCursor = CursorCodec.encode(getCursorPayload(lastItem));
+    if (lastItem !== undefined) {
+      nextCursor = CursorCodec.encode(getCursorPayload(lastItem));
+    }
   }
 
   return {

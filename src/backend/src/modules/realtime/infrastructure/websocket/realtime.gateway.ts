@@ -6,14 +6,13 @@ import {
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
-  WebSocketServer,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
 import { Server, Socket } from 'socket.io';
-import { RealtimeService } from '../../application/realtime.service';
 import { RealtimeAuthService, RealtimeClientIdentity } from '../../application/realtime-auth.service';
+import { SocketIoRealtimeTransport } from './socket-io-realtime.transport';
 import { ProjectsService } from '../../../projects/application/projects.service';
 import { WorkspacesService } from '../../../workspaces/application/workspaces.service';
 import { RealtimeRooms } from '../../domain/realtime-events';
@@ -50,19 +49,16 @@ interface AuthedSocket extends Socket {
 export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(RealtimeGateway.name);
 
-  @WebSocketServer()
-  private server!: Server;
-
   constructor(
-    private readonly realtime: RealtimeService,
     private readonly auth: RealtimeAuthService,
+    private readonly transport: SocketIoRealtimeTransport,
     private readonly projectsService: ProjectsService,
     private readonly workspacesService: WorkspacesService,
     private readonly config: ConfigService,
   ) {}
 
   afterInit(server: Server): void {
-    this.realtime.attachServer(server);
+    this.transport.attachServer(server);
     this.logger.log('Realtime gateway sẵn sàng tại /api/v1/realtime');
   }
 

@@ -1,6 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Server } from 'socket.io';
 import {
   RealtimeEnvelope,
   RealtimeEventName,
@@ -9,6 +8,8 @@ import {
   buildEnvelope,
 } from '../domain/realtime-events';
 import type { RealtimePort } from '../domain/ports/realtime.port';
+import { REALTIME_TRANSPORT_PORT } from '../domain/ports/realtime-transport.port';
+import { Inject } from '@nestjs/common';
 
 /**
  * REALTIME-01 — Push service (Phần 7 v6 §3.17.2, Phần 9 v4 §3.5.2 realtime-push).
@@ -18,18 +19,20 @@ import type { RealtimePort } from '../domain/ports/realtime.port';
  * - Không gửi dữ liệu nhạy cảm (giá trị ô lỗi, nội dung nhận xét, email).
  * - Không bao giờ làm hỏng luồng nghiệp vụ chính: emit luôn try/catch.
  * - Tôn trọng SOCKET_ENABLED=false (chế độ suy giảm theo Phần 9 v4 §3.2).
+ *
+ * Lưu ý Clean Architecture: tầng này KHÔNG import `socket.io`.
+ * Driver nằm ở `infrastructure/websocket/socket-io-realtime.transport.ts`.
  */
 @Injectable()
 export class RealtimeService implements RealtimePort {
   private readonly logger = new Logger(RealtimeService.name);
-  private server: Server | null = null;
 
-  constructor(@Optional() private readonly config?: ConfigService) {}
-
-  /** Gateway gọi 1 lần khi khởi tạo để gắn Socket.IO server. */
-  attachServer(server: Server): void {
-    this.server = server;
-  }
+  constructor(
+    @Optional() private readonly config?: ConfigService,
+    @Optional()
+    @Inject(REALTIME_TRANSPORT_PORT)
+    private readonly transport?: { emitToRoom(room: string, envelope: RealtimeEnvelope): boolean },
+  ) {}
 
   private isEnabled(): boolean {
     try {
@@ -50,9 +53,9 @@ export class RealtimeService implements RealtimePort {
       return;
     }
     if (!this.isEnabled()) return;
-    if (!this.server) return;
+    if (!this.transport) return;
     try {
-      this.server.to(room).emit(envelope.event, envelope);
+      this.transport.emitToRoom(room, envelope);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Realtime emit thất bại (room=${room}): ${message}`);
@@ -90,8 +93,13 @@ export class RealtimeService implements RealtimePort {
   emitAnalysisLifecycle(
     projectId: string,
     analysisId: string,
-    event: Extract<RealtimeEventName, 'analysis.progress' | 'analysis.completed' | 'analysis.failed' | 'ai.job.status'>,
-    fields: Omit<RealtimeEnvelope, 'event' | 'occurredAt' | 'projectId' | 'analysisId'> & { occurredAt?: string },
+    event: Extract<
+      RealtimeEventName,
+      'analysis.progress' | 'analysis.completed' | 'analysis.failed' | 'ai.job.status'
+    >,
+    fields: Omit<RealtimeEnvelope, 'event' | 'occurredAt' | 'projectId' | 'analysisId'> & {
+      occurredAt?: string;
+    },
   ): void {
     const forProject = buildEnvelope(event, { ...fields, projectId, analysisId });
     const forAnalysis = buildEnvelope(event, { ...fields, projectId, analysisId });

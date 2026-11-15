@@ -1,12 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, ClientSession } from 'mongoose';
 import { MongoSessionContext } from './mongo-session-context';
 
 @Injectable()
 export class MongooseTransactionService {
-  private readonly logger = new Logger(MongooseTransactionService.name);
-
   constructor(
     @InjectConnection() private readonly connection: Connection
   ) {}

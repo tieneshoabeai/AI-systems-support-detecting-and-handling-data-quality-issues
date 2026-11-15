@@ -62,6 +62,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   for (let i = 0; i < a.length; i++) {
     const x = a[i];
     const y = b[i];
+    if (x === undefined || y === undefined) return 0;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return 0;
     dot += x * y;
     normA += x * x;
@@ -168,11 +169,11 @@ export const KNOWN_ERROR_TYPES = ['DQ-01', 'DQ-02', 'DQ-03', 'DQ-04', 'DQ-05'] a
  */
 export function extractErrorType(findingId: string | null | undefined): string {
   if (!findingId || typeof findingId !== 'string') return 'general';
-  const head = findingId.trim().split(':')[0].trim().toUpperCase();
+  const head = findingId.trim().split(':')[0]?.trim().toUpperCase() ?? '';
   const m = /^DQ-0([1-5])$/.exec(head);
-  if (m) return `DQ-0${m[1]}`;
+  if (m?.[1]) return `DQ-0${m[1]}`;
   const m2 = /DQ-0?([1-5])/.exec(head);
-  if (m2) return `DQ-0${m2[1]}`;
+  if (m2?.[1]) return `DQ-0${m2[1]}`;
   return 'general';
 }
 
@@ -216,7 +217,7 @@ export function embedText(text: string, dim = 64): number[] {
   if (!text || typeof text !== 'string') return vec;
   const s = text.trim().toLowerCase();
   if (s.length === 0) return vec;
-  const tokens = s.split(/[\s|\/,_;:\-]+/).filter((x) => x.length > 0);
+  const tokens = s.split(/[\s|/,_:;-]+/).filter((x) => x.length > 0);
   const items = tokens.length > 0 ? tokens : [s];
   for (const tok of items) {
     let h1 = 2166136261;
@@ -230,13 +231,14 @@ export function embedText(text: string, dim = 64): number[] {
     const idx = Math.abs(h) % d;
     const signSource = (h1 >>> 7) & 1;
     const w = 1 + (tok.length % 5) / 5;
-    vec[idx] += (signSource === 0 ? 1 : -1) * w;
-    vec[(idx + 7) % d] += w * 0.5;
+    vec[idx] = (vec[idx] ?? 0) + (signSource === 0 ? 1 : -1) * w;
+    const nextIdx = (idx + 7) % d;
+    vec[nextIdx] = (vec[nextIdx] ?? 0) + w * 0.5;
   }
   let norm = 0;
-  for (let i = 0; i < d; i++) norm += vec[i] * vec[i];
+  for (let i = 0; i < d; i++) norm += (vec[i] ?? 0) * (vec[i] ?? 0);
   norm = Math.sqrt(norm);
   if (!(norm > 0)) return vec;
-  for (let i = 0; i < d; i++) vec[i] = vec[i] / norm;
+  for (let i = 0; i < d; i++) vec[i] = (vec[i] ?? 0) / norm;
   return vec;
 }

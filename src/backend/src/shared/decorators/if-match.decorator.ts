@@ -1,4 +1,5 @@
-import { createParamDecorator, ExecutionContext, BadRequestException } from '@nestjs/common';
+import type { ExecutionContext} from '@nestjs/common';
+import { createParamDecorator, BadRequestException } from '@nestjs/common';
 
 /**
  * Decorator trích xuất header If-Match phục vụ Optimistic Locking khi chỉnh sửa Cell

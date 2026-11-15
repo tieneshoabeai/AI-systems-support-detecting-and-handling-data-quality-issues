@@ -68,6 +68,14 @@ modules/<module>/
 | V2 | `application/` của module khác import **service class** của module khác (gọi trực tiếp, không qua port) | `analysis.service.ts:5`, `summary.service.ts:3`, `report.service.ts:4`, `datasets.service.ts:19-20`, `feedback.service.ts:13-15`, `realtime-auth.service.ts:4` → `ProjectsService` / `WorkspacesService` / `UsersService` | 🔴 Vi phạm R2 (No cross-module service import) |
 | V3 | `application/` import **port của module khác** | `analysis.service.ts:3,6,7`, `feedback.service.ts:10,12,47`, `workspaces.service.ts:22`, `notifications.service.ts:12,16`, `projects.service.ts:12,16`, `data-view.service.ts:11`, `issues.service.ts:24,28,32,33` | 🟡 Chấp nhận được nếu qua `import type` từ **public contract** của module sở hữu (đúng như `5_ports` §3.6 quy định) — cần **kiểm chứng bằng test** thay vì để miễn nhiễm |
 
+> ⚠️ **Cập nhật sau khi đo thực tế (Bước 0 — xem `04_buoc_0_j0_k0_m0_bao_cao.md` §4):**
+> Hai mục đánh dấu "✅ Đạt" trong bảng CA1–CA11 ở §3.4 **thực tế SAI**:
+> - **CA3** (infrastructure không import domain/application module khác): có **9 vi phạm thật** → đã ghi vào baseline.
+> - **CA5** (shared không import modules/): có **2 vi phạm thật** (`shared/events` → `modules/realtime/…/realtime.port`) → đã ghi vào baseline.
+> - **Ngoài ra**: `application/realtime/realtime.service.ts` import `socket.io` → vi phạm CA2 → **đã sửa ngay trong Bước 0** (tách `SocketIoRealtimeTransport` ra infrastructure + `RealtimeTransportPort` ở domain).
+>
+> Vì vậy cơ chế kiểm tra được nâng từ "2 mức (fail/warn)" lên **cơ chế baseline** — xem §3.5.
+
 ### 2.4 Điểm cần lưu ý về `shared/`
 `src/shared/` có 20 thư mục con (`casl`, `guards`, `pipes`, `events`, `database`, `storage`…).
 Phần lớn là **cross-cutting framework glue** — không thuộc domain của module nào.
@@ -229,6 +237,23 @@ test/clean-architecture.spec.ts
 - `test:arch` hiện gồm `zero-any`, `guard-coverage`, `zod-openapi` → thêm `clean-architecture`.
 - Chia 2 mức: `CA1–CA5, CA10` (đang đạt) → **fail CI**; `CA6–CA9` → **warn + ghi danh sách**
   cho tới khi refactor xong (không chặn tiến độ).
+
+### 3.5 Cơ chế baseline (thực thi ở Bước 0) — nâng cấp so với thiết kế ban đầu
+
+Khi đo thực tế, phát hiện **CA3 và CA5 KHÔNG đạt** (mục §2.3 ghi "✅ Đạt" là sai).
+Nếu bật `fail CI` ngay thì sẽ chặn tiến độ; nếu để `warn` thì không chặn được gì.
+
+→ Thay bằng **cơ chế baseline** (đã hiện thực):
+
+| Tình huống | Hành vi |
+|---|---|
+| Vi phạm **đã có** trong `test/fixtures/arch-baseline.json` | Chỉ log cảnh báo |
+| Vi phạm **MỚI** | **FAIL CI** |
+| Vi phạm **đã được sửa** | Cảnh báo "nên gỡ khỏi baseline" |
+
+- Sinh lại baseline: `pnpm run arch:baseline` (script `scripts/generate-arch-baseline.ts`).
+- Baseline hiện tại: **68 vi phạm** (CA3: 9, CA5: 2, CA6: 3, CA7: 16, CA8: 38).
+- CA9 (chu trình phụ thuộc) và CA11: **0 vi phạm** → đã chặn CI ngay.
 
 ---
 

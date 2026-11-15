@@ -150,7 +150,7 @@ export class AnalysisService {
       inputFingerprint: fp,
       config: config as Record<string, unknown>,
       startedBy: userId && isObjectIdHex(userId) ? userId : null,
-      startedAt: startedAt,
+      startedAt,
     });
 
     try {
@@ -442,7 +442,7 @@ export class AnalysisService {
         cells: cells as unknown as CorrV1Context['cells'],
         vif: {
           columns: vifComp.columns,
-          rows: vifComp.rows as unknown as CorrV1Context['vif'] extends infer V ? never : never,
+          rows: vifComp.rows as unknown as CorrV1Context['vif'],
           commonN: vifComp.commonN,
           totalScanned: vifComp.totalScanned,
           commonNRate: vifComp.commonNRate,
@@ -556,7 +556,7 @@ export class AnalysisService {
       finished_at: null,
     });
     return {
-      jobId: jobId,
+      jobId,
       status: updated?.status ?? 'pending',
       attempt: updated?.attempt ?? job.attempt + 1,
     };

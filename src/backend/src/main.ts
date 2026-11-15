@@ -9,7 +9,6 @@ import * as path from 'path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { useRedisAdapterIfConfigured } from './shared/adapters/redis-io.adapter';
-import { RequestIdMiddleware } from './shared/middleware/request-id.middleware';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
 

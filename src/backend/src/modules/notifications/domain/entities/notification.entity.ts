@@ -11,6 +11,11 @@ export interface NotificationProps {
 export class Notification {
   private constructor(private readonly props: NotificationProps) {}
 
+  /** Bản chất (props) của thông báo — read-only. */
+  get properties(): NotificationProps {
+    return this.props;
+  }
+
   static create(props: NotificationProps): Notification {
     return new Notification({ ...props, title: props.title.trim().slice(0, 200) });
   }

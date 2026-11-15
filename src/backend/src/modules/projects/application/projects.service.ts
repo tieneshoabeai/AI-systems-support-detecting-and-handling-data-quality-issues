@@ -4,7 +4,6 @@ import {
   type ProjectListQuery,
   type ProjectRecord,
   type ProjectRepositoryPort,
-  type ProjectStatus,
 } from '../domain/ports/project.repository.port';
 import {
   WORKSPACE_REPOSITORY_PORT,
@@ -130,7 +129,7 @@ export class ProjectsService {
         details: { expectedVersion, actualVersion: actual },
       } as never);
     }
-    return !!ok;
+    return ok;
   }
 
   async resolveUserProjectRole(projectId: string, userId: string, workspaceRole?: 'owner' | 'member' | null): Promise<'owner' | 'member' | 'viewer' | null> {

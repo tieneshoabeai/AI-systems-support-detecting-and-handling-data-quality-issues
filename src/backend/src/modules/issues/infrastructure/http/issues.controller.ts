@@ -20,6 +20,8 @@ import {
   AdminListIssuesQueryDto,
   UpdateIssueStatusSchema,
   UpdateIssueStatusDto,
+  UpdateMyIssueSchema,
+  UpdateMyIssueDto,
 } from './dtos/create-issue.dto';
 
 @ApiTags('Issues')
@@ -125,6 +127,41 @@ export class IssuesController {
     return this.issuesService.getMine(user.userId, id);
   }
 
+  @Patch('issues/:id')
+  @ApiOperation({
+    summary:
+      'ISSUE-EDIT: Sửa báo cáo của tôi (chỉ khi status = needs_info — quản trị viên đã yêu cầu bổ sung)',
+  })
+  @ApiZodBody(UpdateMyIssueSchema)
+  async updateMine(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateMyIssueSchema)) dto: UpdateMyIssueDto,
+    @Req() req: Request,
+  ) {
+    const result = await this.issuesService.updateMyReport(user.userId, id, {
+      ...(dto.title !== undefined ? { title: dto.title } : {}),
+      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.removeAttachmentIds !== undefined ? { removeAttachmentIds: dto.removeAttachmentIds } : {}),
+      expectedVersion: dto.expectedVersion,
+    });
+    await this.audit.log({
+      actorId: user.userId,
+      actorRole: user.role,
+      action: 'ISSUE_REPORT_UPDATED',
+      targetType: 'issue_report',
+      targetId: id,
+      ipAddress: (req.ip ?? null) as string | null,
+      userAgent: (req.headers['user-agent'] as string ?? null),
+      metadata: {
+        title: dto.title ?? null,
+        descriptionChanged: dto.description !== undefined,
+        removedAttachments: dto.removeAttachmentIds?.length ?? 0,
+      },
+    });
+    return result;
+  }
+
   @Get('admin/issues')
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Danh sách báo cáo (quản trị)' })
@@ -148,7 +185,23 @@ export class IssuesController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateIssueStatusSchema)) dto: UpdateIssueStatusDto,
+    @Req() req: Request,
   ) {
-    return this.issuesService.updateStatus(id, user.role, dto.status, dto.expectedVersion);
+    const before = await this.issuesService.getForAdmin(id, user.role);
+    const result = await this.issuesService.updateStatus(id, user.role, dto.status, dto.expectedVersion);
+    await this.audit.log(
+      {
+        actorId: user.userId,
+        actorRole: user.role,
+        action: 'ISSUE_STATUS_CHANGED',
+        targetType: 'issue_report',
+        targetId: id,
+        ipAddress: (req.ip ?? null) as string | null,
+        userAgent: (req.headers['user-agent'] as string ?? null),
+        metadata: { from: before.status, to: dto.status },
+      },
+      [{ field: 'status', beforeValue: before.status, afterValue: dto.status }],
+    );
+    return result;
   }
 }

@@ -94,6 +94,7 @@ export class UsersService {
     device_name?: string;
     ip_address?: string;
     user_agent?: string;
+    remember_me?: boolean;
     expires_at: Date;
   }): Promise<UserSessionRecord> {
     const input: CreateSessionInput = {
@@ -102,6 +103,7 @@ export class UsersService {
       deviceName: data.device_name,
       ipAddress: data.ip_address,
       userAgent: data.user_agent,
+      rememberMe: data.remember_me === true,
       expiresAt: data.expires_at,
     };
     return this.users.createSession(input);
@@ -121,6 +123,14 @@ export class UsersService {
 
   async findSessionByTokenHash(refreshTokenHash: string): Promise<UserSessionRecord | null> {
     return this.users.findSessionByTokenHash(refreshTokenHash);
+  }
+
+  async findSessionById(sessionId: string): Promise<UserSessionRecord | null> {
+    return this.users.findSessionById(sessionId);
+  }
+
+  async touchSession(sessionId: string, lastUsedAt: Date): Promise<boolean> {
+    return this.users.touchSession(sessionId, lastUsedAt);
   }
 
   async revokeSessionById(sessionId: string): Promise<boolean> {

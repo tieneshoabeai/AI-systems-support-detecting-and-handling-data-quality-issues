@@ -1,11 +1,12 @@
-import {
+import type {
   Model,
   Document,
   UpdateQuery,
   QueryOptions,
-  Types,
   ClientSession,
-  ProjectionType,
+  ProjectionType} from 'mongoose';
+import {
+  Types
 } from 'mongoose';
 import { resolveMongoSession } from './mongo-session-context';
 
@@ -16,7 +17,7 @@ export interface BaseEntity {
   updated_at?: Date;
 }
 
-export type MongoFilter<T = unknown> = Record<string, unknown>;
+export type MongoFilter = Record<string, unknown>;
 
 /**
  * Base Repository tự động áp dụng ràng buộc xóa mềm { deleted_at: null }
@@ -28,7 +29,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
   /**
    * Tự động bổ sung điều kiện deleted_at: null vào bộ lọc
    */
-  private applySoftDeleteFilter(filter: MongoFilter<T>): MongoFilter<T> {
+  private applySoftDeleteFilter(filter: MongoFilter): MongoFilter {
     return {
       ...filter,
       deleted_at: null,
@@ -51,7 +52,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
   }
 
   async findOne(
-    filter: MongoFilter<T>,
+    filter: MongoFilter,
     projection?: ProjectionType<T> | null,
     options?: QueryOptions,
     session?: ClientSession
@@ -63,7 +64,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
   }
 
   async find(
-    filter: MongoFilter<T> = {},
+    filter: MongoFilter = {},
     projection?: ProjectionType<T> | null,
     options?: QueryOptions,
     session?: ClientSession
@@ -74,7 +75,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
       .exec();
   }
 
-  async count(filter: MongoFilter<T> = {}, session?: ClientSession): Promise<number> {
+  async count(filter: MongoFilter = {}, session?: ClientSession): Promise<number> {
     const s = resolveMongoSession(session);
     return this.model.countDocuments(this.applySoftDeleteFilter(filter), { session: s }).exec();
   }

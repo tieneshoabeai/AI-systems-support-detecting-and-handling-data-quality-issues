@@ -1,4 +1,5 @@
-import { Schema, Document, Types } from 'mongoose';
+import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
 
 export type OutboxStatus = 'PENDING' | 'PUBLISHING' | 'PUBLISHED' | 'PROCESSED' | 'FAILED';
 

@@ -14,7 +14,7 @@ import {
   type IssueReportRepositoryPort,
   type IssueListQuery,
 } from '../domain/ports/issue-report.repository.port';
-import { assertAllowedIssueTransition, type IssueStatus } from '../domain/value-objects/issue-status.vo';
+import { assertAllowedIssueTransition, isUserEditableIssueStatus, type IssueStatus } from '../domain/value-objects/issue-status.vo';
 import type { IssueType } from '../domain/value-objects/issue-type.vo';
 import { CursorCodec } from '../../../shared/pagination/cursor-codec';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
@@ -243,7 +243,9 @@ export class IssuesService {
     if (!updated) {
       throw new ConflictException('Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)');
     }
-    if (status === 'new') {
+    // `needs_info` = admin yêu cầu user bổ sung thông tin (luồng mới).
+    // `new` giữ lại để tương thích ngược với luồng cũ (in_progress → new).
+    if (status === 'needs_info' || status === 'new') {
       await dispatchViaPorts(this.notifications, this.users, this.realtime, {
         userId: updated.userId,
         type: 'issue_needs_info',
@@ -262,6 +264,62 @@ export class IssuesService {
         isMandatory: false,
       });
     }
+    return toResponse(updated);
+  }
+
+  /**
+   * ISSUE-EDIT — Người dùng tự sửa báo cáo của chính mình.
+   *
+   * Chỉ được phép khi `status = needs_info` (admin đã yêu cầu bổ sung thông tin).
+   * Chỉ sửa được `title`, `description` và gỡ tệp đính kèm — KHÔNG sửa được `issueType`.
+   * Sau khi gửi lại, báo cáo tự quay về `in_progress` (admin tiếp tục xử lý).
+   */
+  async updateMyReport(
+    userId: string,
+    id: string,
+    input: { title?: string; description?: string; removeAttachmentIds?: string[]; expectedVersion: number },
+  ): Promise<Record<string, unknown>> {
+    const existing = await this.repo.findByIdForUser(id, userId);
+    if (!existing) throw new NotFoundException('Không tìm thấy báo cáo sự cố');
+    if (!isUserEditableIssueStatus(existing.status)) {
+      throw new ForbiddenException(
+        'Báo cáo hiện không ở trạng thái chờ bổ sung thông tin nên không thể tự sửa.',
+      );
+    }
+    if (existing.version !== input.expectedVersion) {
+      throw new ConflictException('Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)');
+    }
+    // Chỉ gỡ được tệp đính kèm đang thực sự thuộc báo cáo này.
+    const ownedAttachments = new Map(
+      (existing.attachments ?? []).map((a) => [String(a.id), a]),
+    );
+    const removeAttachmentIds = (input.removeAttachmentIds ?? []).filter((aid) =>
+      ownedAttachments.has(String(aid)),
+    );
+
+    const updated = await this.repo.updateByUser(id, {
+      userId,
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(removeAttachmentIds.length > 0 ? { removeAttachmentIds } : {}),
+      expectedVersion: input.expectedVersion,
+    });
+    if (!updated) {
+      throw new ConflictException('Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)');
+    }
+
+    // Dọn tệp đính kèm đã gỡ khỏi storage (best-effort — không chặn luồng chính).
+    for (const aid of removeAttachmentIds) {
+      const att = ownedAttachments.get(String(aid));
+      const key = att?.storageKey;
+      if (!key || !this.storage) continue;
+      try {
+        await this.storage.deleteFile(key);
+      } catch {
+        // Bỏ qua — tệp orphan sẽ được dọn bởi tiến trình bảo trì storage.
+      }
+    }
+
     return toResponse(updated);
   }
 
