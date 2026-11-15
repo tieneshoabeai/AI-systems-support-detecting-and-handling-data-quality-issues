@@ -15,6 +15,7 @@
 | `00_ban_luan.md` | File này — nhật ký, quyết định, câu hỏi mở |
 | `01_doi_chieu_ba_nguon.md` | Bảng đối chiếu Excel ↔ tài liệu ↔ code (12 nhóm lệch) |
 | `02_ke_hoach_thuc_thien.md` | **Kế hoạch thực thi chi tiết** — 9 nhóm công việc A–I, thứ tự, ước lượng |
+| `03_yeu_cau_chat_luong_code_clean_architecture.md` | **Yêu cầu mới vòng 1 bổ sung**: ESLint, `noImplicitAny`, Clean Architecture, quy tắc dependency (Nhóm J–M) |
 
 ---
 
@@ -65,6 +66,10 @@
 | B13 | **3 API nhỏ**: làm cả — `GET /auth/sessions/:id`, mời thành viên khi tạo workspace, `workspaceName` trong chi tiết project. | `[x]` |
 | B14 | **`packages/core`/`packages/contracts`**: **cập nhật tài liệu cho khớp thực tế**, không tách monorepo. | `[x]` |
 | B15 | **Tài liệu**: **sinh phiên bản mới** (v10/v7/v9…) theo quy ước `docs/restructures/README.md`. | `[x]` |
+| B16 | **Dùng ESLint** — cài + flat config + tích hợp pre-commit/CI. Chưa có ESLint trong repo; script `lint`/`format` hiện gọi binary không tồn tại. | `[x]` |
+| B17 | **`noImplicitAny`** — đã bật trong `tsconfig.json`; bổ sung siết thêm: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `useUnknownInCatchVariables`, `noUnusedLocals/Parameters`. | `[x]` |
+| B18 | **Tái kiến trúc chuẩn Clean Architecture** — không cần giống dự án mẫu. Giữ cấu trúc `domain/application/infrastructure` hiện có (đã khớp 4 nguyên tắc chính); tái cấu trúc phần còn lệch. | `[x]` |
+| B19 | **Quy tắc phụ thuộc/độc lập giữa các tầng** — bắt buộc, kiểm tự động bằng 2 lớp: ESLint `no-restricted-imports` (lỗi lúc viết code) + test `test/clean-architecture.spec.ts` (chặn CI). | `[x]` |
 
 ---
 
@@ -103,14 +108,29 @@
 | D3 | Google OAuth: khi `google_id` đã gắn cho user khác → trả `409` hay `403`? | `[?]` — đề xuất `409 CONFLICT` |
 | D4 | `memberEmails` khi tạo workspace: email chưa có tài khoản → tạo `pending` hay báo lỗi? | `[?]` — đề xuất tạo pending-invite |
 | D5 | `workspaceName` populate: cần thêm query tới `workspaces` hay dùng join trong repository? | Đã ghi vào **H3**, quyết định khi code |
+| LQ1 | **Mức độ sửa cross-module coupling** (L3) — **L3a: ĐẦY ĐỦ** — xoá hết import service chéo, mọi cross-module call đi qua port đã export từ module sở hữu | `[x]` **L3a** |
+| LQ2 | ESLint: bật rule nghiêm (`--max-warnings 0`) **sau khi dọn** (Bước 7) | `[x]` |
+| LQ3 | `noUncheckedIndexedAccess` — **bật vòng này** | `[x]` |
+| LQ4 | Vị trí `StoragePort` — giữ `shared/ports/` | `[x]` (chốt) |
+| LQ5 | Tách `commands/` + `queries/` — **LÀM THẬT trong vòng này** | `[x]` |
+| LQ6 | Bắt buộc `import type` 100% (`consistent-type-imports`) | `[x]` (chốt) |
 
 ---
 
 ## E. Trạng thái hiện tại
 
-**Bàn luận yêu cầu: HOÀN TẤT.** Đã chốt 15 quyết định (B1–B15), 5 nhóm công việc A–I với
+**Bàn luận yêu cầu: HOÀN TẤT (vòng 1).** Đã chốt 19 quyết định (B1–B19), 13 nhóm công việc A–M với
 chi tiết từng mã việc, thứ tự thực thi và ước lượng khối lượng.
 
-**Bước tiếp theo:** chờ người dùng phê duyệt `edit/02_ke_hoach_thuc_thien.md`,
-sau đó bắt đầu **Nhóm A + C + D** (theo thứ tự đã đề xuất) — nhóm C và D đụng schema nên làm trước,
-nhóm A đụng repository nên làm sớm để tránh sửa 2 lần cùng file.
+**Phát hiện quan trọng ở vòng bổ sung:**
+- ESLint **chưa được cài** — script `lint`/`format` hiện gọi binary không tồn tại.
+- `noImplicitAny` **đã bật**; phần cần làm là siết thêm các cờ TS khác.
+- Clean Architecture: 4/5 nguyên tắc đã đúng, còn **3 vi phạm cụ thể** (2 vi phạm R3 cross-schema,
+  8 vi phạm R2 cross-service, ~19 vi phạm R6 public contract).
+- Quy tắc dependency kiểm được bằng **2 lớp**: ESLint `no-restricted-imports` + test kiến trúc
+  (mẫu sẵn có: `test/zero-any.spec.ts`).
+
+**Bước tiếp theo:** chờ người dùng phê duyệt `edit/02_ke_hoach_thuc_thien.md` +
+`edit/03_yeu_cau_chat_luong_code_clean_architecture.md`, sau đó bắt đầu
+**Bước 0 (J0 cài ESLint + K0 siết TS + M0 test kiến trúc ở mức báo cáo)** rồi mới tới
+**Nhóm A + C + D**.

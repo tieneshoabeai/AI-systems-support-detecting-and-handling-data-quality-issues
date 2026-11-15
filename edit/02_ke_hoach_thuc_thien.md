@@ -148,19 +148,39 @@ Keyset cursor phải mã hoá **giá trị sort + id tiebreaker**. Với `name_a
 
 ---
 
-## 2. Thứ tự thực thi đề xuất
+## 3. Nhóm J–M — Chất lượng code & Clean Architecture
+
+Chi tiết đầy đủ: **`edit/03_yeu_cau_chat_luong_code_clean_architecture.md`**
+
+| Nhóm | Nội dung | Trạng thái |
+|---|---|---|
+| **J** | ESLint 9 (flat config) + `typescript-eslint` v8 + prettier. Rule: `no-explicit-any`, `no-unsafe-*`, `consistent-type-imports`, `no-restricted-imports` (theo layer), `no-floating-promises`… | Cài + cấu hình (Bước 0), siết rule (Bước 7) |
+| **K** | `noImplicitAny` **đã bật**; siết thêm `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `useUnknownInCatchVariables`, `noUnusedLocals/Parameters` | Bật từng đợt nhỏ (Bước 0) |
+| **L** | Clean Architecture: 4/5 nguyên tắc đã đúng. Cần sửa **L2** (2 vi phạm cross-schema), **L3** (8 vi phạm cross-service), **L4** (~19 vi phạm public contract), **L1** (tách `commands/`+`queries/`), **L6** (rule cho `shared/`) | L2+L3 ở Bước 4, L1 ở Bước 5 |
+| **M** | Quy tắc dependency 2 lớp: ESLint `no-restricted-imports` + test `test/clean-architecture.spec.ts` với 11 quy tắc **CA1–CA11** (mẫu: `test/zero-any.spec.ts`) | Test ở Bước 0 (mức báo cáo), fail CI ở Bước 7 |
+
+---
+
+## 4. Thứ tự thực thi đề xuất
 
 ```
-Bước 1  Nhóm C (remember-me) + Nhóm D (issue needs_info)   → schema + DTO + domain
-Bước 2  Nhóm A (cursor pagination)                          → đụng repository, làm sớm để tránh phải sửa 2 lần
-Bước 3  Nhóm E (search + overview) → Nhóm F → Nhóm G
-Bước 4  Nhóm H (3 API nhỏ)
-Bước 5  Nhóm B (Google OAuth)                                → cần credential thật, làm cuối
-Bước 6  Nhóm I (vệ sinh tài liệu)                           → sau khi code xong để số liệu khớp
+Bước 0  J0+K0+M0  Cài ESLint + prettier, siết cờ TS, viết test kiến trúc ở mức "báo cáo"
+                  (chi tiết: edit/03_yeu_cau_chat_luong_code_clean_architecture.md §4)
+Bước 1  C+D  Nhóm C (remember-me) + D (issue needs_info)   → schema + DTO + domain
+Bước 2  A    Nhóm A (cursor pagination)                     → đụng repository, làm sớm để tránh phải sửa 2 lần
+Bước 3  E+F+G+H                                                → search/overview, ownerId, profile, 3 API nhỏ
+Bước 4  L2+L3a+L4  Sửa cross-module coupling: cross-schema + cross-service + public contract
+Bước 5  L1  Tách commands/ + queries/ trong application/       (đã chốt: làm thật vòng này)
+Bước 6  B    Nhóm B (Google OAuth)                           → cần credential thật, làm cuối
+Bước 7  J1  Bật ESLint rule nghiêm + --max-warnings 0        (đã chốt: sau khi dọn)
+Bước 8  I    Nhóm I (vệ sinh tài liệu)                       → sau khi code xong để số liệu khớp
 ```
 
 **Ràng buộc:** Bước 2 (cursor) nên sớm vì nó đụng `workspaces.repository.ts` + `projects.repository.ts` —
 nếu làm sau Bước 3 sẽ phải sửa lại 2 lần cùng một file.
+**Ràng buộc 2:** Nhóm L (Clean Architecture) **không làm song song** với A–I vì L3a đụng chính các
+file mà A–I sửa (`workspaces.repository.ts`, `projects.repository.ts`, `issues.*`, `users.*`).
+→ **Thiết kế port mới cho L3a phải làm cùng lúc với code A–I** để không sửa 2 lần.
 
 ---
 
