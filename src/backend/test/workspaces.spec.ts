@@ -4,6 +4,7 @@ import { WorkspacesService } from '../src/modules/workspaces/application/workspa
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { CursorCodec } from '../src/shared/pagination/cursor-codec';
 
 describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
   let service: WorkspacesService;
@@ -49,7 +50,11 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
       softDelete: jest.fn().mockResolvedValue(true),
       addMember: jest.fn().mockResolvedValue(true),
       removeMember: jest.fn().mockResolvedValue(true),
-      findByUserPaged: jest.fn().mockResolvedValue({ items: [mockWorkspaceRecord], total: 1 }),
+      findByUserPaged: jest.fn().mockResolvedValue({
+        items: [mockWorkspaceRecord],
+        nextCursor: null,
+        hasMore: false,
+      }),
       touchLastAccessed: jest.fn().mockResolvedValue(undefined),
       addStorageUsed: jest.fn().mockResolvedValue(undefined),
       transferOwner: jest.fn().mockResolvedValue(true),
@@ -153,13 +158,36 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
     await expect(service.checkWorkspaceUploadQuota(mockWorkspaceId, 200, 2000)).rejects.toThrow();
   });
 
-  it('listWorkspaces should support pagination/search/filter/sort (WS-02)', async () => {
+  it('listWorkspaces should support cursor pagination/search/filter/sort (WS-02)', async () => {
     const r = await service.listWorkspaces(mockAnalystUser as never, {
-      page: 1,
       limit: 10,
       sort: 'name_asc',
     } as never);
-    expect(r.total).toBe(1);
     expect(r.items).toHaveLength(1);
+    expect(r.meta.hasMore).toBe(false);
+    expect(r.meta.nextCursor).toBeNull();
+    expect(r.meta.limit).toBe(10);
+    expect('total' in (r as unknown as Record<string, unknown>)).toBe(false);
+  });
+
+  it('listWorkspaces should reject a cursor that does not match the current sort', async () => {
+    const cursor = CursorCodec.encode({ s: 'name_asc', k: 'A', n: 0, id: '507f1f77bcf86cd799439011' });
+    await expect(
+      service.listWorkspaces(mockAnalystUser as never, {
+        limit: 10,
+        sort: 'updated',
+        cursor,
+      } as never),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('listWorkspaces should reject a malformed cursor', async () => {
+    await expect(
+      service.listWorkspaces(mockAnalystUser as never, {
+        limit: 10,
+        sort: 'updated',
+        cursor: 'not-a-valid-cursor',
+      } as never),
+    ).rejects.toThrow(BadRequestException);
   });
 });

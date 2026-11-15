@@ -30,7 +30,7 @@ import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator'
 import { Action } from '../../../../shared/casl/actions.enum';
 import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -55,7 +55,13 @@ export class WorkspacesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'WS-02: Lấy danh sách workspace (phân trang/tìm kiếm/lọc/sắp xếp)' })
+  @ApiOperation({
+    summary: 'WS-02: Lấy danh sách workspace (phân trang cursor/tìm kiếm/lọc/sắp xếp)',
+    description:
+      'Phân trang keyset: dùng `meta.nextCursor` làm tham số `cursor` của request kế tiếp. ' +
+      'Response: `{ items, meta: { nextCursor, hasMore, limit } }` — không có `total`/`page`.',
+  })
+  @ApiZodQuery(ListWorkspacesQuerySchema)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
   async listWorkspaces(
     @CurrentUser() user: CurrentUserPayload,

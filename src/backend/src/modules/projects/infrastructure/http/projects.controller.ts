@@ -33,7 +33,7 @@ import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator'
 import { Action } from '../../../../shared/casl/actions.enum';
 import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -61,7 +61,13 @@ export class ProjectsController {
   }
 
   @Get('workspaces/:workspaceId/projects')
-  @ApiOperation({ summary: 'PROJ-02: Danh sách project (phân trang/tìm kiếm/lọc status/sắp xếp)' })
+  @ApiOperation({
+    summary: 'PROJ-02: Danh sách project (phân trang cursor/tìm kiếm/lọc status/sắp xếp)',
+    description:
+      'Phân trang keyset: dùng `meta.nextCursor` làm tham số `cursor` của request kế tiếp. ' +
+      'Response: `{ items, meta: { nextCursor, hasMore, limit } }` — không có `total`/`page`.',
+  })
+  @ApiZodQuery(ListProjectsQuerySchema)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Project'))
   async listByWorkspace(
     @Param('workspaceId') workspaceId: string,

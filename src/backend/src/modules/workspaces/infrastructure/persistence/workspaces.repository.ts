@@ -11,8 +11,21 @@ import {
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
 import { toMemberPersistence, toWorkspaceRecord } from './workspace.mapper';
+import {
+  buildKeysetCondition,
+  buildKeysetSort,
+} from '../../../../shared/pagination/keyset-filter.util';
+import { encodeKeysetCursor } from '../../../../shared/pagination/keyset-cursor';
+import { extractSortValue } from '../../../../shared/pagination/keyset-value.util';
+import {
+  COMMON_SORT_SPECS,
+  resolveSortSpec,
+} from '../../../../shared/pagination/keyset-sort.util';
 
 export type WorkspaceListQuery = DomainListQuery;
+
+/** Số bản ghi mặc định cho mỗi trang. */
+const DEFAULT_LIMIT = 15;
 
 /**
  * WORKSPACES — Infrastructure adapter (driven).
@@ -89,25 +102,67 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     return docs.map((d) => this.toRecord(d));
   }
 
-  async findByUserPaged(userId: string, opts: DomainListQuery = {}): Promise<{ items: WorkspaceRecord[]; total: number }> {
+  async findByUserPaged(
+    userId: string,
+    opts: DomainListQuery = {},
+  ): Promise<{ items: WorkspaceRecord[]; nextCursor: string | null; hasMore: boolean }> {
     const s = resolveMongoSession(undefined);
     const userObjectId = new Types.ObjectId(userId);
-    const filter: Record<string, unknown> = { deleted_at: null, $or: [{ owner_id: userObjectId }, { 'members.user_id': userObjectId }] };
-    if (opts.search?.trim()) filter.name = { $regex: opts.search.trim(), $options: 'i' };
-    if (opts.role === 'owner') filter.owner_id = userObjectId;
-    else if (opts.role === 'member') { filter['members.user_id'] = userObjectId; filter['members.role'] = 'member'; }
-    const page = Math.max(1, Number(opts.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(opts.limit) || 15));
-    const sortMap: Record<string, Record<string, 1 | -1>> = {
-      last_accessed: { last_accessed_at: -1 }, updated: { updated_at: -1 },
-      name_asc: { name: 1 }, name_desc: { name: -1 }, joined: { created_at: -1 },
-    };
-    const sort = sortMap[opts.sort || 'last_accessed'] ?? { last_accessed_at: -1 };
-    const [items, total] = await Promise.all([
-      this.workspaceModel.find(filter, null, { session: s }).sort(sort).skip((page - 1) * limit).limit(limit).exec(),
-      this.workspaceModel.countDocuments(filter).exec(),
-    ]);
-    return { items: items.map((d) => this.toRecord(d)), total };
+    const conditions: Record<string, unknown>[] = [
+      { deleted_at: null },
+      { $or: [{ owner_id: userObjectId }, { 'members.user_id': userObjectId }] },
+    ];
+    if (opts.search?.trim()) {
+      conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
+    }
+    if (opts.role === 'owner') {
+      conditions.push({ owner_id: userObjectId });
+    } else if (opts.role === 'member') {
+      conditions.push({ 'members.user_id': userObjectId, 'members.role': 'member' });
+    }
+
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || DEFAULT_LIMIT));
+    const { code, spec } = resolveSortSpec(COMMON_SORT_SPECS, opts.sort);
+
+    // Điều kiện keyset: chỉ áp dụng khi có con trỏ hợp lệ.
+    const cursor = opts.cursor;
+    if (cursor) {
+      conditions.push(
+        buildKeysetCondition(spec, {
+          value: cursor.value,
+          isNull: cursor.isNull,
+          id: cursor.id,
+        }),
+      );
+    }
+
+    // Lấy limit + 1 để biết còn dữ liệu hay không (không cần countDocuments).
+    const docs = await this.workspaceModel
+      .find({ $and: conditions }, null, { session: s })
+      .sort(buildKeysetSort(spec))
+      .limit(limit + 1)
+      .exec();
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+    const items = page.map((d) => this.toRecord(d));
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const raw = last as unknown as Record<string, unknown>;
+        const sortValue = extractSortValue(spec, raw);
+        nextCursor = encodeKeysetCursor({
+          s: code,
+          k: sortValue.value,
+          n: sortValue.isNull ? 1 : 0,
+          id: last._id.toString(),
+        });
+      }
+    }
+
+    return { items, nextCursor, hasMore };
   }
 
   async addMember(workspaceId: string, member: WorkspaceMemberRecord): Promise<boolean> {

@@ -3,6 +3,8 @@ import { CursorCodec } from './cursor-codec';
 export interface CursorMeta {
   nextCursor: string | null;
   hasMore: boolean;
+  /** Số bản ghi tối đa của trang (echo lại `limit` của request). */
+  limit: number;
 }
 
 export interface CursorPaginatedResponse<T> {
@@ -32,7 +34,29 @@ export function createCursorPaginatedResponse<T>(
 
   return {
     items: resultItems,
-    meta: { nextCursor, hasMore },
+    meta: { nextCursor, hasMore, limit },
+    next_cursor: nextCursor,
+    has_more: hasMore,
+  };
+}
+
+/**
+ * Dựng response phân trang cursor khi repository ĐÃ tính sẵn `nextCursor`/`hasMore`
+ * (trường hợp keyset pagination — cursor phụ thuộc tham số sort nên không thể
+ * suy ra lại từ phần tử cuối một cách generic).
+ *
+ * Hàm này giữ đúng một shape response duy nhất cho toàn hệ thống:
+ * `{ items, meta: { nextCursor, hasMore, limit } }`.
+ */
+export function createCursorPage<T>(
+  items: T[],
+  limit: number,
+  nextCursor: string | null,
+  hasMore: boolean,
+): CursorPaginatedResponse<T> {
+  return {
+    items,
+    meta: { nextCursor, hasMore, limit },
     next_cursor: nextCursor,
     has_more: hasMore,
   };

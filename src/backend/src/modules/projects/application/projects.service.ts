@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import {
   PROJECT_REPOSITORY_PORT,
-  type ProjectListQuery,
+  type ProjectListInput,
   type ProjectRecord,
   type ProjectRepositoryPort,
 } from '../domain/ports/project.repository.port';
@@ -14,6 +14,16 @@ import {
   type UserRepositoryPort,
 } from '../../users/domain/ports/user.repository.port';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
+import type { ListCursor } from '../../../shared/utils/list-cursor';
+import {
+  InvalidCursorError,
+  parseListCursor,
+} from '../../../shared/pagination/keyset-cursor';
+import type { CursorMeta } from '../../../shared/pagination/cursor-paginated.response';
+import { createCursorPage } from '../../../shared/pagination/cursor-paginated.response';
+
+/** Số bản ghi mặc định cho mỗi trang. */
+const DEFAULT_LIMIT = 15;
 
 export interface CreateProjectInput { name: string; description?: string }
 export interface UpdateProjectInput { name?: string; description?: string; expectedVersion?: number }
@@ -57,13 +67,36 @@ export class ProjectsService {
     return this.projects.findByWorkspace(workspaceId);
   }
 
-  async listProjectsByWorkspace(workspaceId: string, q: ProjectListQuery) {
+  async listProjectsByWorkspace(
+    workspaceId: string,
+    q: ProjectListInput,
+  ): Promise<{ items: ProjectRecord[]; meta: CursorMeta }> {
     const ws = await this.workspaces.findById(workspaceId);
     if (!ws) throw new NotFoundException('Không tìm thấy không gian làm việc');
-    const page = Math.max(1, Number(q.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(q.limit) || 15));
-    const { items, total } = await this.projects.findByWorkspacePaged(workspaceId, q);
-    return { items, total, page, limit };
+
+    const limit = Math.min(100, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
+    const sort = q.sort || 'last_accessed';
+
+    let cursor: ListCursor | undefined;
+    try {
+      cursor = parseListCursor(q.cursor, sort);
+    } catch (e: unknown) {
+      if (e instanceof InvalidCursorError) {
+        throw new BadRequestException({
+          message: e.message,
+          error: 'VALIDATION_ERROR',
+        } as never);
+      }
+      throw e;
+    }
+
+    const { items, nextCursor, hasMore } = await this.projects.findByWorkspacePaged(workspaceId, {
+      ...q,
+      sort,
+      limit,
+      cursor,
+    });
+    return createCursorPage(items, limit, nextCursor, hasMore);
   }
 
   async getProjectById(id: string, touch = false): Promise<ProjectRecord> {

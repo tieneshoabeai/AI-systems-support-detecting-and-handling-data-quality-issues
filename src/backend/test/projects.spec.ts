@@ -4,7 +4,8 @@ import { ProjectsService } from '../src/modules/projects/application/projects.se
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { CursorCodec } from '../src/shared/pagination/cursor-codec';
 
 describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Dataset)', () => {
   let service: ProjectsService;
@@ -38,7 +39,11 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
         return Promise.resolve(null);
       }),
       findByWorkspace: jest.fn().mockResolvedValue([mockProjectRecord]),
-      findByWorkspacePaged: jest.fn().mockResolvedValue({ items: [mockProjectRecord], total: 1 }),
+      findByWorkspacePaged: jest.fn().mockResolvedValue({
+        items: [mockProjectRecord],
+        nextCursor: null,
+        hasMore: false,
+      }),
       findOneByWorkspaceAndName: jest.fn().mockResolvedValue(null),
       updateById: jest.fn().mockResolvedValue(mockProjectRecord),
       softDelete: jest.fn().mockResolvedValue(true),
@@ -123,5 +128,21 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
     (repository.findById as jest.Mock).mockResolvedValue({ ...mockProjectRecord, status: 'in_progress' });
     await service.markCompleted(mockProjectId, 3);
     expect(repository.markCompleted).toHaveBeenCalledWith(mockProjectId, 3);
+  });
+
+  it('listProjectsByWorkspace should return cursor meta and no total (PROJ-02)', async () => {
+    const r = await service.listProjectsByWorkspace(mockWorkspaceId, { limit: 10 } as never);
+    expect(r.items).toHaveLength(1);
+    expect(r.meta.hasMore).toBe(false);
+    expect(r.meta.nextCursor).toBeNull();
+    expect(r.meta.limit).toBe(10);
+    expect('total' in (r as unknown as Record<string, unknown>)).toBe(false);
+  });
+
+  it('listProjectsByWorkspace should reject a cursor that does not match the current sort', async () => {
+    const cursor = CursorCodec.encode({ s: 'name_asc', k: 'A', n: 0, id: '507f1f77bcf86cd799439011' });
+    await expect(
+      service.listProjectsByWorkspace(mockWorkspaceId, { limit: 10, sort: 'updated', cursor } as never),
+    ).rejects.toThrow(BadRequestException);
   });
 });

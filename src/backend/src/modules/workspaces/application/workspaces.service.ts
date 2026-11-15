@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   WORKSPACE_REPOSITORY_PORT,
-  type WorkspaceListQuery,
+  type WorkspaceListInput,
   type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../domain/ports/workspace.repository.port';
@@ -22,6 +22,22 @@ import {
 } from '../../users/domain/ports/user.repository.port';
 import type { CurrentUser } from '../../../shared/casl/casl-ability.factory';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
+import type { ListCursor } from '../../../shared/utils/list-cursor';
+import {
+  InvalidCursorError,
+  encodeKeysetCursor,
+  parseListCursor,
+} from '../../../shared/pagination/keyset-cursor';
+import {
+  compareBySort,
+  isAfterCursor,
+  sortValueOf,
+} from '../../../shared/pagination/keyset-memory.util';
+import type { CursorMeta } from '../../../shared/pagination/cursor-paginated.response';
+import { createCursorPage } from '../../../shared/pagination/cursor-paginated.response';
+
+/** Số bản ghi mặc định cho mỗi trang. */
+const DEFAULT_LIMIT = 15;
 
 export interface CreateWorkspaceInput { name: string; description?: string }
 export interface UpdateWorkspaceInput { name?: string; description?: string; expectedVersion?: number }
@@ -54,10 +70,30 @@ export class WorkspacesService {
     return this.workspaces.findByUser(user.userId);
   }
 
-  async listWorkspaces(user: CurrentUser, q: WorkspaceListQuery): Promise<{ items: WorkspaceRecord[]; total: number; page: number; limit: number }> {
-    const page = Math.max(1, Number(q.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(q.limit) || 15));
+  async listWorkspaces(
+    user: CurrentUser,
+    q: WorkspaceListInput,
+  ): Promise<{ items: WorkspaceRecord[]; meta: CursorMeta }> {
+    const limit = Math.min(100, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
+    const sort = q.sort || 'last_accessed';
+
+    // Cursor phải khớp với tham số sort hiện tại.
+    let cursor: ListCursor | undefined;
+    try {
+      cursor = parseListCursor(q.cursor, sort);
+    } catch (e: unknown) {
+      if (e instanceof InvalidCursorError) {
+        throw new BadRequestException({
+          message: e.message,
+          error: 'VALIDATION_ERROR',
+        } as never);
+      }
+      throw e;
+    }
+
     if (user.role === 'admin') {
+      // Admin xem toàn bộ workspace — vẫn phân trang keyset, nhưng logic lọc/sắp
+      // xếp được thực hiện trong bộ nhớ (quy mô dataset nhỏ hơn người dùng thường).
       const all = await this.workspaces.findAllActive();
       let items = all;
       if (q.search?.trim()) {
@@ -66,19 +102,35 @@ export class WorkspacesService {
       }
       if (q.role === 'owner') items = items.filter((w) => w.ownerId === user.userId);
       if (q.role === 'member') items = items.filter((w) => w.ownerId !== user.userId);
-      const sort = q.sort || 'last_accessed';
-      items = [...items].sort((a, b) => {
-        if (sort === 'name_asc') return a.name.localeCompare(b.name);
-        if (sort === 'name_desc') return b.name.localeCompare(a.name);
-        const av = sort === 'updated' ? a.updatedAt?.getTime() ?? 0 : (a.lastAccessedAt?.getTime() ?? a.updatedAt?.getTime() ?? 0);
-        const bv = sort === 'updated' ? b.updatedAt?.getTime() ?? 0 : (b.lastAccessedAt?.getTime() ?? b.updatedAt?.getTime() ?? 0);
-        return bv - av;
-      });
-      const total = items.length;
-      return { items: items.slice((page - 1) * limit, page * limit), total, page, limit };
+      items = [...items].sort((a, b) => compareBySort(a, b, sort));
+
+      const sliced = cursor ? items.filter((w) => isAfterCursor(w, cursor, sort)) : items;
+      const hasMore = sliced.length > limit;
+      const page = hasMore ? sliced.slice(0, limit) : sliced;
+      const last = page[page.length - 1];
+      const nextCursor =
+        hasMore && last
+          ? (() => {
+              const sv = sortValueOf(last, sort);
+              return encodeKeysetCursor({
+                s: sort,
+                k: sv.value,
+                n: sv.isNull ? 1 : 0,
+                id: last.id,
+              });
+            })()
+          : null;
+
+      return createCursorPage(page, limit, nextCursor, hasMore);
     }
-    const { items, total } = await this.workspaces.findByUserPaged(user.userId, q);
-    return { items, total, page, limit };
+
+    const { items, nextCursor, hasMore } = await this.workspaces.findByUserPaged(user.userId, {
+      ...q,
+      sort,
+      limit,
+      cursor,
+    });
+    return createCursorPage(items, limit, nextCursor, hasMore);
   }
 
   async getWorkspaceById(id: string, touch = false): Promise<WorkspaceRecord> {

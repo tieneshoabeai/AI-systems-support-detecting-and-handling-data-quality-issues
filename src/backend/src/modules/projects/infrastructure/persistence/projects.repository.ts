@@ -12,6 +12,19 @@ import {
   type ProjectStatus,
 } from '../../domain/ports/project.repository.port';
 import { toProjectRecord } from './project.mapper';
+import {
+  buildKeysetCondition,
+  buildKeysetSort,
+} from '../../../../shared/pagination/keyset-filter.util';
+import { encodeKeysetCursor } from '../../../../shared/pagination/keyset-cursor';
+import { extractSortValue } from '../../../../shared/pagination/keyset-value.util';
+import {
+  COMMON_SORT_SPECS,
+  resolveSortSpec,
+} from '../../../../shared/pagination/keyset-sort.util';
+
+/** Số bản ghi mặc định cho mỗi trang. */
+const DEFAULT_LIMIT = 15;
 
 /**
  * PROJECTS — Infrastructure adapter (driven).
@@ -64,28 +77,60 @@ export class ProjectsRepository implements ProjectRepositoryPort {
   async findByWorkspacePaged(
     workspaceId: string,
     opts: ProjectListQuery = {},
-  ): Promise<{ items: ProjectRecord[]; total: number }> {
-    const filter: Record<string, unknown> = {
-      workspace_id: new Types.ObjectId(workspaceId),
-      deleted_at: null,
-    };
-    if (opts.search?.trim()) filter.name = { $regex: opts.search.trim(), $options: 'i' };
-    if (opts.status) filter.status = opts.status;
-    const page = Math.max(1, Number(opts.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(opts.limit) || 15));
-    const sortMap: Record<string, Record<string, 1 | -1>> = {
-      last_accessed: { last_accessed_at: -1 },
-      updated: { updated_at: -1 },
-      name_asc: { name: 1 },
-      name_desc: { name: -1 },
-      joined: { created_at: -1 },
-    };
-    const sort = sortMap[opts.sort || 'last_accessed'] ?? { last_accessed_at: -1 };
-    const [items, total] = await Promise.all([
-      this.model.find(filter).sort(sort).skip((page - 1) * limit).limit(limit).exec(),
-      this.model.countDocuments(filter).exec(),
-    ]);
-    return { items: items.map(toProjectRecord), total };
+  ): Promise<{ items: ProjectRecord[]; nextCursor: string | null; hasMore: boolean }> {
+    if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+
+    const conditions: Record<string, unknown>[] = [
+      { workspace_id: new Types.ObjectId(workspaceId) },
+      { deleted_at: null },
+    ];
+    if (opts.search?.trim()) {
+      conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
+    }
+    if (opts.status) conditions.push({ status: opts.status });
+
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || DEFAULT_LIMIT));
+    const { code, spec } = resolveSortSpec(COMMON_SORT_SPECS, opts.sort);
+
+    const cursor = opts.cursor;
+    if (cursor) {
+      conditions.push(
+        buildKeysetCondition(spec, {
+          value: cursor.value,
+          isNull: cursor.isNull,
+          id: cursor.id,
+        }),
+      );
+    }
+
+    const docs = await this.model
+      .find({ $and: conditions })
+      .sort(buildKeysetSort(spec))
+      .limit(limit + 1)
+      .exec();
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+    const items = page.map(toProjectRecord);
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const raw = last as unknown as Record<string, unknown>;
+        const sortValue = extractSortValue(spec, raw);
+        nextCursor = encodeKeysetCursor({
+          s: code,
+          k: sortValue.value,
+          n: sortValue.isNull ? 1 : 0,
+          id: last._id.toString(),
+        });
+      }
+    }
+
+    return { items, nextCursor, hasMore };
   }
 
   async updateById(

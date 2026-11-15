@@ -154,7 +154,7 @@ export class DataViewService {
     }
     return {
       items: resultItems,
-      meta: { nextCursor, hasMore },
+      meta: { nextCursor, hasMore, limit },
       next_cursor: nextCursor,
       has_more: hasMore,
     };
@@ -212,7 +212,7 @@ export class DataViewService {
     }
     return {
       items,
-      meta: { nextCursor, hasMore },
+      meta: { nextCursor, hasMore, limit },
       next_cursor: nextCursor,
       has_more: hasMore,
     };
