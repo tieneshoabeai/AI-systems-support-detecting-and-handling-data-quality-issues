@@ -6,6 +6,8 @@ export interface IUser extends Document {
   email: string;
   password_hash?: string;
   google_id?: string;
+  /** Nguồn đăng nhập — `local` (email + mật khẩu) hoặc `google` (AUTH-03). */
+  auth_provider?: 'local' | 'google';
   first_name: string;
   last_name: string;
   avatar_url?: string;
@@ -42,6 +44,12 @@ export const UserSchema = new Schema<IUser>(
       type: String,
       unique: true,
       sparse: true,
+      index: true,
+    },
+    auth_provider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
       index: true,
     },
     first_name: {

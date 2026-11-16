@@ -19,10 +19,17 @@ export {
   type AuthTokenIssuerPort,
   type AuthTokenPayload,
   type AuthUserCreateInput,
+  type AuthUserCreateWithGoogleInput,
   type AuthUserLookup,
   type AuthUserLookupPort,
   type PasswordHasherPort,
 } from './domain/ports/auth-session.port';
+
+export {
+  GOOGLE_OAUTH_PORT,
+  type GoogleOAuthPort,
+  type GoogleProfile,
+} from './domain/ports/google-oauth.port';
 
 export {
   PASSWORD_MAX_LENGTH,
@@ -45,6 +52,7 @@ export { GetSessionsHandler } from './application/queries/get-sessions.handler';
 export { ChangePasswordHandler } from './application/commands/change-password.handler';
 export { ForgotPasswordHandler } from './application/commands/forgot-password.handler';
 export { LoginHandler } from './application/commands/login.handler';
+export { LoginWithGoogleHandler } from './application/commands/login-with-google.handler';
 export { LogoutHandler } from './application/commands/logout.handler';
 export { RefreshAccessTokenHandler } from './application/commands/refresh-access-token.handler';
 export { RegisterHandler } from './application/commands/register.handler';

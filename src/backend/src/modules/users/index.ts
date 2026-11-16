@@ -10,6 +10,7 @@ export {
   USER_REPOSITORY_PORT,
   type CreateSessionInput,
   type CreateUserInput,
+  type CreateUserWithGoogleInput,
   type UpdateProfileInput,
   type PasswordResetState,
   type UserRecord,

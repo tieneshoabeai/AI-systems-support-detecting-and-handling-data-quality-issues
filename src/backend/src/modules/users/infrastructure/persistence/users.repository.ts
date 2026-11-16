@@ -6,6 +6,7 @@ import { IUserSession } from './user-session.schema';
 import {
   type CreateSessionInput,
   type CreateUserInput,
+  type CreateUserWithGoogleInput,
   type UpdateProfileInput,
   type PasswordResetState,
   type UserRecord,
@@ -82,6 +83,12 @@ export class UsersRepository implements UserRepositoryPort {
     return doc ? toUserRecord(doc) : null;
   }
 
+  async findByGoogleId(googleId: string): Promise<UserRecord | null> {
+    if (!googleId.trim()) return null;
+    const doc = await this.userModel.findOne({ google_id: googleId, deleted_at: null }).exec();
+    return doc ? toUserRecord(doc) : null;
+  }
+
   async findByIds(ids: string[]): Promise<UserRecord[]> {
     const valid = ids.filter((id) => Types.ObjectId.isValid(id));
     if (valid.length === 0) return [];
@@ -151,6 +158,23 @@ export class UsersRepository implements UserRepositoryPort {
       first_name: data.firstName,
       last_name: data.lastName,
       role: data.role ?? 'analyst',
+      deleted_at: null,
+    });
+    const saved = await inst.save();
+    return toUserRecord(saved);
+  }
+
+  async createWithGoogle(data: CreateUserWithGoogleInput): Promise<UserRecord> {
+    const inst = new this.userModel({
+      email: data.email,
+      // Tài khoản đăng nhập bằng Google không có mật khẩu — không tạo hash rỗng.
+      password_hash: undefined,
+      google_id: data.googleId,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      avatar_url: data.avatarUrl ?? null,
+      role: 'analyst',
+      status: 'active',
       deleted_at: null,
     });
     const saved = await inst.save();

@@ -22,6 +22,9 @@ import { ForgotPasswordHandler } from './application/commands/forgot-password.ha
 import { GetSessionByIdHandler } from './application/queries/get-session-by-id.handler';
 import { GetSessionsHandler } from './application/queries/get-sessions.handler';
 import { LoginHandler } from './application/commands/login.handler';
+import { LoginWithGoogleHandler } from './application/commands/login-with-google.handler';
+import { GOOGLE_OAUTH_PORT } from './domain/ports/google-oauth.port';
+import { GoogleOAuthAdapter } from './infrastructure/security/google-oauth.adapter';
 import { LogoutHandler } from './application/commands/logout.handler';
 import { RefreshAccessTokenHandler } from './application/commands/refresh-access-token.handler';
 import { RegisterHandler } from './application/commands/register.handler';
@@ -50,6 +53,7 @@ import { RevokeSessionHandler } from './application/commands/revoke-session.hand
     ChangePasswordHandler,
     ForgotPasswordHandler,
     LoginHandler,
+    LoginWithGoogleHandler,
     LogoutHandler,
     RefreshAccessTokenHandler,
     RegisterHandler,
@@ -68,6 +72,8 @@ import { RevokeSessionHandler } from './application/commands/revoke-session.hand
     { provide: AUTH_SESSION_PORT, useExisting: UsersAuthSessionAdapter },
     EnvAuthSessionPolicyAdapter,
     { provide: AUTH_SESSION_POLICY_PORT, useExisting: EnvAuthSessionPolicyAdapter },
+    GoogleOAuthAdapter,
+    { provide: GOOGLE_OAUTH_PORT, useExisting: GoogleOAuthAdapter },
   ],
   exports: [JwtStrategy, PassportModule],
 })

@@ -8,11 +8,14 @@ import {
   Param,
   UseGuards,
   HttpCode,
-  HttpException,
   HttpStatus,
+  Query,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { Throttle } from '@nestjs/throttler';
 import { RegisterSchema, RegisterDto } from './dtos/register.dto';
 import { LoginSchema, LoginDto } from './dtos/login.dto';
@@ -38,6 +41,7 @@ import { ForgotPasswordHandler } from '../../application/commands/forgot-passwor
 import { GetSessionByIdHandler } from '../../application/queries/get-session-by-id.handler';
 import { GetSessionsHandler } from '../../application/queries/get-sessions.handler';
 import { LoginHandler } from '../../application/commands/login.handler';
+import { LoginWithGoogleHandler } from '../../application/commands/login-with-google.handler';
 import { LogoutHandler } from '../../application/commands/logout.handler';
 import { RefreshAccessTokenHandler } from '../../application/commands/refresh-access-token.handler';
 import { RegisterHandler } from '../../application/commands/register.handler';
@@ -51,6 +55,7 @@ export class AuthController {
     private readonly changePasswordHandler: ChangePasswordHandler,
     private readonly forgotPasswordHandler: ForgotPasswordHandler,
     private readonly loginHandler: LoginHandler,
+    private readonly loginWithGoogleHandler: LoginWithGoogleHandler,
     private readonly logoutHandler: LogoutHandler,
     private readonly refreshAccessTokenHandler: RefreshAccessTokenHandler,
     private readonly registerHandler: RegisterHandler,
@@ -139,29 +144,56 @@ export class AuthController {
 
   @Public()
   @Get('google')
-  @ApiOperation({ summary: 'AUTH-03: Đăng nhập Google — chuyển sang Đợt 2 (chưa khả dụng)' })
-  async googleStart() {
-    throw new HttpException(
-      {
-        message:
-          'Đăng nhập Google (AUTH-03) thuộc Đợt 2, chưa khả dụng ở Đợt 1. Cần GOOGLE_CLIENT_ID/SECRET + HTTPS redirect URI.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      },
-      HttpStatus.NOT_IMPLEMENTED,
-    );
+  @ApiOperation({ summary: 'AUTH-03: Đăng nhập Google — chuyển hướng tới trang xác thực Google' })
+  @ApiResponse({ status: 302, description: 'Chuyển hướng tới Google (chỉ khi đã cấu hình credential)' })
+  @ApiResponse({ status: 501, description: 'Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI' })
+  async googleStart(@Req() req: Request, @Res() res: Response): Promise<void> {
+    const state = randomUUID();
+    const url = this.loginWithGoogleHandler.buildAuthorizationUrl(state);
+    // Lưu state để callback đối chiếu (chống CSRF).
+    // `secure` theo `req.secure` — tôn trọng cấu hình `trust proxy` (Cloudflare Tunnel).
+    res.cookie('google_oauth_state', state, {
+      httpOnly: true,
+      secure: req.secure,
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000,
+    });
+    res.redirect(url);
   }
 
   @Public()
   @Get('google/callback')
-  @ApiOperation({ summary: 'AUTH-03: Google callback — chuyển sang Đợt 2 (chưa khả dụng)' })
-  async googleCallback() {
-    throw new HttpException(
-      {
-        message: 'Đăng nhập Google (AUTH-03) thuộc Đợt 2, chưa khả dụng ở Đợt 1.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      },
-      HttpStatus.NOT_IMPLEMENTED,
+  @ApiOperation({ summary: 'AUTH-03: Google callback — đổi mã lấy token và đăng nhập' })
+  @ApiResponse({ status: 200, description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token' })
+  @ApiResponse({ status: 401, description: 'Mã ủy quyền không hợp lệ hoặc email chưa được xác minh' })
+  @ApiResponse({ status: 409, description: 'Email đã có tài khoản — cần đăng nhập bằng mật khẩu để liên kết' })
+  async googleCallback(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') oauthError: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (oauthError) {
+      throw new UnauthorizedException({
+        message: `Google từ chối yêu cầu đăng nhập (${oauthError}).`,
+        error: 'VALIDATION_ERROR',
+      });
+    }
+    const cookies = req.cookies as Record<string, unknown> | undefined;
+    const expectedState = typeof cookies?.google_oauth_state === 'string' ? cookies.google_oauth_state : '';
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    const result = await this.loginWithGoogleHandler.execute(
+      code ?? '',
+      state ?? '',
+      expectedState,
+      ipAddress,
+      userAgent,
     );
+    // Xoá cookie state sau khi dùng (dùng thành công hay lỗi).
+    res.clearCookie('google_oauth_state');
+    res.json(result);
   }
 
   @Post('logout')

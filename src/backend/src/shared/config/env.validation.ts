@@ -49,6 +49,15 @@ export const EnvironmentSchema = z.object({
   // Google Gemini API (legacy, khong dung cho corr-v1)
   GEMINI_API_KEY: z.string().optional(),
 
+  // ── Google OAuth 2.0 (AUTH-03 — đăng nhập bằng Google) ────────────────────
+  // Cả 3 biến phải có đồng thời thì endpoint mới hoạt động;
+  // thiếu bất kỳ biến nào → `GET /auth/google` trả 501 DEPENDENCY_UNAVAILABLE.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  /** Redirect URI đã đăng ký trong Google Cloud Console.
+   *  Google yêu cầu HTTPS, trừ `http://localhost` khi phát triển. */
+  GOOGLE_REDIRECT_URI: z.string().url().optional(),
+
   // AI suy luan cuc bo (corr-v1): vLLM prod / Ollama dev
   AI_ENGINE: z.enum(['vllm', 'ollama']).default('ollama'),
   AI_INFERENCE_BASE_URL: z.string().optional(),

@@ -50,6 +50,15 @@ export interface CreateUserInput {
   role?: 'admin' | 'analyst';
 }
 
+/** Tạo tài khoản từ hồ sơ Google — không có mật khẩu (`password_hash` để trống). */
+export interface CreateUserWithGoogleInput {
+  email: string;
+  googleId: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string | null;
+}
+
 export interface UpdateProfileInput {
   firstName?: string;
   lastName?: string;
@@ -80,6 +89,8 @@ export interface PasswordResetState {
 export interface UserRepositoryPort {
   findByEmail(email: string, includePassword?: boolean): Promise<UserRecord | null>;
   findById(id: string): Promise<UserRecord | null>;
+  /** Tìm tài khoản theo định danh Google (`sub` của id_token) — dùng cho AUTH-03. */
+  findByGoogleId(googleId: string): Promise<UserRecord | null>;
   /** Tìm user theo số điện thoại (kiểm tra duy nhất — G1). */
   findByPhone(phone: string): Promise<UserRecord | null>;
   /** Lấy nhiều user theo id (populate tên/email thành viên — E6). */
@@ -93,6 +104,8 @@ export interface UserRepositoryPort {
   findPaged(opts: { search?: string; role?: string; status?: string; page: number; limit: number }): Promise<{ items: UserRecord[]; total: number }>;
 
   create(data: CreateUserInput): Promise<UserRecord>;
+  /** Tạo tài khoản từ hồ sơ Google (không mật khẩu) — AUTH-03. */
+  createWithGoogle(data: CreateUserWithGoogleInput): Promise<UserRecord>;
   updateProfile(userId: string, data: UpdateProfileInput): Promise<UserRecord | null>;
   updateNotificationPreferences(userId: string, enabled: boolean): Promise<boolean>;
   softDeleteUser(userId: string): Promise<boolean>;

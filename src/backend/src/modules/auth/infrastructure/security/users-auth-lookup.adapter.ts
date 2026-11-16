@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   type AuthUserCreateInput,
+  type AuthUserCreateWithGoogleInput,
   type AuthUserLookup,
   type AuthUserLookupPort,
 } from '../../domain/ports/auth-session.port';
@@ -21,16 +22,25 @@ export class UsersAuthLookupAdapter implements AuthUserLookupPort {
   async findByEmail(email: string, includePassword?: boolean): Promise<AuthUserLookup | null> {
     const u = await this.users.findByEmail(email, includePassword);
     if (!u) return null;
-    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, deletedAt: u.deletedAt };
+    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, googleId: u.googleId ?? null, deletedAt: u.deletedAt };
   }
   async findById(id: string): Promise<AuthUserLookup | null> {
     const u = await this.users.findById(id);
     if (!u) return null;
-    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, deletedAt: u.deletedAt };
+    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, googleId: u.googleId ?? null, deletedAt: u.deletedAt };
+  }
+  async findByGoogleId(googleId: string): Promise<AuthUserLookup | null> {
+    const u = await this.users.findByGoogleId(googleId);
+    if (!u) return null;
+    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, googleId: u.googleId ?? null, deletedAt: u.deletedAt };
   }
   async create(data: AuthUserCreateInput): Promise<AuthUserLookup> {
     const u = await this.users.create(data);
-    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, deletedAt: u.deletedAt };
+    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, googleId: u.googleId ?? null, deletedAt: u.deletedAt };
+  }
+  async createWithGoogle(data: AuthUserCreateWithGoogleInput): Promise<AuthUserLookup> {
+    const u = await this.users.createWithGoogle(data);
+    return { id: u.id, email: u.email, role: u.role, status: u.status, passwordHash: u.passwordHash ?? null, googleId: u.googleId ?? null, deletedAt: u.deletedAt };
   }
   async findByEmailWithResetSecret(email: string): Promise<((UserRecord & PasswordResetState) | null)> {
     return this.users.findByEmailWithResetSecret(email);

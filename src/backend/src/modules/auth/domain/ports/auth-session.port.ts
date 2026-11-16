@@ -28,6 +28,8 @@ export interface AuthUserLookup {
   role: 'admin' | 'analyst';
   status: 'active' | 'blocked';
   passwordHash?: string | null;
+  /** Định danh tài khoản Google (claim `sub` của id_token) — null nếu đăng ký bằng mật khẩu. */
+  googleId?: string | null;
   deletedAt: Date | null;
 }
 
@@ -45,6 +47,20 @@ export interface AuthUserCreateInput {
   firstName: string;
   lastName: string;
   role?: 'admin' | 'analyst';
+}
+
+/**
+ * Tạo tài khoản từ hồ sơ Google — không có mật khẩu (`passwordHash` rỗng).
+ *
+ * Ràng buộc nghiệp vụ: `email` phải được Google xác minh (`email_verified === true`)
+ * trước khi gọi hàm này — kiểm tra ở tầng application (LoginWithGoogleHandler).
+ */
+export interface AuthUserCreateWithGoogleInput {
+  email: string;
+  googleId: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string | null;
 }
 
 export const AUTH_SESSION_PORT = Symbol('AuthSessionPort');
@@ -77,6 +93,8 @@ export const AUTH_USER_LOOKUP_PORT = Symbol('AuthUserLookupPort');
 export interface AuthUserLookupPort {
   findByEmail(email: string, includePassword?: boolean): Promise<AuthUserLookup | null>;
   findById(id: string): Promise<AuthUserLookup | null>;
+  /** Tìm tài khoản theo định danh Google (`sub` của id_token). */
+  findByGoogleId(googleId: string): Promise<AuthUserLookup | null>;
   findByEmailWithResetSecret(email: string): Promise<(AuthUserLookup & AuthPasswordResetState) | null>;
   findByIdWithResetSecret(id: string): Promise<(AuthUserLookup & AuthPasswordResetState) | null>;
   setPasswordResetOtp(email: string, tokenHash: string, expiresAt: Date, sentCount: number, windowStart: Date | null): Promise<boolean>;
@@ -84,6 +102,8 @@ export interface AuthUserLookupPort {
   clearPasswordReset(email: string): Promise<boolean>;
   setPasswordHash(userId: string, passwordHash: string): Promise<boolean>;
   create(data: AuthUserCreateInput): Promise<AuthUserLookup>;
+  /** Tạo tài khoản từ hồ sơ Google (không mật khẩu). */
+  createWithGoogle(data: AuthUserCreateWithGoogleInput): Promise<AuthUserLookup>;
 }
 
 export const PASSWORD_HASHER_PORT = Symbol('PasswordHasherPort');
