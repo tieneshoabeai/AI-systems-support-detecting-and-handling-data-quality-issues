@@ -9,7 +9,7 @@ import {
   type PasswordResetState,
   type UserRecord,
   type UserRepositoryPort,
-} from '../../../users/domain/ports/user.repository.port';
+} from '../../../users';
 
 /**
  * Adapter AUTH_USER_LOOKUP_PORT -> USER_REPOSITORY_PORT.

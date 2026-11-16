@@ -1,7 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EVENT_PUBLISHER_PORT } from '../ports/event-publisher.port';
-import { REALTIME_PORT } from '../../modules/realtime/domain/ports/realtime.port';
+import { REALTIME_PORT } from '../ports/realtime.port';
 import { InProcessEventPublisher } from './in-process-event.publisher';
 import { KafkaEventPublisher } from './kafka-event.publisher';
 import { HybridEventPublisher } from './hybrid-event.publisher';

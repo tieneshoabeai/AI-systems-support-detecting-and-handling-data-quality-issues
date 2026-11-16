@@ -5,7 +5,6 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { AuthService } from '../src/modules/auth/application/auth.service';
 import {
   AUTH_SESSION_POLICY_PORT,
   AUTH_SESSION_PORT,
@@ -20,8 +19,10 @@ import {
 } from '../src/modules/issues/domain/ports/issue-report.repository.port';
 import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/domain/ports/notification.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { REALTIME_PORT } from '../src/modules/realtime/domain/ports/realtime.port';
-import { IssuesService } from '../src/modules/issues/application/issues.service';
+import { REALTIME_PORT } from '../src/shared/ports/realtime.port';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { authHandlers } from './helpers/module-handlers';
+import { issuesHandlers } from './helpers/module-handlers';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -43,7 +44,7 @@ function sessionRecord(overrides: Partial<AuthSessionRecord> = {}): AuthSessionR
 }
 
 describe('Buoc 1 / Nhom C — AuthService remember-me', () => {
-  let service: AuthService;
+  let service: ProxyOf<typeof authHandlers>;
   let sessions: {
     createSession: jest.Mock;
     findSessionByTokenHash: jest.Mock;
@@ -90,7 +91,7 @@ describe('Buoc 1 / Nhom C — AuthService remember-me', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        AuthService,
+        ...Object.values(authHandlers),
         {
           provide: AUTH_USER_LOOKUP_PORT,
           useValue: { findByEmail: jest.fn().mockResolvedValue(user), findById: jest.fn().mockResolvedValue(user) },
@@ -108,7 +109,7 @@ describe('Buoc 1 / Nhom C — AuthService remember-me', () => {
       ],
     }).compile();
 
-    service = module.get<AuthService>(AuthService);
+    service = createHandlerProxy(module, authHandlers);
   });
 
   it('login khong remember_me -> phien 7 ngay', async () => {
@@ -180,7 +181,7 @@ describe('Buoc 1 / Nhom C — AuthService remember-me', () => {
 });
 
 describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
-  let service: IssuesService;
+  let service: ProxyOf<typeof issuesHandlers>;
   let repo: {
     create: jest.Mock;
     list: jest.Mock;
@@ -233,7 +234,7 @@ describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        IssuesService,
+        ...Object.values(issuesHandlers),
         { provide: ISSUE_REPORT_REPOSITORY_PORT, useValue: repo },
         {
           provide: NOTIFICATION_REPOSITORY_PORT,
@@ -254,7 +255,7 @@ describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
         { provide: REALTIME_PORT, useValue: { emitToUser: jest.fn() } },
       ],
     }).compile();
-    service = module.get<IssuesService>(IssuesService);
+    service = createHandlerProxy(module, issuesHandlers);
   });
 
   it('admin chuyen sang needs_info -> gui thong bao mandatory issue_needs_info', async () => {

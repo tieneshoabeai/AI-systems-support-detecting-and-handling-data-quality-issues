@@ -1,13 +1,28 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, Res, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Inject,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
-import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserPayload,
+} from '../../../../shared/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
 import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
-import { IssuesService } from '../../application/issues.service';
-import { AuditService } from '../../../audit/application/audit.service';
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
 import type { Request, Response } from 'express';
 import busboy from 'busboy';
 import { Readable } from 'stream';
@@ -23,6 +38,15 @@ import {
   UpdateMyIssueSchema,
   UpdateMyIssueDto,
 } from './dtos/create-issue.dto';
+import { CreateReportHandler } from '../../application/commands/create-report.handler';
+import { DownloadAttachmentHandler } from '../../application/queries/download-attachment.handler';
+import { GetForAdminHandler } from '../../application/queries/get-for-admin.handler';
+import { GetMineHandler } from '../../application/queries/get-mine.handler';
+import { ListForAdminHandler } from '../../application/queries/list-for-admin.handler';
+import { ListMineHandler } from '../../application/queries/list-mine.handler';
+import { UpdateMyReportHandler } from '../../application/commands/update-my-report.handler';
+import { UpdateStatusHandler } from '../../application/commands/update-status.handler';
+import { UploadAttachmentHandler } from '../../application/commands/upload-attachment.handler';
 
 @ApiTags('Issues')
 @ApiBearerAuth()
@@ -30,8 +54,25 @@ import {
 @Controller()
 export class IssuesController {
   constructor(
-    private readonly issuesService: IssuesService,
-    private readonly audit: AuditService,
+    private readonly createReportHandler: CreateReportHandler,
+
+    private readonly updateMyReportHandler: UpdateMyReportHandler,
+
+    private readonly updateStatusHandler: UpdateStatusHandler,
+
+    private readonly uploadAttachmentHandler: UploadAttachmentHandler,
+
+    private readonly downloadAttachmentHandler: DownloadAttachmentHandler,
+
+    private readonly getForAdminHandler: GetForAdminHandler,
+
+    private readonly getMineHandler: GetMineHandler,
+
+    private readonly listForAdminHandler: ListForAdminHandler,
+
+    private readonly listMineHandler: ListMineHandler,
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit: AuditLoggerPort,
   ) {}
 
   @Post('issues')
@@ -41,7 +82,7 @@ export class IssuesController {
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(CreateIssueSchema)) dto: CreateIssueDto,
   ) {
-    return this.issuesService.createReport(user.userId, dto);
+    return this.createReportHandler.execute(user.userId, dto);
   }
 
   @Get('issues')
@@ -51,7 +92,7 @@ export class IssuesController {
     @CurrentUser() user: CurrentUserPayload,
     @Query(new ZodValidationPipe(ListIssuesQuerySchema)) query: ListIssuesQueryDto,
   ) {
-    return this.issuesService.listMine(user.userId, query);
+    return this.listMineHandler.execute(user.userId, query);
   }
 
   @Post('issues/:id/attachments')
@@ -62,24 +103,42 @@ export class IssuesController {
     @Param('id') id: string,
     @Req() req: Request,
   ) {
-    const file = await new Promise<{ filename: string; mimeType: string; size: number; stream: Readable }>((resolve, reject) => {
+    const file = await new Promise<{
+      filename: string;
+      mimeType: string;
+      size: number;
+      stream: Readable;
+    }>((resolve, reject) => {
       const bb = busboy({ headers: req.headers, limits: { fileSize: 10 * 1024 * 1024 } });
       let done = false;
-      bb.on('file', (_field: string, stream: Readable, info: { filename: string; mimeType: string }) => {
-        const chunks: Buffer[] = [];
-        let size = 0;
-        stream.on('data', (c: Buffer) => { size += c.length; chunks.push(c); });
-        stream.on('end', () => {
-          done = true;
-          resolve({ filename: info.filename || 'attachment', mimeType: info.mimeType, size, stream: Readable.from(Buffer.concat(chunks)) });
-        });
-        stream.on('error', (e: unknown) => reject(e));
-      });
+      bb.on(
+        'file',
+        (_field: string, stream: Readable, info: { filename: string; mimeType: string }) => {
+          const chunks: Buffer[] = [];
+          let size = 0;
+          stream.on('data', (c: Buffer) => {
+            size += c.length;
+            chunks.push(c);
+          });
+          stream.on('end', () => {
+            done = true;
+            resolve({
+              filename: info.filename || 'attachment',
+              mimeType: info.mimeType,
+              size,
+              stream: Readable.from(Buffer.concat(chunks)),
+            });
+          });
+          stream.on('error', (e: unknown) => reject(e));
+        },
+      );
       bb.on('error', (e: unknown) => reject(e));
-      bb.on('finish', () => { if (!done) reject(new BadRequestException('Không tìm thấy tệp đính kèm trong yêu cầu')); });
+      bb.on('finish', () => {
+        if (!done) reject(new BadRequestException('Không tìm thấy tệp đính kèm trong yêu cầu'));
+      });
       req.pipe(bb);
     });
-    const result = await this.issuesService.uploadAttachment(user.userId, user.role, id, file);
+    const result = await this.uploadAttachmentHandler.execute(user.userId, user.role, id, file);
     await this.audit.log({
       actorId: user.userId,
       actorRole: user.role,
@@ -87,7 +146,7 @@ export class IssuesController {
       targetType: 'issue_report',
       targetId: id,
       ipAddress: (req.ip ?? null) as string | null,
-      userAgent: (req.headers['user-agent'] as string ?? null),
+      userAgent: (req.headers['user-agent'] as string) ?? null,
       metadata: { filename: file.filename, sizeBytes: file.size, contentType: file.mimeType },
     });
     return result;
@@ -102,11 +161,17 @@ export class IssuesController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const file = await this.issuesService.downloadAttachment(user.userId, user.role, id, attachmentId);
+    const file = await this.downloadAttachmentHandler.execute(
+      user.userId,
+      user.role,
+      id,
+      attachmentId,
+    );
     res.setHeader('Content-Type', file.contentType);
     const safe = encodeURIComponent(file.filename).replace(/['()]/g, escape);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safe}`);
-    if (typeof file.sizeBytes === 'number' && file.sizeBytes > 0) res.setHeader('Content-Length', String(file.sizeBytes));
+    if (typeof file.sizeBytes === 'number' && file.sizeBytes > 0)
+      res.setHeader('Content-Length', String(file.sizeBytes));
     await this.audit.log({
       actorId: user.userId,
       actorRole: user.role,
@@ -115,7 +180,7 @@ export class IssuesController {
       targetId: id,
       workspaceId: file.workspaceId,
       ipAddress: (req.ip ?? null) as string | null,
-      userAgent: (req.headers['user-agent'] as string ?? null),
+      userAgent: (req.headers['user-agent'] as string) ?? null,
       metadata: { attachmentId, filename: file.filename, sizeBytes: file.sizeBytes },
     });
     file.stream.pipe(res);
@@ -124,7 +189,7 @@ export class IssuesController {
   @Get('issues/:id')
   @ApiOperation({ summary: 'ISSUE-03: Chi tiết báo cáo của tôi' })
   async getMine(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
-    return this.issuesService.getMine(user.userId, id);
+    return this.getMineHandler.execute(user.userId, id);
   }
 
   @Patch('issues/:id')
@@ -139,10 +204,12 @@ export class IssuesController {
     @Body(new ZodValidationPipe(UpdateMyIssueSchema)) dto: UpdateMyIssueDto,
     @Req() req: Request,
   ) {
-    const result = await this.issuesService.updateMyReport(user.userId, id, {
+    const result = await this.updateMyReportHandler.execute(user.userId, id, {
       ...(dto.title !== undefined ? { title: dto.title } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
-      ...(dto.removeAttachmentIds !== undefined ? { removeAttachmentIds: dto.removeAttachmentIds } : {}),
+      ...(dto.removeAttachmentIds !== undefined
+        ? { removeAttachmentIds: dto.removeAttachmentIds }
+        : {}),
       expectedVersion: dto.expectedVersion,
     });
     await this.audit.log({
@@ -152,7 +219,7 @@ export class IssuesController {
       targetType: 'issue_report',
       targetId: id,
       ipAddress: (req.ip ?? null) as string | null,
-      userAgent: (req.headers['user-agent'] as string ?? null),
+      userAgent: (req.headers['user-agent'] as string) ?? null,
       metadata: {
         title: dto.title ?? null,
         descriptionChanged: dto.description !== undefined,
@@ -166,15 +233,17 @@ export class IssuesController {
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Danh sách báo cáo (quản trị)' })
   @ApiZodQuery(AdminListIssuesQuerySchema)
-  async listForAdmin(@Query(new ZodValidationPipe(AdminListIssuesQuerySchema)) query: AdminListIssuesQueryDto) {
-    return this.issuesService.listForAdmin(query);
+  async listForAdmin(
+    @Query(new ZodValidationPipe(AdminListIssuesQuerySchema)) query: AdminListIssuesQueryDto,
+  ) {
+    return this.listForAdminHandler.execute(query);
   }
 
   @Get('admin/issues/:id')
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Chi tiết báo cáo (quản trị)' })
   async getForAdmin(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
-    return this.issuesService.getForAdmin(id, user.role);
+    return this.getForAdminHandler.execute(id, user.role);
   }
 
   @Patch('admin/issues/:id/status')
@@ -187,8 +256,13 @@ export class IssuesController {
     @Body(new ZodValidationPipe(UpdateIssueStatusSchema)) dto: UpdateIssueStatusDto,
     @Req() req: Request,
   ) {
-    const before = await this.issuesService.getForAdmin(id, user.role);
-    const result = await this.issuesService.updateStatus(id, user.role, dto.status, dto.expectedVersion);
+    const before = await this.getForAdminHandler.execute(id, user.role);
+    const result = await this.updateStatusHandler.execute(
+      id,
+      user.role,
+      dto.status,
+      dto.expectedVersion,
+    );
     await this.audit.log(
       {
         actorId: user.userId,
@@ -197,7 +271,7 @@ export class IssuesController {
         targetType: 'issue_report',
         targetId: id,
         ipAddress: (req.ip ?? null) as string | null,
-        userAgent: (req.headers['user-agent'] as string ?? null),
+        userAgent: (req.headers['user-agent'] as string) ?? null,
         metadata: { from: before.status, to: dto.status },
       },
       [{ field: 'status', beforeValue: before.status, afterValue: dto.status }],

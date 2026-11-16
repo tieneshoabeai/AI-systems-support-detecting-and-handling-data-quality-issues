@@ -10,7 +10,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { DataViewService } from '../../application/data-view.service';
 import { QueryRecordsSchema, QueryRecordsDto } from './dtos/query-records.dto';
 import { QueryRecordsBodySchema, QueryRecordsBodyDto } from './dtos/query-records-body.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
@@ -19,23 +18,33 @@ import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator'
 import { Action } from '../../../../shared/casl/actions.enum';
 import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
 import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
+import { GetColumnStatsHandler } from '../../application/queries/get-column-stats.handler';
+import { GetRecordsHandler } from '../../application/queries/get-records.handler';
+import { QueryRecordsHandler } from '../../application/queries/query-records.handler';
 
 @ApiTags('Data View (Virtual Grid)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('datasets/:datasetId')
 export class DataViewController {
-  constructor(private readonly dataViewService: DataViewService) {}
+  constructor(
+    private readonly getRecordsHandler: GetRecordsHandler,
+    private readonly queryRecordsHandler: QueryRecordsHandler,
+    private readonly getColumnStatsHandler: GetColumnStatsHandler,
+  ) {}
 
   @Get('records')
-  @ApiOperation({ summary: 'F5.1 (Wave 4): Keyset pagination cho Virtual Grid - { items, meta: { nextCursor, hasMore } }' })
+  @ApiOperation({
+    summary:
+      'F5.1 (Wave 4): Keyset pagination cho Virtual Grid - { items, meta: { nextCursor, hasMore } }',
+  })
   @ApiZodQuery(QueryRecordsSchema)
   @CheckPolicies((ability) => ability.can(Action.Read, 'DataRecord'))
   async getRecords(
     @Param('datasetId') datasetId: string,
-    @Query(new ZodValidationPipe(QueryRecordsSchema)) query: QueryRecordsDto
+    @Query(new ZodValidationPipe(QueryRecordsSchema)) query: QueryRecordsDto,
   ) {
-    return this.dataViewService.getRecords(datasetId, query);
+    return this.getRecordsHandler.execute(datasetId, query);
   }
 
   @Post('records/query')
@@ -49,17 +58,19 @@ export class DataViewController {
     @Param('datasetId') datasetId: string,
     @Body(new ZodValidationPipe(QueryRecordsBodySchema)) body: QueryRecordsBodyDto,
   ) {
-    return this.dataViewService.queryRecords(datasetId, body);
+    return this.queryRecordsHandler.execute(datasetId, body);
   }
 
   @Get('columns/:columnKey/stats')
-  @ApiOperation({ summary: 'F5.3 (Wave 4): Thong ke cot theo key on dinh c{i} (chap nhan ca ten hien thi)' })
+  @ApiOperation({
+    summary: 'F5.3 (Wave 4): Thong ke cot theo key on dinh c{i} (chap nhan ca ten hien thi)',
+  })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
   async getColumnStats(
     @Param('datasetId') datasetId: string,
-    @Param('columnKey') columnKey: string
+    @Param('columnKey') columnKey: string,
   ) {
-    const stats = await this.dataViewService.getColumnStats(datasetId, columnKey);
+    const stats = await this.getColumnStatsHandler.execute(datasetId, columnKey);
     return { stats };
   }
 }

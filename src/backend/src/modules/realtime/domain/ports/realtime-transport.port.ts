@@ -6,8 +6,12 @@
  * lo phần gắn driver (Socket.IO server) và thực thi emit.
  *
  * Dependency Rule: domain (contract) ← application (consumer) ← infrastructure (adapter).
+ *
+ * Lưu ý CA11: `domain/` chỉ được import `shared/` ở thư mục thuần
+ * (`utils|validation|crypto`) — vì vậy envelope được import từ
+ * `shared/utils/realtime-events.ts` chứ không phải `shared/ports/`.
  */
-import type { RealtimeEnvelope } from '../realtime-events';
+import type { RealtimeEnvelope } from '../../../../shared/utils/realtime-events';
 
 export const REALTIME_TRANSPORT_PORT = Symbol('RealtimeTransportPort');
 

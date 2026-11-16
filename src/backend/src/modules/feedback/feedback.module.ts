@@ -3,12 +3,18 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { FindingFeedbackSchema } from './infrastructure/persistence/finding-feedback.schema';
 import { FeedbackRepository } from './infrastructure/persistence/feedback.repository';
 import { FEEDBACK_REPOSITORY_PORT } from './domain/ports/feedback.repository.port';
-import { FeedbackService } from './application/feedback.service';
 import { FeedbackController } from './infrastructure/http/feedback.controller';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UsersModule } from '../users/users.module';
 import { AnalysisModule } from '../analysis/analysis.module';
+import { AiQualityMetricsHandler } from './application/commands/ai-quality-metrics.handler';
+import { CreateFindingFeedbackHandler } from './application/commands/create-finding-feedback.handler';
+import { CreateRunFeedbackHandler } from './application/commands/create-run-feedback.handler';
+import { ListFindingFeedbackHandler } from './application/queries/list-finding-feedback.handler';
+import { ListRunFeedbackHandler } from './application/queries/list-run-feedback.handler';
+import { RemoveHandler } from './application/commands/remove.handler';
+import { UpdateMineHandler } from './application/commands/update-mine.handler';
 
 @Module({
   imports: [
@@ -22,8 +28,14 @@ import { AnalysisModule } from '../analysis/analysis.module';
   providers: [
     FeedbackRepository,
     { provide: FEEDBACK_REPOSITORY_PORT, useExisting: FeedbackRepository },
-    FeedbackService,
+    AiQualityMetricsHandler,
+    CreateFindingFeedbackHandler,
+    CreateRunFeedbackHandler,
+    RemoveHandler,
+    UpdateMineHandler,
+    ListFindingFeedbackHandler,
+    ListRunFeedbackHandler,
   ],
-  exports: [FeedbackService, FEEDBACK_REPOSITORY_PORT, FeedbackRepository],
+  exports: [FEEDBACK_REPOSITORY_PORT, FeedbackRepository],
 })
 export class FeedbackModule {}

@@ -1,13 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { UsersService } from '../src/modules/users/application/users.service';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
-import { OverviewService } from '../src/modules/overview/application/overview.service';
 import { CursorCodec } from '../src/shared/pagination/cursor-codec';
 import {
   compareGeneric,
@@ -17,14 +13,19 @@ import {
 import { CreateWorkspaceSchema } from '../src/modules/workspaces/infrastructure/http/dtos/create-workspace.dto';
 import { CreateProjectSchema } from '../src/modules/projects/infrastructure/http/dtos/create-project.dto';
 import { UpdateUserSchema } from '../src/modules/users/infrastructure/http/dtos/update-user.dto';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { overviewHandlers } from './helpers/module-handlers';
+import { projectsHandlers } from './helpers/module-handlers';
+import { usersHandlers } from './helpers/module-handlers';
+import { workspacesHandlers } from './helpers/module-handlers';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nhóm E — Tìm kiếm/lọc thành viên + endpoint tổng quan
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)', () => {
-  let wsService: WorkspacesService;
-  let prjService: ProjectsService;
+  let wsService: ProxyOf<typeof workspacesHandlers>;
+  let prjService: ProxyOf<typeof projectsHandlers>;
   let wsRepo: Record<string, jest.Mock>;
   let prjRepo: Record<string, jest.Mock>;
   let usersPort: Record<string, jest.Mock>;
@@ -90,16 +91,16 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
 
     const wsModule: TestingModule = await Test.createTestingModule({
       providers: [
-        WorkspacesService,
+        ...Object.values(workspacesHandlers),
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
       ],
     }).compile();
-    wsService = wsModule.get<WorkspacesService>(WorkspacesService);
+    wsService = createHandlerProxy(wsModule, workspacesHandlers);
 
     const prjModule: TestingModule = await Test.createTestingModule({
       providers: [
-        ProjectsService,
+        ...Object.values(projectsHandlers),
         { provide: PROJECT_REPOSITORY_PORT, useValue: prjRepo },
         {
           provide: WORKSPACE_REPOSITORY_PORT,
@@ -108,7 +109,7 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
       ],
     }).compile();
-    prjService = prjModule.get<ProjectsService>(ProjectsService);
+    prjService = createHandlerProxy(prjModule, projectsHandlers);
   });
 
   it('WS-06: populate hồ sơ (tên/email) cho từng thành viên', async () => {
@@ -190,7 +191,7 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
 });
 
 describe('Nhóm E3/E4 — Endpoint tổng quan (Overview)', () => {
-  let service: OverviewService;
+  let service: ProxyOf<typeof overviewHandlers>;
   let wsRepo: Record<string, jest.Mock>;
   let prjRepo: Record<string, jest.Mock>;
 
@@ -222,12 +223,12 @@ describe('Nhóm E3/E4 — Endpoint tổng quan (Overview)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        OverviewService,
+        ...Object.values(overviewHandlers),
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: PROJECT_REPOSITORY_PORT, useValue: prjRepo },
       ],
     }).compile();
-    service = module.get<OverviewService>(OverviewService);
+    service = createHandlerProxy(module, overviewHandlers);
   });
 
   it('E3: trả đủ 5 chỉ số tổng quan workspace', async () => {
@@ -266,7 +267,7 @@ describe('Nhóm E3/E4 — Endpoint tổng quan (Overview)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
-  let service: ProjectsService;
+  let service: ProxyOf<typeof projectsHandlers>;
   let prjRepo: Record<string, jest.Mock>;
   let wsRepo: Record<string, jest.Mock>;
   let usersPort: Record<string, jest.Mock>;
@@ -306,13 +307,13 @@ describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ProjectsService,
+        ...Object.values(projectsHandlers),
         { provide: PROJECT_REPOSITORY_PORT, useValue: prjRepo },
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
       ],
     }).compile();
-    service = module.get<ProjectsService>(ProjectsService);
+    service = createHandlerProxy(module, projectsHandlers);
   });
 
   it('bỏ trống owner_id → người tạo làm Project Owner', async () => {
@@ -371,8 +372,8 @@ describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
 // Nhóm G — Hồ sơ cá nhân: phone + bio
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Nhóm G — Profile phone & bio (UsersService)', () => {
-  let usersService: UsersService;
+describe('Nhóm G — Profile phone & bio (ProxyOf<typeof usersHandlers>)', () => {
+  let usersService: ProxyOf<typeof usersHandlers>;
   let repo: Record<string, jest.Mock>;
 
   const userId = new Types.ObjectId().toHexString();
@@ -398,9 +399,9 @@ describe('Nhóm G — Profile phone & bio (UsersService)', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UsersService, { provide: USER_REPOSITORY_PORT, useValue: repo }],
+      providers: [...Object.values(usersHandlers), { provide: USER_REPOSITORY_PORT, useValue: repo }],
     }).compile();
-    usersService = module.get<UsersService>(UsersService);
+    usersService = createHandlerProxy(module, usersHandlers);
   });
 
   it('cập nhật phone + bio thành công', async () => {

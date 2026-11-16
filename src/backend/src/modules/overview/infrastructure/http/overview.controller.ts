@@ -1,8 +1,12 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
-import { OverviewService } from '../../application/overview.service';
+import {
+  CurrentUser,
+  CurrentUserPayload,
+} from '../../../../shared/decorators/current-user.decorator';
+import { GetUserOverviewHandler } from '../../application/queries/get-user-overview.handler';
+import { GetWorkspaceOverviewHandler } from '../../application/queries/get-workspace-overview.handler';
 
 /**
  * OVERVIEW — Các endpoint tổng quan (E3/E4).
@@ -21,7 +25,10 @@ import { OverviewService } from '../../application/overview.service';
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class OverviewController {
-  constructor(private readonly overviewService: OverviewService) {}
+  constructor(
+    private readonly getUserOverviewHandler: GetUserOverviewHandler,
+    private readonly getWorkspaceOverviewHandler: GetWorkspaceOverviewHandler,
+  ) {}
 
   @Get('overview/workspaces')
   @ApiOperation({
@@ -31,7 +38,7 @@ export class OverviewController {
   })
   @ApiResponse({ status: 200, description: 'Các chỉ số tổng quan workspace' })
   async userWorkspacesOverview(@CurrentUser() user: CurrentUserPayload) {
-    return this.overviewService.getUserOverview(user.userId);
+    return this.getUserOverviewHandler.execute(user.userId);
   }
 
   @Get('workspaces/:id/overview')
@@ -44,6 +51,6 @@ export class OverviewController {
   @ApiResponse({ status: 200, description: 'Các chỉ số tổng quan workspace' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy không gian làm việc' })
   async workspaceOverview(@Param('id') id: string) {
-    return this.overviewService.getWorkspaceOverview(id);
+    return this.getWorkspaceOverviewHandler.execute(id);
   }
 }

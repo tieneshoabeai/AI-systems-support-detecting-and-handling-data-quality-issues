@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CursorCodec } from '../src/shared/pagination/cursor-codec';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { workspacesHandlers } from './helpers/module-handlers';
 
 describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
-  let service: WorkspacesService;
+  let service: ProxyOf<typeof workspacesHandlers>;
   let repository: Record<string, jest.Mock>;
   let usersPort: { findByEmail: jest.Mock };
 
@@ -65,13 +66,13 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        WorkspacesService,
+        ...Object.values(workspacesHandlers),
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: repository },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
       ],
     }).compile();
 
-    service = module.get<WorkspacesService>(WorkspacesService);
+    service = createHandlerProxy(module, workspacesHandlers);
   });
 
   it('createWorkspace should initialize creator as owner in members list', async () => {

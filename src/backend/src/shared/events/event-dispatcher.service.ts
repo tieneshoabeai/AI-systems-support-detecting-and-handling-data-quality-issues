@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { InProcessEventPublisher } from './in-process-event.publisher';
 import type { DomainEventEnvelope } from '../ports/event-publisher.port';
-import type { RealtimePort } from '../../modules/realtime/domain/ports/realtime.port';
-import { REALTIME_PORT } from '../../modules/realtime/domain/ports/realtime.port';
+import type { RealtimePort } from '../ports/realtime.port';
+import { REALTIME_PORT } from '../ports/realtime.port';
 import type { InboxService } from '../application/outbox/inbox.service';
 import { InboxService as InboxServiceToken } from '../application/outbox/inbox.service';
 

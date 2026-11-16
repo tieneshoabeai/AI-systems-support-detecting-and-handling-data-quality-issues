@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../../users/application/users.service';
+import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../users';
 
 export interface RealtimeClientIdentity {
   userId: string;
@@ -21,7 +21,8 @@ export class RealtimeAuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
-    private readonly usersService: UsersService,
+    @Inject(USER_REPOSITORY_PORT)
+    private readonly users: UserRepositoryPort,
   ) {}
 
   extractToken(handshake: {
@@ -51,7 +52,7 @@ export class RealtimeAuthService {
     if (typeof sub !== 'string' || sub.trim().length === 0) {
       throw new Error('4401: token thiếu định danh người dùng');
     }
-    const user = await this.usersService.findById(sub);
+    const user = await this.users.findById(sub);
     if (!user || user.status === 'blocked' || user.deletedAt !== null) {
       throw new Error('4401: tài khoản không tồn tại, đã bị khóa hoặc đã xóa');
     }

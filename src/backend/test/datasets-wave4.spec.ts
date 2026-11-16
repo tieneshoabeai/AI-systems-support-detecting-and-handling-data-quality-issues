@@ -1,20 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Readable } from 'stream';
-import { DatasetsService } from '../src/modules/datasets/application/datasets.service';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
 import { STORAGE_PORT } from '../src/shared/ports/storage.port';
 import { OUTBOX_PORT } from '../src/shared/ports/outbox.port';
 import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
 import { ConfigService } from '@nestjs/config';
-import { RECORD_QUERY_PORT } from '../src/modules/data-view/domain/ports/record-query.port';
+import { RECORD_QUERY_PORT } from '../src/modules/datasets/domain/ports/record-query.port';
 import { DATASET_REPOSITORY_PORT as DV_DATASET_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { DataViewService } from '../src/modules/data-view/application/data-view.service';
+import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
+import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { dataviewHandlers } from './helpers/module-handlers';
+import { datasetsHandlers } from './helpers/module-handlers';
 
 describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)', () => {
-  let service: DatasetsService;
+  let service: ProxyOf<typeof datasetsHandlers>;
   let datasetsRepository: Record<string, jest.Mock>;
   let projectsService: Record<string, jest.Mock>;
   let storageService: Record<string, jest.Mock>;
@@ -66,17 +67,17 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     workspacesService = { checkWorkspaceUploadQuota: jest.fn().mockResolvedValue(undefined), incrementStorageUsed: jest.fn().mockResolvedValue(undefined) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        DatasetsService,
+        ...Object.values(datasetsHandlers),
         SchemaInferenceService,
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsRepository },
-        { provide: ProjectsService, useValue: projectsService },
+        { provide: PROJECT_ACCESS_PORT, useValue: projectsService },
         { provide: STORAGE_PORT, useValue: storageService },
         { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
-        { provide: WorkspacesService, useValue: workspacesService },
+        { provide: WORKSPACE_ACCESS_PORT, useValue: workspacesService },
         { provide: ConfigService, useValue: { get: (k: string, d: unknown) => (k === 'WORKSPACE_STORAGE_QUOTA_BYTES' ? 2147483648 : d) } },
       ],
     }).compile();
-    service = module.get<DatasetsService>(DatasetsService);
+    service = createHandlerProxy(module, datasetsHandlers);
   });
 
   it('C13/O34: upload .xlsx -> 400 UNSUPPORTED_FILE_TYPE, khong tao rac', async () => {
@@ -177,13 +178,12 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     };
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
-        DataViewService,
+        ...Object.values(dataviewHandlers),
         { provide: RECORD_QUERY_PORT, useValue: recordsPort },
         { provide: DV_DATASET_PORT, useValue: { findById: jest.fn().mockResolvedValue(baseDataset) } },
-        { provide: DatasetsService, useValue: {} },
       ],
     }).compile();
-    const dv = mod.get<DataViewService>(DataViewService);
+    const dv = createHandlerProxy(mod, dataviewHandlers);
     const r = await dv.getRecords(mockDatasetId, { limit: 10, sort_order: 'asc' } as never);
     expect(r.meta).toBeDefined();
     expect('total' in (r as unknown as Record<string, unknown>)).toBe(false);

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { type AuthSessionPort, type AuthSessionRecord } from '../../domain/ports/auth-session.port';
-import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users/domain/ports/user.repository.port';
+import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 
 /** Adapter AUTH_SESSION_PORT -> USER_REPOSITORY_PORT (sessions sống trong Users aggregate). */
 @Injectable()

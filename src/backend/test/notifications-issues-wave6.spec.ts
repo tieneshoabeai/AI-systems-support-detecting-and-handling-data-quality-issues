@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { NotificationsService } from '../src/modules/notifications/application/notifications.service';
 import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/domain/ports/notification.repository.port';
 import { ISSUE_REPORT_REPOSITORY_PORT } from '../src/modules/issues/domain/ports/issue-report.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { REALTIME_PORT } from '../src/modules/realtime/domain/ports/realtime.port';
-import { IssuesService } from '../src/modules/issues/application/issues.service';
+import { REALTIME_PORT } from '../src/shared/ports/realtime.port';
 import { MandatoryNotificationTypes } from '../src/modules/notifications/infrastructure/persistence/notification.schema';
 import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { issuesHandlers } from './helpers/module-handlers';
+import { notificationsHandlers } from './helpers/module-handlers';
 
 const oid = () => new Types.ObjectId().toHexString();
 
@@ -48,7 +49,7 @@ function issueRecord(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Wave6 NOTIF-01: cursor + unreadCount + sort createdAt', () => {
-  let service: NotificationsService;
+  let service: ProxyOf<typeof notificationsHandlers>;
   let repo: Record<string, jest.Mock>;
 
   const userId = oid();
@@ -69,13 +70,13 @@ describe('Wave6 NOTIF-01: cursor + unreadCount + sort createdAt', () => {
     const usersPort = { findById: jest.fn(), updateNotificationPreferences: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        NotificationsService,
+        ...Object.values(notificationsHandlers),
         { provide: NOTIFICATION_REPOSITORY_PORT, useValue: repo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
         { provide: REALTIME_PORT, useValue: { emitToUser: jest.fn() } },
       ],
     }).compile();
-    service = module.get<NotificationsService>(NotificationsService);
+    service = createHandlerProxy(module, notificationsHandlers);
   });
 
   it('tra items + meta.nextCursor/hasMore + unreadCount', async () => {
@@ -116,13 +117,13 @@ describe('Wave6 NOTIF-02/03: chi doc cua minh + cong tac', () => {
     const us2 = { findById: jest.fn(), updateNotificationPreferences: jest.fn() };
     const m: TestingModule = await Test.createTestingModule({
       providers: [
-        NotificationsService,
+        ...Object.values(notificationsHandlers),
         { provide: NOTIFICATION_REPOSITORY_PORT, useValue: repo2 },
         { provide: USER_REPOSITORY_PORT, useValue: us2 },
         { provide: REALTIME_PORT, useValue: { emitToUser: jest.fn() } },
       ],
     }).compile();
-    const s = m.get<NotificationsService>(NotificationsService);
+    const s = createHandlerProxy(m, notificationsHandlers);
     await expect(s.getDetail(oid(), oid())).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -150,13 +151,13 @@ describe('Wave6 NOTIF-02/03: chi doc cua minh + cong tac', () => {
     };
     const m: TestingModule = await Test.createTestingModule({
       providers: [
-        NotificationsService,
+        ...Object.values(notificationsHandlers),
         { provide: NOTIFICATION_REPOSITORY_PORT, useValue: repo3 },
         { provide: USER_REPOSITORY_PORT, useValue: us3 },
         { provide: REALTIME_PORT, useValue: { emitToUser: jest.fn() } },
       ],
     }).compile();
-    const s = m.get<NotificationsService>(NotificationsService);
+    const s = createHandlerProxy(m, notificationsHandlers);
     const r1 = await s.dispatch({ userId: oid(), type: 'project_created', title: 'x' });
     expect(r1).toBeNull();
     const r2 = await s.dispatch({
@@ -183,14 +184,14 @@ describe('Wave6 ISSUE-01..04: tao/xem/doi trang thai', () => {
     };
     const m: TestingModule = await Test.createTestingModule({
       providers: [
-        IssuesService,
+        ...Object.values(issuesHandlers),
         { provide: ISSUE_REPORT_REPOSITORY_PORT, useValue: repoVal },
         { provide: NOTIFICATION_REPOSITORY_PORT, useValue: notifPort },
         { provide: USER_REPOSITORY_PORT, useValue: { findById: jest.fn().mockResolvedValue({ id: userId, notificationsEnabled: true }) } },
         { provide: REALTIME_PORT, useValue: { emitToUser: jest.fn() } },
       ],
     }).compile();
-    return { service: m.get<IssuesService>(IssuesService), notifPort };
+    return { service: createHandlerProxy(m, issuesHandlers), notifPort };
   };
 
   it('tao moi status=new version=1, khong lo storage_key', async () => {

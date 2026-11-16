@@ -3,7 +3,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
-import { AuthService } from './application/auth.service';
 import {
   AUTH_SESSION_POLICY_PORT,
   AUTH_SESSION_PORT,
@@ -18,6 +17,16 @@ import { EnvAuthSessionPolicyAdapter } from './infrastructure/security/env-auth-
 import { JwtIssuerAdapter } from './infrastructure/security/jwt-issuer.adapter';
 import { UsersAuthLookupAdapter } from './infrastructure/security/users-auth-lookup.adapter';
 import { UsersAuthSessionAdapter } from './infrastructure/security/users-auth-session.adapter';
+import { ChangePasswordHandler } from './application/commands/change-password.handler';
+import { ForgotPasswordHandler } from './application/commands/forgot-password.handler';
+import { GetSessionByIdHandler } from './application/queries/get-session-by-id.handler';
+import { GetSessionsHandler } from './application/queries/get-sessions.handler';
+import { LoginHandler } from './application/commands/login.handler';
+import { LogoutHandler } from './application/commands/logout.handler';
+import { RefreshAccessTokenHandler } from './application/commands/refresh-access-token.handler';
+import { RegisterHandler } from './application/commands/register.handler';
+import { ResetPasswordHandler } from './application/commands/reset-password.handler';
+import { RevokeSessionHandler } from './application/commands/revoke-session.handler';
 
 @Module({
   imports: [
@@ -27,7 +36,10 @@ import { UsersAuthSessionAdapter } from './infrastructure/security/users-auth-se
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_ACCESS_SECRET') || 'default_jwt_secret',
         signOptions: {
-          expiresIn: (config.get<string>('JWT_ACCESS_EXPIRATION', '15m')) as `${number}${'s' | 'm' | 'h' | 'd'}`,
+          expiresIn: config.get<string>(
+            'JWT_ACCESS_EXPIRATION',
+            '15m',
+          ) as `${number}${'s' | 'm' | 'h' | 'd'}`,
         },
       }),
       inject: [ConfigService],
@@ -35,7 +47,16 @@ import { UsersAuthSessionAdapter } from './infrastructure/security/users-auth-se
   ],
   controllers: [AuthController],
   providers: [
-    AuthService,
+    ChangePasswordHandler,
+    ForgotPasswordHandler,
+    LoginHandler,
+    LogoutHandler,
+    RefreshAccessTokenHandler,
+    RegisterHandler,
+    ResetPasswordHandler,
+    RevokeSessionHandler,
+    GetSessionByIdHandler,
+    GetSessionsHandler,
     JwtStrategy,
     BcryptHasherAdapter,
     { provide: PASSWORD_HASHER_PORT, useExisting: BcryptHasherAdapter },
@@ -48,6 +69,6 @@ import { UsersAuthSessionAdapter } from './infrastructure/security/users-auth-se
     EnvAuthSessionPolicyAdapter,
     { provide: AUTH_SESSION_POLICY_PORT, useExisting: EnvAuthSessionPolicyAdapter },
   ],
-  exports: [AuthService, JwtStrategy, PassportModule],
+  exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}

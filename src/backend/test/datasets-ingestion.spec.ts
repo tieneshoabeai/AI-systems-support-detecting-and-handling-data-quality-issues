@@ -1,18 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Readable } from 'stream';
-import { DatasetsService } from '../src/modules/datasets/application/datasets.service';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
 import { STORAGE_PORT } from '../src/shared/ports/storage.port';
 import { OUTBOX_PORT } from '../src/shared/ports/outbox.port';
 import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, PayloadTooLargeException } from '@nestjs/common';
+import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
+import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { datasetsHandlers } from './helpers/module-handlers';
 
 describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
-  let service: DatasetsService;
+  let service: ProxyOf<typeof datasetsHandlers>;
   let datasetsRepository: Record<string, jest.Mock>;
   let projectsService: Record<string, jest.Mock>;
   let storageService: Record<string, jest.Mock>;
@@ -86,13 +87,13 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        DatasetsService,
+        ...Object.values(datasetsHandlers),
         SchemaInferenceService,
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsRepository },
-        { provide: ProjectsService, useValue: projectsService },
+        { provide: PROJECT_ACCESS_PORT, useValue: projectsService },
         { provide: STORAGE_PORT, useValue: storageService },
         { provide: OUTBOX_PORT, useValue: outboxService },
-        { provide: WorkspacesService, useValue: workspacesService },
+        { provide: WORKSPACE_ACCESS_PORT, useValue: workspacesService },
         {
           provide: ConfigService,
           useValue: {
@@ -103,7 +104,7 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
       ],
     }).compile();
 
-    service = module.get<DatasetsService>(DatasetsService);
+    service = createHandlerProxy(module, datasetsHandlers);
   });
 
   it('ingestDatasetStream should reject upload when Project already has an active Dataset (1 Project = 1 Dataset)', async () => {

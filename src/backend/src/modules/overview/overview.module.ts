@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ProjectsModule } from '../projects/projects.module';
-import { OverviewService } from './application/overview.service';
 import { OverviewController } from './infrastructure/http/overview.controller';
+import { GetUserOverviewHandler } from './application/queries/get-user-overview.handler';
+import { GetWorkspaceOverviewHandler } from './application/queries/get-workspace-overview.handler';
 
 /**
  * MODULE OVERVIEW — Tổng hợp chỉ số (E3/E4).
@@ -13,7 +14,7 @@ import { OverviewController } from './infrastructure/http/overview.controller';
 @Module({
   imports: [WorkspacesModule, ProjectsModule],
   controllers: [OverviewController],
-  providers: [OverviewService],
-  exports: [OverviewService],
+  providers: [GetUserOverviewHandler, GetWorkspaceOverviewHandler],
+  exports: [],
 })
 export class OverviewModule {}

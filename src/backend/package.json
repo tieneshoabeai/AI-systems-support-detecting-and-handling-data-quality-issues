@@ -35,6 +35,8 @@
     "test:unit": "jest --testPathIgnorePatterns '/node_modules/' '(zero-any|guard-coverage|zod-openapi|clean-architecture)\\.spec\\.ts$'",
     "test:arch": "jest --testPathPatterns '(zero-any|guard-coverage|zod-openapi|clean-architecture)\\.spec\\.ts$'",
     "arch:baseline": "ts-node scripts/generate-arch-baseline.ts",
+    "arch:verify-di": "ts-node scripts/verify-di-graph.ts",
+    "arch:cross-imports": "ts-node scripts/list-cross-module-imports.ts",
     "test:all": "pnpm run test:unit && pnpm run test:arch && pnpm run test:e2e",
     "prepare": "husky || true",
     "start:worker": "nest start --entryFile worker",

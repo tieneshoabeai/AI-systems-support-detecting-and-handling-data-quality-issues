@@ -1,10 +1,22 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserPayload,
+} from '../../../../shared/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
 import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
-import { FeedbackService } from '../../application/feedback.service';
 import {
   CreateFeedbackSchema,
   CreateFeedbackDto,
@@ -13,13 +25,28 @@ import {
   ListFeedbackQuerySchema,
   ListFeedbackQueryDto,
 } from './dtos/feedback.dto';
+import { AiQualityMetricsHandler } from '../../application/commands/ai-quality-metrics.handler';
+import { CreateFindingFeedbackHandler } from '../../application/commands/create-finding-feedback.handler';
+import { CreateRunFeedbackHandler } from '../../application/commands/create-run-feedback.handler';
+import { ListFindingFeedbackHandler } from '../../application/queries/list-finding-feedback.handler';
+import { ListRunFeedbackHandler } from '../../application/queries/list-run-feedback.handler';
+import { RemoveHandler } from '../../application/commands/remove.handler';
+import { UpdateMineHandler } from '../../application/commands/update-mine.handler';
 
 @ApiTags('Feedback')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class FeedbackController {
-  constructor(private readonly feedbackService: FeedbackService) {}
+  constructor(
+    private readonly aiQualityMetricsHandler: AiQualityMetricsHandler,
+    private readonly createFindingFeedbackHandler: CreateFindingFeedbackHandler,
+    private readonly createRunFeedbackHandler: CreateRunFeedbackHandler,
+    private readonly removeHandler: RemoveHandler,
+    private readonly updateMineHandler: UpdateMineHandler,
+    private readonly listFindingFeedbackHandler: ListFindingFeedbackHandler,
+    private readonly listRunFeedbackHandler: ListRunFeedbackHandler,
+  ) {}
 
   @Post('analyses/:analysisId/findings/:findingId/feedback')
   @ApiOperation({ summary: 'FB-01: Nhận xét một phát hiện' })
@@ -30,7 +57,13 @@ export class FeedbackController {
     @Param('findingId') findingId: string,
     @Body(new ZodValidationPipe(CreateFeedbackSchema)) dto: CreateFeedbackDto,
   ) {
-    return this.feedbackService.createFindingFeedback(user.userId, user.role, analysisId, findingId, dto);
+    return this.createFindingFeedbackHandler.execute(
+      user.userId,
+      user.role,
+      analysisId,
+      findingId,
+      dto,
+    );
   }
 
   @Post('analyses/:analysisId/feedback')
@@ -41,7 +74,7 @@ export class FeedbackController {
     @Param('analysisId') analysisId: string,
     @Body(new ZodValidationPipe(CreateFeedbackSchema)) dto: CreateFeedbackDto,
   ) {
-    return this.feedbackService.createRunFeedback(user.userId, user.role, analysisId, dto);
+    return this.createRunFeedbackHandler.execute(user.userId, user.role, analysisId, dto);
   }
 
   @Get('analyses/:analysisId/findings/:findingId/feedback')
@@ -53,7 +86,13 @@ export class FeedbackController {
     @Param('findingId') findingId: string,
     @Query(new ZodValidationPipe(ListFeedbackQuerySchema)) query: ListFeedbackQueryDto,
   ) {
-    return this.feedbackService.listFindingFeedback(user.userId, user.role, analysisId, findingId, query);
+    return this.listFindingFeedbackHandler.execute(
+      user.userId,
+      user.role,
+      analysisId,
+      findingId,
+      query,
+    );
   }
 
   @Get('analyses/:analysisId/feedback')
@@ -64,7 +103,7 @@ export class FeedbackController {
     @Param('analysisId') analysisId: string,
     @Query(new ZodValidationPipe(ListFeedbackQuerySchema)) query: ListFeedbackQueryDto,
   ) {
-    return this.feedbackService.listRunFeedback(user.userId, user.role, analysisId, query);
+    return this.listRunFeedbackHandler.execute(user.userId, user.role, analysisId, query);
   }
 
   @Patch('feedback/:id')
@@ -75,13 +114,13 @@ export class FeedbackController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateFeedbackSchema)) dto: UpdateFeedbackDto,
   ) {
-    return this.feedbackService.updateMine(user.userId, id, dto);
+    return this.updateMineHandler.execute(user.userId, id, dto);
   }
 
   @Delete('feedback/:id')
   @ApiOperation({ summary: 'FB-05: Xoá nhận xét (chủ hoặc Owner xử lý vi phạm)' })
   async remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
-    return this.feedbackService.remove(user.userId, user.role, id);
+    return this.removeHandler.execute(user.userId, user.role, id);
   }
 
   @Get('projects/:projectId/ai-quality-metrics')
@@ -90,6 +129,6 @@ export class FeedbackController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('projectId') projectId: string,
   ) {
-    return this.feedbackService.aiQualityMetrics(user.userId, user.role, projectId);
+    return this.aiQualityMetricsHandler.execute(user.userId, user.role, projectId);
   }
 }

@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { FeedbackService } from '../src/modules/feedback/application/feedback.service';
 import { FEEDBACK_REPOSITORY_PORT } from '../src/modules/feedback/domain/ports/feedback.repository.port';
 import { ANALYSIS_REPOSITORY_PORT } from '../src/modules/analysis/domain/ports/analysis.repository.port';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
-import { UsersService } from '../src/modules/users/application/users.service';
 import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
+import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
+import { USER_REPOSITORY_PORT } from '../src/modules/users';
+import { createHandlerProxy } from './helpers/handler-proxy';
+import { feedbackHandlers } from './helpers/module-handlers';
 
 const runId = new Types.ObjectId();
 const projectId = new Types.ObjectId();
@@ -60,7 +61,7 @@ async function build(deps: {
   };
   const m: TestingModule = await Test.createTestingModule({
     providers: [
-      FeedbackService,
+      ...Object.values(feedbackHandlers),
       { provide: FEEDBACK_REPOSITORY_PORT, useValue: repoVal },
       {
         provide: ANALYSIS_REPOSITORY_PORT,
@@ -73,7 +74,7 @@ async function build(deps: {
         },
       },
       {
-        provide: ProjectsService,
+        provide: PROJECT_ACCESS_PORT,
         useValue: {
           getProjectById: jest.fn().mockResolvedValue({
             id: projectId.toHexString(),
@@ -83,13 +84,13 @@ async function build(deps: {
         },
       },
       {
-        provide: WorkspacesService,
+        provide: WORKSPACE_ACCESS_PORT,
         useValue: {
           resolveUserWorkspaceRole: jest.fn().mockResolvedValue(deps.workspaceRole ?? 'member'),
         },
       },
       {
-        provide: UsersService,
+        provide: USER_REPOSITORY_PORT,
         useValue: {
           findById: jest.fn().mockResolvedValue({
             firstName: deps.meFirst ?? 'A',
@@ -99,7 +100,7 @@ async function build(deps: {
       },
     ],
   }).compile();
-  return { service: m.get<FeedbackService>(FeedbackService), repoVal };
+  return { service: createHandlerProxy(m, feedbackHandlers), repoVal };
 }
 
 describe('Wave7 FB-01/FB-02: tao nhan xet', () => {

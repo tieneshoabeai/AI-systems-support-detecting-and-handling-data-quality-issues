@@ -7,7 +7,7 @@ import { SocketIoRealtimeTransport } from './infrastructure/websocket/socket-io-
 import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
-import { REALTIME_PORT } from './domain/ports/realtime.port';
+import { REALTIME_PORT } from '../../shared/ports/realtime.port';
 import { REALTIME_TRANSPORT_PORT } from './domain/ports/realtime-transport.port';
 
 /**

@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { DataViewService } from '../src/modules/data-view/application/data-view.service';
-import { DatasetsService } from '../src/modules/datasets/application/datasets.service';
-import { RECORD_QUERY_PORT } from '../src/modules/data-view/domain/ports/record-query.port';
+import { RECORD_QUERY_PORT } from '../src/modules/datasets/domain/ports/record-query.port';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
 import { CursorCodec } from '../src/shared/pagination/cursor-codec';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { dataviewHandlers } from './helpers/module-handlers';
 
 const mockDatasetId = new Types.ObjectId();
 const mockDatasetDoc = {
@@ -37,7 +37,7 @@ const mockRows = [
 ];
 
 describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () => {
-  let service: DataViewService;
+  let service: ProxyOf<typeof dataviewHandlers>;
   let records: { listRecords: jest.Mock; queryRecords: jest.Mock; getColumnStats: jest.Mock; listAllRecords: jest.Mock };
   let datasetsPort: { findById: jest.Mock };
 
@@ -61,13 +61,12 @@ describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () 
     datasetsPort = { findById: jest.fn().mockResolvedValue(mockDatasetDoc) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        DataViewService,
+        ...Object.values(dataviewHandlers),
         { provide: RECORD_QUERY_PORT, useValue: records },
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsPort },
-        { provide: DatasetsService, useValue: {} },
       ],
     }).compile();
-    service = module.get<DataViewService>(DataViewService);
+    service = createHandlerProxy(module, dataviewHandlers);
   });
 
   it('getRecords tra { items, meta } khong co total/offset; cursor opaque', async () => {

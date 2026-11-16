@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { CursorCodec } from '../src/shared/pagination/cursor-codec';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { projectsHandlers } from './helpers/module-handlers';
 
 describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Dataset)', () => {
-  let service: ProjectsService;
+  let service: ProxyOf<typeof projectsHandlers>;
   let repository: Record<string, jest.Mock>;
   let workspacesPort: Record<string, jest.Mock>;
 
@@ -63,14 +64,14 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ProjectsService,
+        ...Object.values(projectsHandlers),
         { provide: PROJECT_REPOSITORY_PORT, useValue: repository },
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: workspacesPort },
         { provide: USER_REPOSITORY_PORT, useValue: { findByEmail: jest.fn(), findById: jest.fn() } },
       ],
     }).compile();
 
-    service = module.get<ProjectsService>(ProjectsService);
+    service = createHandlerProxy(module, projectsHandlers);
   });
 
   it('createProject should initialize hasDataset to false', async () => {
