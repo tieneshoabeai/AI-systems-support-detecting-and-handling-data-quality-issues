@@ -1,10 +1,11 @@
+import { requireDefined } from '../../utils/required-value'
 import type { ReactNode } from 'react'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { PreviewShell } from '../../views/preview/components/preview-shell'
 import { previewNoteIds } from '../../views/preview/preview-data'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
-import type { PreviewSectionId } from '../../types/preview/preview.types'
+import type { PreviewSectionId } from '../../types'
 import { renderFrame, resetPreviewStore } from './preview-test-kit'
 
 // Test "khung" theo UI-UX/Global Application Shell (sidebar 3 module của kiến trúc mới,
@@ -19,7 +20,7 @@ const shell = (active: PreviewSectionId, children: ReactNode = <p>Nội dung th�
 
 // jsdom của repo không cấp matchMedia → gán bản stub rồi trả lại nguyên trạng.
 // Nhánh này cũng chứng minh preview-shell.tsx không crash khi thiếu matchMedia.
-const originalMatchMedia = window.matchMedia
+const originalMatchMedia = window.matchMedia?.bind(window)
 
 const stubNarrow = (narrow: boolean): void => {
   window.matchMedia = (query: string): MediaQueryList => ({
@@ -183,7 +184,7 @@ it('combobox Workspace tìm được trong danh sách, chọn thì đổi phạm
   // Anh như chính nhãn bộ lọc (nav · stat · thẻ đều gọi "Projects").
   expect(rows.map(row => row.textContent)).toEqual(['Research & Development1 project · ★'])
 
-  fireEvent.click(rows[0])
+  fireEvent.click(requireDefined(rows[0], 'preview-shell.test.tsx:187'))
   expect(window.location.pathname).toBe('/management/workspaces/ws-rnd')
   expect(previewMockStore.getState().selection.workspaceId).toBe('ws-rnd')
   expect(screen.queryByRole('dialog', { name: 'Chọn workspace' })).toBeNull()

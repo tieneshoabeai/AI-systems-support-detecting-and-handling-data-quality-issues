@@ -1,4 +1,5 @@
-import type { AccessTokenInfo } from '../../types/auth/session.types'
+import { requireDefined } from '../required-value'
+import type { AccessTokenInfo } from '../../types'
 
 // Chỉ đọc claim để điều phối FE; không xác minh chữ ký JWT hoặc quyền truy cập.
 export const readAccessToken = (token: string): AccessTokenInfo | null => {
@@ -6,7 +7,7 @@ export const readAccessToken = (token: string): AccessTokenInfo | null => {
   if (parts.length !== 3 || parts.some(part => !/^[A-Za-z0-9_-]+$/.test(part))) return null
 
   try {
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const payload = requireDefined(parts[1], 'access-token.ts:10').replace(/-/g, '+').replace(/_/g, '/')
     const binary = atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '='))
     const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
     const claims: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))

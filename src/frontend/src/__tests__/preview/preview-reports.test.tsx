@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { ReportCenter } from '../../views/preview/components/report-center'
@@ -80,11 +81,11 @@ it('tạo (3.1): điền đủ → gửi → optimistic thêm vào đầu danh s
 
   const reports = previewMockStore.getState().reports
   expect(reports).toHaveLength(9)
-  expect(reports[0].title).toBe('Lỗi test tự động')
-  expect(reports[0].issueType).toBe('data')
-  expect(reports[0].status).toBe('processing')
+  expect(requireDefined(reports[0], 'preview-reports.test.tsx:84').title).toBe('Lỗi test tự động')
+  expect(requireDefined(reports[0], 'preview-reports.test.tsx:85').issueType).toBe('data')
+  expect(requireDefined(reports[0], 'preview-reports.test.tsx:86').status).toBe('processing')
   // Mã mới mang cùng mốc ngày mẫu nhưng không trùng mã đã vẽ trong Design Board.
-  expect(reports[0].code).toMatch(/^DV-250120-\d{3}$/)
+  expect(requireDefined(reports[0], 'preview-reports.test.tsx:88').code).toMatch(/^DV-250120-\d{3}$/)
   // Sau gửi nhảy sang danh sách để thấy ngay dòng vừa thêm ở đầu.
   expect(rowCount()).toBeGreaterThan(0)
   expect(await screen.findByText(/Đã gửi báo cáo/)).toBeDefined()

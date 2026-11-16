@@ -1,4 +1,4 @@
-import type { ResultReviewInput } from '../../types/processing/result-review.types'
+import type { ResultReviewInput } from '../../types'
 
 export const validateResultReview = (review: ResultReviewInput): string | null => {
   if (!Number.isInteger(review.rating) || review.rating < 1 || review.rating > 5) return 'Vui lòng chọn từ 1 đến 5 sao.'

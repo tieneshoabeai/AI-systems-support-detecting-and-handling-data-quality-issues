@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { describe, expect, it } from 'vitest'
 import { advanceFlow, layoutResources, resourceTrail, validateResources } from '../../math/workspace-3d/resource-layout'
 import { extendedPreviewResources, previewResources } from '../../views/workspace-3d/preview-resources'
@@ -30,7 +31,7 @@ describe('resource model and deterministic layout', () => {
   it('handles empty, single root, multiple workspaces and scoped exploration', () => {
     expect(validateResources([]).ok).toBe(true)
     expect(layoutResources([]).nodes).toEqual([])
-    expect(layoutResources([previewResources[0]]).edges).toEqual([])
+    expect(layoutResources([requireDefined(previewResources[0], 'resource-layout.test.ts:34')]).edges).toEqual([])
     expect(layoutResources([...previewResources, { id: 'w2', kind: 'workspace', name: 'Second', parentId: null }]).nodes).toHaveLength(7)
     const scoped = layoutResources(previewResources, 'demo-sales')
     expect(scoped.nodes).toHaveLength(3)

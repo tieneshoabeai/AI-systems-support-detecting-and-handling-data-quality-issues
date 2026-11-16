@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { useEffect, useRef } from 'react'
 import { useAuth } from '../../hooks/auth/use-auth'
 
@@ -44,7 +45,7 @@ export const SessionRenewalDialog = () => {
         const first = buttons[0]
         const last = buttons[buttons.length - 1]
         if (!first) { event.preventDefault(); dialog.current?.focus(); return }
-        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last.focus() }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); requireDefined(last, 'session-renewal-dialog.tsx:48').focus() }
         else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { event.preventDefault(); first.focus() }
       }}>
       <span className="eyebrow">Phiên làm việc</span>

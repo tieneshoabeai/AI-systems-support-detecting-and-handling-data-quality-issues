@@ -12,6 +12,7 @@
 
 - `readAccessToken(token: string): AccessTokenInfo | null` đọc claim `sub`, `exp` và trả `{ accountId, expiresAtMs }`. Trả `null` với chuỗi hoặc payload sai.
 - `isAccessTokenExpired(info: AccessTokenInfo, nowMs: number): boolean` trả `true` khi thời điểm bằng/vượt hạn hoặc thời điểm hiện tại không hữu hạn.
+- `requireDefined<T>(value: T | undefined, label: string): T` đọc giá trị bắt buộc tồn tại trong model/fixture. Ném lỗi có nhãn nếu giá trị là `undefined`; giữ nguyên `0`, `false`, chuỗi rỗng và `null`. Không dùng cho dữ liệu optional hợp lệ; caller phải xử lý nhánh thiếu theo contract.
 
 ## 4. Cách dùng (ví dụ)
 
@@ -29,6 +30,7 @@ Ví dụ chạy trong TypeScript với runtime có `atob` và `TextDecoder`.
 **Khi thêm code.** Đặt helper thuần dùng chung theo nhóm, như xử lý claim trong `auth/`. Quyết định chuyển pha phiên thuộc coordinator và phép tính hình học thuộc [math](../math/README.md).
 
 - [auth/access-token.ts](auth/access-token.ts) — giải mã payload và so sánh thời hạn.
+- [required-value.ts](required-value.ts) — kiểm tra invariant của giá trị bắt buộc; không tạo fallback hoặc ép kiểu.
 
 ## 6. Luồng hoạt động
 

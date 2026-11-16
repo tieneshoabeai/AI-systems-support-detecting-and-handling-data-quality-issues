@@ -3,11 +3,11 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import type { PerspectiveCamera } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { CameraCommand, ResourceLayout } from '../../../types/workspace-3d/resource-map.types'
+import type { CameraCommand, ResourceLayout } from '../../../types'
 import { clampTarget, fitPose, overviewPose, panPose, updateCameraProjection } from '../../../math/workspace-3d/resource-camera'
-import type { CameraPose } from '../../../types/workspace-3d/camera-pose.types'
+import type { CameraPose } from '../../../types'
 
-type Props = { layout: ResourceLayout; command?: CameraCommand; resetKey: number; reducedMotion: boolean; active: boolean; onContextLost(): void }
+type Props = { layout: ResourceLayout; command?: CameraCommand; resetKey: number; reducedMotion: boolean; active: boolean; onContextLost(this: void): void }
 type Transition = { from: CameraPose; to: CameraPose; elapsed: number }
 
 export function ResourceCameraController({ layout, command, resetKey, reducedMotion, active, onContextLost }: Props) {

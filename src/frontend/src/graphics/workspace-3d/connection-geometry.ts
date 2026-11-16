@@ -1,5 +1,6 @@
+import { requireDefined } from '../../utils/required-value'
 import { BufferGeometry, ExtrudeGeometry, Float32BufferAttribute, Path, Shape } from 'three'
-import type { ResourcePort } from '../../types/workspace-3d/resource-map.types'
+import type { ResourcePort } from '../../types'
 import { CONNECTION } from '../../math/workspace-3d/resource-connection-profile'
 
 export function socketPanel(width: number, height: number, depth: number, holes: { x: number; y: number; radius: number }[]) {
@@ -37,8 +38,8 @@ export function hubSocketWall(ports: readonly ResourcePort[]) {
       const points = [a, b, c]
       const edge = differences.indexOf(longest)
       const first = points[edge], second = points[(edge + 1) % 3], third = points[(edge + 2) % 3]
-      const middle = first.map((value, i) => (value + second[i]) / 2) as Vertex
-      triangle(first, middle, third); triangle(middle, second, third)
+      const middle = requireDefined(first, 'connection-geometry.ts:41').map((value, i) => (value + requireDefined(requireDefined(second, 'connection-geometry.ts:41')[i], 'connection-geometry.ts:41')) / 2) as Vertex
+      triangle(requireDefined(first, 'connection-geometry.ts:42'), middle, requireDefined(third, 'connection-geometry.ts:42')); triangle(middle, requireDefined(second, 'connection-geometry.ts:42'), requireDefined(third, 'connection-geometry.ts:42'))
       return
     }
     for (const [u, v, depth] of [a, b, c]) {

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { resourceLabelBudget, shouldShowResourceLabel } from '../../math/workspace-3d/resource-label-policy'
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import type { ResourceNode } from '../../types'
 
 const dataset: ResourceNode = { id: 'd', kind: 'dataset', name: 'Data', parentId: 'p' }
 

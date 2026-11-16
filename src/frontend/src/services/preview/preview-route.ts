@@ -1,6 +1,6 @@
-import type { PreviewRoute, PreviewRouteIds } from '../../types/preview/preview-route.types'
-import type { PreviewSectionId, SettingsSectionId } from '../../types/preview/preview.types'
-import { managementHref, parseManagementRoute, parseProjectRoute } from '../navigation/application-route'
+import type { PreviewRoute, PreviewRouteIds } from '../../types'
+import type { PreviewSectionId, SettingsSectionId } from '../../types'
+import { managementHref, parseManagementRoute, parseProjectRoute } from '../navigation'
 
 // Legacy 2D URL compatibility and the existing 3D entry URL.
 // Canonical management/processing rules live in navigation/application-route.ts.

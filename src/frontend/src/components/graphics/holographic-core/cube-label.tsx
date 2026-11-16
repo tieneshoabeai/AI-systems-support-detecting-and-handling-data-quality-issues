@@ -1,8 +1,9 @@
+import { isMesh, uniformValue } from '../../../graphics/common/typed-objects'
 import { useEffect, useState } from 'react'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
-import { Mesh, type Material, type Object3D, type ShaderMaterial, type Vector2 } from 'three'
-import { NEON_CUBE_THEMES } from '../../../graphics/neon-cube/neon-cube.model'
-import type { NeonCubeThemeId } from '../../../types/dataset-3d/cube-focus.types'
+import { Color, type Material, type Object3D, type ShaderMaterial, type Vector2 } from 'three'
+import { NEON_CUBE_THEMES } from '../../../graphics/neon-cube'
+import type { NeonCubeThemeId } from '../../../types'
 import { CUBE_LABEL_ASPECT, CUBE_LABEL_LAYOUT } from '../../../graphics/holographic-core/cube-label-layout'
 import { createCubeLabelTexture, loadCubeLabelFont } from '../../../graphics/holographic-core/cube-label-texture'
 import {
@@ -31,7 +32,7 @@ function CubeLabel({ layout, frame, onFocus, colorMode }: {
   colorMode: 'light' | 'dark'
   layout: (typeof CUBE_LABEL_LAYOUT)[number]
   frame: GlassFrame
-  onFocus(theme: NeonCubeThemeId): void
+  onFocus(this: void, theme: NeonCubeThemeId): void
 }) {
   const { theme, width, height, roof, center, yaw, front } = layout
   const { scene, raycaster } = useThree()
@@ -45,7 +46,7 @@ function CubeLabel({ layout, frame, onFocus, colorMode }: {
       if (!texture) return
       const color = NEON_CUBE_THEMES[theme].glow
       const glass = createCubeGlassMaterial(frame, texture, color, height)
-      glass.uniforms.uTint.value.set(colorMode === 'light' ? '#e4eef8' : '#06223a')
+      uniformValue(glass.uniforms['uTint'], Color).set(colorMode === 'light' ? '#e4eef8' : '#06223a')
       const glow = createCubeGlassGlowMaterial(frame, color)
       dispose = () => {
         glass.dispose()
@@ -60,7 +61,7 @@ function CubeLabel({ layout, frame, onFocus, colorMode }: {
   const focusLabel = (event: ThreeEvent<MouseEvent>) => {
     if (event.delta > 6 || !isInsideGlass(event.uv) || event.ray.direction.dot(front) >= 0) return
     const blocked = raycaster.intersectObjects(scene.children, true).some(hit => {
-      if (hit.distance >= event.distance - 0.001 || !(hit.object instanceof Mesh) || !isVisible(hit.object)) return false
+      if (hit.distance >= event.distance - 0.001 || !(isMesh(hit.object)) || !isVisible(hit.object)) return false
       if (hit.object.layers.isEnabled(CUBE_GLASS_LAYER)) return isInsideGlass(hit.uv)
       const material = hit.object.material
       return writesDepth(Array.isArray(material) ? material[hit.face?.materialIndex ?? 0] : material)
@@ -93,7 +94,7 @@ function CubeLabel({ layout, frame, onFocus, colorMode }: {
   </group>
 }
 
-export function CubeLabels({ frame, onFocus, colorMode = 'dark' }: { frame: GlassFrame; colorMode?: 'light' | 'dark'; onFocus(theme: NeonCubeThemeId): void }) {
+export function CubeLabels({ frame, onFocus, colorMode = 'dark' }: { frame: GlassFrame; colorMode?: 'light' | 'dark'; onFocus(this: void, theme: NeonCubeThemeId): void }) {
   const raycaster = useThree(state => state.raycaster)
   useEffect(() => {
     raycaster.layers.enable(CUBE_GLASS_LAYER)

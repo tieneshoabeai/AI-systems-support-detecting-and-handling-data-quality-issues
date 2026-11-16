@@ -1,7 +1,8 @@
+import { requireDefined } from '../../utils/required-value'
 import { CatmullRomCurve3, Vector3 } from 'three'
 import { NEON_CUBE_CLUSTER_LAYOUT } from '../neon-cube/neon-cube.cluster'
 import { NEON_CUBE, NEON_CUBE_THEMES } from '../neon-cube/neon-cube.model'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 import { CORE_VISUAL_REVISION, DETECTION_ANCHOR, resolveIssueLanes } from './core-visual-config'
 
 // Rotate the existing Detection curves around the core, adjusting their reach and
@@ -19,9 +20,9 @@ export const CUBE_CONNECTIONS = NEON_CUBE_CLUSTER_LAYOUT.map(node => {
   const transform = (point: readonly number[], fraction: number) => {
     const scale = 1 + (surfaceRadius / referenceRadius - 1) * fraction
     return new Vector3(
-      (point[0] * Math.cos(angle) - point[2] * Math.sin(angle)) * scale,
-      point[1] + (center.y - DETECTION_ANCHOR.center[1]) * fraction,
-      (point[0] * Math.sin(angle) + point[2] * Math.cos(angle)) * scale,
+      (requireDefined(point[0], 'cube-connection-paths.ts:23') * Math.cos(angle) - requireDefined(point[2], 'cube-connection-paths.ts:23') * Math.sin(angle)) * scale,
+      requireDefined(point[1], 'cube-connection-paths.ts:24') + (center.y - DETECTION_ANCHOR.center[1]) * fraction,
+      (requireDefined(point[0], 'cube-connection-paths.ts:25') * Math.sin(angle) + requireDefined(point[2], 'cube-connection-paths.ts:25') * Math.cos(angle)) * scale,
     )
   }
   const curves = reference.map(lane => new CatmullRomCurve3([

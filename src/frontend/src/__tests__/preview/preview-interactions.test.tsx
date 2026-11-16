@@ -31,7 +31,7 @@ afterEach(() => { cleanup(); window.location.hash = '' })
 it('chuột phải mở menu tại con trỏ; menu project điều hướng được tới trang Project', () => {
   renderFrame(<HomePreviewView />)
   const firstRow = document.querySelector<HTMLTableRowElement>('.home-table tbody tr')!
-  const rowName = firstRow.querySelector('.row-name')!.textContent!.trim()
+  const rowName = firstRow.querySelector('.row-name')!.textContent.trim()
   fireEvent.contextMenu(firstRow, { clientX: 320, clientY: 210 })
 
   const menu = menuFor(rowName)
@@ -56,7 +56,7 @@ it('chuột phải mở menu tại con trỏ; menu project điều hướng đư
 it('lia chuột vào mục "Xem thông tin" trong ⋯ mở thẻ tóm tắt, rời mục thì thẻ tắt', () => {
   renderFrame(<HomePreviewView />)
   const row = document.querySelector<HTMLTableRowElement>('.home-table tbody tr')!
-  const name = row.querySelector('.row-name')!.textContent!.trim()
+  const name = row.querySelector('.row-name')!.textContent.trim()
 
   // Lia trên dòng bảng KHÔNG mở thẻ nữa — chỉ mục "Xem thông tin" mới mở.
   fireEvent.mouseOver(row)
@@ -86,7 +86,7 @@ it('lia chuột vào mục "Xem thông tin" trong ⋯ mở thẻ tóm tắt, r�
 it('bấm mục "Xem thông tin" thì menu đóng nhưng thẻ Ở LẠI (lối vào cho bàn phím), Esc đóng thẻ', () => {
   renderFrame(<HomePreviewView />)
   const row = document.querySelector<HTMLTableRowElement>('.home-table tbody tr')!
-  const name = row.querySelector('.row-name')!.textContent!.trim()
+  const name = row.querySelector('.row-name')!.textContent.trim()
 
   fireEvent.click(within(row).getByRole('button', { name: `Thao tác với ${name}` }))
   fireEvent.click(menuItem('Xem thông tin'))
@@ -179,7 +179,7 @@ it('Home: bấm workspace xuống Workspaces kèm phạm vi; bấm dòng project
   // Bảng Project sắp theo `updatedAt`, nên lấy đúng dòng đầu + tra ws/id từ store thay vì đóng đinh tên.
   const firstRow = document.querySelector<HTMLTableRowElement>('.home-table tbody tr')
   expect(firstRow).not.toBeNull()
-  const rowName = firstRow!.querySelector('.row-name')!.textContent!.trim()
+  const rowName = firstRow!.querySelector('.row-name')!.textContent.trim()
   const project = previewMockStore.getState().projects.find(item => item.name === rowName)
   expect(project).toBeTruthy()
 
@@ -208,7 +208,7 @@ it('chuột phải → "Thông tin Workspace": chặn tên trùng, lưu thì đ�
   fireEvent.click(menuItem('Thông tin Workspace'))
 
   const dialog = screen.getByRole('dialog', { name: 'Thông tin Workspace' })
-  const nameField = within(dialog).getByRole('textbox', { name: 'Tên Workspace' }) as HTMLInputElement
+  const nameField = within(dialog).getByRole<HTMLInputElement>('textbox', { name: 'Tên Workspace' })
   const send = (): HTMLElement => within(dialog).getByRole('button', { name: 'Lưu thay đổi' })
 
   // Gửi nguyên trạng thái → chặn tại form, không im lặng ghi xuống store.
@@ -365,8 +365,8 @@ it('"Tạo Workspace" mở dialog: chặn tên trống · trùng · chặn email
   // mơ hồ; bên trong dialog phải giới hạn bằng within vì nút gửi cũng mang đúng tên đó.
   fireEvent.click(screen.getByRole('button', { name: 'Tạo Workspace' }))
   const dialog = screen.getByRole('dialog', { name: 'Tạo Workspace' })
-  const nameField = within(dialog).getByRole('textbox', { name: /Tên Workspace/ }) as HTMLInputElement
-  const memberField = within(dialog).getByRole('textbox', { name: 'Thành viên ban đầu (tùy chọn)' }) as HTMLInputElement
+  const nameField = within(dialog).getByRole<HTMLInputElement>('textbox', { name: /Tên Workspace/ })
+  const memberField = within(dialog).getByRole<HTMLInputElement>('textbox', { name: 'Thành viên ban đầu (tùy chọn)' })
   // Nút gửi phải lấy lại mỗi lần bấm: form bị gỡ khỏi DOM khi màn thành công hiện ra (rồi mounted
   // lại khi "Tạo Workspace khác"), nên giữ một node sẽ bấm vào node đã detached.
   const send = (): HTMLElement => within(dialog).getByRole('button', { name: 'Tạo Workspace' })
@@ -443,7 +443,7 @@ it('"Tạo Workspace" mở dialog: chặn tên trống · trùng · chặn email
   expect(screen.queryByRole('heading', { name: 'Tạo Workspace thành công!' })).toBeNull()
   // Màn thành công đã GỠ form khỏi DOM, nên phải lấy lại ô nhập: giữ biến cũ là giữ một node đã
   // detached — nó không nghe React nữa nên giá trị chỉ là ảnh chụp lúc còn mounted.
-  const nameAgain = within(dialog).getByRole('textbox', { name: /Tên Workspace/ }) as HTMLInputElement
+  const nameAgain = within(dialog).getByRole<HTMLInputElement>('textbox', { name: /Tên Workspace/ })
   expect(nameAgain.value).toBe('')
   expect(document.querySelectorAll('.pv-chip')).toHaveLength(0)
   expect(previewMockStore.getState().workspaces).toHaveLength(wsTotal + 1)
@@ -636,7 +636,7 @@ it('popover align=end neo mép phải theo số đo layout, không theo rect đa
     Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 453 })
     renderFrame(<WorkspacesPreviewView />)
     const trigger = screen.getByRole('button', { name: 'Tài khoản Nguyễn Minh Anh' })
-    trigger.getBoundingClientRect = () => ({ left: 674, top: 21, right: 747, bottom: 53, x: 674, y: 21, width: 73, height: 32, toJSON: () => ({}) }) as DOMRect
+    trigger.getBoundingClientRect = () => ({ left: 674, top: 21, right: 747, bottom: 53, x: 674, y: 21, width: 73, height: 32, toJSON: () => ({}) })
     fireEvent.click(trigger)
 
     const popover = screen.getByRole('dialog', { name: 'Tài khoản Nguyễn Minh Anh' })

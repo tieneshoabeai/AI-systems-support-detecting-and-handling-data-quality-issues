@@ -1,6 +1,7 @@
 import { relative, resolve, sep, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import js from '@eslint/js'
+import stylistic from '@stylistic/eslint-plugin'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
@@ -24,6 +25,59 @@ const forbiddenLayers = {
   utils: uiLayers,
 }
 const layerOf = filename => relative(sourceRoot, filename).split(sep)[0]
+
+// Migration checks are warnings until consumers move to the Design System.
+// Native controls remain valid inside UI implementations and test fixtures.
+const designSystemMigration = {
+  meta: {
+    schema: [],
+    messages: {
+      nativeControl: 'Migrate <{{tag}}> to the corresponding Design System control in an approved batch.',
+      uiDependency: 'Design System UI cannot import {{specifier}}. Pass domain data and callbacks through props.',
+      domainDependency: 'Domain components must access services and repositories through hooks.',
+    },
+  },
+  create(context) {
+    const filename = context.physicalFilename
+    const segments = relative(sourceRoot, filename).split(sep)
+    const isUi = segments[0] === 'components' && segments[1] === 'ui'
+    const isDomain = segments[0] === 'components' && !['ui', 'graphics'].includes(segments[1])
+    const allowedUiLayers = new Set(['styles', 'utils', 'types'])
+
+    function checkImport(source) {
+      if (typeof source?.value !== 'string') return
+      const specifier = source.value
+      if (isUi && /^(?:three|@react-three\/[^/]+)(?:\/|$)/.test(specifier)) {
+        context.report({ node: source, messageId: 'uiDependency', data: { specifier } })
+        return
+      }
+      if (!specifier.startsWith('.')) return
+      const target = relative(sourceRoot, resolve(dirname(filename), specifier)).split(sep)
+      const isUiTarget = target[0] === 'components' && target[1] === 'ui'
+      const isUiHook = target[0] === 'hooks' && target[1] === 'ui'
+      if (isUi && !isUiTarget && !isUiHook && !allowedUiLayers.has(target[0])) {
+        context.report({ node: source, messageId: 'uiDependency', data: { specifier } })
+      }
+      if (isDomain && ['services', 'repositories'].includes(target[0])) {
+        context.report({ node: source, messageId: 'domainDependency' })
+      }
+    }
+
+    return {
+      ImportDeclaration: node => checkImport(node.source),
+      ExportNamedDeclaration: node => checkImport(node.source),
+      ExportAllDeclaration: node => checkImport(node.source),
+      ImportExpression: node => checkImport(node.source),
+      JSXOpeningElement(node) {
+        if (segments[0] === '__tests__' || isUi) return
+        const tag = node.name.type === 'JSXIdentifier' ? node.name.name : null
+        if (['button', 'input', 'textarea', 'select'].includes(tag)) {
+          context.report({ node, messageId: 'nativeControl', data: { tag } })
+        }
+      },
+    }
+  },
+}
 
 const frontendLayers = {
   meta: {
@@ -75,23 +129,58 @@ export default defineConfig([
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     rules: {
+      'no-console': 'warn',
+      'no-lonely-if': 'warn',
+      '@stylistic/no-trailing-spaces': 'warn',
+      '@stylistic/no-multi-spaces': 'warn',
+      '@stylistic/no-multiple-empty-lines': 'warn',
+      '@stylistic/space-before-blocks': ['error', 'always'],
+      '@stylistic/object-curly-spacing': ['warn', 'always'],
+      '@stylistic/indent': ['warn', 2],
+      '@stylistic/quotes': ['error', 'single'],
+      '@stylistic/array-bracket-spacing': ['warn', 'never'],
+      '@stylistic/keyword-spacing': 'warn',
+      '@stylistic/comma-spacing': 'warn',
+      '@stylistic/arrow-spacing': 'warn',
       '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
     },
     languageOptions: {
       globals: globals.browser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
+      },
+    },
+    plugins: { '@stylistic': stylistic },
+  },
+  {
+    files: ['vite.config.ts', 'vitest.config.ts'],
+    languageOptions: {
+      globals: globals.node,
     },
   },
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/graphify-out/**'],
-    plugins: { architecture: { rules: { 'frontend-layers': frontendLayers } } },
+    plugins: { architecture: { rules: {
+      'frontend-layers': frontendLayers,
+      'design-system-migration': designSystemMigration,
+    } } },
     rules: {
       'architecture/frontend-layers': 'error',
+      'architecture/design-system-migration': 'warn',
     },
   },
 ])

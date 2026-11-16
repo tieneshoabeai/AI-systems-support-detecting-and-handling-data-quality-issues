@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { validReturnTarget } from '../../app/router/return-target'
 
-it.each(['/management', '/processing/projects/prj-sales', '/management/projects?workspace=ws-acme', '/processing', '/processing/new', '/processing/projects/prj-sales/review'])('accepts registered return target %s', target => {
+it.each(['/management', '/processing/projects/prj-sales', '/management/projects?workspace=ws-acme', '/processing', '/processing/new', '/processing/projects/prj-sales/review', '/workspaces/3d-dataset', '/workspaces/3d-dataset?theme=light#cube'])('accepts registered return target %s', target => {
   expect(validReturnTarget(target)).toBe(target)
 })
 

@@ -1,3 +1,4 @@
+import { isDrawable } from '../../../graphics/common/typed-objects'
 import { useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import {
@@ -74,7 +75,7 @@ function resizeShared(shared: Shared, width: number, height: number) {
 function disposeObject(root: Object3D) {
   root.traverse(child => {
     if (child instanceof InstancedMesh) child.dispose()
-    if (child instanceof Mesh || child instanceof Points || child instanceof LineSegments) {
+    if (isDrawable(child)) {
       child.geometry.dispose()
       const materials = Array.isArray(child.material) ? child.material : [child.material]
       materials.forEach(material => material.dispose())

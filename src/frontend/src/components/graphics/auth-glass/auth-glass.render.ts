@@ -1,3 +1,6 @@
+import { Vector2 as UniformVector2 } from 'three'
+import { uniformValue } from '../../../graphics/common/typed-objects'
+import { requireDefined } from '../../../utils/required-value'
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import type { RefObject } from 'react'
@@ -12,8 +15,11 @@ function createRenderResources(gl: WebGLRenderer) {
   const halfFloat = gl.extensions.has('EXT_color_buffer_float')
   const type = halfFloat ? HalfFloatType : UnsignedByteType
   const colorFormat = halfFloat ? context.RGBA16F : context.RGBA8
-  const supportedSamples = (format: number): Int32Array =>
-    context.getInternalformatParameter(context.RENDERBUFFER, format, context.SAMPLES)
+  const supportedSamples = (format: number): Int32Array => {
+    const values: unknown = context.getInternalformatParameter(context.RENDERBUFFER, format, context.SAMPLES)
+    if (!(values instanceof Int32Array)) throw new Error('WebGL did not return sample counts')
+    return values
+  }
   const colorSamples = supportedSamples(colorFormat)
   const depthSamples = supportedSamples(context.DEPTH_COMPONENT24)
   const samples = [4, 2].find(count => colorSamples.includes(count) && depthSamples.includes(count)) ?? 0
@@ -57,8 +63,8 @@ export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean,
     const resources = pipeline.current
     if (!resources) return
     const { loginLens, registerLens } = resources
-    loginLens.uniforms.uDebug.value = registerLens.uniforms.uDebug.value = debug
-    loginLens.uniforms.uThickness.value = registerLens.uniforms.uThickness.value = thickness ?? authGlassConfig.glass.thicknessPixels
+    requireDefined(loginLens.uniforms['uDebug'], 'auth-glass.render.ts:61').value = requireDefined(registerLens.uniforms['uDebug'], 'auth-glass.render.ts:61').value = debug
+    requireDefined(loginLens.uniforms['uThickness'], 'auth-glass.render.ts:62').value = requireDefined(registerLens.uniforms['uThickness'], 'auth-glass.render.ts:62').value = thickness ?? authGlassConfig.glass.thicknessPixels
     invalidate()
   }, [debug, invalidate, low, thickness])
 
@@ -89,10 +95,10 @@ export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean,
     const light = dragLight?.current
     const uvX = 1 / Math.max(layout.width, 1)
     const uvY = 1 / Math.max(layout.height, 1)
-    loginLens.uniforms.uUvPerPixel.value.set(uvX, uvY)
-    registerLens.uniforms.uUvPerPixel.value.set(uvX, uvY)
-    loginLens.uniforms.uLightDir.value.set(-0.6 + (light?.x ?? 0) * 0.65, 0.8 + (light?.y ?? 0) * 0.35)
-    registerLens.uniforms.uLightDir.value.copy(loginLens.uniforms.uLightDir.value)
+    uniformValue(requireDefined(loginLens.uniforms['uUvPerPixel'], 'auth-glass.render.ts:93'), UniformVector2).set(uvX, uvY)
+    uniformValue(requireDefined(registerLens.uniforms['uUvPerPixel'], 'auth-glass.render.ts:94'), UniformVector2).set(uvX, uvY)
+    uniformValue(requireDefined(loginLens.uniforms['uLightDir'], 'auth-glass.render.ts:95'), UniformVector2).set(-0.6 + (light?.x ?? 0) * 0.65, 0.8 + (light?.y ?? 0) * 0.35)
+    uniformValue(registerLens.uniforms['uLightDir'], Vector2).copy(uniformValue(loginLens.uniforms['uLightDir'], Vector2))
     loginBody.material = loginLens
     registerBody.material = registerLens
     gl.getDrawingBufferSize(size)
@@ -124,15 +130,15 @@ export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean,
       gl.render(scene, camera)
 
       far.visible = true
-      farLens.uniforms.tBackdrop.value = backdrop.texture
-      farLens.uniforms.uViewport.value.set(width, height)
+      requireDefined(farLens.uniforms['tBackdrop'], 'auth-glass.render.ts:128').value = backdrop.texture
+      uniformValue(requireDefined(farLens.uniforms['uViewport'], 'auth-glass.render.ts:129'), UniformVector2).set(width, height)
       gl.setRenderTarget(behindGlass)
       gl.render(scene, camera)
 
       near.visible = true
-      nearLens.uniforms.tBackdrop.value = behindGlass.texture
-      nearLens.uniforms.uViewport.value.copy(size)
-      farLens.uniforms.uViewport.value.copy(size)
+      requireDefined(nearLens.uniforms['tBackdrop'], 'auth-glass.render.ts:134').value = behindGlass.texture
+      uniformValue(requireDefined(nearLens.uniforms['uViewport'], 'auth-glass.render.ts:135'), UniformVector2).copy(size)
+      uniformValue(requireDefined(farLens.uniforms['uViewport'], 'auth-glass.render.ts:136'), UniformVector2).copy(size)
     } catch {
       lensFailed.current = true
     } finally {
@@ -143,6 +149,7 @@ export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean,
     }
 
     if (lensFailed.current) {
+      // eslint-disable-next-line no-console -- Keep the approved refraction fallback diagnostic observable.
       console.warn('Auth glass: using the physical material after a refraction pass failed.')
       renderFallback()
     } else {

@@ -1,10 +1,7 @@
 import type { Transaction } from 'dexie'
 import { ApiError } from '../../lib/api-error'
 import { UPLOAD_DRAFT_LIMITS } from '../../configs/upload-draft.config'
-import type {
-  DraftAccess, DraftAccessPort, DraftCleanupResult, SaveUploadDraft,
-  UploadConfirmation, UploadDraft,
-} from '../../types/datasets/upload-draft.types'
+import type { DraftAccess, DraftAccessPort, DraftCleanupResult, SaveUploadDraft, UploadConfirmation, UploadDraft } from '../../types'
 import { UploadDraftDatabase } from './upload-draft.database'
 
 type Options = {

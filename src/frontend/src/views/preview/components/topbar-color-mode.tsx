@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import type { PreviewColorPreference } from '../../../types/preview/preview-session.types'
+import type { PreviewColorPreference } from '../../../types'
 import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
 import { PreviewPopover } from './preview-popover'

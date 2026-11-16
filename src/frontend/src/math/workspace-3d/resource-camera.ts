@@ -1,7 +1,7 @@
-import type { CameraPose } from '../../types/workspace-3d/camera-pose.types'
+import type { CameraPose } from '../../types'
 import { Vector3 } from 'three'
 import type { PerspectiveCamera } from 'three'
-import type { PositionedResource, ResourceLayout } from '../../types/workspace-3d/resource-map.types'
+import type { PositionedResource, ResourceLayout } from '../../types'
 
 export const overviewDirection = () => new Vector3(0.35, 0.95, 1.2).normalize()
 

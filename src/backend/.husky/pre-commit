@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Phần 14 v7 — Đợt 1: pre-commit chạy unit test + architectural test.
+# Hooks: test:unit (unit/domain) + test:arch (zero-any, guard-coverage, zod-openapi)
+cd "$(dirname "$0")/../src/backend" || exit 1
+pnpm run test:unit && pnpm run test:arch

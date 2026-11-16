@@ -4,12 +4,7 @@
 // Vì sao không cần seed: v1 lấy vị trí ô lỗi bằng `createRandom(seed)` + shuffle. Một infographic
 // đọc được cần ô lỗi **đều nhau** chứ không cần ngẫu nhiên, và phân bố đều thì kiểm được bằng số
 // (test chốt đúng mảng index), nên mỗi chiều dùng một quy tắc chia bucket tất định.
-import type {
-  DimensionScore,
-  DqDimension,
-  QualityScoreSource,
-  ScoreScope,
-} from '../../types/datasets/quality-score.types'
+import type { DimensionScore, DqDimension, QualityScoreSource, ScoreScope } from '../../types'
 
 // `on` = sáng, `off` = tắt hẳn (thiếu dữ liệu), còn lại là ô sáng mang một dạng lỗi.
 // `unverified` là kind mới so với danh sách của v1: accuracy cần phân biệt "đã kiểm" và "chưa kiểm"
@@ -132,6 +127,6 @@ export function createMockQualityScoreSource(
   rows: readonly DimensionScore[] = MOCK_QUALITY_SCORES,
 ): QualityScoreSource {
   return {
-    read: async () => rows.map(row => ({ ...row })),
+    read: () => Promise.resolve(rows.map(row => ({ ...row }))),
   }
 }

@@ -1,5 +1,24 @@
 # hooks
 
+## Shared view-model ownership after Phase 4
+
+`preview/preview-session-context.ts` owns the single workbench React context.
+`preview/preview-presentation.ts` contains existing fixture-backed labels, formatting
+and selectors; `preview-card.ts` and `preview-menu.ts` contain interaction helpers.
+These are supporting modules of the preview view model, not API implementations.
+The application surface adapter is `preview/use-preview-surface.ts`; browser-only
+surface mechanics remain in `ui/use-surface.ts`.
+
+`resource/use-resource-avatar.ts` owns the existing avatar storage helpers and hook.
+`processing/use-result-review.ts` preserves review validation, duplicate-submit
+guard, pending/error state and the caller-provided save callback.
+`project/use-project-csv-parser.ts` supplies the unchanged local CSV parser to the
+wizard. Compatibility exports in `views/preview` refer to these same implementations.
+
+`ui/use-surface.ts` chứa hook position/dismiss/focus thuần cho DOM surface. Sự kiện
+navigation riêng của ứng dụng nằm trong `preview/use-preview-surface.ts`; đường dẫn
+`views/preview/components/preview-surface.ts` chỉ còn là compatibility export.
+
 ## 1. Mục đích
 
 Đưa state và thao tác auth, preview và motion vào React. Gọi HTTP, quyết định quyền và vẽ scene nằm ở tầng khác.

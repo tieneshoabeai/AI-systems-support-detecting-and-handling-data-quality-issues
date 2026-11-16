@@ -38,7 +38,7 @@ it('cleans up real OrbitControls and context listeners across StrictMode remount
   const add = vi.spyOn(canvas, 'addEventListener')
   const remove = vi.spyOn(canvas, 'removeEventListener')
   const camera = new PerspectiveCamera(40, 1.5, 0.1, 500)
-  vi.mocked(useThree).mockReturnValue({ camera, gl: { domElement: canvas }, invalidate: vi.fn(), size: { width: 900, height: 600 } } as unknown as ReturnType<typeof useThree>)
+  vi.mocked(useThree).mockReturnValue({ camera, gl: { domElement: canvas }, invalidate: vi.fn(), size: { width: 900, height: 600 } })
   const lost = vi.fn()
   const rendered = render(<StrictMode><ResourceCameraController layout={layoutResources(previewResources)} resetKey={0} reducedMotion={false} onContextLost={lost} active /></StrictMode>)
   expect(camera.position.length()).toBeGreaterThan(0)
@@ -63,7 +63,7 @@ it('focuses repeatedly by command identity, supports pan/dolly, and resets witho
   const add = vi.spyOn(canvas, 'addEventListener')
   const camera = new PerspectiveCamera(40, 1.5, 0.1, 500)
   const state = { camera, gl: { domElement: canvas }, invalidate: vi.fn(), size: { width: 900, height: 600 } }
-  vi.mocked(useThree).mockReturnValue(state as unknown as ReturnType<typeof useThree>)
+  vi.mocked(useThree).mockReturnValue(state)
   const layout = layoutResources(extendedPreviewResources)
   const props = { layout, resetKey: 0, reducedMotion: true, active: true, onContextLost: vi.fn() }
   const rendered = render(<ResourceCameraController {...props} />)
@@ -107,7 +107,7 @@ it('animates in demand frames, pauses hidden tabs, completes on return, and lets
   const canvas = document.createElement('canvas')
   const camera = new PerspectiveCamera(40, 1.5, 0.1, 500)
   const invalidate = vi.fn()
-  vi.mocked(useThree).mockReturnValue({ camera, gl: { domElement: canvas }, invalidate, size: { width: 900, height: 600 } } as unknown as ReturnType<typeof useThree>)
+  vi.mocked(useThree).mockReturnValue({ camera, gl: { domElement: canvas }, invalidate, size: { width: 900, height: 600 } })
   const layout = layoutResources(previewResources)
   const props = { layout, resetKey: 0, reducedMotion: false, active: true, onContextLost: vi.fn() }
   const rendered = render(<ResourceCameraController {...props} />)
@@ -142,7 +142,7 @@ it('allows right-drag and Shift-left-drag to pan with real OrbitControls', () =>
   canvas.setPointerCapture = vi.fn()
   canvas.releasePointerCapture = vi.fn()
   const camera = new PerspectiveCamera(40, 1.5, 0.1, 500)
-  vi.mocked(useThree).mockReturnValue({ camera, gl: { domElement: canvas }, invalidate: vi.fn(), size: { width: 900, height: 600 } } as unknown as ReturnType<typeof useThree>)
+  vi.mocked(useThree).mockReturnValue({ camera, gl: { domElement: canvas }, invalidate: vi.fn(), size: { width: 900, height: 600 } })
   render(<ResourceCameraController layout={layoutResources(previewResources)} resetKey={0} reducedMotion onContextLost={vi.fn()} active />)
   for (const [button, shiftKey] of [[2, false], [0, true]] as const) {
     const before = camera.position.clone()
@@ -162,7 +162,7 @@ it('applies the label policy to DOM labels and leader lines, including selection
   const canvas = document.createElement('canvas')
   const camera = new PerspectiveCamera(40, 1.5, 0.1, 500)
   const state = { camera, gl: { domElement: canvas }, invalidate: vi.fn(), size: { width: 1024, height: 600 } }
-  vi.mocked(useThree).mockReturnValue(state as unknown as ReturnType<typeof useThree>)
+  vi.mocked(useThree).mockReturnValue(state)
   const labels = new Map(extendedPreviewResources.map(node => [node.id, document.createElement('button')]))
   const lines = new Map(extendedPreviewResources.map(node => [node.id, document.createElementNS('http://www.w3.org/2000/svg', 'line')]))
   const props = { layout: layoutResources(extendedPreviewResources), resetKey: 0, labels, lines, selectedId: null, active: true, onContextLost: vi.fn() }

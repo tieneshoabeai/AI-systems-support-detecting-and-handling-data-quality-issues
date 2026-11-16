@@ -1,0 +1,4 @@
+/* Local scope preserves legacy theme specificity. */
+:global([data-preview='2d'] .project-result-actions):where(.screen, .screen *) { margin-top: 20px; }
+:global([data-preview='2d'] .project-result-buttons):where(.screen, .screen *) { display: flex; gap: 12px; flex-wrap: wrap; margin-block: 16px; }
+:global([data-preview='2d'] .project-file-selection):where(.screen, .screen *) { overflow-wrap: anywhere; }

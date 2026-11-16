@@ -1,8 +1,8 @@
-import { useRef } from 'react'
 import type { MouseEvent } from 'react'
-import type { PreviewActionId, PreviewMenuRequest, PreviewMenuItem } from '../../../types/preview/preview.types'
+import type { PreviewActionId, PreviewMenuRequest, PreviewMenuItem } from '../../../types'
 import { PreviewIcon } from './preview-icons'
-import { anchorFromOrigin, useRovingFocus, useSurfaceDismiss, useSurfacePosition } from './preview-surface'
+import { anchorFromOrigin, useSurfaceNavigation } from './preview-surface'
+import { ContextMenu } from '../../../components/ui/overlay/context-menu'
 
 // Menu ngữ cảnh: một surface, ba lối vào — chuột phải (đặt tại con trỏ), nút ⋯ và
 // dropdown "Thao tác ▾" (neo vào nút vừa bấm). Riêng phím Menu trên bàn phím cũng trình
@@ -28,7 +28,7 @@ export function PreviewContextMenu({ request, onRun, onClose, onInfoHover, onInf
 }) {
   if (!request) return null
   return <ContextMenuSurface request={request} onRun={onRun} onClose={onClose}
-    onInfoHover={onInfoHover} onInfoLeave={onInfoLeave} />
+    {...(onInfoHover === undefined ? {} : { onInfoHover: onInfoHover })} {...(onInfoLeave === undefined ? {} : { onInfoLeave: onInfoLeave })} />
 }
 
 function ContextMenuSurface({ request, onRun, onClose, onInfoHover, onInfoLeave }: {
@@ -38,11 +38,8 @@ function ContextMenuSurface({ request, onRun, onClose, onInfoHover, onInfoLeave 
   onInfoHover?: (projectId: string, element: HTMLElement) => void
   onInfoLeave?: () => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
   const anchor = anchorFromOrigin(request.origin)
-  const point = useSurfacePosition(ref, anchor)
-  useSurfaceDismiss(true, onClose, ref)
-  useRovingFocus(true, ref)
+  useSurfaceNavigation(true, onClose)
 
   // Mũi tên chỉ vào trigger chỉ có ý nghĩa khi menu mở từ một nút (chuột phải thì
   // không có gì để chỉ); data-side nói cho CSS biết trigger nằm trên hay dưới menu.
@@ -65,9 +62,7 @@ function ContextMenuSurface({ request, onRun, onClose, onInfoHover, onInfoLeave 
     }
   }
 
-  return <div ref={ref} className="preview-menu" role="menu" aria-label={`Thao tác với ${request.target.name}`}
-    data-trigger={hasTrigger ? 'anchor' : 'pointer'} data-side={point.flipped ? 'top' : 'bottom'}
-    style={{ left: point.x, top: point.y }}>
+  return <ContextMenu label={`Thao tác với ${request.target.name}`} anchor={anchor} anchored={hasTrigger} onClose={onClose}>
     <p className="menu-title">{request.target.name}</p>
     <ul className="menu-list">
       {request.items.flatMap(item => [
@@ -94,5 +89,5 @@ function ContextMenuSurface({ request, onRun, onClose, onInfoHover, onInfoLeave 
     {/* Menu có note mà không có item tắt nào mang id (chưa xảy ra với các menu hiện có) thì note
         vẫn nằm ở đáy: bất biến "lý do phải nhìn thấy trong chính surface" giữ nguyên. */}
     {hasDisabledItem && request.note && noteOwner === undefined && <p className="menu-note">{request.note}</p>}
-  </div>
+  </ContextMenu>
 }

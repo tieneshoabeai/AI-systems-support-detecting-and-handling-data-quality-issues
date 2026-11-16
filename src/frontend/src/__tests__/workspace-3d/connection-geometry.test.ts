@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { expect, it } from 'vitest'
 import { DoubleSide, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three'
 import { hubSocketWall, socketPanel } from '../../graphics/workspace-3d/connection-geometry'
@@ -13,7 +14,7 @@ it('cuts a real through-hole in the side panel instead of placing a dark disk on
   mesh.updateMatrixWorld()
   expect(new Raycaster(new Vector3(0, 0, 1), new Vector3(0, 0, -1)).intersectObject(mesh)).toHaveLength(0)
   const outside = new Raycaster(new Vector3(radius * 2, 0, 1), new Vector3(0, 0, -1)).intersectObject(mesh)
-  expect(outside[0].distance).toBeCloseTo(1 - CONNECTION.recess)
+  expect(requireDefined(outside[0], 'connection-geometry.test.ts:17').distance).toBeCloseTo(1 - CONNECTION.recess)
   geometry.dispose(); material.dispose()
 })
 
@@ -30,7 +31,7 @@ it('cuts recessed bores through the curved hub facade along the actual radial no
     expect(through[0]?.distance ?? Infinity).toBeGreaterThan(0.5 + CONNECTION.recess)
     const tangent = new Vector3(port.normal[2], 0, -port.normal[0])
     const surface = new Raycaster(origin.addScaledVector(tangent, port.radius * 2.5), normal.clone().negate()).intersectObject(mesh)
-    expect(surface[0].distance).toBeLessThan(0.6)
+    expect(requireDefined(surface[0], 'connection-geometry.test.ts:34').distance).toBeLessThan(0.6)
   }
   geometry.dispose(); material.dispose()
 })
@@ -41,9 +42,9 @@ it('keeps all ports flush, on one project side, with the same small gauge even a
   expect(radii.size).toBe(1)
   expect([...radii][0]).toBeLessThanOrEqual(0.09)
   const scoped = layoutResources(extendedPreviewResources, 'demo-project-0')
-  expect(scoped.edges[0].route.radius).toBe(layout.edges[0].route.radius)
+  expect(requireDefined(scoped.edges[0], 'connection-geometry.test.ts:45').route.radius).toBe(requireDefined(layout.edges[0], 'connection-geometry.test.ts:45').route.radius)
   for (const node of layout.nodes) for (const port of node.ports!) {
-    expect(port.radius).toBe(layout.edges[0].route.radius)
+    expect(port.radius).toBe(requireDefined(layout.edges[0], 'connection-geometry.test.ts:47').route.radius)
     expect(CONNECTION.lip / 2 + port.radius * 0.12).toBeLessThan(0.06)
     if (node.resource.kind === 'workspace') expect(Math.hypot(port.position[0], port.position[2])).toBeCloseTo(CONNECTION.hubRadius)
     if (node.resource.kind === 'project') {

@@ -1,16 +1,17 @@
+import { requireDefined } from '../../../utils/required-value'
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { AdditiveBlending, Color, DoubleSide, NormalBlending } from 'three'
 import type { Group, Mesh } from 'three'
-import { useSceneMotion } from '../../../hooks/workspace-3d/use-scene-motion'
+import { useSceneMotion } from '../../../hooks/workspace-3d'
 import { setNumberUniform, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
 import { HeroSpaceHole } from './hero-space-hole'
 
 class UniverseBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
+  override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  render() { return this.state.failed ? this.props.fallback : this.props.children }
+  override render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -643,7 +644,7 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
     const step = Math.min(delta, 0.05)
     clock.current += step
     disk.current?.children.forEach((child, index) => {
-      child.rotation.z += step * singularityArcs[index].speed
+      child.rotation.z += step * requireDefined(singularityArcs[index], 'home-universe.tsx:647').speed
     })
     if (sparks.current) sparks.current.rotation.z -= step * 0.3
     if (coreHalo.current) coreHalo.current.scale.setScalar(1.55 + Math.sin(clock.current * 1.4) * 0.06)
@@ -673,7 +674,7 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
       <group ref={disk}>
         {singularityArcs.map((arc, index) => <mesh key={index}>
           <ringGeometry args={[arc.radius, arc.radius + arc.thickness, 128]} />
-          <shaderMaterial uniforms={arcs[index]} vertexShader={LOCAL_VERTEX} fragmentShader={ARC_FRAGMENT}
+          <shaderMaterial {...(arcs[index] === undefined ? {} : { uniforms: arcs[index] })} vertexShader={LOCAL_VERTEX} fragmentShader={ARC_FRAGMENT}
             transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
         </mesh>)}
       </group>
@@ -787,10 +788,10 @@ function Universe({ moving, light }: { moving: boolean; light: boolean }) {
       { index: 7, x: .39, y: .35, scale: 1.65 },
       { index: 8, x: .43, y: -.31, scale: 1.25 },
     ].map(({ index, x, y, scale: planetScale }) => <FloatingPlanet key={`outer-${index}`}
-      planet={planets[index]} position={[viewport.width * x, viewport.height * y, 0.25]}
+      planet={requireDefined(planets[index], 'outer planet')} position={[viewport.width * x, viewport.height * y, 0.25]}
       moving={moving} mix={mix} scale={compact ? planetScale * .65 : planetScale} />)}
     <group position={[viewport.width * .39, viewport.height * .35, .25]} scale={compact ? .65 : 1}>
-      <OrbitingPlanet planet={{ ...planets[6], orbit: .34, size: .035, speed: .65, tilt: [.7, .2, .4] }} moving={moving} mix={mix} />
+      <OrbitingPlanet planet={{ ...requireDefined(planets[6], 'orbiting planet'), orbit: .34, size: .035, speed: .65, tilt: [.7, .2, .4] }} moving={moving} mix={mix} />
     </group>
     <Starfield width={viewport.width} height={viewport.height} mix={mix} moving={moving} />
   </>
@@ -803,7 +804,7 @@ export default function HomeUniverse({ fallback, paused, light }: { fallback: Re
   const [lost, setLost] = useState(false)
   useEffect(() => {
     if (!host.current || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
+    const observer = new IntersectionObserver(([entry]) => setVisible(requireDefined(entry, 'home-universe.tsx:807').isIntersecting))
     observer.observe(host.current)
     return () => observer.disconnect()
   }, [])

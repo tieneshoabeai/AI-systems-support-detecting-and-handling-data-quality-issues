@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { CanvasTexture, SRGBColorSpace } from 'three'
 import { authGlassConfig } from './auth-glass.config'
 import { authGlassProviderIcons } from './auth-glass.provider-icons'
@@ -28,8 +29,8 @@ function logo(ctx: CanvasRenderingContext2D) {
   ctx.translate(20, 18)
   for (const { color, points } of facets) {
     ctx.beginPath()
-    ctx.moveTo(points[0][0], points[0][1])
-    for (const [x, y] of points.slice(1)) ctx.lineTo(x, y)
+    ctx.moveTo(requireDefined(requireDefined(points[0], 'auth-glass.artwork.ts:32')[0], 'auth-glass.artwork.ts:32'), requireDefined(requireDefined(points[0], 'auth-glass.artwork.ts:32')[1], 'auth-glass.artwork.ts:32'))
+    for (const [x, y] of points.slice(1)) ctx.lineTo(requireDefined(x, 'auth-glass.artwork.ts:33'), requireDefined(y, 'auth-glass.artwork.ts:33'))
     ctx.closePath()
     ctx.fillStyle = color
     ctx.fill()

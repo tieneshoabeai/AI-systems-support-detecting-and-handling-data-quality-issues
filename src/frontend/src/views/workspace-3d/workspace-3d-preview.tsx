@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Workspace3DView } from './workspace-3d.view'
 import { extendedPreviewResources, previewResources } from './preview-resources'
-import { localCsvResources, parseLocalCsv } from '../../math/workspace-3d/local-csv'
-import type { LocalCsvDocument } from '../../types/workspace-3d/local-csv.types'
+import { localCsvResources, parseLocalCsv } from '../../math'
+import type { LocalCsvDocument } from '../../types'
 import { LocalCsvViewer } from './local-csv-viewer'
 
 export function Workspace3DPreview() {
@@ -40,14 +40,14 @@ export function Workspace3DPreview() {
   return <>
     <section className="local-csv-picker" aria-label="Thử xem file CSV trên máy" aria-busy={busy}>
       <label htmlFor="local-csv-files">Thử xem file CSV trên máy</label>
-      <input id="local-csv-files" type="file" accept=".csv,text/csv" multiple disabled={busy} onChange={chooseFiles} />
+      <input id="local-csv-files" type="file" accept=".csv,text/csv" multiple disabled={busy} onChange={event => { void chooseFiles(event) }} />
       <p>Chọn một hoặc nhiều CSV UTF-8. Mỗi file có một Project và một Dataset thử nghiệm. Bấm khối, rồi bấm tên file hoặc “Xem dữ liệu”.</p>
       <p>Chỉ giữ trong bộ nhớ tab; tải lại trang sẽ xóa lựa chọn.</p>
       {busy && <p role="status">Đang đọc file trên máy…</p>}
       {error && <p role="alert" className="feedback-error">{error}</p>}
     </section>
     <Workspace3DView key={documents.length ? documents.map(document => document.id).join('|') : String(extended)} resources={resources}
-      localFileMode={documents.length > 0} onOpenDataset={documents.length ? setOpenId : undefined} />
+      localFileMode={documents.length > 0} {...(documents.length ? { onOpenDataset: setOpenId } : {})} />
     {!documents.length && <div className="resource-fixture-control"><button type="button" className="button-secondary" disabled={busy} onClick={() => setExtended(value => !value)}>
       {extended ? 'Xem demo chuẩn · 6 tài nguyên' : 'Xem demo mở rộng · 30 tài nguyên'}
     </button></div>}

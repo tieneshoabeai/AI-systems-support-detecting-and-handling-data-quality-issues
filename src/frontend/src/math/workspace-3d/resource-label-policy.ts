@@ -1,4 +1,4 @@
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import type { ResourceNode } from '../../types'
 
 // Presentation budgets, not limits on the number of resources rendered.
 export function resourceLabelBudget(sceneWidth: number): number {

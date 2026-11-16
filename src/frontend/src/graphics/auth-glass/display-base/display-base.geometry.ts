@@ -1,3 +1,4 @@
+import { requireDefined } from '../../../utils/required-value'
 import { Color, Float32BufferAttribute, LatheGeometry, TorusGeometry, Vector2 } from 'three'
 import type { DisplayBaseOptions, DisplayBaseTier } from './display-base.config'
 
@@ -34,7 +35,7 @@ export function createBaseRingGeometry(radius: number, ring: DisplayBaseOptions[
     const angle = Math.atan2(-position.getY(i), position.getX(i))
     const quadrant = ((angle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)
     const index = Math.floor(quadrant)
-    color.copy(stops[index]).lerp(stops[index + 1], quadrant - index).multiplyScalar(1.4).toArray(colors, i * 3)
+    color.copy(requireDefined(stops[index], 'display-base.geometry.ts:38')).lerp(requireDefined(stops[index + 1], 'display-base.geometry.ts:38'), quadrant - index).multiplyScalar(1.4).toArray(colors, i * 3)
   }
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
   return geometry

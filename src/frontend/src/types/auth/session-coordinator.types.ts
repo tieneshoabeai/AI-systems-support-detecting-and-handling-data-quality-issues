@@ -1,7 +1,7 @@
-import type { AppError } from '../api/api.types'
+import type { AppError } from '../api'
 import type { LoginRequestDto, LoginResult, RefreshRequestDto, RefreshResult } from './auth.types'
 import type { SessionReadResult, StoredSession } from './session.types'
-import type { CurrentUser } from '../users/user.types'
+import type { CurrentUser } from '../users'
 
 export type SessionUser =
   | { readonly source: 'login'; readonly value: Readonly<LoginResult['user']> }

@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
@@ -33,9 +34,9 @@ const TOWER_TARGETS: Record<string, number> = {
 }
 
 // Original towers stand on the deck (0.45); outer towers stand on the sector plates (0.50).
-const BASE_Y: Record<string, number> = Object.fromEntries([
-  ...ORIGINAL_IDS.map(id => [id, 0.45]),
-  ...OUTER_IDS.map(id => [id, 0.5]),
+const BASE_Y: Record<string, number> = Object.fromEntries<number>([
+  ...ORIGINAL_IDS.map(id => [id, 0.45] as const),
+  ...OUTER_IDS.map(id => [id, 0.5] as const),
 ])
 
 const OUTER_LAYOUT: Record<string, { angle: number; radius: number }> = {
@@ -62,7 +63,7 @@ const ORIGINAL_LAYOUT: Record<string, { angle: number; radius: number }> = {
 
 function createRuntime() {
   const { model } = createHolographicCoreProductModel()
-  return model.userData.sculptRuntime as TowerRuntime
+  return model.userData['sculptRuntime'] as TowerRuntime
 }
 
 function boundingSize(mesh: THREE.Mesh) {
@@ -72,7 +73,7 @@ function boundingSize(mesh: THREE.Mesh) {
 
 // The plinth is 0.04 wider than the glass volume, hence the extra 0.01 on the half-size.
 function footprintHalf(runtime: TowerRuntime, id: string) {
-  return boundingSize(runtime.meshes[id]).x / 2 + 0.01
+  return boundingSize(requireDefined(runtime.meshes[id], 'holographic-towers.test.ts:76')).x / 2 + 0.01
 }
 
 // Nearest-edge distance between two axis-aligned footprints; 0 means they overlap.
@@ -80,8 +81,8 @@ function clearance(runtime: TowerRuntime, a: string, b: string) {
   const nodeA = runtime.nodes[a]
   const nodeB = runtime.nodes[b]
   const span = footprintHalf(runtime, a) + footprintHalf(runtime, b)
-  const dx = Math.abs(nodeA.position.x - nodeB.position.x) - span
-  const dz = Math.abs(nodeA.position.z - nodeB.position.z) - span
+  const dx = Math.abs(requireDefined(nodeA, 'holographic-towers.test.ts:84').position.x - requireDefined(nodeB, 'holographic-towers.test.ts:84').position.x) - span
+  const dz = Math.abs(requireDefined(nodeA, 'holographic-towers.test.ts:85').position.z - requireDefined(nodeB, 'holographic-towers.test.ts:85').position.z) - span
   return Math.hypot(Math.max(0, dx), Math.max(0, dz))
 }
 
@@ -89,7 +90,7 @@ function clearance(runtime: TowerRuntime, a: string, b: string) {
 function innerFace(runtime: TowerRuntime, id: string) {
   const node = runtime.nodes[id]
   const half = footprintHalf(runtime, id)
-  return Math.hypot(Math.max(0, Math.abs(node.position.x) - half), Math.max(0, Math.abs(node.position.z) - half))
+  return Math.hypot(Math.max(0, Math.abs(requireDefined(node, 'holographic-towers.test.ts:93').position.x) - half), Math.max(0, Math.abs(requireDefined(node, 'holographic-towers.test.ts:93').position.z) - half))
 }
 
 describe('holographic tower architecture', () => {
@@ -105,7 +106,7 @@ describe('holographic tower architecture', () => {
       if (!mesh || !node) continue
 
       expect(mesh.scale.y).toBe(1)
-      expect(node.position.y).toBeCloseTo(BASE_Y[id] + target / 2, 5)
+      expect(node.position.y).toBeCloseTo(requireDefined(BASE_Y[id], 'holographic-towers.test.ts:109') + target / 2, 5)
 
       expect(boundingSize(mesh).y).toBeCloseTo(target, 4)
 
@@ -160,8 +161,8 @@ describe('holographic tower architecture', () => {
     for (const [id, layout] of Object.entries(ORIGINAL_LAYOUT)) {
       const node = runtime.nodes[id]
       expect(node).toBeDefined()
-      expect(Math.hypot(node.position.x, node.position.z)).toBeCloseTo(layout.radius, 4)
-      const angle = ((Math.atan2(node.position.z, node.position.x) * 180 / Math.PI) + 360) % 360
+      expect(Math.hypot(requireDefined(node, 'holographic-towers.test.ts:164').position.x, requireDefined(node, 'holographic-towers.test.ts:164').position.z)).toBeCloseTo(layout.radius, 4)
+      const angle = ((Math.atan2(requireDefined(node, 'holographic-towers.test.ts:165').position.z, requireDefined(node, 'holographic-towers.test.ts:165').position.x) * 180 / Math.PI) + 360) % 360
       expect(angle).toBeCloseTo(layout.angle, 3)
     }
 
@@ -169,9 +170,9 @@ describe('holographic tower architecture', () => {
       const node = runtime.nodes[id]
       const layout = OUTER_LAYOUT[id]
       expect(node).toBeDefined()
-      expect(Math.hypot(node.position.x, node.position.z)).toBeCloseTo(layout.radius, 4)
-      const angle = ((Math.atan2(node.position.z, node.position.x) * 180 / Math.PI) + 360) % 360
-      expect(angle).toBeCloseTo(layout.angle, 4)
+      expect(Math.hypot(requireDefined(node, 'holographic-towers.test.ts:173').position.x, requireDefined(node, 'holographic-towers.test.ts:173').position.z)).toBeCloseTo(requireDefined(layout, 'holographic-towers.test.ts:173').radius, 4)
+      const angle = ((Math.atan2(requireDefined(node, 'holographic-towers.test.ts:174').position.z, requireDefined(node, 'holographic-towers.test.ts:174').position.x) * 180 / Math.PI) + 360) % 360
+      expect(angle).toBeCloseTo(requireDefined(layout, 'holographic-towers.test.ts:175').angle, 4)
     }
   })
 
@@ -180,7 +181,7 @@ describe('holographic tower architecture', () => {
 
     for (const id of RING_IDS) {
       const node = runtime.nodes[id]
-      const radius = Math.hypot(node.position.x, node.position.z)
+      const radius = Math.hypot(requireDefined(node, 'holographic-towers.test.ts:184').position.x, requireDefined(node, 'holographic-towers.test.ts:184').position.z)
       const halfDiagonal = Math.SQRT2 * footprintHalf(runtime, id)
       expect(radius + halfDiagonal).toBeLessThanOrEqual(3.07)
       expect(radius - halfDiagonal).toBeGreaterThanOrEqual(2.15)
@@ -213,7 +214,7 @@ describe('holographic tower architecture', () => {
 
   it('gives every remaining outer tower a sector plinth', () => {
     const runtime = createRuntime()
-    const hasPlinth = (id: string) => runtime.meshes[id].children.some(child => child.name === 'tower-plinth')
+    const hasPlinth = (id: string) => requireDefined(runtime.meshes[id], 'holographic-towers.test.ts:217').children.some(child => child.name === 'tower-plinth')
 
     for (const id of RING_IDS) expect(hasPlinth(id), id).toBe(true)
   })
@@ -221,6 +222,6 @@ describe('holographic tower architecture', () => {
   it('keeps every new tower below the ring parapet and tower-01 tallest', () => {
     for (const id of OUTER_IDS) expect(TOWER_TARGETS[id]).toBeLessThanOrEqual(2.2)
     const tallest = Object.entries(TOWER_TARGETS).sort((a, b) => b[1] - a[1])[0]
-    expect(tallest[0]).toBe('tower-01-back-high')
+    expect(requireDefined(tallest, 'holographic-towers.test.ts:225')[0]).toBe('tower-01-back-high')
   })
 })

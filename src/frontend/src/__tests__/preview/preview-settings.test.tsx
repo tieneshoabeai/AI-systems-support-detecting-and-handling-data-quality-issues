@@ -1,9 +1,10 @@
+import { requireDefined } from '../../utils/required-value'
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { SettingsPreviewView } from '../../views/preview/settings-2d.view'
 import { settingsSections } from '../../views/preview/preview-data'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
-import type { SettingsSectionId } from '../../types/preview/preview.types'
+import type { SettingsSectionId } from '../../types'
 import { disabledButtons, renderFrame, resetPreviewStore } from './preview-test-kit'
 
 // Màn Settings (Design Board nhóm 04, đặc tả Shell dòng 9) = NHÁNH ACCOUNTS thật, khác chuông
@@ -101,7 +102,7 @@ it('Hồ sơ (4.2) hiện trong rail Accounts: đầu "Hồ sơ cá nhân", emai
   // Đặc tả dòng 9: Hồ sơ nằm trong nhánh "Accounts" → rail hiện trên cả màn Hồ sơ.
   expect(screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' })).toBeDefined()
   expect(screen.getByRole('heading', { level: 2, name: 'Thông tin cá nhân' })).toBeDefined()
-  expect((screen.getByRole('textbox', { name: 'Họ và tên' }) as HTMLInputElement).value).toBe('Nguyễn Minh Anh')
+  expect((screen.getByRole<HTMLInputElement>('textbox', { name: 'Họ và tên' })).value).toBe('Nguyễn Minh Anh')
   // Email + Chức vụ CHỈ ĐỌC theo đặc tả dòng 9 → readOnly + aria-readonly, không tự sửa được.
   expect(screen.getByRole('textbox', { name: 'Email (không đổi được)' }).hasAttribute('readonly')).toBe(true)
   expect(screen.getByRole('textbox', { name: 'Chức vụ (không đổi được)' }).getAttribute('aria-readonly')).toBe('true')
@@ -129,7 +130,7 @@ it('lưu hồ sơ là mutation có Hoàn tác; thiếu tên thì form báo lỗi
   expect(await screen.findByText('Đã hoàn tác thao tác vừa rồi.')).toBeDefined()
   expect(previewMockStore.getState().profile.name).toBe('Nguyễn Minh Anh')
   // Draft phải đồng bộ lại theo store sau Hoàn tác: ô nhập không còn giữ giá trị đã bị rút lại.
-  expect((screen.getByRole('textbox', { name: 'Họ và tên' }) as HTMLInputElement).value).toBe('Nguyễn Minh Anh')
+  expect((screen.getByRole<HTMLInputElement>('textbox', { name: 'Họ và tên' })).value).toBe('Nguyễn Minh Anh')
 })
 
 it('"Hủy" ở màn Hồ sơ đưa về trang chính (đặc tả dòng 9: "hủy thì về trang chính")', () => {
@@ -194,7 +195,7 @@ it('"Đăng xuất tất cả các phiên khác" giữ đúng phiên hiện tạ
 it('"Đăng xuất tất cả" khi chỉ còn phiên hiện tại là no-op: notify nói thẳng, không Hoàn tác giả', async () => {
   // Vào thẳng store (không qua hook) để chỉ còn phiên hiện tại mà KHÔNG sinh toast Hoàn tác
   // của lần revoke trước — nếu không, nút Hoàn tác cũ còn hiển thị và làm nhiễu assertion.
-  previewMockStore.revokeSession('ses-mobile')
+  await previewMockStore.revokeSession('ses-mobile')
   open('sessions')
   expect(screen.getByRole('heading', { level: 2, name: 'Các phiên đang hoạt động (1)' })).toBeDefined()
   fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất tất cả các phiên khác' }))
@@ -208,11 +209,11 @@ it('Tùy chọn thông báo: mỗi dòng là một role="switch", gạt là muta
   expect(screen.getByRole('heading', { level: 2, name: 'Tùy chọn thông báo' })).toBeDefined()
   const switches = screen.getAllByRole('switch')
   expect(switches).toHaveLength(4)
-  expect(switches[0].getAttribute('aria-checked')).toBe('true')
+  expect(requireDefined(switches[0], 'preview-settings.test.tsx:212').getAttribute('aria-checked')).toBe('true')
 
-  fireEvent.click(switches[0])
+  fireEvent.click(requireDefined(switches[0], 'preview-settings.test.tsx:214'))
   // Optimistic: state lật tức thì (commit trước delay), toast tới sau 160ms.
-  expect(screen.getAllByRole('switch')[0].getAttribute('aria-checked')).toBe('false')
+  expect(requireDefined(screen.getAllByRole('switch')[0], 'preview-settings.test.tsx:216').getAttribute('aria-checked')).toBe('false')
   expect(previewMockStore.getState().notificationPrefs.system).toBe(false)
 
   expect(await screen.findByText('Đã tắt tùy chọn thông báo')).toBeDefined()

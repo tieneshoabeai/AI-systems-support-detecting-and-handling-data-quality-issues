@@ -12,7 +12,7 @@ export function HeroSpaceHole({ mix, moving }: { mix: { value: number }; moving:
   return <mesh>
     <planeGeometry args={[2.7, 1.8]} />
     <shaderMaterial transparent depthWrite={false} uniforms={uniforms}
-      vertexShader={`varying vec2 p; void main(){ p=(uv-.5)*vec2(2.7,1.8); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`}
+      vertexShader={'varying vec2 p; void main(){ p=(uv-.5)*vec2(2.7,1.8); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }'}
       fragmentShader={`
         varying vec2 p; uniform float uMix, uTime;
         void main(){

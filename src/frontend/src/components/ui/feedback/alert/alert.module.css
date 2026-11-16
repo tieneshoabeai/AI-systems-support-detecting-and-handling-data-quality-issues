@@ -1,0 +1,1 @@
+:where(.root) { background: var(--color-danger-surface); color: var(--color-danger-ink); padding: 14px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 22px; border-left: 3px solid var(--color-danger); overflow-wrap: anywhere; }

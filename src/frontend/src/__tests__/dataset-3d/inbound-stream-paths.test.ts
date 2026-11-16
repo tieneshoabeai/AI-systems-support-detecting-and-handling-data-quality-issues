@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { createInboundGuidePaths, createInboundPaths, type InboundPath } from '../../graphics/holographic-core/inbound-stream-paths'
@@ -29,9 +30,9 @@ describe('inbound stream paths', () => {
       const group = paths.filter(path => path.definition.groupId === `azimuth-${azimuth}`)
       expect(group).toHaveLength(6)
       expect(group.map(path => path.definition.offsetDegrees)).toEqual(offsets)
-      expect(group[1].definition.cycleSeconds - group[0].definition.cycleSeconds).toBeCloseTo(0.3, 9)
+      expect(requireDefined(group[1], 'inbound-stream-paths.test.ts:33').definition.cycleSeconds - requireDefined(group[0], 'inbound-stream-paths.test.ts:33').definition.cycleSeconds).toBeCloseTo(0.3, 9)
       group.forEach((path, index) => {
-        expect(startAzimuth(path)).toBeCloseTo((azimuth + offsets[index] + 360) % 360, 5)
+        expect(startAzimuth(path)).toBeCloseTo((azimuth + requireDefined(offsets[index], 'inbound-stream-paths.test.ts:35') + 360) % 360, 5)
       })
     }
 
@@ -98,14 +99,14 @@ describe('inbound stream paths', () => {
       const end = pointAt(path, path.length)
       const beyond = pointAt(path, path.length + 5)
 
-      expect(first.x).toBeCloseTo(path.points[0], 5)
-      expect(first.y).toBeCloseTo(path.points[1], 5)
-      expect(first.z).toBeCloseTo(path.points[2], 5)
+      expect(first.x).toBeCloseTo(requireDefined(path.points[0], 'inbound-stream-paths.test.ts:102'), 5)
+      expect(first.y).toBeCloseTo(requireDefined(path.points[1], 'inbound-stream-paths.test.ts:103'), 5)
+      expect(first.z).toBeCloseTo(requireDefined(path.points[2], 'inbound-stream-paths.test.ts:104'), 5)
 
       const lastIndex = path.points.length - 3
-      expect(end.x).toBeCloseTo(path.points[lastIndex], 5)
-      expect(end.y).toBeCloseTo(path.points[lastIndex + 1], 5)
-      expect(end.z).toBeCloseTo(path.points[lastIndex + 2], 5)
+      expect(end.x).toBeCloseTo(requireDefined(path.points[lastIndex], 'inbound-stream-paths.test.ts:107'), 5)
+      expect(end.y).toBeCloseTo(requireDefined(path.points[lastIndex + 1], 'inbound-stream-paths.test.ts:108'), 5)
+      expect(end.z).toBeCloseTo(requireDefined(path.points[lastIndex + 2], 'inbound-stream-paths.test.ts:109'), 5)
       expect(beyond.distanceTo(end)).toBeLessThan(1e-9)
 
       for (const value of [first.x, first.y, first.z, end.x, end.y, end.z]) {
@@ -118,12 +119,12 @@ describe('inbound stream paths', () => {
     const paths = createInboundPaths()
     for (let groupStart = 0; groupStart < paths.length; groupStart += 6) {
       for (let lane = 1; lane < 6; lane++) {
-        const previousRim = readPoint(paths[groupStart + lane - 1].points, 32)
-        const currentRim = readPoint(paths[groupStart + lane].points, 32)
+        const previousRim = readPoint(requireDefined(paths[groupStart + lane - 1], 'inbound-stream-paths.test.ts:122').points, 32)
+        const currentRim = readPoint(requireDefined(paths[groupStart + lane], 'inbound-stream-paths.test.ts:123').points, 32)
         expect(currentRim.distanceTo(previousRim)).toBeGreaterThanOrEqual(0.03)
 
-        const previousEnd = readPoint(paths[groupStart + lane - 1].points, 255)
-        const currentEnd = readPoint(paths[groupStart + lane].points, 255)
+        const previousEnd = readPoint(requireDefined(paths[groupStart + lane - 1], 'inbound-stream-paths.test.ts:126').points, 255)
+        const currentEnd = readPoint(requireDefined(paths[groupStart + lane], 'inbound-stream-paths.test.ts:127').points, 255)
         expect(currentEnd.distanceTo(previousEnd)).toBeLessThan(0.02)
       }
     }

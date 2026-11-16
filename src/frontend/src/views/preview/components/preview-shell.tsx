@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useInRouterContext } from 'react-router'
-import type { PreviewSectionId } from '../../../types/preview/preview.types'
+import type { PreviewSectionId } from '../../../types'
 import { navItems, sectionLabels } from '../preview-data'
 import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
 import { PreviewTopbar } from './preview-topbar'
-import { DataVerseMark } from '../../../components/branding/dataverse-mark'
+import { DataVerseMark } from '../../../components/branding'
 
 // Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
@@ -43,9 +43,7 @@ const readCollapsed = (): boolean => {
   }
 }
 
-export function Avatar({ initials, size = 'md' }: { initials: string; size?: 'sm' | 'md' }) {
-  return <span className={`avatar avatar-${size}`} aria-hidden="true">{initials}</span>
-}
+export { Avatar } from '../../../components/resource/avatar/avatar'
 
 // Sidebar nhớ trạng thái thu gọn giữa các lần tải trang.
 export function PreviewShell({

@@ -1,4 +1,5 @@
-import type { Person, PreviewNotification, Project, Workspace } from '../../types/preview/preview.types'
+import { requireDefined } from '../../utils/required-value'
+import type { Person, PreviewNotification, Project, Workspace } from '../../types'
 import { people } from './preview-fixtures'
 
 // Bộ dữ liệu "trường hợp xấu nhất" cho route dev-only /preview/*. KHÔNG import vào app
@@ -22,10 +23,10 @@ const descCap = (seed: string): string =>
 const nameCap = (seed: string): string =>
   `${seed} không gian xử lý dữ liệu chất lượng cao liên vùng tích hợp nguồn mở đa viện`.slice(0, 100)
 
-const roster = [people.anh, people.huy, people.ha, people.dung, people.khoi, people.vy]
+const roster = [people['anh'], people['huy'], people['ha'], people['dung'], people['khoi'], people['vy']]
 
 /** Người một chữ cái / emoji-first: kiểm cách khung sinh initials từ email (preview-data). */
-export const worstPeople: Person[] = [
+export const worstPeople: [Person, Person, Person, Person] = [
   { id: 'u-q', name: 'Q', role: 'Owner', initials: 'Q' },
   { id: 'u-emoji', name: '🚀 Phát', role: 'Data Engineer', initials: '🚀P' },
   { id: 'u-long', name: 'Bartholomew Fitzgerald Wiśniewska-Kowalczyk', role: 'Data Governance Lead', initials: 'BF' },
@@ -41,7 +42,7 @@ export const worstWorkspaces: readonly Workspace[] = [
     description: descCap('Không gian liên viện, dữ liệu khoan và địa vật lý.'),
     projects: 999, datasets: 999, members: 6, storageGb: 412, favorite: true, cover: 'blue',
     createdAt: '12/03/2024', updatedAt: 'vừa xong',
-    owner: people.anh, memberPreview: roster.slice(0, 3),
+    owner: people['anh'], memberPreview: roster.slice(0, 3),
   },
   {
     // 2: không có dấu cách nào để ngắt dòng + mô tả RỖNG (optional không người điền).
@@ -57,14 +58,14 @@ export const worstWorkspaces: readonly Workspace[] = [
     description: 'Chiến dịch và kênh trả phí.',
     projects: 1, datasets: 1, members: 2, storageGb: 12, favorite: false, cover: 'orange',
     createdAt: '18/04/2024', updatedAt: '1 ngày trước',
-    owner: people.huy, memberPreview: roster.slice(1, 3),
+    owner: people['huy'], memberPreview: roster.slice(1, 3),
   },
   {
     id: 'w-ws-dupe-b', name: 'Marketing', status: 'paused',
     description: 'Đội thứ hai, cùng tên đặt theo khách hàng.',
     projects: 1, datasets: 0, members: 1284, storageGb: 7, favorite: true, cover: 'pink',
     createdAt: '20/04/2024', updatedAt: '2 ngày trước',
-    owner: people.vy, memberPreview: roster.slice(0, 4),
+    owner: people['vy'], memberPreview: roster.slice(0, 4),
   },
   {
     // 5: emoji đứng đầu + tên không latin → thứ tự A→Z và glyph avatars.
@@ -72,7 +73,7 @@ export const worstWorkspaces: readonly Workspace[] = [
     description: 'Tự động hoá pipeline nạp và làm sạch.',
     projects: 2, datasets: 2, members: 3, storageGb: 88, favorite: false, cover: 'violet',
     createdAt: '22/05/2024', updatedAt: '5 giờ trước',
-    owner: worstPeople[1], memberPreview: [worstPeople[1], people.dung],
+    owner: worstPeople[1], memberPreview: [worstPeople[1], people['dung']],
   },
   {
     id: 'w-ws-jp', name: 'データ分析ワークスペース', status: 'archived',
@@ -88,7 +89,7 @@ export const worstWorkspaces: readonly Workspace[] = [
     description: 'Vận hành và tồn kho.',
     projects: 0, datasets: 0, members: 2, storageGb: 52, favorite: false, cover: 'cyan',
     createdAt: '11/08/2024', updatedAt: '12/03/2024 14:32',
-    owner: people.khoi, memberPreview: roster.slice(0, 2),
+    owner: people['khoi'], memberPreview: roster.slice(0, 2),
   },
 ]
 
@@ -115,7 +116,7 @@ export const worstProjects: readonly Project[] = [
     id: 'w-prj-one', code: 'PRJ-W002', name: 'A', status: 'paused',
     description: 'Dự án thử nghiệm đặt tên một chữ cái.',
     workspaceId: 'w-ws-dupe-a', workspaceName: workspaceNameOf('w-ws-dupe-a'), cover: 'blue',
-    members: [people.huy], createdAt: '18/03/2024 09:10', updatedAt: '1 ngày trước', owner: worstPeople[0],
+    members: [people['huy']], createdAt: '18/03/2024 09:10', updatedAt: '1 ngày trước', owner: worstPeople[0],
     dataset: {
       id: 'w-ds-one', fileName: 'a.csv', format: 'CSV', rows: 1, columns: 1, sizeMb: 0,
       importedAt: '18/03/2024 09:10', status: 'queued',
@@ -125,7 +126,7 @@ export const worstProjects: readonly Project[] = [
     id: 'w-prj-nomembers', code: 'PRJ-W003', name: 'Open Questions', status: 'active',
     description: 'Chưa chọn thành viên, chưa nạp tệp.',
     workspaceId: 'w-ws-dupe-b', workspaceName: workspaceNameOf('w-ws-dupe-b'), cover: 'pink',
-    members: [], createdAt: '20/04/2024 08:00', updatedAt: '2 ngày trước', owner: people.vy,
+    members: [], createdAt: '20/04/2024 08:00', updatedAt: '2 ngày trước', owner: people['vy'],
     dataset: null,
   },
   {
@@ -134,7 +135,7 @@ export const worstProjects: readonly Project[] = [
     id: 'w-prj-round', code: 'PRJ-W004', name: 'Churn Pilot', status: 'processing',
     description: 'Mô hình dự báo rời bỏ, chạy thử quý 4.',
     workspaceId: 'w-ws-unbreak', workspaceName: workspaceNameOf('w-ws-unbreak'), cover: 'cyan',
-    members: roster.slice(0, 2), createdAt: '02/04/2024 14:05', updatedAt: '6 giờ trước', owner: people.ha,
+    members: roster.slice(0, 2), createdAt: '02/04/2024 14:05', updatedAt: '6 giờ trước', owner: people['ha'],
     dataset: {
       id: 'w-ds-round', fileName: 'churn_pilot_2026_11_v2.csv', format: 'CSV',
       rows: 999_500, columns: 240, sizeMb: 1_024, importedAt: '03/04/2024 09:15', status: 'processing',
@@ -166,7 +167,7 @@ export const worstProjects: readonly Project[] = [
     description: 'Chạy đêm, đồng bộ nguồn mở.',
     workspaceId: 'w-ws-absdate', workspaceName: workspaceNameOf('w-ws-absdate'), cover: 'blue',
     members: [worstPeople[3], ...roster.slice(3, 6)], createdAt: '28/04/2024 09:30', updatedAt: '01/11/2026 03:00',
-    owner: people.dung, dataset: null,
+    owner: people['dung'], dataset: null,
   },
 ]
 
@@ -175,12 +176,12 @@ export const worstProjects: readonly Project[] = [
 // thanh phân trang vẽ bao nhiêu nút số, và biểu đồ "Projects per Workspace" cắt ở top 5
 // có nói rõ phần bị cắt hay không.
 const manyWorkspaces = (): Workspace[] => Array.from({ length: 40 }, (_unused, index) => {
-  const owner = roster[index % roster.length]
+  const owner = requireDefined(roster[index % roster.length], 'generated workspace owner')
   return {
     id: `m-ws-${index}`, name: `Khu vực dữ liệu ${index + 1}`, status: index % 7 === 0 ? 'archived' : 'active',
     description: `Không gian mẫu thứ ${index + 1} trong bộ dữ liệu lớn.`,
     projects: 5, datasets: 5, members: (index % 9) + 1, storageGb: 20 + index,
-    favorite: index % 5 === 0, cover: (['blue', 'violet', 'green', 'pink', 'orange', 'cyan'] as const)[index % 6],
+    favorite: index % 5 === 0, cover: requireDefined((['blue', 'violet', 'green', 'pink', 'orange', 'cyan'] as const)[index % 6], 'generated workspace cover'),
     createdAt: '12/03/2024', updatedAt: `${index + 1} giờ trước`,
     owner, memberPreview: roster.slice(0, (index % 4) + 1),
   }
@@ -205,10 +206,10 @@ const manyProjects = (): Project[] => manyWorkspaces().flatMap((workspace, index
 // 'one': một workspace · một project · MỌI số đếm đúng 1 — chỗ nhãn số nhiều và dấu "+N"
 // lộ ra. Project đơn phải thuộc về workspace đơn, nếu không tile sẽ ghi "0 projects" ngay
 // cạnh bảng liệt kê chính nó: bộ đếm lệch nhau làm mất nghĩa của cả trạng thái này.
-const singleWorkspace: Workspace = { ...worstWorkspaces[1], projects: 1 }
+const singleWorkspace: Workspace = { ...requireDefined(worstWorkspaces[1], 'single workspace fixture'), projects: 1 }
 export const oneWorkspace: readonly Workspace[] = [singleWorkspace]
 export const oneProject: readonly Project[] = [{
-  ...worstProjects[1],
+  ...requireDefined(worstProjects[1], 'single project fixture'),
   workspaceId: singleWorkspace.id,
   workspaceName: singleWorkspace.name,
   members: [worstPeople[0]],
@@ -269,11 +270,11 @@ const manyNotifications = (projects: readonly Project[]): PreviewNotification[] 
   Array.from({ length: 120 }, (_unused, index) => {
     const project = projects[index % projects.length]
     return {
-      id: `m-nt-${index}`, tone: (['ok', 'warn', 'upload', 'info'] as const)[index % 4],
-      kind: (['processing', 'quality', 'import', 'member', 'export', 'system'] as const)[index % 6],
-      title: `Luồng xử lý #${index + 1} hoàn tất`, context: `Project ${project.name}`,
+      id: `m-nt-${index}`, tone: requireDefined((['ok', 'warn', 'upload', 'info'] as const)[index % 4], 'notification tone'),
+      kind: requireDefined((['processing', 'quality', 'import', 'member', 'export', 'system'] as const)[index % 6], 'notification kind'),
+      title: `Luồng xử lý #${index + 1} hoàn tất`, context: `Project ${requireDefined(project, 'preview-worst-case.ts:275').name}`,
       at: `${index + 1} giờ trước`, atFull: `${String(23 - (index % 24)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}, 20/01/2025`,
-      unread: true, projectId: project.id,
+      unread: true, projectId: requireDefined(project, 'preview-worst-case.ts:277').id,
       description: `Thông báo mẫu thứ ${index + 1} trong bộ dữ liệu lớn, dùng để kiểm phân trang và bộ đếm chưa đọc.`,
     }
   })

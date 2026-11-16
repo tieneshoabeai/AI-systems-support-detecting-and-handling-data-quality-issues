@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PreviewSectionNavigator, PreviewSessionModel, PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
-import type {
-  NewReportInput, NotificationPrefKey, Person, PreviewActionId, PreviewDialogRequest, PreviewInfoRequest, PreviewMenuOrigin,
-  PreviewMenuRequest, PreviewMutationResult, PreviewProjectPanel, PreviewProjectWizard, PreviewWorkspacePanel,
-  NewProjectInput, PreviewSectionId, PreviewTarget, PreviewToast, PreviewToastTone, ProfileEdit, ProjectStatus,
-  WorkspaceEdit, WorkspaceStatus, NewWorkspaceInput,
-} from '../../types/preview/preview.types'
+import type { PreviewSectionNavigator, PreviewSessionModel, PreviewUniverseNavigator } from '../../types'
+import type { NewReportInput, NotificationPrefKey, Person, PreviewActionId, PreviewDialogRequest, PreviewInfoRequest, PreviewMenuOrigin, PreviewMenuRequest, PreviewMutationResult, PreviewProjectPanel, PreviewProjectWizard, PreviewWorkspacePanel, NewProjectInput, PreviewSectionId, PreviewTarget, PreviewToast, PreviewToastTone, ProfileEdit, ProjectStatus, WorkspaceEdit, WorkspaceStatus, NewWorkspaceInput } from '../../types'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 import { previewHref, previewNavigateEvent, universeUrl } from '../../services/preview/preview-route'
-import type { PreviewRouteIds } from '../../types/preview/preview-route.types'
+import type { PreviewRouteIds } from '../../types'
 import { usePreviewStore } from './use-preview-store'
 import { usePreviewColorScheme } from './use-preview-color-scheme'
 
@@ -67,7 +62,7 @@ export const usePreviewSessionModel = (
 
   const pushToast = useCallback((text: string, tone: PreviewToastTone, onUndo?: () => boolean | void) => {
     const id = `tst-${++toastSeq.current}`
-    setToasts(current => [...current.slice(-2), { id, text, tone, undoLabel: onUndo ? 'Hoàn tác' : undefined, onUndo }])
+    setToasts(current => [...current.slice(-2), { id, text, tone, ...(onUndo ? { undoLabel: 'Hoàn tác', onUndo } : {}) }])
     toastTimers.current.set(id, window.setTimeout(() => dismissToast(id), onUndo ? toastLifetimeMs : shortToastLifetimeMs))
   }, [dismissToast])
 

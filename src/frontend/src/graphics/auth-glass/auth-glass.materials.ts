@@ -1,6 +1,6 @@
 import { Color, MeshPhysicalMaterial, ShaderMaterial, Vector2, Vector4 } from 'three'
 import { authGlassConfig } from './auth-glass.config'
-import { CONVEX_LENS_GLSL } from '../convex-lens.glsl'
+import { CONVEX_LENS_GLSL } from '../common/convex-lens.glsl'
 
 const { slab, glass } = authGlassConfig
 

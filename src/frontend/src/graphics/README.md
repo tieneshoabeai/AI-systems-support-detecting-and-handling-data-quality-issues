@@ -1,5 +1,16 @@
 # graphics
 
+## Shared helpers (Phase 3)
+
+`common/typed-objects.ts` chứa `isMesh`, `isDrawable` và `uniformValue` dùng chung
+giữa các nhóm scene/model. `common/convex-lens.glsl.ts` giữ shader profile thấu kính
+được Login và kính Project cùng sử dụng. Nội dung helper/shader không đổi khi di chuyển.
+`common/index.ts` là public entry nhỏ; caller cần giữ loading boundary có thể import
+trực tiếp file con. Không chuyển helper sang `utils` hoặc đưa React vào tầng graphics.
+
+Chưa có component React 3D đủ tổng quát để chuyển sang `components/graphics/common`;
+không tạo thư mục rỗng hoặc đổi ownership của scene trong phase này.
+
 ## 1. Mục đích
 
 Dựng model, geometry, vật liệu, shader và render pass bằng TypeScript và Three.js. Thành phần React, lifecycle canvas và sự kiện chọn/focus thuộc [components](../components/README.md).

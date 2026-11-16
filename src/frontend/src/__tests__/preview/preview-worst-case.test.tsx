@@ -176,7 +176,7 @@ it('bộ "worst": hộp thư chịu được tiêu đề dài, id treo và mô t
   expect(note?.textContent).toContain('không còn tồn tại')
 })
 
-it('đổi tên workspace phải đổi luôn tên in trên mọi project của nó', () => {
+it('đổi tên workspace phải đổi luôn tên in trên mọi project của nó', async () => {
   // Project lưu một bản sao tên workspace để bảng Projects vẽ được mà không phải join, nên
   // đổi tên workspace phải vá cả hai mảng. Thiếu một vế thì cùng một màn hình hiện hai tên
   // cho cùng một không gian: sai dữ liệu, không phải sai trình bày. Test khoá cả hai đường
@@ -209,10 +209,10 @@ it('đổi tên workspace phải đổi luôn tên in trên mọi project của 
     }
   }
 
-  previewMockStore.rename('workspace', renamed!.id, 'Đổi tên bằng menu chuột')
+  await previewMockStore.rename('workspace', renamed!.id, 'Đổi tên bằng menu chuột')
   expectAllSynced('Đổi tên bằng menu chuột')
 
-  previewMockStore.updateWorkspace(renamed!.id, { name: 'Đổi tên bằng modal', description: renamed!.description })
+  await previewMockStore.updateWorkspace(renamed!.id, { name: 'Đổi tên bằng modal', description: renamed!.description })
   expectAllSynced('Đổi tên bằng modal')
 
   renderFrame(<ProjectsPreviewView />)
@@ -224,9 +224,9 @@ it('email suy từ tên giữ nguyên chữ Đ — dấu không được để l
   // suy từ tên. 'đ' (U+0111) là codepoint nguyên khối: normalize('NFD') không tách được dấu
   // và bước lọc [^a-z]+ phía sau XÓA PHĂNG cả chữ cái, từng in ra 'pham.van.uc@…' và
   // 'ang.ngoc.khoa@…'. Email thiếu chữ cái là dữ liệu sai chứ không phải trình bày sai.
-  expect(emailForPerson(people.dung)).toBe('pham.van.duc@acmecorp.com')
-  expect(emailForPerson(people.khoi)).toBe('dang.ngoc.khoa@acmecorp.com')
+  expect(emailForPerson(people['dung'])).toBe('pham.van.duc@acmecorp.com')
+  expect(emailForPerson(people['khoi'])).toBe('dang.ngoc.khoa@acmecorp.com')
   // Chiều ngược lại cũng phải giữ: dấu thanh vẫn bị bỏ, tên không có chữ ASCII nào vẫn có fallback.
-  expect(emailForPerson(people.vy)).toBe('bui.ho.thao.vy@acmecorp.com')
+  expect(emailForPerson(people['vy'])).toBe('bui.ho.thao.vy@acmecorp.com')
   expect(emailForPerson({ id: 'u-x', name: '🚀', role: 'Member', initials: 'X' })).toBe('thanh-vien@acmecorp.com')
 })

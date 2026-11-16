@@ -1,5 +1,5 @@
 import { ApiError } from '../lib/api-error'
-import type { ApiConfig } from '../types/api/api.types'
+import type { ApiConfig } from '../types'
 
 export const DEFAULT_API_TIMEOUT_MS = 30_000
 

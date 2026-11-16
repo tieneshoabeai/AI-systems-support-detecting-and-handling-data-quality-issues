@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { WorkspacesPreviewView } from '../../views/preview/workspaces-2d.view'
@@ -54,7 +55,7 @@ const cardTitles = (): string[] =>
 // __tests__/workspace-3d/local-csv-viewer.test.tsx, nơi đọc CSV đã chạy thật từ trước.
 const csvFile = (name: string, content: string): File => {
   const file = new File([content], name, { type: 'text/csv' })
-  Object.defineProperty(file, 'arrayBuffer', { value: async () => new TextEncoder().encode(content).buffer })
+  Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.resolve(new TextEncoder().encode(content).buffer) })
   return file
 }
 
@@ -63,6 +64,8 @@ const csvFile = (name: string, content: string): File => {
 const attachCsv = async (dialog: HTMLElement, name: string, content: string): Promise<void> => {
   await act(async () => {
     fireEvent.change(within(dialog).getByLabelText('Chọn tập dữ liệu CSV'), { target: { files: [csvFile(name, content)] } })
+
+    return Promise.resolve()
   })
 }
 
@@ -76,7 +79,7 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
   expect(cardCount()).toBe(28)
   expect(screen.getByText(`Hiển thị 1–28 của ${wsTotal} Workspaces`)).toBeDefined()
   const coverVariants = new Map(Array.from(document.querySelectorAll<HTMLElement>('.resource-card .cover-art'))
-    .map(cover => [cover.dataset.seed, cover.dataset.art]))
+    .map(cover => [cover.dataset['seed'], cover.dataset['art']]))
   expect(new Set(coverVariants.values()).size).toBeGreaterThan(1)
 
   // Tìm kiếm đứng TRONG toolbar của chính trang (chủ batch 03/11 bỏ ô toàn cục ở topbar): nó
@@ -86,7 +89,7 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
   expect(cardCount()).toBe(1)
   expect(cardTitles()).toEqual(['Finance'])
   const filteredCover = document.querySelector<HTMLElement>('.resource-card .cover-art')!
-  expect(filteredCover.dataset.art).toBe(coverVariants.get(filteredCover.dataset.seed))
+  expect(filteredCover.dataset['art']).toBe(coverVariants.get(filteredCover.dataset['seed']))
 
   fireEvent.change(search(), { target: { value: 'không tồn tại' } })
   expect(screen.getByText('Không có kết quả')).toBeDefined()
@@ -179,7 +182,7 @@ it('modal "Thông tin Workspace": mở từ ⋯ của header detail, đổi tên
   openWorkspacePanel('Thông tin Workspace')
   const dialog = screen.getByRole('dialog', { name: 'Thông tin Workspace' })
   // Form mồi bằng dữ liệu thật của workspace, không phải placeholder đẹp như ảnh.
-  const nameInput = within(dialog).getByRole('textbox', { name: 'Tên Workspace' }) as HTMLInputElement
+  const nameInput = within(dialog).getByRole<HTMLInputElement>('textbox', { name: 'Tên Workspace' })
   expect(nameInput.value).toBe('Acme Corp')
   fireEvent.change(nameInput, { target: { value: 'Acme Holdings' } })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }))
@@ -293,14 +296,14 @@ it('wizard "Tạo Project": 4 bước, bước Import bắt buộc một .csv, r
   // đo vừa đọc từ tệp, và trạng thái 'queued' vì frame này không chạy pipeline làm sạch.
   expect(within(dialog).getByText('Tạo Project thành công!')).toBeDefined()
   const created = previewMockStore.getState().projects[0]
-  expect(created.name).toBe('Đánh giá chất lượng dữ liệu')
-  expect(created.workspaceId).toBe('ws-acme')
-  expect(created.dataset?.fileName).toBe('orders.csv')
-  expect(created.dataset?.rows).toBe(2)
-  expect(created.dataset?.columns).toBe(3)
-  expect(created.dataset?.status).toBe('queued')
+  expect(requireDefined(created, 'preview-views.test.tsx:297').name).toBe('Đánh giá chất lượng dữ liệu')
+  expect(requireDefined(created, 'preview-views.test.tsx:298').workspaceId).toBe('ws-acme')
+  expect(requireDefined(created, 'preview-views.test.tsx:299').dataset?.fileName).toBe('orders.csv')
+  expect(requireDefined(created, 'preview-views.test.tsx:300').dataset?.rows).toBe(2)
+  expect(requireDefined(created, 'preview-views.test.tsx:301').dataset?.columns).toBe(3)
+  expect(requireDefined(created, 'preview-views.test.tsx:302').dataset?.status).toBe('queued')
   // Vai trò chọn ở bước 3 phải đi vào bản ghi, không chỉ nằm trên chip.
-  expect(created.members.map(person => `${person.name}:${person.role}`)).toEqual(['Trần Quang Huy:Admin'])
+  expect(requireDefined(created, 'preview-views.test.tsx:304').members.map(person => `${person.name}:${person.role}`)).toEqual(['Trần Quang Huy:Admin'])
   expect(await screen.findByText('Đã tạo project “Đánh giá chất lượng dữ liệu” trong Acme Corp kèm orders.csv')).toBeDefined()
 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Xem Project' }))
@@ -491,7 +494,7 @@ it('home: đúng năm khối — 3 panel tổng quan + 2 danh sách gần đây'
   expect(screen.getByRole('heading', { level: 2, name: 'Workspace gần đây' })).toBeDefined()
   expect(screen.getByRole('heading', { level: 2, name: 'Projects gần đây' })).toBeDefined()
   // Bộ chọn thời gian (nhãn tiếng Anh theo đặc tả).
-  expect((screen.getByRole('combobox', { name: 'Time range' }) as HTMLSelectElement).value).toBe('30 ngày gần nhất')
+  expect((screen.getByRole<HTMLSelectElement>('combobox', { name: 'Time range' })).value).toBe('30 ngày gần nhất')
 })
 
 it('home: stat, donut và bar cùng đọc một nguồn store (không bịa số)', () => {
@@ -527,7 +530,7 @@ it('home: Workspaces là lưới tile (giữ .mini-card) và bảng Project có 
   expect(headers).toContain('Data File')
   const rows = document.querySelectorAll('.home-table tbody tr')
   expect(rows).toHaveLength(Math.min(10, prjTotal))
-  expect(rows[0].querySelector('.row-index')?.textContent).toBe('1')
+  expect(requireDefined(rows[0], 'preview-views.test.tsx:531').querySelector('.row-index')?.textContent).toBe('1')
 
   // Hai khung tự lướt nên chân trang KHÔNG còn dòng "Hiển thị 1–12 của 12…" và ô chọn số
   // dòng mỗi trang. Khoá bằng phủ định: thêm lại một trong hai thứ là fail.
@@ -693,7 +696,7 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
   expect(screen.getByTestId('dataset-scene')).toBeDefined()
   expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
-  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan'], ['Detection', 'orange']]) {
+  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan'], ['Detection', 'orange']] as const) {
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe(theme)
   }
@@ -720,7 +723,7 @@ it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh
   expect(document.querySelector('.pj-band')).toBeNull()
   expect(document.querySelector('.pj-dataset')?.parentElement?.className).toBe('pj-head-row')
   expect(screen.getByRole('link', { name: 'Trang chủ Processing' }).getAttribute('href')).toBe('/processing')
-  expect((screen.getByRole('button', { name: 'Tải file kết quả' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tải file kết quả' })).disabled).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
   expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
   fireEvent.click(screen.getByText('Focus hoàn tất'))

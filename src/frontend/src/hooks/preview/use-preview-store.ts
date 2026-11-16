@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { PreviewStoreState, Project, Workspace } from '../../types/preview/preview.types'
+import type { PreviewStoreState, Project, Workspace } from '../../types'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 
 // Cầu nối React ↔ mock store. useSyncExternalStore là cách chuẩn để đọc một store

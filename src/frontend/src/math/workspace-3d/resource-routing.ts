@@ -1,5 +1,6 @@
+import { requireDefined } from '../../utils/required-value'
 import { CubicBezierCurve3, CurvePath, Vector3 } from 'three'
-import type { Point3, PositionedResource, ResourceLayout, ResourcePort, ResourceRoute } from '../../types/workspace-3d/resource-map.types'
+import type { Point3, PositionedResource, ResourceLayout, ResourcePort, ResourceRoute } from '../../types'
 import { CONNECTION, connectionRadius } from './resource-connection-profile'
 
 export function routeCurve(route: ResourceRoute): CurvePath<Vector3> {
@@ -8,8 +9,8 @@ export function routeCurve(route: ResourceRoute): CurvePath<Vector3> {
   return path
 }
 
-const world = (node: PositionedResource, port: ResourcePort): Point3 => port.position.map((value, i) => value + node.position[i]) as Point3
-const offset = (point: Point3, normal: Point3, distance: number): Point3 => point.map((value, i) => value + normal[i] * distance) as Point3
+const world = (node: PositionedResource, port: ResourcePort): Point3 => port.position.map((value, i) => value + requireDefined(node.position[i], 'resource-routing.ts:12')) as Point3
+const offset = (point: Point3, normal: Point3, distance: number): Point3 => point.map((value, i) => value + requireDefined(normal[i], 'resource-routing.ts:13') * distance) as Point3
 
 // Endpoints are on the body; only transparent tubes occupy the routing corridor.
 export function routeResources(input: readonly PositionedResource[], radius = connectionRadius(input.map(node => node.resource))): Pick<ResourceLayout, 'nodes' | 'edges'> {

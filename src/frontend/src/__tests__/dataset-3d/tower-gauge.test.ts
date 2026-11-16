@@ -1,15 +1,17 @@
+import { numberList } from '../support/values'
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { expect, it, vi } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
-import type { ProceduralModelRuntime } from '../../graphics/holographic-core/generated-core'
+import type { ProceduralModelRuntime } from '../../graphics'
 import { CONTEXT_GAUGES, HERO_GAUGES } from '../../graphics/holographic-core/tower-gauge-config'
 import { MOCK_QUALITY_SCORES } from '../../graphics/holographic-core/tower-gauge-data'
 
 it('updates context color buffers without altering windows, then survives reset and detach', () => {
   const api = createHolographicCoreProductModel()
   try {
-    const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
-    const windows = (id: string) => runtime.meshes[id].getObjectByName('tower-window-panel') as THREE.InstancedMesh
+    const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
+    const windows = (id: string) => requireDefined(runtime.meshes[id], 'tower-gauge.test.ts:13').getObjectByName('tower-window-panel') as THREE.InstancedMesh
     const targets = CONTEXT_GAUGES
     const before = targets.map(target => {
       const mesh = windows(target.towerId)
@@ -19,10 +21,10 @@ it('updates context color buffers without altering windows, then survives reset 
     for (const score of [0, 1]) {
       api.applyQualityScores(MOCK_QUALITY_SCORES.map(row => ({ ...row, score })))
       const mesh = windows('tower-01-back-high')
-      const levels: number[] = mesh.userData.markLevels
+      const levels = numberList(mesh.userData['markLevels'])
       const top = Math.max(...levels)
       for (let index = 0; index < mesh.count; index += 1) {
-        const red = score === 0 && (top - levels[index]) % 2 === 1
+        const red = score === 0 && (top - requireDefined(levels[index], 'tower-gauge.test.ts:26')) % 2 === 1
         const expected = new THREE.Color(red ? '#f43f5e' : '#34d399').multiplyScalar((red ? 4.7 : 1.7) * 0.45)
         const actual = new THREE.Color()
         mesh.getColorAt(index, actual)
@@ -34,7 +36,7 @@ it('updates context color buffers without altering windows, then survives reset 
     api.applyQualityScores(MOCK_QUALITY_SCORES)
     const buffers = before.flatMap(entry => [entry.mesh.instanceMatrix, entry.mesh.instanceColor!])
     for (const target of HERO_GAUGES) {
-      const column = runtime.meshes[target.towerId].getObjectByName('hero-glass-arms') as THREE.InstancedMesh
+      const column = requireDefined(runtime.meshes[target.towerId], 'tower-gauge.test.ts:38').getObjectByName('hero-glass-arms') as THREE.InstancedMesh
       buffers.push(column.instanceMatrix, column.instanceColor!)
     }
     const versions = buffers.map(buffer => buffer.version)
@@ -58,12 +60,12 @@ it('updates context color buffers without altering windows, then survives reset 
 it('paints every bay on a floor together, with missing completeness at the top', () => {
   const api = createHolographicCoreProductModel()
   try {
-    const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
+    const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
     api.applyQualityScores(MOCK_QUALITY_SCORES.map(row => ({ ...row, score: 0.5 })))
-    const mesh = runtime.meshes['tower-01-back-high'].getObjectByName('tower-window-panel') as THREE.InstancedMesh
+    const mesh = requireDefined(runtime.meshes['tower-01-back-high'], 'tower-gauge.test.ts:64').getObjectByName('tower-window-panel') as THREE.InstancedMesh
     const floors = new Map<number, string>()
     for (let index = 0; index < mesh.count; index += 1) {
-      const level = mesh.userData.markLevels[index]
+      const level = requireDefined(numberList(mesh.userData['markLevels'])[index], 'window level')
       const color = Array.from(mesh.instanceColor!.array.slice(index * 3, index * 3 + 3)).join(',')
       if (floors.has(level)) expect(color).toBe(floors.get(level))
       floors.set(level, color)
@@ -84,7 +86,7 @@ it('paints every bay on a floor together, with missing completeness at the top',
 it('builds full white square cores, four ten-band glass bars, metal corners and matching caps', () => {
   const api = createHolographicCoreProductModel()
   try {
-    const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
+    const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
     const glasses: THREE.InstancedMesh[] = []
     api.model.traverse(object => { if (object.name === 'hero-glass-arms') glasses.push(object as THREE.InstancedMesh) })
     expect(glasses).toHaveLength(6)
@@ -92,21 +94,21 @@ it('builds full white square cores, four ten-band glass bars, metal corners and 
     expect(new Set(glasses.map(mesh => mesh.material)).size).toBe(1)
     for (const target of HERO_GAUGES) {
       const tower = runtime.meshes[target.towerId]
-      const glass = tower.getObjectByName('hero-glass-arms') as THREE.InstancedMesh
-      const core = tower.getObjectByName('hero-square-core') as THREE.Mesh
-      const corners = tower.getObjectByName('hero-metal-corners') as THREE.InstancedMesh
-      const cap = tower.getObjectByName('hero-cap') as THREE.Mesh
+      const glass = requireDefined(tower, 'tower-gauge.test.ts:96').getObjectByName('hero-glass-arms') as THREE.InstancedMesh
+      const core = requireDefined(tower, 'tower-gauge.test.ts:97').getObjectByName('hero-square-core') as THREE.Mesh
+      const corners = requireDefined(tower, 'tower-gauge.test.ts:98').getObjectByName('hero-metal-corners') as THREE.InstancedMesh
+      const cap = requireDefined(tower, 'tower-gauge.test.ts:99').getObjectByName('hero-cap') as THREE.Mesh
       expect(glass.count).toBe(40)
       expect((glass.material as THREE.MeshPhysicalMaterial).transparent).toBe(true)
       expect(corners.count).toBe(4)
       expect(cap.material).toBe(corners.material)
       expect((cap.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('0b1430')
       expect((core.material as THREE.MeshBasicMaterial).color.toArray()).toEqual([0.5, 0.5, 0.5])
-      expect((tower.getObjectByName('hero-metal-edge') as THREE.LineSegments).material).toBeInstanceOf(THREE.LineBasicMaterial)
+      expect((requireDefined(tower, 'tower-gauge.test.ts:106').getObjectByName('hero-metal-edge') as THREE.LineSegments).material).toBeInstanceOf(THREE.LineBasicMaterial)
       for (const name of ['tower-corner-post', 'tower-floor-frame', 'tower-window-panel', 'tower-roof-outline', 'technical-linework', 'tower-hero-gauge']) {
-        expect(tower.getObjectByName(name)).toBeUndefined()
+        expect(requireDefined(tower, 'tower-gauge.test.ts:108').getObjectByName(name)).toBeUndefined()
       }
-      const bounds = tower.geometry.boundingBox!
+      const bounds = requireDefined(tower, 'tower-gauge.test.ts:110').geometry.boundingBox!
       const length = bounds.max.x * 2 * 2 / 3
       core.geometry.computeBoundingBox()
       const coreSize = core.geometry.boundingBox!.getSize(new THREE.Vector3())
@@ -143,10 +145,10 @@ it('builds full white square cores, four ten-band glass bars, metal corners and 
       expect(capBounds.max.y - capBounds.min.y).toBeCloseTo(oldCapHeight / 2, 6)
       expect(coreSize.y).toBeCloseTo(bounds.max.y * 2 - oldCapHeight, 6)
       const sorted = [...levels].sort((a, b) => a - b)
-      expect(sorted[9] + cellHeight / 2).toBeCloseTo(capBounds.min.y, 6)
-      expect(sorted[0] - cellHeight / 2 - bounds.min.y).toBeCloseTo(0.016, 6)
+      expect(requireDefined(sorted[9], 'tower-gauge.test.ts:147') + cellHeight / 2).toBeCloseTo(capBounds.min.y, 6)
+      expect(requireDefined(sorted[0], 'tower-gauge.test.ts:148') - cellHeight / 2 - bounds.min.y).toBeCloseTo(0.016, 6)
       for (let i = 1; i < sorted.length; i += 1) {
-        expect(sorted[i] - sorted[i - 1] - cellHeight).toBeCloseTo(0.005, 6)
+        expect(requireDefined(sorted[i], 'tower-gauge.test.ts:150') - requireDefined(sorted[i - 1], 'tower-gauge.test.ts:150') - cellHeight).toBeCloseTo(0.005, 6)
       }
       const positions = cap.geometry.getAttribute('position')
       const top: number[] = []
@@ -158,7 +160,7 @@ it('builds full white square cores, four ten-band glass bars, metal corners and 
       expect(Math.max(...top) / Math.max(...bottom)).toBeCloseTo(0.75, 6)
     }
     for (const target of CONTEXT_GAUGES) {
-      expect(runtime.meshes[target.towerId].getObjectByName('hero-glass-arms')).toBeUndefined()
+      expect(requireDefined(runtime.meshes[target.towerId], 'tower-gauge.test.ts:162').getObjectByName('hero-glass-arms')).toBeUndefined()
     }
   } finally { api.dispose() }
 })
@@ -166,10 +168,10 @@ it('builds full white square cores, four ten-band glass bars, metal corners and 
 it('updates the four glass faces together while keeping the full core and matrices fixed', () => {
   const api = createHolographicCoreProductModel()
   try {
-    const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
+    const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
     const tower = runtime.meshes['tower-12']
-    const glass = tower.getObjectByName('hero-glass-arms') as THREE.InstancedMesh
-    const core = tower.getObjectByName('hero-square-core') as THREE.Mesh
+    const glass = requireDefined(tower, 'tower-gauge.test.ts:172').getObjectByName('hero-glass-arms') as THREE.InstancedMesh
+    const core = requireDefined(tower, 'tower-gauge.test.ts:173').getObjectByName('hero-square-core') as THREE.Mesh
     const matrix = glass.instanceMatrix.array.slice()
     const geometry = glass.geometry
     const material = glass.material
@@ -186,13 +188,13 @@ it('updates the four glass faces together while keeping the full core and matric
     api.applyQualityScores(empty)
     api.resetMotion()
     expect(glass.instanceMatrix.array).toEqual(matrix)
-    expect(tower.getObjectByName('selection-contour')!.visible).toBe(true)
+    expect(requireDefined(tower, 'tower-gauge.test.ts:190').getObjectByName('selection-contour')!.visible).toBe(true)
     expect((core.material as THREE.MeshBasicMaterial).color.toArray()).toEqual([0.5, 0.5, 0.5])
     api.applyQualityScores(full)
     expect(glass.instanceColor!.array).toEqual(fullColors)
     expect(glass.geometry).toBe(geometry)
     expect(glass.material).toBe(material)
-    const completeness = runtime.meshes['tower-10'].getObjectByName('hero-glass-arms') as THREE.InstancedMesh
+    const completeness = requireDefined(runtime.meshes['tower-10'], 'tower-gauge.test.ts:196').getObjectByName('hero-glass-arms') as THREE.InstancedMesh
     api.applyQualityScores(empty)
     const actual = new THREE.Color()
     completeness.getColorAt(9, actual)
@@ -206,15 +208,15 @@ it('updates the four glass faces together while keeping the full core and matric
 it('rejects invalid updates before changing any visible score', () => {
   const api = createHolographicCoreProductModel()
   try {
-    const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
-    const column = runtime.meshes['tower-10'].getObjectByName('hero-glass-arms') as THREE.InstancedMesh
+    const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
+    const column = requireDefined(runtime.meshes['tower-10'], 'tower-gauge.test.ts:211').getObjectByName('hero-glass-arms') as THREE.InstancedMesh
     const before = column.instanceColor!.array.slice()
     expect(() => api.applyQualityScores(MOCK_QUALITY_SCORES.slice(1))).toThrow('missing score')
     // Removing a tower must not shrink the source's 18-score contract.
     expect(() => api.applyQualityScores(MOCK_QUALITY_SCORES.filter(row =>
       row.scope !== 'sliceA' || row.dimension !== 'completeness',
     ))).toThrow('missing score sliceA/completeness')
-    expect(() => api.applyQualityScores([...MOCK_QUALITY_SCORES, MOCK_QUALITY_SCORES[0]])).toThrow('duplicate score')
+    expect(() => api.applyQualityScores([...MOCK_QUALITY_SCORES, requireDefined(MOCK_QUALITY_SCORES[0], 'tower-gauge.test.ts:218')])).toThrow('duplicate score')
     for (const score of [NaN, Infinity, -0.1, 1.1]) {
       expect(() => api.applyQualityScores(MOCK_QUALITY_SCORES.map((row, index) => index === 0 ? { ...row, score } : row))).toThrow('finite and inside 0..1')
     }
@@ -227,11 +229,11 @@ it('disposes shared gauge resources once and removes columns before the model sw
   const api = createHolographicCoreProductModel()
   const columns: THREE.InstancedMesh[] = []
   api.model.traverse(object => { if (object.name === 'hero-glass-arms') columns.push(object as THREE.InstancedMesh) })
-  const geometryDispose = vi.spyOn(columns[0].geometry, 'dispose')
-  const materialDispose = vi.spyOn(columns[0].material as THREE.Material, 'dispose')
+  const geometryDispose = vi.spyOn(requireDefined(columns[0], 'tower-gauge.test.ts:231').geometry, 'dispose')
+  const materialDispose = vi.spyOn(requireDefined(columns[0], 'tower-gauge.test.ts:232').material as THREE.Material, 'dispose')
   const instanceDispose = columns.map(mesh => vi.spyOn(mesh, 'dispose'))
-  const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
-  const corners = runtime.meshes['tower-10'].getObjectByName('hero-metal-corners') as THREE.InstancedMesh
+  const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
+  const corners = requireDefined(runtime.meshes['tower-10'], 'tower-gauge.test.ts:235').getObjectByName('hero-metal-corners') as THREE.InstancedMesh
   const metalDispose = vi.spyOn(corners.material as THREE.Material, 'dispose')
   const cornersDispose = vi.spyOn(corners, 'dispose')
   api.dispose()

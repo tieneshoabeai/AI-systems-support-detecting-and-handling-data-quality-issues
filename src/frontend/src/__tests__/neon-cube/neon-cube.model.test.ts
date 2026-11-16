@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { NEON_CUBE, createNeonCubeModel } from '../../graphics/neon-cube/neon-cube.model'
@@ -18,10 +19,10 @@ describe('neon glass cube model', () => {
   const { group, parts, materials } = model
 
   it('keeps the four primary parts on the approved parent chain', () => {
-    expect(parts['base-outer'].parent).toBe(group)
-    expect(parts['base-inner'].parent).toBe(parts['base-outer'])
-    expect(parts['cube-outer'].parent).toBe(parts['base-inner'])
-    expect(parts['cube-inner'].parent).toBe(parts['cube-outer'])
+    expect(requireDefined(parts['base-outer'], 'neon-cube.model.test.ts:22').parent).toBe(group)
+    expect(requireDefined(parts['base-inner'], 'neon-cube.model.test.ts:23').parent).toBe(parts['base-outer'])
+    expect(requireDefined(parts['cube-outer'], 'neon-cube.model.test.ts:24').parent).toBe(parts['base-inner'])
+    expect(requireDefined(parts['cube-inner'], 'neon-cube.model.test.ts:25').parent).toBe(parts['cube-outer'])
   })
 
   it('builds the outer platform with a real hole-sized footprint', () => {
@@ -45,7 +46,7 @@ describe('neon glass cube model', () => {
   })
 
   it('rests the outer cube on the inner platform top at y=0.14', () => {
-    const panels = worldBox(parts['panel-grid'])
+    const panels = worldBox(requireDefined(parts['panel-grid'], 'neon-cube.model.test.ts:49'))
     const size = panels.getSize(new THREE.Vector3())
     expect(size.x).toBeCloseTo(1.32, 2)
     expect(size.z).toBeCloseTo(1.32, 2)
@@ -75,15 +76,15 @@ describe('neon glass cube model', () => {
     expect(panels).toBeInstanceOf(THREE.InstancedMesh)
     expect((panels as THREE.InstancedMesh).count).toBe(54)
 
-    const outerEdges = worldBox(parts['cube-edges'])
-    const innerEdges = worldBox(parts['inner-edges'])
+    const outerEdges = worldBox(requireDefined(parts['cube-edges'], 'neon-cube.model.test.ts:79'))
+    const innerEdges = worldBox(requireDefined(parts['inner-edges'], 'neon-cube.model.test.ts:80'))
     expect(outerEdges.getSize(new THREE.Vector3()).x).toBeCloseTo(1.32 + NEON_CUBE.outerEdgeRod, 2)
     expect(innerEdges.getSize(new THREE.Vector3()).x).toBeCloseTo(0.88 + NEON_CUBE.innerEdgeRod, 2)
     expect(innerEdges.min.y).toBeCloseTo(0.8 - 0.44 - NEON_CUBE.innerEdgeRod / 2, 3)
   })
 
   it('adds emissive corner markers on both top faces', () => {
-    const baseCorners = worldBox(parts['corner-markers-base'])
+    const baseCorners = worldBox(requireDefined(parts['corner-markers-base'], 'neon-cube.model.test.ts:87'))
     const baseSize = baseCorners.getSize(new THREE.Vector3())
     expect(baseSize.y).toBeCloseTo(NEON_CUBE.cornerSize, 6)
     expect(baseCorners.max.y).toBeGreaterThan(0.16)
@@ -91,7 +92,7 @@ describe('neon glass cube model', () => {
     expect(baseCorners.min.x).toBeCloseTo(-0.955, 3)
     expect(baseCorners.max.x).toBeCloseTo(0.955, 3)
 
-    const cubeCorners = worldBox(parts['corner-markers-cube'])
+    const cubeCorners = worldBox(requireDefined(parts['corner-markers-cube'], 'neon-cube.model.test.ts:95'))
     const cubeSize = cubeCorners.getSize(new THREE.Vector3())
     expect(cubeSize.x).toBeCloseTo(NEON_CUBE.cubeSide + NEON_CUBE.cornerSize, 3)
     expect(cubeCorners.max.y).toBeCloseTo(1.46 + NEON_CUBE.cornerSize - 0.001, 3)
@@ -103,7 +104,7 @@ describe('neon glass cube model', () => {
   })
 
   it('builds four thin uplight sheets from the base top to y=0.60', () => {
-    const sheets = worldBox(parts['light-sheets'])
+    const sheets = worldBox(requireDefined(parts['light-sheets'], 'neon-cube.model.test.ts:107'))
     const size = sheets.getSize(new THREE.Vector3())
     const sheetSpan = 2 * (NEON_CUBE.lightSheetOffset + NEON_CUBE.lightSheetThickness / 2)
     expect(size.x).toBeCloseTo(sheetSpan, 3)
@@ -124,12 +125,12 @@ describe('neon glass cube model', () => {
   })
 
   it('keeps one core halo sprite and no view-dependent corner sprite', () => {
-    const sprites: THREE.Sprite[] = []
+    const sprites: string[] = []
     group.traverse((object) => {
-      if (object instanceof THREE.Sprite) sprites.push(object)
+      if (object instanceof THREE.Sprite) sprites.push(object.name)
     })
     expect(sprites).toHaveLength(1)
-    expect(sprites[0].name).toBe('core-halo')
+    expect(requireDefined(sprites[0], 'neon-cube.model.test.ts:133')).toBe('core-halo')
     expect(group.getObjectByName('front-corner-halo')).toBeUndefined()
   })
 

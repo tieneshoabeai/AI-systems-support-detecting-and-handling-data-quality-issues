@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 
 export type InboundPathDefinition = {
@@ -104,33 +105,33 @@ function buildPath(definition: InboundPathDefinition): InboundPath {
 
   const cumulative = new Float32Array(PARSE_SAMPLES + 1)
   for (let index = 1; index <= PARSE_SAMPLES; index++) {
-    const deltaX = raw[index * 3] - raw[(index - 1) * 3]
-    const deltaY = raw[index * 3 + 1] - raw[(index - 1) * 3 + 1]
-    const deltaZ = raw[index * 3 + 2] - raw[(index - 1) * 3 + 2]
-    cumulative[index] = cumulative[index - 1] + Math.hypot(deltaX, deltaY, deltaZ)
+    const deltaX = requireDefined(raw[index * 3], 'inbound-stream-paths.ts:108') - requireDefined(raw[(index - 1) * 3], 'inbound-stream-paths.ts:108')
+    const deltaY = requireDefined(raw[index * 3 + 1], 'inbound-stream-paths.ts:109') - requireDefined(raw[(index - 1) * 3 + 1], 'inbound-stream-paths.ts:109')
+    const deltaZ = requireDefined(raw[index * 3 + 2], 'inbound-stream-paths.ts:110') - requireDefined(raw[(index - 1) * 3 + 2], 'inbound-stream-paths.ts:110')
+    cumulative[index] = requireDefined(cumulative[index - 1], 'inbound-stream-paths.ts:111') + Math.hypot(deltaX, deltaY, deltaZ)
   }
-  const length = cumulative[PARSE_SAMPLES]
+  const length = requireDefined(cumulative[PARSE_SAMPLES], 'stream total length')
 
   const points = new Float32Array(LUT_SAMPLES * 3)
   const step = length / (LUT_SAMPLES - 1)
   let cursor = 0
   for (let index = 0; index < LUT_SAMPLES; index++) {
     const target = index * step
-    while (cursor < PARSE_SAMPLES - 1 && cumulative[cursor + 1] < target) cursor++
-    const segment = cumulative[cursor + 1] - cumulative[cursor]
-    const fraction = segment > 1e-9 ? (target - cumulative[cursor]) / segment : 0
-    points[index * 3] = raw[cursor * 3] + (raw[(cursor + 1) * 3] - raw[cursor * 3]) * fraction
-    points[index * 3 + 1] = raw[cursor * 3 + 1] + (raw[(cursor + 1) * 3 + 1] - raw[cursor * 3 + 1]) * fraction
-    points[index * 3 + 2] = raw[cursor * 3 + 2] + (raw[(cursor + 1) * 3 + 2] - raw[cursor * 3 + 2]) * fraction
+    while (cursor < PARSE_SAMPLES - 1 && requireDefined(cumulative[cursor + 1], 'inbound-stream-paths.ts:120') < target) cursor++
+    const segment = requireDefined(cumulative[cursor + 1], 'inbound-stream-paths.ts:121') - requireDefined(cumulative[cursor], 'inbound-stream-paths.ts:121')
+    const fraction = segment > 1e-9 ? (target - requireDefined(cumulative[cursor], 'inbound-stream-paths.ts:122')) / segment : 0
+    points[index * 3] = requireDefined(raw[cursor * 3], 'inbound-stream-paths.ts:123') + (requireDefined(raw[(cursor + 1) * 3], 'inbound-stream-paths.ts:123') - requireDefined(raw[cursor * 3], 'inbound-stream-paths.ts:123')) * fraction
+    points[index * 3 + 1] = requireDefined(raw[cursor * 3 + 1], 'inbound-stream-paths.ts:124') + (requireDefined(raw[(cursor + 1) * 3 + 1], 'inbound-stream-paths.ts:124') - requireDefined(raw[cursor * 3 + 1], 'inbound-stream-paths.ts:124')) * fraction
+    points[index * 3 + 2] = requireDefined(raw[cursor * 3 + 2], 'inbound-stream-paths.ts:125') + (requireDefined(raw[(cursor + 1) * 3 + 2], 'inbound-stream-paths.ts:125') - requireDefined(raw[cursor * 3 + 2], 'inbound-stream-paths.ts:125')) * fraction
   }
 
   const tangents = new Float32Array(LUT_SAMPLES * 3)
   for (let index = 0; index < LUT_SAMPLES; index++) {
     const previous = Math.max(0, index - 1)
     const next = Math.min(LUT_SAMPLES - 1, index + 1)
-    const deltaX = points[next * 3] - points[previous * 3]
-    const deltaY = points[next * 3 + 1] - points[previous * 3 + 1]
-    const deltaZ = points[next * 3 + 2] - points[previous * 3 + 2]
+    const deltaX = requireDefined(points[next * 3], 'inbound-stream-paths.ts:132') - requireDefined(points[previous * 3], 'inbound-stream-paths.ts:132')
+    const deltaY = requireDefined(points[next * 3 + 1], 'inbound-stream-paths.ts:133') - requireDefined(points[previous * 3 + 1], 'inbound-stream-paths.ts:133')
+    const deltaZ = requireDefined(points[next * 3 + 2], 'inbound-stream-paths.ts:134') - requireDefined(points[previous * 3 + 2], 'inbound-stream-paths.ts:134')
     const magnitude = Math.hypot(deltaX, deltaY, deltaZ) || 1
     tangents[index * 3] = deltaX / magnitude
     tangents[index * 3 + 1] = deltaY / magnitude
@@ -145,14 +146,14 @@ function buildPath(definition: InboundPathDefinition): InboundPath {
     const current = index * 3
     const following = current + 3
     position.set(
-      points[current] + (points[following] - points[current]) * fraction,
-      points[current + 1] + (points[following + 1] - points[current + 1]) * fraction,
-      points[current + 2] + (points[following + 2] - points[current + 2]) * fraction,
+      requireDefined(points[current], 'inbound-stream-paths.ts:149') + (requireDefined(points[following], 'inbound-stream-paths.ts:149') - requireDefined(points[current], 'inbound-stream-paths.ts:149')) * fraction,
+      requireDefined(points[current + 1], 'inbound-stream-paths.ts:150') + (requireDefined(points[following + 1], 'inbound-stream-paths.ts:150') - requireDefined(points[current + 1], 'inbound-stream-paths.ts:150')) * fraction,
+      requireDefined(points[current + 2], 'inbound-stream-paths.ts:151') + (requireDefined(points[following + 2], 'inbound-stream-paths.ts:151') - requireDefined(points[current + 2], 'inbound-stream-paths.ts:151')) * fraction,
     )
     tangent.set(
-      tangents[current] + (tangents[following] - tangents[current]) * fraction,
-      tangents[current + 1] + (tangents[following + 1] - tangents[current + 1]) * fraction,
-      tangents[current + 2] + (tangents[following + 2] - tangents[current + 2]) * fraction,
+      requireDefined(tangents[current], 'inbound-stream-paths.ts:154') + (requireDefined(tangents[following], 'inbound-stream-paths.ts:154') - requireDefined(tangents[current], 'inbound-stream-paths.ts:154')) * fraction,
+      requireDefined(tangents[current + 1], 'inbound-stream-paths.ts:155') + (requireDefined(tangents[following + 1], 'inbound-stream-paths.ts:155') - requireDefined(tangents[current + 1], 'inbound-stream-paths.ts:155')) * fraction,
+      requireDefined(tangents[current + 2], 'inbound-stream-paths.ts:156') + (requireDefined(tangents[following + 2], 'inbound-stream-paths.ts:156') - requireDefined(tangents[current + 2], 'inbound-stream-paths.ts:156')) * fraction,
     ).normalize()
   }
 

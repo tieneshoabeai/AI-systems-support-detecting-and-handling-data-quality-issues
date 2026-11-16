@@ -13,24 +13,25 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { createHolographicCoreProductModel, type HolographicCoreProductModel } from '../../../graphics/holographic-core/holographic-core.model'
 import { HolographicEnvironment } from './holographic-core.environment'
 import { HolographicDecor } from './holographic-core.decor'
-import { createNeonCubeCluster } from '../../../graphics/neon-cube/neon-cube.cluster'
-import type { NeonCubeThemeId } from '../../../types/dataset-3d/cube-focus.types'
-import type { HolographicPartInfo } from '../../../types/dataset-3d/holographic-part.types'
+import { createNeonCubeCluster } from '../../../graphics/neon-cube'
+import type { NeonCubeThemeId } from '../../../types'
+import type { HolographicPartInfo } from '../../../types'
 import { heroLabelForId } from '../../../graphics/holographic-core/tower-gauge-config'
 import { CubeLabels } from './cube-label'
 import { createCubeConnectionFocus } from '../../../graphics/holographic-core/cube-connection-focus'
-import type { CubeFocus } from '../../../types/dataset-3d/cube-focus.types'
+import type { CubeFocus } from '../../../types'
 import { createGlassFrame, LiquidGlassPass, type GlassFrame } from '../../../graphics/holographic-core/liquid-glass-pass'
 import { HOLOGRAPHIC_CAMERA } from '../../../graphics/holographic-core/core-visual-config'
 import { bindProjectGlassPass, createProjectGlassPass, updateProjectGlassPass } from '../../../graphics/holographic-core/project-glass-pass'
 import { HolographicBloomPass } from '../../../graphics/holographic-core/holographic-bloom-pass'
 import { createProjectGlassProfiler } from '../../../graphics/holographic-core/project-glass-profiler'
+import { LIGHT_ENVIRONMENT, lightSceneColor } from '../../../graphics/holographic-core/light-environment.config'
 
 type CubeFocusProps = {
   glassPanel?: HTMLElement | null
   onFocusComplete?: (theme: NeonCubeThemeId) => void
   cubeFocus: CubeFocus | null
-  onFocusCube(theme: NeonCubeThemeId): void
+  onFocusCube(this: void, theme: NeonCubeThemeId): void
 }
 
 type HolographicCoreCanvasProps = CubeFocusProps & {
@@ -39,24 +40,25 @@ type HolographicCoreCanvasProps = CubeFocusProps & {
   reducedMotion: boolean
   detached: boolean
   selectedId: string | null
-  onSelectPart(part: HolographicPartInfo | null): void
+  onSelectPart(this: void, part: HolographicPartInfo | null): void
 }
 // @react-three/fiber 9.8.2 still builds a THREE.Clock internally; three r183+ warns about it.
 // Filter only that deprecation notice and pass every other three.js message through.
 setConsoleFunction((type, message, ...params) => {
   if (type === 'warn' && String(message).startsWith('THREE.Clock: This module has been deprecated')) return
+  // eslint-disable-next-line no-console -- Preserve Three.js diagnostics after filtering the known Clock deprecation.
   console[type](message, ...params)
 })
 class SceneBoundary extends Component<{ children: ReactNode; onFailure(): void }, { failed: boolean }> {
-  state = { failed: false }
+  override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch() { this.props.onFailure() }
-  render() { return this.state.failed ? null : this.props.children }
+  override componentDidCatch() { this.props.onFailure() }
+  override render() { return this.state.failed ? null : this.props.children }
 }
 
 type CameraEditorProps = {
   cameraEditing: boolean
-  onCameraSnapshot(value: string): void
+  onCameraSnapshot(this: void, value: string): void
 }
 
 function CameraControls({ reducedMotion, cubeFocus, productModel, cameraEditing, onCameraSnapshot, onFocusComplete }: CameraEditorProps & {
@@ -244,8 +246,8 @@ type CoreStructureProps = {
   reducedMotion: boolean
   detached: boolean
   selectedId: string | null
-  onSelectPart(part: HolographicPartInfo | null): void
-  onHeroHover(hover: HeroHover | null): void
+  onSelectPart(this: void, part: HolographicPartInfo | null): void
+  onHeroHover(this: void, hover: HeroHover | null): void
 }
 
 function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart, onHeroHover, productModel }: CoreStructureProps & { productModel: HolographicCoreProductModel }) {
@@ -327,7 +329,7 @@ function NeonCubeNodes({ onFocus }: { onFocus?: (theme: NeonCubeThemeId) => void
   return <primitive object={cluster.group} onClick={handleClick} />
 }
 
-function Lifecycle({ onContextLost }: { onContextLost(): void }) {  const { gl } = useThree()
+function Lifecycle({ onContextLost }: { onContextLost(this: void): void }) { const { gl } = useThree()
   useEffect(() => {
     const handleContextLost = (event: Event) => { event.preventDefault(); onContextLost() }
     gl.domElement.addEventListener('webglcontextlost', handleContextLost)
@@ -338,19 +340,19 @@ function Lifecycle({ onContextLost }: { onContextLost(): void }) {  const { gl }
 
 function renderHolographicFrame(
   pipeline: { composer: EffectComposer; glass: LiquidGlassPass; bloom: UnrealBloomPass; output: OutputPass },
-  bloomEnabled: boolean, glassEnabled: boolean,
+  bloomEnabled: boolean, glassEnabled: boolean, light = false,
 ) {
   pipeline.glass.enabled = glassEnabled
   pipeline.bloom.enabled = bloomEnabled
   // Bloom already outputs the legacy base + additive glow appearance. Only the
   // no-bloom glass path needs a separate output conversion.
-  pipeline.output.enabled = glassEnabled && !bloomEnabled
+  pipeline.output.enabled = (glassEnabled || light) && !bloomEnabled
   pipeline.composer.render()
 }
 
 function setBloomMode(bloom: UnrealBloomPass, light: boolean) {
-  bloom.strength = light ? 0.12 : 0.4
-  bloom.threshold = light ? 1.4 : 1
+  bloom.strength = light ? LIGHT_ENVIRONMENT.bloomStrength : 0.4
+  bloom.threshold = light ? LIGHT_ENVIRONMENT.bloomThreshold : 1
 }
 
 function setLightConnections(root: Object3D) {
@@ -435,7 +437,7 @@ function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { ena
   useFrame(() => {
     const started = profile ? performance.now() : 0
     updateProjectGlassPass(pipeline.panelGlass, glassPanel)
-    renderHolographicFrame(pipeline, enabled, !detached)
+    renderHolographicFrame(pipeline, enabled, !detached, light)
     profile?.(performance.now() - started, Boolean(glassPanel))
   }, 1)
   return null
@@ -443,17 +445,19 @@ function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { ena
 
 type HolographicSceneProps = CoreStructureProps & CubeFocusProps & CameraEditorProps & {
   colorMode: 'light' | 'dark'
-  onContextLost(): void
+  onContextLost(this: void): void
 }
 
 function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSelectPart, onHeroHover, onContextLost, cubeFocus, onFocusCube, onFocusComplete, cameraEditing, onCameraSnapshot, glassPanel }: HolographicSceneProps) {
   const light = colorMode === 'light'
+  const gl = useThree(state => state.gl)
+  const lightFog = useMemo(() => light ? lightSceneColor(LIGHT_ENVIRONMENT.horizon, gl) : null, [light, gl])
   const [glassFrame] = useState(createGlassFrame)
   const productModel = useMemo(() => createHolographicCoreProductModel(), [])
   useEffect(() => light ? setLightConnections(productModel.model) : undefined, [light, productModel])
   useEffect(() => () => productModel.dispose(), [productModel])
   return <>
-    <fogExp2 attach="fog" args={[light ? '#edf5fc' : '#040c22', light ? 0.018 : 0.0095]} />
+    <fogExp2 attach="fog" args={[lightFog ?? '#040c22', light ? LIGHT_ENVIRONMENT.fogDensity : 0.0095]} />
     <ProjectCanvasViewport />
     <Lifecycle onContextLost={onContextLost} />
     <ambientLight color={light ? '#e6f1ff' : '#266bc9'} intensity={light ? 1.1 : 0.28} />
@@ -462,13 +466,13 @@ function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSe
     <pointLight color="#3f7dff" intensity={12} distance={10} position={[-5, 4.5, -5]} />
     <HolographicEnvironment reducedMotion={reducedMotion} colorMode={colorMode} />
     <HolographicDecor reducedMotion={reducedMotion} />
-    <NeonCubeNodes onFocus={detached ? undefined : onFocusCube} />
+    <NeonCubeNodes {...(!detached && onFocusCube ? { onFocus: onFocusCube } : {})} />
     <CoreStructure productModel={productModel} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} onHeroHover={onHeroHover} />
     <CameraControls productModel={productModel} reducedMotion={reducedMotion} cubeFocus={detached ? null : cubeFocus}
-      onFocusComplete={onFocusComplete}
+      {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
       cameraEditing={cameraEditing} onCameraSnapshot={onCameraSnapshot} />
     {!detached && <CubeLabels frame={glassFrame} onFocus={onFocusCube} colorMode={colorMode} />}
-    <HolographicBloom enabled={!reducedMotion} frame={glassFrame} detached={detached} light={light} glassPanel={glassPanel} />
+    <HolographicBloom enabled={!reducedMotion} frame={glassFrame} detached={detached} light={light} {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })} />
   </>
 }
 
@@ -498,35 +502,35 @@ export function HolographicCoreCanvas({ colorMode = 'dark', reducedMotion, detac
       onPointerMissed={() => { if (detached) onSelectPart(null) }}
       fallback={<div className="dataset-3d-fallback" role="status"><strong>Trình duyệt không hỗ trợ WebGL</strong><p>Không thể mở không gian Dataset 3D trên trình duyệt này.</p></div>}>
       <HolographicScene colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId}
-        glassPanel={glassPanel}
+        {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })}
         onSelectPart={onSelectPart} onHeroHover={onHeroHover} onContextLost={() => setFailed(true)}
-        cubeFocus={cubeFocus} onFocusCube={onFocusCube} onFocusComplete={onFocusComplete}
+        cubeFocus={cubeFocus} onFocusCube={onFocusCube} {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
         cameraEditing={cameraEditing} onCameraSnapshot={setCameraSnapshot} />
     </Canvas>
   </SceneBoundary>
-    {cameraToolbar && createPortal(<button type="button" aria-pressed={cameraEditing} onClick={() => { setCameraEditing(value => !value); setCopyStatus('') }}>
-        {cameraEditing ? 'Tắt chỉnh camera' : 'Chỉnh camera'}
-      </button>, cameraToolbar)}
-    {cameraEditing && <div style={{ position: 'absolute', top: 60, right: 12, zIndex: 20, maxWidth: 'calc(100% - 24px)', maxHeight: '70%', overflow: 'auto', padding: 12, borderRadius: 10, background: '#07152eef', color: '#e5f6ff', fontSize: 13 }}>
-      {cameraEditing && <>
-        <p>Click vùng 3D để điều khiển.</p>
-        <p>W/S: tiến/lùi · A/D: trái/phải · Q/E: xuống/lên</p>
-        <p>Giữ chuột phải + kéo: đổi hướng nhìn.</p>
-        <p>Chọn cube để đổi đường nối; camera giữ nguyên.</p>
-        <textarea aria-label="Thông số camera" readOnly value={cameraSnapshot} rows={14}
-          style={{ display: 'block', width: 280, maxWidth: '100%', fontFamily: 'monospace' }} />
-        <button type="button" onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(cameraSnapshot)
-            setCopyStatus('Đã copy thông số camera hiện tại.')
-          } catch {
-            setCopyStatus('Không copy được. Hãy chọn nội dung trong ô và copy thủ công.')
-          }
-        }}>Copy thông số</button>
-        <p role="status">{copyStatus}</p>
-      </>}
-    </div>}
-    {hover && <div className="dataset-3d-hero-tooltip" role="tooltip" data-tower-id={hover.id}
-      style={{ transform: `translate3d(${hover.x}px, ${hover.y}px, 0)` }}>{hover.label}</div>}
+  {cameraToolbar && createPortal(<button type="button" aria-pressed={cameraEditing} onClick={() => { setCameraEditing(value => !value); setCopyStatus('') }}>
+    {cameraEditing ? 'Tắt chỉnh camera' : 'Chỉnh camera'}
+  </button>, cameraToolbar)}
+  {cameraEditing && <div style={{ position: 'absolute', top: 60, right: 12, zIndex: 20, maxWidth: 'calc(100% - 24px)', maxHeight: '70%', overflow: 'auto', padding: 12, borderRadius: 10, background: '#07152eef', color: '#e5f6ff', fontSize: 13 }}>
+    {cameraEditing && <>
+      <p>Click vùng 3D để điều khiển.</p>
+      <p>W/S: tiến/lùi · A/D: trái/phải · Q/E: xuống/lên</p>
+      <p>Giữ chuột phải + kéo: đổi hướng nhìn.</p>
+      <p>Chọn cube để đổi đường nối; camera giữ nguyên.</p>
+      <textarea aria-label="Thông số camera" readOnly value={cameraSnapshot} rows={14}
+        style={{ display: 'block', width: 280, maxWidth: '100%', fontFamily: 'monospace' }} />
+      <button type="button" onClick={() => {
+        const failed = () => { setCopyStatus('Không copy được. Hãy chọn nội dung trong ô và copy thủ công.') }
+        try {
+          void navigator.clipboard.writeText(cameraSnapshot)
+            .then(() => { setCopyStatus('Đã copy thông số camera hiện tại.') })
+            .catch(failed)
+        } catch { failed() }
+      }}>Copy thông số</button>
+      <p role="status">{copyStatus}</p>
+    </>}
+  </div>}
+  {hover && <div className="dataset-3d-hero-tooltip" role="tooltip" data-tower-id={hover.id}
+    style={{ transform: `translate3d(${hover.x}px, ${hover.y}px, 0)` }}>{hover.label}</div>}
   </div>
 }

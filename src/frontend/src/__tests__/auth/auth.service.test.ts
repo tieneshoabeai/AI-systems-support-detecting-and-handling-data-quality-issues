@@ -1,3 +1,5 @@
+import { jsonObject } from '../support/json'
+import { requireDefined } from '../../utils/required-value'
 import { AxiosError, AxiosHeaders } from 'axios'
 import type { AxiosAdapter } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,14 +11,14 @@ const accessToken = (sub = 'account-a', exp = 100) => {
 }
 const fixture = () => ({
   access_token: accessToken(), refresh_token: 'test-refresh', expires_in: 900,
-  user: { id: 'account-a', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'analyst' },
+  user: { id: 'account-a', email: 'test@example.com', role: 'analyst' },
 })
 const setup = (data: unknown) => {
   const readToken = vi.fn(() => 'old-token')
-  const adapter = vi.fn<AxiosAdapter>(async config => ({
+  const adapter = vi.fn<AxiosAdapter>(async config => Promise.resolve(({
     config, status: 200, statusText: 'OK', headers: new AxiosHeaders(),
     data: { success: true, data },
-  }))
+  })))
   const api = createAxiosClient({ baseUrl: 'http://localhost:3000/api/v1', readToken, adapter })
   return { service: createAuthService(api), adapter, readToken }
 }
@@ -25,16 +27,16 @@ describe('auth login service', () => {
   it('sends a public POST, preserves password and maps the checked response', async () => {
     const { service, adapter, readToken } = setup(fixture())
     const result = await service.login({ email: 'test@example.com', password: ' x ' })
-    const config = adapter.mock.calls[0][0]
+    const config = requireDefined(adapter.mock.calls[0], 'auth.service.test.ts:29')[0]
     expect(config.url).toBe('http://localhost:3000/api/v1/auth/login')
     expect(config.method).toBe('post')
-    expect(JSON.parse(config.data)).toEqual({ email: 'test@example.com', password: ' x ' })
+    expect(jsonObject(config.data)).toEqual({ email: 'test@example.com', password: ' x ' })
     expect(readToken).not.toHaveBeenCalled()
     expect(config.headers.get('Authorization')).toBeUndefined()
     expect(result).toEqual({
       session: { schemaVersion: 1, accessToken: accessToken(), refreshToken: 'test-refresh', accountId: 'account-a' },
       expiresAtMs: 100_000,
-      user: { id: 'account-a', email: 'test@example.com', firstName: 'Test', lastName: 'User', role: 'analyst' },
+      user: { id: 'account-a', email: 'test@example.com', role: 'analyst' },
     })
   })
 
@@ -42,8 +44,8 @@ describe('auth login service', () => {
     const { service, adapter } = setup(fixture())
     const controller = new AbortController()
     await service.login({ email: 'test@example.com', password: 'x', device_name: 'Test Browser' }, { signal: controller.signal })
-    expect(JSON.parse(adapter.mock.calls[0][0].data).device_name).toBe('Test Browser')
-    expect(adapter.mock.calls[0][0].signal).toBe(controller.signal)
+    expect(jsonObject(requireDefined(adapter.mock.calls[0], 'auth.service.test.ts:46')[0].data)['device_name']).toBe('Test Browser')
+    expect(requireDefined(adapter.mock.calls[0], 'auth.service.test.ts:47')[0].signal).toBe(controller.signal)
   })
 
   it.each(['admin', 'analyst'])('accepts backend role %s', async role => {
@@ -57,7 +59,6 @@ describe('auth login service', () => {
     null, {}, { ...fixture(), access_token: '' }, { ...fixture(), refresh_token: ' ' },
     { ...fixture(), expires_in: '900' }, { ...fixture(), expires_in: -1 },
     { ...fixture(), user: null }, { ...fixture(), user: { ...fixture().user, id: 'account-b' } },
-    { ...fixture(), user: { ...fixture().user, first_name: null } },
     { ...fixture(), user: { ...fixture().user, role: 'invented' } },
     { ...fixture(), access_token: 'malformed' },
     { ...fixture(), accessToken: accessToken(), access_token: undefined },
@@ -81,10 +82,10 @@ describe('auth login service', () => {
 
   it.each([401, 403, 500])('preserves HTTP %s without retry or refresh', async status => {
     const adapter = vi.fn<AxiosAdapter>(async config => {
-      throw new AxiosError('failure', undefined, config, undefined, {
+      return Promise.reject(new AxiosError('failure', undefined, config, undefined, {
         config, status, statusText: 'Error', headers: new AxiosHeaders(),
         data: { success: false, error: { code: 'ERROR', message: 'Login rejected' } },
-      })
+      }))
     })
     const service = createAuthService(createAxiosClient({ baseUrl: 'http://localhost:3000/api/v1', adapter }))
     await expect(service.login({ email: 'test@example.com', password: 'x' }))
@@ -93,7 +94,7 @@ describe('auth login service', () => {
   })
 
   it.each(['ERR_NETWORK', 'ECONNABORTED'])('preserves transport failure %s', async code => {
-    const adapter = vi.fn<AxiosAdapter>(async () => { throw new AxiosError('raw error', code) })
+    const adapter = vi.fn<AxiosAdapter>(async () => { return Promise.reject(new AxiosError('raw error', code)) })
     const service = createAuthService(createAxiosClient({ baseUrl: 'http://localhost:3000/api/v1', adapter }))
     await expect(service.login({ email: 'test@example.com', password: 'x' }))
       .rejects.toMatchObject({ kind: code === 'ERR_NETWORK' ? 'network' : 'timeout' })

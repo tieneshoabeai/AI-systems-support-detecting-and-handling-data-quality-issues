@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
-import type { PreviewDialogRequest, PreviewResourceKind } from '../../../types/preview/preview.types'
+import { useState } from 'react'
+import type { PreviewDialogRequest, PreviewResourceKind } from '../../../types'
 import { PreviewIcon } from './preview-icons'
-import { useDialogFocus } from './preview-surface'
+import { Dialog } from '../../../components/ui/overlay/dialog'
+import { Button } from '../../../components/ui/primitives/button'
+import { Input } from '../../../components/ui/primitives/input'
 
 // Hai dialog của thao tác mock: Đổi tên (form) và Xóa (xác nhận).
 // Apple-design mục 12: task cần tập trung thì đi kèm scrim và đẩy nền ra xa — nên dialog
@@ -19,11 +20,6 @@ type RemoveRequest = Extract<PreviewDialogRequest, { mode: 'remove' }>
 
 // Bấm vào nền tối = hủy. Sự kiện đặt trên scrim và tự kiểm tra target, nên panel không
 // phải stopPropagation (cách dễ sót: thêm nút mới vào panel là quên mất).
-const scrimHandlers = (onCancel: () => void) => ({
-  onMouseDown: (event: MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) onCancel()
-  },
-})
 
 export function PreviewRenameDialog({ request, onSubmit, onCancel }: {
   request: RenameRequest | null
@@ -41,10 +37,8 @@ function RenameForm({ request, onSubmit, onCancel }: {
   onSubmit: (name: string) => void
   onCancel: () => void
 }) {
-  const ref = useRef<HTMLFormElement>(null)
   const [name, setName] = useState(request.currentName)
   const [error, setError] = useState<string | null>(null)
-  useDialogFocus(ref, onCancel)
 
   const submit = (): void => {
     const trimmed = name.trim()
@@ -55,24 +49,22 @@ function RenameForm({ request, onSubmit, onCancel }: {
     onSubmit(trimmed)
   }
 
-  return <div className="preview-dialog-scrim" {...scrimHandlers(onCancel)}>
-    <form ref={ref} className="preview-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title"
-      onSubmit={event => { event.preventDefault(); submit() }}>
-      <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
-      <h2 id="rename-title">Đổi tên “{request.currentName}”</h2>
-      <label className="dialog-field">
-        <span>Tên mới</span>
-        <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
-          aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'rename-error' : undefined}
-          maxLength={80} autoComplete="off" />
-      </label>
-      {error && <p className="dialog-error" id="rename-error" role="alert">{error}</p>}
-      <footer className="dialog-actions">
-        <button type="button" className="button-secondary" onClick={onCancel}>Hủy</button>
-        <button type="submit" className="button-primary"><PreviewIcon name="check" /> Lưu tên</button>
-      </footer>
-    </form>
-  </div>
+  return <Dialog open onClose={onCancel} as="form" aria-labelledby="rename-title"
+    onSubmit={event => { event.preventDefault(); submit() }}>
+    <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
+    <h2 id="rename-title">Đổi tên “{request.currentName}”</h2>
+    <label className="dialog-field">
+      <span>Tên mới</span>
+      <Input value={name} onChange={event => { setName(event.target.value); setError(null) }}
+        aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'rename-error' : undefined}
+        maxLength={80} autoComplete="off" />
+    </label>
+    {error && <p className="dialog-error" id="rename-error" role="alert">{error}</p>}
+    <footer className="dialog-actions">
+      <Button variant="secondary" onClick={onCancel}>Hủy</Button>
+      <Button type="submit"><PreviewIcon name="check" /> Lưu tên</Button>
+    </footer>
+  </Dialog>
 }
 
 export function PreviewRemoveDialog({ request, onConfirm, onCancel }: {
@@ -89,17 +81,13 @@ function RemoveForm({ request, onConfirm, onCancel }: {
   onConfirm: () => void
   onCancel: () => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useDialogFocus(ref, onCancel)
-  return <div className="preview-dialog-scrim" {...scrimHandlers(onCancel)}>
-    <div ref={ref} className="preview-dialog" role="alertdialog" aria-labelledby="remove-title" aria-describedby="remove-detail">
-      <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
-      <h2 id="remove-title">Gỡ “{request.target.name}” khỏi danh sách mẫu?</h2>
-      <p id="remove-detail" className="dialog-detail">{request.detail}</p>
-      <footer className="dialog-actions">
-        <button type="button" className="button-secondary" onClick={onCancel}>Giữ lại</button>
-        <button type="button" className="button-danger" onClick={onConfirm}><PreviewIcon name="trash" /> Gỡ khỏi danh sách</button>
-      </footer>
-    </div>
-  </div>
+  return <Dialog open onClose={onCancel} role="alertdialog" aria-labelledby="remove-title" aria-describedby="remove-detail">
+    <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
+    <h2 id="remove-title">Gỡ “{request.target.name}” khỏi danh sách mẫu?</h2>
+    <p id="remove-detail" className="dialog-detail">{request.detail}</p>
+    <footer className="dialog-actions">
+      <Button variant="secondary" onClick={onCancel}>Giữ lại</Button>
+      <Button variant="danger" onClick={onConfirm}><PreviewIcon name="trash" /> Gỡ khỏi danh sách</Button>
+    </footer>
+  </Dialog>
 }

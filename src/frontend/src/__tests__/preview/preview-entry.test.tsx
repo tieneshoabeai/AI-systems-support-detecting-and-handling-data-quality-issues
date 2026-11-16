@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import { Link } from 'react-router'
-import { WorkbenchEntry } from '../../app/router/workbench-routes'
+import { AuthenticatedWorkbenchEntry as WorkbenchEntry } from '../support/authenticated-workbench-entry'
 import { legacyManagementRedirect, universePath } from '../../services/preview/preview-route'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 
@@ -66,7 +66,7 @@ it('opens the processing entry, creation form, and cross-area navigation', async
   expect(screen.queryByRole('list', { name: 'Các bước xử lý dữ liệu' })).toBeNull()
   fireEvent.click(await screen.findByRole('link', { name: 'Tạo Project' }))
   expect(await screen.findByRole('heading', { name: 'Tạo Project mới' })).toBeDefined()
-  expect((screen.getByRole('button', { name: 'Tạo Project và tiếp tục' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tạo Project và tiếp tục' })).disabled).toBe(true)
   fireEvent.click(screen.getByRole('link', { name: 'Trang chủ Processing' }))
   expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
   expect(window.location.pathname).toBe('/processing')

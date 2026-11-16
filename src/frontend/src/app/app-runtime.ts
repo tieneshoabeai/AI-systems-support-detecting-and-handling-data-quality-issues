@@ -10,7 +10,7 @@ import { ApiError } from '../lib/api-error'
 
 type ClientOptions = NonNullable<Parameters<typeof createAxiosClient>[0]>
 type RuntimeOptions = {
-  clearSessionCache(): void
+  clearSessionCache(this: void): void
   client?: Omit<ClientOptions, 'readToken'>
   storage?: ReturnType<typeof createSessionStorage>
   database?: UploadDraftDatabase
@@ -22,22 +22,22 @@ type RuntimeOptions = {
 export const createAppRuntime = (options: RuntimeOptions) => {
   const publicApi = createAxiosClient(options.client)
   const database = options.database ?? new UploadDraftDatabase()
-  const storage = options.storage ?? createSessionStorage({ now: options.now })
+  const storage = options.storage ?? createSessionStorage(options.now === undefined ? {} : { now: options.now })
   const coordinator = createSessionCoordinator({
     storage,
     auth: createAuthService(publicApi),
     health: createHealthService(publicApi),
     clearSessionCache: options.clearSessionCache,
-    now: options.now,
+    ...(options.now === undefined ? {} : { now: options.now }),
     bindSession: accessToken => {
       // Mỗi bound client chỉ biết token đã capture, không đọc phiên global.
       const api = createAxiosClient({ ...options.client, readToken: () => accessToken })
       const users = createUsersService(api)
       const auth = createAuthService(api)
-      return { getMe: users.getMe, logout: auth.logout }
+      return { getMe: (options) => users.getMe(options), logout: (options) => auth.logout(options) }
     },
   })
-  const drafts = createUploadDraftRepository({ db: database, access: coordinator.draftAccess, now: options.now })
+  const drafts = createUploadDraftRepository({ db: database, access: coordinator.draftAccess, ...(options.now === undefined ? {} : { now: options.now }) })
   let owners = 0
   let closed = false
   const dispose = () => {

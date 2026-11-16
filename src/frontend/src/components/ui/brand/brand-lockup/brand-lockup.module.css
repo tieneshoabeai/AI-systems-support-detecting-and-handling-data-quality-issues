@@ -1,0 +1,2 @@
+:where(.root) { display: flex; align-items: center; gap: 14px; font-size: 12px; line-height: 1.7; font-weight: 500; }
+@media (max-width: 900px) { :where(.root) { font-size: 11px; gap: 10px; } }

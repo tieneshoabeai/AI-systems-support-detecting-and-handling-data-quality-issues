@@ -1,25 +1,25 @@
 import { ApiError, isRecord } from '../../lib/api-error'
-import type { ApiClient } from '../../types/api/api.types'
-import type { CurrentUser } from '../../types/users/user.types'
+import type { ApiClient } from '../../types'
+import type { CurrentUser } from '../../types'
 
 export const createUsersService = (api: ApiClient) => ({
   async getMe(options: { signal?: AbortSignal } = {}): Promise<CurrentUser> {
-    const response = await api.request<unknown>({ path: '/users/me', auth: 'session', signal: options.signal })
-    // /users/me trả document có _id, khác user.id của login.
+    const response = await api.request<unknown>({ path: '/users/me', auth: 'session', ...(options.signal === undefined ? {} : { signal: options.signal }) })
+    // /users/me trả domain record camelCase, không phải document MongoDB.
     if (!isRecord(response)
-      || typeof response._id !== 'string' || !response._id.trim()
-      || typeof response.email !== 'string' || !response.email.trim()
-      || typeof response.first_name !== 'string' || typeof response.last_name !== 'string'
-      || (response.role !== 'admin' && response.role !== 'analyst')
-      || (response.status !== 'active' && response.status !== 'blocked')
-      || (response.avatar_url !== undefined && response.avatar_url !== null && typeof response.avatar_url !== 'string')) {
+      || typeof response['id'] !== 'string' || !response['id'].trim()
+      || typeof response['email'] !== 'string' || !response['email'].trim()
+      || typeof response['firstName'] !== 'string' || typeof response['lastName'] !== 'string'
+      || (response['role'] !== 'admin' && response['role'] !== 'analyst')
+      || (response['status'] !== 'active' && response['status'] !== 'blocked')
+      || (response['avatarUrl'] !== undefined && response['avatarUrl'] !== null && typeof response['avatarUrl'] !== 'string')) {
       throw new ApiError({ kind: 'invalid-response', message: 'Phản hồi hồ sơ người dùng thiếu hoặc sai dữ liệu.' })
     }
     // Whitelist đầu ra: không đưa document/backend metadata vào UI/cache.
     return {
-      id: response._id, email: response.email, firstName: response.first_name,
-      lastName: response.last_name, role: response.role, status: response.status,
-      avatarUrl: response.avatar_url ?? null,
+      id: response['id'], email: response['email'], firstName: response['firstName'],
+      lastName: response['lastName'], role: response['role'], status: response['status'],
+      avatarUrl: response['avatarUrl'] ?? null,
     }
   },
 })

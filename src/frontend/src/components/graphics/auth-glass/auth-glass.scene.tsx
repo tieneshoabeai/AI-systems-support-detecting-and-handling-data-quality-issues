@@ -1,20 +1,21 @@
+import { requireDefined } from '../../../utils/required-value'
 import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { PerspectiveCamera, Vector2 } from 'three'
 import type { Group, Mesh, Object3D } from 'three'
-import { authGlassConfig, authGlassViews } from '../../../graphics/auth-glass/auth-glass.config'
-import type { AuthGlassView } from '../../../graphics/auth-glass/auth-glass.config'
-import type { AuthGlassPanel } from '../../../types/auth/auth-glass.types'
-import { alignPanelAtSeam, createAuthGlassGeometry, findPanelFootprintCenter } from '../../../graphics/auth-glass/auth-glass.geometry'
-import { createAuthArtwork } from '../../../graphics/auth-glass/auth-glass.artwork'
-import { faceHeight, faceWidth, faceZ, projectAuthForm } from '../../../graphics/auth-glass/auth-glass.form'
-import { createAuthFallbackMaterial } from '../../../graphics/auth-glass/auth-glass.materials'
+import { authGlassConfig, authGlassViews } from '../../../graphics/auth-glass'
+import type { AuthGlassView } from '../../../graphics'
+import type { AuthGlassPanel } from '../../../types'
+import { alignPanelAtSeam, createAuthGlassGeometry, findPanelFootprintCenter } from '../../../graphics/auth-glass'
+import { createAuthArtwork } from '../../../graphics/auth-glass'
+import { faceHeight, faceWidth, faceZ, projectAuthForm } from '../../../graphics/auth-glass'
+import { createAuthFallbackMaterial } from '../../../graphics/auth-glass'
 import { AuthGlassBackdrop } from './auth-glass.backdrop'
 import { useAuthGlassRender } from './auth-glass.render'
 import { DisplayBase } from './display-base/display-base'
-import { displayBaseOptions } from '../../../graphics/auth-glass/display-base/display-base.config'
+import { displayBaseOptions } from '../../../graphics/auth-glass/display-base'
 import './auth-glass.css'
 
 const { camera: cameraConfig, viewport, panels, seamPosition, slab, dragThreshold } = authGlassConfig
@@ -33,17 +34,17 @@ type AssemblyDrag = {
 }
 
 class GlassSceneBoundary extends Component<{ children: ReactNode; onSceneStatus?: SceneStatusListener }, { failed: boolean }> {
-  state = { failed: false }
+  override state = { failed: false }
 
   static getDerivedStateFromError() {
     return { failed: true }
   }
 
-  componentDidCatch() {
+  override componentDidCatch() {
     this.props.onSceneStatus?.('failed')
   }
 
-  render() {
+  override render() {
     return this.state.failed ? <GlassFallback /> : this.props.children
   }
 }
@@ -150,7 +151,7 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
       const settings = cameraConfig.compact
       camera.position.set(...(compact ? settings.position : cameraConfig.loginPosition))
       if (compact) {
-        const [x, , z] = resources.layout[registering ? 1 : 0].position
+        const [x, , z] = requireDefined(resources.layout[registering ? 1 : 0], 'auth-glass.scene.tsx:154').position
         const yaw = panelYaw(activePanel)
         const frameX = seamPosition[0] + (x - resources.footprint.x) * Math.cos(yaw)
           + (z - resources.footprint.z) * Math.sin(yaw)
@@ -216,14 +217,14 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
   )
 
   return <>
-    <AuthGlassBackdrop pageElement={pageElement} />
+    <AuthGlassBackdrop {...(pageElement === undefined ? {} : { pageElement: pageElement })} />
     <ambientLight intensity={1.1} />
     <directionalLight position={[-3, 6, 5]} intensity={2.0} />
     <directionalLight position={[4, -2, 3]} intensity={1.3} color="#84cfff" />
     <group position={[seamPosition[0], 0, seamPosition[2]]}>
       {formElement ? <DisplayBase low={low} footlights={resources.footlights} turntable={{
         ref: turntable,
-        onPointerDown: onStartDrag ? event => onStartDrag(event, invalidate) : undefined,
+        ...(onStartDrag ? { onPointerDown: (event: ThreeEvent<PointerEvent>) => onStartDrag(event, invalidate) } : {}),
       }}>
         {panelAssembly}
       </DisplayBase> : panelAssembly}
@@ -284,7 +285,7 @@ export function AuthGlassStage({
       startX: event.clientX,
       startY: event.clientY,
       yaw: group.rotation.y,
-      panel: picked === 'RegisterPanel' ? 'register' : picked === 'LoginPanel' ? 'login' : undefined,
+      ...(picked === 'RegisterPanel' ? { panel: 'register' as const } : picked === 'LoginPanel' ? { panel: 'login' as const } : {}),
       moved: false,
     }
   }
@@ -362,19 +363,19 @@ export function AuthGlassStage({
       onLostPointerCapture={canRotate ? endDrag : undefined}
     >
       {!supportsWebGL ? <GlassFallback /> : (
-        <GlassSceneBoundary onSceneStatus={onSceneStatus}>
+        <GlassSceneBoundary {...(onSceneStatus === undefined ? {} : { onSceneStatus: onSceneStatus })}>
           <Canvas key={view} camera={camera} frameloop="demand" dpr={low ? 1 : [1, 1.5]} fallback={<GlassFallback />}>
             <GlassScene
-              onStartDrag={canRotate ? startDrag : undefined}
-              pageElement={pageElement}
-              formElement={formElement}
-              registerElement={registerElement}
+              {...(canRotate ? { onStartDrag: startDrag } : {})}
+              {...(pageElement === undefined ? {} : { pageElement: pageElement })}
+              {...(formElement === undefined ? {} : { formElement: formElement })}
+              {...(registerElement === undefined ? {} : { registerElement: registerElement })}
               activePanel={activePanel}
               low={low}
               dragLight={dragLight}
-              lensDebug={lensDebug}
-              lensThickness={lensThickness}
-              onSceneStatus={onSceneStatus}
+              {...(lensDebug === undefined ? {} : { lensDebug: lensDebug })}
+              {...(lensThickness === undefined ? {} : { lensThickness: lensThickness })}
+              {...(onSceneStatus === undefined ? {} : { onSceneStatus: onSceneStatus })}
             />
           </Canvas>
         </GlassSceneBoundary>

@@ -62,12 +62,11 @@ Các phần dùng chung gồm Foundation, Screen flow và Shared UI. Xem [master
 
 ~~~text
 index.html → src/app/main.tsx
-  ├─ /management, /processing hoặc URL 2D cũ ở dev → WorkbenchEntry (dữ liệu mẫu, không khởi tạo auth runtime)
   ├─ /preview/workspaces-3d ở dev → Workspace 3D
   └─ Luồng chính → Application → providers → BrowserRouter → AppRouter → guard/view
 ~~~
 
-`/workspaces` đi qua guard trước khi render `layout.tsx`. `/workspaces/3d-dataset` tạm bỏ guard để review giao diện theo ghi chú trong [AppRouter](src/app/router/app-router.tsx).
+`/workspaces`, `/workspaces/3d-dataset`, Management và Processing đi qua guard cả dev lẫn production. Page entry nằm trong `app/pages/private`; login và 404 nằm trong `app/pages/public`. `provider/` ghép providers, `context/` giữ AuthProvider implementation.
 
 ### Route Management và AI Data Processing
 
@@ -87,7 +86,7 @@ React Router điều hướng bằng pathname; URL 2D mới không dùng `/previ
 
 Ví dụ URL cũ `/preview/home#/preview/projects/ws-acme/prj-sales` được chuyển hướng bằng `replace` tới `/management/projects/prj-sales`. Workspace không nằm trong định danh URL của project. ID hiện hỗ trợ chữ, số, `_` và `-`; workspace ở query là bộ lọc danh sách.
 
-Production đi qua `ProtectedRoute` cho cả hai khu vực và giữ URL đích hợp lệ khi đăng nhập. Đích mặc định sau đăng nhập được cấu hình là `/processing`; đây chỉ là điều hướng, không thay đổi hoặc chứng minh kết nối Login/API. Dev cho phép review UI mẫu khi API chưa sẵn sàng. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project trên Processing mở `/processing/new`, còn một dòng project mở trang Project hiện tại với Tổng quan, Data View, Data Analysis, Detection. Không có luồng upload/phân tích/đánh giá riêng theo từng trang nữa.
+Dev và production đều đi qua `ProtectedRoute` cho Management, Processing và Dataset 3D, giữ URL đích hợp lệ khi đăng nhập. Không còn entry review 2D bỏ auth runtime. Đích mặc định sau đăng nhập là `/processing`; đây chỉ là điều hướng, không chứng minh kết nối API nghiệp vụ. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project mở `/processing/new`; một dòng project mở trang Project hiện tại. Các màn quản lý vẫn dùng dữ liệu mẫu.
 
 **Upload và lưu kết quả:** Project chưa có dataset có nút Upload data và hộp chọn tệp trên thiết bị; upload thật chưa nối dịch vụ nên không gửi tệp hoặc gắn dataset giả. Mục Detection chuẩn bị khu vực lưu kết quả, hiện không khả dụng vì chưa có kết quả server xác nhận. `ConfirmedProjectResult` là biên tích hợp UI, không phải DTO backend: chỉ truyền vào khi có kết quả thật; callback `save` chỉ được resolve sau khi cả đánh giá và kết quả đã lưu trong hệ thống. Biểu mẫu bắt buộc 1–5 sao và nội dung không trắng, giữ nội dung để thử lại khi lưu lỗi, chặn gửi trùng khi đang chờ. Tải file là tùy chọn và chỉ được bật sau khi lưu thành công, nếu có dịch vụ download. Chưa tự tạo endpoint đánh giá hoặc nối API upload/lưu/xuất; quy tắc nơi lưu khi bỏ qua workspace vẫn chờ chốt.
 
@@ -173,12 +172,14 @@ frontend/
 │   ├── app/
 │   │   ├── constants/
 │   │   ├── context/
+│   │   ├── provider/        # Tổng hợp providers
 │   │   ├── pages/
 │   │   │   ├── private/
 │   │   │   └── public/
 │   │   ├── router/
 │   │   ├── App.tsx
-│   │   ├── layout.tsx
+│   │   ├── app-runtime.ts
+│   │   ├── application-bootstrap.tsx
 │   │   ├── main.tsx
 │   │   └── style.css
 │   ├── assets/

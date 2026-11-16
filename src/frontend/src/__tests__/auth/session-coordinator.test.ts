@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 /// <reference types="node" />
 import 'fake-indexeddb/auto'
 import { File as NodeFile } from 'node:buffer'
@@ -9,9 +10,9 @@ import { UploadDraftDatabase } from '../../repositories/datasets/upload-draft.da
 import { ApiError } from '../../lib/api-error'
 import { createSessionStorage } from '../../lib/session-storage'
 import { createSessionCoordinator } from '../../services/auth/session-coordinator'
-import type { LoginRequestDto, LoginResult, RefreshResult } from '../../types/auth/auth.types'
-import type { StoredSession } from '../../types/auth/session.types'
-import type { CurrentUser } from '../../types/users/user.types'
+import type { LoginRequestDto, LoginResult, RefreshResult } from '../../types'
+import type { StoredSession } from '../../types'
+import type { CurrentUser } from '../../types'
 
 const token = (account = 'a', exp = 20) => `e30.${btoa(JSON.stringify({ sub: account, exp })).replace(/=/g, '')}.c2ln`
 const session = (account = 'a', exp = 20): StoredSession => ({
@@ -20,7 +21,7 @@ const session = (account = 'a', exp = 20): StoredSession => ({
 const profile = (account = 'a'): CurrentUser => ({ id: account, email: 'test@example.com', firstName: 'Test', lastName: 'User', role: 'analyst', status: 'active', avatarUrl: null })
 const loginResult = (account = 'a', exp = 20): LoginResult => ({
   session: session(account, exp), expiresAtMs: exp * 1000,
-  user: { id: account, email: 'test@example.com', firstName: 'Test', lastName: 'User', role: 'analyst' },
+  user: { id: account, email: 'test@example.com', role: 'analyst' },
 })
 const deferred = <T>() => {
   let resolve!: (value: T) => void
@@ -28,7 +29,7 @@ const deferred = <T>() => {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
   return { promise, resolve, reject }
 }
-const failure = (kind: 'http' | 'network' | 'timeout' | 'invalid-response', status?: number) => new ApiError({ kind, status, message: 'Test failure' })
+const failure = (kind: 'http' | 'network' | 'timeout' | 'invalid-response', status?: number) => new ApiError({ kind, ...(status === undefined ? {} : { status }), message: 'Test failure' })
 
 const setup = (stored?: StoredSession) => {
   let time = 10000
@@ -38,11 +39,11 @@ const setup = (stored?: StoredSession) => {
     getStorage: () => ({ getItem: key => records.get(key) ?? null, setItem: (key, value) => { records.set(key, value) }, removeItem: key => { records.delete(key) } }),
   })
   if (stored) storage.write(stored)
-  const getMe = vi.fn(async () => profile())
+  const getMe = vi.fn(async () => Promise.resolve(profile()))
   const logout = vi.fn(async () => {})
-  const login = vi.fn<(input: LoginRequestDto) => Promise<LoginResult>>(async () => loginResult())
-  const refresh = vi.fn(async (): Promise<RefreshResult> => ({ accessToken: token('a', 40), accountId: 'a', expiresAtMs: 40000 }))
-  const health = vi.fn(async () => ({ available: true }))
+  const login = vi.fn<(input: LoginRequestDto) => Promise<LoginResult>>(async () => Promise.resolve(loginResult()))
+  const refresh = vi.fn<(input: { refresh_token: string }) => Promise<RefreshResult>>(async () => Promise.resolve(({ accessToken: token('a', 40), refreshToken: 'rotated-refresh', accountId: 'a', expiresAtMs: 40000 })))
+  const health = vi.fn(async () => Promise.resolve(({ available: true })))
   const bindSession = vi.fn<(accessToken: string) => { getMe: typeof getMe; logout: typeof logout }>(() => ({ getMe, logout }))
   const clearSessionCache = vi.fn()
   const coordinator = createSessionCoordinator({ storage, auth: { login, refresh }, health: { check: health }, bindSession, clearSessionCache, now: () => time })
@@ -77,7 +78,7 @@ describe('session coordinator', () => {
     await s.coordinator.restore()
     await s.coordinator.signIn({ email: 'test@example.com', password: ' x ' })
     expect(s.getMe).not.toHaveBeenCalled()
-    expect(s.login.mock.calls[0][0].password).toBe(' x ')
+    expect(requireDefined(s.login.mock.calls[0], 'session-coordinator.test.ts:81')[0].password).toBe(' x ')
     const snapshot = s.coordinator.getSnapshot()
     expect(snapshot).toMatchObject({ phase: 'authenticated', user: { source: 'login' } })
     expect(JSON.stringify(snapshot)).not.toContain('accessToken')
@@ -151,7 +152,7 @@ describe('session coordinator', () => {
     expect(s.refresh).not.toHaveBeenCalled()
   })
 
-  it('renews only after consent, binds candidate token to me and keeps refresh token', async () => {
+  it('renews only after consent, binds candidate token to me and stores the rotated refresh token', async () => {
     const s = setup(session('a', 5))
     await s.coordinator.restore()
     expect(s.coordinator.getSnapshot().phase).toBe('awaiting-consent')
@@ -160,12 +161,24 @@ describe('session coordinator', () => {
     const work = s.coordinator.confirmRenewal(true)
     const duplicate = s.coordinator.confirmRenewal(true)
     expect(s.coordinator.draftAccess.read()).toBeNull()
-    pending.resolve({ accessToken: token('a', 40), accountId: 'a', expiresAtMs: 40000 })
+    pending.resolve({ accessToken: token('a', 40), refreshToken: 'rotated-refresh', accountId: 'a', expiresAtMs: 40000 })
     await Promise.all([work, duplicate])
     expect(s.refresh).toHaveBeenCalledTimes(1)
     expect(s.bindSession).toHaveBeenCalledWith(token('a', 40))
-    expect(s.storage.read()).toMatchObject({ session: { accessToken: token('a', 40), refreshToken: 'test-refresh-a' } })
+    expect(s.storage.read()).toMatchObject({ session: { accessToken: token('a', 40), refreshToken: 'rotated-refresh' } })
     expect(s.coordinator.getSnapshot()).toMatchObject({ phase: 'authenticated', user: { source: 'profile' } })
+  })
+
+  it('uses the rotated refresh token on the next renewal', async () => {
+    const s = setup(session('a', 5))
+    await s.coordinator.restore()
+    await s.coordinator.confirmRenewal(true)
+    s.setTime(40000)
+    await s.coordinator.checkSession()
+    s.refresh.mockResolvedValueOnce({ accessToken: token('a', 80), refreshToken: 'rotated-again', accountId: 'a', expiresAtMs: 80000 })
+    await s.coordinator.confirmRenewal(true)
+    expect(requireDefined(s.refresh.mock.calls[1], 'session-coordinator.test.ts:180')[0]).toEqual({ refresh_token: 'rotated-refresh' })
+    expect(s.storage.read()).toMatchObject({ session: { accessToken: token('a', 80), refreshToken: 'rotated-again' } })
   })
 
   it('declines without refresh and clears access and cache', async () => {
@@ -192,7 +205,7 @@ describe('session coordinator', () => {
     await s.coordinator.restore()
     if (state === 'network') s.refresh.mockRejectedValueOnce(failure('network'))
     else if (state === 'me') s.getMe.mockRejectedValueOnce(failure('http', 500))
-    else s.refresh.mockResolvedValueOnce({ accessToken: token(state === 'b' ? 'b' : 'a', 5), accountId: state === 'b' ? 'b' : 'a', expiresAtMs: 5000 })
+    else s.refresh.mockResolvedValueOnce({ accessToken: token(state === 'b' ? 'b' : 'a', 5), refreshToken: 'rotated-refresh', accountId: state === 'b' ? 'b' : 'a', expiresAtMs: 5000 })
     await expect(s.coordinator.confirmRenewal(true)).rejects.toBeDefined()
     expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
     expect(s.storage.read()).toEqual({ status: 'empty' })
@@ -279,7 +292,7 @@ describe('session coordinator', () => {
     await s.coordinator.signOut()
     s.login.mockResolvedValueOnce(loginResult('b'))
     await s.coordinator.signIn({ email: 'test@example.com', password: 'x' })
-    pending.resolve({ accessToken: token('a', 40), accountId: 'a', expiresAtMs: 40000 })
+    pending.resolve({ accessToken: token('a', 40), refreshToken: 'rotated-refresh', accountId: 'a', expiresAtMs: 40000 })
     await work
     expect(s.coordinator.getSnapshot().accountId).toBe('b')
   })
@@ -364,12 +377,12 @@ describe('runtime connects services, session coordinator and IndexedDB', () => {
   it('aborts a real draft transaction when the coordinator logs out', async () => {
     const db = new UploadDraftDatabase(`runtime-abort-${crypto.randomUUID()}`)
     const s = setup(session())
-    const adapter: AxiosAdapter = async config => ({
+    const adapter: AxiosAdapter = async config => Promise.resolve(({
       config, status: 200, statusText: 'OK', headers: new AxiosHeaders(),
       data: { success: true, data: config.url?.endsWith('/users/me')
-        ? { _id: 'a', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'analyst', status: 'active' }
+        ? { id: 'a', email: 'test@example.com', firstName: 'Test', lastName: 'User', role: 'analyst', status: 'active' }
         : { message: 'Đăng xuất thành công' } },
-    })
+    }))
     const runtime = createAppRuntime({ client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, database: db, storage: s.storage, clearSessionCache: vi.fn(), now: () => 10000 })
     try {
       await runtime.coordinator.restore()
@@ -391,9 +404,9 @@ describe('runtime connects services, session coordinator and IndexedDB', () => {
     const adapter = vi.fn<AxiosAdapter>(async config => {
       const data = config.url?.endsWith('/auth/login')
         ? { access_token: token(account), refresh_token: `test-refresh-${account}`, expires_in: 900,
-          user: { id: account, email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'analyst' } }
+          user: { id: account, email: 'test@example.com', firstName: 'Test', lastName: 'User', role: 'analyst' } }
         : { message: 'Đăng xuất thành công' }
-      return { config, status: 200, statusText: 'OK', headers: new AxiosHeaders(), data: { success: true, data } }
+      return Promise.resolve({ config, status: 200, statusText: 'OK', headers: new AxiosHeaders(), data: { success: true, data } })
     })
     const runtime = createAppRuntime({ client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, database: db, storage: base.storage, clearSessionCache: vi.fn(), now: () => 10000 })
     try {
@@ -409,7 +422,7 @@ describe('runtime connects services, session coordinator and IndexedDB', () => {
       expect(await runtime.drafts.list()).toEqual([])
       await expect(runtime.drafts.readFile(draft.id)).rejects.toMatchObject({ code: 'DRAFT_NOT_FOUND' })
       const logoutRequests = adapter.mock.calls.filter(([config]) => config.url?.endsWith('/auth/logout'))
-      expect(logoutRequests[0][0].headers.get('Authorization')).toBe(`Bearer ${token('a')}`)
+      expect(requireDefined(logoutRequests[0], 'session-coordinator.test.ts:425')[0].headers.get('Authorization')).toBe(`Bearer ${token('a')}`)
       await runtime.coordinator.signOut()
       account = 'a'
       await runtime.coordinator.signIn({ email: 'test@example.com', password: 'x' })
@@ -424,9 +437,9 @@ describe('runtime connects services, session coordinator and IndexedDB', () => {
       const data = config.url?.endsWith('/health')
         ? { status: 'ok', services: { mongodb_atlas: { status: 'connected' } } }
         : config.url?.endsWith('/auth/refresh')
-          ? { access_token: token('a', 40), expires_in: 900 }
-          : { _id: 'a', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'analyst', status: 'active' }
-      return { config, status: 200, statusText: 'OK', headers: new AxiosHeaders(), data: { success: true, data } }
+          ? { access_token: token('a', 40), refresh_token: 'rotated-refresh', expires_in: 900 }
+          : { id: 'a', email: 'test@example.com', firstName: 'Test', lastName: 'User', role: 'analyst', status: 'active' }
+      return Promise.resolve({ config, status: 200, statusText: 'OK', headers: new AxiosHeaders(), data: { success: true, data } })
     })
     const runtime = createAppRuntime({ client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, database: db, storage: s.storage, clearSessionCache: vi.fn(), now: () => 10000 })
     try {

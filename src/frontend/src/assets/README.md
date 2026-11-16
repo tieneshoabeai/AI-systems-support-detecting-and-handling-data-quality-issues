@@ -6,7 +6,7 @@ Lưu ảnh, logo và font tĩnh được React/CSS tham chiếu. Tầng này kh�
 
 ## 2. Vị trí & phụ thuộc
 
-`app/layout.tsx` và `views/workspace-3d/workspace-3d.view.tsx` dùng logo. `app/design-tokens.css` nạp font. `views/auth/login-glass.css` và `views/preview/preview.css` dùng ảnh nền/ảnh thẻ. Vite giải quyết URL khi chạy hoặc build.
+`app/pages/private/workspace-page.tsx` và `views/workspace-3d/workspace-3d.view.tsx` dùng logo. `styles/tokens.css` nạp font. `views/auth/login-glass.css` và `views/preview/preview.css` dùng ảnh nền/ảnh thẻ. Vite giải quyết URL khi chạy hoặc build.
 
 ## 3. Public API
 

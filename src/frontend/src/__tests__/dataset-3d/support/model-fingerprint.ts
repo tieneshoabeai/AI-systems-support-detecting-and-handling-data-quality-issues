@@ -1,3 +1,4 @@
+import { requireDefined } from '../../../utils/required-value'
 // Fingerprint of the holographic core model: one deterministic line per scene-graph object.
 //
 // This is the gate the tower refactor runs against. Phase 2-5 claim "nothing visible changed";
@@ -49,7 +50,7 @@ function fnv1a(text: string): string {
 
 function quantisedArray(values: ArrayLike<number>): string {
   let out = ''
-  for (let index = 0; index < values.length; index += 1) out += q(values[index]) + ','
+  for (let index = 0; index < values.length; index += 1) out += q(requireDefined(values[index], 'model-fingerprint.ts:53')) + ','
   return fnv1a(out)
 }
 

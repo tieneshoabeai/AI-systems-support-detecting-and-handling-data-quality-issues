@@ -21,7 +21,7 @@ const rowTitles = (): string[] =>
 const bulkCount = (): string => document.querySelector('.bulk-count')?.textContent ?? ''
 
 const headCheckbox = (): HTMLInputElement =>
-  screen.getByRole('checkbox', { name: 'Chọn tất cả thông báo trên trang này' }) as HTMLInputElement
+  screen.getByRole<HTMLInputElement>('checkbox', { name: 'Chọn tất cả thông báo trên trang này' })
 
 const pickRow = (title: string): void => {
   fireEvent.click(screen.getByRole('checkbox', { name: `Chọn: ${title}` }))
@@ -243,13 +243,13 @@ it('chi tiết: nút "Đánh dấu đã đọc" bấm rồi thì tắt, và lý 
   expect(note.textContent).not.toContain('không liên kết với Project')
 })
 
-it('chi tiết: thông báo hệ thống và project đã bị xóa là hai lý do "Mở Project" tắt khác nhau', () => {
+it('chi tiết: thông báo hệ thống và project đã bị xóa là hai lý do "Mở Project" tắt khác nhau', async () => {
   detailScreen('nt-09')
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(true)
   expect(document.getElementById('pv-notice-detail-note')!.textContent).toContain('không liên kết với Project')
 
   // Bản ghi này gắn prj-customer, nhưng project vừa bị gỡ khỏi danh sách mẫu trong tab.
-  previewMockStore.remove('project', 'prj-customer')
+  await previewMockStore.remove('project', 'prj-customer')
   cleanup()
   detailScreen('nt-02')
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(true)

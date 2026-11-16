@@ -1,11 +1,12 @@
 import './page-skeleton.css'
+import { Skeleton } from '../ui/feedback/skeleton'
 
 export function LoginSceneSkeleton({ message }: { message?: string }) {
   return <div className="login-scene-skeleton">
     {message && <p className="skeleton-status" role="status">{message}</p>}
     <div className="login-skeleton-panels" aria-hidden="true">
-      <span className="skeleton-block" />
-      <span className="skeleton-block" />
+      <Skeleton />
+      <Skeleton />
     </div>
     <div className="skeleton-toolbar" aria-hidden="true">
       <span className="skeleton-block" />

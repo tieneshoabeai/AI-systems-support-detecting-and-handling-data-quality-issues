@@ -1,4 +1,4 @@
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import type { ResourceNode } from '../../types'
 
 // Imported only by the development preview entry, never by the real app.
 export const previewResources: readonly ResourceNode[] = [

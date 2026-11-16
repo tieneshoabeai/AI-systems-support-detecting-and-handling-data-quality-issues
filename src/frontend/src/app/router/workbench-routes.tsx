@@ -1,63 +1,64 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router'
-import { PageSkeleton } from '../../components/loading/page-skeleton'
-import { NotFoundView } from '../../components/navigation/not-found'
+import { PageSkeleton } from '../../components/loading'
+import { NotFoundPage } from '../pages/public/not-found-page'
 import { legacyManagementRedirect } from '../../services/preview/preview-route'
 import { ProtectedRoute } from '../guards/protected-route'
-import { managementHref } from '../../services/navigation/application-route'
+import { managementHref } from '../../services/navigation'
 import { usePreviewStore } from '../../hooks/preview/use-preview-store'
 
-const ManagementArea = lazy(() => import('../../views/preview/preview-entry').then(module => ({ default: module.ManagementArea })))
-const ProcessingView = lazy(() => import('../../views/processing/processing.view').then(module => ({ default: module.ProcessingView })))
+const ManagementPage = lazy(() => import('../pages/private/management-page').then(module => ({ default: module.ManagementPage })))
+const ProcessingPage = lazy(() => import('../pages/private/processing-page').then(module => ({ default: module.ProcessingPage })))
 const ApplicationFrame = lazy(() => import('../../views/application/application-frame').then(module => ({ default: module.ApplicationFrame })))
-const ProjectWorkspaceView = lazy(() => import('../../views/preview/project-workspace-2d.view').then(module => ({ default: module.ProjectWorkspaceView })))
+const ProjectWorkspacePage = lazy(() => import('../pages/private/project-workspace-page').then(module => ({ default: module.ProjectWorkspacePage })))
+const ShoppingRecordsPage = lazy(() => import('../pages/private/shopping-records-page').then(module => ({ default: module.ShoppingRecordsPage })))
 
 function ProcessingProject() {
   const { projectId } = useParams()
   const state = usePreviewStore()
   return projectId && state.projects.some(project => project.id === projectId)
-    ? <ProjectWorkspaceView key={projectId} projectId={projectId} /> : <NotFoundView title="Không tìm thấy project" />
+    ? <ProjectWorkspacePage key={projectId} projectId={projectId} /> : <NotFoundPage title="Không tìm thấy project" />
 }
 
 function LegacyRedirect() {
   const location = useLocation()
   const destination = legacyManagementRedirect(location.pathname, location.hash)
-  return destination ? <Navigate to={destination} replace /> : <NotFoundView />
+  return destination ? <Navigate to={destination} replace /> : <NotFoundPage />
 }
 
 function ProjectStepRedirect() {
   const { projectId } = useParams()
-  return projectId ? <Navigate to={managementHref('projects', { projectId })} replace /> : <NotFoundView />
+  return projectId ? <Navigate to={managementHref('projects', { projectId })} replace /> : <NotFoundPage />
 }
 
-export function WorkbenchRoutes({ protect = true }: { protect?: boolean }) {
+export function WorkbenchRoutes() {
   const location = useLocation()
   return <Suspense fallback={<PageSkeleton pathname={location.pathname} message="Đang mở trang…" />}>
     <Routes>
       <Route path="/preview/*" element={<LegacyRedirect />} />
       <Route path="/" element={<LegacyRedirect />} />
-      <Route element={protect ? <ProtectedRoute><Outlet /></ProtectedRoute> : <Outlet />}>
+      <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
         <Route element={<ApplicationFrame />}>
           {['/management', '/management/workspaces', '/management/workspaces/:workspaceId',
             '/management/projects', '/management/notifications',
             '/management/notifications/:notificationId', '/management/settings', '/management/settings/:settingsSection']
-            .map(path => <Route key={path} path={path} element={<ManagementArea />} />)}
+            .map(path => <Route key={path} path={path} element={<ManagementPage />} />)}
           {['/processing', '/processing/new']
-            .map(path => <Route key={path} path={path} element={<ProcessingView />} />)}
+            .map(path => <Route key={path} path={path} element={<ProcessingPage />} />)}
           <Route path="/processing/projects/:projectId" element={<ProcessingProject />} />
+          <Route path="/processing/projects/:projectId/records" element={<ShoppingRecordsPage />} />
           {['/processing/projects/:projectId/upload',
             '/processing/projects/:projectId/analysis', '/processing/projects/:projectId/review',
             '/processing/projects/:projectId/results']
             .map(path => <Route key={path} path={path} element={<ProjectStepRedirect />} />)}
         </Route>
       </Route>
-      <Route path="*" element={<NotFoundView />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   </Suspense>
 }
 
-// Local UI review remains available without an API session in development only.
-// Production mounts the same routes with protect=true through AppRouter.
+// Standalone router composition still requires an AuthProvider from its caller.
 export function WorkbenchEntry() {
-  return <BrowserRouter><WorkbenchRoutes protect={false} /></BrowserRouter>
+  return <BrowserRouter><WorkbenchRoutes /></BrowserRouter>
 }

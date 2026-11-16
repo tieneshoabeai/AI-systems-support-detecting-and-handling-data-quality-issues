@@ -1,4 +1,4 @@
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import type { ResourceNode } from '../../types'
 
 export const CONNECTION = {
   pipeRadius: 0.09, hubRadius: 1.7, hubY: -0.4, hubArc: 2.2,

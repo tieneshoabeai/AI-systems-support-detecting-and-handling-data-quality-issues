@@ -2,7 +2,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import App from '../../app/App'
 import { MemoryRouter } from 'react-router'
-import { AppProviders } from '../../app/app-providers'
+import { AppProviders } from '../../app/provider'
 import { createQueryClient } from '../../lib/query-client'
 import { ApiError } from '../../lib/api-error'
 
@@ -30,7 +30,7 @@ it('keeps login visible with a clear error and disabled submission when configur
   renderLogin()
   expect(screen.getByRole('heading', { name: 'Chào mừng trở lại' }).textContent).toBe('Chào mừng trở lại')
   expect(screen.getByRole('alert').textContent).toContain('chưa được cấu hình')
-  expect((screen.getByRole('button', { name: 'Đăng nhập' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Đăng nhập' })).disabled).toBe(true)
 })
 
 it('keeps the desktop form hidden until the 3D stage is ready and restores it if the scene fails', async () => {
@@ -60,13 +60,13 @@ it('uses the 2D form immediately on narrow screens even when WebGL is available'
   expect(authGlassStage).not.toHaveBeenCalled()
 })
 
-it('falls back to 2D when the 3D stage takes too long', () => {
+it('falls back to 2D when the 3D stage takes too long', async () => {
   vi.useFakeTimers()
   vi.stubGlobal('WebGL2RenderingContext', class {})
   renderLogin()
 
   expect(screen.queryByRole('form', { name: 'Đăng nhập' })).toBeNull()
-  act(() => vi.advanceTimersByTime(10_000))
+  await act(() => vi.advanceTimersByTime(10_000))
   expect(screen.getByRole('form', { name: 'Đăng nhập' })).toBeTruthy()
   expect(document.querySelector('.auth-glass-login-stage')).toBeNull()
 })

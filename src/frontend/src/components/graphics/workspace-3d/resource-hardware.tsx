@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { DoubleSide, ExtrudeGeometry, Path, Quaternion, Shape, Vector3 } from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import type { PositionedResource, ResourcePort } from '../../../types/workspace-3d/resource-map.types'
+import type { PositionedResource, ResourcePort } from '../../../types'
 import { CONNECTION } from '../../../math/workspace-3d/resource-connection-profile'
 import { hubSocketWall, socketPanel } from '../../../graphics/workspace-3d/connection-geometry'
 
@@ -151,7 +151,7 @@ function DatasetCartridge({ accent, ports }: { accent: string; ports: readonly R
 }
 
 export function ResourceHardware({ node, selected, onSelect, onHover }: {
-  node: PositionedResource; selected: boolean; onSelect(id: string): void; onHover(id: string | null): void
+  node: PositionedResource; selected: boolean; onSelect(this: void, id: string): void; onHover(this: void, id: string | null): void
 }) {
   const accent = selected ? '#00dba0' : node.resource.kind === 'dataset' ? '#35a7d5' : '#00a878'
   const click = (event: ThreeEvent<MouseEvent>) => {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import { parseManagementRoute } from '../../services/navigation/application-route'
+import { parseManagementRoute } from '../../services/navigation'
 import { previewNavigateEvent } from '../../services/preview/preview-route'
 import { PreviewSessionProvider } from '../preview/preview-session'
 import '../preview/preview.css'
@@ -18,7 +18,7 @@ export function ApplicationFrame() {
     ? { ...management, workspaceId: management.section === 'projects' && !management.projectId
       ? management.workspaceId ?? '' : management.workspaceId }
     : { projectId }
-  return <PreviewSessionProvider routeIds={routeIds} navigateSection={navigate}>
+  return <PreviewSessionProvider routeIds={routeIds} navigateSection={path => { void Promise.resolve(navigate(path)).catch(error => { reportError(error) }) }}>
     <Outlet />
   </PreviewSessionProvider>
 }

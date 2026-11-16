@@ -1,3 +1,4 @@
+import { requireDefined } from '../../../utils/required-value'
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -5,13 +6,13 @@ import { Color, Float32BufferAttribute, PMREMGenerator } from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import type { Group } from 'three'
-import { useSceneMotion } from '../../../hooks/workspace-3d/use-scene-motion'
+import { useSceneMotion } from '../../../hooks/workspace-3d'
 import { setPreviewEnvironment, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
 
 class Boundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
+  override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  render() { return this.state.failed ? this.props.fallback : this.props.children }
+  override render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 function Cube({ position, size, color, accent = '#6220de', light, moving, floating = false }: {
   position: [number, number, number]; size: number; color: string; accent?: string; light: boolean; moving: boolean; floating?: boolean
@@ -132,7 +133,7 @@ export default function WorkspaceUniverse({ light, paused, fallback }: { light: 
   const [lost, setLost] = useState(false)
   useEffect(() => {
     if (!host.current || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
+    const observer = new IntersectionObserver(([entry]) => setVisible(requireDefined(entry, 'workspace-universe.tsx:136').isIntersecting))
     observer.observe(host.current); return () => observer.disconnect()
   }, [])
   if (typeof WebGL2RenderingContext === 'undefined' || lost) return fallback
