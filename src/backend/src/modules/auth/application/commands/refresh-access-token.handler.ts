@@ -37,7 +37,7 @@ export class RefreshAccessTokenHandler {
     private readonly tokens: AuthTokenIssuerPort,
   ) {}
 
-  async execute(rawRefreshToken: string) {
+  async execute(rawRefreshToken: string): Promise<{ access_token: string; refresh_token: string; expires_in: number; remember_me: boolean; expires_at: string; }> {
     const refreshTokenHash = computeSha256Buffer(rawRefreshToken);
     const session = await this.sessions.findSessionByTokenHash(refreshTokenHash);
     if (session) {

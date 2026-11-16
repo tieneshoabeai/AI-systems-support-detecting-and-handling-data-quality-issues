@@ -15,7 +15,7 @@ export class GetSessionByIdHandler {
     private readonly sessions: AuthSessionPort,
   ) {}
 
-  async execute(userId: string, sessionId: string) {
+  async execute(userId: string, sessionId: string): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }> {
     const session = await this.sessions.findSessionById(sessionId);
     // Trả về 404 (không phải 403) để không lộ sự tồn tại của phiên của người khác.
     if (!session || session.userId !== userId) {

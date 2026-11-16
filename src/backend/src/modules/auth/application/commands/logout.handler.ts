@@ -15,7 +15,7 @@ export class LogoutHandler {
     private readonly sessions: AuthSessionPort,
   ) {}
 
-  async execute(sessionId?: string) {
+  async execute(sessionId?: string): Promise<{ message: string; }> {
     if (sessionId) await this.sessions.revokeSessionById(sessionId);
     return { message: 'Đăng xuất thành công' };
   }

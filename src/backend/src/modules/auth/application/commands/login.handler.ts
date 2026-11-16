@@ -42,7 +42,7 @@ export class LoginHandler {
     private readonly tokens: AuthTokenIssuerPort,
   ) {}
 
-  async execute(dto: LoginInput, ipAddress?: string, userAgent?: string) {
+  async execute(dto: LoginInput, ipAddress?: string, userAgent?: string): Promise<{ access_token: string; refresh_token: string; expires_in: number; device_name: string; remember_me: boolean; expires_at: string; user: { id: string; email: string; role: "admin" | "analyst"; }; }> {
     const user = await this.users.findByEmail(dto.email, true);
     if (!user || !user.passwordHash)
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');

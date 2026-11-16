@@ -71,7 +71,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Đăng ký tài khoản mới (F1.1)' })
   @ApiZodBody(RegisterSchema, 'Thông tin đăng ký tài khoản mới')
   @ApiResponse({ status: 201, description: 'Tài khoản được tạo thành công' })
-  async register(@Body(new ZodValidationPipe(RegisterSchema)) dto: RegisterDto) {
+  async register(@Body(new ZodValidationPipe(RegisterSchema)) dto: RegisterDto): Promise<{ id: string; email: string; first_name: string; last_name: string; role: "admin" | "analyst"; created_at: Date; }> {
     return this.registerHandler.execute(dto);
   }
 
@@ -85,7 +85,7 @@ export class AuthController {
     status: 200,
     description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token',
   })
-  async login(@Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto, @Req() req: Request) {
+  async login(@Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto, @Req() req: Request): Promise<{ access_token: string; refresh_token: string; expires_in: number; device_name: string; remember_me: boolean; expires_at: string; user: { id: string; email: string; role: "admin" | "analyst"; }; }> {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.loginHandler.execute(dto, ipAddress, userAgent);
@@ -98,7 +98,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Cấp mới Access Token bằng Refresh Token (F1.3)' })
   @ApiZodBody(RefreshTokenSchema, 'Refresh token dùng để gia hạn access token')
   @ApiResponse({ status: 200, description: 'Cấp mới Access Token thành công' })
-  async refresh(@Body(new ZodValidationPipe(RefreshTokenSchema)) dto: RefreshTokenDto) {
+  async refresh(@Body(new ZodValidationPipe(RefreshTokenSchema)) dto: RefreshTokenDto): Promise<{ access_token: string; refresh_token: string; expires_in: number; remember_me: boolean; expires_at: string; }> {
     return this.refreshAccessTokenHandler.execute(dto.refresh_token);
   }
 
@@ -108,7 +108,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-05: Quên mật khẩu — gửi OTP 6 số (TTL 10 phút)' })
   @ApiZodBody(ForgotPasswordSchema, 'Email nhận mã OTP')
-  async forgotPassword(@Body(new ZodValidationPipe(ForgotPasswordSchema)) dto: ForgotPasswordDto) {
+  async forgotPassword(@Body(new ZodValidationPipe(ForgotPasswordSchema)) dto: ForgotPasswordDto): Promise<{ message: string; }> {
     return this.forgotPasswordHandler.execute(dto.email);
   }
 
@@ -118,7 +118,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-06: Đặt lại mật khẩu bằng OTP' })
   @ApiZodBody(ResetPasswordSchema, 'Email + OTP + mật khẩu mới')
-  async resetPassword(@Body(new ZodValidationPipe(ResetPasswordSchema)) dto: ResetPasswordDto) {
+  async resetPassword(@Body(new ZodValidationPipe(ResetPasswordSchema)) dto: ResetPasswordDto): Promise<{ message: string; }> {
     return this.resetPasswordHandler.execute(dto.email, dto.otp, dto.new_password);
   }
 
@@ -132,7 +132,7 @@ export class AuthController {
   async changePassword(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(ChangePasswordSchema)) dto: ChangePasswordDto,
-  ) {
+  ): Promise<{ message: string; }> {
     return this.changePasswordHandler.execute(
       user.userId,
       user.sessionId,
@@ -202,7 +202,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Đăng xuất tài khoản và thu hồi session hiện hành (F1.4)' })
   @ApiResponse({ status: 200, description: 'Đăng xuất thành công' })
-  async logout(@CurrentUser() user: CurrentUserPayload) {
+  async logout(@CurrentUser() user: CurrentUserPayload): Promise<{ message: string; }> {
     return this.logoutHandler.execute(user.sessionId);
   }
 
@@ -211,7 +211,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Xem danh sách các phiên đăng nhập đang hoạt động (F1.8)' })
   @ApiResponse({ status: 200, description: 'Danh sách các phiên đăng nhập' })
-  async getSessions(@CurrentUser() user: CurrentUserPayload) {
+  async getSessions(@CurrentUser() user: CurrentUserPayload): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }[]> {
     return this.getSessionsHandler.execute(user.userId);
   }
 
@@ -221,7 +221,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Chi tiết 1 phiên đăng nhập (chỉ chính user đó)' })
   @ApiResponse({ status: 200, description: 'Chi tiết phiên đăng nhập' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy phiên hoặc phiên thuộc user khác' })
-  async getSessionById(@CurrentUser() user: CurrentUserPayload, @Param('id') sessionId: string) {
+  async getSessionById(@CurrentUser() user: CurrentUserPayload, @Param('id') sessionId: string): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }> {
     return this.getSessionByIdHandler.execute(user.userId, sessionId);
   }
 
@@ -230,7 +230,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thu hồi phiên đăng nhập từ xa (F1.10)' })
   @ApiResponse({ status: 200, description: 'Thu hồi phiên thành công' })
-  async revokeSession(@CurrentUser() user: CurrentUserPayload, @Param('id') sessionId: string) {
+  async revokeSession(@CurrentUser() user: CurrentUserPayload, @Param('id') sessionId: string): Promise<{ message: string; }> {
     return this.revokeSessionHandler.execute(user.userId, sessionId);
   }
 }

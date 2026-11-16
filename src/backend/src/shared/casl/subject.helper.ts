@@ -1,10 +1,11 @@
 import { subject } from '@casl/ability';
 import type { SubjectName } from './subjects.type';
+import type { ForcedSubject } from '@casl/ability';
 
 export function buildSubject<T extends Record<string, unknown>>(
   subjectName: SubjectName,
   data: T
-) {
+): SubjectName | (Record<string, unknown> & ForcedSubject<SubjectName>) {
   if (!data) return subjectName;
 
   const properties =

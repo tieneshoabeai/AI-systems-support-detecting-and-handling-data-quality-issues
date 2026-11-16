@@ -49,6 +49,9 @@ import { RemoveProjectMemberHandler } from '../../application/commands/remove-pr
 import { TransferProjectOwnerHandler } from '../../application/commands/transfer-project-owner.handler';
 import { UpdateProjectHandler } from '../../application/commands/update-project.handler';
 import { UpdateProjectMemberRoleHandler } from '../../application/commands/update-project-member-role.handler';
+import type { ProjectMemberRecord, ProjectRecord, ProjectStatus } from '../..';
+import type { CursorMeta } from '../../../../shared/pagination/cursor-paginated.response';
+import type { ProjectMemberView } from '../../domain/ports/project.repository.port';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -89,7 +92,7 @@ export class ProjectsController {
     @Param('workspaceId') workspaceId: string,
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(CreateProjectSchema)) dto: CreateProjectDto,
-  ) {
+  ): Promise<{ message: string; project: ProjectRecord; }> {
     const project = await this.createProjectHandler.execute(workspaceId, user.userId, dto);
     return {
       message: 'Tạo dự án thành công',
@@ -109,7 +112,7 @@ export class ProjectsController {
   async listByWorkspace(
     @Param('workspaceId') workspaceId: string,
     @Query(new ZodValidationPipe(ListProjectsQuerySchema)) query: Record<string, unknown>,
-  ) {
+  ): Promise<{ items: ProjectRecord[]; meta: CursorMeta; }> {
     const result = await this.listProjectsByWorkspaceHandler.execute(workspaceId, query as never);
     return { ...result };
   }
@@ -117,7 +120,7 @@ export class ProjectsController {
   @Get('projects/:id')
   @ApiOperation({ summary: 'PROJ-03: Xem chi tiết dự án' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Project'))
-  async getProjectById(@Param('id') id: string) {
+  async getProjectById(@Param('id') id: string): Promise<{ project: { workspaceName: string | null; id: string; workspaceId: string; name: string; description: string; hasDataset: boolean; status: ProjectStatus; members: ProjectMemberRecord[]; lastAccessedAt: Date | null; version: number; createdBy: string; createdAt: Date; updatedAt: Date; }; }> {
     const project = await this.getProjectByIdHandler.execute(id, true);
     // H3 — kèm tên workspace để frontend không cần gọi thêm 1 request.
     const workspaceName = await this.getWorkspaceNameHandler.execute(project.workspaceId);
@@ -133,7 +136,7 @@ export class ProjectsController {
   async updateProject(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateProjectSchema)) dto: UpdateProjectDto,
-  ) {
+  ): Promise<{ message: string; project: ProjectRecord; }> {
     const project = await this.updateProjectHandler.execute(id, dto);
     return {
       message: 'Cập nhật dự án thành công',
@@ -156,7 +159,7 @@ export class ProjectsController {
   async markCompleted(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(MarkCompletedSchema)) dto: MarkCompletedDto,
-  ) {
+  ): Promise<{ project: ProjectRecord; }> {
     await this.markCompletedHandler.execute(id, dto.expectedVersion);
     const project = await this.getProjectByIdHandler.execute(id);
     return { project };
@@ -174,7 +177,7 @@ export class ProjectsController {
   async listMembers(
     @Param('id') id: string,
     @Query(new ZodValidationPipe(ListProjectMembersQuerySchema)) query: Record<string, unknown>,
-  ) {
+  ): Promise<{ items: ProjectMemberView[]; meta: CursorMeta; }> {
     const result = await this.listMembersHandler.execute(id, query as never);
     return { ...result };
   }
@@ -186,7 +189,7 @@ export class ProjectsController {
   async addMember(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(AddProjectMemberSchema)) dto: AddProjectMemberDto,
-  ) {
+  ): Promise<{ message: string; project: ProjectRecord; }> {
     const project = await this.addProjectMemberHandler.execute(id, dto);
     return { message: 'Thêm thành viên project thành công', project };
   }
@@ -199,7 +202,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @Param('userId') userId: string,
     @Body(new ZodValidationPipe(UpdateProjectMemberSchema)) dto: UpdateProjectMemberDto,
-  ) {
+  ): Promise<{ message: string; project: ProjectRecord; }> {
     const project = await this.updateProjectMemberRoleHandler.execute(id, userId, dto);
     return { message: 'Cập nhật vai trò thành viên thành công', project };
   }
@@ -208,7 +211,7 @@ export class ProjectsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Xóa thành viên khỏi project' })
   @CheckPolicies((ability) => ability.can(Action.Update, 'Project'))
-  async removeMember(@Param('id') id: string, @Param('userId') userId: string) {
+  async removeMember(@Param('id') id: string, @Param('userId') userId: string): Promise<{ message: string; project: ProjectRecord; }> {
     const project = await this.removeProjectMemberHandler.execute(id, userId);
     return { message: 'Xóa thành viên project thành công', project };
   }
@@ -221,7 +224,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(TransferProjectOwnerSchema)) dto: TransferProjectOwnerDto,
-  ) {
+  ): Promise<{ message: string; project: ProjectRecord; }> {
     const project = await this.transferProjectOwnerHandler.execute(id, user.userId, dto);
     return { message: 'Nhượng quyền Project Owner thành công', project };
   }

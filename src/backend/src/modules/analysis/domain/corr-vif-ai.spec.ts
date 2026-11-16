@@ -15,7 +15,7 @@ import {
 } from './rag-few-shot.util';
 import type { FewShotExample } from './rag-few-shot.util';
 
-describe('correlation.util (3.23.1)', () => {
+describe('correlation.util (3.23.1)', () : void => {
   const rows = [
     { a: 1, b: 2, g: 'x' },
     { a: 2, b: 4, g: 'x' },
@@ -50,7 +50,7 @@ describe('correlation.util (3.23.1)', () => {
   });
 });
 
-describe('vif.util (3.23.2)', () => {
+describe('vif.util (3.23.2)', () : void => {
   it('VIF > 10 cho cộng tuyến gần hoàn hảo, flag high', () => {
     const rows = Array.from({ length: 20 }, (_, i) => ({ x1: i + 1, x2: (i + 1) * 2 + 0.0001 * (i % 2) }));
     const out = computeVif(['x1', 'x2'], rows);
@@ -72,7 +72,7 @@ describe('vif.util (3.23.2)', () => {
   });
 });
 
-describe('ai-grounding (3.23.3 — corr-v1)', () => {
+describe('ai-grounding (3.23.3 — corr-v1)', () : void => {
   const cells = [
     { colA: 'a', colB: 'b', coef: 0.82, kind: 'pearson' as const, n: 1200, totalScanned: 1200, missingAOnly: 0, missingBOnly: 0, missingBoth: 0, computable: true, reason: null },
   ];
@@ -95,7 +95,7 @@ describe('ai-grounding (3.23.3 — corr-v1)', () => {
   });
 });
 
-describe('han che #2: pairwise missing breakdown', () => {
+describe('han che #2: pairwise missing breakdown', () : void => {
   it('bao ro mat o cot A / cot B / ca hai', () => {
     const rows = [
       { a: 1, b: 1 },
@@ -114,7 +114,7 @@ describe('han che #2: pairwise missing breakdown', () => {
   });
 });
 
-describe('han che #3: VIF commonNRate + lossWarning', () => {
+describe('han che #3: VIF commonNRate + lossWarning', () : void => {
   it('mat >20% dong thi co canh bao', () => {
     const rows = Array.from({ length: 10 }, (_, i) => ({
       x1: i + 1,
@@ -133,7 +133,7 @@ describe('han che #3: VIF commonNRate + lossWarning', () => {
   });
 });
 
-describe('han che #4: cot date bi loai ro ly do', () => {
+describe('han che #4: cot date bi loai ro ly do', () : void => {
   it('matrix notes neu ro cot date bi loai', () => {
     const { notes } = buildCorrelationMatrix(
       [
@@ -147,7 +147,7 @@ describe('han che #4: cot date bi loai ro ly do', () => {
   });
 });
 
-describe('v8: Zod strict + sap xep + giu toan bo (nhom A)', () => {
+describe('v8: Zod strict + sap xep + giu toan bo (nhom A)', () : void => {
   const cells = [
     { colA: 'a', colB: 'b', coef: 0.5, kind: 'pearson' as const, n: 100, totalScanned: 100, missingAOnly: 0, missingBOnly: 0, missingBoth: 0, computable: true, reason: null },
     { colA: 'a', colB: 'c', coef: -0.9, kind: 'pearson' as const, n: 100, totalScanned: 100, missingAOnly: 0, missingBOnly: 0, missingBoth: 0, computable: true, reason: null },
@@ -200,7 +200,7 @@ describe('v8: Zod strict + sap xep + giu toan bo (nhom A)', () => {
   });
 });
 
-describe('v8: che PII (regex + cot danh dau PII)', () => {
+describe('v8: che PII (regex + cot danh dau PII)', () : void => {
   it('email / dien thoai / CCCD kiem regex → thay bang ***', () => {
     expect(maskCell('user@example.com', false).value).toBe('***');
     expect(maskCell('0901234567', false).value).toBe('***');
@@ -227,8 +227,8 @@ describe('v8: che PII (regex + cot danh dau PII)', () => {
   });
 });
 
-describe('v8: RAG few-shot (cosine trong MongoDB, cap 50k FIFO)', () => {
-  const mk = (over: Partial<FewShotExample> = {}) => ({
+describe('v8: RAG few-shot (cosine trong MongoDB, cap 50k FIFO)', () : void => {
+  const mk = (over: Partial<FewShotExample> = {}): FewShotExample => ({
     errorType: 'DQ-03',
     columnTraits: 'cot trang thai dung 5 ma viet tat',
     description: 'khong phai loi',
@@ -291,7 +291,7 @@ describe('v8: RAG few-shot (cosine trong MongoDB, cap 50k FIFO)', () => {
     expect(renderFewShotBlock([])).toBe('');
   });
 });
-describe('Full T1: chuan hoa + agreement + embedding', () => {
+describe('Full T1: chuan hoa + agreement + embedding', () : void => {
   it('extractErrorType trich DQ tu findingId', () => {
     expect(extractErrorType('DQ-01:ten-cot')).toBe('DQ-01');
     expect(extractErrorType('DQ-03')).toBe('DQ-03');

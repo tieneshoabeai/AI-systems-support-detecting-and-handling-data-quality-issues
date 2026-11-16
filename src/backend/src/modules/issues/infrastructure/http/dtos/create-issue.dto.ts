@@ -52,7 +52,7 @@ export const UpdateMyIssueSchema = z.object({
   removeAttachmentIds: z.array(z.string().min(1).max(64)).max(10).optional(),
   expectedVersion: z.number().int().min(1, 'expectedVersion là bắt buộc'),
 }).refine(
-  (v) => v.title !== undefined || v.description !== undefined || (v.removeAttachmentIds?.length ?? 0) > 0,
+  (v) : boolean => v.title !== undefined || v.description !== undefined || (v.removeAttachmentIds?.length ?? 0) > 0,
   {
     message: 'Cần cung cấp ít nhất một trong: title, description, removeAttachmentIds',
     path: ['title'],

@@ -57,7 +57,7 @@ export class AdminUsersController {
   async list(
     @CurrentUser() actor: CurrentUserPayload,
     @Query(new ZodValidationPipe(AdminListUsersQuerySchema)) query: Record<string, unknown>,
-  ) {
+  ): Promise<{ items: Record<string, unknown>[]; total: number; page: number; limit: number; }> {
     const q = query as {
       search?: string;
       role?: string;
@@ -86,7 +86,7 @@ export class AdminUsersController {
   @Get(':id')
   @Roles('admin')
   @ApiOperation({ summary: 'ADMIN-01: Chi tiết hồ sơ (chỉ đọc, có audit log)' })
-  async detail(@CurrentUser() actor: CurrentUserPayload, @Param('id') id: string) {
+  async detail(@CurrentUser() actor: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     const u = await this.findByIdHandler.execute(id);
     if (!u) throw new NotFoundException('Không tìm thấy tài khoản người dùng');
     this.logger.log(

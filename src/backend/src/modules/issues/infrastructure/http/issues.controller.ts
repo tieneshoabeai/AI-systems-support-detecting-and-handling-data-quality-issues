@@ -81,7 +81,7 @@ export class IssuesController {
   async createReport(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(CreateIssueSchema)) dto: CreateIssueDto,
-  ) {
+  ): Promise<Record<string, unknown>> {
     return this.createReportHandler.execute(user.userId, dto);
   }
 
@@ -91,7 +91,7 @@ export class IssuesController {
   async listMine(
     @CurrentUser() user: CurrentUserPayload,
     @Query(new ZodValidationPipe(ListIssuesQuerySchema)) query: ListIssuesQueryDto,
-  ) {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; }> {
     return this.listMineHandler.execute(user.userId, query);
   }
 
@@ -102,7 +102,7 @@ export class IssuesController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
     @Req() req: Request,
-  ) {
+  ): Promise<Record<string, unknown>> {
     const file = await new Promise<{
       filename: string;
       mimeType: string;
@@ -188,7 +188,7 @@ export class IssuesController {
 
   @Get('issues/:id')
   @ApiOperation({ summary: 'ISSUE-03: Chi tiết báo cáo của tôi' })
-  async getMine(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+  async getMine(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     return this.getMineHandler.execute(user.userId, id);
   }
 
@@ -203,7 +203,7 @@ export class IssuesController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateMyIssueSchema)) dto: UpdateMyIssueDto,
     @Req() req: Request,
-  ) {
+  ): Promise<Record<string, unknown>> {
     const result = await this.updateMyReportHandler.execute(user.userId, id, {
       ...(dto.title !== undefined ? { title: dto.title } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
@@ -235,14 +235,14 @@ export class IssuesController {
   @ApiZodQuery(AdminListIssuesQuerySchema)
   async listForAdmin(
     @Query(new ZodValidationPipe(AdminListIssuesQuerySchema)) query: AdminListIssuesQueryDto,
-  ) {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; }> {
     return this.listForAdminHandler.execute(query);
   }
 
   @Get('admin/issues/:id')
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Chi tiết báo cáo (quản trị)' })
-  async getForAdmin(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+  async getForAdmin(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     return this.getForAdminHandler.execute(id, user.role);
   }
 
@@ -255,7 +255,7 @@ export class IssuesController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateIssueStatusSchema)) dto: UpdateIssueStatusDto,
     @Req() req: Request,
-  ) {
+  ): Promise<Record<string, unknown>> {
     const before = await this.getForAdminHandler.execute(id, user.role);
     const result = await this.updateStatusHandler.execute(
       id,

@@ -11,6 +11,7 @@ import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 import { FindByIdHandler } from '../../application/queries/find-by-id.handler';
 import { SoftDeleteUserHandler } from '../../application/commands/soft-delete-user.handler';
 import { UpdateProfileHandler } from '../../application/commands/update-profile.handler';
+import type { UserRecord } from '../..';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -26,7 +27,7 @@ export class UsersController {
   @Get('me')
   @ApiOperation({ summary: 'Lấy thông tin tài khoản hiện tại' })
   @ApiResponse({ status: 200, description: 'Thông tin hồ sơ người dùng thành công' })
-  async getProfile(@CurrentUser() user: CurrentUserPayload) {
+  async getProfile(@CurrentUser() user: CurrentUserPayload): Promise<UserRecord> {
     const profile = await this.findByIdHandler.execute(user.userId);
     if (!profile) {
       throw new NotFoundException('Không tìm thấy tài khoản người dùng');
@@ -41,14 +42,14 @@ export class UsersController {
   async updateProfile(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(UpdateUserSchema)) dto: UpdateUserDto,
-  ) {
+  ): Promise<UserRecord> {
     return this.updateProfileHandler.execute(user.userId, dto);
   }
 
   @Delete('me')
   @ApiOperation({ summary: 'Xóa mềm tài khoản người dùng (Soft Delete)' })
   @ApiResponse({ status: 200, description: 'Tài khoản đã được xóa mềm thành công' })
-  async deleteAccount(@CurrentUser() user: CurrentUserPayload) {
+  async deleteAccount(@CurrentUser() user: CurrentUserPayload): Promise<{ message: string; }> {
     await this.softDeleteUserHandler.execute(user.userId);
     return { message: 'Tài khoản đã được xóa mềm thành công' };
   }

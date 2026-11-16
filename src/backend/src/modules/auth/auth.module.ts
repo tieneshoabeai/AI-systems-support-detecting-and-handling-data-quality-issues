@@ -36,7 +36,7 @@ import { RevokeSessionHandler } from './application/commands/revoke-session.hand
     UsersModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
-      useFactory: (config: ConfigService) => ({
+      useFactory: (config: ConfigService) : { secret: string; signOptions: { expiresIn: `${number}${"s" | "m" | "h" | "d"}`; }; } => ({
         secret: config.get<string>('JWT_ACCESS_SECRET') || 'default_jwt_secret',
         signOptions: {
           expiresIn: config.get<string>(

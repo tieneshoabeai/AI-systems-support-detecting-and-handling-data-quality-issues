@@ -32,16 +32,16 @@ export const RecordFilterSchema = z
     value: z.unknown().optional(),
   })
   .refine(
-    (f) =>
+    (f) : boolean =>
       f.operator === 'isEmpty' ||
       f.operator === 'isNotEmpty' ||
       (f.value !== undefined && f.value !== null && f.value !== ''),
     { message: 'Bộ lọc yêu cầu có value (trừ isEmpty/isNotEmpty)' },
   )
-  .refine((f) => f.operator !== 'between' || (Array.isArray(f.value) && f.value.length === 2), {
+  .refine((f) : boolean => f.operator !== 'between' || (Array.isArray(f.value) && f.value.length === 2), {
     message: 'Bộ lọc "between" yêu cầu value là mảng 2 phần tử [min, max]',
   })
-  .refine((f) => f.operator !== 'in' || (Array.isArray(f.value) && f.value.length > 0), {
+  .refine((f) : boolean => f.operator !== 'in' || (Array.isArray(f.value) && f.value.length > 0), {
     message: 'Bộ lọc "in" yêu cầu value là mảng khác rỗng',
   });
 

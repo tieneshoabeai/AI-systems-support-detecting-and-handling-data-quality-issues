@@ -55,7 +55,7 @@ export class AnalysisController {
   async saveConfig(
     @Param('projectId') projectId: string,
     @Body(new ZodValidationPipe(AnalysisConfigSchema)) dto: unknown,
-  ) {
+  ): Promise<Record<string, unknown>> {
     return this.saveConfigHandler.execute(projectId, dto as never);
   }
 
@@ -65,7 +65,7 @@ export class AnalysisController {
     operationId: 'getAnalysisConfig',
   })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async getConfig(@Param('projectId') projectId: string) {
+  async getConfig(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getConfigHandler.execute(projectId);
   }
 
@@ -80,7 +80,7 @@ export class AnalysisController {
     @Param('projectId') projectId: string,
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(RunAnalysisSchema)) dto: RunAnalysisDto,
-  ) {
+  ): Promise<Record<string, unknown>> {
     const data = await this.runAnalysisHandler.execute(projectId, dto, user.userId);
     return data;
   }
@@ -92,14 +92,14 @@ export class AnalysisController {
     operationId: 'getAnalysisResult',
   })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async getResult(@Param('projectId') projectId: string) {
+  async getResult(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getResultHandler.execute(projectId);
   }
 
   @Get('analysis/jobs/:jobId')
   @ApiOperation({ summary: 'AI-01: Trạng thái AI job corr-v1', operationId: 'getAiJob' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async getJob(@Param('jobId') jobId: string) {
+  async getJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
     return this.getJobHandler.execute(jobId);
   }
 
@@ -107,7 +107,7 @@ export class AnalysisController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'AI-01: Thử lại AI job (tối đa 2 retry)', operationId: 'retryAiJob' })
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
-  async retryJob(@Param('jobId') jobId: string) {
+  async retryJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
     return this.retryJobHandler.execute(jobId);
   }
 
@@ -121,7 +121,7 @@ export class AnalysisController {
   async ingestAiResult(
     @Param('jobId') jobId: string,
     @Body() body: { result: unknown; modelId?: string },
-  ) {
+  ): Promise<Record<string, unknown>> {
     const raw = (body?.result ?? {}) as unknown;
     const modelId = typeof body?.modelId === 'string' ? body.modelId : undefined;
     return this.ingestAiResultHandler.execute(jobId, raw, modelId);

@@ -75,7 +75,7 @@ export class ListWorkspacesHandler {
       const last = page[page.length - 1];
       const nextCursor =
         hasMore && last
-          ? (() => {
+          ? ((): string => {
               const sv = sortValueOf(last, sort);
               return encodeKeysetCursor({
                 s: sort,

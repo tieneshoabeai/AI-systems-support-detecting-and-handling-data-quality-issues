@@ -1,5 +1,9 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { createParamDecorator } from '@nestjs/common';
+import type { Request } from 'express';
+
+/** Request đã gắn resource sau khi PoliciesGuard nạp tài nguyên động. */
+type RequestWithResource = Request & { resource?: unknown };
 
 /**
  * Decorator trích xuất đối tượng tài nguyên (Resource) đã được nạp sẵn từ PoliciesGuard
@@ -7,7 +11,7 @@ import { createParamDecorator } from '@nestjs/common';
  */
 export const CurrentResource = createParamDecorator(
   <T = unknown>(_data: unknown, ctx: ExecutionContext): T | undefined => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.resource as T;
+    const request = ctx.switchToHttp().getRequest<RequestWithResource>();
+    return request.resource as T | undefined;
   }
 );

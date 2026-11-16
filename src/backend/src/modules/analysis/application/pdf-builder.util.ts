@@ -50,7 +50,7 @@ export function buildReportPdf(opts: { title: string; sections: PdfSection[] }):
   let cur: string[] = [];
   let y = H - MARGIN;
 
-  const push = (text: string, size: number, opts2?: { bold?: boolean; gapAfter?: number }) => {
+  const push = (text: string, size: number, opts2?: { bold?: boolean; gapAfter?: number }): void => {
     const need = (opts2?.gapAfter ?? 0) + LEAD;
     if (y - need < MARGIN) {
       pages.push(cur);

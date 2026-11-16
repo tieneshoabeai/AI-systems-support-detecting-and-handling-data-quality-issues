@@ -56,7 +56,7 @@ export class FeedbackController {
     @Param('analysisId') analysisId: string,
     @Param('findingId') findingId: string,
     @Body(new ZodValidationPipe(CreateFeedbackSchema)) dto: CreateFeedbackDto,
-  ) {
+  ): Promise<Record<string, unknown>> {
     return this.createFindingFeedbackHandler.execute(
       user.userId,
       user.role,
@@ -73,7 +73,7 @@ export class FeedbackController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
     @Body(new ZodValidationPipe(CreateFeedbackSchema)) dto: CreateFeedbackDto,
-  ) {
+  ): Promise<Record<string, unknown>> {
     return this.createRunFeedbackHandler.execute(user.userId, user.role, analysisId, dto);
   }
 
@@ -85,7 +85,7 @@ export class FeedbackController {
     @Param('analysisId') analysisId: string,
     @Param('findingId') findingId: string,
     @Query(new ZodValidationPipe(ListFeedbackQuerySchema)) query: ListFeedbackQueryDto,
-  ) {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; summary: Record<string, number>; }> {
     return this.listFindingFeedbackHandler.execute(
       user.userId,
       user.role,
@@ -102,7 +102,7 @@ export class FeedbackController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
     @Query(new ZodValidationPipe(ListFeedbackQuerySchema)) query: ListFeedbackQueryDto,
-  ) {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; summary: Record<string, number>; }> {
     return this.listRunFeedbackHandler.execute(user.userId, user.role, analysisId, query);
   }
 
@@ -113,13 +113,13 @@ export class FeedbackController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateFeedbackSchema)) dto: UpdateFeedbackDto,
-  ) {
+  ): Promise<Record<string, unknown>> {
     return this.updateMineHandler.execute(user.userId, id, dto);
   }
 
   @Delete('feedback/:id')
   @ApiOperation({ summary: 'FB-05: Xoá nhận xét (chủ hoặc Owner xử lý vi phạm)' })
-  async remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+  async remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<{ deleted: boolean; }> {
     return this.removeHandler.execute(user.userId, user.role, id);
   }
 
@@ -128,7 +128,7 @@ export class FeedbackController {
   async aiQualityMetrics(
     @CurrentUser() user: CurrentUserPayload,
     @Param('projectId') projectId: string,
-  ) {
+  ): Promise<Record<string, unknown>> {
     return this.aiQualityMetricsHandler.execute(user.userId, user.role, projectId);
   }
 }

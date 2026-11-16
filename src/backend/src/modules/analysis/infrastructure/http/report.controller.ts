@@ -47,7 +47,7 @@ export class ReportController {
     operationId: 'requestReport',
   })
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
-  async request(@Param('projectId') projectId: string) {
+  async request(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.requestReportHandler.execute(projectId);
   }
 

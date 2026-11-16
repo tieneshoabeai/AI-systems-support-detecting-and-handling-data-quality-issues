@@ -21,6 +21,9 @@ import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.deco
 import { GetColumnStatsHandler } from '../../application/queries/get-column-stats.handler';
 import { GetRecordsHandler } from '../../application/queries/get-records.handler';
 import { QueryRecordsHandler } from '../../application/queries/query-records.handler';
+import type { CursorPaginatedResponse } from '../../../../shared/pagination/cursor-paginated.response';
+import type { RecordRow } from '../../../datasets';
+import type { ColumnStatsResult } from '../../application/data-view.types';
 
 @ApiTags('Data View (Virtual Grid)')
 @ApiBearerAuth()
@@ -43,7 +46,7 @@ export class DataViewController {
   async getRecords(
     @Param('datasetId') datasetId: string,
     @Query(new ZodValidationPipe(QueryRecordsSchema)) query: QueryRecordsDto,
-  ) {
+  ): Promise<CursorPaginatedResponse<RecordRow>> {
     return this.getRecordsHandler.execute(datasetId, query);
   }
 
@@ -57,7 +60,7 @@ export class DataViewController {
   async queryRecords(
     @Param('datasetId') datasetId: string,
     @Body(new ZodValidationPipe(QueryRecordsBodySchema)) body: QueryRecordsBodyDto,
-  ) {
+  ): Promise<CursorPaginatedResponse<RecordRow>> {
     return this.queryRecordsHandler.execute(datasetId, body);
   }
 
@@ -69,7 +72,7 @@ export class DataViewController {
   async getColumnStats(
     @Param('datasetId') datasetId: string,
     @Param('columnKey') columnKey: string,
-  ) {
+  ): Promise<{ stats: ColumnStatsResult; }> {
     const stats = await this.getColumnStatsHandler.execute(datasetId, columnKey);
     return { stats };
   }

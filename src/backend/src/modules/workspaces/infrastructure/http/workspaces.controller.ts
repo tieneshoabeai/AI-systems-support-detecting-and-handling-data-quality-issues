@@ -38,6 +38,8 @@ import { ListWorkspacesHandler } from '../../application/queries/list-workspaces
 import { RemoveMemberHandler } from '../../application/commands/remove-member.handler';
 import { TransferOwnerHandler } from '../../application/commands/transfer-owner.handler';
 import { UpdateWorkspaceHandler } from '../../application/commands/update-workspace.handler';
+import type { WorkspaceMemberView, WorkspaceRecord } from '../..';
+import type { CursorMeta } from '../../../../shared/pagination/cursor-paginated.response';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -64,7 +66,7 @@ export class WorkspacesController {
   async createWorkspace(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(CreateWorkspaceSchema)) dto: CreateWorkspaceDto,
-  ) {
+  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
     const workspace = await this.createWorkspaceHandler.execute(user.userId, dto);
     return {
       message: 'Tạo không gian làm việc thành công',
@@ -84,7 +86,7 @@ export class WorkspacesController {
   async listWorkspaces(
     @CurrentUser() user: CurrentUserPayload,
     @Query(new ZodValidationPipe(ListWorkspacesQuerySchema)) query: Record<string, unknown>,
-  ) {
+  ): Promise<{ items: WorkspaceRecord[]; meta: CursorMeta; }> {
     const result = await this.listWorkspacesHandler.execute(user, query as never);
     return { ...result };
   }
@@ -92,7 +94,7 @@ export class WorkspacesController {
   @Get(':id')
   @ApiOperation({ summary: 'WS-03: Xem chi tiết không gian làm việc' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
-  async getWorkspaceById(@Param('id') id: string) {
+  async getWorkspaceById(@Param('id') id: string): Promise<{ workspace: WorkspaceRecord; }> {
     const workspace = await this.getWorkspaceByIdHandler.execute(id, true);
     return { workspace };
   }
@@ -104,7 +106,7 @@ export class WorkspacesController {
   async updateWorkspace(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateWorkspaceSchema)) dto: UpdateWorkspaceDto,
-  ) {
+  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
     const workspace = await this.updateWorkspaceHandler.execute(id, dto);
     return {
       message: 'Cập nhật không gian làm việc thành công',
@@ -132,7 +134,7 @@ export class WorkspacesController {
   async listMembers(
     @Param('id') id: string,
     @Query(new ZodValidationPipe(ListWorkspaceMembersQuerySchema)) query: Record<string, unknown>,
-  ) {
+  ): Promise<{ items: WorkspaceMemberView[]; meta: CursorMeta; }> {
     const result = await this.listMembersHandler.execute(id, query as never);
     return { ...result };
   }
@@ -144,7 +146,7 @@ export class WorkspacesController {
   async addMember(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(AddMemberSchema)) dto: AddMemberDto,
-  ) {
+  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
     const workspace = await this.addMemberHandler.execute(id, dto);
     return {
       message: 'Thêm thành viên vào không gian làm việc thành công',
@@ -156,7 +158,7 @@ export class WorkspacesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Xóa thành viên khỏi không gian làm việc' })
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
-  async removeMember(@Param('id') id: string, @Param('userId') userId: string) {
+  async removeMember(@Param('id') id: string, @Param('userId') userId: string): Promise<{ message: string; workspace: WorkspaceRecord; }> {
     const workspace = await this.removeMemberHandler.execute(id, userId);
     return {
       message: 'Xóa thành viên khỏi không gian làm việc thành công',
@@ -172,7 +174,7 @@ export class WorkspacesController {
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(TransferOwnerSchema)) dto: TransferOwnerDto,
-  ) {
+  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
     const workspace = await this.transferOwnerHandler.execute(id, user.userId, dto);
     return { message: 'Nhượng quyền Owner thành công', workspace };
   }
@@ -180,7 +182,7 @@ export class WorkspacesController {
   @Post(':id/leave')
   @ApiOperation({ summary: 'WS-10: Rời workspace' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
-  async leave(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+  async leave(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload): Promise<{ left: boolean; message: string; }> {
     const r = await this.leaveWorkspaceHandler.execute(id, user.userId);
     return { message: 'Rời workspace thành công', ...r };
   }

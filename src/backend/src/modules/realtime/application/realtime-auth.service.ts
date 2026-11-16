@@ -43,8 +43,8 @@ export class RealtimeAuthService {
     const secret = this.config.get<string>('JWT_ACCESS_SECRET') ?? 'default_jwt_secret';
     let payload: Record<string, unknown>;
     try {
-      const decoded = await this.jwtService.verifyAsync(token, { secret });
-      payload = decoded as Record<string, unknown>;
+      const decoded: unknown = await this.jwtService.verifyAsync(token, { secret });
+      payload = (decoded ?? {}) as Record<string, unknown>;
     } catch {
       throw new Error('4401: token không hợp lệ hoặc đã hết hạn');
     }

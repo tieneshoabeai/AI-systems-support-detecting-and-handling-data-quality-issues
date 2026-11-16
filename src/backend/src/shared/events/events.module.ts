@@ -16,14 +16,14 @@ import { KafkaConsumerService } from './kafka-consumer.service';
     KafkaEventPublisher,
     {
       provide: HybridEventPublisher,
-      useFactory: (cfg: ConfigService, local: InProcessEventPublisher, kafka: KafkaEventPublisher) =>
+      useFactory: (cfg: ConfigService, local: InProcessEventPublisher, kafka: KafkaEventPublisher) : HybridEventPublisher =>
         new HybridEventPublisher(cfg, local, kafka),
       inject: [ConfigService, InProcessEventPublisher, KafkaEventPublisher],
     },
     { provide: EVENT_PUBLISHER_PORT, useExisting: HybridEventPublisher },
     {
       provide: EventDispatcherService,
-      useFactory: (local: InProcessEventPublisher, inbox?: unknown, realtime?: unknown) =>
+      useFactory: (local: InProcessEventPublisher, inbox?: unknown, realtime?: unknown) : EventDispatcherService =>
         new EventDispatcherService(local, realtime as never, inbox as never),
       inject: [InProcessEventPublisher, { token: InboxService, optional: true }, { token: REALTIME_PORT, optional: true }],
     },

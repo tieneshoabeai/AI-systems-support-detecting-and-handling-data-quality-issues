@@ -15,7 +15,7 @@ export class GetSessionsHandler {
     private readonly sessions: AuthSessionPort,
   ) {}
 
-  async execute(userId: string) {
+  async execute(userId: string): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }[]> {
     const sessions = await this.sessions.findActiveSessions(userId);
     return sessions.map((s) => ({
       id: s.id,

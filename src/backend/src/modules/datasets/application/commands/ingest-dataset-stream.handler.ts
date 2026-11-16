@@ -79,7 +79,7 @@ export class IngestDatasetStreamHandler {
 
       const csvStream = fastCsv.parse({ headers: true, trim: false });
 
-      const flushBatch = async () => {
+      const flushBatch = async (): Promise<void> => {
         if (currentBatch.length > 0) {
           const batchToInsert = currentBatch;
           currentBatch = [];
@@ -111,7 +111,7 @@ export class IngestDatasetStreamHandler {
           csvStream.pause();
           flushBatch()
             .then(() => csvStream.resume())
-            .catch((err) => csvStream.destroy(err));
+            .catch((err: unknown) => csvStream.destroy(err instanceof Error ? err : new Error(String(err))));
         }
       });
 
@@ -273,7 +273,7 @@ export class IngestDatasetStreamHandler {
       parsePassThrough.destroy(e);
     });
 
-    const cleanupOnFailure = async () => {
+    const cleanupOnFailure = async (): Promise<void> => {
       try {
         await this.storage.deleteFile(storageKey);
       } catch {

@@ -56,7 +56,10 @@ async function bootstrap(): Promise<void> {
 
   // 1. Trust Proxy cho Cloudflare (Nhận diện chính xác X-Forwarded-Proto: https và CF-Connecting-IP)
   if (cloudflareProxyTrust) {
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+    const httpInstance = app.getHttpAdapter().getInstance() as {
+      set?: (key: string, value: unknown) => void;
+    };
+    httpInstance.set?.('trust proxy', 1);
   }
 
   // 2. Security Headers (Helmet với HSTS và Content Security Policy)
@@ -167,7 +170,7 @@ async function bootstrap(): Promise<void> {
   logger.log(`✓ Để mở Cổng 443 ra Internet qua Cloudflare Tunnel: chạy lệnh 'pnpm run tunnel:start'`);
 }
 
-bootstrap().catch((err: unknown) => {
+bootstrap().catch((err: unknown) : void => {
   const message = err instanceof Error ? err.message : String(err);
   process.stderr.write(`Application bootstrap failed: ${message}\n`);
   process.exitCode = 1;

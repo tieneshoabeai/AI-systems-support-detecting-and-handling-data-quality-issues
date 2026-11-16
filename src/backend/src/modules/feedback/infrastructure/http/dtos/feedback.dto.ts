@@ -16,7 +16,7 @@ export const CreateFeedbackSchema = z
     reason: z.string().max(2000).optional().nullable(),
     suggestedSeverity: FeedbackSeveritySchema.optional().nullable(),
   })
-  .superRefine((v, ctx) => {
+  .superRefine((v, ctx) : void => {
     if (
       (v.label === 'false_positive' || v.label === 'missed_issue' || v.label === 'other') &&
       (!v.reason || v.reason.trim().length === 0)
@@ -37,7 +37,7 @@ export const UpdateFeedbackSchema = z
     reason: z.string().max(2000).optional().nullable(),
     suggestedSeverity: FeedbackSeveritySchema.optional().nullable(),
   })
-  .refine((v) => v.label !== undefined || v.reason !== undefined || v.suggestedSeverity !== undefined, {
+  .refine((v) : boolean => v.label !== undefined || v.reason !== undefined || v.suggestedSeverity !== undefined, {
     message: 'Phải cung cấp ít nhất một trường để sửa',
   });
 

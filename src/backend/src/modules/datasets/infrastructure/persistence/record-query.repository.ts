@@ -218,10 +218,10 @@ export class RecordQueryRepository implements RecordQueryPort {
       case 'lessThan': return { [path]: { $lt: value } };
       case 'lessThanOrEqual': return { [path]: { $lte: value } };
       case 'between': {
-        const arr = Array.isArray(value) ? value : [];
+        const arr: unknown[] = Array.isArray(value) ? (value as unknown[]) : [];
         return { [path]: { $gte: arr[0], $lte: arr[1] } };
       }
-      case 'in': return { [path]: { $in: Array.isArray(value) ? value : [] } };
+      case 'in': return { [path]: { $in: Array.isArray(value) ? (value as unknown[]) : [] } };
       case 'isEmpty':
         return { $or: [{ [path]: null }, { [path]: { $exists: false } }, { [path]: '' }] };
       case 'isNotEmpty':

@@ -17,7 +17,7 @@ export const UpdateUserSchema = z.object({
     .optional()
     .nullable()
     .refine(
-      (v) => v === null || v === undefined || v === '' || PHONE_REGEX.test(v),
+      (v) : boolean => v === null || v === undefined || v === '' || PHONE_REGEX.test(v),
       'Số điện thoại không hợp lệ (8-15 chữ số, có thể bắt đầu bằng +)',
     ),
   bio: z

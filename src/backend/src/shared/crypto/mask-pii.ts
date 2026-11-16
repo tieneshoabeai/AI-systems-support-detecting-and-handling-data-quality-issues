@@ -58,7 +58,7 @@ export function sanitizeObjectForLog<T>(obj: T): T {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map((item) => sanitizeObjectForLog(item)) as unknown as T;
+    return obj.map((item: unknown) => sanitizeObjectForLog(item)) as unknown as T;
   }
 
   const result: Record<string, unknown> = {};

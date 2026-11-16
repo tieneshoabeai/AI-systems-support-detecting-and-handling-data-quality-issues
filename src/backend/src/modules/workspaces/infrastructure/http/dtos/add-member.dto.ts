@@ -6,7 +6,7 @@ export const AddMemberSchema = z.object({
     .trim()
     .email('Định dạng email thành viên không hợp lệ'),
   role: z.enum(['owner', 'member'], {
-    errorMap: () => ({ message: 'Vai trò workspace phải là owner hoặc member' }),
+    errorMap: () : { message: string; } => ({ message: 'Vai trò workspace phải là owner hoặc member' }),
   }).default('member'),
 });
 

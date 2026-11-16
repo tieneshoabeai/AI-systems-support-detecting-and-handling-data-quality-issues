@@ -15,7 +15,7 @@ export class RevokeSessionHandler {
     private readonly sessions: AuthSessionPort,
   ) {}
 
-  async execute(userId: string, sessionId: string) {
+  async execute(userId: string, sessionId: string): Promise<{ message: string; }> {
     const success = await this.sessions.revokeSession(userId, sessionId);
     if (!success)
       throw new BadRequestException(

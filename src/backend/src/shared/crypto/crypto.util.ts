@@ -98,7 +98,7 @@ export function createAes256GcmEncryptStream(password: string): Transform {
   let isHeaderEmitted = false;
 
   return new Transform({
-    transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback) {
+    transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback): void {
       try {
         if (!isHeaderEmitted) {
           this.push(Buffer.concat([MAGIC_HEADER, salt, iv]));
@@ -113,7 +113,7 @@ export function createAes256GcmEncryptStream(password: string): Transform {
         callback(err instanceof Error ? err : new Error(String(err)));
       }
     },
-    flush(callback: TransformCallback) {
+    flush(callback: TransformCallback): void {
       try {
         if (!isHeaderEmitted) {
           this.push(Buffer.concat([MAGIC_HEADER, salt, iv]));

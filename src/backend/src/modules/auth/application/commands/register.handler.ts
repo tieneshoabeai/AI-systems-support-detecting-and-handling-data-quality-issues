@@ -23,7 +23,7 @@ export class RegisterHandler {
     private readonly hasher: PasswordHasherPort,
   ) {}
 
-  async execute(dto: RegisterInput) {
+  async execute(dto: RegisterInput): Promise<{ id: string; email: string; first_name: string; last_name: string; role: "admin" | "analyst"; created_at: Date; }> {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.users.findByEmail(email);
     if (existing) {

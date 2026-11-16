@@ -24,14 +24,14 @@ export class SummaryController {
     operationId: 'createSummary',
   })
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
-  async create(@Param('projectId') projectId: string) {
+  async create(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.createSummaryHandler.execute(projectId);
   }
 
   @Get('projects/:projectId/summary')
   @ApiOperation({ summary: 'SUMMARY-01: Xem Tổng kết mới nhất', operationId: 'getSummary' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async get(@Param('projectId') projectId: string) {
+  async get(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getSummaryHandler.execute(projectId);
   }
 }

@@ -25,7 +25,7 @@ export class FindPagedHandler {
     status?: string;
     page: number;
     limit: number;
-  }) {
+  }): Promise<{ items: UserRecord[]; total: number; }> {
     return (
       this.users as unknown as {
         findPaged(o: unknown): Promise<{ items: UserRecord[]; total: number }>;

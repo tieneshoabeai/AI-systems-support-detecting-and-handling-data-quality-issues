@@ -37,7 +37,7 @@ export class OverviewController {
       'Trả về: `totalWorkspaces`, `totalProjects`, `ownedWorkspaces`, `sharedWorkspaces`, `myProjects`.',
   })
   @ApiResponse({ status: 200, description: 'Các chỉ số tổng quan workspace' })
-  async userWorkspacesOverview(@CurrentUser() user: CurrentUserPayload) {
+  async userWorkspacesOverview(@CurrentUser() user: CurrentUserPayload): Promise<{ totalWorkspaces: number; totalProjects: number; ownedWorkspaces: number; sharedWorkspaces: number; myProjects: number; }> {
     return this.getUserOverviewHandler.execute(user.userId);
   }
 
@@ -50,7 +50,7 @@ export class OverviewController {
   })
   @ApiResponse({ status: 200, description: 'Các chỉ số tổng quan workspace' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy không gian làm việc' })
-  async workspaceOverview(@Param('id') id: string) {
+  async workspaceOverview(@Param('id') id: string): Promise<{ workspaceId: string; projectCount: number; notStartedCount: number; inProgressCount: number; completedCount: number; memberCount: number; storageUsedBytes: number; lastAccessedAt: string | null; }> {
     return this.getWorkspaceOverviewHandler.execute(id);
   }
 }

@@ -39,6 +39,7 @@ import { IngestDatasetStreamHandler } from '../../application/commands/ingest-da
 import { RenameColumnsHandler } from '../../application/commands/rename-columns.handler';
 import { ResetColumnNamesHandler } from '../../application/commands/reset-column-names.handler';
 import { UpdateDatasetHandler } from '../../application/commands/update-dataset.handler';
+import type { DatasetColumnRecord, DatasetRecord } from '../..';
 
 @ApiTags('Datasets')
 @ApiBearerAuth()
@@ -84,7 +85,7 @@ export class DatasetsController {
     },
   })
   @CheckPolicies((ability) => ability.can(Action.Create, 'Dataset'))
-  async uploadDataset(@Param('projectId') projectId: string, @Req() req: Request) {
+  async uploadDataset(@Param('projectId') projectId: string, @Req() req: Request): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const bb = busboy({ headers: req.headers, limits: { fileSize: 50 * 1024 * 1024 } });
       let fileProcessed = false;
@@ -128,7 +129,7 @@ export class DatasetsController {
   @Get('projects/:projectId/datasets')
   @ApiOperation({ summary: 'F4.2: Lay thong tin tap du lieu cua du an' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  async getDatasetByProject(@Param('projectId') projectId: string) {
+  async getDatasetByProject(@Param('projectId') projectId: string): Promise<{ dataset: DatasetRecord | null; }> {
     const dataset = await this.getDatasetByProjectIdHandler.execute(projectId);
     return { dataset };
   }
@@ -136,7 +137,7 @@ export class DatasetsController {
   @Get('datasets/:id')
   @ApiOperation({ summary: 'F4.3: Xem chi tiet thong tin tap du lieu (khong bao gom storage_key)' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  async getDatasetById(@Param('id') id: string) {
+  async getDatasetById(@Param('id') id: string): Promise<{ dataset: DatasetRecord; }> {
     const dataset = await this.getDatasetByIdHandler.execute(id);
     return { dataset };
   }
@@ -148,7 +149,7 @@ export class DatasetsController {
   async updateDataset(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateDatasetSchema)) dto: UpdateDatasetDto,
-  ) {
+  ): Promise<{ message: string; dataset: DatasetRecord; }> {
     const dataset = await this.updateDatasetHandler.execute(id, dto);
     return {
       message: 'Cap nhat tap du lieu thanh cong',
@@ -163,7 +164,7 @@ export class DatasetsController {
   async renameColumns(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(RenameColumnsSchema)) dto: RenameColumnsDto,
-  ) {
+  ): Promise<{ dataset: DatasetRecord; }> {
     const dataset = await this.renameColumnsHandler.execute(id, dto);
     return { dataset };
   }
@@ -172,7 +173,7 @@ export class DatasetsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Wave 4 (M15): Khoi phuc ten cot ve ten goc tu file CSV' })
   @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  async resetColumnNames(@Param('id') id: string) {
+  async resetColumnNames(@Param('id') id: string): Promise<{ dataset: DatasetRecord; }> {
     const dataset = await this.resetColumnNamesHandler.execute(id);
     return { dataset };
   }
@@ -219,7 +220,7 @@ export class DatasetsController {
   @Get('datasets/:id/schema')
   @ApiOperation({ summary: 'F4.6: Xem schema voi key cot on dinh c0..cN' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  async getDatasetSchema(@Param('id') id: string) {
+  async getDatasetSchema(@Param('id') id: string): Promise<{ columns: DatasetColumnRecord[]; }> {
     const columns = await this.getDatasetSchemaHandler.execute(id);
     return { columns };
   }

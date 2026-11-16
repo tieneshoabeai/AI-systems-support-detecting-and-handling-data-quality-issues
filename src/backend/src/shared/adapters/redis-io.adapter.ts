@@ -55,12 +55,13 @@ export async function useRedisAdapterIfConfigured(app: INestApplication): Promis
     ]);
     app.useWebSocketAdapter(
       new (class extends IoAdapter {
-        override createIOServer(port: number, opts?: Record<string, unknown>) {
-          const s = super.createIOServer(port, { ...(opts ?? {}) });
-          (s as unknown as { adapter(a: unknown): void }).adapter(createAdapter(pubClient, subClient));
+        override createIOServer(port: number, opts?: Record<string, unknown>): unknown {
+          const s: unknown = super.createIOServer(port, { ...(opts ?? {}) });
+          const socketIoServer = s as { adapter?: (a: unknown) => void };
+          socketIoServer.adapter?.(createAdapter(pubClient, subClient));
           return s;
         }
-      })(app.getHttpServer()),
+      })(app.getHttpServer() as never),
     );
     logger.log('Realtime adapter: redis (Socket.IO Redis adapter)');
     return 'redis';

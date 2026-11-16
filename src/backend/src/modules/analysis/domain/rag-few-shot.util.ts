@@ -213,7 +213,7 @@ export function isEligibleForStore(agreementCount: number, trustScore: number): 
  */
 export function embedText(text: string, dim = 64): number[] {
   const d = Number.isFinite(dim) && dim > 0 ? Math.min(Math.floor(dim), 4096) : 64;
-  const vec: number[] = new Array(d).fill(0);
+  const vec: number[] = Array.from({ length: d }, () => 0);
   if (!text || typeof text !== 'string') return vec;
   const s = text.trim().toLowerCase();
   if (s.length === 0) return vec;

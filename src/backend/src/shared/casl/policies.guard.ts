@@ -62,9 +62,9 @@ export class PoliciesGuard implements CanActivate {
 
     // 1. Tầng kiểm tra tĩnh (Static check trên SubjectName string)
     const spyAbility = new Proxy(ability, {
-      get(target, prop, receiver) {
+      get(target, prop, receiver): unknown {
         if (prop === 'can') {
-          return (action: Action, subjectInput: AppSubjects, field?: string) => {
+          return (action: Action, subjectInput: AppSubjects, field?: string): boolean => {
             checkedAtLeastOne = true;
             const subjectStr =
               typeof subjectInput === 'string'
@@ -89,8 +89,10 @@ export class PoliciesGuard implements CanActivate {
         if (prop === 'query') return query;
         if (prop === 'resource') return undefined;
 
-        const val = Reflect.get(target, prop, receiver);
-        return typeof val === 'function' ? val.bind(target) : val;
+        const val: unknown = Reflect.get(target, prop, receiver);
+        return typeof val === 'function'
+          ? (val as (...args: unknown[]) => unknown).bind(target)
+          : val;
       },
     }) as unknown as PolicyContext;
 
@@ -127,7 +129,7 @@ export class PoliciesGuard implements CanActivate {
     // 3. Tầng kiểm tra động trên dữ liệu thực tế của Entity (Instance check)
     const resource = request.resource;
     const handlerCtx = new Proxy(ability, {
-      get(target, prop, receiver) {
+      get(target, prop, receiver): unknown {
         if (prop === 'ability') return target;
         if (prop === 'user') return user;
         if (prop === 'request') return request;
@@ -137,7 +139,7 @@ export class PoliciesGuard implements CanActivate {
         if (prop === 'resource') return resource;
 
         if (prop === 'can') {
-          return (action: Action, subjectInput: AppSubjects, field?: string) => {
+          return (action: Action, subjectInput: AppSubjects, field?: string): boolean => {
             let targetSubject = subjectInput;
             if (
               typeof subjectInput === 'string' &&
@@ -154,8 +156,10 @@ export class PoliciesGuard implements CanActivate {
           };
         }
 
-        const val = Reflect.get(target, prop, receiver);
-        return typeof val === 'function' ? val.bind(target) : val;
+        const val: unknown = Reflect.get(target, prop, receiver);
+        return typeof val === 'function'
+          ? (val as (...args: unknown[]) => unknown).bind(target)
+          : val;
       },
     }) as unknown as PolicyContext;
 

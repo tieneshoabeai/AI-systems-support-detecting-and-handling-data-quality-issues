@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Helper chuyển đổi biến môi trường chuỗi sang boolean an toàn
-const boolEnv = (defaultValue = false) =>
+const boolEnv = (defaultValue = false) : z.ZodEffects<z.ZodBoolean, boolean, unknown> =>
   z.preprocess((val) => {
     if (val === undefined || val === null || val === '') return defaultValue;
     if (typeof val === 'string') return val.toLowerCase() === 'true' || val === '1';
@@ -64,13 +64,13 @@ export const EnvironmentSchema = z.object({
   AI_INFERENCE_API_KEY: z.string().optional(),
   AI_MODEL_ID: z.string().optional(),
   AI_JOB_TIMEOUT_MS: z.coerce.number().int().min(1000).max(600000).default(180000),
-  AI_WORKER_ENABLED: z.preprocess((v) => {
+  AI_WORKER_ENABLED: z.preprocess((v) : boolean => {
     if (v === undefined || v === null || v === '') return false;
     if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
     return Boolean(v);
   }, z.boolean()),
   AI_WORKER_INTERVAL_MS: z.coerce.number().int().min(1000).max(600000).default(10000),
-  REPORT_WORKER_ENABLED: z.preprocess((v) => {
+  REPORT_WORKER_ENABLED: z.preprocess((v) : boolean => {
     if (v === undefined || v === null || v === '') return false;
     if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
     return Boolean(v);
@@ -92,7 +92,7 @@ export const EnvironmentSchema = z.object({
   AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
   AI_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(1).default(1),
   AI_MAX_EVIDENCE_PER_COLUMN: z.coerce.number().int().min(1).max(100).default(20),
-  AI_MASK_PII_ENABLED: z.preprocess((v) => {
+  AI_MASK_PII_ENABLED: z.preprocess((v) : boolean => {
     if (v === undefined || v === null || v === '') return true;
     if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
     return Boolean(v);

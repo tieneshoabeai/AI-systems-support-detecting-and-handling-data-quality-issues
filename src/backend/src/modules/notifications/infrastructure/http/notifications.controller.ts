@@ -40,25 +40,25 @@ export class NotificationsController {
   async listNotifications(
     @CurrentUser() user: CurrentUserPayload,
     @Query(new ZodValidationPipe(ListNotificationsQuerySchema)) query: ListNotificationsQueryDto,
-  ) {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; unreadCount: number; }> {
     return this.listForUserHandler.execute(user.userId, query);
   }
 
   @Get('notifications/unread-count')
   @ApiOperation({ summary: 'NOTIF-01: Số thông báo chưa đọc' })
-  async getUnreadCount(@CurrentUser() user: CurrentUserPayload) {
+  async getUnreadCount(@CurrentUser() user: CurrentUserPayload): Promise<{ unreadCount: number; }> {
     return this.countUnreadHandler.execute(user.userId);
   }
 
   @Get('notifications/:id')
   @ApiOperation({ summary: 'NOTIF-02: Chi tiết thông báo (mở là đánh dấu đã đọc)' })
-  async getDetail(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+  async getDetail(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     return this.getDetailHandler.execute(user.userId, id);
   }
 
   @Patch('notifications/:id/read')
   @ApiOperation({ summary: 'NOTIF-02: Đánh dấu đã đọc' })
-  async markAsRead(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+  async markAsRead(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     return this.markAsReadHandler.execute(user.userId, id);
   }
 
@@ -69,7 +69,7 @@ export class NotificationsController {
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(UpdateNotificationPreferencesSchema))
     dto: UpdateNotificationPreferencesDto,
-  ) {
+  ): Promise<{ notificationsEnabled: boolean; }> {
     return this.updatePreferencesHandler.execute(user.userId, dto.notificationsEnabled);
   }
 }

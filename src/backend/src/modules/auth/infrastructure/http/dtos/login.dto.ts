@@ -15,7 +15,7 @@ export const LoginSchema = z
     remember_me: z.boolean().optional(),
     rememberMe: z.boolean().optional(),
   })
-  .transform((v) => ({
+  .transform((v) : { email: string; password: string; remember_me: boolean; } => ({
     email: v.email,
     password: v.password,
     remember_me: v.remember_me ?? v.rememberMe ?? false,

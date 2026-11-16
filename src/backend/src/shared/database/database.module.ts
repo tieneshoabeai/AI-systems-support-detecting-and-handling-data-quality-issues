@@ -7,7 +7,7 @@ import { MongooseTransactionService } from './mongoose-transaction.service';
 @Module({
   imports: [
     MongooseModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
+      useFactory: (config: ConfigService) : { uri: string | undefined; autoIndex: true; serverSelectionTimeoutMS: number; connectTimeoutMS: number; socketTimeoutMS: number; maxPoolSize: number; minPoolSize: number; } => ({
         uri: config.get<string>('MONGODB_URI'),
         autoIndex: true,
         serverSelectionTimeoutMS: 10000,
