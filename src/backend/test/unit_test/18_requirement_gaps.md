@@ -1,0 +1,23 @@
+# Chênh lệch yêu cầu: không tự quyết định thay người dùng
+
+- Ngày lập: 2026-11-16.
+- Loại: Chênh lệch/chờ quyết định.
+- Nguồn (tương đối với `src/backend/src/`): Các quyết định trong hội thoại và file nguồn được nêu dưới từng mục.
+- Cô lập dependency: Chỉ viết test regression sau khi xác nhận contract; không sửa backend trong tác vụ này.
+- Mỗi dòng là một nhóm ca; dấu `/` hoặc danh sách giá trị phải triển khai thành các ca riêng, không chỉ chọn một đại diện. Tất cả chưa thực thi.
+- P0: quyền/dữ liệu/trạng thái cốt lõi; P1: logic và biên quan trọng. `RISK`/`GAP`/`OPEN` không phải khẳng định đã có lỗi được tái hiện.
+
+## Các phần cần test
+
+- [ ] **GAP-001 [P0]** XLSX/multiple sheets: yêu cầu cũ nhận CSV + XLSX, kiểm tra mọi sheet kể cả ẩn, mở sheet đầu; dataset-limits.vo.ts và ingest-dataset-stream.handler.ts hiện CSV-only. Kịch bản yêu cầu: workbook nhiều sheet/ẩn/rỗng → import được, báo lỗi theo sheet, chuyển sheet đúng. Chưa áp assertion này cho bộ characterization CSV hiện tại.
+- [ ] **GAP-002 [P0]** Header trùng/rỗng: yêu cầu nhận file rồi sửa tên trước analysis; processCsvStream dùng fastCsv.parse({headers:true}) và map row[header], cần fixture parser để chứng minh không reject/mất cột trùng trước inference. Expected nghiệp vụ: giữ riêng từng ô bằng stable key, warnings, không mất dữ liệu.
+- [ ] **GAP-003 [P0]** Reset cảnh báo và gate phân tích: reset-column-names.handler.ts đang set columnIssues=[]; run-analysis.handler.ts chưa thấy gate columnIssues trong execute. Expected yêu cầu đã chốt: reset tái tính issues từ tên gốc; empty/duplicate chặn analysis, whitespace-only vẫn warning. Ca DS và RUN phải fail nếu code chưa đáp ứng, không đổi expected thành xóa issues.
+- [ ] **GAP-004 [P1]** Missing không nhất quán: schema-inference.service.ts coi text NA/null/undefined/N/A là thiếu; dq.util.ts isMissingCell chỉ null/undefined/empty/whitespace. Fixture cùng dữ liệu qua inference và DQ → cần thống nhất định nghĩa trước khi khẳng định hai số liệu giống nhau.
+- [ ] **GAP-005 [P0]** Reset toàn sheet/xóa dòng/chuyển sheet: hiện thấy reset-column-names, chưa thấy use case reset đầy đủ hoặc delete rows. Expected yêu cầu cũ: reset sheet đang làm việc khôi phục dòng/tên/cấu hình/trạng thái ban đầu, không đổi sheet khác hoặc bản lưu; xóa dòng theo số dòng file gốc; chuyển sheet hủy run và bỏ kết quả trễ. Không tạo unit test gọi hàm chưa tồn tại.
+- [ ] **GAP-006 [P0]** Một file không thay thế: delete-dataset + import hiện dựa hasDataset và thông báo cho xóa/lưu trữ trước import mới. Expected cũ: project đã gắn file thành công không được thay file. Chốt có cho xóa rồi import lại không trước test lifecycle.
+- [ ] **GAP-007 [P0]** Lưu/Tổng kết/stale: create-summary.handler.ts gọi createSave; request-report cần save hiện có; save-config luôn mark stale. Expected cũ: Tổng kết và nút Lưu tách biệt, xuất PDF khi chưa Lưu, chỉ rerun khi đầu vào thực thay đổi, bản lưu cuối chống version conflict, khôi phục đầy đủ Data Views. Viết riêng fixture từng yêu cầu, không coi createSave là đáp ứng toàn bộ.
+- [ ] **GAP-008 [P0]** Quyền Owner: resolver ưu tiên project membership trước workspace role; transfer-project-owner yêu cầu actor là Owner project. Expected cũ: Workspace Owner luôn quản trị, chỉ định Owner mới làm Owner cũ thành Viewer; Owner tự chuyển thì thành Member. Cần đối chiếu toàn tuyến guard/controller/access adapter, không kết luận chỉ từ resolver.
+- [ ] **GAP-009 [P0]** AI chỉ thống kê: run-analysis/build-prompt-for-job hiện xây maskedSamples và RAG, có local-inference adapter; yêu cầu cũ chỉ gửi thống kê qua API model ngoài. Chốt dữ liệu prompt/provider được phép; expected privacy cũ: không raw sample kể cả đã che và không dữ liệu tenant khác. Chưa coi tests masked sample là bằng chứng tuân thủ chỉ-thống-kê.
+- [ ] **GAP-010 [P1]** Phân tích theo tên cột và rename: config lưu selected_columns theo name, records dùng cN. Expected: rename không đổi identity của cột, label/time/config hoặc bị cập nhật đúng hoặc bị báo stale có lý do; không silently mất lựa chọn/mất ô.
+- [ ] **GAP-011 [P1]** Số dòng gốc: CSV handler rowIndex bắt đầu 0, trong khi người dùng muốn số dòng file gốc. Chốt hiển thị dòng 2 cho record đầu có header và trường hợp ô xuống dòng; unit không tự cộng 1/2 trong mọi nơi.
+- [ ] **GAP-012 [P0]** Evidence và lỗi một phần: run handler bắt lỗi insertEvidences rồi vẫn tính evidenceSummary theo danh sách dự kiến. Expected cần xác nhận: hiển thị đủ/một phần/thất bại rõ ràng, không tuyên bố evidence đã lưu khi chưa có.

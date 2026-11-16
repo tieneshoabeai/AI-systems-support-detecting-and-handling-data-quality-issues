@@ -11,7 +11,7 @@ export interface IUser extends Document {
   first_name: string;
   last_name: string;
   avatar_url?: string;
-  /** Số điện thoại (E.164-ish). Duy nhất nếu có, sparse. */
+  /** Số điện thoại (E.164-ish). Duy nhất qua partial unique index ở dưới. */
   phone?: string;
   /** Giới thiệu ngắn, tối đa 500 ký tự. */
   bio?: string;
@@ -72,7 +72,6 @@ export const UserSchema = new Schema<IUser>(
       type: String,
       trim: true,
       default: null,
-      index: true,
     },
     bio: {
       type: String,
