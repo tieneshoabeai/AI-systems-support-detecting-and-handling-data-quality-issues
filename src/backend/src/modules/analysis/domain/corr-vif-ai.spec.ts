@@ -13,6 +13,7 @@ import {
   rankFewShot,
   renderFewShotBlock,
 } from './rag-few-shot.util';
+import type { FewShotExample } from './rag-few-shot.util';
 
 describe('correlation.util (3.23.1)', () => {
   const rows = [
@@ -227,7 +228,7 @@ describe('v8: che PII (regex + cot danh dau PII)', () => {
 });
 
 describe('v8: RAG few-shot (cosine trong MongoDB, cap 50k FIFO)', () => {
-  const mk = (over: Partial<import('./rag-few-shot.util').FewShotExample> = {}) => ({
+  const mk = (over: Partial<FewShotExample> = {}) => ({
     errorType: 'DQ-03',
     columnTraits: 'cot trang thai dung 5 ma viet tat',
     description: 'khong phai loi',
