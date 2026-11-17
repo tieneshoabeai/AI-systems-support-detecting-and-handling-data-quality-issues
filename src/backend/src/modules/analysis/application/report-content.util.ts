@@ -117,6 +117,11 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     locale_number_format: 'Số theo vùng',
     conditional_missing: 'Thiếu theo nhóm',
     leading_zero_numeric: 'Số 0 đầu',
+    // Đợt I (Phần 2 v14 mục 3.46)
+    negative_in_positive: 'Giá trị âm bất thường',
+    zero_in_positive: 'Giá trị 0 bất thường',
+    row_all_measures_missing: 'Dòng thiếu toàn bộ số đo',
+    missing_in_filled_group: 'Thiếu trong nhóm thường có',
   };
   sections.push({
     heading: '3b. Cần xác nhận với nguồn (nghi vấn)',

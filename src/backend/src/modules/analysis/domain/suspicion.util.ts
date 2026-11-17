@@ -22,7 +22,12 @@ export type SuspicionKind =
   | 'duplicate_key'
   | 'locale_number_format'
   | 'conditional_missing'
-  | 'leading_zero_numeric';
+  | 'leading_zero_numeric'
+  // Đợt I (Phần 2 v14 mục 3.46): tự phát hiện mâu thuẫn — chỉ Nghi vấn, DQ-05 vẫn chưa đánh giá
+  | 'negative_in_positive'
+  | 'zero_in_positive'
+  | 'row_all_measures_missing'
+  | 'missing_in_filled_group';
 
 export interface Suspicion {
   kind: SuspicionKind;
@@ -69,6 +74,14 @@ const LOCALE_NUMBER_RES: readonly RegExp[] = [
 /** Đợt H: cột khóa nghiệp vụ phải có tỷ lệ giá trị khác nhau ≥ 80% số ô có dữ liệu. */
 const BUSINESS_KEY_MIN_DISTINCT_RATIO = 0.8;
 const LEADING_ZERO_MIN_RATE = 0.3;
+/** Đợt I: số giá trị số tối thiểu để xét dấu (âm/0) của cột định lượng. */
+const SIGN_MIN_VALUES = 20;
+/** Đợt I: tỷ lệ giá trị âm tối đa để coi là bất thường trong cột gần như toàn dương. */
+const NEGATIVE_MAX_RATE = 0.05;
+/** Đợt I: tỷ lệ số 0 tối đa để coi là bất thường trong cột còn lại toàn dương. */
+const ZERO_MAX_RATE = 0.03;
+/** Đợt I: tỷ lệ trống tối đa của nhóm "gần như luôn có giá trị" (missing_in_filled_group). */
+const FILLED_GROUP_MAX_MISSING_RATE = 0.1;
 const SAME_LENGTH_MIN_RATE = 0.9;
 const CONDITIONAL_MISSING_MIN_RATE = 0.1;
 const CONDITIONAL_GROUP_MIN_ROWS = 5;
@@ -206,6 +219,7 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
     // ---- sentinel ở cột số
     if (col.dataType === 'number') {
       const nums = present.map((v) => toFiniteNumber(v)).filter((n): n is number => n !== null);
+      const sentinelVals = new Set<number>(); // Đợt I: giá trị đã báo sentinel, không báo lại ở kiểm tra dấu
       if (nums.length >= 4) {
         const sorted = [...nums].sort((a, b) => a - b);
         const q1 = quantile(sorted, 0.25);
@@ -219,6 +233,7 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
         // (cột dải rộng có thể chứa -999 trong hàng rào, dấu âm đơn lẻ mới là tín hiệu)
         const kept = [...occ.entries()].filter(([v, c]) =>
           (c >= 2 && (v < lo || v > hi)) || (c === 1 && v < 0 && !nums.some((n) => n < 0 && n !== v)));
+        for (const [v] of kept) sentinelVals.add(v);
         const cnt = kept.reduce((a, [, c]) => a + c, 0);
         if (cnt > 0) {
           out.push({
@@ -227,6 +242,32 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
             message: `"${col.name}" có giá trị ${kept.map(([v]) => (col.isPii ? '***' : v)).join(', ')} lặp lại và nằm xa vùng dữ liệu — thường là mã quy ước cho "không có dữ liệu".`,
             recommendation: 'Xác nhận với nguồn đây là mã thiếu hay giá trị thật; nếu là mã thiếu, các ô này đang bị tính vào thống kê và ngoại lệ (DQ-04).',
           });
+        }
+      }
+      // ---- Đợt I: giá trị âm / bằng 0 trong cột số gần như toàn dương (bỏ giá trị đã báo sentinel).
+      // Gồm cả cột số vai trò phân loại (vd passengers 0–6); loại cột định danh.
+      if (col.role === 'measure' || col.role === 'category') {
+        const xs = nums.filter((n) => !sentinelVals.has(n));
+        if (xs.length >= SIGN_MIN_VALUES) {
+          const neg = xs.filter((n) => n < 0);
+          if (neg.length > 0 && neg.length / xs.length <= NEGATIVE_MAX_RATE) {
+            out.push({
+              kind: 'negative_in_positive', column: col.name, count: neg.length, rate: rate(neg.length),
+              examples: [...new Set(neg)].slice(0, MAX_EXAMPLES).map((v) => (col.isPii ? '***' : String(v))),
+              message: `${neg.length} ô của "${col.name}" là số âm trong khi ${xs.length - neg.length} ô còn lại đều ≥ 0 — có thể là nhập sai dấu hoặc mã quy ước.`,
+              recommendation: `Xác nhận "${col.name}" có được phép âm không (có thể hợp lệ, vd hoàn tiền); nếu không, sửa tại nguồn.`,
+            });
+          }
+          const zero = xs.filter((n) => n === 0);
+          const others = xs.filter((n) => n !== 0 && n >= 0);
+          if (zero.length > 0 && zero.length / xs.length <= ZERO_MAX_RATE && others.length > 0 && others.length + zero.length + neg.length === xs.length) {
+            out.push({
+              kind: 'zero_in_positive', column: col.name, count: zero.length, rate: rate(zero.length),
+              examples: [`0 ×${zero.length}`],
+              message: `${zero.length} ô của "${col.name}" bằng 0 trong khi các giá trị còn lại đều > 0 — có thể là giá trị thiếu được ghi thành 0.`,
+              recommendation: `Xác nhận số 0 ở "${col.name}" là giá trị thật (vd vé miễn phí, chuyến bị hủy) hay thiếu dữ liệu; nếu là thiếu, để trống tại nguồn.`,
+            });
+          }
         }
       }
     }
@@ -249,6 +290,7 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
   }
 
   out.push(...detectDuplicateKeys(columns, rows, rate));
+  out.push(...detectRowsAllMeasuresMissing(columns, rows, rate));
   out.push(...detectConditionalMissing(columns, rows, rate));
   return out;
 }
@@ -288,6 +330,28 @@ function detectDuplicateKeys(
   }];
 }
 
+/** Đợt I: dòng mà mọi cột định lượng đều trống (khác DQ-01 `fullyMissingRows` vốn xét mọi cột). */
+function detectRowsAllMeasuresMissing(
+  columns: SuspicionColumn[],
+  rows: Record<string, unknown>[],
+  rate: (n: number) => number | null,
+): Suspicion[] {
+  const measures = columns.filter((c) => c.role === 'measure');
+  if (measures.length < 2) return [];
+  const hit: number[] = [];
+  rows.forEach((r, i) => {
+    if (measures.every((c) => isMissingCell(r[c.name]))) hit.push(i);
+  });
+  if (hit.length === 0) return [];
+  const names = measures.map((c) => c.name).join(', ');
+  return [{
+    kind: 'row_all_measures_missing', column: names, count: hit.length, rate: rate(hit.length),
+    examples: hit.slice(0, MAX_EXAMPLES).map((i) => `dòng ${i + 1}`),
+    message: `${hit.length} dòng trống toàn bộ ${measures.length} cột số đo (${names}) — dòng gần như không có thông tin để phân tích.`,
+    recommendation: 'Xác nhận các dòng này có phải bản ghi lỗi/ghi nhận dở dang tại nguồn không.',
+  }];
+}
+
 /** Đợt H: thiếu có cấu trúc — ô trống tập trung ở một số nhóm của một cột phân loại. */
 function detectConditionalMissing(
   columns: SuspicionColumn[],
@@ -305,7 +369,7 @@ function detectConditionalMissing(
   for (const x of columns) {
     const missIdx = rows.map((r, i) => (isMissingCell(r[x.name]) ? i : -1)).filter((i) => i >= 0);
     if (missIdx.length === 0 || missIdx.length / total < CONDITIONAL_MISSING_MIN_RATE) continue;
-    let best: { c: SuspicionColumn; values: string[]; covered: number } | null = null;
+    let best: { c: SuspicionColumn; values: string[]; covered: number; filled: [string, { n: number; miss: number }][] } | null = null;
     for (const c of cats) {
       if (c.name === x.name) continue;
       const stat = new Map<string, { n: number; miss: number }>();
@@ -323,7 +387,9 @@ function detectConditionalMissing(
       if (high.length === 0 || low.length === 0) continue;
       const covered = high.reduce((a, [, st]) => a + st.miss, 0);
       if (covered / missIdx.length < 0.9) continue;
-      if (!best || covered > best.covered) best = { c, values: high.map(([v]) => v), covered };
+      // Đợt I: nhóm gần như luôn có giá trị nhưng vẫn có ô trống
+      const filled = eligible.filter(([, st]) => st.miss > 0 && st.miss / st.n <= FILLED_GROUP_MAX_MISSING_RATE);
+      if (!best || covered > best.covered) best = { c, values: high.map(([v]) => v), covered, filled };
     }
     if (!best) continue;
     const vals = best.values.map((v) => maskForAi(v, { markedPii: best!.c.isPii, role: best!.c.role })?.value ?? '');
@@ -331,8 +397,20 @@ function detectConditionalMissing(
       kind: 'conditional_missing', column: x.name, count: missIdx.length, rate: rate(missIdx.length),
       examples: [`${best.c.name} = ${vals.slice(0, MAX_EXAMPLES).join(' / ')}: ${best.covered}/${missIdx.length} ô trống`],
       message: `${best.covered}/${missIdx.length} ô trống của "${x.name}" nằm ở các dòng "${best.c.name}" = ${vals.slice(0, MAX_EXAMPLES).join(', ')} (gần như luôn trống ở các nhóm này) — thiếu có cấu trúc, có thể là hợp lệ. Mức ảnh hưởng DQ-01 không đổi.`,
-      recommendation: `Xác nhận "${x.name}" có chỉ áp dụng cho một số giá trị của "${best.c.name}" không; nếu có, các ô trống còn lại mới là thiếu thật (khai báo luật ở DQ-05 khi có).`,
+      recommendation: `Xác nhận "${x.name}" có chỉ áp dụng cho một số giá trị của "${best.c.name}" không; nếu có, các ô trống còn lại mới là thiếu thật.`,
     });
+    // Đợt I: các ô trống trong nhóm "gần như luôn có giá trị" — nghi là thiếu thật
+    if (best.filled.length > 0) {
+      const c = best.c;
+      const fv = best.filled.map(([v, st]) => [maskForAi(v, { markedPii: c.isPii, role: c.role })?.value ?? '', st] as const);
+      const cnt = best.filled.reduce((a, [, st]) => a + st.miss, 0);
+      out.push({
+        kind: 'missing_in_filled_group', column: x.name, count: cnt, rate: rate(cnt),
+        examples: fv.slice(0, MAX_EXAMPLES).map(([v, st]) => `${c.name} = ${v}: ${st.miss}/${st.n} ô trống`),
+        message: `${cnt} ô "${x.name}" trống ở nhóm "${c.name}" = ${fv.map(([v]) => v).slice(0, MAX_EXAMPLES).join(', ')} — nhóm này gần như luôn có giá trị nên các ô trống này nhiều khả năng là thiếu thật.`,
+        recommendation: `Kiểm tra các dòng "${c.name}" = ${fv.map(([v]) => v).slice(0, MAX_EXAMPLES).join(', ')} mà "${x.name}" trống; bổ sung tại nguồn nếu đúng là thiếu.`,
+      });
+    }
   }
   return out;
 }
