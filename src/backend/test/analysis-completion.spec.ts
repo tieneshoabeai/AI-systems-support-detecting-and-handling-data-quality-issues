@@ -104,11 +104,11 @@ describe('AN-01 / AN-10: SUMMARY-01 chan ket qua stale + top_n', () => {
     expect(summary.top_n).toBe(5);
   });
 
-  it('resolveTopN: mac dinh 50, chan tren 500', () => {
+  it('resolveTopN: mac dinh 50, chan tren 100', () => {
     expect(resolveTopN(undefined)).toBe(50);
     expect(resolveTopN(0)).toBe(50);
     expect(resolveTopN(7)).toBe(7);
-    expect(resolveTopN(9999)).toBe(500);
+    expect(resolveTopN(9999)).toBe(100);
   });
 });
 

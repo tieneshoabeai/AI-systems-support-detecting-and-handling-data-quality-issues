@@ -1,6 +1,6 @@
 /** `top_n` (ANALYSIS-01 config) — so phat hien toi da trong Tong ket/PDF; mac dinh 50 theo Phan 2 v9 muc 6.6. */
 export const DEFAULT_TOP_N = 50;
-export const MAX_TOP_N = 500;
+export const MAX_TOP_N = 100; // giu nhu hop dong cu (DTO max 100)
 
 export function resolveTopN(v: unknown): number {
   const n = typeof v === 'number' ? Math.floor(v) : NaN;

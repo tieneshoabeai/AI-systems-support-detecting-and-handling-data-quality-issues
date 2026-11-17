@@ -40,7 +40,7 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
   const { save, result, evidences, topN } = input;
   const summary = (save.summary ?? {}) as Record<string, unknown>;
   const issues = arr<Record<string, unknown>>(summary.issues);
-  // Ban Tong ket moi: recommendations la { priority, dq, column, text }; ban cu la chuoi
+  // recommendations la string[]; van chap nhan object (ban Tong ket luu truoc khi doi lai ve chuoi)
   const recommendations = arr<unknown>(summary.recommendations).map((r) => {
     const o = obj(r);
     if (!o) return String(r);

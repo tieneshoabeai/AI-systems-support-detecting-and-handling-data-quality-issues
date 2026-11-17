@@ -61,7 +61,7 @@
 
 ## 6. Kết quả thực hiện (2026-11-17)
 - Đã xử lý toàn bộ 11 mục ở bảng 3. Phát hiện và sửa thêm: `REPORT_WORKER_ENABLED` được parse thành boolean nhưng worker so sánh chuỗi → worker PDF không bao giờ bật.
-- Thay đổi hành vi cần lưu ý: `top_n` mặc định 10 → **50**, tối đa 100 → **500**; ingest kết quả AI thủ công chỉ còn cho `SYS-ADMIN`; Viewer thử lại AI → 403; người ngoài project gọi route job → 404.
+- Thay đổi hành vi cần lưu ý: `top_n` mặc định 10 → **50** (tối đa giữ 100); `summary.recommendations` vẫn là mảng chuỗi, thêm `recommendation_items`; ingest kết quả AI thủ công chỉ còn cho `SYS-ADMIN`; Viewer thử lại AI → 403; người ngoài project gọi route job → 404.
 - PDF tiếng Việt có dấu cần đặt `REPORT_FONT_PATH` tới file `.ttf` (DejaVu Sans / Noto Sans); không đặt thì PDF ASCII như cũ.
 - Test: analysis 72/72, toàn bộ unit 165/165, kiến trúc 3/3, `tsc` sạch. Chưa chạy e2e với Mongo thật.
 - **Còn mở:** route `projects/{projectId}/analysis*`, `summary`, `report` chưa kiểm vai trò theo project ở tầng service (cùng loại rủi ro với mục 6); PDF chưa subset font.
@@ -90,6 +90,7 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.3.1 / 2026-11-17:** Giữ `top_n` tối đa 100; `recommendations` giữ mảng chuỗi + thêm `recommendation_items` (không phá tương thích API).
 - **v1.3 / 2026-11-17:** Thực hiện đợt D/E; ghi kết quả, điểm lệch và việc còn mở (mục 7).
 - **v1.2 / 2026-11-17:** Thêm đề xuất đợt D/E (mục 7), ghi tiếp vào các phiên bản tài liệu của đợt A/B/C.
 - **v1.1 / 2026-11-17:** Thực hiện đợt A, B, C; ghi kết quả và việc còn mở (mục 6).

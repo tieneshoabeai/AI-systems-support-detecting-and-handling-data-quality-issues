@@ -89,6 +89,13 @@ export class SummaryService {
     const shown = ranked.slice(0, topN);
     const bySeverity = { high: 0, medium: 0, low: 0, no_data: 0 } as Record<Severity, number>;
     for (const it of ranked) bySeverity[it.severity] += 1;
+    const recommendationItems = shown.map((it) => ({
+      priority: it.priority,
+      dq: it.dq,
+      column: it.column,
+      severity: it.severity,
+      text: recommendationFor(it.dq, it.column),
+    }));
     const cfg = (run.config ?? {}) as Record<string, unknown>;
     const ai = result.aiCorrelationAssessment as unknown as { status?: string } | null;
     const summary = {
@@ -99,13 +106,12 @@ export class SummaryService {
       unassessable,
       top_n: topN,
       evidence_refs: await this.analysisRepository.countEvidencesByRun(run.id),
-      recommendations: shown.map((it) => ({
-        dq: it.dq,
-        column: it.column,
-        priority: it.priority,
-        severity: it.severity,
-        text: recommendationFor(it.dq, it.column),
-      })),
+      // Giu `recommendations: string[]` nhu hop dong cu (tuong thich nguoc), sap theo uu tien;
+      // cau truc chi tiet o truong moi `recommendation_items`.
+      recommendations: recommendationItems.map(
+        (r) => `[${r.priority}] ${r.dq}${r.column ? ` · ${r.column}` : ''}: ${r.text}`,
+      ),
+      recommendation_items: recommendationItems,
       notes: [
         'Hệ thống chỉ phát hiện và báo cáo — không tự xóa/sửa dữ liệu; xử lý tại hệ thống nguồn.',
         'Ngưỡng mức ảnh hưởng là quy ước dự án, không phải chuẩn thống kê chung.',

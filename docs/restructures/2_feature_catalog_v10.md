@@ -1380,7 +1380,7 @@ Quyết định này được áp dụng đồng bộ sang: Phần 3 (use case),
 - **REPORT-01 — nội dung PDF FULL (thực hiện mục 6.5–6.6 đã chốt v9):** Tổng kết + bảng ma trận tương quan + bảng VIF + thống kê mô tả + mất cân bằng + phân tích thời gian + top phát hiện + bằng chứng phân trang + phụ lục ngưỡng; tiếng Việt có dấu (font Unicode).
 - **`top_n`:** dùng làm số phát hiện tối đa hiển thị trong Tổng kết/PDF (mặc định 50 theo v9) thay cho hằng số cố định.
 - **Ngoài phạm vi đợt này:** DQ-05 rule engine (giữ `unassessed`), chuyển AI job sang Kafka, phân tích bất đồng bộ cho dataset lớn.
-- **Ghi chú triển khai:** mặc định `top_n` đổi từ 10 → **50** (DTO `run-analysis`/`analysis-config`, schema `analysis_config`), tối đa 500, để khớp mục 6.6 v9 (PDF top 50). Tổng kết dùng `top_n` của chính lần chạy.
+- **Ghi chú triển khai:** mặc định `top_n` đổi từ 10 → **50** (DTO `run-analysis`/`analysis-config`, schema `analysis_config`), tối đa giữ 100 như cũ, để khớp mục 6.6 v9 (PDF top 50). Tổng kết dùng `top_n` của chính lần chạy.
 
 ### 3.42. Hoàn thiện module analysis — đợt D/E
 
@@ -1480,6 +1480,7 @@ Nếu phát hiện mâu thuẫn với phần trước, cần xác nhận lại v
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Điều chỉnh trước khi push / 2026-11-17:** Giữ `top_n` tối đa 100 như hợp đồng cũ; giữ `summary.recommendations` là mảng chuỗi, cấu trúc chi tiết chuyển sang trường mới `summary.recommendation_items` / Người dùng hỏi lý do thay đổi hợp đồng, chọn phương án không phá tương thích / Sửa ghi chú triển khai.
 - **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.42 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.42 sang đã thực hiện.
 - **Đề xuất đợt D/E / 2026-11-17:** Hoàn thiện module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.42; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.41 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.41 sang đã thực hiện.

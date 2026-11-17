@@ -867,7 +867,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 - **Endpoint chưa có trong bảng 85 endpoint:** `POST /analysis/jobs/{jobId}/result` (gắn kết quả AI đã grounding — dùng nội bộ/thử nghiệm). Đề xuất: giới hạn cho `SYS-ADMIN` hoặc tắt khi `NODE_ENV=production`; ghi vào bảng endpoint khi chốt.
 - `GET /projects/{projectId}/report/{reportId}/file` giữ nguyên; báo cáo luôn dựng từ `projectSaveId` đã ghi lúc yêu cầu.
 - Ví dụ lỗi: `{ "error": { "code": "ANALYSIS_RESULT_STALE", "message": "Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích", "details": { "staleReason": "config_changed" } } }`
-- **Ghi chú triển khai:** `top_n` mặc định **50** (trước: 10), tối đa **500** (trước: 100) ở `POST analysis` và `POST analysis/config`. Tổng kết trả thêm `summary.top_n`. Viewer gọi `POST analysis/jobs/{jobId}/retry` → `403`. Audit mới: `AI_JOB_RETRIED`, `AI_RESULT_INGESTED`.
+- **Ghi chú triển khai:** `top_n` mặc định **50** (trước: 10) để khớp mục 6.6 v9 (PDF top 50) và giữ đúng số phát hiện Tổng kết đã trả trước đây; tối đa giữ **100** như cũ, ở `POST analysis` và `POST analysis/config`. Tổng kết trả thêm `summary.top_n`. Viewer gọi `POST analysis/jobs/{jobId}/retry` → `403`. Audit mới: `AI_JOB_RETRIED`, `AI_RESULT_INGESTED`.
 
 ### 3.18. Bổ sung hợp đồng module analysis — đợt D/E (đợt D/E)
 
@@ -877,7 +877,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 - **Kết quả:** `GET /projects/{id}/analysis/result` thêm khối `charts`:
   `{ missingRate: [{ column, missingRate }], histograms: [{ column, bins: [{ from, to, count }], method }], boxPlots: [{ column, q1, median, q3, whiskerLow, whiskerHigh, outsideCount }], categories: [{ column, topN, items: [{ value, count, rate }], other: { count, rate } }], timeSeries: [{ period, recordCount }] | null }`.
   `staleReason` thêm giá trị `dataset_changed`.
-- **Tổng kết:** `summary.issues[]` thêm `severity` (`low|medium|high|no_data`), `priority` (1..n), `reason`; thêm `summary.config_used`, `summary.thresholds[]`, `summary.dq05`; `recommendations[]` thành `{ dq, column, text, priority }`.
+- **Tổng kết:** `summary.issues[]` thêm `severity` (`low|medium|high|no_data`), `priority` (1..n), `reason`; thêm `summary.config_used`, `summary.thresholds[]`, `summary.dq05`; `recommendations` **giữ là `string[]`** (tương thích ngược, đã sắp theo ưu tiên, dạng `"[1] DQ-01 · cột: …"`); thêm trường mới `recommendation_items: [{ priority, dq, column, severity, text }]`.
 - **Lỗi mới:** `413 ANALYSIS_TOO_LARGE` (`details: { rowCount, maxRows }`) khi chạy phân tích; `403` khi Viewer gọi route ghi; `404` khi người ngoài project.
 - **Ghi chú triển khai (lệch so với đề xuất):** để tương thích ngược, `selectedColumns`/`labelColumn`/`timeColumn`/`valueColumn` **vẫn là tên** cột hiện tại; thêm trường mới `selectedColumnRefs: [{ key, name }]`, `labelColumnRef`, `timeColumnRef`, `valueColumnRef`, `chartTopN`. `selected_columns`/`label_column`... có tham chiếu không khớp cột nào → `400` (trước: lọc âm thầm rồi phân tích toàn bộ cột). Policy tĩnh của `POST projects/{id}/report` hạ từ `Execute` xuống `Read` để Viewer gọi được.
 
@@ -951,6 +951,7 @@ Có API contract cùng ví dụ thành công/lỗi và liên kết tới tiêu c
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Điều chỉnh trước khi push / 2026-11-17:** Giữ `top_n` tối đa 100 như hợp đồng cũ; giữ `summary.recommendations` là mảng chuỗi, cấu trúc chi tiết chuyển sang trường mới `summary.recommendation_items` / Người dùng hỏi lý do thay đổi hợp đồng, chọn phương án không phá tương thích / Sửa ghi chú triển khai.
 - **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.18 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.18 sang đã thực hiện.
 - **Đề xuất đợt D/E / 2026-11-17:** Bổ sung hợp đồng module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.18; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.17 sang đã thực hiện.

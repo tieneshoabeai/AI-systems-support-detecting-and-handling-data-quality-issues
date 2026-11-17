@@ -235,7 +235,9 @@ describe('AN-18: Tong ket co muc anh huong + thu tu uu tien', () => {
       'DQ-02:null:low',
     ]);
     expect(s.issues.map((i) => i.priority)).toEqual([1, 2, 3, 4, 5]);
-    expect((s.recommendations as { priority: number; text: string }[])[0]).toMatchObject({ priority: 1 });
+    expect(s.recommendations).toEqual(expect.arrayContaining([expect.stringMatching(/^\[1\] DQ-01 · b: /)]));
+    expect((s.recommendations as unknown[]).every((r) => typeof r === 'string')).toBe(true);
+    expect((s.recommendation_items as { priority: number; dq: string; column: string | null }[])[0]).toMatchObject({ priority: 1, dq: 'DQ-01', column: 'b' });
     expect(s.unassessable).toEqual([{ column: 'c', reason: expect.stringContaining('Không có dòng') }]);
     expect((s.thresholds as unknown[]).length).toBe(5);
     expect(s.config_used).toMatchObject({ selected_columns: ['a', 'b', 'c'], outlier_method: 'both' });
@@ -329,5 +331,13 @@ describe('AN-19 / AN-20: outbox + thong bao, gioi han so dong', () => {
     expect((err as PayloadTooLargeException).getResponse()).toMatchObject({ error: 'ANALYSIS_TOO_LARGE', details: { rowCount: 11, maxRows: 10 } });
     expect(records.listAllRecords).not.toHaveBeenCalled();
     expect(repo.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('Hop dong API: top_n toi da 100 (giu nhu cu)', () => {
+  it('top_n > 100 bi tu choi, mac dinh 50', () => {
+    expect(AnalysisConfigSchema.safeParse({ top_n: 101 }).success).toBe(false);
+    expect(AnalysisConfigSchema.safeParse({ top_n: 100 }).success).toBe(true);
+    expect(AnalysisConfigSchema.parse({}).top_n).toBe(50);
   });
 });
