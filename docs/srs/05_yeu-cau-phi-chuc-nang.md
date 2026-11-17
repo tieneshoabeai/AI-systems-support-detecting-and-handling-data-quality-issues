@@ -22,7 +22,7 @@
 | NFR-SEC-10 | Chống injection CSDL | 100% truy vấn MongoDB qua query builder, 100% Cypher dùng tham số `$param` | Review code | README |
 | NFR-SEC-11 | Che thông tin cá nhân (PII) trong log | Email, số điện thoại, CCCD bị che (vd. `us***@gmail.com`); không log token/mật khẩu | Test `mask-pii.spec.ts` | README |
 | NFR-SEC-12 | Không lưu bí mật trong mã nguồn | Mọi khóa/mật khẩu qua biến môi trường; `.env` bị loại khỏi git | Review `.gitignore`, quét repo | README |
-| NFR-SEC-13 | Giới hạn tần suất gọi API (rate limiting) cho các endpoint xác thực | `[CẦN XÁC NHẬN]` ngưỡng (số request / khoảng thời gian) | Test gửi vượt ngưỡng → `429` | Sơ đồ trong README backend có ThrottlerGuard nhưng không ghi số liệu; code chưa cấu hình |
+| NFR-SEC-13 | Giới hạn tần suất gọi API (rate limiting) cho các endpoint xác thực | Nhóm xác thực (đăng ký, đăng nhập, quên mật khẩu): 5 request/phút/IP; API còn lại: 100 request/phút/người dùng; vượt ngưỡng → `429` | Test gửi vượt ngưỡng → `429` | Quyết định nhóm (README backend có ThrottlerGuard nhưng không ghi số liệu) |
 
 ## 5.2. Hiệu năng (Performance Efficiency) — `PERF`
 
@@ -44,7 +44,7 @@
 | NFR-REL-04 | Đồng bộ nhất quán giữa MongoDB và Neo4j | Ghi MongoDB và sự kiện outbox trong cùng transaction; worker đồng bộ sang Neo4j có thử lại | Test ngắt Neo4j rồi khôi phục: lineage vẫn đầy đủ | Báo cáo 05 mục 5 |
 | NFR-REL-05 | Dữ liệu có thể khôi phục sau khi xóa | Xóa mềm bằng `deleted_at`; unique index chỉ áp dụng với bản ghi chưa xóa | Test xóa → khôi phục | Spec v4.1, README |
 | NFR-REL-06 | Kiểm tra toàn vẹn tệp tải lên | `fileChecksum` SHA-256 tính khi đọc luồng | So sánh với `sha256sum` của tệp | Spec F5.1 |
-| NFR-REL-07 | Tính sẵn sàng của hệ thống | `[CẦN XÁC NHẬN]` mục tiêu uptime; hạ tầng là gói miễn phí nên không cam kết SLA | — | Không có trong nguồn |
+| NFR-REL-07 | Tính sẵn sàng của hệ thống | Không cam kết SLA; độ sẵn sàng phụ thuộc SLA của MongoDB Atlas, Neo4j AuraDB, Cloudflare (gói miễn phí). Yêu cầu: hệ thống chạy ổn định suốt buổi demo/nghiệm thu; endpoint `/health` dùng để giám sát | Gọi `/health` trước và trong buổi demo | Quyết định nhóm |
 
 ## 5.4. Khả dụng (Usability) — `USA`
 
@@ -72,7 +72,7 @@
 |---|---|---|---|---|
 | NFR-COMP-01 | Hỗ trợ định dạng dữ liệu phổ biến | Nhập/xuất CSV (UTF-8, có BOM khi xuất), XLSX, JSON | Upload/download từng định dạng | Spec F5.1, F9.1 |
 | NFR-COMP-02 | API REST thống nhất | Tiền tố `/api/v1`, JSON, mã HTTP chuẩn | Review Swagger | Spec |
-| NFR-PORT-01 | Chạy trên trình duyệt hiện đại | Trình duyệt hỗ trợ IndexedDB và WebGL (cho bản đồ 3D); `[CẦN XÁC NHẬN]` danh sách trình duyệt/phiên bản tối thiểu | Kiểm thử thủ công | Giả định A1 |
+| NFR-PORT-01 | Chạy trên trình duyệt hiện đại | Chrome, Edge, Firefox — 2 phiên bản mới nhất trên desktop (cần IndexedDB, WebGL); Safari hỗ trợ ở mức tốt nhất có thể | Kiểm thử thủ công trên 3 trình duyệt | Quyết định nhóm |
 | NFR-PORT-02 | Hạ tầng đám mây thay thế được | Lưu trữ đối tượng qua API tương thích S3; để trống `S3_ENDPOINT` thì dùng thư mục cục bộ | Chạy với 2 cấu hình | README, `.env.example` |
 
 ## 5.7. Giới hạn dữ liệu (ràng buộc hệ thống)

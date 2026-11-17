@@ -11,8 +11,8 @@
 | 02 | [Phạm vi](02_pham-vi.md) | In/out-of-scope, phân kỳ, giới hạn dữ liệu, ràng buộc, giả định | Hoàn thành |
 | 03 | [Chức năng](03_chuc-nang.md) | Phân rã chức năng, bảng chức năng theo module, chức năng FE, use case theo actor | Hoàn thành |
 | 04 | [Yêu cầu chức năng (FR)](04_yeu-cau-chuc-nang.md) | FR chung, FR theo 9 module, FR giao diện; tiêu chí chấp nhận | Hoàn thành |
-| 05 | [Yêu cầu phi chức năng (NFR)](05_yeu-cau-phi-chuc-nang.md) | Bảo mật, hiệu năng, độ tin cậy, khả dụng, bảo trì, tương thích | Hoàn thành (còn 3 mục `[CẦN XÁC NHẬN]`) |
-| 06 | Luồng nghiệp vụ | Flow tổng thể, flow chính, flow lỗi | Chưa viết |
+| 05 | [Yêu cầu phi chức năng (NFR)](05_yeu-cau-phi-chuc-nang.md) | Bảo mật, hiệu năng, độ tin cậy, khả dụng, bảo trì, tương thích | Hoàn thành |
+| 06 | [Luồng nghiệp vụ](06_luong-nghiep-vu.md) | BF-1..BF-6 luồng tổng thể; luồng chính/lỗi theo use case | Hoàn thành |
 | 07 | Đặc tả API | Input/output, flow chính/lỗi của từng API | Chưa viết |
 | 08 | Ma trận truy vết | Chức năng ↔ FR ↔ API ↔ Flow | Chưa viết |
 
