@@ -58,56 +58,56 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
   }
 
   return <Dialog open onClose={onClose} busy={busy} as="form" className="is-wide" role="dialog" aria-labelledby="ws-edit-title"
-      onSubmit={event => { event.preventDefault(); void submit() }}>
-      <header className="dialog-head">
-        <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="info" /></span>
-        <div className="dialog-head-text">
-          <h2 id="ws-edit-title">Thông tin Workspace</h2>
-          <p>Xem và chỉnh sửa thông tin cơ bản của Workspace.</p>
-        </div>
-        <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={busy} onClick={onClose}>
-          <PreviewIcon name="close" />
-        </button>
-      </header>
+    onSubmit={event => { event.preventDefault(); void submit() }}>
+    <header className="dialog-head">
+      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="info" /></span>
+      <div className="dialog-head-text">
+        <h2 id="ws-edit-title">Thông tin Workspace</h2>
+        <p>Xem và chỉnh sửa thông tin cơ bản của Workspace.</p>
+      </div>
+      <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={busy} onClick={onClose}>
+        <PreviewIcon name="close" />
+      </button>
+    </header>
 
-      <div className="ws-edit-grid">
-        <span className="ws-edit-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
-        <div className="ws-edit-fields">
-          <div className="ws-edit-field">
-            <label className="dialog-field">
-              <span>Tên Workspace <em className="field-required" aria-hidden="true">*</em></span>
-              <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
-                maxLength={nameMax} autoComplete="off"
-                aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'ws-edit-error' : undefined} />
-            </label>
-            <span className="dialog-counter">{name.length} / {nameMax}</span>
-          </div>
-          <div className="ws-edit-field">
-            <label className="dialog-field">
-              <span>Mô tả</span>
-              <textarea value={description} onChange={event => { setDescription(event.target.value); setError(null) }}
-                maxLength={descMax} rows={3} />
-            </label>
-            <span className="dialog-counter">{description.length} / {descMax}</span>
-          </div>
+    <div className="ws-edit-grid">
+      <span className="ws-edit-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
+      <div className="ws-edit-fields">
+        <div className="ws-edit-field">
+          <label className="dialog-field">
+            <span>Tên Workspace <em className="field-required" aria-hidden="true">*</em></span>
+            <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
+              maxLength={nameMax} autoComplete="off"
+              aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'ws-edit-error' : undefined} />
+          </label>
+          <span className="dialog-counter">{name.length} / {nameMax}</span>
+        </div>
+        <div className="ws-edit-field">
+          <label className="dialog-field">
+            <span>Mô tả</span>
+            <textarea value={description} onChange={event => { setDescription(event.target.value); setError(null) }}
+              maxLength={descMax} rows={3} />
+          </label>
+          <span className="dialog-counter">{description.length} / {descMax}</span>
         </div>
       </div>
+    </div>
 
-      <dl className="ws-edit-info">
-        <div><dt><PreviewIcon name="shield" /> Chủ sở hữu</dt>
-          <dd><span className="info-owner"><Avatar initials={workspace.owner.initials} size="sm" />{workspace.owner.name}</span>
-            <span className="info-sub">{ownerEmail}</span></dd></div>
-        <div><dt><PreviewIcon name="clock" /> Ngày tạo</dt><dd>{workspace.createdAt}</dd></div>
-        <div><dt><PreviewIcon name="reset" /> Cập nhật gần nhất</dt><dd>{workspace.updatedAt}</dd></div>
-        <div><dt><PreviewIcon name="users" /> Số lượng thành viên</dt><dd>{workspace.members} thành viên</dd></div>
-        <div><dt><PreviewIcon name="box" /> Số lượng Project</dt><dd>{projectCount} Project</dd></div>
-      </dl>
+    <dl className="ws-edit-info">
+      <div><dt><PreviewIcon name="shield" /> Chủ sở hữu</dt>
+        <dd><span className="info-owner"><Avatar initials={workspace.owner.initials} size="sm" />{workspace.owner.name}</span>
+          <span className="info-sub">{ownerEmail}</span></dd></div>
+      <div><dt><PreviewIcon name="clock" /> Ngày tạo</dt><dd>{workspace.createdAt}</dd></div>
+      <div><dt><PreviewIcon name="reset" /> Cập nhật gần nhất</dt><dd>{workspace.updatedAt}</dd></div>
+      <div><dt><PreviewIcon name="users" /> Số lượng thành viên</dt><dd>{workspace.members} thành viên</dd></div>
+      <div><dt><PreviewIcon name="box" /> Số lượng Project</dt><dd>{projectCount} Project</dd></div>
+    </dl>
 
-      {error && <p className="dialog-error" id="ws-edit-error" role="alert">{error}</p>}
-      <footer className="dialog-actions">
-        <button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Hủy</button>
-        <button type="submit" disabled={busy || workspace.canManage === false} aria-disabled={busy} aria-busy={busy} className="button-primary"><PreviewIcon name="check" /> Lưu thay đổi</button>
-      </footer>
+    {error && <p className="dialog-error" id="ws-edit-error" role="alert">{error}</p>}
+    <footer className="dialog-actions">
+      <button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Hủy</button>
+      <button type="submit" disabled={busy || workspace.canManage === false} aria-disabled={busy} aria-busy={busy} className="button-primary"><PreviewIcon name="check" /> Lưu thay đổi</button>
+    </footer>
   </Dialog>
 }
 
@@ -208,96 +208,96 @@ export function WorkspaceMembersDialog({ workspace, rows, onClose, onAddMember, 
   const visible = filtered.slice((safePage - 1) * perPage, safePage * perPage)
 
   return <Dialog open onClose={onClose} className="is-wide" role="dialog" aria-labelledby="ws-members-title">
-      <header className="dialog-head">
-        <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
-        <div className="dialog-head-text">
-          <h2 id="ws-members-title">Quản lý thành viên</h2>
-          <p>Xem, thêm và quản lý các thành viên trong Workspace.</p>
-        </div>
-        <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" onClick={onClose}>
-          <PreviewIcon name="close" />
-        </button>
-      </header>
-
-      <div className="members-summary">
-        <span className="members-count-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
-        <div className="members-count-text">
-          <strong>{workspace.members} thành viên</strong>
-          <span>Trong Workspace “{workspace.name}”</span>
-        </div>
-        <button type="button" className="button-primary" aria-expanded={adding}
-          disabled={workspace.canManage === false} aria-controls="ws-add-member" onClick={() => { setAdding(value => !value); setSearch('') }}>
-          <PreviewIcon name="plus" /> Thêm thành viên
-        </button>
+    <header className="dialog-head">
+      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
+      <div className="dialog-head-text">
+        <h2 id="ws-members-title">Quản lý thành viên</h2>
+        <p>Xem, thêm và quản lý các thành viên trong Workspace.</p>
       </div>
+      <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" onClick={onClose}>
+        <PreviewIcon name="close" />
+      </button>
+    </header>
 
-      {adding && <div className="pv-add-member" id="ws-add-member">
-        <label className="members-search">
-          <span className="visually-hidden">Tìm người để thêm vào Workspace</span>
-          <PreviewIcon name="search" />
-          <input value={search} autoFocus onChange={event => setSearch(event.target.value)}
-            placeholder="Tìm theo tên hoặc nhập email…" autoComplete="off"
-            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); const first = matches[0] ?? custom; if (first) add(first) } }} />
-        </label>
-        {matches.length === 0 && custom === null && <p className="panel-sub">
-          {workspace.currentUserId ? 'Nhập email tài khoản đã đăng ký để thêm thành viên.' : pick ? `Không tìm thấy ai khớp với “${typed}” trong danh bạ mẫu — nhập email đầy đủ (có dấu @) để thêm người mới.`
-            : 'Cả danh bạ mẫu đều đã thuộc Workspace này.'}
-        </p>}
-        {(matches.length > 0 || custom !== null) && <ul className="pv-suggest-list">
-          {matches.map(person => <li key={person.id} className="pv-suggest-row">
-            <Avatar initials={person.initials} size="sm" />
-            <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
-            <button type="button" className="button-secondary pv-suggest-add" onClick={() => add(person)}>
-              <PreviewIcon name="plus" /> Thêm
-            </button>
-          </li>)}
-          {custom && <li className="pv-suggest-row">
-            <Avatar initials={custom.initials} size="sm" />
-            <span className="pv-chip-text"><span className="pv-chip-name">{custom.name}</span><span className="pv-chip-email">{typed}</span></span>
-            <button type="button" className="button-secondary pv-suggest-add" onClick={() => add(custom)}>
-              <PreviewIcon name="plus" /> Thêm
-            </button>
-          </li>}
-        </ul>}
-      </div>}
-
-      <div className="members-tools">
-        <label className="members-search">
-          <span className="visually-hidden">Tìm kiếm thành viên</span>
-          <PreviewIcon name="search" />
-          <input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
-            placeholder="Tìm kiếm thành viên theo tên hoặc email…" />
-        </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
-          <select value={role} onChange={event => { setRole(event.target.value); setPage(1) }}>
-            <option value="all">Tất cả vai trò</option>
-            {memberRoleOptions.map(option => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
+    <div className="members-summary">
+      <span className="members-count-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
+      <div className="members-count-text">
+        <strong>{workspace.members} thành viên</strong>
+        <span>Trong Workspace “{workspace.name}”</span>
       </div>
+      <button type="button" className="button-primary" aria-expanded={adding}
+        disabled={workspace.canManage === false} aria-controls="ws-add-member" onClick={() => { setAdding(value => !value); setSearch('') }}>
+        <PreviewIcon name="plus" /> Thêm thành viên
+      </button>
+    </div>
 
-      <div className="table-scroll">
-        <table className="preview-table members-table">
-          <thead><tr><th scope="col">#</th><th scope="col">Thành viên</th><th scope="col">Vai trò</th>
-            <th scope="col">Ngày tham gia</th><th scope="col"><span className="visually-hidden">Thao tác</span></th></tr></thead>
-          <tbody>{visible.map((row, index) => <tr key={row.id}>
-            <td>{(safePage - 1) * perPage + index + 1}</td>
-            <th scope="row"><span className="member-cell"><Avatar initials={row.initials} size="sm" />
-              <span className="member-id"><span className="row-name">{row.name}</span><span className="row-sub">{row.email}</span></span></span></th>
-            {workspace.canManage === false ? <><td>{row.role}</td><td>{row.joinedAt}</td><td>Chỉ xem</td></> : <WorkspaceMemberRowCells live={Boolean(workspace.currentUserId)} row={row} onChangeRole={onChangeMemberRole} onRemove={onRemoveMember} />}
-          </tr>)}</tbody>
-        </table>
-        {visible.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
-      </div>
+    {adding && <div className="pv-add-member" id="ws-add-member">
+      <label className="members-search">
+        <span className="visually-hidden">Tìm người để thêm vào Workspace</span>
+        <PreviewIcon name="search" />
+        <input value={search} autoFocus onChange={event => setSearch(event.target.value)}
+          placeholder="Tìm theo tên hoặc nhập email…" autoComplete="off"
+          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); const first = matches[0] ?? custom; if (first) add(first) } }} />
+      </label>
+      {matches.length === 0 && custom === null && <p className="panel-sub">
+        {workspace.currentUserId ? 'Nhập email tài khoản đã đăng ký để thêm thành viên.' : pick ? `Không tìm thấy ai khớp với “${typed}” trong danh bạ mẫu — nhập email đầy đủ (có dấu @) để thêm người mới.`
+          : 'Cả danh bạ mẫu đều đã thuộc Workspace này.'}
+      </p>}
+      {(matches.length > 0 || custom !== null) && <ul className="pv-suggest-list">
+        {matches.map(person => <li key={person.id} className="pv-suggest-row">
+          <Avatar initials={person.initials} size="sm" />
+          <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
+          <button type="button" className="button-secondary pv-suggest-add" onClick={() => add(person)}>
+            <PreviewIcon name="plus" /> Thêm
+          </button>
+        </li>)}
+        {custom && <li className="pv-suggest-row">
+          <Avatar initials={custom.initials} size="sm" />
+          <span className="pv-chip-text"><span className="pv-chip-name">{custom.name}</span><span className="pv-chip-email">{typed}</span></span>
+          <button type="button" className="button-secondary pv-suggest-add" onClick={() => add(custom)}>
+            <PreviewIcon name="plus" /> Thêm
+          </button>
+        </li>}
+      </ul>}
+    </div>}
 
-      <Pagination label="Phân trang thành viên" total={filtered.length} page={safePage} perPage={perPage}
-        unit="thành viên được liệt kê" perPageOptions={[8, 12, 24]} onPage={setPage}
-        onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
+    <div className="members-tools">
+      <label className="members-search">
+        <span className="visually-hidden">Tìm kiếm thành viên</span>
+        <PreviewIcon name="search" />
+        <input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
+          placeholder="Tìm kiếm thành viên theo tên hoặc email…" />
+      </label>
+      <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
+        <select value={role} onChange={event => { setRole(event.target.value); setPage(1) }}>
+          <option value="all">Tất cả vai trò</option>
+          {memberRoleOptions.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+      </label>
+    </div>
 
-      <ResourceAccessActions kind="workspace" resource={workspace} onClose={onClose} />
-      <p className="dialog-note" id={previewNoteIds.wsMembers}>{workspace.currentUserId
-        ? 'Chỉ chủ Workspace được quản lý thành viên. Muốn đổi chủ sở hữu, hãy dùng chức năng chuyển quyền; các thành viên còn lại có vai trò Member.'
-        : previewReasons.wsMembers}</p>
+    <div className="table-scroll">
+      <table className="preview-table members-table">
+        <thead><tr><th scope="col">#</th><th scope="col">Thành viên</th><th scope="col">Vai trò</th>
+          <th scope="col">Ngày tham gia</th><th scope="col"><span className="visually-hidden">Thao tác</span></th></tr></thead>
+        <tbody>{visible.map((row, index) => <tr key={row.id}>
+          <td>{(safePage - 1) * perPage + index + 1}</td>
+          <th scope="row"><span className="member-cell"><Avatar initials={row.initials} size="sm" />
+            <span className="member-id"><span className="row-name">{row.name}</span><span className="row-sub">{row.email}</span></span></span></th>
+          {workspace.canManage === false ? <><td>{row.role}</td><td>{row.joinedAt}</td><td>Chỉ xem</td></> : <WorkspaceMemberRowCells live={Boolean(workspace.currentUserId)} row={row} onChangeRole={onChangeMemberRole} onRemove={onRemoveMember} />}
+        </tr>)}</tbody>
+      </table>
+      {visible.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
+    </div>
+
+    <Pagination label="Phân trang thành viên" total={filtered.length} page={safePage} perPage={perPage}
+      unit="thành viên được liệt kê" perPageOptions={[8, 12, 24]} onPage={setPage}
+      onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
+
+    <ResourceAccessActions kind="workspace" resource={workspace} onClose={onClose} />
+    <p className="dialog-note" id={previewNoteIds.wsMembers}>{workspace.currentUserId
+      ? 'Chỉ chủ Workspace được quản lý thành viên. Muốn đổi chủ sở hữu, hãy dùng chức năng chuyển quyền; các thành viên còn lại có vai trò Member.'
+      : previewReasons.wsMembers}</p>
   </Dialog>
 }
 

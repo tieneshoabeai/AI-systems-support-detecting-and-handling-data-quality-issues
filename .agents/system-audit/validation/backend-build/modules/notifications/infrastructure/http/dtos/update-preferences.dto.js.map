@@ -1,0 +1,1 @@
+{"version":3,"file":"update-preferences.dto.js","sourceRoot":"","sources":["../../../../../../../../../src/backend/src/modules/notifications/infrastructure/http/dtos/update-preferences.dto.ts"],"names":[],"mappings":";;;AAAA,6BAAwB;AAEX,QAAA,mCAAmC,GAAG,OAAC,CAAC,MAAM,CAAC;IAC1D,oBAAoB,EAAE,OAAC,CAAC,OAAO,CAAC,EAAE,cAAc,EAAE,kCAAkC,EAAE,CAAC;CACxF,CAAC,CAAC"}

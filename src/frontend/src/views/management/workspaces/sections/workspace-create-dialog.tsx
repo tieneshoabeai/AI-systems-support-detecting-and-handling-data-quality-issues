@@ -127,92 +127,92 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
   }
 
   return <Dialog open onClose={onClose} busy={pending} className="is-wide" role="dialog" aria-labelledby="pv-create-title">
-      <header className="dialog-head">
-        <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="workspaces" /></span>
-        <div className="dialog-head-text">
-          <h2 id="pv-create-title">Tạo Workspace</h2>
-          {!done && <p>Workspace mới là một ranh giới truy cập riêng, chứa project · tập dữ liệu · thành viên của nó.</p>}
-        </div>
-        <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending} onClick={onClose}>
-          <PreviewIcon name="close" />
-        </button>
-      </header>
+    <header className="dialog-head">
+      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="workspaces" /></span>
+      <div className="dialog-head-text">
+        <h2 id="pv-create-title">Tạo Workspace</h2>
+        {!done && <p>Workspace mới là một ranh giới truy cập riêng, chứa project · tập dữ liệu · thành viên của nó.</p>}
+      </div>
+      <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending} onClick={onClose}>
+        <PreviewIcon name="close" />
+      </button>
+    </header>
 
-      {done ? <div className="pv-wizard-success">
-        <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
-        <h3>Tạo Workspace thành công!</h3>
-        <p>Workspace “{createdName}” đã được tạo và sẵn sàng sử dụng, với {selected.length + 1} thành viên (gồm chủ sở hữu).</p>
-        <p className="dialog-note">{previewNote}</p>
-        <footer className="dialog-actions">
-          <button type="button" className="button-secondary" onClick={reset}>Tạo Workspace khác</button>
-          <button type="button" className="button-primary" onClick={viewWorkspace}><PreviewIcon name="arrow" /> Xem Workspace</button>
-        </footer>
-      </div> : <>
-        <div className="pv-create-grid">
-          <aside className="pv-create-aside" aria-hidden="true">
-            <span className="pv-create-art"><CoverArt hue="blue" seed={5} /></span>
-            <p>Tạo một Workspace mới để nhóm hóa Projects, quản lý thành viên và cộng tác hiệu quả.</p>
-          </aside>
+    {done ? <div className="pv-wizard-success">
+      <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
+      <h3>Tạo Workspace thành công!</h3>
+      <p>Workspace “{createdName}” đã được tạo và sẵn sàng sử dụng, với {selected.length + 1} thành viên (gồm chủ sở hữu).</p>
+      <p className="dialog-note">{previewNote}</p>
+      <footer className="dialog-actions">
+        <button type="button" className="button-secondary" onClick={reset}>Tạo Workspace khác</button>
+        <button type="button" className="button-primary" onClick={viewWorkspace}><PreviewIcon name="arrow" /> Xem Workspace</button>
+      </footer>
+    </div> : <>
+      <div className="pv-create-grid">
+        <aside className="pv-create-aside" aria-hidden="true">
+          <span className="pv-create-art"><CoverArt hue="blue" seed={5} /></span>
+          <p>Tạo một Workspace mới để nhóm hóa Projects, quản lý thành viên và cộng tác hiệu quả.</p>
+        </aside>
 
-          <div className="ws-edit-fields">
-            <div className="ws-edit-field">
-              <label className="dialog-field">
-                <span>Tên Workspace <em className="field-required" aria-hidden="true">*</em></span>
-                <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
-                  maxLength={nameMax} placeholder="VD: Product Analytics" autoComplete="off"
-                  aria-invalid={error && !name.trim() ? 'true' : undefined} aria-describedby={error ? 'pv-create-error' : undefined} />
-              </label>
-              <span className="dialog-counter">{name.length} / {nameMax}</span>
-            </div>
+        <div className="ws-edit-fields">
+          <div className="ws-edit-field">
+            <label className="dialog-field">
+              <span>Tên Workspace <em className="field-required" aria-hidden="true">*</em></span>
+              <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
+                maxLength={nameMax} placeholder="VD: Product Analytics" autoComplete="off"
+                aria-invalid={error && !name.trim() ? 'true' : undefined} aria-describedby={error ? 'pv-create-error' : undefined} />
+            </label>
+            <span className="dialog-counter">{name.length} / {nameMax}</span>
+          </div>
 
-            <div className="ws-edit-field">
-              <label className="dialog-field">
-                <span>Mô tả</span>
-                <textarea value={description} onChange={event => setDescription(event.target.value)}
-                  maxLength={descMax} rows={3} placeholder="Workspace này dùng để làm gì…" />
-              </label>
-              <span className="dialog-counter">{description.length} / {descMax}</span>
-            </div>
+          <div className="ws-edit-field">
+            <label className="dialog-field">
+              <span>Mô tả</span>
+              <textarea value={description} onChange={event => setDescription(event.target.value)}
+                maxLength={descMax} rows={3} placeholder="Workspace này dùng để làm gì…" />
+            </label>
+            <span className="dialog-counter">{description.length} / {descMax}</span>
+          </div>
 
-            <div className="ws-edit-field">
-              <span className="dialog-field-label" id="pv-create-members-label">Thành viên ban đầu (tùy chọn)</span>
-              <div className="pv-people-box">
-                <ul className="pv-selected-chips">
-                  {selected.map(item => <li key={item.email} className="pv-chip is-on">
-                    <Avatar initials={item.person.initials} size="sm" />
-                    <span className="pv-chip-text"><span className="pv-chip-name">{item.person.name}</span><span className="pv-chip-email">{item.email}</span></span>
-                    <button type="button" className="pv-chip-remove" aria-label={`Gỡ ${item.email} khỏi Workspace`}
-                      onClick={() => removePerson(item.email)}>
-                      <PreviewIcon name="close" />
-                    </button>
-                  </li>)}
-                </ul>
-                {/* Chỉ MỘT ô nhập email, không có ô tìm người có sẵn. Vòng focus của cả hộp
+          <div className="ws-edit-field">
+            <span className="dialog-field-label" id="pv-create-members-label">Thành viên ban đầu (tùy chọn)</span>
+            <div className="pv-people-box">
+              <ul className="pv-selected-chips">
+                {selected.map(item => <li key={item.email} className="pv-chip is-on">
+                  <Avatar initials={item.person.initials} size="sm" />
+                  <span className="pv-chip-text"><span className="pv-chip-name">{item.person.name}</span><span className="pv-chip-email">{item.email}</span></span>
+                  <button type="button" className="pv-chip-remove" aria-label={`Gỡ ${item.email} khỏi Workspace`}
+                    onClick={() => removePerson(item.email)}>
+                    <PreviewIcon name="close" />
+                  </button>
+                </li>)}
+              </ul>
+              {/* Chỉ MỘT ô nhập email, không có ô tìm người có sẵn. Vòng focus của cả hộp
                     do `:focus-within` trong CSS lo — state `listOpen` cũ chỉ để bật vòng focus
                     cho danh sách gợi ý, và danh sách đó đã bị gỡ theo yêu cầu 03/11. */}
-                <input value={text} onChange={event => { setText(event.target.value); setError(null) }}
-                  onKeyDown={onTextKeyDown} aria-labelledby="pv-create-members-label"
-                  placeholder={selected.length ? 'Thêm email khác…' : 'Nhập email thành viên…'}
-                  autoComplete="off" inputMode="email"
-                  aria-invalid={emailLooksBroken ? 'true' : undefined}
-                  aria-describedby={error ? 'pv-create-error' : undefined} />
-                <button type="button" className="button-secondary pv-people-add" onClick={addTyped}>
-                  <PreviewIcon name="plus" /> Thêm
-                </button>
-              </div>
-              <span className="dialog-counter">{selected.length === 0
-                ? 'Chưa thêm ai — chủ sở hữu luôn thuộc Workspace này.'
-                : `Đã thêm ${selected.length} email`}</span>
+              <input value={text} onChange={event => { setText(event.target.value); setError(null) }}
+                onKeyDown={onTextKeyDown} aria-labelledby="pv-create-members-label"
+                placeholder={selected.length ? 'Thêm email khác…' : 'Nhập email thành viên…'}
+                autoComplete="off" inputMode="email"
+                aria-invalid={emailLooksBroken ? 'true' : undefined}
+                aria-describedby={error ? 'pv-create-error' : undefined} />
+              <button type="button" className="button-secondary pv-people-add" onClick={addTyped}>
+                <PreviewIcon name="plus" /> Thêm
+              </button>
             </div>
+            <span className="dialog-counter">{selected.length === 0
+              ? 'Chưa thêm ai — chủ sở hữu luôn thuộc Workspace này.'
+              : `Đã thêm ${selected.length} email`}</span>
           </div>
         </div>
+      </div>
 
-        {error && <p className="dialog-error" id="pv-create-error" role="alert">{error}</p>}
-        <p className="dialog-note">{previewNote}</p>
-        <footer className="dialog-actions pv-wizard-foot">
-          <button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</button>
-          <button type="button" className="button-primary" disabled={pending} onClick={() => { void submit() }}><PreviewIcon name="plus" /> Tạo Workspace</button>
-        </footer>
-      </>}
+      {error && <p className="dialog-error" id="pv-create-error" role="alert">{error}</p>}
+      <p className="dialog-note">{previewNote}</p>
+      <footer className="dialog-actions pv-wizard-foot">
+        <button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</button>
+        <button type="button" className="button-primary" disabled={pending} onClick={() => { void submit() }}><PreviewIcon name="plus" /> Tạo Workspace</button>
+      </footer>
+    </>}
   </Dialog>
 }

@@ -182,170 +182,170 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   }
 
   return <Dialog open onClose={onClose} busy={pending} className="is-wide" role="dialog" aria-labelledby="pv-wizard-title">
-      <header className="dialog-head">
-        <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="projects" /></span>
-        <div className="dialog-head-text">
-          <h2 id="pv-wizard-title">Tạo Project</h2>
-          <p>{workspace ? `Trong Workspace “${workspace.name}”.` : 'Chọn Workspace chứa Project ở bước Thông tin Project.'}</p>
-        </div>
-        <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending} onClick={onClose}>
-          <PreviewIcon name="close" />
-        </button>
-      </header>
+    <header className="dialog-head">
+      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="projects" /></span>
+      <div className="dialog-head-text">
+        <h2 id="pv-wizard-title">Tạo Project</h2>
+        <p>{workspace ? `Trong Workspace “${workspace.name}”.` : 'Chọn Workspace chứa Project ở bước Thông tin Project.'}</p>
+      </div>
+      <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending} onClick={onClose}>
+        <PreviewIcon name="close" />
+      </button>
+    </header>
 
-      {!isDone && <ol className="pv-wizard-steps" aria-label="Các bước tạo project">
-        {steps.map((label, index) => <li key={label}
-          className={`pv-wizard-step${index === step ? ' is-active' : ''}${index < step ? ' is-done' : ''}`}
-          aria-current={index === step ? 'step' : undefined}>
-          <span className="pv-step-dot" aria-hidden="true">{index < step ? <PreviewIcon name="check" /> : index + 1}</span>
-          <span className="pv-step-label">{label}</span>
-        </li>)}
-      </ol>}
+    {!isDone && <ol className="pv-wizard-steps" aria-label="Các bước tạo project">
+      {steps.map((label, index) => <li key={label}
+        className={`pv-wizard-step${index === step ? ' is-active' : ''}${index < step ? ' is-done' : ''}`}
+        aria-current={index === step ? 'step' : undefined}>
+        <span className="pv-step-dot" aria-hidden="true">{index < step ? <PreviewIcon name="check" /> : index + 1}</span>
+        <span className="pv-step-label">{label}</span>
+      </li>)}
+    </ol>}
 
-      {isDone ? <div className="pv-wizard-success">
-        <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
-        <h3>Tạo Project thành công!</h3>
-        <p>Project “{createdName}” đã được thêm vào Workspace “{workspace?.name ?? ''}” cùng {selected.length + 1} thành viên (gồm chủ sở hữu) và tập dữ liệu “{file?.fileName ?? ''}”.</p>
-        <footer className="dialog-actions">
-          <button type="button" className="button-secondary" onClick={reset}>Tạo Project khác</button>
-          <button type="button" className="button-primary" onClick={viewProject}><PreviewIcon name="arrow" /> Xem Project</button>
-        </footer>
-      </div> : <>
-        <div className="pv-wizard-body">
-          {step === 0 && <div className="ws-edit-fields">
-            {!initialWorkspaceId && <div className="ws-edit-field">
-              <label className="dialog-field">
-                <span>Workspace <em className="field-required" aria-hidden="true">*</em></span>
-                <select value={workspaceId} onChange={event => { setWorkspaceId(event.target.value); setError(null) }}
-                  aria-invalid={error !== null && !workspaceId ? 'true' : undefined}
-                  aria-describedby={error && !workspaceId ? 'pv-wizard-error' : undefined}>
-                  <option value="">— Chọn Workspace —</option>
-                  {session.state.workspaces.filter(item => item.canManage !== false).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
-              </label>
-            </div>}
-            <div className="ws-edit-field">
-              <label className="dialog-field">
-                <span>Tên Project <em className="field-required" aria-hidden="true">*</em></span>
-                <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
-                  maxLength={nameMax} placeholder="VD: Phân tích churn quý 4" autoComplete="off"
-                  aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'pv-wizard-error' : undefined} />
-              </label>
-              <span className="dialog-counter">{name.length} / {nameMax}</span>
-            </div>
-            <div className="ws-edit-field">
-              <label className="dialog-field">
-                <span>Mô tả</span>
-                <textarea value={description} onChange={event => setDescription(event.target.value)}
-                  maxLength={descMax} rows={3} placeholder="Mục tiêu và phạm vi của project…" />
-              </label>
-              <span className="dialog-counter">{description.length} / {descMax}</span>
-            </div>
+    {isDone ? <div className="pv-wizard-success">
+      <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
+      <h3>Tạo Project thành công!</h3>
+      <p>Project “{createdName}” đã được thêm vào Workspace “{workspace?.name ?? ''}” cùng {selected.length + 1} thành viên (gồm chủ sở hữu) và tập dữ liệu “{file?.fileName ?? ''}”.</p>
+      <footer className="dialog-actions">
+        <button type="button" className="button-secondary" onClick={reset}>Tạo Project khác</button>
+        <button type="button" className="button-primary" onClick={viewProject}><PreviewIcon name="arrow" /> Xem Project</button>
+      </footer>
+    </div> : <>
+      <div className="pv-wizard-body">
+        {step === 0 && <div className="ws-edit-fields">
+          {!initialWorkspaceId && <div className="ws-edit-field">
+            <label className="dialog-field">
+              <span>Workspace <em className="field-required" aria-hidden="true">*</em></span>
+              <select value={workspaceId} onChange={event => { setWorkspaceId(event.target.value); setError(null) }}
+                aria-invalid={error !== null && !workspaceId ? 'true' : undefined}
+                aria-describedby={error && !workspaceId ? 'pv-wizard-error' : undefined}>
+                <option value="">— Chọn Workspace —</option>
+                {session.state.workspaces.filter(item => item.canManage !== false).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </label>
           </div>}
+          <div className="ws-edit-field">
+            <label className="dialog-field">
+              <span>Tên Project <em className="field-required" aria-hidden="true">*</em></span>
+              <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
+                maxLength={nameMax} placeholder="VD: Phân tích churn quý 4" autoComplete="off"
+                aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'pv-wizard-error' : undefined} />
+            </label>
+            <span className="dialog-counter">{name.length} / {nameMax}</span>
+          </div>
+          <div className="ws-edit-field">
+            <label className="dialog-field">
+              <span>Mô tả</span>
+              <textarea value={description} onChange={event => setDescription(event.target.value)}
+                maxLength={descMax} rows={3} placeholder="Mục tiêu và phạm vi của project…" />
+            </label>
+            <span className="dialog-counter">{description.length} / {descMax}</span>
+          </div>
+        </div>}
 
-          {step === 1 && <div className="pv-import-step">
-            <span className="pv-step-hint">Mỗi project gắn với đúng một tập dữ liệu, nên phải nạp ngay khi tạo. Tệp được đọc trên máy bạn để lấy số hàng · số cột · dung lượng thật.</span>
-            {file === null
-              ? <label className="dropzone">
-                <input ref={fileInputRef} type="file" className="visually-hidden" accept=".csv,text/csv"
-                  aria-label="Chọn tập dữ liệu CSV" onChange={event => onPickFile(event.target.files)} />
-                <span className="dropzone-text">Kéo tệp vào đây hoặc <span className="dropzone-pick">Chọn tệp</span></span>
-                <small>Hỗ trợ .CSV · dòng đầu tiên phải là tiêu đề cột</small>
-              </label>
-              : <>
-                <div className="attachment">
-                  <span className="attachment-name"><PreviewIcon name="file" /> {file.fileName} ({formatDataSize(file.sizeMb)})</span>
-                  <button type="button" className="icon-button sm" aria-label="Bỏ tệp đã chọn" onClick={dropFile}>
+        {step === 1 && <div className="pv-import-step">
+          <span className="pv-step-hint">Mỗi project gắn với đúng một tập dữ liệu, nên phải nạp ngay khi tạo. Tệp được đọc trên máy bạn để lấy số hàng · số cột · dung lượng thật.</span>
+          {file === null
+            ? <label className="dropzone">
+              <input ref={fileInputRef} type="file" className="visually-hidden" accept=".csv,text/csv"
+                aria-label="Chọn tập dữ liệu CSV" onChange={event => onPickFile(event.target.files)} />
+              <span className="dropzone-text">Kéo tệp vào đây hoặc <span className="dropzone-pick">Chọn tệp</span></span>
+              <small>Hỗ trợ .CSV · dòng đầu tiên phải là tiêu đề cột</small>
+            </label>
+            : <>
+              <div className="attachment">
+                <span className="attachment-name"><PreviewIcon name="file" /> {file.fileName} ({formatDataSize(file.sizeMb)})</span>
+                <button type="button" className="icon-button sm" aria-label="Bỏ tệp đã chọn" onClick={dropFile}>
+                  <PreviewIcon name="close" />
+                </button>
+              </div>
+              <dl className="pv-import-shape">
+                <div><dt>Số bản ghi</dt><dd>{formatRows(file.rows)}</dd></div>
+                <div><dt>Số cột</dt><dd>{file.columns}</dd></div>
+                <div><dt>Tệp</dt><dd>{file.format} · phân tách bằng {delimiterLabel(file.delimiter)}</dd></div>
+                <div><dt>Dung lượng</dt><dd>{formatDataSize(file.sizeMb)}</dd></div>
+              </dl>
+            </>}
+        </div>}
+
+        {step === 2 && workspace && <div className="pv-members-step">
+          <span className="pv-step-hint">Thêm thành viên vào Project. Chọn thành viên từ Workspace “{workspace.name}” ({workspace.members} thành viên) — chủ sở hữu luôn thuộc project.</span>
+          <div className="pv-member-split">
+            <div className="pv-member-pick-col">
+              {selected.length > 0 && <ul className="pv-selected-chips">
+                {selected.map(item => <li key={item.person.id} className="pv-chip is-on">
+                  <Avatar initials={item.person.initials} size="sm" />
+                  <span className="pv-chip-text"><span className="pv-chip-name">{item.person.name}</span><span className="pv-chip-email">{item.role}</span></span>
+                  <button type="button" className="pv-chip-remove" aria-label={`Gỡ ${item.person.name} khỏi project`}
+                    onClick={() => togglePerson(item.person)}>
                     <PreviewIcon name="close" />
                   </button>
-                </div>
-                <dl className="pv-import-shape">
-                  <div><dt>Số bản ghi</dt><dd>{formatRows(file.rows)}</dd></div>
-                  <div><dt>Số cột</dt><dd>{file.columns}</dd></div>
-                  <div><dt>Tệp</dt><dd>{file.format} · phân tách bằng {delimiterLabel(file.delimiter)}</dd></div>
-                  <div><dt>Dung lượng</dt><dd>{formatDataSize(file.sizeMb)}</dd></div>
-                </dl>
-              </>}
-          </div>}
-
-          {step === 2 && workspace && <div className="pv-members-step">
-            <span className="pv-step-hint">Thêm thành viên vào Project. Chọn thành viên từ Workspace “{workspace.name}” ({workspace.members} thành viên) — chủ sở hữu luôn thuộc project.</span>
-            <div className="pv-member-split">
-              <div className="pv-member-pick-col">
-                {selected.length > 0 && <ul className="pv-selected-chips">
-                  {selected.map(item => <li key={item.person.id} className="pv-chip is-on">
-                    <Avatar initials={item.person.initials} size="sm" />
-                    <span className="pv-chip-text"><span className="pv-chip-name">{item.person.name}</span><span className="pv-chip-email">{item.role}</span></span>
-                    <button type="button" className="pv-chip-remove" aria-label={`Gỡ ${item.person.name} khỏi project`}
-                      onClick={() => togglePerson(item.person)}>
-                      <PreviewIcon name="close" />
-                    </button>
-                  </li>)}
-                </ul>}
-                <label className="members-search">
-                  <span className="visually-hidden">Tìm kiếm thành viên trong Workspace</span>
-                  <PreviewIcon name="search" />
-                  <input value={search} onChange={event => setSearch(event.target.value)}
-                    placeholder="Tìm kiếm thành viên trong Workspace…" autoComplete="off" />
-                </label>
-                {candidates.length > 0 && <ul className="pv-suggest-list pv-member-rows">
-                  {candidates.map(person => {
-                    const picked = selected.find(item => item.person.id === person.id)
-                    return <li key={person.id} className="pv-suggest-row">
-                      <label className="pv-member-pick">
-                        <input type="checkbox" className="pv-member-check" checked={picked !== undefined}
-                          aria-label={`Chọn ${person.name} vào project`} onChange={() => togglePerson(person)} />
-                        <Avatar initials={person.initials} size="sm" />
-                        <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
-                      </label>
-                      <label className="chip-select inline">
-                        <span className="visually-hidden">Vai trò của {person.name} trong project</span>
-                        <select value={picked?.role ?? defaultProjectRole} onChange={event => setRole(person, event.target.value)}>
-                          {projectRoleOptions.filter(role => !workspace?.currentUserId || role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
-                        </select>
-                      </label>
-                    </li>
-                  })}
-                </ul>}
-                {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
-                  ? 'Workspace này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” rồi quay lại bước này.'
-                  : `Không có thành viên nào của Workspace khớp “${search.trim()}”.`}</p>}
-              </div>
-              {/* Ba gạch đầu dòng ảnh vẽ bên phải danh sách. Chúng là MÔ TẢ quy tắc (hệ đang
-                  enforced: nguồn list đúng là roster), không phải lối tắt thành một ô checkbox. */}
-              <div className="pv-member-notes">
-                <span className="pv-member-notes-icon" aria-hidden="true"><PreviewIcon name="info" /></span>
-                <ul>{memberStepNotes.map(note => <li key={note}>{note}</li>)}</ul>
-              </div>
+                </li>)}
+              </ul>}
+              <label className="members-search">
+                <span className="visually-hidden">Tìm kiếm thành viên trong Workspace</span>
+                <PreviewIcon name="search" />
+                <input value={search} onChange={event => setSearch(event.target.value)}
+                  placeholder="Tìm kiếm thành viên trong Workspace…" autoComplete="off" />
+              </label>
+              {candidates.length > 0 && <ul className="pv-suggest-list pv-member-rows">
+                {candidates.map(person => {
+                  const picked = selected.find(item => item.person.id === person.id)
+                  return <li key={person.id} className="pv-suggest-row">
+                    <label className="pv-member-pick">
+                      <input type="checkbox" className="pv-member-check" checked={picked !== undefined}
+                        aria-label={`Chọn ${person.name} vào project`} onChange={() => togglePerson(person)} />
+                      <Avatar initials={person.initials} size="sm" />
+                      <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
+                    </label>
+                    <label className="chip-select inline">
+                      <span className="visually-hidden">Vai trò của {person.name} trong project</span>
+                      <select value={picked?.role ?? defaultProjectRole} onChange={event => setRole(person, event.target.value)}>
+                        {projectRoleOptions.filter(role => !workspace?.currentUserId || role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    </label>
+                  </li>
+                })}
+              </ul>}
+              {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
+                ? 'Workspace này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” rồi quay lại bước này.'
+                : `Không có thành viên nào của Workspace khớp “${search.trim()}”.`}</p>}
             </div>
-          </div>}
-
-          {step === 3 && <dl className="ws-edit-info pv-review">
-            <div><dt>Tên Project</dt><dd>{name.trim() || '—'}</dd></div>
-            <div><dt>Workspace</dt><dd>{workspace?.name ?? '—'}</dd></div>
-            <div><dt>Mô tả</dt><dd>{description.trim() || 'Chưa có mô tả'}</dd></div>
-            <div><dt>Tập dữ liệu</dt>
-              <dd>{file
-                ? `${file.fileName} · ${file.format} · ${formatRows(file.rows)} bản ghi · ${file.columns} cột · ${formatDataSize(file.sizeMb)}`
-                : '—'}</dd></div>
-            <div><dt>Thành viên</dt>
-              <dd><span className="pv-review-member"><Avatar initials={workspace?.owner.initials ?? ''} size="sm" /> {workspace?.owner.name ?? '—'} <em className="pv-review-owner-tag">(chủ sở hữu)</em></span>
-                {selected.map(item => <span key={item.person.id} className="pv-review-member"><Avatar initials={item.person.initials} size="sm" /> {item.person.name} <em className="pv-review-owner-tag">({item.role})</em></span>)}</dd></div>
-          </dl>}
-        </div>
-
-        {error && <p className="dialog-error" id="pv-wizard-error" role="alert">{error}</p>}
-        <footer className="dialog-actions pv-wizard-foot">
-          <button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</button>
-          <div className="pv-wizard-nav">
-            {step > 0 && <button type="button" className="button-secondary" onClick={() => { setError(null); setStep(value => Math.max(0, value - 1)) }}>Quay lại</button>}
-            <button type="button" className="button-primary" disabled={pending} onClick={goNext}>
-              {step === steps.length - 1
-                ? <><PreviewIcon name="check" /> Tạo Project</>
-                : <>Tiếp theo <PreviewIcon name="chevron" /></>}
-            </button>
+            {/* Ba gạch đầu dòng ảnh vẽ bên phải danh sách. Chúng là MÔ TẢ quy tắc (hệ đang
+                  enforced: nguồn list đúng là roster), không phải lối tắt thành một ô checkbox. */}
+            <div className="pv-member-notes">
+              <span className="pv-member-notes-icon" aria-hidden="true"><PreviewIcon name="info" /></span>
+              <ul>{memberStepNotes.map(note => <li key={note}>{note}</li>)}</ul>
+            </div>
           </div>
-        </footer>
-      </>}
+        </div>}
+
+        {step === 3 && <dl className="ws-edit-info pv-review">
+          <div><dt>Tên Project</dt><dd>{name.trim() || '—'}</dd></div>
+          <div><dt>Workspace</dt><dd>{workspace?.name ?? '—'}</dd></div>
+          <div><dt>Mô tả</dt><dd>{description.trim() || 'Chưa có mô tả'}</dd></div>
+          <div><dt>Tập dữ liệu</dt>
+            <dd>{file
+              ? `${file.fileName} · ${file.format} · ${formatRows(file.rows)} bản ghi · ${file.columns} cột · ${formatDataSize(file.sizeMb)}`
+              : '—'}</dd></div>
+          <div><dt>Thành viên</dt>
+            <dd><span className="pv-review-member"><Avatar initials={workspace?.owner.initials ?? ''} size="sm" /> {workspace?.owner.name ?? '—'} <em className="pv-review-owner-tag">(chủ sở hữu)</em></span>
+              {selected.map(item => <span key={item.person.id} className="pv-review-member"><Avatar initials={item.person.initials} size="sm" /> {item.person.name} <em className="pv-review-owner-tag">({item.role})</em></span>)}</dd></div>
+        </dl>}
+      </div>
+
+      {error && <p className="dialog-error" id="pv-wizard-error" role="alert">{error}</p>}
+      <footer className="dialog-actions pv-wizard-foot">
+        <button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</button>
+        <div className="pv-wizard-nav">
+          {step > 0 && <button type="button" className="button-secondary" onClick={() => { setError(null); setStep(value => Math.max(0, value - 1)) }}>Quay lại</button>}
+          <button type="button" className="button-primary" disabled={pending} onClick={goNext}>
+            {step === steps.length - 1
+              ? <><PreviewIcon name="check" /> Tạo Project</>
+              : <>Tiếp theo <PreviewIcon name="chevron" /></>}
+          </button>
+        </div>
+      </footer>
+    </>}
   </Dialog>
 }

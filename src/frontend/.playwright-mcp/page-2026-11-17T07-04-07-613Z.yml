@@ -1,0 +1,72 @@
+- generic [ref=e100]:
+  - complementary "Chế độ demo" [ref=e101]:
+    - strong [ref=e102]: Demo — không kết nối backend
+    - link "Mở Shopping Trends" [ref=e103] [cursor=pointer]:
+      - /url: /processing/projects/shopping-trends
+    - button "Reset demo" [ref=e104] [cursor=pointer]
+    - button "Đăng xuất demo" [ref=e105] [cursor=pointer]
+  - generic [ref=e2779]:
+    - banner [ref=e2780]:
+      - generic [ref=e2782]:
+        - link "Trang chủ Processing" [ref=e2783] [cursor=pointer]:
+          - /url: /processing
+          - img [ref=e2784]
+          - strong [ref=e2788]: DataVerse
+        - generic [ref=e2789]:
+          - button "Tải file kết quả" [disabled] [ref=e2790]:
+            - img [ref=e2791]
+          - generic [ref=e2793]: Chưa có file kết quả sau xử lý để tải xuống.
+        - link "Quản lý" [ref=e2794] [cursor=pointer]:
+          - /url: /management
+          - img [ref=e2795]
+          - text: Quản lý
+      - generic [ref=e2797]:
+        - button "Chế độ màu" [ref=e2798] [cursor=pointer]:
+          - img [ref=e2799]
+        - button "Thông báo · 5 chưa đọc" [ref=e2801] [cursor=pointer]:
+          - img [ref=e2802]
+        - button "Báo cáo vấn đề" [ref=e2805] [cursor=pointer]:
+          - img [ref=e2806]
+        - button "Tài khoản Demo Analyst" [ref=e2808] [cursor=pointer]:
+          - generic [ref=e2809]: DA
+          - generic [ref=e2810]:
+            - strong [ref=e2811]: Demo Analyst
+            - generic [ref=e2812]: Data Analyst
+          - img [ref=e2814]
+    - generic [ref=e2816]:
+      - heading "Shopping Trends" [active] [level=1] [ref=e2817]
+      - generic [ref=e2818]:
+        - navigation "Path điều hướng" [ref=e2819]:
+          - button "Workspaces" [ref=e2820] [cursor=pointer]
+          - generic [ref=e2821]: ›
+          - button "Shopping Demo" [ref=e2822] [cursor=pointer]
+          - generic [ref=e2823]: ›
+          - generic [ref=e2824]: Shopping Trends
+        - generic [ref=e2825]:
+          - img [ref=e2827]
+          - generic [ref=e2829]:
+            - strong [ref=e2830]: "Dataset: shopping_trends_corrupted_10pct.csv"
+            - generic [ref=e2831]: 0,395 MB | 3.900 dòng | 18 cột
+          - button "Thao tác với Shopping Trends" [ref=e2832] [cursor=pointer]:
+            - img [ref=e2833]
+      - region "Vũ trụ dữ liệu của Shopping Trends" [ref=e2834]:
+        - region "Không gian trực quan Dataset 3D" [ref=e2836]:
+          - generic:
+            - complementary "Bản đồ module" [ref=e2841]:
+              - button "Mở bản đồ module" [ref=e2843] [cursor=pointer]:
+                - generic [ref=e2844]: ›
+            - button "Tách mô hình" [ref=e2845] [cursor=pointer]
+        - navigation "Bốn module của project" [ref=e2846]:
+          - button "Tổng quan" [ref=e2847] [cursor=pointer]:
+            - img [ref=e2849]
+            - generic [ref=e2851]: Tổng quan
+          - button "Data View" [ref=e2852] [cursor=pointer]:
+            - img [ref=e2854]
+            - generic [ref=e2856]: Data View
+          - button "Data Analysis" [ref=e2857] [cursor=pointer]:
+            - img [ref=e2859]
+            - generic [ref=e2861]: Data Analysis
+          - button "Detection" [ref=e2862] [cursor=pointer]:
+            - img [ref=e2864]
+            - generic [ref=e2866]: Detection
+  - status "Kết quả thao tác trên dữ liệu mẫu"

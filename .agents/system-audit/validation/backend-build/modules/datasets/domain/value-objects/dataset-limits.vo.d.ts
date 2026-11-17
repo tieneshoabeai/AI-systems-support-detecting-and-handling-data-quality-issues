@@ -1,0 +1,10 @@
+export declare const MAX_FILE_BYTES: number;
+export declare const MAX_COLUMNS = 1000;
+export declare const IMPORT_BATCH_SIZE = 5000;
+export declare const SAMPLE_ROWS_CAP = 500;
+export declare function isCsvFile(fileName: string): boolean;
+export declare function assertCsvFile(fileName: string): void;
+export declare function assertColumnLimit(columnCount: number): void;
+export declare function assertFileSize(contentLength: number): void;
+export declare function datasetNameFromFile(fileName: string): string;
+export declare function storageKeyForDataset(datasetId: string): string;

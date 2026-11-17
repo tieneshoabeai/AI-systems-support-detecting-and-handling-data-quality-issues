@@ -54,20 +54,20 @@ function RenameForm({ request, onSubmit, onCancel }: {
   }
 
   return <Dialog open onClose={onCancel} busy={busy} as="form" className="" role="dialog" aria-labelledby="rename-title"
-      onSubmit={event => { event.preventDefault(); void submit() }}>
-      <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
-      <h2 id="rename-title">Đổi tên “{request.currentName}”</h2>
-      <label className="dialog-field">
-        <span>Tên mới</span>
-        <Input value={name} onChange={event => { setName(event.target.value); setError(null) }}
-          aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'rename-error' : undefined}
-          maxLength={80} autoComplete="off" />
-      </label>
-      {error && <p className="dialog-error" id="rename-error" role="alert">{error}</p>}
-      <footer className="dialog-actions">
-        <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Hủy</Button>
-        <Button type="submit" loading={busy}><PreviewIcon name="check" /> Lưu tên</Button>
-      </footer>
+    onSubmit={event => { event.preventDefault(); void submit() }}>
+    <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
+    <h2 id="rename-title">Đổi tên “{request.currentName}”</h2>
+    <label className="dialog-field">
+      <span>Tên mới</span>
+      <Input value={name} onChange={event => { setName(event.target.value); setError(null) }}
+        aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'rename-error' : undefined}
+        maxLength={80} autoComplete="off" />
+    </label>
+    {error && <p className="dialog-error" id="rename-error" role="alert">{error}</p>}
+    <footer className="dialog-actions">
+      <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Hủy</Button>
+      <Button type="submit" loading={busy}><PreviewIcon name="check" /> Lưu tên</Button>
+    </footer>
   </Dialog>
 }
 
@@ -89,12 +89,12 @@ function RemoveForm({ request, onConfirm, onCancel }: {
   const [busy, setBusy] = useState(false)
   const confirm = async () => { if (busy) return; setBusy(true); try { await onConfirm() } finally { setBusy(false) } }
   return <Dialog open onClose={onCancel} busy={busy} className="" role="alertdialog" aria-labelledby="remove-title" aria-describedby="remove-detail">
-      <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
-      <h2 id="remove-title">Gỡ “{request.target.name}” khỏi {live ? 'danh sách' : 'danh sách mẫu'}?</h2>
-      <p id="remove-detail" className="dialog-detail">{request.detail}</p>
-      <footer className="dialog-actions">
-        <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Giữ lại</Button>
-        <Button type="button" variant="danger" loading={busy} onClick={() => { void confirm() }}><PreviewIcon name="trash" /> Gỡ khỏi danh sách</Button>
-      </footer>
+    <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
+    <h2 id="remove-title">Gỡ “{request.target.name}” khỏi {live ? 'danh sách' : 'danh sách mẫu'}?</h2>
+    <p id="remove-detail" className="dialog-detail">{request.detail}</p>
+    <footer className="dialog-actions">
+      <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Giữ lại</Button>
+      <Button type="button" variant="danger" loading={busy} onClick={() => { void confirm() }}><PreviewIcon name="trash" /> Gỡ khỏi danh sách</Button>
+    </footer>
   </Dialog>
 }

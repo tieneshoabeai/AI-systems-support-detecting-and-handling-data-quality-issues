@@ -1,0 +1,264 @@
+- generic [ref=e66]:
+  - complementary "Chế độ demo" [ref=e67]:
+    - strong [ref=e68]: Demo — không kết nối backend
+    - link "Mở Shopping Trends" [ref=e69] [cursor=pointer]:
+      - /url: /processing/projects/shopping-trends
+    - button "Reset demo" [ref=e70] [cursor=pointer]
+    - button "Đăng xuất demo" [ref=e71] [cursor=pointer]
+  - generic [ref=e73]:
+    - banner [ref=e74]:
+      - generic [ref=e76]:
+        - link "Trang chủ Processing" [ref=e77] [cursor=pointer]:
+          - /url: /processing
+          - img [ref=e78]
+          - strong [ref=e82]: DataVerse
+        - link "Quản lý" [ref=e83] [cursor=pointer]:
+          - /url: /management
+          - img [ref=e84]
+          - text: Quản lý
+      - generic [ref=e86]:
+        - button "Chế độ màu" [ref=e87] [cursor=pointer]:
+          - img [ref=e88]
+        - button "Thông báo · 5 chưa đọc" [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+        - button "Báo cáo vấn đề" [ref=e94] [cursor=pointer]:
+          - img [ref=e95]
+        - button "Tài khoản Demo Analyst" [ref=e97] [cursor=pointer]:
+          - generic [ref=e98]: DA
+          - generic [ref=e99]:
+            - strong [ref=e100]: Demo Analyst
+            - generic [ref=e101]: Data Analyst
+          - img [ref=e103]
+    - main [ref=e106]:
+      - region "Khám phá vũ trụ dữ liệu của bạn" [ref=e107]:
+        - generic [ref=e108]:
+          - generic [ref=e109]: Chào mừng đến với DataVerse
+          - heading "Khám phá vũ trụ dữ liệu của bạn" [active] [level=1] [ref=e110]
+          - paragraph [ref=e111]: Một không gian để kết nối đội nhóm, khám phá dữ liệu và tìm ra những điều có ý nghĩa.
+        - img "Minh họa vũ trụ dữ liệu" [ref=e113]
+        - button "Dừng chuyển động" [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+          - text: Dừng chuyển động
+        - list [ref=e120]:
+          - listitem [ref=e121]:
+            - img [ref=e123]
+            - generic [ref=e125]:
+              - strong [ref=e126]: Phân tích dữ liệu thông minh
+              - generic [ref=e127]: Khám phá insight nhanh chóng.
+          - listitem [ref=e128]:
+            - img [ref=e130]
+            - generic [ref=e132]:
+              - strong [ref=e133]: Đảm bảo chất lượng dữ liệu
+              - generic [ref=e134]: Phát hiện và xử lý vấn đề hiệu quả.
+          - listitem [ref=e135]:
+            - img [ref=e137]
+            - generic [ref=e139]:
+              - strong [ref=e140]: Tối ưu quy trình xử lý
+              - generic [ref=e141]: Làm việc trong không gian Project linh hoạt.
+      - generic [ref=e142]:
+        - generic [ref=e143]:
+          - heading "Projects gần đây" [level=2] [ref=e144]
+          - link "Tạo Project" [ref=e145] [cursor=pointer]:
+            - /url: /processing/new
+            - img [ref=e146]
+            - text: Tạo Project
+        - table [ref=e149]:
+          - rowgroup [ref=e150]:
+            - row "# Project Workspace Status Last Updated Data File Actions" [ref=e151]:
+              - columnheader "#" [ref=e152]
+              - columnheader "Project" [ref=e153]
+              - columnheader "Workspace" [ref=e154]
+              - columnheader "Status" [ref=e155]
+              - columnheader "Last Updated" [ref=e156]
+              - columnheader "Data File" [ref=e157]
+              - columnheader "Actions" [ref=e158]:
+                - generic [ref=e159]: Actions
+          - rowgroup [ref=e160]:
+            - row "1 Sales Analytics Phân tích dữ liệu bán hàng và thị trường cho khu vực Đông Nam Á. Acme Corp Đang hoạt động 2 giờ trước bởi Nguyễn Minh Anh sales_data.csv Thao tác với Sales Analytics" [ref=e161] [cursor=pointer]:
+              - cell "1" [ref=e162]
+              - rowheader "Sales Analytics Phân tích dữ liệu bán hàng và thị trường cho khu vực Đông Nam Á." [ref=e163]:
+                - generic [ref=e164]: Sales Analytics
+                - generic [ref=e165]: Phân tích dữ liệu bán hàng và thị trường cho khu vực Đông Nam Á.
+              - cell "Acme Corp" [ref=e166]
+              - cell "Đang hoạt động" [ref=e167]:
+                - generic [ref=e168]: Đang hoạt động
+              - cell "2 giờ trước bởi Nguyễn Minh Anh" [ref=e170]:
+                - text: 2 giờ trước
+                - generic [ref=e171]: bởi Nguyễn Minh Anh
+              - cell "sales_data.csv" [ref=e172]:
+                - generic [ref=e173]:
+                  - img [ref=e174]
+                  - text: sales_data.csv
+              - cell "Thao tác với Sales Analytics" [ref=e176]:
+                - button "Thao tác với Sales Analytics" [ref=e177]:
+                  - img [ref=e178]
+            - row "2 Campaign Attribution Xác định kênh marketing tạo chuyển đổi thực tế. Marketing Đang hoạt động 4 giờ trước bởi Trần Quang Huy campaign_attribution.csv Thao tác với Campaign Attribution" [ref=e179] [cursor=pointer]:
+              - cell "2" [ref=e180]
+              - rowheader "Campaign Attribution Xác định kênh marketing tạo chuyển đổi thực tế." [ref=e181]:
+                - generic [ref=e182]: Campaign Attribution
+                - generic [ref=e183]: Xác định kênh marketing tạo chuyển đổi thực tế.
+              - cell "Marketing" [ref=e184]
+              - cell "Đang hoạt động" [ref=e185]:
+                - generic [ref=e186]: Đang hoạt động
+              - cell "4 giờ trước bởi Trần Quang Huy" [ref=e188]:
+                - text: 4 giờ trước
+                - generic [ref=e189]: bởi Trần Quang Huy
+              - cell "campaign_attribution.csv" [ref=e190]:
+                - generic [ref=e191]:
+                  - img [ref=e192]
+                  - text: campaign_attribution.csv
+              - cell "Thao tác với Campaign Attribution" [ref=e194]:
+                - button "Thao tác với Campaign Attribution" [ref=e195]:
+                  - img [ref=e196]
+            - row "3 Loyalty Program Đo lường hiệu quả chương trình khách hàng thân thiết. Marketing Đang xử lý 6 giờ trước bởi Bùi Hồ Thảo Vy chưa có Thao tác với Loyalty Program" [ref=e197] [cursor=pointer]:
+              - cell "3" [ref=e198]
+              - rowheader "Loyalty Program Đo lường hiệu quả chương trình khách hàng thân thiết." [ref=e199]:
+                - generic [ref=e200]: Loyalty Program
+                - generic [ref=e201]: Đo lường hiệu quả chương trình khách hàng thân thiết.
+              - cell "Marketing" [ref=e202]
+              - cell "Đang xử lý" [ref=e203]:
+                - generic [ref=e204]: Đang xử lý
+              - cell "6 giờ trước bởi Bùi Hồ Thảo Vy" [ref=e206]:
+                - text: 6 giờ trước
+                - generic [ref=e207]: bởi Bùi Hồ Thảo Vy
+              - cell "chưa có" [ref=e208]:
+                - generic [ref=e209]: chưa có
+              - cell "Thao tác với Loyalty Program" [ref=e210]:
+                - button "Thao tác với Loyalty Program" [ref=e211]:
+                  - img [ref=e212]
+            - row "4 Marketing Insight Phân tích hiệu quả chiến dịch marketing và hành vi khách hàng. Acme Corp Đang hoạt động 1 ngày trước bởi Trần Quang Huy marketing_campaigns.csv Thao tác với Marketing Insight" [ref=e213] [cursor=pointer]:
+              - cell "4" [ref=e214]
+              - rowheader "Marketing Insight Phân tích hiệu quả chiến dịch marketing và hành vi khách hàng." [ref=e215]:
+                - generic [ref=e216]: Marketing Insight
+                - generic [ref=e217]: Phân tích hiệu quả chiến dịch marketing và hành vi khách hàng.
+              - cell "Acme Corp" [ref=e218]
+              - cell "Đang hoạt động" [ref=e219]:
+                - generic [ref=e220]: Đang hoạt động
+              - cell "1 ngày trước bởi Trần Quang Huy" [ref=e222]:
+                - text: 1 ngày trước
+                - generic [ref=e223]: bởi Trần Quang Huy
+              - cell "marketing_campaigns.csv" [ref=e224]:
+                - generic [ref=e225]:
+                  - img [ref=e226]
+                  - text: marketing_campaigns.csv
+              - cell "Thao tác với Marketing Insight" [ref=e228]:
+                - button "Thao tác với Marketing Insight" [ref=e229]:
+                  - img [ref=e230]
+            - row "5 Budget Variance So sánh ngân sách và chi phí thực tế theo quý. Finance Đang hoạt động 1 ngày trước bởi Lê Thu Hà budget_variance.xlsx Thao tác với Budget Variance" [ref=e231] [cursor=pointer]:
+              - cell "5" [ref=e232]
+              - rowheader "Budget Variance So sánh ngân sách và chi phí thực tế theo quý." [ref=e233]:
+                - generic [ref=e234]: Budget Variance
+                - generic [ref=e235]: So sánh ngân sách và chi phí thực tế theo quý.
+              - cell "Finance" [ref=e236]
+              - cell "Đang hoạt động" [ref=e237]:
+                - generic [ref=e238]: Đang hoạt động
+              - cell "1 ngày trước bởi Lê Thu Hà" [ref=e240]:
+                - text: 1 ngày trước
+                - generic [ref=e241]: bởi Lê Thu Hà
+              - cell "budget_variance.xlsx" [ref=e242]:
+                - generic [ref=e243]:
+                  - img [ref=e244]
+                  - text: budget_variance.xlsx
+              - cell "Thao tác với Budget Variance" [ref=e246]:
+                - button "Thao tác với Budget Variance" [ref=e247]:
+                  - img [ref=e248]
+            - row "6 Customer 360 Hợp nhất dữ liệu khách hàng từ nhiều nguồn và xây dựng chân dung khách hàng. Acme Corp Tạm dừng 2 ngày trước bởi Lê Thu Hà customer_data.csv Thao tác với Customer 360" [ref=e249] [cursor=pointer]:
+              - cell "6" [ref=e250]
+              - rowheader "Customer 360 Hợp nhất dữ liệu khách hàng từ nhiều nguồn và xây dựng chân dung khách hàng." [ref=e251]:
+                - generic [ref=e252]: Customer 360
+                - generic [ref=e253]: Hợp nhất dữ liệu khách hàng từ nhiều nguồn và xây dựng chân dung khách hàng.
+              - cell "Acme Corp" [ref=e254]
+              - cell "Tạm dừng" [ref=e255]:
+                - generic [ref=e256]: Tạm dừng
+              - cell "2 ngày trước bởi Lê Thu Hà" [ref=e258]:
+                - text: 2 ngày trước
+                - generic [ref=e259]: bởi Lê Thu Hà
+              - cell "customer_data.csv" [ref=e260]:
+                - generic [ref=e261]:
+                  - img [ref=e262]
+                  - text: customer_data.csv
+              - cell "Thao tác với Customer 360" [ref=e264]:
+                - button "Thao tác với Customer 360" [ref=e265]:
+                  - img [ref=e266]
+            - row "7 Finance Data Phân tích dữ liệu tài chính và báo cáo hiệu suất kinh doanh. Acme Corp Đang hoạt động 3 ngày trước bởi Phạm Văn Đức finance_data.parquet Thao tác với Finance Data" [ref=e267] [cursor=pointer]:
+              - cell "7" [ref=e268]
+              - rowheader "Finance Data Phân tích dữ liệu tài chính và báo cáo hiệu suất kinh doanh." [ref=e269]:
+                - generic [ref=e270]: Finance Data
+                - generic [ref=e271]: Phân tích dữ liệu tài chính và báo cáo hiệu suất kinh doanh.
+              - cell "Acme Corp" [ref=e272]
+              - cell "Đang hoạt động" [ref=e273]:
+                - generic [ref=e274]: Đang hoạt động
+              - cell "3 ngày trước bởi Phạm Văn Đức" [ref=e276]:
+                - text: 3 ngày trước
+                - generic [ref=e277]: bởi Phạm Văn Đức
+              - cell "finance_data.parquet" [ref=e278]:
+                - generic [ref=e279]:
+                  - img [ref=e280]
+                  - text: finance_data.parquet
+              - cell "Thao tác với Finance Data" [ref=e282]:
+                - button "Thao tác với Finance Data" [ref=e283]:
+                  - img [ref=e284]
+            - row "8 Churn Prediction Dự báo khách hàng có nguy cơ rời bỏ. Customer Success Tạm dừng 3 ngày trước bởi Phạm Văn Đức churn_signals.csv Thao tác với Churn Prediction" [ref=e285] [cursor=pointer]:
+              - cell "8" [ref=e286]
+              - rowheader "Churn Prediction Dự báo khách hàng có nguy cơ rời bỏ." [ref=e287]:
+                - generic [ref=e288]: Churn Prediction
+                - generic [ref=e289]: Dự báo khách hàng có nguy cơ rời bỏ.
+              - cell "Customer Success" [ref=e290]
+              - cell "Tạm dừng" [ref=e291]:
+                - generic [ref=e292]: Tạm dừng
+              - cell "3 ngày trước bởi Phạm Văn Đức" [ref=e294]:
+                - text: 3 ngày trước
+                - generic [ref=e295]: bởi Phạm Văn Đức
+              - cell "churn_signals.csv" [ref=e296]:
+                - generic [ref=e297]:
+                  - img [ref=e298]
+                  - text: churn_signals.csv
+              - cell "Thao tác với Churn Prediction" [ref=e300]:
+                - button "Thao tác với Churn Prediction" [ref=e301]:
+                  - img [ref=e302]
+            - row "9 Product Analysis Phân tích hiệu suất sản phẩm và nhu cầu thị trường. Acme Corp Đang hoạt động 5 ngày trước bởi Đặng Ngọc Khoa product_data.csv Thao tác với Product Analysis" [ref=e303] [cursor=pointer]:
+              - cell "9" [ref=e304]
+              - rowheader "Product Analysis Phân tích hiệu suất sản phẩm và nhu cầu thị trường." [ref=e305]:
+                - generic [ref=e306]: Product Analysis
+                - generic [ref=e307]: Phân tích hiệu suất sản phẩm và nhu cầu thị trường.
+              - cell "Acme Corp" [ref=e308]
+              - cell "Đang hoạt động" [ref=e309]:
+                - generic [ref=e310]: Đang hoạt động
+              - cell "5 ngày trước bởi Đặng Ngọc Khoa" [ref=e312]:
+                - text: 5 ngày trước
+                - generic [ref=e313]: bởi Đặng Ngọc Khoa
+              - cell "product_data.csv" [ref=e314]:
+                - generic [ref=e315]:
+                  - img [ref=e316]
+                  - text: product_data.csv
+              - cell "Thao tác với Product Analysis" [ref=e318]:
+                - button "Thao tác với Product Analysis" [ref=e319]:
+                  - img [ref=e320]
+            - row "10 Feature Adoption Theo dõi mức độ sử dụng tính năng theo nhóm người dùng. Product Đang hoạt động 5 ngày trước bởi Đặng Ngọc Khoa feature_adoption.json Thao tác với Feature Adoption" [ref=e321] [cursor=pointer]:
+              - cell "10" [ref=e322]
+              - rowheader "Feature Adoption Theo dõi mức độ sử dụng tính năng theo nhóm người dùng." [ref=e323]:
+                - generic [ref=e324]: Feature Adoption
+                - generic [ref=e325]: Theo dõi mức độ sử dụng tính năng theo nhóm người dùng.
+              - cell "Product" [ref=e326]
+              - cell "Đang hoạt động" [ref=e327]:
+                - generic [ref=e328]: Đang hoạt động
+              - cell "5 ngày trước bởi Đặng Ngọc Khoa" [ref=e330]:
+                - text: 5 ngày trước
+                - generic [ref=e331]: bởi Đặng Ngọc Khoa
+              - cell "feature_adoption.json" [ref=e332]:
+                - generic [ref=e333]:
+                  - img [ref=e334]
+                  - text: feature_adoption.json
+              - cell "Thao tác với Feature Adoption" [ref=e336]:
+                - button "Thao tác với Feature Adoption" [ref=e337]:
+                  - img [ref=e338]
+        - navigation "Projects pagination" [ref=e339]:
+          - generic [ref=e340]:
+            - button "Trang trước" [disabled] [ref=e341]:
+              - img [ref=e342]
+            - button "1" [ref=e344] [cursor=pointer]
+            - button "2" [ref=e345] [cursor=pointer]
+            - button "Trang sau" [ref=e346] [cursor=pointer]:
+              - img [ref=e347]
+      - paragraph [ref=e349]: Dữ liệu mẫu, chưa kết nối API. Chọn Project để làm việc với dữ liệu.
+  - status "Kết quả thao tác trên dữ liệu mẫu"

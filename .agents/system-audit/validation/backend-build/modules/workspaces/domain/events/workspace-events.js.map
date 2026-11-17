@@ -1,0 +1,1 @@
+{"version":3,"file":"workspace-events.js","sourceRoot":"","sources":["../../../../../../../../src/backend/src/modules/workspaces/domain/events/workspace-events.ts"],"names":[],"mappings":";;;AAAa,QAAA,gBAAgB,GAAG;IAC9B,OAAO,EAAE,mBAAmB;IAC5B,YAAY,EAAE,wBAAwB;IACtC,cAAc,EAAE,0BAA0B;IAC1C,iBAAiB,EAAE,6BAA6B;CACxC,CAAC"}

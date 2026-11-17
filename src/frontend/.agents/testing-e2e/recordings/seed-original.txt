@@ -1,0 +1,199 @@
+import { test, expect } from '@playwright/test';
+
+test('test', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4173/auth/login?demo=shopping');
+  await page.getByRole('textbox', { name: 'Email' }).click();
+  await page.getByRole('textbox', { name: 'Email' }).click();
+  await page.getByRole('textbox', { name: 'Email' }).fill('');
+  await page.getByRole('textbox', { name: 'Email' }).click();
+  await page.getByRole('textbox', { name: 'Email' }).fill('demo@shopping.test');
+  await page.getByRole('textbox', { name: 'Mật khẩu' }).click();
+  await page.getByRole('textbox', { name: 'Mật khẩu' }).fill('112345');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Mật khẩu' }).click();
+  await page.getByRole('textbox', { name: 'Mật khẩu' }).press('ControlOrMeta+a');
+  await page.getByRole('textbox', { name: 'Mật khẩu' }).fill('Demo12345!');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('link', { name: 'Mở Shopping Trends' }).click();
+  await page.getByText('Workspaces›Shopping Demo›Shopping TrendsDataset:').click();
+  await page.locator('canvas').click({
+    position: {
+      x: 686,
+      y: 193
+    }
+  });
+  await page.locator('canvas').click({
+    position: {
+      x: 524,
+      y: 220
+    }
+  });
+  await page.locator('canvas').click({
+    position: {
+      x: 556,
+      y: 203
+    }
+  });
+  await page.locator('canvas').click({
+    position: {
+      x: 614,
+      y: 284
+    }
+  });
+  await page.locator('canvas').click({
+    position: {
+      x: 650,
+      y: 307
+    }
+  });
+  await page.locator('canvas').click({
+    position: {
+      x: 656,
+      y: 321
+    }
+  });
+  await page.getByRole('button', { name: 'Tổng quan' }).click();
+  await page.getByRole('button', { name: 'Đóng bảng module' }).click();
+  await page.locator('canvas').click({
+    position: {
+      x: 926,
+      y: 235
+    }
+  });
+  await page.getByRole('button', { name: 'Đánh giá' }).click();
+  await page.getByRole('radio', { name: '5 sao' }).check();
+  await page.getByRole('textbox', { name: 'Nội dung đánh giá (bắt buộc)' }).click();
+  await page.getByRole('textbox', { name: 'Nội dung đánh giá (bắt buộc)' }).click();
+  await page.getByRole('textbox', { name: 'Nội dung đánh giá (bắt buộc)' }).fill('test E2E');
+  await page.getByRole('button', { name: 'Gửi đánh giá và lưu vào hệ th' }).click();
+  await page.getByLabel('Lọc vấn đề Tất cảMissingNaNK').selectOption('missing');
+  await page.getByRole('button', { name: 'Sau' }).click();
+  await page.getByRole('button', { name: 'Sau' }).click();
+  await page.getByRole('button', { name: 'Sau' }).click();
+  await page.getByLabel('Lọc vấn đề Tất cảMissingNaNK').selectOption('invalid_category');
+  await page.getByRole('button', { name: 'Data Analysis' }).click();
+  await page.getByRole('button', { name: 'Data View' }).click();
+  await page.getByRole('link', { name: 'Xem đầy đủ 3.900 dòng →' }).click();
+  await page.getByRole('textbox', { name: 'Tìm trong dữ liệu' }).click();
+  await page.getByLabel('Sắp xếp theo Thứ tự').selectOption('0');
+  await page.getByLabel('Sắp xếp theo Thứ tự').selectOption('2');
+  await page.getByLabel('Sắp xếp theo Thứ tự').selectOption('0');
+  await page.getByRole('textbox', { name: 'Tìm trong dữ liệu' }).click();
+  await page.getByRole('textbox', { name: 'Tìm trong dữ liệu' }).fill('');
+  await page.getByRole('button', { name: 'Chế độ màu' }).click();
+  await page.getByText('Sáng').click();
+  await page.getByRole('radio', { name: 'Theo hệ thống' }).check();
+  await page.locator('label').filter({ hasText: 'Sáng' }).click();
+  await page.locator('label').filter({ hasText: 'Sáng' }).click();
+  await page.getByRole('radio', { name: 'Tối' }).check();
+  await page.getByRole('radio', { name: 'Sáng' }).check();
+  await page.getByRole('radio', { name: 'Theo hệ thống' }).check();
+  await page.locator('label').filter({ hasText: 'Tối' }).click();
+  await page.getByRole('button', { name: 'Thông báo · 5 chưa đọc' }).click();
+  await page.getByRole('button', { name: 'Phân tích dữ liệu hoàn tất' }).click();
+  await page.getByRole('button', { name: 'Đánh dấu đã đọc' }).click();
+  await page.getByRole('button', { name: 'Chi tiết thông báo' }).click();
+  await page.getByRole('button', { name: 'Import dữ liệu thành công' }).click();
+  await page.getByRole('button', { name: 'Chi tiết thông báo' }).click();
+  await page.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }).click();
+  await page.getByRole('button', { name: 'Xem tất cả thông báo' }).click();
+  await page.getByRole('button', { name: 'Có 12 vấn đề chất lượng dữ li' }).click();
+  await page.getByRole('button', { name: 'Mở Project' }).click();
+  await page.getByRole('button', { name: 'Reset demo' }).click();
+  await page.getByRole('link', { name: 'Quản lý' }).click();
+  await page.getByRole('link', { name: 'Quản lý' }).click();
+  await page.getByRole('button', { name: 'Thu gọn thanh điều hướng' }).click();
+  await page.getByRole('button', { name: 'Mở rộng thanh điều hướng' }).click();
+  await page.getByRole('navigation', { name: 'Workspaces pagination' }).getByLabel('Trang sau').click();
+  await page.getByRole('navigation', { name: 'Projects pagination' }).getByLabel('Trang sau').click();
+  await page.getByRole('button', { name: 'Thử nghiệm Mô hình 0 projects' }).click();
+  await page.getByRole('button', { name: 'Thu gọn thanh điều hướng' }).click();
+  await page.getByRole('button', { name: 'Mở rộng thanh điều hướng' }).click();
+  await page.getByRole('button', { name: 'Workspaces', description: 'Workspaces' }).click();
+  await page.getByRole('button', { name: 'Tạo Workspace' }).click();
+  await page.getByRole('textbox', { name: 'Tên Workspace' }).click();
+  await page.getByRole('textbox', { name: 'Tên Workspace' }).fill('tsst');
+  await page.getByRole('textbox', { name: 'Mô tả', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Mô tả', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Mô tả', exact: true }).fill('test');
+  await page.getByRole('textbox', { name: 'Thành viên ban đầu (tùy chọn)' }).click();
+  await page.getByRole('textbox', { name: 'Thành viên ban đầu (tùy chọn)' }).click();
+  await page.getByRole('textbox', { name: 'Thành viên ban đầu (tùy chọn)' }).fill('thuongpx2007@gmail.com');
+  await page.getByRole('button', { name: 'Thêm' }).click();
+  await page.getByLabel('Tạo Workspace').getByRole('button', { name: 'Tạo Workspace' }).click();
+  await page.getByRole('button', { name: 'Xem Workspace' }).click();
+  await page.getByRole('button', { name: 'Tạo Project' }).click();
+  await page.getByRole('textbox', { name: 'Tên Project' }).click();
+  await page.getByRole('textbox', { name: 'Tên Project' }).fill('test');
+  await page.getByRole('textbox', { name: 'Mô tả' }).click();
+  await page.getByRole('textbox', { name: 'Mô tả' }).click();
+  await page.getByRole('textbox', { name: 'Mô tả' }).fill('....');
+  await page.getByText('Import Dataset').click();
+  await page.getByRole('button', { name: 'Tiếp theo' }).click();
+  await page.getByText('Kéo tệp vào đây hoặc Chọn tệp').click();
+  await page.getByRole('button', { name: 'Chọn tập dữ liệu CSV' }).setInputFiles('shopping_trends_corrupted_10pct.csv');
+  await page.getByRole('button', { name: 'Tiếp theo' }).click();
+  await page.getByRole('checkbox', { name: 'Chọn Thuongpx2007 vào project' }).check();
+  await page.getByRole('button', { name: 'Tiếp theo' }).click();
+  await page.getByLabel('Tạo Project', { exact: true }).getByRole('button', { name: 'Tạo Project' }).click();
+  await page.getByRole('button', { name: 'Xem Project' }).click();
+  await page.getByRole('button', { name: 'Xem Project' }).click();
+  await page.getByRole('button', { name: 'Đóng hộp thoại' }).click();
+  await page.getByRole('link', { name: 'Quản lý' }).click();
+  await page.getByRole('navigation', { name: 'Projects pagination' }).getByLabel('Trang sau').click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Báo cáo vấn đề' }).click();
+  await page.getByRole('button', { name: 'Tạo báo cáo mới' }).click();
+  await page.getByLabel('Loại vấn đề *— Chọn loại vấn').selectOption('system');
+  await page.getByRole('textbox', { name: 'Tiêu đề' }).click();
+  await page.getByRole('textbox', { name: 'Tiêu đề' }).fill('tsst');
+  await page.getByRole('textbox', { name: 'Mô tả chi tiết' }).click();
+  await page.getByRole('textbox', { name: 'Mô tả chi tiết' }).fill('test');
+  await page.getByText('Kéo tệp vào đây hoặc Chọn tệp').click();
+  await page.getByText('Kéo tệp vào đây hoặc Chọn tệp').setInputFiles('02_top10_views.csv');
+  await page.getByRole('button', { name: 'Gửi báo cáo' }).click();
+  await page.getByRole('tab', { name: 'Đang xử lý (4)' }).click();
+  await page.getByRole('tab', { name: 'Cần bổ sung (1)' }).click();
+  await page.getByRole('tab', { name: 'Đang xử lý (4)' }).click();
+  await page.getByRole('tab', { name: 'Tất cả (9)' }).click();
+  await page.getByRole('button', { name: 'Không thể tải dữ liệu trong' }).click();
+  await page.getByText('screenshot_error.png (1.2 MB)').click();
+  await page.getByText('screenshot_error.png (1.2 MB)').dblclick();
+  await page.getByText('screenshot_error.png (1.2 MB)').dblclick();
+  await page.getByRole('button', { name: 'System' }).click();
+  await page.getByRole('button', { name: 'Thông báo', exact: true }).click();
+  await page.getByRole('switch', { name: 'Thông báo trong hệ thống' }).click();
+  await page.getByRole('switch', { name: 'Dự án và xử lý dữ liệu' }).click();
+  await page.locator('div').filter({ hasText: /^Chất lượng dữ liệuCảnh báo và vấn đề về chất lượng dữ liệu\.$/ }).click();
+  await page.getByRole('switch', { name: 'Workspace & Project' }).click();
+  await page.locator('div').filter({ hasText: /^Chất lượng dữ liệuCảnh báo và vấn đề về chất lượng dữ liệu\.$/ }).click();
+  await page.getByRole('switch', { name: 'Chất lượng dữ liệu' }).click();
+  await page.getByRole('switch', { name: 'Thông báo trong hệ thống' }).click();
+  await page.getByRole('switch', { name: 'Thông báo trong hệ thống' }).click();
+  await page.getByRole('switch', { name: 'Thông báo trong hệ thống' }).click();
+  await page.getByRole('switch', { name: 'Dự án và xử lý dữ liệu' }).click();
+  await page.getByRole('switch', { name: 'Chất lượng dữ liệu' }).click();
+  await page.getByRole('switch', { name: 'Workspace & Project' }).click();
+  await page.getByRole('button', { name: 'Color' }).click();
+  await page.getByRole('button', { name: 'System' }).click();
+  await page.getByRole('button', { name: 'Accounts' }).click();
+  await page.getByRole('button', { name: 'Hồ sơ cá nhân' }).click();
+  await page.getByRole('textbox', { name: 'Họ và tên' }).click();
+  await page.getByRole('textbox', { name: 'Họ và tên' }).fill('Demo ');
+  await page.getByRole('textbox', { name: 'Email (không đổi được)' }).click();
+  await page.getByRole('textbox', { name: 'Email (không đổi được)' }).click();
+  await page.getByRole('textbox', { name: 'Chức vụ (không đổi được)' }).click();
+  await page.getByRole('textbox', { name: 'Chức vụ (không đổi được)' }).click();
+  await page.getByRole('textbox', { name: 'Đơn vị' }).click();
+  await page.getByRole('textbox', { name: 'Đơn vị' }).fill('Shoppinp');
+  await page.getByRole('textbox', { name: 'Số điện thoại' }).click();
+  await page.getByRole('textbox', { name: 'Số điện thoại' }).fill('0987654321');
+  await page.getByRole('textbox', { name: 'Giới thiệu' }).click();
+  await page.getByRole('textbox', { name: 'Giới thiệu' }).fill('toi là admin test');
+  await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
+  await page.getByRole('button', { name: 'Hoàn tác' }).click();
+  await page.getByRole('link', { name: 'Xử lý dữ liệu' }).click();
+  await page.getByRole('link', { name: 'Tạo Project' }).click();
+  await page.getByRole('link', { name: 'Quay lại' }).click();
+  await page.getByRole('button', { name: 'Đăng xuất demo' }).click();
+});
