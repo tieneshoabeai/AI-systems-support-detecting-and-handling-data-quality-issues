@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.5 (2026-11-17)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F và G
+**Phiên bản:** v1.6 (2026-11-18)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F và G và H
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -117,12 +117,35 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 
 - **Test:** `test/analysis-wave8.spec.ts` (AN-34..AN-45) + chạy lại `local_VQD/runner/run-all.ts`.
 
+## 7d. Đợt H — vá lỗi bỏ sót của bộ edge-cases `local_VQD/edge-cases` (2026-11-18)
+- **Trạng thái:** Đã thực hiện 2026-11-18.
+- **Kết quả 2026-11-18:** tsc/nest build sạch; unit 238/238 (thêm 17 test đợt H), kiến trúc 3/3, e2e 52/52; bộ edge-cases `local_VQD/edge-cases` (11 file, 28 bẫy): 10 → 26 bẫy được báo đúng, chỉ còn E14/E15 (DQ-05, để đợt sau); bộ 9 dataset mẫu không đổi (chỉ còn RC-01), Nghi vấn mới không báo thừa trên dữ liệu mẫu.
+- **Bối cảnh:** 11 file edge-cases, 28 bẫy biết trước; hệ thống bắt 10, bỏ sót 18 (`local_VQD/MISSED_ERRORS_edge-cases.md`).
+- **Docs (vN+1):** Phần 2 v13 (3.45), 7 v10 (3.21), 8 v10 (3.18), 12 v12 (3.21), 13 v11 (3.24), 14 v11 (3.20).
+
+| Lỗi | Vấn đề | Hướng sửa (người dùng chốt 2026-11-18) |
+|---|---|---|
+| E11, E12, E25 | Cột số nguyên vai trò phân loại (0/1, 1/2/3) không chọn được làm nhãn | Cho chọn cột số; khi chạy quyết theo vai trò hiệu lực, không 400 |
+| E06 | `NA` ở cột chữ bị loại khỏi mất cân bằng/tương quan | Cột chữ: chỉ ô trống là thiếu ở mọi phép tính |
+| E08, E09, E13 | Mã định danh lặp, trùng theo email/điện thoại khác ID | Nghi vấn `identifier_not_unique`, `duplicate_key` (cột khóa theo tên) |
+| E20 | Số theo vùng `1.200,50` lẫn với lỗi | Nghi vấn `locale_number_format`, không tự chuyển |
+| E16 | Thiếu có cấu trúc bị gắn Cao | Nghi vấn `conditional_missing`; mức DQ-01 giữ nguyên |
+| E21 | Ký hiệu thiếu ở cột số làm DQ-01 hiện thấp | `symbolMissingCount` + lý do DQ-03 tách riêng |
+| E24 | Phân phối lệch bị gắn Cao | `skewness` + câu cảnh báo trong lý do DQ-04 |
+| E02 | Thời gian không nói thứ tự ngày/tháng | `dateOrder`, `dateOrderAmbiguous` + câu trong PDF |
+| E23, E27 | Sentinel đơn lẻ, mã có số 0 đầu | Mở rộng `sentinel` (âm, 1 lần, cột không có số âm khác); Nghi vấn `leading_zero_numeric` |
+| E28, E10 | Thống kê định lượng cho cột mã; cột giá trị là mã | Bỏ số liệu định lượng cho identifier; bỏ cột giá trị kèm lý do |
+| E14, E15 | Luật liên cột | DQ-05 — vẫn để đợt sau |
+
+- **Test:** `test/analysis-wave9.spec.ts` (AN-46..AN-62) + `local_VQD/runner/run-all.ts --dir edge-cases` và bộ mẫu.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.6 / 2026-11-18:** Thêm đợt H (mục 7d) — vá lỗi bỏ sót bộ edge-cases; DQ-05 vẫn để đợt sau.
 - **v1.5 / 2026-11-17:** Thêm đợt G (mục 7c) — sửa lỗi bỏ sót từ bộ test offline; DQ-05 để đợt sau.
 - **v1.4 / 2026-11-17:** Thêm đợt F (mục 7b) — sửa lỗi demo Titanic; đính chính phạm vi lỗi CASL.
 - **v1.3.1 / 2026-11-17:** Giữ `top_n` tối đa 100; `recommendations` giữ mảng chuỗi + thêm `recommendation_items` (không phá tương thích API).
