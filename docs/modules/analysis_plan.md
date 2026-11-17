@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.4 (2026-11-17)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E và F
+**Phiên bản:** v1.5 (2026-11-17)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F và G
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -100,12 +100,30 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 
 - **Test:** `test/analysis-wave7.spec.ts` (AN-22..AN-33) + demo offline Titanic.
 
+## 7c. Đợt G — sửa lỗi bỏ sót phát hiện bởi bộ test offline `local_VQD` (2026-11-17)
+- **Trạng thái:** Đã thực hiện 2026-11-17.
+- **Kết quả 2026-11-17:** tsc/nest build sạch; unit 221/221 (thêm 13 test đợt G), kiến trúc 3/3, e2e 52/52; bộ test offline `local_VQD` (9 dataset): nhóm A (bỏ sót trong phạm vi DQ-01..04) 5 → 0, taxis hết FAIL phủ cột và báo trùng giả, tiêm lỗi vào cột ngày bắt 60/60, ký hiệu thiếu / hoa-thường / khoảng trắng ở cột chữ được báo ở nhóm Nghi vấn 106/106 mỗi loại; còn lại chỉ RC-01 (DQ-05, để đợt sau).
+- **Docs (vN+1):** Phần 2 v12 (3.44), 7 v9 (3.20), 8 v9 (3.17), 12 v11 (3.20), 13 v10 (3.23), 14 v10 (3.19).
+
+| Nguyên nhân | Lỗi | Hướng sửa (người dùng chốt) |
+|---|---|---|
+| RC-14 | Cột ngày bị loại âm thầm khỏi DQ, gây báo trùng giả | Cột ngày chạy DQ-01, DQ-02 (vào khóa trùng), DQ-03; bỏ DQ-04; vẫn loại khỏi tương quan/VIF |
+| — | `new Date()` dễ dãi (30/02 thành 02/03) | Bộ đọc ngày chặt, phân định DD/MM, MM/DD; mơ hồ → nghi vấn |
+| RC-04 | `NA` ở cột chữ bị đếm sai kiểu, `?` không ai báo | Cột chữ → nghi vấn `missing_token`; danh sách ký hiệu dùng chung |
+| RC-08/09/10 | Hoa/thường, khoảng trắng, sentinel, cột hằng không được báo | Nhóm **Nghi vấn**, chỉ hiển thị ở Tổng kết + PDF, không có mức ảnh hưởng |
+| RC-02 | Năm + tháng không có cột ngày | Chỉ báo rõ: `reason` + `timePartColumns` |
+| RC-15 | Số thập phân ít giá trị bị coi là phân loại | Chỉ số nguyên mới thành phân loại |
+| RC-01 | DQ-05 chưa có rule engine | **Để đợt sau** |
+
+- **Test:** `test/analysis-wave8.spec.ts` (AN-34..AN-45) + chạy lại `local_VQD/runner/run-all.ts`.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.5 / 2026-11-17:** Thêm đợt G (mục 7c) — sửa lỗi bỏ sót từ bộ test offline; DQ-05 để đợt sau.
 - **v1.4 / 2026-11-17:** Thêm đợt F (mục 7b) — sửa lỗi demo Titanic; đính chính phạm vi lỗi CASL.
 - **v1.3.1 / 2026-11-17:** Giữ `top_n` tối đa 100; `recommendations` giữ mảng chuỗi + thêm `recommendation_items` (không phá tương thích API).
 - **v1.3 / 2026-11-17:** Thực hiện đợt D/E; ghi kết quả, điểm lệch và việc còn mở (mục 7).
