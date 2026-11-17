@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.3 (2026-11-17)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`) và D, E
+**Phiên bản:** v1.4 (2026-11-17)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E và F
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -84,12 +84,29 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 - **Còn mở:** CASL tĩnh theo vai trò workspace chặn PROJ-MEMBER là WS-MEMBER ở route ghi.
 - Để đợt sau: lưu/khôi phục trạng thái project (3.19), phân tích bất đồng bộ/Kafka, DQ-05 rule engine, tinh chỉnh kiểu/vai trò/PII cột (3.22), subset font PDF.
 
+## 7b. Đợt F — sửa 6 lỗi phát hiện khi demo Titanic (2026-11-17)
+- **Trạng thái:** Đã thực hiện 2026-11-17. Kết quả 2026-11-17: tsc/nest build sạch; unit 208/208 (thêm 20 test cho đợt F), kiến trúc 3/3, e2e 52/52; demo Titanic: tương quan còn 8 cột / 28 cặp (loại PassengerId, Name, Ticket, Cabin), VIF chỉ Age/Fare, prompt có mẫu ô lỗi, cặp đường chéo bị loại, PDF 7 → 4 trang.
+- Bổ sung khi thực hiện: biểu đồ theo vai trò cột (không Top N cho định danh/văn bản/cột PII); grounding giữ ô tam giác trên khi đối chiếu cặp.
+- **Docs (vN+1):** Phần 2 v11 (3.43), 6 v8 (3.22), 7 v8 (3.19), 8 v8 (3.16), 12 v10 (3.19), 13 v9 (3.22), 14 v9 (3.18).
+
+| # | Lỗi | Hướng sửa |
+|---|---|---|
+| 1 | Guard CASL chặn mọi analyst (JWT thiếu vai trò workspace) | Không sửa code (dev khác phụ trách `shared/casl`); đính chính docs + PR; kiểm bằng mock nội bộ |
+| 2 | Prompt AI không có mẫu (mọi ô bị loại) | `maskForAi` che theo vai trò cột; mẫu = ô lỗi, ≤ 20/cột; `value_masked` theo cùng chính sách |
+| 3 | Không đánh dấu được cột PII | `PATCH datasets/{id}/columns` nhận `is_pii` |
+| 4 | Cột định danh/văn bản lọt vào tương quan/VIF | Vai trò cột (`column-role.util.ts`, chuyển từ `inferRole` Quality - Structure); ghi đè qua `column_roles`; DQ-04 chỉ cột `measure` |
+| 5 | Grounding nhận cặp đường chéo | Loại `colA == colB`; prompt chỉ tam giác trên |
+| 6 | PDF in đủ ma trận | In tam giác trên, xếp theo |hệ số| |
+
+- **Test:** `test/analysis-wave7.spec.ts` (AN-22..AN-33) + demo offline Titanic.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.4 / 2026-11-17:** Thêm đợt F (mục 7b) — sửa lỗi demo Titanic; đính chính phạm vi lỗi CASL.
 - **v1.3.1 / 2026-11-17:** Giữ `top_n` tối đa 100; `recommendations` giữ mảng chuỗi + thêm `recommendation_items` (không phá tương thích API).
 - **v1.3 / 2026-11-17:** Thực hiện đợt D/E; ghi kết quả, điểm lệch và việc còn mở (mục 7).
 - **v1.2 / 2026-11-17:** Thêm đề xuất đợt D/E (mục 7), ghi tiếp vào các phiên bản tài liệu của đợt A/B/C.
