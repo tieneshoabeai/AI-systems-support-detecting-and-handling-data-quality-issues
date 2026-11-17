@@ -1,7 +1,8 @@
-import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../domain/ports/analysis.repository.port';
 import { ProjectsService } from '../../projects/application/projects.service';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
+import { resolveTopN } from '../domain/top-n.util';
 
 @Injectable()
 export class SummaryService {
@@ -19,6 +20,17 @@ export class SummaryService {
     if (run.status !== 'succeeded') throw new BadRequestException('Phân tích hệ thống chưa thành công — hãy chạy lại phân tích');
     const result = await this.analysisRepository.findResultByRun(run.id);
     if (!result) throw new NotFoundException('Chưa có kết quả phân tích cho lần chạy mới nhất');
+    if (result.isStale) {
+      // SUMMARY-01 (Phan 2 v10 muc 3.41): khong tao Tong ket tu ket qua loi thoi
+      throw new ConflictException({
+        message: 'Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích trước khi tạo Tổng kết',
+        error: 'ANALYSIS_RESULT_STALE',
+        details: { staleReason: result.staleReason ?? null, analysisRunId: run.id },
+      } as never);
+    }
+    const runTopN = (run.config as Record<string, unknown> | null)?.top_n;
+    const savedConfig = runTopN === undefined ? await this.analysisRepository.findConfigByProject(projectId).catch(() => null) : null;
+    const topN = resolveTopN(runTopN ?? savedConfig?.topN);
     const dq = ((result.dqSummary ?? result.dq_summary ?? null) as unknown as {
       totalScanned: number;
       columns: { column: string; missingCount: number; missingRate: number | null; invalidCount: number; invalidRate: number | null; outlierCount: number; outlierRate: number | null }[];
@@ -38,7 +50,8 @@ export class SummaryService {
     const ai = result.aiCorrelationAssessment as unknown as { status?: string } | null;
     const summary = {
       overview: `Dataset ${dq?.totalScanned ?? 0} dòng, ${issues.length} nhóm vấn đề.`,
-      issues: issues.slice(0, 50),
+      issues: issues.slice(0, topN),
+      top_n: topN,
       evidence_refs: await this.analysisRepository.countEvidencesByRun(run.id),
       recommendations: [
         'Kiểm tra định nghĩa cột tại nguồn trước khi mô hình hóa',
@@ -80,3 +93,4 @@ export class SummaryService {
     };
   }
 }
+

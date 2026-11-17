@@ -29,7 +29,7 @@ export const AnalysisConfigSchema = new Schema<IAnalysisConfig>(
     value_column: { type: String, default: null },
     correlation_method: { type: String, enum: ['pearson', 'spearman'], default: 'pearson' },
     outlier_method: { type: String, enum: ['iqr', 'modified_zscore', 'both'], default: 'iqr' },
-    top_n: { type: Number, default: 10 },
+    top_n: { type: Number, default: 50 },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },

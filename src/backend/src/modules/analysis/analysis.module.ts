@@ -23,6 +23,7 @@ import { RagFewShotService } from './application/services/rag-few-shot.service';
 import { AnalysisService } from './application/analysis.service';
 import { AnalysisController } from './infrastructure/http/analysis.controller';
 import { ProjectsModule } from '../projects/projects.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { StorageModule } from '../../shared/storage/storage.module';
 import { DatasetsModule } from '../datasets/datasets.module';
 import { DataViewModule } from '../data-view/data-view.module';
@@ -41,6 +42,7 @@ import { DataViewModule } from '../data-view/data-view.module';
       { name: 'AnalysisConfig', schema: AnalysisConfigSchema },
     ]),
     ProjectsModule,
+    WorkspacesModule,
     DatasetsModule,
     DataViewModule,
     StorageModule,

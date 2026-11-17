@@ -1,8 +1,9 @@
-import { Inject, Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger, Optional } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { REALTIME_PORT, type RealtimePort } from '../../realtime/domain/ports/realtime.port';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../domain/ports/analysis.repository.port';
 import { ProjectsService } from '../../projects/application/projects.service';
+import { WorkspacesService } from '../../workspaces/application/workspaces.service';
 import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../datasets/domain/ports/dataset.repository.port';
 import { RECORD_QUERY_PORT, type RecordQueryPort } from '../../data-view/domain/ports/record-query.port';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
@@ -57,6 +58,20 @@ function maskSampleValue(value: unknown, columnMarkedPII: boolean): string | nul
   return 'null';
 }
 
+/** Doi key cot (props) sang ten cot hien thi; ho tro ban ghi cu dung `data`. */
+function toNamedRow(
+  record: { props?: Record<string, unknown>; data?: Record<string, unknown> },
+  keyToName: Map<string, string>,
+): Record<string, unknown> {
+  const props = record.props ?? record.data ?? {};
+  const named: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
+  return named;
+}
+
+/** AI-01 (Phan 2 v10 muc 3.41): chi job da ket thuc khong thanh cong moi duoc thu lai. */
+const RETRYABLE_JOB_STATUSES = new Set(['failed', 'skipped']);
+
 @Injectable()
 export class AnalysisService {
   private readonly logger = new Logger(AnalysisService.name);
@@ -70,6 +85,7 @@ export class AnalysisService {
     @Inject(RECORD_QUERY_PORT)
     private readonly records: RecordQueryPort,
     private readonly configService: ConfigService,
+    private readonly workspacesService: WorkspacesService,
     @Optional() @Inject(REALTIME_PORT) private readonly realtime?: RealtimePort,
     @Optional() private readonly ragFewShot?: RagFewShotService,
   ) {}
@@ -155,15 +171,12 @@ export class AnalysisService {
 
     try {
       const recordRows = await this.records.listAllRecords(dataset.id);
-    const records = recordRows.map((r) => ({ row_index: r.rowIndex, props: r.props }));
-      const keyToName = new Map((dataset?.columns ?? []).map((c) => [c.key, c.name] as const));
-      const rows: Record<string, unknown>[] = records.map((r) => {
-        const legacy = (r as unknown as { props?: Record<string, unknown>; data?: Record<string, unknown> });
-        const props = ((legacy.props ?? legacy.data ?? {}) as Record<string, unknown>);
-        const named: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-        return named;
-      });
+      const keyToName = new Map(dataset.columns.map((c) => [c.key, c.name] as const));
+      const rowWrappers = recordRows.map((r, i) => ({
+        rowIndex: typeof r.rowIndex === 'number' ? r.rowIndex : i,
+        values: toNamedRow(r as unknown as { props?: Record<string, unknown> }, keyToName),
+      }));
+      const rows: Record<string, unknown>[] = rowWrappers.map((w) => w.values);
 
       const analyzable: AnalyzableColumn[] = selectedKeys.map((key) => {
         const col = dataset.columns.find((c) => c.name === key);
@@ -214,13 +227,6 @@ export class AnalysisService {
         usedPerColumn.set(col.key, { used, excluded: rows.length - used });
       }
 
-      const rowWrappers = records.map((r, i) => {
-        const legacy = (r as unknown as { row_index?: number; props?: Record<string, unknown>; data?: Record<string, unknown> });
-        const props = ((legacy.props ?? legacy.data ?? {}) as Record<string, unknown>);
-        const named: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-        return { rowIndex: typeof legacy.row_index === 'number' ? legacy.row_index : i, values: named };
-      });
       const dqBase = computeDq0102(selectedKeys, rowWrappers);
       const dq03Rows = computeDq03(
         selectedKeys.map((c) => ({ column: c, dataType: colTypeByName.get(c) ?? 'string' })),
@@ -299,8 +305,6 @@ export class AnalysisService {
           value_masked: masked,
         });
       };
-      const rowIndexByPos = new Map(rowWrappers.map((w, i) => [i, w.rowIndex]));
-      void rowIndexByPos;
       for (const c of selectedKeys) {
         let n = 0;
         for (const w of rowWrappers) {
@@ -310,9 +314,6 @@ export class AnalysisService {
             n++;
           }
         }
-      }
-      for (const r of dq03Rows) {
-        void r;
       }
       for (const c of selectedKeys) {
         let n = 0;
@@ -335,13 +336,13 @@ export class AnalysisService {
           dupPushed++;
         }
       }
+      const wrapperByRowIndex = new Map(rowWrappers.map((w) => [w.rowIndex, w] as const));
       for (const [col, out] of outlierByCol) {
         for (const ri of out.union.slice(0, 20)) {
-          const w = rowWrappers.find((x) => x.rowIndex === ri);
-          pushEv(col, ri, 'outlier', out.reason ?? 'dq04_outlier', w?.values[col] ?? null);
+          pushEv(col, ri, 'outlier', out.reason ?? 'dq04_outlier', wrapperByRowIndex.get(ri)?.values[col] ?? null);
         }
       }
-      const insertedEvidence = await this.analysisRepository.insertEvidences(
+      await this.analysisRepository.insertEvidences(
         evidenceDocs as unknown as Partial<Parameters<AnalysisRepositoryPort['insertEvidences']>[0][number]>[],
       ).catch(() => 0);
       const byKind: Record<string, number> = {};
@@ -356,7 +357,6 @@ export class AnalysisService {
         byColumn,
         capped: Object.values(byColumn).some((v) => v >= 20) || dupPushed >= 20,
       };
-      void insertedEvidence;
 
       const finishedAt = new Date();
       const durationMs = finishedAt.getTime() - startedAt.getTime();
@@ -442,7 +442,7 @@ export class AnalysisService {
         cells: cells as unknown as CorrV1Context['cells'],
         vif: {
           columns: vifComp.columns,
-          rows: vifComp.rows as unknown as CorrV1Context['vif'] extends infer V ? never : never,
+          rows: vifComp.rows,
           commonN: vifComp.commonN,
           totalScanned: vifComp.totalScanned,
           commonNRate: vifComp.commonNRate,
@@ -454,7 +454,6 @@ export class AnalysisService {
         excludedColumns: analyzable
           .filter((c) => c.role === 'excluded')
           .map((c) => ({ column: c.key, reason: c.reason ?? 'unsupported_data_type' })),
-      
       } as unknown as CorrV1Context);
 
       const job = await this.analysisRepository.createJob({
@@ -525,6 +524,33 @@ export class AnalysisService {
     return this.toApiShape(result.id, run.id, result.inputFingerprint, null, null);
   }
 
+  /**
+   * Phan 6 v7 muc 3.20 — route `analysis/jobs/:jobId*` khong co projectId tren URL:
+   * tai job -> project, kiem vai tro cua nguoi goi trong project. Khong du quyen -> 404
+   * (khong lo su ton tai cua job). `write=true` doi hoi PROJ-MEMBER+ (Viewer khong duoc thu lai).
+   */
+  async assertJobAccess(
+    jobId: string,
+    actor: { userId: string; role?: string },
+    write = false,
+  ): Promise<void> {
+    if (actor.role === 'admin') return;
+    const job = await this.analysisRepository.findJobById(jobId);
+    const projectId = job?.projectId ? String(job.projectId) : null;
+    const notFound = (): never => {
+      throw new NotFoundException('Không tìm thấy AI job');
+    };
+    if (!job || !projectId) return notFound();
+    const project = await this.projectsService.getProjectById(projectId).catch(() => null);
+    if (!project) return notFound();
+    const wsRole = await this.workspacesService.resolveUserWorkspaceRole(String(project.workspaceId), actor.userId);
+    const projectRole = await this.projectsService.resolveUserProjectRole(projectId, actor.userId, wsRole);
+    if (!projectRole) return notFound();
+    if (write && projectRole === 'viewer') {
+      throw new ForbiddenException('Viewer không được thử lại AI (AI-01)');
+    }
+  }
+
   async getJob(jobId: string): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
     if (!job) throw new NotFoundException('Không tìm thấy AI job');
@@ -544,6 +570,22 @@ export class AnalysisService {
   async retryJob(jobId: string): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
     if (!job) throw new NotFoundException('Không tìm thấy AI job');
+    if (!RETRYABLE_JOB_STATUSES.has(job.status)) {
+      throw new ConflictException({
+        message: `AI job đang ở trạng thái '${job.status}' — chỉ thử lại job failed/skipped`,
+        error: 'AI_JOB_NOT_RETRYABLE',
+        details: { jobId, status: job.status },
+      } as never);
+    }
+    const runId = job.analysisRunId ? String(job.analysisRunId) : null;
+    const result = runId ? await this.analysisRepository.findResultByRun(runId) : null;
+    if (!result || result.isStale) {
+      throw new ConflictException({
+        message: 'Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích thay vì thử lại AI',
+        error: 'ANALYSIS_RESULT_STALE',
+        details: { jobId, staleReason: result?.staleReason ?? 'result_missing' },
+      } as never);
+    }
     const maxAttempts = (this.configService.get<number>('AI_MAX_RETRIES') ?? 2) + 1;
     if (job.attempt >= maxAttempts) {
       throw new BadRequestException(`AI job đã hết lượt thử lại (tối đa ${maxAttempts - 1} lần retry)`);
@@ -664,7 +706,7 @@ export class AnalysisService {
     await this.projectsService.getProjectById(projectId);
     const saved = await this.analysisRepository.findConfigByProject(projectId);
     if (!saved) {
-      return { projectId, selectedColumns: null, labelColumn: null, timeColumn: null, timeGranularity: 'day', valueColumn: null, correlationMethod: 'pearson', outlierMethod: 'iqr', topN: 10 };
+      return { projectId, selectedColumns: null, labelColumn: null, timeColumn: null, timeGranularity: 'day', valueColumn: null, correlationMethod: 'pearson', outlierMethod: 'iqr', topN: 50 };
     }
     return {
       projectId,
@@ -690,16 +732,11 @@ export class AnalysisService {
     }
     if (!job.datasetId) throw new NotFoundException('AI job thiếu dataset');
     const dataset = await this.datasetsRepository.findById(job.datasetId);
-    const recordRows2 = await this.records.listAllRecords(job.datasetId);
-    const records = recordRows2.map((r) => ({ row_index: r.rowIndex, props: r.props }));
+    const recordRows = await this.records.listAllRecords(job.datasetId);
     const keyToName = new Map((dataset?.columns ?? []).map((c) => [c.key, c.name] as const));
-      const rows: Record<string, unknown>[] = records.map((r) => {
-        const legacy = (r as unknown as { props?: Record<string, unknown>; data?: Record<string, unknown> });
-        const props = ((legacy.props ?? legacy.data ?? {}) as Record<string, unknown>);
-        const named: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-        return named;
-      });
+    const rows: Record<string, unknown>[] = recordRows.map((r) =>
+      toNamedRow(r as unknown as { props?: Record<string, unknown> }, keyToName),
+    );
     const roleByKey = new Map<string, string>();
     if (dataset) {
       for (const c of dataset.columns) {
@@ -784,6 +821,8 @@ export class AnalysisService {
       analysisId: resultId,
       analysisRunId: runId,
       inputFingerprint: fingerprint,
+      isStale: result.isStale,
+      staleReason: result.staleReason ?? null,
       dq05: result.dq05,
       dqSummary: (result as unknown as { dq_summary?: unknown }).dq_summary ?? null,
       descriptive: (result as unknown as { descriptive?: unknown }).descriptive ?? null,

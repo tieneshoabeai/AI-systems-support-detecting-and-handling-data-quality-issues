@@ -333,6 +333,12 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     return doc ? toProjectSaveRecord(doc) : null;
   }
 
+  async findSaveById(id: string): Promise<ProjectSaveRecord | null> {
+    if (!isObjectIdHex(id)) return null;
+    const doc = await this.saveModel.findOne({ _id: oid(id), deleted_at: null }).exec();
+    return doc ? toProjectSaveRecord(doc) : null;
+  }
+
   async markSavesStale(projectId: string, keepId: string): Promise<unknown> {
     if (!isObjectIdHex(projectId)) return { modifiedCount: 0 };
     const filter: Record<string, unknown> = { project_id: oid(projectId), deleted_at: null, is_stale: false };
@@ -372,13 +378,44 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     return doc ? toReportJobRecord(doc) : null;
   }
 
-  async claimPendingReport(): Promise<ReportJobRecord | null> {
+  async claimPendingReport(leaseMs = 600000): Promise<ReportJobRecord | null> {
+    const now = new Date();
     const doc = await this.reportModel.findOneAndUpdate(
       { status: 'pending', deleted_at: null },
-      { $set: { status: 'running' } },
+      { $set: { status: 'running', heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
       { new: true, sort: { created_at: 1 } },
     ).exec();
     return doc ? toReportJobRecord(doc) : null;
+  }
+
+  async heartbeatReport(id: string, leaseMs = 600000): Promise<ReportJobRecord | null> {
+    if (!isObjectIdHex(id)) return null;
+    const now = new Date();
+    const doc = await this.reportModel.findOneAndUpdate(
+      { _id: oid(id), status: 'running', deleted_at: null },
+      { $set: { heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
+      { new: true },
+    ).exec();
+    return doc ? toReportJobRecord(doc) : null;
+  }
+
+  async recoverStaleReports(maxAttempts: number): Promise<{ requeued: number; failed: number }> {
+    const now = new Date();
+    const base: Record<string, unknown> = { status: 'running', deleted_at: null, lease_expires_at: { $lt: now } };
+    const failedFilter: Record<string, unknown> = { ...base, attempt: { $gte: maxAttempts - 1 } };
+    const requeueFilter: Record<string, unknown> = { ...base, attempt: { $not: { $gte: maxAttempts - 1 } } }; // khop ca job cu chua co `attempt`
+    const failedRes = await this.reportModel.updateMany(
+      failedFilter,
+      {
+        $set: { status: 'failed', lease_expires_at: null, error: { code: 'REPORT_LEASE_EXPIRED', message: 'Worker PDF khong cap nhat lease (het luot thu lai)' } },
+        $inc: { attempt: 1 },
+      },
+    ).exec();
+    const requeuedRes = await this.reportModel.updateMany(
+      requeueFilter,
+      { $set: { status: 'pending', lease_expires_at: null }, $inc: { attempt: 1 } },
+    ).exec();
+    return { requeued: requeuedRes.modifiedCount ?? 0, failed: failedRes.modifiedCount ?? 0 };
   }
 
   // ---- Few-shot ----

@@ -142,6 +142,9 @@ export interface ReportJobRecord {
   storageKey?: string | null;
   fileSizeBytes?: number | null;
   error?: Record<string, unknown> | null;
+  attempt?: number;
+  leaseExpiresAt?: Date | null;
+  heartbeatAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -167,6 +170,8 @@ export interface CellEvidenceRecord {
   column: string;
   rowIndex: number;
   reason?: string | null;
+  kind?: string;
+  valueMasked?: string | null;
 }
 
 export interface AnalysisRepositoryPort {
@@ -192,11 +197,15 @@ export interface AnalysisRepositoryPort {
   findConfigByProject(projectId: string): Promise<AnalysisConfigRecord | null>;
   createSave(doc: Partial<ProjectSaveRecord> & Record<string, unknown> & { projectId: string }): Promise<ProjectSaveRecord>;
   findLatestSaveByProject(projectId: string): Promise<ProjectSaveRecord | null>;
+  findSaveById(id: string): Promise<ProjectSaveRecord | null>;
   markSavesStale(projectId: string, keepId: string): Promise<unknown>;
   createReportJob(doc: Partial<ReportJobRecord> & Record<string, unknown> & { projectId: string }): Promise<ReportJobRecord>;
   findReportById(id: string): Promise<ReportJobRecord | null>;
   updateReportById(id: string, update: Record<string, unknown>): Promise<ReportJobRecord | null>;
-  claimPendingReport(): Promise<ReportJobRecord | null>;
+  claimPendingReport(leaseMs?: number): Promise<ReportJobRecord | null>;
+  heartbeatReport(id: string, leaseMs?: number): Promise<ReportJobRecord | null>;
+  /** Thu hoi job PDF `running` qua lease: con luot -> pending, het luot -> failed. */
+  recoverStaleReports(maxAttempts: number): Promise<{ requeued: number; failed: number }>;
   saveFewShotExample(doc: Partial<FewShotExampleRecord> & Record<string, unknown>): Promise<FewShotExampleRecord>;
   enforceFewShotCap(cap?: number): Promise<number>;
   findFewShotCandidates(params: { workspaceId: string; errorType?: string; language?: string; minTrustScore: number; maxAgeDays: number; limit: number }): Promise<FewShotExampleRecord[]>;

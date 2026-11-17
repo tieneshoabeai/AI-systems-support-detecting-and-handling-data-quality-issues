@@ -8,7 +8,7 @@ export const AnalysisConfigSchema = z.object({
   value_column: z.string().min(1).max(120).nullable().optional(),
   correlation_method: z.enum(['pearson', 'spearman']).default('pearson'),
   outlier_method: z.enum(['iqr', 'modified_zscore', 'both']).default('iqr'),
-  top_n: z.coerce.number().int().min(1).max(100).default(10),
+  top_n: z.coerce.number().int().min(1).max(500).default(50),
 });
 
 export type AnalysisConfigDto = z.infer<typeof AnalysisConfigSchema>;

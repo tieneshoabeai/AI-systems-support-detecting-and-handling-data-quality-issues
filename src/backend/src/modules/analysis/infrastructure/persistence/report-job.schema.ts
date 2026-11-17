@@ -12,6 +12,9 @@ export interface IReportJob extends Document, BaseEntity {
   storage_key: string | null;
   file_size_bytes: number | null;
   error: { code: string; message: string } | null;
+  attempt: number;
+  lease_expires_at: Date | null;
+  heartbeat_at: Date | null;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -26,9 +29,14 @@ export const ReportJobSchema = new Schema<IReportJob>(
     storage_key: { type: String, default: null },
     file_size_bytes: { type: Number, default: null },
     error: { type: Schema.Types.Mixed, default: null },
+    attempt: { type: Number, default: 0 },
+    lease_expires_at: { type: Date, default: null },
+    heartbeat_at: { type: Date, default: null },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
 );
 
 ReportJobSchema.index({ project_id: 1, created_at: -1 });
+ReportJobSchema.index({ status: 1, created_at: 1 });
+ReportJobSchema.index({ status: 1, lease_expires_at: 1 });

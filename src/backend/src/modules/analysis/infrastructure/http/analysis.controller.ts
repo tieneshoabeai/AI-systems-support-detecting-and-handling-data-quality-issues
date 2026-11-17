@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Param, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { AuditService } from '../../../audit/application/audit.service';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AnalysisService } from '../../application/analysis.service';
 import { RunAnalysisSchema, RunAnalysisDto } from './dtos/run-analysis.dto';
@@ -16,7 +18,10 @@ import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller()
 export class AnalysisController {
-  constructor(private readonly analysisService: AnalysisService) {}
+  constructor(
+    private readonly analysisService: AnalysisService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Post('projects/:projectId/analysis/config')
   @HttpCode(HttpStatus.OK)
@@ -60,7 +65,8 @@ export class AnalysisController {
   @Get('analysis/jobs/:jobId')
   @ApiOperation({ summary: 'AI-01: Trạng thái AI job corr-v1', operationId: 'getAiJob' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async getJob(@Param('jobId') jobId: string) {
+  async getJob(@Param('jobId') jobId: string, @CurrentUser() user: CurrentUserPayload) {
+    await this.analysisService.assertJobAccess(jobId, user);
     return this.analysisService.getJob(jobId);
   }
 
@@ -68,20 +74,50 @@ export class AnalysisController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'AI-01: Thử lại AI job (tối đa 2 retry)', operationId: 'retryAiJob' })
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
-  async retryJob(@Param('jobId') jobId: string) {
-    return this.analysisService.retryJob(jobId);
+  async retryJob(
+    @Param('jobId') jobId: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Req() req: Request,
+  ) {
+    await this.analysisService.assertJobAccess(jobId, user, true);
+    const out = await this.analysisService.retryJob(jobId);
+    await this.audit.log({
+      actorId: user?.userId ?? null,
+      actorRole: user?.role ?? null,
+      action: 'AI_JOB_RETRIED',
+      targetType: 'ai_job',
+      targetId: jobId,
+      ipAddress: (req.ip ?? null) as string | null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      metadata: { jobId, attempt: out.attempt ?? null },
+    });
+    return out;
   }
 
   @Post('analysis/jobs/:jobId/result')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'AI nội bộ: Gắn kết quả AI corr-v1 đã grounding vào analysis_result', operationId: 'ingestAiResult' })
-  @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiOperation({ summary: 'AI nội bộ (chỉ SYS-ADMIN): Gắn kết quả AI corr-v1 đã grounding vào analysis_result', operationId: 'ingestAiResult' })
+  // Phan 6 v7 muc 3.20: chi SYS-ADMIN (Manage all) — user thuong khong duoc tu gan nhan xet AI
+  @CheckPolicies((ability) => ability.can(Action.Manage, 'all'))
   async ingestAiResult(
     @Param('jobId') jobId: string,
     @Body() body: { result: unknown; modelId?: string },
+    @CurrentUser() user: CurrentUserPayload,
+    @Req() req: Request,
   ) {
     const raw = (body?.result ?? {}) as unknown;
     const modelId = typeof body?.modelId === 'string' ? body.modelId : undefined;
-    return this.analysisService.ingestAiResult(jobId, raw, modelId);
+    const out = await this.analysisService.ingestAiResult(jobId, raw, modelId);
+    await this.audit.log({
+      actorId: user?.userId ?? null,
+      actorRole: user?.role ?? null,
+      action: 'AI_RESULT_INGESTED',
+      targetType: 'ai_job',
+      targetId: jobId,
+      ipAddress: (req.ip ?? null) as string | null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      metadata: { jobId, status: out.status ?? null, modelId: modelId ?? null },
+    });
+    return out;
   }
 }

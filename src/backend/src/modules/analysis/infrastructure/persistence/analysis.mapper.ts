@@ -157,6 +157,9 @@ export function toReportJobRecord(doc: IReportJob): ReportJobRecord {
     storageKey: doc.storage_key ?? null,
     fileSizeBytes: doc.file_size_bytes ?? null,
     error: (doc.error ?? null) as Record<string, unknown> | null,
+    attempt: doc.attempt ?? 0,
+    leaseExpiresAt: doc.lease_expires_at ?? null,
+    heartbeatAt: doc.heartbeat_at ?? null,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
   };
@@ -186,5 +189,7 @@ export function toCellEvidenceRecord(doc: ICellEvidence): CellEvidenceRecord {
     column: doc.column,
     rowIndex: doc.row_index,
     reason: doc.reason ?? null,
+    kind: doc.kind,
+    valueMasked: doc.value_masked ?? null,
   };
 }
