@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 01 | [Bối cảnh](01_boi-canh.md) | Bài toán, hiện trạng, mục tiêu, bên liên quan, actor, thuật ngữ | Hoàn thành |
 | 02 | [Phạm vi](02_pham-vi.md) | In/out-of-scope, phân kỳ, giới hạn dữ liệu, ràng buộc, giả định | Hoàn thành |
-| 03 | Chức năng | Danh sách chức năng, use case theo module | Chưa viết |
+| 03 | [Chức năng](03_chuc-nang.md) | Phân rã chức năng, bảng chức năng theo module, chức năng FE, use case theo actor | Hoàn thành |
 | 04 | Yêu cầu chức năng (FR) | FR có ID và tiêu chí chấp nhận | Chưa viết |
 | 05 | Yêu cầu phi chức năng (NFR) | Bảo mật, hiệu năng, độ tin cậy, khả dụng, bảo trì | Chưa viết |
 | 06 | Luồng nghiệp vụ | Flow tổng thể, flow chính, flow lỗi | Chưa viết |

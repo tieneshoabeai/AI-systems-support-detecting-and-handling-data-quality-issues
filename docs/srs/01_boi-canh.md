@@ -73,7 +73,7 @@ Xây dựng **nền tảng web full-stack** cho phép người dùng:
 | KT4 | An toàn kiểu | 0 khai báo `any` trong mã nguồn |
 | KT5 | Bảo mật | Không có lỗ hổng IDOR giữa các Workspace; tệp xuất mã hóa AES-256-GCM, khóa PBKDF2 100.000 vòng |
 
-> `[CẦN XÁC NHẬN]` KT2: spec F6.1 ghi "dưới 100 ms", báo cáo 01 ghi "≤ 10 ms trên mỗi cụm 50 dòng". Tài liệu này lấy **< 100 ms** theo spec làm yêu cầu chính thức, ≤ 10 ms là mục tiêu tham khảo.
+> **Đã chốt:** KT2 lấy **< 100 ms** theo spec F6.1 làm yêu cầu chính thức; con số ≤ 10 ms/50 dòng trong báo cáo 01 chỉ để tham khảo.
 
 ## 1.5. Các bên liên quan (Stakeholders)
 
@@ -97,7 +97,7 @@ Tác nhân dùng trong toàn bộ bộ tài liệu, lấy theo spec:
 | **Admin** | Quản trị hệ thống (`role = ADMIN`); có toàn bộ quyền của Data Analyst, cộng thêm quản lý người dùng (xem danh sách, khóa/mở khóa) | — |
 | **Hệ thống AI** (giai đoạn 2) | Tác nhân hệ thống: phân tích dữ liệu, đề xuất xử lý; không tự áp dụng thay đổi | — |
 
-> `[CẦN XÁC NHẬN]` Mã vai trò: spec dùng `ADMIN` / `DATA_ANALYST`, code backend hiện dùng `admin` / `analyst`. Tài liệu viết theo spec.
+> **Đã chốt:** Mã vai trò dùng theo spec: `ADMIN` / `DATA_ANALYST`. Code backend hiện đang dùng `admin` / `analyst`, khác với tài liệu.
 
 ## 1.7. Định nghĩa thuật ngữ
 

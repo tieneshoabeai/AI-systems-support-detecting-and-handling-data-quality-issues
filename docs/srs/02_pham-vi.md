@@ -28,7 +28,7 @@
 
 Trong đó có **7 API "đề xuất thêm"** (F1.10, F3.6, F4.6, F7.2, F8.3, F8.4, F9.3) — vẫn thuộc phạm vi đặc tả theo quyết định chọn spec làm chuẩn.
 
-> `[CẦN XÁC NHẬN]` F4.6 (khôi phục Project – `POST /projects/:projectId/restore`) có trong bảng tổng kết và change log của spec nhưng **không có mục đặc tả chi tiết**. Tài liệu sẽ đặc tả tương tự F3.6 (khôi phục Workspace).
+> **Đã chốt:** F4.6 (khôi phục Project – `POST /projects/:projectId/restore`) có trong bảng tổng kết và change log của spec nhưng không có mục đặc tả chi tiết. F4.6 được đặc tả **theo mẫu F3.6** (khôi phục Workspace); nội dung là suy ra từ F3.6, không có trong spec gốc.
 
 ### Phạm vi giao diện (Frontend)
 - Ứng dụng web SPA (React + Vite + TypeScript) cho toàn bộ chức năng M1–M9.
@@ -46,7 +46,7 @@ CSV, Excel (`.xlsx`), JSON — cho cả nhập và xuất.
 | O1 | Phát hiện bất thường và gợi ý xử lý bằng AI (Machine Learning, LLM Gemini) | Giai đoạn 2 |
 | O2 | Kết nối CSDL quan hệ ngoài (PostgreSQL, MySQL, SQLite), nhận luồng RabbitMQ | Giai đoạn 2 |
 | O3 | Xuất báo cáo chất lượng Before/After ra PDF | Giai đoạn 2 |
-| O4 | Gửi email tự động / thông báo | Giai đoạn 2 |
+| O4 | Email thông báo tự động (cảnh báo, báo cáo định kỳ) | Giai đoạn 2. Email đặt lại mật khẩu (F1.4) vẫn thuộc giai đoạn 1 |
 | O5 | Cộng tác thời gian thực (nhiều người cùng sửa một Dataset) | Không có trong spec |
 | O6 | Ứng dụng di động native | Không có trong spec |
 | O7 | Tạo tài khoản hoặc dữ liệu mới khi đang offline | Bị loại trừ có chủ đích để tránh xung đột đồng bộ |
@@ -77,10 +77,10 @@ CSV, Excel (`.xlsx`), JSON — cho cả nhập và xuất.
 - Backend: NestJS 11 + TypeScript strict (không dùng `any`); frontend: React + Vite + TypeScript.
 - Lưu trữ: MongoDB (dữ liệu chính, bản ghi Dataset, phiên bản), Neo4j (đồ thị lineage), lưu trữ đối tượng tương thích S3 (Cloudflare R2) cho tệp gốc và tệp xuất.
 - Giao tiếp qua HTTPS (TLS, cổng 443 qua Cloudflare Tunnel); REST API tiền tố `/api/v1`.
-- Xác thực JWT (access token + refresh token theo phiên); mật khẩu băm bằng bcrypt.
+- Xác thực JWT (access token 15 phút + refresh token 7 ngày theo phiên); mật khẩu băm bằng bcrypt salt rounds = 12.
 - Xóa mềm thống nhất bằng trường `deleted_at` (không dùng cờ boolean).
 
-> `[CẦN XÁC NHẬN]` Thuật toán băm mật khẩu: spec ghi **bcrypt (salt 10)**, README ghi bcrypt salt 12, báo cáo 01 ghi Argon2id. Tài liệu theo spec: bcrypt.
+> **Đã chốt:** Băm mật khẩu bằng **bcrypt, salt rounds = 12**, khớp README và code. Spec ghi salt 10, báo cáo 01 ghi Argon2id; cả hai không dùng.
 
 ### Ràng buộc nghiệp vụ
 - Mỗi Project chứa tối đa **1 Dataset** chưa bị xóa.
