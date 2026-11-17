@@ -68,3 +68,6 @@ pnpm-debug.log*
 build_env.md
 .agent/
 remember/
+
+# Claude Code local skills
+.claude/
