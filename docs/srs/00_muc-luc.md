@@ -13,8 +13,8 @@
 | 04 | [Yêu cầu chức năng (FR)](04_yeu-cau-chuc-nang.md) | FR chung, FR theo 9 module, FR giao diện; tiêu chí chấp nhận | Hoàn thành |
 | 05 | [Yêu cầu phi chức năng (NFR)](05_yeu-cau-phi-chuc-nang.md) | Bảo mật, hiệu năng, độ tin cậy, khả dụng, bảo trì, tương thích | Hoàn thành |
 | 06 | [Luồng nghiệp vụ](06_luong-nghiep-vu.md) | BF-1..BF-6 luồng tổng thể; luồng chính/lỗi theo use case | Hoàn thành |
-| 07 | [Đặc tả API](07_api/00_quy-uoc-chung.md) | Input/output, flow chính/lỗi của từng API | M1–M5 xong (API-01 → 32); M6–M9 đang viết |
-| 08 | Ma trận truy vết | Chức năng ↔ FR ↔ API ↔ Flow | Chưa viết |
+| 07 | [Đặc tả API](07_api/00_quy-uoc-chung.md) | Quy ước chung + 9 file theo module; input/output, flow chính/lỗi của 43 API | Hoàn thành |
+| 08 | [Ma trận truy vết](08_truy-vet.md) | Chức năng ↔ FR ↔ API ↔ Flow ↔ NFR; độ phủ; giả định và quyết định | Hoàn thành |
 
 ## Quy ước ID
 

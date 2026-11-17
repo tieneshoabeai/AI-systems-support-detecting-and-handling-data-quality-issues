@@ -63,8 +63,8 @@ Quy ước chung, cấu trúc phản hồi và mã lỗi dùng chung: [00_quy-uo
 | Vị trí | Trường | Kiểu | Bắt buộc | Ràng buộc |
 |---|---|---|:---:|---|
 | Path | `workspaceId` | string | ✓ | |
-| Query | `page` | integer | | Mặc định 1 `[GIẢ ĐỊNH theo F3.2]` |
-| Query | `limit` | integer | | Mặc định 10 `[GIẢ ĐỊNH theo F3.2]` |
+| Query | `page` | integer | | Mặc định 1 (theo mẫu F3.2, đã chốt) |
+| Query | `limit` | integer | | Mặc định 10 (theo mẫu F3.2, đã chốt) |
 | Query | `search` | string | | Tìm theo tên |
 
 **Output — `200 OK`**
@@ -74,7 +74,7 @@ Quy ước chung, cấu trúc phản hồi và mã lỗi dùng chung: [00_quy-uo
   "pagination": { "page": 1, "limit": 10, "totalItems": 3, "totalPages": 1 }
 }
 ```
-Trường `pagination` theo mẫu F3.2 `[GIẢ ĐỊNH]` (spec F4.2 chỉ ghi `data`).
+Trường `pagination` theo mẫu F3.2 — quyết định nhóm (spec F4.2 chỉ ghi `data`).
 
 **Lỗi riêng**: `404` Workspace không tồn tại/đã xóa; `403` không có quyền.
 
@@ -200,7 +200,7 @@ Nội dung `message` là `[GIẢ ĐỊNH]`.
 | `404` | Không có Project đã xóa với id này |
 | `403` | Không phải chủ sở hữu/Admin |
 | `409` | Workspace cha đang bị xóa `[GIẢ ĐỊNH]` |
-| `409` | Workspace đã có Project chưa xóa cùng tên `[GIẢ ĐỊNH]` |
+| `409` | Workspace đã có Project chưa xóa cùng tên (đã chốt: không tự đổi tên) |
 
 **Luồng xử lý chính**
 1. [BE] *Bước kiểm tra Project* (tìm bản ghi đã xóa).
@@ -209,7 +209,7 @@ Nội dung `message` là `[GIẢ ĐỊNH]`.
 4. [DB] Project: `deleted_at = null`.
 5. [BE] Trả `200`.
 
-Dataset đã xóa mềm cùng Project **không** được khôi phục tự động (theo F3.6 chỉ khôi phục cấp Project) `[GIẢ ĐỊNH]`.
+Dataset đã xóa mềm cùng Project **không** được khôi phục (đã chốt, đúng chữ spec F3.6); người dùng tải lại tệp qua API-30.
 
 **Luồng lỗi**
 - E1 (1) → `404` / `403`.

@@ -192,13 +192,13 @@ Quy ước chung, cấu trúc phản hồi và mã lỗi dùng chung: [00_quy-uo
 |---|---|
 | `404` | Không có Workspace đã xóa với id này `[GIẢ ĐỊNH]` |
 | `403` | Không phải chủ sở hữu/Admin |
-| `409` | Chủ sở hữu đã có Workspace chưa xóa cùng tên `[GIẢ ĐỊNH]` |
+| `409` | Chủ sở hữu đã có Workspace chưa xóa cùng tên (đã chốt: không tự đổi tên) |
 
 **Luồng xử lý chính**
 1. [BE] *Bước kiểm tra Workspace* (tìm bản ghi đã xóa).
 2. [DB] Kiểm tra trùng tên với Workspace đang hoạt động.
 3. [DB] Mở transaction.
-4. [DB] Workspace và các Project con: `deleted_at = null`.
+4. [DB] Workspace và các Project con: `deleted_at = null`. Dataset **không** được khôi phục (đã chốt); các Project được khôi phục có `datasetId = null`, `hasDataset = false` `[GIẢ ĐỊNH hệ quả]`.
 5. [DB] Commit.
 6. [BE] Trả `200`.
 

@@ -68,7 +68,7 @@ Vị trí input: `Path`, `Query`, `Header`, `Body`, `Form`. `[GIẢ ĐỊNH]` = 
 | [03_workspaces.md](03_workspaces.md) | M3 Workspace | API-18 → API-23 |
 | [04_projects.md](04_projects.md) | M4 Project | API-24 → API-29 |
 | [05_datasets.md](05_datasets.md) | M5 Dataset | API-30 → API-32 |
-| 06_visualization.md | M6 Trực quan hóa | API-33 → API-34 |
-| 07_transformations.md | M7 Biến đổi | API-35 → API-36 |
-| 08_versions-lineage.md | M8 Phiên bản & nguồn gốc | API-37 → API-40 |
-| 09_exports.md | M9 Xuất bản | API-41 → API-43 |
+| [06_visualization.md](06_visualization.md) | M6 Trực quan hóa | API-33 → API-34 |
+| [07_transformations.md](07_transformations.md) | M7 Biến đổi | API-35 → API-36 |
+| [08_versions-lineage.md](08_versions-lineage.md) | M8 Phiên bản & nguồn gốc | API-37 → API-40 |
+| [09_exports.md](09_exports.md) | M9 Xuất bản | API-41 → API-43 |

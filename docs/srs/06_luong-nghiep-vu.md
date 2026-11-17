@@ -99,12 +99,13 @@ E2 (bước 2) Người gọi không phải Admin → 403 → [FE] chuyển về
    - Dataset   (UC-5.3) → [BE] ghi deleted_at cho Dataset; Project được giải phóng (hasDataset = false)
 3. [FE] Ẩn tài nguyên khỏi danh sách
 4. (Khôi phục) [User] Chọn khôi phục Workspace (UC-3.6) hoặc Project (UC-4.6)
-5. [BE] Đặt deleted_at = null cho tài nguyên (và Project con nếu là Workspace)
+5. [BE] Đặt deleted_at = null cho tài nguyên (và Project con nếu là Workspace); Dataset KHÔNG được khôi phục (đã chốt) → người dùng tải lại tệp (UC-5.1)
 6. [FE] Hiển thị lại tài nguyên
 
 Luồng lỗi:
 E1 (bước 2) Không phải chủ sở hữu → 403
 E2 (bước 5) Khôi phục Project khi Workspace cha còn bị xóa → 409 [GIẢ ĐỊNH, xem FR-4.6]
+E3 (bước 5) Tên trùng với Workspace/Project đang hoạt động → 409 (đã chốt) → [FE] gợi ý đổi tên bản ghi đang hoạt động rồi khôi phục lại
 ```
 
 ### BF-6. Tải tệp với bản nháp ngoại tuyến (Frontend)

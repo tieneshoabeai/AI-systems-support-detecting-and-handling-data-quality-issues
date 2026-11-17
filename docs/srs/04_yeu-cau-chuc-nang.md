@@ -51,18 +51,18 @@
 | FR-3.3 | B | Trả chi tiết Workspace kèm danh sách Project chưa xóa | AC1: không tồn tại hoặc đã xóa → `404`. AC2: không phải chủ sở hữu/Admin → `403`. AC3: mỗi Project có `projectId`, `name`, `hasDataset`, `updatedAt` |
 | FR-3.4 | B | Cho chủ sở hữu/Admin sửa `name`, `description` | AC: ràng buộc độ dài như FR-3.1; trả `updatedAt` mới |
 | FR-3.5 | B | Xóa mềm Workspace theo dây chuyền | AC1: Workspace ghi `deleted_at`, `deletedBy`. AC2: mọi Project và Dataset con được ghi `deleted_at`. AC3: không xóa vật lý |
-| FR-3.6 | Đ | Khôi phục Workspace đã xóa mềm | AC: `deleted_at = null` cho Workspace và các Project con |
+| FR-3.6 | Đ | Khôi phục Workspace đã xóa mềm | AC1: `deleted_at = null` cho Workspace và các Project con. AC2 (đã chốt): Dataset **không** được khôi phục. AC3 (đã chốt): chủ sở hữu đã có Workspace chưa xóa cùng tên → `409`, không tự đổi tên |
 
 ## M4. Project
 
 | ID | Ưu tiên | Yêu cầu (Hệ thống phải …) | Tiêu chí chấp nhận |
 |---|:---:|---|---|
 | FR-4.1 | B | Cho phép tạo Project trong Workspace mình sở hữu | AC1: Workspace không tồn tại → `404`; không phải chủ sở hữu → `403`. AC2: `name` 3–100 ký tự, trùng tên trong cùng Workspace (chưa xóa) → `409`. AC3: khởi tạo `datasetId = null`, trả `201`, `hasDataset = false` |
-| FR-4.2 | B | Liệt kê Project của một Workspace | AC: chỉ Project chưa xóa; hỗ trợ `page`, `limit`, `search`; mỗi phần tử có `hasDataset`, `datasetId` |
+| FR-4.2 | B | Liệt kê Project của một Workspace | AC1: chỉ Project chưa xóa; hỗ trợ `page`, `limit`, `search`; mỗi phần tử có `hasDataset`, `datasetId`. AC2 (đã chốt): trả `pagination { page, limit, totalItems, totalPages }` như FR-3.2 |
 | FR-4.3 | B | Trả chi tiết Project | AC1: không tồn tại/đã xóa → `404`. AC2: `dataset` là tóm tắt `{ datasetId, name, rowCount, columnCount, currentVersion }` hoặc `null` |
 | FR-4.4 | B | Cho phép sửa `name`, `description` của Project | AC: trả `updatedAt` mới |
 | FR-4.5 | B | Xóa mềm Project và Dataset trực thuộc | AC: Project và Dataset (nếu có) được ghi `deleted_at` |
-| FR-4.6 | Đ | Khôi phục Project đã xóa mềm (theo mẫu FR-3.6) | AC1: `deleted_at = null` cho Project. AC2 `[GIẢ ĐỊNH]`: Workspace cha đang bị xóa → `409`, không cho khôi phục. Nội dung suy ra từ F3.6, xem [02_pham-vi](02_pham-vi.md) |
+| FR-4.6 | Đ | Khôi phục Project đã xóa mềm (theo mẫu FR-3.6) | AC1: `deleted_at = null` cho Project. AC2 `[GIẢ ĐỊNH]`: Workspace cha đang bị xóa → `409`, không cho khôi phục. AC3 (đã chốt): Dataset không được khôi phục; trùng tên Project đang hoạt động → `409`. Nội dung suy ra từ F3.6, xem [02_pham-vi](02_pham-vi.md) |
 
 ## M5. Dataset
 
