@@ -3,7 +3,7 @@
 - **Version:** v9
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v9)
-- **Thay đổi v9 (2026-11-17):** bổ sung mục 3.17 — Quy tắc trạng thái job AI corr-v1 (làm rõ). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v9 (2026-11-17):** bổ sung mục 3.17 — Quy tắc trạng thái job AI corr-v1 (làm rõ). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.18 — Mức ảnh hưởng và dữ liệu biểu đồ (đã thực hiện).
 - **Trạng thái:** v4 thay Gemini API bằng **AI local (inference trên chính VPS)**; bổ sung cơ chế **nhận xét người dùng** và **vòng lặp học lại (T1 few-shot động qua RAG)**; thu hẹp đầu vào còn **chỉ `.csv`**. **v5 chuẩn hoá quy trình chọn model thành quyết định có số liệu:** 5 model ứng viên (**Qwen3-14B**, **Gemma-3-12B**, **Qwen3-8B**, **Llama-3.1-8B**, **Vistral-7B**), 9 chỉ số trên 5 nhóm, ngưỡng tuyệt đối + trọng số + kiểm định thống kê (McNemar/Wilcoxon) + đường Pareto; bỏ judge `Qwen3-32B` (vượt RAM) thay bằng **chấm chéo**; thêm kiến trúc **định tuyến hai tầng** để benchmark quyết định tầng nào chạy model nào. **v6 kích hoạt DQ-05 có điều kiện theo quy tắc được xác nhận + đặc tả AI đánh giá ma trận tương quan/VIF (theo Phần 2 v7).** **v8 chốt nhóm A (2026-11-07): Zod strict, PII regex+cột đánh dấu, làm tròn domain 4, ưu tiên mức ảnh hưởng→số ô→DQ, giữ toàn bộ phát hiện AI.**
 - **Giai đoạn:** Logic/AI solution
 - **Thứ tự thực hiện:** Phần 12; sử dụng kết quả đã xác nhận của các phần trước.
@@ -498,6 +498,16 @@ AI cải thiện → người dùng nhận xét tiếp        ↺
 - Grounding loại bỏ toàn bộ claim → job `failed` với `AI_GROUNDING_FAILED` (retryable); không coi là thành công.
 - Thử lại thủ công (AI-01) chỉ áp dụng khi `input_fingerprint` của job còn khớp kết quả hệ thống chưa stale; nếu stale phải chạy lại phân tích.
 
+### 3.18. Mức ảnh hưởng và dữ liệu biểu đồ (đợt D/E)
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- **Mức ảnh hưởng (theo Phần 2 mục 3.29):** DQ-01 và DQ-03: < 1% thấp, 1–10% trung bình, > 10% cao; DQ-02: < 0,5% thấp, 0,5–5% trung bình, > 5% cao (tỷ lệ trên số dòng đang phân tích); DQ-04: chỉ vượt IQR 1,5× → thấp, vượt IQR 3× hoặc Modified Z > 3,5 → trung bình, cả hai phương pháp cùng đánh dấu → cao. Không có dòng → `no_data`, không áp ngưỡng. Biên chính xác (1%, 10%, 0,5%, 5%) thuộc mức trung bình.
+- **Thứ tự ưu tiên:** cao → trung bình → thấp → no_data; cùng mức thì tỷ lệ giảm dần.
+- **Histogram (quy ước tạm, spec 3.21 còn để ngỏ):** độ rộng bin Freedman–Diaconis `2·IQR·n^(-1/3)`; IQR = 0 → Sturges `⌈log2 n⌉ + 1`; tối đa 50 bin; chỉ dùng giá trị số hợp lệ.
+- **Box plot:** râu tới giá trị xa nhất trong [Q1 − 1,5·IQR, Q3 + 1,5·IQR]; điểm ngoài râu chỉ là "có thể bất thường", không mặc định là lỗi.
+- **Top N phân loại:** N = `chart_top_n` (1–20, mặc định 5); phần còn lại gộp "Khác".
+
 ## 4. Đầu vào và đầu ra
 
 - **Đầu vào:** Yêu cầu người dùng, kết quả các phần trước và mã nguồn/tài liệu hiện trạng liên quan.
@@ -585,6 +595,8 @@ Logic, trường hợp biên và tiêu chí đánh giá được xác nhận; r�
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.18 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.18 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Mức ảnh hưởng và dữ liệu biểu đồ / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.18; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.17 sang đã thực hiện.
 - **Đề xuất v9 / 2026-11-17:** Quy tắc trạng thái job AI corr-v1 (làm rõ) / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.17; chờ duyệt trước khi sửa code.
 - **Xác nhận v5 / 2026-11-06:** Yêu cầu **5 model AI local để so sánh và chọn model tối ưu nhất**, kèm bàn luận về tiêu chí so sánh / Theo yêu cầu người dùng / Chọn 5 ứng viên theo *giả thuyết* (Qwen3-14B, Gemma-3-12B, Qwen3-8B, Llama-3.1-8B, Vistral-7B); loại trước benchmark 4 model vượt ràng buộc; thay 6 tiêu chí bằng **9 chỉ số / 5 nhóm** có ngưỡng tuyệt đối + trọng số 100; thêm kiểm định thống kê (McNemar, Wilcoxon), đường Pareto, và kiến trúc định tuyến hai tầng; **bỏ judge `Qwen3-32B`** (vượt RAM 15 GB) thay bằng chấm chéo; viết lại mục 3.15.2–3.15.7.

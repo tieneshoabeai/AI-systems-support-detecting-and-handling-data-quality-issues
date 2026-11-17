@@ -3,6 +3,19 @@ import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../domain
 import { ProjectsService } from '../../projects/application/projects.service';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
 import { resolveTopN } from '../domain/top-n.util';
+import { StalenessService } from './staleness.service';
+import {
+  SEVERITY_LABEL,
+  THRESHOLDS,
+  compareIssues,
+  outlierSeverity,
+  rateSeverity,
+  recommendationFor,
+  severityReason,
+  type DqGroup,
+  type OutlierBreakdown,
+  type Severity,
+} from '../domain/impact.util';
 
 @Injectable()
 export class SummaryService {
@@ -10,6 +23,7 @@ export class SummaryService {
     @Inject(ANALYSIS_REPOSITORY_PORT)
     private readonly analysisRepository: AnalysisRepositoryPort,
     private readonly projectsService: ProjectsService,
+    private readonly staleness: StalenessService,
   ) {}
 
   async createSummary(projectId: string): Promise<Record<string, unknown>> {
@@ -20,12 +34,13 @@ export class SummaryService {
     if (run.status !== 'succeeded') throw new BadRequestException('Phân tích hệ thống chưa thành công — hãy chạy lại phân tích');
     const result = await this.analysisRepository.findResultByRun(run.id);
     if (!result) throw new NotFoundException('Chưa có kết quả phân tích cho lần chạy mới nhất');
-    if (result.isStale) {
+    const fresh = await this.staleness.assess(projectId, run, result); // D2: gom ca dataset/cot da doi
+    if (fresh.isStale) {
       // SUMMARY-01 (Phan 2 v10 muc 3.41): khong tao Tong ket tu ket qua loi thoi
       throw new ConflictException({
         message: 'Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích trước khi tạo Tổng kết',
         error: 'ANALYSIS_RESULT_STALE',
-        details: { staleReason: result.staleReason ?? null, analysisRunId: run.id },
+        details: { staleReason: fresh.staleReason, analysisRunId: run.id },
       } as never);
     }
     const runTopN = (run.config as Record<string, unknown> | null)?.top_n;
@@ -33,30 +48,81 @@ export class SummaryService {
     const topN = resolveTopN(runTopN ?? savedConfig?.topN);
     const dq = ((result.dqSummary ?? result.dq_summary ?? null) as unknown as {
       totalScanned: number;
-      columns: { column: string; missingCount: number; missingRate: number | null; invalidCount: number; invalidRate: number | null; outlierCount: number; outlierRate: number | null }[];
+      columns: {
+        column: string;
+        missingCount: number; missingRate: number | null;
+        invalidCount: number; invalidRate: number | null;
+        outlierCount: number; outlierRate: number | null;
+        outlierBreakdown?: OutlierBreakdown | null;
+      }[];
       duplicateRowCount: number;
       notes: string[];
     } | null);
-    const issues: { dq: string; column: string | null; count: number; rate: number | null }[] = [];
+    // E2 (Phan 2 muc 3.9 + 3.29): moi van de co muc anh huong + ly do; sap theo uu tien
+    type Issue = { dq: DqGroup; column: string | null; count: number; rate: number | null; severity: Severity; reason: string };
+    const issues: Issue[] = [];
+    const unassessable: { column: string; reason: string }[] = [];
+    const push = (dq: DqGroup, column: string | null, count: number, rate: number | null, severity: Severity): void => {
+      issues.push({ dq, column, count, rate, severity, reason: severityReason(dq, severity, rate) });
+    };
     if (dq) {
       for (const c of dq.columns) {
-        if (c.missingCount > 0) issues.push({ dq: 'DQ-01', column: c.column, count: c.missingCount, rate: c.missingRate });
-        if (c.invalidCount > 0) issues.push({ dq: 'DQ-03', column: c.column, count: c.invalidCount, rate: c.invalidRate });
-        if (c.outlierCount > 0) issues.push({ dq: 'DQ-04', column: c.column, count: c.outlierCount, rate: c.outlierRate });
+        if (c.missingRate === null || c.missingRate === undefined) {
+          unassessable.push({ column: c.column, reason: 'Không có dòng để đánh giá — không áp ngưỡng, không báo 0%' });
+          continue;
+        }
+        if (c.missingCount > 0) push('DQ-01', c.column, c.missingCount, c.missingRate, rateSeverity('DQ-01', c.missingRate));
+        if (c.invalidCount > 0) push('DQ-03', c.column, c.invalidCount, c.invalidRate, rateSeverity('DQ-03', c.invalidRate));
+        if (c.outlierCount > 0) {
+          // Ket qua cu chua co breakdown -> coi nhu chi IQR (muc thap nhat), khong suy dien cao hon
+          const sev = outlierSeverity(c.outlierBreakdown ?? { iqr: c.outlierCount, iqrExtreme: 0, zscore: 0, both: 0 }) ?? 'low';
+          push('DQ-04', c.column, c.outlierCount, c.outlierRate, sev);
+        }
       }
-      if (dq.duplicateRowCount > 0) issues.push({ dq: 'DQ-02', column: null, count: dq.duplicateRowCount, rate: null });
+      if (dq.duplicateRowCount > 0) {
+        const rate = dq.totalScanned > 0 ? Number((dq.duplicateRowCount / dq.totalScanned).toFixed(4)) : null;
+        push('DQ-02', null, dq.duplicateRowCount, rate, rateSeverity('DQ-02', rate));
+      }
     }
-    issues.sort((a, b) => b.count - a.count);
+    issues.sort(compareIssues);
+    const ranked = issues.map((it, i) => ({ ...it, priority: i + 1, severity_label: SEVERITY_LABEL[it.severity] }));
+    const shown = ranked.slice(0, topN);
+    const bySeverity = { high: 0, medium: 0, low: 0, no_data: 0 } as Record<Severity, number>;
+    for (const it of ranked) bySeverity[it.severity] += 1;
+    const cfg = (run.config ?? {}) as Record<string, unknown>;
     const ai = result.aiCorrelationAssessment as unknown as { status?: string } | null;
     const summary = {
-      overview: `Dataset ${dq?.totalScanned ?? 0} dòng, ${issues.length} nhóm vấn đề.`,
-      issues: issues.slice(0, topN),
+      overview: `Dataset ${dq?.totalScanned ?? 0} dòng, ${issues.length} nhóm vấn đề (cao ${bySeverity.high}, trung bình ${bySeverity.medium}, thấp ${bySeverity.low}).`,
+      issues: shown,
+      issue_total: ranked.length,
+      severity_counts: bySeverity,
+      unassessable,
       top_n: topN,
       evidence_refs: await this.analysisRepository.countEvidencesByRun(run.id),
-      recommendations: [
-        'Kiểm tra định nghĩa cột tại nguồn trước khi mô hình hóa',
-        'Không tự xóa/sửa dòng — xử lý tại nguồn',
+      recommendations: shown.map((it) => ({
+        dq: it.dq,
+        column: it.column,
+        priority: it.priority,
+        severity: it.severity,
+        text: recommendationFor(it.dq, it.column),
+      })),
+      notes: [
+        'Hệ thống chỉ phát hiện và báo cáo — không tự xóa/sửa dữ liệu; xử lý tại hệ thống nguồn.',
+        'Ngưỡng mức ảnh hưởng là quy ước dự án, không phải chuẩn thống kê chung.',
       ],
+      config_used: {
+        selected_columns: cfg.selected_column_names ?? cfg.selected_column_keys ?? null,
+        label_column: cfg.label_column ?? null,
+        time_column: cfg.time_column ?? null,
+        value_column: cfg.value_column ?? null,
+        time_granularity: cfg.time_granularity ?? null,
+        correlation_method: cfg.correlation_method ?? null,
+        outlier_method: cfg.outlier_method ?? null,
+        top_n: topN,
+        chart_top_n: cfg.chart_top_n ?? null,
+      },
+      thresholds: THRESHOLDS,
+      dq05: result.dq05 ?? { status: 'unassessed', reason: 'no_rule_confirmed' },
       ai_section: ai && (ai as { status?: string }).status === 'succeeded' ? ai : null,
     };
     const saved = await this.analysisRepository.createSave({

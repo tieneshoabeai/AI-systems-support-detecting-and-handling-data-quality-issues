@@ -7,6 +7,8 @@ import * as zlib from 'zlib';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SummaryService } from '../src/modules/analysis/application/summary.service';
 import { AnalysisService } from '../src/modules/analysis/application/analysis.service';
+import { ProjectAccessService } from '../src/modules/analysis/application/project-access.service';
+import { StalenessService } from '../src/modules/analysis/application/staleness.service';
 import { ReportWorkerService } from '../src/modules/analysis/application/report-worker.service';
 import { AiWorkerService } from '../src/modules/analysis/application/services/ai-worker.service';
 import { buildReportPdf, parseTrueType } from '../src/modules/analysis/application/pdf-builder.util';
@@ -64,8 +66,13 @@ const projects = (role: 'owner' | 'member' | 'viewer' | null = 'member') => ({
 const workspaces = (role: 'owner' | 'member' | null = 'member') => ({ resolveUserWorkspaceRole: jest.fn(async () => role) });
 const config = (vals: Record<string, unknown> = {}) => ({ get: jest.fn((k: string) => vals[k]) });
 
-function analysisService(repo: FakeRepo, proj = projects(), ws = workspaces()): AnalysisService {
-  return new AnalysisService(repo as never, proj as never, {} as never, {} as never, config() as never, ws as never);
+const noDatasets = { findByProject: jest.fn(async () => null) };
+function staleness(repo: FakeRepo, datasets: unknown = noDatasets): StalenessService {
+  return new StalenessService(repo as never, datasets as never);
+}
+function analysisService(repo: FakeRepo, proj = projects(), ws = workspaces(), datasets: unknown = noDatasets): AnalysisService {
+  const access = new ProjectAccessService(proj as never, ws as never);
+  return new AnalysisService(repo as never, proj as never, datasets as never, {} as never, config() as never, access, staleness(repo, datasets));
 }
 
 describe('AN-01 / AN-10: SUMMARY-01 chan ket qua stale + top_n', () => {
@@ -75,7 +82,7 @@ describe('AN-01 / AN-10: SUMMARY-01 chan ket qua stale + top_n', () => {
       findResultByRun: jest.fn(async () => result({ isStale: true, staleReason: 'config_changed' })),
       createSave: jest.fn(),
     };
-    const svc = new SummaryService(repo as never, projects() as never);
+    const svc = new SummaryService(repo as never, projects() as never, staleness(repo));
     const err = await svc.createSummary(P).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ConflictException);
     expect((err as ConflictException).getResponse()).toMatchObject({ error: 'ANALYSIS_RESULT_STALE', details: { staleReason: 'config_changed' } });
@@ -91,7 +98,7 @@ describe('AN-01 / AN-10: SUMMARY-01 chan ket qua stale + top_n', () => {
       createSave: jest.fn(async (d: Record<string, unknown>) => ({ ...save('s1'), summary: d.summary })),
       markSavesStale: jest.fn(),
     };
-    const out = await new SummaryService(repo as never, projects() as never).createSummary(P);
+    const out = await new SummaryService(repo as never, projects() as never, staleness(repo)).createSummary(P);
     const summary = out.summary as { issues: unknown[]; top_n: number };
     expect(summary.issues).toHaveLength(5);
     expect(summary.top_n).toBe(5);
@@ -127,6 +134,7 @@ describe('AN-02 / AN-06 / AN-07: AnalysisService', () => {
     const repo: FakeRepo = {
       findJobById: jest.fn(async () => job()),
       findResultByRun: jest.fn(async () => result({ isStale: true, staleReason: 'config_changed' })),
+      findById: jest.fn(async () => run()),
       updateJobById: jest.fn(),
     };
     const err = await analysisService(repo).retryJob(JOB).catch((e: unknown) => e);
@@ -138,6 +146,7 @@ describe('AN-02 / AN-06 / AN-07: AnalysisService', () => {
     const repo: FakeRepo = {
       findJobById: jest.fn(async () => job({ status: 'failed', attempt: 1 })),
       findResultByRun: jest.fn(async () => result()),
+      findById: jest.fn(async () => run()),
       updateJobById: jest.fn(async () => job({ status: 'pending', attempt: 2 })),
     };
     const out = await analysisService(repo).retryJob(JOB);
@@ -176,7 +185,7 @@ describe('AN-04 / AN-05: AI worker khong mat luot retry khi loi JSON', () => {
       updateJobById: jest.fn(),
       heartbeatJob: jest.fn(),
     };
-    const analysis = { buildPromptForJob: jest.fn(async () => 'prompt'), ingestAiResult: jest.fn(async () => ({ status: 'failed' })) };
+    const analysis = { buildPromptForJob: jest.fn(async () => 'prompt'), ingestAiResult: jest.fn(async () => ({ status: 'failed' })), markAiFailed: jest.fn(async () => undefined) };
     const inference = { complete: jest.fn(async () => ({ text: 'khong phai json', modelId: null, durationMs: 1 })) };
     const worker = new AiWorkerService(repo as never, analysis as never, inference as never, config({ AI_MAX_RETRIES: 2 }) as never);
     return { repo, analysis, worker };
@@ -190,11 +199,13 @@ describe('AN-04 / AN-05: AI worker khong mat luot retry khi loi JSON', () => {
     const last = repo.updateJobById.mock.calls.at(-1)?.[1] as Record<string, unknown>;
     expect(last).toMatchObject({ status: 'pending', attempt: 1 });
     expect(analysis.ingestAiResult).not.toHaveBeenCalled();
+    expect(analysis.markAiFailed).not.toHaveBeenCalled();
   });
   it('AN-05: het luot -> danh gia failed roi job failed voi ma loi goc AI_FAILED', async () => {
     const { repo, analysis, worker } = setup(2);
     await process(worker, JOB);
-    expect(analysis.ingestAiResult).toHaveBeenCalledTimes(1);
+    expect(analysis.markAiFailed).toHaveBeenCalledWith(JOB, 'AI_FAILED', expect.stringContaining('JSON'));
+    expect(analysis.ingestAiResult).not.toHaveBeenCalled();
     const last = repo.updateJobById.mock.calls.at(-1)?.[1] as { status: string; error: { code: string } };
     expect(last.status).toBe('failed');
     expect(last.error.code).toBe('AI_FAILED');

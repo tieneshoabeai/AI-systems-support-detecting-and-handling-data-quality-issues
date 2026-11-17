@@ -13,6 +13,7 @@ export interface IAnalysisConfig extends Document, BaseEntity {
   correlation_method: 'pearson' | 'spearman';
   outlier_method: 'iqr' | 'modified_zscore' | 'both';
   top_n: number;
+  chart_top_n: number;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -30,6 +31,7 @@ export const AnalysisConfigSchema = new Schema<IAnalysisConfig>(
     correlation_method: { type: String, enum: ['pearson', 'spearman'], default: 'pearson' },
     outlier_method: { type: String, enum: ['iqr', 'modified_zscore', 'both'], default: 'iqr' },
     top_n: { type: Number, default: 50 },
+    chart_top_n: { type: Number, default: 5 },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },

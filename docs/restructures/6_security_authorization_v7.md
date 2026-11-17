@@ -3,7 +3,7 @@
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.20 — Phân quyền endpoint job AI theo project (bổ sung). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.20 — Phân quyền endpoint job AI theo project (bổ sung). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.21 — Ma trận quyền route project của analysis / summary / report (đã thực hiện).
 - **Trạng thái:** Mô hình vai trò đầy đủ đã chốt (5 vai trò: `SYS-ADMIN` + 4 vai trò nghiệp vụ), ma trận quyền cho toàn bộ **66 use case**, chính sách phiên/token, chính sách đăng ký, chính sách audit log, và ranh giới bảo vệ dữ liệu đã được xác nhận. **v5 bổ sung:** quyền cho nhóm nhận xét kết quả `UC-68`→`UC-72` (mục 3.5b), quyền kết nối **Socket.IO** (mục 3.18), chính sách bảo mật cho **AI chạy nội bộ** (mục 3.19) và quy tắc bảo vệ dữ liệu của nhận xét người dùng. Gỡ toàn bộ quyền liên quan đến sheet (chỉ còn `.csv`).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 6; sử dụng kết quả đã xác nhận của các phần trước.
@@ -704,6 +704,26 @@ Danh sách này là **đầu vào bắt buộc** cho Phần 13 (chiến lược 
 - **Ma trận:** xem trạng thái job — có quyền xem project; thử lại — PROJ-MEMBER+ (Viewer không được, như AI-01); gắn kết quả AI thủ công (`/result`) — chỉ `SYS-ADMIN` hoặc tắt ở production.
 - **Audit:** ghi `AI_JOB_RETRIED` và `AI_RESULT_INGESTED` (actor, jobId, projectId).
 
+### 3.21. Ma trận quyền route project của analysis / summary / report (đợt D/E)
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+| Route | Viewer | PROJ-MEMBER / Owner | Ngoài project |
+|---|---|---|---|
+| `GET projects/{id}/analysis/config` | ✓ | ✓ | 404 |
+| `POST projects/{id}/analysis/config` | 403 | ✓ | 404 |
+| `POST projects/{id}/analysis` | 403 | ✓ | 404 |
+| `GET projects/{id}/analysis/result` | ✓ | ✓ | 404 |
+| `POST projects/{id}/summary` | 403 | ✓ | 404 |
+| `GET projects/{id}/summary` | ✓ | ✓ | 404 |
+| `POST projects/{id}/report` | ✓ (quyết định 2026-11-17) | ✓ | 404 |
+| `GET projects/{id}/report/{reportId}/file` | ✓ | ✓ | 404 |
+| `POST analysis/jobs/{jobId}/retry` (đã làm ở mục 3.20) | 403 | ✓ | 404 |
+
+- `SYS-ADMIN` bỏ qua kiểm tra vai trò project. Vai trò project lấy theo `ProjectsService.resolveUserProjectRole` (thành viên project → vai trò; WS-MEMBER → viewer mặc định; WS-OWNER → owner).
+- Triển khai: `application/project-access.service.ts` dùng chung cho route project và route job; controller gọi trước khi vào service.
+- **Còn mở:** guard CASL tĩnh vẫn dựa trên vai trò **workspace** trong token: WS-MEMBER bị `cannot Execute 'Analysis'`, nên người là PROJ-MEMBER nhưng chỉ là WS-MEMBER vẫn bị chặn 403 ở guard với route ghi trước khi tới kiểm tra vai trò project. Cần chỉnh `casl-ability.factory.ts` theo vai trò project trong một đợt riêng.
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -782,6 +802,8 @@ Chính sách quyền và bảo vệ dữ liệu được xác nhận trước im
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.21 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.21 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Ma trận quyền route project của analysis / summary / report / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.21; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.20 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.20 sang đã thực hiện.
 - **Đề xuất v7 / 2026-11-17:** Phân quyền endpoint job AI theo project (bổ sung) / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.20; chờ duyệt trước khi sửa code.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.

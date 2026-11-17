@@ -3,7 +3,7 @@
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.16 — biến môi trường worker PDF (`REPORT_FONT_PATH`) và sửa cách đọc `REPORT_WORKER_ENABLED`. Nguồn: hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.16 — biến môi trường worker PDF (`REPORT_FONT_PATH`) và sửa cách đọc `REPORT_WORKER_ENABLED`. Nguồn: hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.17 — Giới hạn kích thước phân tích đồng bộ (đã thực hiện).
 - **Thay đổi v5 (2026-11-06):** model AI **chưa chốt** — phải benchmark 5 ứng viên (`Qwen3-14B` / `Gemma-3-12B` / `Qwen3-8B` / `Llama-3.1-8B` / `Vistral-7B`) rồi chọn theo đường Pareto (Phần 12 v5 mục 3.15). `AI_MODEL_ID` trở thành **biến bắt buộc** chứ không phải hằng số trong compose; `models/` phải chứa **cả 5 file** `.gguf` trong giai đoạn benchmark (dung lượng đĩa ~35 GB), sau khi chốt chỉ giữ 2 model của kiến trúc định tuyến.
 - **Trạng thái:** Đã chốt các quyết định vận hành và thiết kế chi tiết **biến môi trường, docker-compose, health check, structured logging, metrics, backup/restore, quy trình deploy, xử lý sự cố**. **v4 áp dụng 4 quyết định hạ tầng:** (1) **Kafka** thay BullMQ/Redis cho bus sự kiện (5 topic, có **DLQ** — đảo ngược quyết định "không DLQ" của v3); (2) **Socket.IO gateway** trong `api` + adapter Redis; (3) **AI chạy nội bộ** bằng model cục bộ (`Qwen3-14B`/`Qwen3-8B`) qua engine `vLLM`/`Ollama` — **không** còn API bên ngoài; (4) **chỉ `.csv`**. Cùng đó: cursor pagination, RAM ~10 GB cho model trên VPS 15 GB → **bộ nhớ là ràng buộc vận hành số 1**.
 - **Giai đoạn:** Tech solution
@@ -1405,6 +1405,13 @@ Quy trình backup bắt buộc cho cutover: mục 3.9.5.
 - Dung lượng: PDF nhúng nguyên file font (nén Flate) — khoảng 300–500 KB mỗi báo cáo tuỳ font; theo dõi quota R2 (mục 3.14).
 - Lease job PDF: 10 phút, heartbeat mỗi ~3,3 phút; job kẹt quá lease được trả về `pending`, tối đa 3 lần thử rồi `failed` với `REPORT_LEASE_EXPIRED`.
 
+### 3.17. Giới hạn kích thước phân tích đồng bộ (đợt D/E)
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- `ANALYSIS_MAX_ROWS` (mặc định `200000`): `runAnalysis` so `dataset.row_count` trước khi nạp dữ liệu; vượt → `413 ANALYSIS_TOO_LARGE`. Đặt trong `env.validation.ts` và `.env.example`.
+- Lý do: phân tích hiện chạy đồng bộ và nạp toàn bộ dòng vào RAM; giới hạn bảo vệ API cho tới khi có phân tích bất đồng bộ.
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -1522,6 +1529,8 @@ Cấu hình, quy trình vận hành và quan sát đã rõ ràng; các rủi ro 
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.17 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Giới hạn kích thước phân tích đồng bộ / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.17; chờ duyệt trước khi sửa code.
 - **Thực hiện v7 / 2026-11-17:** Thêm `REPORT_FONT_PATH`, sửa đọc `REPORT_WORKER_ENABLED`, lease job PDF / Hoàn thiện module analysis theo yêu cầu người dùng / Thêm mục 3.16.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
 - **v1 / 2026-11-02:** Tạo khung phần 10 / Chuẩn bị thảo luận tuần tự / Chỉ tạo tài liệu, chưa thực thi thay đổi backend hoặc dữ liệu.

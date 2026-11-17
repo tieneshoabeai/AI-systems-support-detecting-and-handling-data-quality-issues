@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { AuditService } from '../../../audit/application/audit.service';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AnalysisService } from '../../application/analysis.service';
+import { ProjectAccessService } from '../../application/project-access.service';
 import { RunAnalysisSchema, RunAnalysisDto } from './dtos/run-analysis.dto';
 import { AnalysisConfigSchema } from './dtos/analysis-config.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
@@ -21,6 +22,7 @@ export class AnalysisController {
   constructor(
     private readonly analysisService: AnalysisService,
     private readonly audit: AuditService,
+    private readonly access: ProjectAccessService,
   ) {}
 
   @Post('projects/:projectId/analysis/config')
@@ -30,15 +32,18 @@ export class AnalysisController {
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async saveConfig(
     @Param('projectId') projectId: string,
+    @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(AnalysisConfigSchema)) dto: unknown,
   ) {
+    await this.access.assertProjectAccess(projectId, user, 'write');
     return this.analysisService.saveConfig(projectId, dto as never);
   }
 
   @Get('projects/:projectId/analysis/config')
   @ApiOperation({ summary: 'ANALYSIS-01: Xem cấu hình cột phân tích', operationId: 'getAnalysisConfig' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async getConfig(@Param('projectId') projectId: string) {
+  async getConfig(@Param('projectId') projectId: string, @CurrentUser() user: CurrentUserPayload) {
+    await this.access.assertProjectAccess(projectId, user, 'read');
     return this.analysisService.getConfig(projectId);
   }
 
@@ -51,6 +56,7 @@ export class AnalysisController {
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(RunAnalysisSchema)) dto: RunAnalysisDto,
   ) {
+    await this.access.assertProjectAccess(projectId, user, 'write');
     const data = await this.analysisService.runAnalysis(projectId, dto, user.userId);
     return data;
   }
@@ -58,7 +64,8 @@ export class AnalysisController {
   @Get('projects/:projectId/analysis/result')
   @ApiOperation({ summary: 'ANALYSIS-03: Kết quả phân tích (DQ-05 có điều kiện + ma trận tương quan + VIF + nhận xét AI)', operationId: 'getAnalysisResult' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  async getResult(@Param('projectId') projectId: string) {
+  async getResult(@Param('projectId') projectId: string, @CurrentUser() user: CurrentUserPayload) {
+    await this.access.assertProjectAccess(projectId, user, 'read');
     return this.analysisService.getResult(projectId);
   }
 

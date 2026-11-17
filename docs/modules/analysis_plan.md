@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.1 (2026-11-17)
-**Trạng thái:** Đã thực hiện đợt A, B, C (2026-11-17)
+**Phiên bản:** v1.3 (2026-11-17)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`) và D, E
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -66,11 +66,31 @@
 - Test: analysis 72/72, toàn bộ unit 165/165, kiến trúc 3/3, `tsc` sạch. Chưa chạy e2e với Mongo thật.
 - **Còn mở:** route `projects/{projectId}/analysis*`, `summary`, `report` chưa kiểm vai trò theo project ở tầng service (cùng loại rủi ro với mục 6); PDF chưa subset font.
 
-## 7. Nghiệm thu
+## 7. Đợt D/E — đã thực hiện (2026-11-17)
+Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
+
+| # | Thiếu sót | Hướng sửa | Tài liệu |
+|---|---|---|---|
+| D1 | Route `projects/{id}/analysis*`, `summary`, `report` không kiểm vai trò trong project | `application/project-access.service.ts` dùng chung; read/write theo ma trận; ngoài project → 404, Viewer ghi → 403; Viewer được yêu cầu + tải PDF | Phần 6 v7 mục 3.21 |
+| D2 | Cấu hình lưu theo tên cột → đổi tên làm hỏng cấu hình, kết quả không stale | Lưu key `c{i}`; `domain/input-fingerprint.util.ts` gồm metadata cột; stale `dataset_changed` | Phần 2 v10 mục 3.42, Phần 8 v7 mục 3.15 |
+| E1 | Thiếu dữ liệu biểu đồ 3.21 | `domain/chart-data.util.ts`: tỷ lệ thiếu, histogram, box plot, Top N + "Khác" (`chart_top_n` 1–20), chuỗi thời gian | Phần 7 v7 mục 3.18, Phần 12 v9 mục 3.18 |
+| E2 | Tổng kết thiếu mức ảnh hưởng/ưu tiên 3.29 | `domain/impact.util.ts`; issues có `severity/priority/reason`; đề xuất theo vấn đề; `config_used`, `thresholds`; PDF thêm cột mức ảnh hưởng | Phần 2 v10 mục 3.42, Phần 12 v9 mục 3.18 |
+| E3 | Không có outbox/thông báo | `recordEvent` `ANALYSIS_COMPLETED/FAILED`, `AI_JOB_SUCCEEDED/FAILED`; dispatcher + thông báo cho người chạy | Phần 9 v5 mục 3.12 |
+| E4 | Không giới hạn số dòng | `ANALYSIS_MAX_ROWS` (200.000) → 413 `ANALYSIS_TOO_LARGE` | Phần 10 v7 mục 3.17 |
+
+- Test: AN-11 → AN-20 (Phần 13 v8 mục 3.21) trong `test/analysis-wave6.spec.ts` — 22 test; toàn bộ unit 187/187, kiến trúc 3/3. Kết quả chi tiết: Phần 14 v8 mục 3.17.
+- Sửa thêm: worker AI hết lượt ghi nhầm đánh giá `succeeded` rỗng → `markAiFailed`; mapper `topN` mặc định 10 → 50.
+- Lệch so với đề xuất: giữ realtime phát trực tiếp; API cấu hình thêm `*Ref` (giữ `selectedColumns` là tên); `selected_columns` không khớp → 400.
+- **Còn mở:** CASL tĩnh theo vai trò workspace chặn PROJ-MEMBER là WS-MEMBER ở route ghi.
+- Để đợt sau: lưu/khôi phục trạng thái project (3.19), phân tích bất đồng bộ/Kafka, DQ-05 rule engine, tinh chỉnh kiểu/vai trò/PII cột (3.22), subset font PDF.
+
+## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
-## 8. Lịch sử thay đổi
+## 9. Lịch sử thay đổi
+- **v1.3 / 2026-11-17:** Thực hiện đợt D/E; ghi kết quả, điểm lệch và việc còn mở (mục 7).
+- **v1.2 / 2026-11-17:** Thêm đề xuất đợt D/E (mục 7), ghi tiếp vào các phiên bản tài liệu của đợt A/B/C.
 - **v1.1 / 2026-11-17:** Thực hiện đợt A, B, C; ghi kết quả và việc còn mở (mục 6).
 - **v1.0 / 2026-11-17:** Tạo tài liệu từ kết quả rà soát code module analysis; chờ duyệt.

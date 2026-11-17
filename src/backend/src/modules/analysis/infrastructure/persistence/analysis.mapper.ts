@@ -85,6 +85,7 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     temporal: (raw.timeAnalysis ?? null) as unknown,
     timeAnalysis: (raw.timeAnalysis ?? null) as unknown,
     evidenceSummary: (raw.evidenceSummary ?? null) as unknown,
+    charts: (raw.charts ?? null) as unknown,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,
@@ -128,7 +129,8 @@ export function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigReco
     valueColumn: doc.value_column ?? null,
     correlationMethod: doc.correlation_method ?? 'pearson',
     outlierMethod: doc.outlier_method ?? 'iqr',
-    topN: doc.top_n ?? 10,
+    topN: doc.top_n ?? 50,
+    chartTopN: doc.chart_top_n ?? 5,
   };
 }
 

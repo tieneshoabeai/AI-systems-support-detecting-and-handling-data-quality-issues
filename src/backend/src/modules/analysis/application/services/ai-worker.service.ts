@@ -127,10 +127,11 @@ export class AiWorkerService implements OnModuleInit {
       const exhausted = attempt >= maxAttempts;
       // Chi ghi danh gia AI failed khi da HET luot (moi loai loi) de ket qua khong ket o `pending`;
       // con luot thi giu job `pending` de worker thu lai (truoc day loi JSON lam job `failed` ngay).
-      // Ingest TRUOC roi ghi trang thai job sau de giu ma loi goc (AI_FAILED) thay vi AI_GROUNDING_FAILED.
+      // Ghi danh gia failed TRUOC roi ghi trang thai job sau de giu ma loi goc AI_FAILED.
+      // Khong dung ingestAiResult({}): `{}` hop le theo schema -> bi ghi nham `succeeded`.
       if (exhausted) {
         try {
-          await this.analysisService.ingestAiResult(jobId, {} as Record<string, unknown>, job.modelId ?? undefined);
+          await this.analysisService.markAiFailed(jobId, 'AI_FAILED', message);
         } catch {
           // bo qua, job da danh dau
         }

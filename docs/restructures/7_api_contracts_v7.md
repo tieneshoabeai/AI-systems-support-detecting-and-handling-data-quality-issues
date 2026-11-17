@@ -3,7 +3,7 @@
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.17 — Bổ sung hợp đồng module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.17 — Bổ sung hợp đồng module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.18 — Bổ sung hợp đồng module analysis — đợt D/E (đã thực hiện).
 - **Trạng thái:** Đã chốt quy ước hợp đồng (response, error, **cursor pagination**, URL, upload, bất đồng bộ, download) và **bảng đầy đủ 79 tính năng → 85 endpoint**. **v4 bổ sung: DQ-05 kích hoạt có điều kiện trong kết quả phân tích + ma trận tương quan/VIF và nhận xét AI (theo Phần 2 v7, Phần 12 v6).** **v5 bổ sung: breakdown thiếu pairwise, cảnh báo mất mẫu VIF, excludedColumns/date, worker AI (theo Phần 2 v8, Phần 12 v7).** **v6 chốt nhóm B (2026-11-07): không ETag, list project theo workspace mẫu, /health + /health/ready ngoài /api/v1, version mọi resource, lọc server-side, đính kèm 10MB×3 png/jpg/pdf.** Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 7; sử dụng kết quả đã xác nhận của các phần trước.
@@ -869,6 +869,18 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 - Ví dụ lỗi: `{ "error": { "code": "ANALYSIS_RESULT_STALE", "message": "Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích", "details": { "staleReason": "config_changed" } } }`
 - **Ghi chú triển khai:** `top_n` mặc định **50** (trước: 10), tối đa **500** (trước: 100) ở `POST analysis` và `POST analysis/config`. Tổng kết trả thêm `summary.top_n`. Viewer gọi `POST analysis/jobs/{jobId}/retry` → `403`. Audit mới: `AI_JOB_RETRIED`, `AI_RESULT_INGESTED`.
 
+### 3.18. Bổ sung hợp đồng module analysis — đợt D/E (đợt D/E)
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- **Cấu hình:** `POST /projects/{id}/analysis/config` nhận `selected_columns`, `label_column`, `time_column`, `value_column` theo tên hiện tại, key (`c{i}`) hoặc tên gốc; lưu theo key. Thêm `chart_top_n` (int 1–20, mặc định 5). `GET` trả `selectedColumns: [{ key, name }]` và tương tự cho nhãn/thời gian/giá trị.
+- **Kết quả:** `GET /projects/{id}/analysis/result` thêm khối `charts`:
+  `{ missingRate: [{ column, missingRate }], histograms: [{ column, bins: [{ from, to, count }], method }], boxPlots: [{ column, q1, median, q3, whiskerLow, whiskerHigh, outsideCount }], categories: [{ column, topN, items: [{ value, count, rate }], other: { count, rate } }], timeSeries: [{ period, recordCount }] | null }`.
+  `staleReason` thêm giá trị `dataset_changed`.
+- **Tổng kết:** `summary.issues[]` thêm `severity` (`low|medium|high|no_data`), `priority` (1..n), `reason`; thêm `summary.config_used`, `summary.thresholds[]`, `summary.dq05`; `recommendations[]` thành `{ dq, column, text, priority }`.
+- **Lỗi mới:** `413 ANALYSIS_TOO_LARGE` (`details: { rowCount, maxRows }`) khi chạy phân tích; `403` khi Viewer gọi route ghi; `404` khi người ngoài project.
+- **Ghi chú triển khai (lệch so với đề xuất):** để tương thích ngược, `selectedColumns`/`labelColumn`/`timeColumn`/`valueColumn` **vẫn là tên** cột hiện tại; thêm trường mới `selectedColumnRefs: [{ key, name }]`, `labelColumnRef`, `timeColumnRef`, `valueColumnRef`, `chartTopN`. `selected_columns`/`label_column`... có tham chiếu không khớp cột nào → `400` (trước: lọc âm thầm rồi phân tích toàn bộ cột). Policy tĩnh của `POST projects/{id}/report` hạ từ `Execute` xuống `Read` để Viewer gọi được.
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -939,6 +951,8 @@ Có API contract cùng ví dụ thành công/lỗi và liên kết tới tiêu c
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.18 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.18 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Bổ sung hợp đồng module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.18; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.17 sang đã thực hiện.
 - **Đề xuất v7 / 2026-11-17:** Bổ sung hợp đồng module analysis / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.17; chờ duyệt trước khi sửa code.
 - **Xác nhận v3 / 2026-11-05:** Phân trang chuyển từ offset sang **cursor** — response `{ items, meta: { nextCursor, hasMore } }`, bỏ `page`/`total`/`totalPages`; thêm ràng buộc cursor theo truy vấn và theo điều kiện lọc / Theo lựa chọn người dùng / Cập nhật mục 3.1 (quyết định 5), 3.2, 3.5, quy tắc C4.

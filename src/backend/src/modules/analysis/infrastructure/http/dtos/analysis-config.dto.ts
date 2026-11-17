@@ -9,6 +9,8 @@ export const AnalysisConfigSchema = z.object({
   correlation_method: z.enum(['pearson', 'spearman']).default('pearson'),
   outlier_method: z.enum(['iqr', 'modified_zscore', 'both']).default('iqr'),
   top_n: z.coerce.number().int().min(1).max(500).default(50),
+  /** Spec 3.21: Top N gia tri pho bien cho bieu do cot phan loai (1–20, mac dinh 5). */
+  chart_top_n: z.coerce.number().int().min(1).max(20).default(5),
 });
 
 export type AnalysisConfigDto = z.infer<typeof AnalysisConfigSchema>;

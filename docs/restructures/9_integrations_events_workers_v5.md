@@ -3,7 +3,7 @@
 - **Version:** v5
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v5)
-- **Thay đổi v5 (2026-11-17):** bổ sung mục 3.11 — Sửa hành vi worker AI corr-v1 và worker PDF. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v5 (2026-11-17):** bổ sung mục 3.11 — Sửa hành vi worker AI corr-v1 và worker PDF. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.12 — Sự kiện outbox + thông báo cho analysis / AI (đã thực hiện).
 - **Thay đổi v3 (2026-11-05):** hạ tầng sự kiện chuyển từ **BullMQ/Redis** sang **Kafka** (5 topic, 6 consumer group, DLQ `dlq.dead-letter`); thêm **Socket.IO** làm kênh realtime tới client; AI chuyển sang **engine cục bộ** (`Qwen3-14B`/`Qwen3-8B`) qua `AiInferencePort`. Đồng bộ theo quyết định **dữ liệu bất biến (chỉ đọc)** — không có event nào phát sinh từ thao tác xoá dòng / sửa ô / clean-rules / rollback phiên bản; consumer **không được** ghi vào `dataset_record`.
 - **Trạng thái:** Đã chốt 8 quyết định hạ tầng (relay change stream + polling fallback, 1 hàng đợi, inbox pattern, at-least-once, SMTP, PDF ở worker, cleanup hằng ngày, chỉ worker chạy consumer) và thiết kế chi tiết **toàn bộ sự kiện, hàng đợi, consumer, adapter hạ tầng, chính sách retry và phục hồi lỗi**. Đã chốt toàn bộ mục 6.2 ở v4 (2026-11-07).
 - **Giai đoạn:** Tech solution
@@ -837,6 +837,16 @@ Domain → outbox_event → [Kafka: domain.events] → consumer xử lý
 - Sự kiện realtime giữ nguyên (`analysis.completed`, `analysis.failed`, `ai.job.status`); thêm `report.status` khi job PDF đổi trạng thái (tuỳ chọn).
 - **Ghi chú triển khai:** sửa thêm lỗi phát hiện khi làm: `REPORT_WORKER_ENABLED` được `env.validation` parse thành boolean nhưng worker so sánh chuỗi `'true'` → worker PDF không bao giờ bật khi chạy qua `ConfigModule`. Đã chấp nhận cả boolean và chuỗi. Khi hết lượt, worker AI ghi đánh giá `failed` **trước** rồi mới ghi trạng thái job để giữ mã lỗi gốc `AI_FAILED`.
 
+### 3.12. Sự kiện outbox + thông báo cho analysis / AI (đợt D/E)
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- Ghi outbox qua `OutboxService.recordEvent`: `ANALYSIS_COMPLETED`, `ANALYSIS_FAILED` (trong `runAnalysis`); `AI_JOB_SUCCEEDED`, `AI_JOB_FAILED` (khi grounding xong hoặc worker AI hết lượt). Payload `{ project_id, analysis_id, job_id?, actor_id, error_code? }`.
+- `event-dispatcher.service.ts` thêm nhánh `AI_JOB_SUCCEEDED/FAILED` → realtime `ai.job.status`; bỏ các lệnh `realtime.emit*` gọi trực tiếp trong `AnalysisService` đang trùng nhánh dispatcher.
+- Thông báo cho `analysis_run.started_by` qua `NotificationsService.dispatch`; lỗi gửi thông báo không làm hỏng luồng nghiệp vụ.
+- **Ghi chú triển khai (lệch so với đề xuất):** **giữ** realtime phát trực tiếp trong `AnalysisService` — khi `WORKER_MODE=api`, relay outbox + dispatcher chạy ở process worker nên realtime phát từ đó không tới client của API. Dispatcher thêm nhánh `AI_JOB_SUCCEEDED/FAILED` chỉ `break` (tránh trùng và tránh nhánh `default`). Thông báo gửi trực tiếp qua `NotificationsService.dispatch` (loại `analysis_completed`, `analysis_failed`, `ai_analysis_ready`).
+- **Lỗi phát hiện khi làm (có từ trước đợt A/B/C):** worker AI hết lượt gọi `ingestAiResult({})`, nhưng `{}` hợp lệ theo schema corr-v1 nên đánh giá AI bị ghi **`succeeded` rỗng**. Đã thay bằng `AnalysisService.markAiFailed(jobId, 'AI_FAILED', message)` → đánh giá `failed` + sự kiện `AI_JOB_FAILED`.
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -932,6 +942,8 @@ Hợp đồng tích hợp và trách nhiệm xử lý lỗi được xác nhận
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.12 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.12 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Sự kiện outbox + thông báo cho analysis / AI / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.12; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.11 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.11 sang đã thực hiện.
 - **Đề xuất v5 / 2026-11-17:** Sửa hành vi worker AI corr-v1 và worker PDF / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.11; chờ duyệt trước khi sửa code.
 - **Xác nhận v3 / 2026-11-05:** Thay BullMQ bằng **Kafka** làm event bus và hàng đợi job — 5 topic theo bounded context, 6 consumer group, commit offset thủ công, retry 2 lần rồi `dlq.dead-letter`; topic riêng `ai.jobs` cho AI với concurrency 1 / Theo lựa chọn người dùng / Viết lại mục 3.4.2, 3.4.3, 3.4.4, 3.5.2, cập nhật 3.1, 3.2, 3.9.

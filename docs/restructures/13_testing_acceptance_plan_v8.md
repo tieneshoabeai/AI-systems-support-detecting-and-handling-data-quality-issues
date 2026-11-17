@@ -3,7 +3,7 @@
 - **Version:** v8
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v8)
-- **Thay đổi v8 (2026-11-17):** bổ sung mục 3.20 — Test bổ sung cho hoàn thiện module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v8 (2026-11-17):** bổ sung mục 3.20 — Test bổ sung cho hoàn thiện module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.21 — Test bổ sung đợt D/E module analysis (đã thực hiện).
 - **Trạng thái:** Đã chốt 17 quyết định kiểm thử và thiết kế chi tiết **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**), ma trận truy xuết ngược **120 quy tắc kiểm thử** (S/C/I/O/M) + 79 tính năng + 66 use case + 85 endpoint, ngưỡng coverage theo tầng, checker kiến trúc tự động, `k6` cho hiệu năng, factory + seed cho dữ liệu test, **48** tình huống phân quyền tự động, và quy trình nghiệm thu 3 bước.
 - **Thay đổi v2 (2026-11-05):** đồng bộ theo quyết định **dữ liệu bất biến (chỉ đọc)** — bỏ toàn bộ test cho xoá dòng, sửa ô, clean-rules, rollback phiên bản, lineage; bổ sung test **insert-only** cho `dataset_record`; số liệu toàn tài liệu cập nhật (93 quy tắc / 77 tính năng / 62 use case / 80 endpoint / 21 collection / 34 tình huống phân quyền).
 - **Thay đổi v4 (2026-11-05):** áp dụng 4 quyết định kiến trúc. (1) **Cursor pagination** — thêm bộ test phân trang keyset (C9–C13) + quy tắc kiến trúc A15. (2) **Kafka + Socket.IO** — thêm container Kafka vào môi trường test, bộ test luồng sự kiện (I15–I21) và test realtime. (3) **AI cục bộ** — quyết định 8 viết lại (mock adapter, không bao giờ gọi network ra ngoài), thêm **Tầng 9 — Benchmark AI & học lại** (quyết định 15–17). (4) **Chỉ `.csv`** — test từ chối `.xlsx` (C13) + quy tắc A16. Ngoài ra: số liệu cập nhật (120 quy tắc / 79 tính năng / 66 use case / 85 endpoint / 48 tình huống phân quyền).
@@ -1177,6 +1177,23 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 | AN-09 | Report job `running` quá lease | trả về `pending` / `failed` sau 2 lần |
 | AN-10 | `top_n = 5` | Tổng kết/PDF tối đa 5 phát hiện |
 
+### 3.21. Test bổ sung đợt D/E module analysis
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+| Mã | Mô tả | Kỳ vọng |
+|---|---|---|
+| AN-11 | Người ngoài project gọi các route `projects/{id}/analysis*`, `summary`, `report` | 404 |
+| AN-12 | Viewer: GET config/result/summary, POST report, GET file | thành công |
+| AN-13 | Viewer: POST config/analysis/summary | 403 |
+| AN-14 | Đổi tên cột sau khi lưu cấu hình | cấu hình vẫn đúng cột (theo key) |
+| AN-15 | Đổi tên cột sau khi phân tích → GET result / tạo Tổng kết | `isStale`, `dataset_changed` / 409 |
+| AN-16 | Histogram, box plot, Top N + "Khác", `chart_top_n` ngoài 1–20 | đúng số liệu / 400 |
+| AN-17 | Mức ảnh hưởng tại biên 1%, 10%, 0,5%, 5% và cột 0 dòng | đúng mức / `no_data` |
+| AN-18 | Thứ tự ưu tiên trong Tổng kết | cao → trung bình → thấp, cùng mức theo tỷ lệ |
+| AN-19 | Phân tích thành công/lỗi, AI xong/hết lượt | ghi đúng sự kiện outbox |
+| AN-20 | `rowCount > ANALYSIS_MAX_ROWS` | 413 `ANALYSIS_TOO_LARGE`, không nạp dữ liệu |
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -1268,6 +1285,8 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.21 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.21 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Test bổ sung đợt D/E module analysis / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.21; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.20 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.20 sang đã thực hiện.
 - **Đề xuất v8 / 2026-11-17:** Test bổ sung cho hoàn thiện module analysis / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.20; chờ duyệt trước khi sửa code.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.

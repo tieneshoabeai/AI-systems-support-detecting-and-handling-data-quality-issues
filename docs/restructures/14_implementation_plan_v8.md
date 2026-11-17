@@ -3,7 +3,7 @@
 - **Version:** v8
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v8)
-- **Thay đổi v8 (2026-11-17):** bổ sung mục 3.16 — Đợt hoàn thiện module analysis (2026-11-17). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v8 (2026-11-17):** bổ sung mục 3.16 — Đợt hoàn thiện module analysis (2026-11-17). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.17 — Đợt D/E hoàn thiện module analysis (đã thực hiện).
 - **Thay đổi v5 (2026-11-06):** AI chuyển sang **benchmark 5 model / 9 chỉ số** trước khi chốt (Phần 12 v5). Đợt 5 thêm work package tải **5 file `.gguf`** (~35 GB đĩa) và chạy benchmark đầy đủ (3 lần/model × 200 mẫu = 3.000 lượt suy luận) trước khi chốt cặp model định tuyến hai tầng; ước lượng Đợt 5 tăng 35,5 → **~40 ngày công**; tổng **~181 → ~185,5 ngày công**.
 - **Trạng thái:** Đã chốt 18 quyết định triển khai và thiết kế chi tiết **chiến lược Hybrid**, **7 đợt giao hàng**, **cấu trúc monorepo pnpm**, **feature flag chuyển traffic theo module**, **migrate dữ liệu theo từng nhóm module**, quy trình commit/PR, ước tính khối lượng theo module và lịch trình, bảng phân bổ **120 quy tắc kiểm thử** theo đợt, cùng **cảnh báo lệch lịch do chênh lệch ước tính**.
 - **Thay đổi v4 (2026-11-05):** áp dụng 4 quyết định kiến trúc. (1) **Cursor pagination** thay offset toàn hệ thống — thêm work package ở Đợt 1 + Đợt 4. (2) **Kafka + Socket.IO** thay BullMQ/Redis — thêm hạ tầng Kafka ở Đợt 1, realtime gateway ở Đợt 1, consumer chuyển đổi ở Đợt 5. (3) **AI cục bộ** — thêm work package `ai-engine` (vLLM/Ollama) + model + benchmark ở Đợt 5; **bỏ** phụ thuộc Gemini. (4) **Chỉ `.csv`** — bỏ `dataset_sheet` khỏi Đợt 4, bỏ thư viện Excel. Ngoài ra: thêm **Đợt 7 — Feedback & học lại** (module `feedback`), ước lượng ~146 → **~181 ngày công**.
@@ -992,6 +992,23 @@ Kế hoạch thực hiện đã thống nhất trước khi viết code.
 - **File code chính:** `analysis.service.ts` (`retryJob`, `assertJobAccess`, `toApiShape`, helper `toNamedRow`), `summary.service.ts`, `report-worker.service.ts`, `report-content.util.ts` (mới), `pdf-builder.util.ts` (viết lại, nhúng TTF), `ai-worker.service.ts`, `analysis.controller.ts`, `analysis.repository.ts` + port, `report-job.schema.ts`, `domain/top-n.util.ts` (mới), `shared/config/env.validation.ts`, `.env.example`.
 - **Còn mở:** (1) các route `projects/{projectId}/analysis*`, `summary`, `report` cũng chưa kiểm vai trò theo project ở tầng service (guard chỉ kiểm tĩnh subject `Analysis`) — cùng loại rủi ro với mục 6, cần một đợt riêng; (2) PDF nhúng nguyên file font (~400 KB/PDF với Arial), chưa subset; (3) `pnpm` hiện không chạy với Node 20 nên không thêm thư viện PDF.
 
+### 3.17. Đợt D/E hoàn thiện module analysis
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- **Bối cảnh:** sau đợt A/B/C (mục 3.16) còn 6 thiếu sót: route project chưa kiểm vai trò; cấu hình lưu theo tên cột (đổi tên làm hỏng cấu hình, không stale); thiếu dữ liệu biểu đồ 3.21; Tổng kết thiếu mức ảnh hưởng/ưu tiên 3.29; chưa có outbox/thông báo; không giới hạn số dòng.
+- **Đợt D — đúng đắn/bảo mật:** D1 kiểm quyền project (Phần 6 v7 mục 3.21); D2 cấu hình theo key + fingerprint gồm metadata cột, stale `dataset_changed`.
+- **Đợt E — tính năng:** E1 dữ liệu biểu đồ; E2 Tổng kết có mức ảnh hưởng, ưu tiên, đề xuất theo vấn đề; E3 outbox + thông báo; E4 `ANALYSIS_MAX_ROWS`.
+- **Quyết định người dùng 2026-11-17:** Viewer được yêu cầu + tải PDF; để đợt sau: lưu trạng thái project (3.19), phân tích bất đồng bộ/Kafka, DQ-05 rule engine.
+- **Nghiệm thu:** AN-11 → AN-20 (Phần 13 v8 mục 3.21), `tsc`, toàn bộ unit + test kiến trúc, render PDF mẫu.
+- **Kết quả nghiệm thu đợt D/E (2026-11-17):**
+  - `npx tsc --noEmit` sạch. Test mới `test/analysis-wave6.spec.ts` (22 test, AN-11 → AN-20). Analysis: 94/94; toàn bộ unit **187/187**; kiến trúc **3/3**. Render PDF mẫu: cột mức ảnh hưởng, mục cấu hình, bảng Top N + "Khác" hiển thị đúng.
+  - Commit nền: `f9f61eb` (đợt A/B/C). Đợt D/E chưa commit.
+  - Lỗi phát hiện thêm và đã sửa: worker AI hết lượt ghi nhầm đánh giá AI `succeeded` rỗng (`ingestAiResult({})`) → `markAiFailed`; mapper `analysis_config` mặc định `topN` 10.
+  - Lệch so với đề xuất: giữ realtime phát trực tiếp (Phần 9 v5 mục 3.12); API cấu hình thêm `*Ref` thay vì đổi kiểu `selectedColumns` (Phần 7 v7 mục 3.18).
+  - File mới: `application/project-access.service.ts`, `application/staleness.service.ts`, `domain/input-fingerprint.util.ts`, `domain/chart-data.util.ts`, `domain/impact.util.ts`.
+- **Còn mở sau đợt D/E:** CASL tĩnh theo vai trò workspace chặn PROJ-MEMBER là WS-MEMBER ở route ghi (Phần 6 v7 mục 3.21); lưu/khôi phục trạng thái project (3.19); phân tích bất đồng bộ/Kafka + hủy khi đổi cấu hình; DQ-05 rule engine; tinh chỉnh kiểu/vai trò/PII cột (3.22); subset font PDF; e2e với Mongo thật.
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -1084,6 +1101,8 @@ Kế hoạch thực hiện đã thống nhất trước khi viết code.
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.17 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Đợt D/E hoàn thiện module analysis / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.17; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.16 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.16 sang đã thực hiện.
 - **Đề xuất v8 / 2026-11-17:** Đợt hoàn thiện module analysis (2026-11-17) / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.16; chờ duyệt trước khi sửa code.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.

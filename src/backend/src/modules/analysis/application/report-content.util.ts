@@ -40,7 +40,14 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
   const { save, result, evidences, topN } = input;
   const summary = (save.summary ?? {}) as Record<string, unknown>;
   const issues = arr<Record<string, unknown>>(summary.issues);
-  const recommendations = arr<unknown>(summary.recommendations).map((r) => String(r));
+  // Ban Tong ket moi: recommendations la { priority, dq, column, text }; ban cu la chuoi
+  const recommendations = arr<unknown>(summary.recommendations).map((r) => {
+    const o = obj(r);
+    if (!o) return String(r);
+    return `[${o.priority ?? '-'}] ${o.dq ?? ''}${o.column ? ` · ${o.column}` : ''}: ${o.text ?? ''}`;
+  });
+  const severityLabel = (s: unknown): string =>
+    s === 'high' ? 'Cao' : s === 'medium' ? 'Trung bình' : s === 'low' ? 'Thấp' : s === 'no_data' ? 'Không có dữ liệu' : '-';
   const overview = typeof summary.overview === 'string' ? summary.overview : 'Tổng kết chất lượng dữ liệu.';
   const sections: PdfSection[] = [];
 
@@ -60,21 +67,38 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
   sections.push({
     heading: `2. Top phát hiện (tối đa ${topN})`,
     table: {
-      headers: ['#', 'Nhóm', 'Cột', 'Số lượng', 'Tỷ lệ'],
-      widths: [0.06, 0.14, 0.44, 0.18, 0.18],
+      headers: ['Ưu tiên', 'Nhóm', 'Cột', 'Mức ảnh hưởng', 'Số lượng', 'Tỷ lệ'],
+      widths: [0.09, 0.1, 0.36, 0.17, 0.14, 0.14],
       rows: issues.slice(0, topN).map((it, i) => [
-        String(i + 1),
+        String(it.priority ?? i + 1),
         String(it.dq ?? it.rule ?? 'DQ'),
         it.column === null || it.column === undefined ? '(toàn bảng)' : String(it.column),
+        severityLabel(it.severity),
         fmt(it.count, 0),
         pct(it.rate),
       ]),
     },
   });
 
+  const cfgUsed = obj(summary.config_used);
+  if (cfgUsed) {
+    const sel = Array.isArray(cfgUsed.selected_columns) ? (cfgUsed.selected_columns as unknown[]).join(', ') : '(tất cả cột suy luận được)';
+    sections.push({
+      heading: '2b. Cấu hình phân tích đã dùng',
+      lines: [
+        `Cột phân tích: ${sel}`,
+        `Cột nhãn: ${cfgUsed.label_column ?? '(không chọn)'} · cột thời gian: ${cfgUsed.time_column ?? '(không có)'} (${cfgUsed.time_granularity ?? '-'}) · cột giá trị: ${cfgUsed.value_column ?? '(không có)'}`,
+        `Tương quan: ${cfgUsed.correlation_method ?? '-'} · ngoại lệ: ${cfgUsed.outlier_method ?? '-'} · top_n: ${cfgUsed.top_n ?? '-'} · Top N biểu đồ: ${cfgUsed.chart_top_n ?? '-'}`,
+      ],
+    });
+  }
+  for (const u of arr<Record<string, unknown>>(summary.unassessable)) {
+    recommendations.push(`Cột ${u.column}: ${u.reason}`);
+  }
+
   sections.push({
-    heading: '3. Khuyến nghị xử lý tại nguồn',
-    lines: recommendations.length > 0 ? recommendations.slice(0, 20).map((r) => `• ${r}`) : ['(chưa có khuyến nghị)'],
+    heading: '3. Khuyến nghị xử lý tại nguồn (theo thứ tự ưu tiên)',
+    lines: recommendations.length > 0 ? recommendations.slice(0, Math.max(20, topN)).map((r) => `• ${r}`) : ['(chưa có khuyến nghị)'],
   });
 
   if (!result) {
@@ -173,6 +197,22 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     },
   });
 
+  const charts = obj(result.charts);
+  for (const cat of arr<Record<string, unknown>>(charts?.categories)) {
+    const other = obj(cat.other);
+    sections.push({
+      heading: `Phụ lục A · Tần suất cột "${cat.column}" (Top ${cat.topN} + Khác)`,
+      table: {
+        headers: ['Giá trị', 'Số lượng', 'Tỷ lệ'],
+        widths: [0.6, 0.2, 0.2],
+        rows: [
+          ...arr<Record<string, unknown>>(cat.items).map((i) => [String(i.value), fmt(i.count, 0), pct(i.rate)]),
+          ...(other ? [['Khác', fmt(other.count, 0), pct(other.rate)]] : []),
+        ],
+      },
+    });
+  }
+
   const imb = obj(result.imbalance);
   sections.push({
     heading: 'Phụ lục B — Mất cân bằng lớp',
@@ -236,9 +276,11 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
   });
 
   const dq05 = obj(result.dq05);
+  const thresholds = arr<Record<string, unknown>>(summary.thresholds);
   sections.push({
     heading: 'Phụ lục E — Ngưỡng và quy tắc áp dụng',
     lines: [
+      ...thresholds.map((th) => `Mức ảnh hưởng ${th.dq}: ${th.rule} — ${th.reason}`),
       'DQ-01 thiếu dữ liệu: null/undefined/chuỗi rỗng; 0/false/"NA" không tính là thiếu.',
       'DQ-02 trùng lặp: so khớp chính xác trên các cột được chọn; dòng thiếu toàn bộ không gom nhóm.',
       'DQ-03 sai kiểu/định dạng: theo kiểu cột đã suy luận/tinh chỉnh.',

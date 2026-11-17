@@ -61,6 +61,7 @@ export interface AnalysisResultRecord {
   /** alias cu cho temporal */
   timeAnalysis?: unknown;
   evidenceSummary?: unknown;
+  charts?: unknown;
   aiCorrelationAssessment?: unknown;
   isStale: boolean;
   staleReason?: string | null;
@@ -109,6 +110,7 @@ export interface AnalysisConfigRecord {
   correlationMethod?: string;
   outlierMethod?: string;
   topN?: number;
+  chartTopN?: number;
   // snake aliases cu
   selected_columns?: string[] | null;
   label_column?: string | null;
@@ -118,6 +120,7 @@ export interface AnalysisConfigRecord {
   correlation_method?: string;
   outlier_method?: string;
   top_n?: number;
+  chart_top_n?: number;
 }
 
 export interface ProjectSaveRecord {

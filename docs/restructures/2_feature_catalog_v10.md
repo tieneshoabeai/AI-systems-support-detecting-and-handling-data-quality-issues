@@ -3,7 +3,7 @@
 - **Version:** v10
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v10)
-- **Thay đổi v10 (2026-11-17):** bổ sung mục 3.41 — Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v10 (2026-11-17):** bổ sung mục 3.41 — Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.42 — Hoàn thiện module analysis — đợt D/E (đã thực hiện).
 - **Trạng thái:** Đã chốt các câu hỏi còn mở của v1 (mục 3.25–3.31). Trạng thái chốt: **đối tượng sử dụng, nguồn dữ liệu, phạm vi phân tích, tiêu chí DQ-01..DQ-05, quyền theo vai trò, ngưỡng ảnh hưởng, mức chi tiết bằng chứng, phạm vi AI, lưu trữ file và cơ chế async AI đã xác nhận**. **v7 bổ sung: DQ-05 kích hoạt có điều kiện theo quy tắc được xác nhận + ma trận tương quan/VIF do AI đánh giá. **v8 bổ sung: breakdown thiếu pairwise từng ô, cảnh báo mất mẫu VIF, nêu rõ cột date bị loại, worker AI corr-v1 (2026-11-07).** Phần còn mở được liệt kê tại mục 6.
 - **Giai đoạn:** Feature
 - **Thứ tự thực hiện:** Phần 2; sử dụng kết quả đã xác nhận của các phần trước.
@@ -1382,6 +1382,18 @@ Quyết định này được áp dụng đồng bộ sang: Phần 3 (use case),
 - **Ngoài phạm vi đợt này:** DQ-05 rule engine (giữ `unassessed`), chuyển AI job sang Kafka, phân tích bất đồng bộ cho dataset lớn.
 - **Ghi chú triển khai:** mặc định `top_n` đổi từ 10 → **50** (DTO `run-analysis`/`analysis-config`, schema `analysis_config`), tối đa 500, để khớp mục 6.6 v9 (PDF top 50). Tổng kết dùng `top_n` của chính lần chạy.
 
+### 3.42. Hoàn thiện module analysis — đợt D/E
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- **Phân quyền theo project (bổ sung 3.9, 3.19, 3.20):** mọi route `projects/{projectId}/analysis*`, `summary`, `report` kiểm vai trò người gọi trong project. Viewer: xem cấu hình, kết quả, Tổng kết; **được yêu cầu sinh và tải PDF** (quyết định 2026-11-17). Chạy phân tích, lưu cấu hình, tạo Tổng kết, thử lại AI: PROJ-MEMBER+. Người ngoài project → không thấy tài nguyên (404).
+- **Đổi đầu vào → phải chạy lại (làm rõ 3.18):** cấu hình phân tích tham chiếu cột bằng **key bất biến** (`c{i}`), không theo tên hiển thị. Đổi tên cột, đổi dataset hoặc metadata cột (kiểu, PII) làm kết quả hiện có thành lỗi thời (`dataset_changed`); Tổng kết mới và thử lại AI bị chặn cho tới khi chạy lại phân tích.
+- **ANALYSIS-03 / 3.21 — dữ liệu biểu đồ:** backend trả dữ liệu cho 5 loại biểu đồ đã đồng ý: cột tỷ lệ thiếu theo cột; histogram cột số; box plot (trung vị, tứ phân vị, râu 1,5×IQR, số điểm ngoài râu); thanh tần suất cột phân loại với **Top N + nhóm "Khác"** (N mặc định 5, người có quyền chỉnh 1–20, lưu trong cấu hình `chart_top_n`); số bản ghi theo thời gian. Quy tắc chia khoảng histogram dùng tạm Freedman–Diaconis (Phần 12 v9 mục 3.18).
+- **SUMMARY-01 — nội dung đầy đủ (3.9 + 3.29):** mỗi vấn đề có **mức ảnh hưởng** (thấp/trung bình/cao/không có dữ liệu) theo bảng ngưỡng 3.29 kèm lý do; sắp **theo thứ tự ưu tiên** (mức ảnh hưởng → tỷ lệ); đề xuất xử lý theo từng nhóm DQ và cột (mẫu cố định, không do AI sinh); kèm cấu hình phân tích đã dùng, bảng ngưỡng, trạng thái DQ-05.
+- **Thông báo:** khi phân tích hệ thống xong/lỗi và khi phần AI xong/lỗi, người chạy phân tích nhận thông báo (Phần 9 v5 mục 3.12).
+- **Giới hạn kích thước:** phân tích đồng bộ từ chối dataset vượt `ANALYSIS_MAX_ROWS` (mặc định 200.000 dòng) với thông báo rõ; phân tích bất đồng bộ cho dataset lớn để đợt sau.
+- **Để đợt sau:** lưu/khôi phục trạng thái project (3.19), phân tích bất đồng bộ + hủy khi đổi cấu hình, DQ-05 rule engine, tinh chỉnh kiểu/vai trò/PII cột (3.22).
+
 ## 4. Đầu vào và đầu ra
 
 - **Đầu vào:** Yêu cầu người dùng, kết quả các phần trước và mã nguồn/tài liệu hiện trạng liên quan.
@@ -1468,6 +1480,8 @@ Nếu phát hiện mâu thuẫn với phần trước, cần xác nhận lại v
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.42 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.42 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** Hoàn thiện module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.42; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.41 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.41 sang đã thực hiện.
 - **Đề xuất v10 / 2026-11-17:** Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01 / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.41; chờ duyệt trước khi sửa code.
 - **Xác nhận v5 / 2026-11-05:** Chỉ hỗ trợ file `.csv`; gỡ toàn bộ khái niệm sheet, gỡ `FILE-01`/`FILE-02`, gỡ collection `dataset_sheet` / Theo yêu cầu người dùng / Viết lại mục 3.2, 3.8, 3.25, 3.26, cập nhật mục 3.12, 3.19 và bảng đối chiếu 3.32.

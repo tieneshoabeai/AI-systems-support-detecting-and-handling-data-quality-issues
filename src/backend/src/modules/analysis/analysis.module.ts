@@ -21,9 +21,12 @@ import { LocalInferenceAdapter } from './infrastructure/ai/local-inference.adapt
 import { AiWorkerService } from './application/services/ai-worker.service';
 import { RagFewShotService } from './application/services/rag-few-shot.service';
 import { AnalysisService } from './application/analysis.service';
+import { ProjectAccessService } from './application/project-access.service';
+import { StalenessService } from './application/staleness.service';
 import { AnalysisController } from './infrastructure/http/analysis.controller';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { StorageModule } from '../../shared/storage/storage.module';
 import { DatasetsModule } from '../datasets/datasets.module';
 import { DataViewModule } from '../data-view/data-view.module';
@@ -43,6 +46,7 @@ import { DataViewModule } from '../data-view/data-view.module';
     ]),
     ProjectsModule,
     WorkspacesModule,
+    NotificationsModule,
     DatasetsModule,
     DataViewModule,
     StorageModule,
@@ -52,6 +56,8 @@ import { DataViewModule } from '../data-view/data-view.module';
     AnalysisRepository,
     { provide: ANALYSIS_REPOSITORY_PORT, useExisting: AnalysisRepository },
     AnalysisService,
+    ProjectAccessService,
+    StalenessService,
     SummaryService,
     ReportService,
     ReportWorkerService,

@@ -3,7 +3,7 @@
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.14 — Collection `report_job` (bổ sung mô tả + lease). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện.
+- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.14 — Collection `report_job` (bổ sung mô tả + lease). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.15 — `analysis_config` theo key cột + `analysis_result.charts` (đã thực hiện).
 - **Trạng thái:** Đã chốt 11 quyết định schema và thiết kế **21 collection** đầy đủ (trường, index, unique constraint, transaction boundary, TTL, retention, layout storage R2) cùng bảng migration từ schema hiện tại. **v4:** gộp `dataset_sheet` vào `dataset` (21 → 20), thêm `finding_feedback` + `feedback_example` (20 → **21**), cập nhật `ai_job` cho Kafka + model. **v5:** mở rộng `analysis_result` (breakdown thiếu pairwise, `commonNRate`/`lossWarning`, `excludedColumns`, lý do date riêng) + worker AI corr-v1 (`claimPendingJob`, `AiWorkerService`, biến môi trường `AI_*`). Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 8; sử dụng kết quả đã xác nhận của các phần trước.
@@ -1347,6 +1347,15 @@ Không còn đường ghi nào khác. Điều này loại bỏ hẳn các nhóm 
 - Migration: trường mới có giá trị mặc định, không cần backfill.
 - **Ghi chú triển khai:** đã thêm `attempt`, `lease_expires_at`, `heartbeat_at` và 2 index `{status, created_at}`, `{status, lease_expires_at}` vào `report-job.schema.ts`. Job cũ thiếu `attempt` vẫn được thu hồi (lọc `$not: {$gte}`).
 
+### 3.15. `analysis_config` theo key cột + `analysis_result.charts` (đợt D/E)
+
+- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
+
+- `analysis_config`: `selected_columns`, `label_column`, `time_column`, `value_column` lưu **key cột** (`c{i}`); thêm `chart_top_n: Number` (mặc định 5). Bản ghi cũ lưu theo tên được map sang key khi đọc, không cần script migration.
+- `analysis_result`: thêm `charts: Mixed` (cấu trúc theo Phần 7 v7 mục 3.18); `dq_summary.columns[]` thêm `outlierBreakdown: { iqrOnly, zOnly, both }` để tính mức ảnh hưởng DQ-04.
+- `input_fingerprint` tính lại theo cả metadata cột được dùng (key, tên, kiểu, PII), phục vụ phát hiện kết quả lỗi thời.
+- **Ghi chú triển khai:** `analysis_run.config` lưu thêm `fingerprint_version: 2`, `selected_column_keys` (key thật), `selected_column_names`, `label/time/value_column_key`, `chart_top_n`. Lần chạy cũ (không có `fingerprint_version`) chỉ dựa vào cờ `is_stale` đã lưu, không bị coi là lỗi thời hàng loạt. Sửa thêm: mapper `analysis_config` mặc định `topN` 10 → 50 (sót từ đợt C).
+
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -1428,6 +1437,8 @@ Schema và invariant đáp ứng use case; các thay đổi so với dữ liệu
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.15 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.15 sang đã thực hiện.
+- **Đề xuất đợt D/E / 2026-11-17:** `analysis_config` theo key cột + `analysis_result.charts` / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.15; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.14 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.14 sang đã thực hiện.
 - **Đề xuất v7 / 2026-11-17:** Collection `report_job` (bổ sung mô tả + lease) / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.14; chờ duyệt trước khi sửa code.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.

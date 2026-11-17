@@ -1,9 +1,17 @@
-import { Inject, Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger, Optional } from '@nestjs/common';
-import * as crypto from 'crypto';
+import { Inject, Injectable, NotFoundException, BadRequestException, ConflictException, PayloadTooLargeException, Logger, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../../realtime/domain/ports/realtime.port';
+import { OUTBOX_PORT, type OutboxPort } from '../../../shared/ports/outbox.port';
+import { NotificationsService } from '../../notifications/application/notifications.service';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../domain/ports/analysis.repository.port';
 import { ProjectsService } from '../../projects/application/projects.service';
-import { WorkspacesService } from '../../workspaces/application/workspaces.service';
+import { ProjectAccessService } from './project-access.service';
+import { StalenessService } from './staleness.service';
+import {
+  FINGERPRINT_VERSION,
+  computeInputFingerprint,
+  resolveColumnRef,
+  type ResolvedRunConfig,
+} from '../domain/input-fingerprint.util';
 import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../datasets/domain/ports/dataset.repository.port';
 import { RECORD_QUERY_PORT, type RecordQueryPort } from '../../data-view/domain/ports/record-query.port';
 import { isObjectIdHex } from '../../../shared/utils/object-id.util';
@@ -39,6 +47,7 @@ export interface AnalysisConfigInput {
   correlation_method: 'pearson' | 'spearman';
   outlier_method: 'iqr' | 'modified_zscore' | 'both';
   top_n: number;
+  chart_top_n?: number;
 }
 import { ConfigService } from '@nestjs/config';
 import { RagFewShotService } from './services/rag-few-shot.service';
@@ -46,6 +55,7 @@ import { maskCell } from '../domain/pii-mask.util';
 import { computeDq0102, computeDq03, detectOutliers, isMissingCell, isValidByType } from '../domain/dq.util';
 import { describeColumn, evaluateImbalance, analyzeTime } from '../domain/stats.util';
 import { toFiniteNumber } from '../domain/correlation.util';
+import { boxPlot, categoryTopN, clampChartTopN, histogram, type ChartData } from '../domain/chart-data.util';
 
 /**
  * Phần 12 v8 §3.6b #2 — Che PII trước khi đưa mẫu vào prompt AI.
@@ -85,13 +95,67 @@ export class AnalysisService {
     @Inject(RECORD_QUERY_PORT)
     private readonly records: RecordQueryPort,
     private readonly configService: ConfigService,
-    private readonly workspacesService: WorkspacesService,
+    private readonly projectAccess: ProjectAccessService,
+    private readonly staleness: StalenessService,
     @Optional() @Inject(REALTIME_PORT) private readonly realtime?: RealtimePort,
     @Optional() private readonly ragFewShot?: RagFewShotService,
+    @Optional() @Inject(OUTBOX_PORT) private readonly outbox?: OutboxPort,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
-  private fingerprint(parts: Record<string, unknown>): string {
-    return crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex');
+  /**
+   * E3 (Phan 9 v5 muc 3.12): ghi su kien outbox + thong bao cho nguoi chay phan tich.
+   * Best-effort — loi outbox/thong bao KHONG lam hong luong nghiep vu chinh.
+   * Realtime van phat truc tiep: khi WORKER_MODE=api, relay/dispatcher chay o process worker
+   * nen realtime phat tu do khong toi client cua API.
+   */
+  private async publishLifecycle(params: {
+    eventType: 'ANALYSIS_COMPLETED' | 'ANALYSIS_FAILED' | 'AI_JOB_SUCCEEDED' | 'AI_JOB_FAILED';
+    projectId: string;
+    workspaceId?: string | null;
+    runId: string;
+    actorId: string | null;
+    jobId?: string;
+    errorCode?: string | null;
+  }): Promise<void> {
+    const { eventType, projectId, runId, actorId, jobId } = params;
+    try {
+      await this.outbox?.recordEvent({
+        aggregate_type: jobId ? 'AI_JOB' : 'ANALYSIS_RUN',
+        aggregate_id: jobId ?? runId,
+        event_type: eventType,
+        project_id: projectId,
+        workspace_id: params.workspaceId ?? null,
+        actor_id: actorId,
+        payload: {
+          project_id: projectId,
+          analysis_id: runId,
+          ...(jobId ? { job_id: jobId } : {}),
+          actor_id: actorId,
+          ...(params.errorCode ? { error_code: params.errorCode } : {}),
+        },
+      });
+    } catch (err: unknown) {
+      this.logger.warn(`Ghi outbox ${eventType} that bai: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (!actorId || !this.notifications) return;
+    const copy = {
+      ANALYSIS_COMPLETED: { type: 'analysis_completed', title: 'Phân tích dữ liệu đã hoàn tất' },
+      ANALYSIS_FAILED: { type: 'analysis_failed', title: 'Phân tích dữ liệu thất bại — hãy chạy lại' },
+      AI_JOB_SUCCEEDED: { type: 'ai_analysis_ready', title: 'Nhận xét AI về tương quan/VIF đã sẵn sàng' },
+      AI_JOB_FAILED: { type: 'analysis_failed', title: 'Nhận xét AI thất bại — kết quả hệ thống vẫn dùng được, có thể thử lại AI' },
+    } as const;
+    try {
+      await this.notifications.dispatch({
+        userId: actorId,
+        type: copy[eventType].type,
+        title: copy[eventType].title,
+        summary: params.errorCode ? `Mã lỗi: ${params.errorCode}` : null,
+        payload: { targetType: jobId ? 'ai_job' : 'analysis_run', targetId: jobId ?? runId, actionUrl: `/projects/${projectId}/analysis` },
+      });
+    } catch (err: unknown) {
+      this.logger.warn(`Gui thong bao ${eventType} that bai: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   async runAnalysis(projectId: string, dto: RunAnalysisInput, userId?: string): Promise<Record<string, unknown>> {
@@ -103,59 +167,82 @@ export class AnalysisService {
     if (!dataset) {
       throw new NotFoundException('Project chưa có dataset để phân tích');
     }
+    // E4 (Phan 10 v7 muc 3.17): phan tich dong bo nap toan bo dong vao RAM -> chan truoc khi nap
+    const maxRows = Number(this.configService.get<number>('ANALYSIS_MAX_ROWS') ?? 200000);
+    if (Number.isFinite(maxRows) && maxRows > 0 && dataset.rowCount > maxRows) {
+      throw new PayloadTooLargeException({
+        message: `Dataset có ${dataset.rowCount} dòng, vượt giới hạn phân tích đồng bộ ${maxRows} dòng`,
+        error: 'ANALYSIS_TOO_LARGE',
+        details: { rowCount: dataset.rowCount, maxRows },
+      } as never);
+    }
 
     const stored = await this.analysisRepository.findConfigByProject(projectId).catch(() => null);
-    const cfgSelected = stored?.selectedColumns ?? null;
-    const cfgLabel = stored?.labelColumn ?? null;
-    const cfgTime = stored?.timeColumn ?? null;
     const cfgGranularity = stored?.timeGranularity ?? 'day';
-    const cfgValue = stored?.valueColumn ?? null;
-    const allInferable = dataset.columns.filter((c) => classifyColumn(c.dataType) !== 'excluded');
-    const byKey = new Map(dataset.columns.map((c) => [c.key, c.name] as const));
-    const known = new Set(dataset.columns.map((c) => c.name));
-    const knownOriginal = new Map(dataset.columns.map((c) => [c.originalName, c.name] as const));
-    let selectedKeys: string[];
-    const requestedCols = dto.selected_columns && dto.selected_columns.length > 0 ? dto.selected_columns : cfgSelected;
+    const cols = dataset.columns;
+    const allInferable = cols.filter((c) => classifyColumn(c.dataType) !== 'excluded');
+    // D2: cau hinh tham chieu cot bang KEY bat bien; van nhan ten hien tai/ten goc (du lieu cu, request)
+    const requestedCols = dto.selected_columns && dto.selected_columns.length > 0 ? dto.selected_columns : stored?.selectedColumns ?? null;
+    let selectedCols: typeof cols;
     if (requestedCols && requestedCols.length > 0) {
-      selectedKeys = (requestedCols as string[])
-        .map((k) => (known.has(k) ? k : (byKey.get(k) ?? knownOriginal.get(k) ?? k)))
-        .filter((k) => known.has(k));
-      if (selectedKeys.length === 0) {
-        throw new BadRequestException('selected_columns không khớp cột nào của dataset');
+      const resolved = requestedCols.map((ref) => resolveColumnRef(ref, cols));
+      const missing = requestedCols.filter((_, i) => !resolved[i]);
+      if (missing.length > 0) {
+        throw new BadRequestException(`selected_columns có cột không còn trong dataset: ${missing.join(', ')} — hãy cập nhật cấu hình phân tích`);
       }
+      selectedCols = [...new Map(resolved.map((c) => [c!.key, c!] as const)).values()] as typeof cols;
     } else {
-      selectedKeys = allInferable.map((c) => c.name);
+      selectedCols = allInferable;
     }
-    if (selectedKeys.length === 0) {
+    if (selectedCols.length === 0) {
       throw new BadRequestException('Không có cột suy luận được để phân tích (toàn bộ là date/không hỗ trợ)');
     }
+    const selectedKeys = selectedCols.map((c) => c.name); // ten hien tai — dung noi bo cho tinh toan/hien thi
 
-    const colTypeByName = new Map(dataset.columns.map((c) => [c.name, c.dataType] as const));
-    const labelColumn = cfgLabel && known.has(cfgLabel) ? cfgLabel : null;
-    const labelDataType = labelColumn ? (colTypeByName.get(labelColumn) ?? null) : null;
-    let timeColumn: string | null = null;
-    if (cfgTime && known.has(cfgTime) && colTypeByName.get(cfgTime) === 'date') timeColumn = cfgTime;
-    else {
-      const dateCols = dataset.columns.filter((c) => c.dataType === 'date').map((c) => c.name);
-      if (dateCols.length === 1) timeColumn = dateCols[0] as string;
+    const colTypeByName = new Map(cols.map((c) => [c.name, c.dataType] as const));
+    const labelCol = resolveColumnRef(stored?.labelColumn ?? null, cols);
+    const labelColumn = labelCol ? labelCol.name : null;
+    const labelDataType = labelCol ? labelCol.dataType : null;
+    let timeCol = resolveColumnRef(stored?.timeColumn ?? null, cols);
+    if (timeCol && timeCol.dataType !== 'date') timeCol = null;
+    if (!timeCol) {
+      const dateCols = cols.filter((c) => c.dataType === 'date');
+      if (dateCols.length === 1) timeCol = dateCols[0] ?? null;
     }
-    const valueColumn = cfgValue && known.has(cfgValue) && colTypeByName.get(cfgValue) === 'number' ? cfgValue : null;
+    const timeColumn = timeCol ? timeCol.name : null;
+    let valueCol = resolveColumnRef(stored?.valueColumn ?? null, cols);
+    if (valueCol && valueCol.dataType !== 'number') valueCol = null;
+    const valueColumn = valueCol ? valueCol.name : null;
+    const resolvedCfg: ResolvedRunConfig = {
+      selectedKeys: selectedCols.map((c) => c.key),
+      labelKey: labelCol?.key ?? null,
+      timeKey: timeCol?.key ?? null,
+      valueKey: valueCol?.key ?? null,
+      correlationMethod: dto.correlation_method,
+      outlierMethod: dto.outlier_method,
+      topN: dto.top_n,
+      timeGranularity: cfgGranularity,
+    };
     const config = {
-      selected_column_keys: selectedKeys,
+      fingerprint_version: FINGERPRINT_VERSION,
+      selected_column_keys: resolvedCfg.selectedKeys,
+      selected_column_names: selectedKeys,
       correlation_method: dto.correlation_method,
       outlier_method: dto.outlier_method,
       top_n: dto.top_n,
+      chart_top_n: stored?.chartTopN ?? 5,
       label_column: labelColumn,
+      label_column_key: resolvedCfg.labelKey,
       time_column: timeColumn,
+      time_column_key: resolvedCfg.timeKey,
       time_granularity: cfgGranularity,
       value_column: valueColumn,
+      value_column_key: resolvedCfg.valueKey,
     };
-    const fp = this.fingerprint({
-      dataset_id: dataset.id,
-      file_checksum: dataset.fileChecksum,
-      row_count: dataset.rowCount,
-      config,
-    });
+    const fp = computeInputFingerprint(
+      { id: dataset.id, fileChecksum: dataset.fileChecksum, rowCount: dataset.rowCount, columns: cols },
+      resolvedCfg,
+    );
 
     const startedAt = new Date();
     const run = await this.analysisRepository.create({
@@ -233,7 +320,8 @@ export class AnalysisService {
         rowWrappers,
       );
       const dq03ByCol = new Map(dq03Rows.map((r) => [r.column, r]));
-      const outlierByCol = new Map<string, { union: number[]; method: string; reason: string | null }>();
+      const outlierByCol = new Map<string, { union: number[]; method: string; reason: string | null; breakdown: { iqr: number; iqrExtreme: number; zscore: number; both: number } }>();
+      const numericValues = new Map<string, number[]>();
       for (const key of selectedKeys) {
         if (colTypeByName.get(key) !== 'number') continue;
         const vals: { rowIndex: number; value: number }[] = [];
@@ -245,8 +333,20 @@ export class AnalysisService {
           const n = toFiniteNumber(v);
           if (n !== null) vals.push({ rowIndex: w.rowIndex, value: n });
         }
+        numericValues.set(key, vals.map((x) => x.value));
         const out = detectOutliers(key, vals, dto.outlier_method);
-        outlierByCol.set(key, { union: out.union, method: dto.outlier_method, reason: out.reason });
+        outlierByCol.set(key, {
+          union: out.union,
+          method: dto.outlier_method,
+          reason: out.reason,
+          // E2: muc anh huong DQ-04 theo phuong phap danh dau (Phan 2 muc 3.29)
+          breakdown: {
+            iqr: out.iqrOutliers.length,
+            iqrExtreme: out.iqrExtremeOutliers.length,
+            zscore: out.zOutliers.length,
+            both: out.intersection.length,
+          },
+        });
       }
       const dqColumns = dqBase.columns.map((c) => {
         const inv = dq03ByCol.get(c.column);
@@ -258,6 +358,7 @@ export class AnalysisService {
           invalidRate: inv?.invalidRate ?? null,
           outlierCount,
           outlierRate: rowWrappers.length > 0 ? Number((outlierCount / rowWrappers.length).toFixed(4)) : null,
+          outlierBreakdown: out ? out.breakdown : null,
           method: out ? `dq01_dq03_${out.method}` : c.method,
           reason: out?.reason ?? c.reason,
         };
@@ -276,11 +377,41 @@ export class AnalysisService {
           ...(dqBase.fullyMissingRows === rowWrappers.length && rowWrappers.length > 0 ? ['toan bo dong thieu tren cac cot duoc chon'] : []),
         ],
       };
+      // E1 (spec 3.21): du lieu bieu do — cot ty le thieu, histogram/box plot cot so, Top N cot phan loai
+      const chartTopN = clampChartTopN(config.chart_top_n);
+      const charts: ChartData = {
+        missingRate: dqColumns.map((c) => ({ column: c.column, missingRate: c.missingRate ?? null })),
+        histograms: [],
+        boxPlots: [],
+        categories: [],
+        timeSeries: null,
+      };
+      for (const key of selectedKeys) {
+        const dt = colTypeByName.get(key) ?? 'string';
+        if (dt === 'number') {
+          const xs = numericValues.get(key) ?? [];
+          const h = histogram(key, xs);
+          const b = boxPlot(key, xs);
+          if (h) charts.histograms.push(h);
+          if (b) charts.boxPlots.push(b);
+        } else if (dt === 'string' || dt === 'boolean') {
+          const vs: string[] = [];
+          for (const w of rowWrappers) {
+            const v = w.values[key];
+            if (!isMissingCell(v)) vs.push(String(v).trim());
+          }
+          const cat = categoryTopN(key, vs, chartTopN);
+          if (cat) charts.categories.push(cat);
+        }
+      }
       const descriptive = selectedKeys.map((c) =>
         describeColumn(c, colTypeByName.get(c) ?? 'string', rowWrappers.map((w) => w.values[c])),
       );
       const imbalance = evaluateImbalance(labelColumn, labelDataType, rows);
       const timeAnalysis = analyzeTime(timeColumn, valueColumn, rows, cfgGranularity as 'day' | 'week' | 'month' | 'year');
+      charts.timeSeries = timeAnalysis.status === 'evaluated'
+        ? timeAnalysis.buckets.map((b) => ({ period: b.period, recordCount: b.recordCount }))
+        : null;
       const evidenceDocs: { analysis_run_id: unknown; project_id: unknown; dataset_id: unknown; column: string; row_index: number; kind: 'missing' | 'duplicate' | 'invalid_type' | 'outlier'; reason: string | null; value_masked: string | null }[] = [];
       const perColCount = new Map<string, number>();
       const pushEv = (column: string, rowIndex: number, kind: 'missing' | 'duplicate' | 'invalid_type' | 'outlier', reason: string | null, raw: unknown): void => {
@@ -409,6 +540,7 @@ export class AnalysisService {
         imbalance,
         timeAnalysis,
         evidenceSummary,
+        charts,
       } as Partial<Parameters<AnalysisRepositoryPort['saveResult']>[0]>);
 
       let previewFewShotBlock = '';
@@ -482,6 +614,13 @@ export class AnalysisService {
       } catch {
         // realtime không bao giờ làm hỏng luồng nghiệp vụ chính
       }
+      await this.publishLifecycle({
+        eventType: 'ANALYSIS_COMPLETED',
+        projectId,
+        workspaceId: String(project.workspaceId),
+        runId: run.id,
+        actorId: run.startedBy ? String(run.startedBy) : null,
+      });
 
       return this.toApiShape(result.id, run.id, fp, job.id, promptPreview);
     } catch (err: unknown) {
@@ -504,6 +643,14 @@ export class AnalysisService {
       } catch {
         // bỏ qua lỗi realtime
       }
+      await this.publishLifecycle({
+        eventType: 'ANALYSIS_FAILED',
+        projectId,
+        workspaceId: String(project.workspaceId),
+        runId: run.id,
+        actorId: run.startedBy ? String(run.startedBy) : null,
+        errorCode: 'ANALYSIS_FAILED',
+      });
       throw err;
     }
   }
@@ -521,6 +668,7 @@ export class AnalysisService {
     if (!result) {
       throw new NotFoundException('Chưa có kết quả phân tích cho lần chạy mới nhất');
     }
+    await this.staleness.assess(projectId, run, result); // D2: ghi is_stale neu dataset/cot da doi
     return this.toApiShape(result.id, run.id, result.inputFingerprint, null, null);
   }
 
@@ -537,18 +685,8 @@ export class AnalysisService {
     if (actor.role === 'admin') return;
     const job = await this.analysisRepository.findJobById(jobId);
     const projectId = job?.projectId ? String(job.projectId) : null;
-    const notFound = (): never => {
-      throw new NotFoundException('Không tìm thấy AI job');
-    };
-    if (!job || !projectId) return notFound();
-    const project = await this.projectsService.getProjectById(projectId).catch(() => null);
-    if (!project) return notFound();
-    const wsRole = await this.workspacesService.resolveUserWorkspaceRole(String(project.workspaceId), actor.userId);
-    const projectRole = await this.projectsService.resolveUserProjectRole(projectId, actor.userId, wsRole);
-    if (!projectRole) return notFound();
-    if (write && projectRole === 'viewer') {
-      throw new ForbiddenException('Viewer không được thử lại AI (AI-01)');
-    }
+    if (!job || !projectId) throw new NotFoundException('Không tìm thấy AI job');
+    await this.projectAccess.assertProjectAccess(projectId, actor, write ? 'write' : 'read', 'Không tìm thấy AI job');
   }
 
   async getJob(jobId: string): Promise<Record<string, unknown>> {
@@ -579,11 +717,15 @@ export class AnalysisService {
     }
     const runId = job.analysisRunId ? String(job.analysisRunId) : null;
     const result = runId ? await this.analysisRepository.findResultByRun(runId) : null;
-    if (!result || result.isStale) {
+    const run = runId ? await this.analysisRepository.findById(runId) : null;
+    const fresh = result && job.projectId
+      ? await this.staleness.assess(String(job.projectId), run, result)
+      : { isStale: true, staleReason: 'result_missing' };
+    if (!result || fresh.isStale) {
       throw new ConflictException({
         message: 'Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích thay vì thử lại AI',
         error: 'ANALYSIS_RESULT_STALE',
-        details: { jobId, staleReason: result?.staleReason ?? 'result_missing' },
+        details: { jobId, staleReason: fresh.staleReason ?? 'result_missing' },
       } as never);
     }
     const maxAttempts = (this.configService.get<number>('AI_MAX_RETRIES') ?? 2) + 1;
@@ -639,6 +781,17 @@ export class AnalysisService {
     } catch {
       // realtime không bao giờ làm hỏng luồng nghiệp vụ chính
     }
+    const runIdForEvent = String(job.analysisRunId);
+    const runForEvent = await this.analysisRepository.findById(runIdForEvent).catch(() => null);
+    await this.publishLifecycle({
+      eventType: status === 'succeeded' ? 'AI_JOB_SUCCEEDED' : 'AI_JOB_FAILED',
+      projectId: String(job.projectId),
+      workspaceId: runForEvent ? String(runForEvent.workspaceId) : null,
+      runId: runIdForEvent,
+      actorId: runForEvent?.startedBy ? String(runForEvent.startedBy) : null,
+      jobId,
+      errorCode: status === 'succeeded' ? null : 'AI_GROUNDING_FAILED',
+    });
     return {
       jobId,
       status,
@@ -646,36 +799,78 @@ export class AnalysisService {
     };
   }
 
+  /**
+   * Worker AI het luot: ghi danh gia AI `failed` (ket qua he thong van dung duoc) + su kien AI_JOB_FAILED.
+   * Khong dung `ingestAiResult({})` — `{}` hop le theo schema corr-v1 nen bi ghi nham thanh `succeeded`.
+   * Trang thai/ma loi cua job do worker ghi.
+   */
+  async markAiFailed(jobId: string, errorCode: string, message: string): Promise<void> {
+    const job = await this.analysisRepository.findJobById(jobId);
+    if (!job?.analysisRunId) return;
+    const runId = String(job.analysisRunId);
+    const result = await this.analysisRepository.findResultByRun(runId);
+    if (result) {
+      const prev = (result.aiCorrelationAssessment ?? {}) as Record<string, unknown>;
+      await this.analysisRepository.updateResultById(result.id, {
+        aiCorrelationAssessment: {
+          status: 'failed',
+          notablePairs: [],
+          highVif: [],
+          limits: [],
+          nextSteps: [],
+          modelId: job.modelId ?? null,
+          promptVersion: prev.promptVersion ?? 'corr-v1',
+          error: `${errorCode}: ${message}`.slice(0, 500),
+          droppedClaims: [],
+        },
+      });
+    }
+    try {
+      this.realtime?.emitAnalysisLifecycle(String(job.projectId), runId, 'ai.job.status', { status: 'failed', jobId, attempt: job.attempt });
+    } catch {
+      // realtime không bao giờ làm hỏng luồng nghiệp vụ chính
+    }
+    const run = await this.analysisRepository.findById(runId).catch(() => null);
+    await this.publishLifecycle({
+      eventType: 'AI_JOB_FAILED',
+      projectId: String(job.projectId),
+      workspaceId: run ? String(run.workspaceId) : null,
+      runId,
+      actorId: run?.startedBy ? String(run.startedBy) : null,
+      jobId,
+      errorCode,
+    });
+  }
+
   async saveConfig(projectId: string, dto: AnalysisConfigInput): Promise<Record<string, unknown>> {
     if (!isObjectIdHex(projectId)) throw new BadRequestException('ID Dự án không hợp lệ');
     const project = await this.projectsService.getProjectById(projectId);
     const dataset = await this.datasetsRepository.findByProject(projectId);
-    const known = new Set((dataset?.columns ?? []).map((c) => c.name));
-    const norm = (v: string | null | undefined): string | null => {
-      if (v === undefined || v === null) return null;
-      return known.has(v) ? v : null;
+    const cols = dataset?.columns ?? [];
+    // D2: nhan ten hien tai / key / ten goc; LUU KEY bat bien de doi ten cot khong lam hong cau hinh
+    const toKey = (ref: string | null | undefined, field: string): string | null => {
+      if (ref === undefined || ref === null || ref === '') return null;
+      const c = resolveColumnRef(ref, cols);
+      if (!c) throw new BadRequestException(`${field} không khớp cột nào của dataset: ${ref}`);
+      return c.key;
     };
-    const selected = dto.selected_columns === undefined || dto.selected_columns === null
-      ? null
-      : dto.selected_columns.filter((c) => known.has(c));
-    if (dto.selected_columns && dto.selected_columns.length > 0 && (!selected || selected.length === 0)) {
-      throw new BadRequestException('selected_columns không khớp cột nào của dataset');
+    let selected: string[] | null = null;
+    if (dto.selected_columns !== undefined && dto.selected_columns !== null) {
+      const missing = dto.selected_columns.filter((ref) => !resolveColumnRef(ref, cols));
+      if (missing.length > 0) {
+        throw new BadRequestException(`selected_columns không khớp cột nào của dataset: ${missing.join(', ')}`);
+      }
+      selected = [...new Set(dto.selected_columns.map((ref) => (resolveColumnRef(ref, cols) as { key: string }).key))];
     }
-    const label = norm(dto.label_column ?? null);
-    const time = norm(dto.time_column ?? null);
-    const value = norm(dto.value_column ?? null);
-    if (label && dataset) {
-      const dt = dataset.columns.find((c) => c.name === label)?.dataType;
-      if (dt === 'number' || dt === 'date') throw new BadRequestException('label_column phải là cột phân loại (string/boolean)');
+    const label = toKey(dto.label_column, 'label_column');
+    const time = toKey(dto.time_column, 'time_column');
+    const value = toKey(dto.value_column, 'value_column');
+    const typeOf = (key: string | null): string | undefined => cols.find((c) => c.key === key)?.dataType;
+    if (label && (typeOf(label) === 'number' || typeOf(label) === 'date')) {
+      throw new BadRequestException('label_column phải là cột phân loại (string/boolean)');
     }
-    if (time && dataset) {
-      const dt = dataset.columns.find((c) => c.name === time)?.dataType;
-      if (dt !== 'date') throw new BadRequestException('time_column phải là cột date');
-    }
-    if (value && dataset) {
-      const dt = dataset.columns.find((c) => c.name === value)?.dataType;
-      if (dt !== 'number') throw new BadRequestException('value_column phải là cột số');
-    }
+    if (time && typeOf(time) !== 'date') throw new BadRequestException('time_column phải là cột date');
+    if (value && typeOf(value) !== 'number') throw new BadRequestException('value_column phải là cột số');
     const saved = await this.analysisRepository.upsertConfig(projectId, project.workspaceId.toString(), {
       project_id: project.id,
       selected_columns: selected,
@@ -686,19 +881,10 @@ export class AnalysisService {
       correlation_method: dto.correlation_method,
       outlier_method: dto.outlier_method,
       top_n: dto.top_n,
+      chart_top_n: dto.chart_top_n ?? 5,
     });
     await this.analysisRepository.markResultsStale(projectId, '000000000000000000000000', 'config_changed');
-    return {
-      projectId,
-      selectedColumns: saved.selectedColumns,
-      labelColumn: saved.labelColumn,
-      timeColumn: saved.timeColumn,
-      timeGranularity: saved.timeGranularity,
-      valueColumn: saved.valueColumn,
-      correlationMethod: saved.correlationMethod,
-      outlierMethod: saved.outlierMethod,
-      topN: saved.topN,
-    };
+    return this.configShape(projectId, saved, cols);
   }
 
   async getConfig(projectId: string): Promise<Record<string, unknown>> {
@@ -706,18 +892,49 @@ export class AnalysisService {
     await this.projectsService.getProjectById(projectId);
     const saved = await this.analysisRepository.findConfigByProject(projectId);
     if (!saved) {
-      return { projectId, selectedColumns: null, labelColumn: null, timeColumn: null, timeGranularity: 'day', valueColumn: null, correlationMethod: 'pearson', outlierMethod: 'iqr', topN: 50 };
+      return {
+        projectId, selectedColumns: null, selectedColumnRefs: null, labelColumn: null, labelColumnRef: null,
+        timeColumn: null, timeColumnRef: null, timeGranularity: 'day', valueColumn: null, valueColumnRef: null,
+        correlationMethod: 'pearson', outlierMethod: 'iqr', topN: 50, chartTopN: 5,
+      };
     }
+    const dataset = await this.datasetsRepository.findByProject(projectId).catch(() => null);
+    return this.configShape(projectId, saved, dataset?.columns ?? []);
+  }
+
+  /**
+   * Tra cau hinh voi TEN cot hien tai (tuong thich nguoc) + `*Ref` {key, name}.
+   * Cau hinh cu luu theo ten van doc duoc (resolveColumnRef khop ten). Cot da mat -> name null.
+   */
+  private configShape(
+    projectId: string,
+    saved: { selectedColumns: string[] | null; labelColumn: string | null; timeColumn: string | null; timeGranularity: string; valueColumn: string | null; correlationMethod?: string; outlierMethod?: string; topN?: number; chartTopN?: number },
+    cols: { key: string; name: string; originalName?: string | null; dataType: string }[],
+  ): Record<string, unknown> {
+    const ref = (r: string | null): { key: string; name: string | null } | null => {
+      if (!r) return null;
+      const c = resolveColumnRef(r, cols);
+      return c ? { key: c.key, name: c.name } : { key: r, name: null };
+    };
+    const selectedRefs = saved.selectedColumns ? saved.selectedColumns.map((r) => ref(r) as { key: string; name: string | null }) : null;
+    const labelRef = ref(saved.labelColumn);
+    const timeRef = ref(saved.timeColumn);
+    const valueRef = ref(saved.valueColumn);
     return {
       projectId,
-      selectedColumns: saved.selectedColumns,
-      labelColumn: saved.labelColumn,
-      timeColumn: saved.timeColumn,
+      selectedColumns: selectedRefs ? selectedRefs.map((r) => r.name).filter((n): n is string => n !== null) : null,
+      selectedColumnRefs: selectedRefs,
+      labelColumn: labelRef?.name ?? null,
+      labelColumnRef: labelRef,
+      timeColumn: timeRef?.name ?? null,
+      timeColumnRef: timeRef,
       timeGranularity: saved.timeGranularity,
-      valueColumn: saved.valueColumn,
+      valueColumn: valueRef?.name ?? null,
+      valueColumnRef: valueRef,
       correlationMethod: saved.correlationMethod,
       outlierMethod: saved.outlierMethod,
       topN: saved.topN,
+      chartTopN: saved.chartTopN ?? 5,
     };
   }
 
@@ -828,6 +1045,7 @@ export class AnalysisService {
       descriptive: (result as unknown as { descriptive?: unknown }).descriptive ?? null,
       imbalance: (result as unknown as { imbalance?: unknown }).imbalance ?? null,
       timeAnalysis: (result as unknown as { timeAnalysis?: unknown }).timeAnalysis ?? null,
+      charts: result.charts ?? null,
       evidenceSummary: (result as unknown as { evidenceSummary?: unknown }).evidenceSummary ?? null,
       correlationMatrix: result.correlationMatrix,
       vif: result.vif,
