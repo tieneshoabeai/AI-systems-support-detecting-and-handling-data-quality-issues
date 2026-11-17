@@ -1,7 +1,7 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.6 (2026-11-18)
+**Phiên bản:** v1.7 (2026-11-18)
 **Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F và G và H
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
@@ -139,12 +139,29 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 
 - **Test:** `test/analysis-wave9.spec.ts` (AN-46..AN-62) + `local_VQD/runner/run-all.ts --dir edge-cases` và bộ mẫu.
 
+## 7e. Đợt I — tự phát hiện mâu thuẫn dữ liệu dưới dạng Nghi vấn (2026-11-18)
+- **Trạng thái:** Đã thực hiện 2026-11-18.
+- **Kết quả 2026-11-18:** tsc/nest build sạch; unit 244/244 (thêm 6 test đợt I), kiến trúc 3/3, e2e 52/52; bộ test `local_VQD` chạy đầy đủ (9 CSV mẫu + tiêm lỗi, 11 CSV edge-cases, 0 FAIL): lỗi bỏ sót 16 → 5 (còn thứ tự hai cột ×2, tốc độ, x/y/z ≤ 12 mm, công thức depth — ngoài phạm vi); tiêm giá trị âm bắt 100%; 8 Nghi vấn mới trên dữ liệu sạch đều là lỗi thật, không báo thừa.
+- **Bối cảnh:** sau đợt H còn 16 lỗi bỏ sót, đều thuộc DQ-05. Người dùng quyết định không bắt người dùng khai báo quy tắc; hệ thống tự phát hiện và báo Nghi vấn, DQ-05 giữ "Chưa đánh giá".
+- **Docs (vN+1):** Phần 2 v14 (3.46), 7 v11 (3.22), 8 v11 (3.19), 12 v13 (3.22), 13 v12 (3.25), 14 v12 (3.21).
+
+| Nghi vấn | Áp dụng cho | Điều kiện |
+|---|---|---|
+| `negative_in_positive` | Cột số vai trò `measure` hoặc `category` (không xét `identifier`), ≥ 20 giá trị hợp lệ | Có giá trị âm (không tính sentinel đã báo), số giá trị âm ≤ 5%, mọi giá trị khác ≥ 0 |
+| `zero_in_positive` | Cột số vai trò `measure` hoặc `category` (không xét `identifier`), ≥ 20 giá trị hợp lệ | Có số 0, số 0 ≤ 3%, mọi giá trị khác > 0 (bỏ qua giá trị đã báo âm/sentinel) |
+| `row_all_measures_missing` | Dataset có ≥ 2 cột `measure` | Dòng mà mọi cột `measure` đều trống (khác `fullyMissingRows` của DQ-01 vốn xét mọi cột) |
+| `missing_in_filled_group` | Cột đã có nghi vấn `conditional_missing` | Nhóm của cột phân loại mà ô gần như luôn có giá trị (tỷ lệ trống > 0 và ≤ 10%, ≥ 5 dòng) nhưng vẫn có ô trống — báo đích danh các ô đó |
+
+- **Kỳ vọng:** bắt thêm 11/16 lỗi; còn lại 5 (thứ tự hai cột ×2, tốc độ, x/y/z ≤ 12 mm, công thức depth) — ngoài phạm vi đợt này.
+- **Test:** `test/analysis-wave10.spec.ts` (AN-63..AN-68) + `local_VQD/runner/run-all.ts` hai bộ.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.7 / 2026-11-18:** Thêm đợt I (mục 7e) — tự phát hiện mâu thuẫn dữ liệu dưới dạng Nghi vấn; không làm khai báo quy tắc DQ-05.
 - **v1.6 / 2026-11-18:** Thêm đợt H (mục 7d) — vá lỗi bỏ sót bộ edge-cases; DQ-05 vẫn để đợt sau.
 - **v1.5 / 2026-11-17:** Thêm đợt G (mục 7c) — sửa lỗi bỏ sót từ bộ test offline; DQ-05 để đợt sau.
 - **v1.4 / 2026-11-17:** Thêm đợt F (mục 7b) — sửa lỗi demo Titanic; đính chính phạm vi lỗi CASL.
