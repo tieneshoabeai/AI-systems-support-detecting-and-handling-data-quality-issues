@@ -25,7 +25,7 @@ import { AddMemberSchema, AddMemberDto } from './dtos/add-member.dto';
 import { TransferOwnerSchema, TransferOwnerDto } from './dtos/transfer-owner.dto';
 import { ListWorkspacesQuerySchema } from './dtos/list-workspaces-query.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
+import { ManagementAccessGuard } from '../../../../shared/guards/management-access.guard';
 import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
 import { Action } from '../../../../shared/casl/actions.enum';
 import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
@@ -34,7 +34,7 @@ import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PoliciesGuard)
+@UseGuards(JwtAuthGuard, ManagementAccessGuard)
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
@@ -99,9 +99,9 @@ export class WorkspacesController {
   @Get(':id/members')
   @ApiOperation({ summary: 'WS-06: Danh sách thành viên workspace' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
-  async listMembers(@Param('id') id: string) {
-    const ws = await this.workspacesService.getWorkspaceById(id);
-    return { members: ws.members, total: ws.members.length };
+  async listMembers(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    const members = await this.workspacesService.listMemberProfiles(id, user);
+    return { members, total: members.length };
   }
 
   @Post(':id/members')

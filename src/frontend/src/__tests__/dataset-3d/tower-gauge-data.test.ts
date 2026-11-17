@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 // Phase 1 của kế hoạch gauge v2: toàn bộ logic suy ra ô là hàm thuần, nên nó kiểm được không cần WebGL.
 // Hai thứ file này chốt bằng số thay vì bằng comment trong file hình ảnh:
 //   * biên 0,6 và 0,85 là `>=` (điểm 0,85 là good, không phải mid);
@@ -45,7 +46,7 @@ describe('stateOf', () => {
     const luminance = (hex: string) => {
       const channels = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
         .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
-      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+      return requireDefined(channels[0], 'tower-gauge-data.test.ts:49') * 0.2126 + requireDefined(channels[1], 'tower-gauge-data.test.ts:49') * 0.7152 + requireDefined(channels[2], 'tower-gauge-data.test.ts:49') * 0.0722
     }
     expect(GAUGE_COLOR.good).toBe('#34d399')
     expect(GAUGE_COLOR.mid).toBe('#f59e0b')

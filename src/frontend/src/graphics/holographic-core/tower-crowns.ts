@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { ProceduralModelRuntime } from './generated-core'
@@ -13,8 +14,8 @@ export function createTowerCrowns(runtime: ProceduralModelRuntime) {
 
   for (const target of HERO_GAUGES) {
     const tower = runtime.meshes[target.towerId]
-    tower.geometry.computeBoundingBox()
-    const size = tower.geometry.boundingBox!.getSize(new THREE.Vector3())
+    requireDefined(tower, 'tower-crowns.ts:17').geometry.computeBoundingBox()
+    const size = requireDefined(tower, 'tower-crowns.ts:18').geometry.boundingBox!.getSize(new THREE.Vector3())
     const form = heroGaugeDimensions(size.x, size.y, size.z)
     const root = new THREE.Group()
     root.name = `hero-crown-${target.dimension}`
@@ -87,7 +88,7 @@ export function createTowerCrowns(runtime: ProceduralModelRuntime) {
     glyph.name = 'hero-crown-glyph'
     glyph.raycast = () => {}
     root.add(glyph)
-    tower.add(root)
+    requireDefined(tower, 'tower-crowns.ts:91').add(root)
     roots.push(root)
   }
   return {

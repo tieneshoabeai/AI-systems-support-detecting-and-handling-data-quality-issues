@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 import { NEON_CUBE_CLUSTER_LAYOUT } from '../neon-cube/neon-cube.cluster'
 import { NEON_CUBE } from '../neon-cube/neon-cube.model'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 import { HOLOGRAPHIC_CAMERA } from './core-visual-config'
 
 export const CUBE_LABEL_ASPECT = 3.4

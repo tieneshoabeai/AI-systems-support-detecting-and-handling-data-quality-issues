@@ -1,3 +1,6 @@
+import { isMesh } from '../../graphics/common/typed-objects'
+import { recordValue } from '../support/values'
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { SPOOL_CORE } from '../../graphics/holographic-core/core-visual-config'
@@ -16,14 +19,14 @@ function countDrawables(root: THREE.Object3D) {
     if (object instanceof THREE.Light) return
     const drawable = object as THREE.Mesh
     if (
-      object instanceof THREE.Mesh
+      isMesh(object)
       || object instanceof THREE.Line
       || object instanceof THREE.Points
       || object instanceof THREE.Sprite
     ) {
       drawCalls += Array.isArray(drawable.material) ? drawable.geometry.groups.length : 1
     }
-    if (!(object instanceof THREE.Mesh) || !drawable.geometry) return
+    if (!(isMesh(object)) || !drawable.geometry) return
     const geometry = drawable.geometry
     const indexCount = geometry.index ? geometry.index.count : geometry.getAttribute('position')?.count ?? 0
     const instances = object instanceof THREE.InstancedMesh ? object.count : 1
@@ -134,7 +137,7 @@ describe('spool core model', () => {
       spool.parts.base.updateMatrixWorld(true)
       spool.parts.platform.updateMatrixWorld(true)
       const platformMesh = spool.parts.platform.children.find(child =>
-        child instanceof THREE.Mesh && child.name === 'spool-platform',
+        isMesh(child) && child.name === 'spool-platform',
       )!
       const bounds = new THREE.Box3().setFromObject(platformMesh)
       expect(bounds.min.y).toBeCloseTo(0.35, 6)
@@ -149,7 +152,7 @@ describe('spool core model', () => {
       const sideHit = new THREE.Raycaster(new THREE.Vector3(2, 0.46, 0), new THREE.Vector3(-1, 0, 0)).intersectObject(lower)[0]
       expect(sideHit?.point.x).toBeCloseTo(1.11, 6)
       expect(sideHit?.face?.materialIndex).toBe(0)
-      expect(lower.userData.sculptComponent.dimensions.height).toBeCloseTo(0.42, 6)
+      expect(recordValue(recordValue(lower.userData['sculptComponent'])['dimensions'])['height']).toBeCloseTo(0.42, 6)
     } finally { spool.dispose() }
   })
 
@@ -188,7 +191,7 @@ describe('spool core model', () => {
             new THREE.Vector3(x, originY, 0), new THREE.Vector3(0, directionY, 0),
           ).intersectObject(lower).find(hit => hit.face?.materialIndex === 1)
           expect(hit?.object).toBe(lower)
-          expect(hit?.point.y).toBeCloseTo(hitY, 6)
+          expect(hit?.point.y).toBeCloseTo(requireDefined(hitY, 'spool-core.test.ts:192'), 6)
           expect(hit?.face?.materialIndex).toBe(1)
         }
       }
@@ -320,16 +323,16 @@ describe('spool core model', () => {
       expect(spool.selectableMeshes.get('core-upper')).toBe(glass)
       const materials = glass.material as THREE.MeshPhysicalMaterial[]
       expect(materials).toHaveLength(2)
-      expect(materials[0].color.getHexString()).toBe('0a3b45')
-      expect(materials[0].opacity).toBe(0.42)
-      expect(materials[1].color.getHexString()).toBe('e2e8e6')
-      expect(materials[1].opacity).toBe(0.65)
-      expect(materials[1].roughness).toBe(0.6)
-      expect(materials[1].emissiveIntensity).toBe(0)
-      expect(materials[1].lightMap).toBeInstanceOf(THREE.DataTexture)
-      expect(materials[1].lightMap?.channel).toBe(0)
-      expect(materials[1].lightMapIntensity).toBe(1)
-      expect(materials[1].depthWrite).toBe(false)
+      expect(requireDefined(materials[0], 'spool-core.test.ts:324').color.getHexString()).toBe('0a3b45')
+      expect(requireDefined(materials[0], 'spool-core.test.ts:325').opacity).toBe(0.42)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:326').color.getHexString()).toBe('e2e8e6')
+      expect(requireDefined(materials[1], 'spool-core.test.ts:327').opacity).toBe(0.65)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:328').roughness).toBe(0.6)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:329').emissiveIntensity).toBe(0)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:330').lightMap).toBeInstanceOf(THREE.DataTexture)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:331').lightMap?.channel).toBe(0)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:332').lightMapIntensity).toBe(1)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:333').depthWrite).toBe(false)
       expect(glass.geometry.groups.map(group => group.materialIndex)).toEqual([0, 1])
       expect(ray(0.945).intersectObject(glass)[0]?.face?.materialIndex).toBe(0)
       expect(ray(1.155).intersectObject(glass)[0]?.face?.materialIndex).toBe(1)
@@ -409,13 +412,13 @@ describe('spool core model', () => {
 
   it('labels every selectable part with the material it actually renders', () => {
     const spool = createSpoolCore()
-    const label = (id: string) => spool.selectableMeshes.get(id)?.userData.sculptComponent.material
+    const label = (id: string) => recordValue(spool.selectableMeshes.get(id)?.userData['sculptComponent'])['material']
     expect(label('core-cap-lid')).toBe('glass')
     expect(label('core-cap-roof')).toBe('dark-glass')
     expect(label('core-cap-drum')).toBe('dark-glass')
     expect(label('core-upper')).toBe('glass')
     expect(label('core-lower')).toBe('dark-glass + glass')
-    expect(spool.selectableMeshes.get('core-upper')?.userData.sculptComponent.dimensions).toMatchObject({
+    expect(recordValue(spool.selectableMeshes.get('core-upper')?.userData['sculptComponent'])['dimensions']).toMatchObject({
       width: 2.34, height: 1.32, depth: 2.34,
     })
     spool.dispose()

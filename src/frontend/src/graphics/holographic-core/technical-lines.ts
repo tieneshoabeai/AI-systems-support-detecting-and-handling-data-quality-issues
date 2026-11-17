@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 
 export const CYAN = '#17d7ff'
@@ -43,8 +44,8 @@ export function addTechnicalRods(
     const x2 = positions[offset + 3]
     const y2 = positions[offset + 4]
     const z2 = positions[offset + 5]
-    rodMidpoint.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2)
-    rodDirection.set(x2 - x1, y2 - y1, z2 - z1)
+    rodMidpoint.set((requireDefined(x1, 'technical-lines.ts:47') + requireDefined(x2, 'technical-lines.ts:47')) / 2, (requireDefined(y1, 'technical-lines.ts:47') + requireDefined(y2, 'technical-lines.ts:47')) / 2, (requireDefined(z1, 'technical-lines.ts:47') + requireDefined(z2, 'technical-lines.ts:47')) / 2)
+    rodDirection.set(requireDefined(x2, 'technical-lines.ts:48') - requireDefined(x1, 'technical-lines.ts:48'), requireDefined(y2, 'technical-lines.ts:48') - requireDefined(y1, 'technical-lines.ts:48'), requireDefined(z2, 'technical-lines.ts:48') - requireDefined(z1, 'technical-lines.ts:48'))
     const length = rodDirection.length()
     if (length === 0) continue
     rodQuaternion.setFromUnitVectors(ROD_UP, rodDirection.divideScalar(length))

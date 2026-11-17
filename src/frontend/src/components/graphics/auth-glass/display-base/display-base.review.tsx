@@ -6,8 +6,8 @@ import { PerspectiveCamera } from 'three'
 import { authGlassConfig } from '../../../../graphics/auth-glass/auth-glass.config'
 import { createAuthGlassGeometry } from '../../../../graphics/auth-glass/auth-glass.geometry'
 import { DisplayBase } from './display-base'
-import { displayBaseOptions, displayBaseReviewCamera, displayBaseViews } from '../../../../graphics/auth-glass/display-base/display-base.config'
-import type { DisplayBaseOptions, DisplayBaseView } from '../../../../graphics/auth-glass/display-base/display-base.config'
+import { displayBaseOptions, displayBaseReviewCamera, displayBaseViews } from '../../../../graphics/auth-glass/display-base'
+import type { DisplayBaseOptions, DisplayBaseView } from '../../../../graphics'
 import './display-base.review.css'
 
 const viewLabels: Record<DisplayBaseView, string> = {
@@ -23,7 +23,8 @@ function BaseReviewScene({ slabs, options, low, stats }: {
   const geometry = useMemo(() => createAuthGlassGeometry(), [])
   const footlights = useMemo(() => {
     const { login, register } = options.sockets
-    const [loginYaw, registerYaw] = authGlassConfig.panels.map(panel => panel.yaw)
+    const loginYaw = authGlassConfig.panels[0].yaw
+    const registerYaw = authGlassConfig.panels[1].yaw
     return {
       panels: [{ x: login[0], z: login[2], yaw: loginYaw }, { x: register[0], z: register[2], yaw: registerYaw }],
       width: authGlassConfig.slab.width,

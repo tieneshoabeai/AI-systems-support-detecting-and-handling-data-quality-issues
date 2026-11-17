@@ -21,7 +21,7 @@ const rowTitles = (): string[] =>
 const bulkCount = (): string => document.querySelector('.bulk-count')?.textContent ?? ''
 
 const headCheckbox = (): HTMLInputElement =>
-  screen.getByRole('checkbox', { name: 'Chọn tất cả thông báo trên trang này' }) as HTMLInputElement
+  screen.getByRole<HTMLInputElement>('checkbox', { name: 'Chọn tất cả thông báo trên trang này' })
 
 const pickRow = (title: string): void => {
   fireEvent.click(screen.getByRole('checkbox', { name: `Chọn: ${title}` }))
@@ -98,7 +98,7 @@ it('hộp thư: không còn ô tìm kiếm; tab trống thì cất hẳn phân t
   expect(document.querySelector('.pagination')).toBeNull()
   // Lối ra phải là chữ nhìn thấy được, không phải tooltip, và phải trỏ tới control CÓ THẬT trên
   // màn (menu tài khoản không còn mục "Khôi phục dữ liệu mẫu").
-  expect(screen.getByText(/tải lại trang sẽ trả hộp thư về danh sách ban đầu/)).toBeDefined()
+  expect(screen.getByText(/Đổi tab lọc ở trên để xem nhóm thông báo khác/)).toBeDefined()
 
   // Quay lại tab có bản ghi thì phân trang trở lại, đếm đúng khoảng thật.
   fireEvent.click(screen.getByRole('tab', { name: 'Tất cả (16)' }))
@@ -243,13 +243,13 @@ it('chi tiết: nút "Đánh dấu đã đọc" bấm rồi thì tắt, và lý 
   expect(note.textContent).not.toContain('không liên kết với Project')
 })
 
-it('chi tiết: thông báo hệ thống và project đã bị xóa là hai lý do "Mở Project" tắt khác nhau', () => {
+it('chi tiết: thông báo hệ thống và project đã bị xóa là hai lý do "Mở Project" tắt khác nhau', async () => {
   detailScreen('nt-09')
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(true)
   expect(document.getElementById('pv-notice-detail-note')!.textContent).toContain('không liên kết với Project')
 
   // Bản ghi này gắn prj-customer, nhưng project vừa bị gỡ khỏi danh sách mẫu trong tab.
-  previewMockStore.remove('project', 'prj-customer')
+  await previewMockStore.remove('project', 'prj-customer')
   cleanup()
   detailScreen('nt-02')
   expect(screen.getByRole('button', { name: /^Mở Project/ }).hasAttribute('disabled')).toBe(true)

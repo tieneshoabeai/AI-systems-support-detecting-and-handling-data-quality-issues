@@ -1,3 +1,5 @@
+import { jsonObject } from '../support/json'
+import { requireDefined } from '../../utils/required-value'
 import { describe, expect, it } from 'vitest'
 import specRaw from '../../graphics/neon-cube/object-sculpt-spec.json?raw'
 import { NEON_CUBE } from '../../graphics/neon-cube/neon-cube.model'
@@ -32,7 +34,7 @@ type SpecRepetition = {
   geometry?: { width?: number; height?: number; length?: number }
 }
 
-const spec = JSON.parse(specRaw) as {
+const spec = jsonObject(specRaw) as {
   componentTree: SpecComponent[]
   materials: SpecMaterial[]
   repetitionSystems: SpecRepetition[]
@@ -66,11 +68,11 @@ describe('neon cube sculpt spec', () => {
     const cube = components.get('cube-outer')!
     expect(cube.dimensions!.width).toBeCloseTo(1.32, 6)
     expect(innerBase.dimensions!.width).toBeCloseTo(1.48, 6)
-    expect(base.geometryDescriptor!.openings![0].width).toBeCloseTo(1.64, 6)
+    expect(requireDefined(requireDefined(requireDefined(base.geometryDescriptor, 'neon-cube-spec.test.ts:70').openings, 'neon-cube-spec.test.ts:70')[0], 'neon-cube-spec.test.ts:70').width).toBeCloseTo(1.64, 6)
     expect(base.dimensions!.width).toBeCloseTo(2, 6)
     expect(cube.dimensions!.width).toBeLessThan(innerBase.dimensions!.width)
-    expect(innerBase.dimensions!.width).toBeLessThan(base.geometryDescriptor!.openings![0].width)
-    expect(base.geometryDescriptor!.openings![0].width).toBeLessThan(base.dimensions!.width)
+    expect(innerBase.dimensions!.width).toBeLessThan(requireDefined(requireDefined(requireDefined(base.geometryDescriptor, 'neon-cube-spec.test.ts:73').openings, 'neon-cube-spec.test.ts:73')[0], 'neon-cube-spec.test.ts:73').width)
+    expect(requireDefined(requireDefined(requireDefined(base.geometryDescriptor, 'neon-cube-spec.test.ts:74').openings, 'neon-cube-spec.test.ts:74')[0], 'neon-cube-spec.test.ts:74').width).toBeLessThan(base.dimensions!.width)
   })
 
   it('matches the model constants for the major dimensions', () => {

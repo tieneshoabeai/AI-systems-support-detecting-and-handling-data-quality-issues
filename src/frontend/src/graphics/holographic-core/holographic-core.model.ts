@@ -1,5 +1,7 @@
+import { isMesh, isDrawable } from '../common/typed-objects'
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 import {
   createHolographicOrbitalDataCoreV2Model,
   type ProceduralModelRuntime,
@@ -14,12 +16,8 @@ import { conformOriginalTowers, createTowerRing, removeInactiveGeneratedTowers }
 import { createTowerGauge } from './tower-gauge'
 import { createTowerCrowns } from './tower-crowns'
 import { MOCK_QUALITY_SCORES } from './tower-gauge-data'
-import type { DimensionScore } from '../../types/datasets/quality-score.types'
-import {
-  NON_SELECTABLE_PART_IDS,
-  type HolographicPartComponent,
-  type HolographicPartInfo,
-} from '../../types/dataset-3d/holographic-part.types'
+import type { DimensionScore } from '../../types'
+import { NON_SELECTABLE_PART_IDS, type HolographicPartComponent, type HolographicPartInfo } from '../../types/dataset-3d'
 
 export type HolographicCoreProductModel = {
   model: THREE.Group
@@ -28,7 +26,7 @@ export type HolographicCoreProductModel = {
   snapDetach(): void
   setDetached(detached: boolean): void
   setSelected(componentId: string | null): void
-  setConnection(theme: NeonCubeThemeId | null, progress: number): void
+  setConnection(this: void, theme: NeonCubeThemeId | null, progress: number): void
   applyQualityScores(rows: readonly DimensionScore[]): void
   resolvePart(object: THREE.Object3D): HolographicPartInfo | null
   dispose(): void
@@ -72,7 +70,7 @@ function createIntermediateBase(runtime: ProceduralModelRuntime) {
     new THREE.MeshStandardMaterial({ color: preset.color, emissive: preset.emissive, emissiveIntensity: preset.intensity, transparent: true, opacity: preset.opacity, side: THREE.DoubleSide, depthWrite: false }),
   )
   mesh.name = 'base-intermediate'
-  mesh.userData.sculptComponent = {
+  mesh.userData['sculptComponent'] = {
     id: 'base-intermediate',
     name: 'Intermediate base drum',
     role: 'projected-part',
@@ -193,7 +191,7 @@ function addScatteredNodes(parent: THREE.Object3D, positions: number[], size: nu
   )
   const matrix = new THREE.Matrix4()
   for (let index = 0; index < positions.length; index += 3) {
-    matrix.makeTranslation(positions[index], positions[index + 1], positions[index + 2])
+    matrix.makeTranslation(requireDefined(positions[index], 'holographic-core.model.ts:193'), requireDefined(positions[index + 1], 'holographic-core.model.ts:193'), requireDefined(positions[index + 2], 'holographic-core.model.ts:193'))
     nodes.setMatrixAt(index / 3, matrix)
   }
   nodes.instanceMatrix.needsUpdate = true
@@ -208,9 +206,9 @@ function addCapSolarRays(parent: THREE.Object3D) {
     const positions: number[] = []
     for (let ray = 0; ray < 12; ray += 1) {
       const angle = ray / 12 * Math.PI * 2
-      positions.push(innerRadius * Math.cos(angle), 0.038, innerRadius * Math.sin(angle), outerRadius * Math.cos(angle), 0.038, outerRadius * Math.sin(angle))
+      positions.push(requireDefined(innerRadius, 'holographic-core.model.ts:208') * Math.cos(angle), 0.038, requireDefined(innerRadius, 'holographic-core.model.ts:208') * Math.sin(angle), requireDefined(outerRadius, 'holographic-core.model.ts:208') * Math.cos(angle), 0.038, requireDefined(outerRadius, 'holographic-core.model.ts:208') * Math.sin(angle))
     }
-    addTechnicalLine(parent, positions, opacity)
+    addTechnicalLine(parent, positions, requireDefined(opacity, 'holographic-core.model.ts:210'))
   }
 }
 
@@ -218,7 +216,7 @@ function applyHolographicMaterials(runtime: ProceduralModelRuntime) {
   for (const [componentId, mesh] of Object.entries(runtime.meshes)) {
     const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
     if (!(material instanceof THREE.MeshStandardMaterial)) continue
-    const component = mesh.userData.sculptComponent as { material?: unknown } | undefined
+    const component = mesh.userData['sculptComponent'] as { material?: unknown } | undefined
     const materialRole = typeof component?.material === 'string' ? component.material : 'base-intermediate'
     const preset = MATERIAL_PRESETS[materialRole as keyof typeof MATERIAL_PRESETS] ?? MATERIAL_PRESETS['base-intermediate']
     material.transparent = true
@@ -232,14 +230,14 @@ function applyHolographicMaterials(runtime: ProceduralModelRuntime) {
     material.emissive.set(preset.emissive)
     material.emissiveIntensity = preset.intensity
     material.opacity = TIER_OPACITY[componentId] ?? preset.opacity
-    mesh.userData.holographicMaterialRole = materialRole
+    mesh.userData['holographicMaterialRole'] = materialRole
     mesh.renderOrder = 1
   }
   for (const [componentId, mesh] of Object.entries(runtime.meshes)) {
     // Towers get their architecture later in the factory, including a beveled outline;
     // a box EdgesGeometry here would double the silhouette with stale cube seams.
     if (componentId.startsWith('tower-')) continue
-    const materialRole = mesh.userData.holographicMaterialRole as string | undefined
+    const materialRole = mesh.userData['holographicMaterialRole'] as string | undefined
     const contourColor = materialRole === 'violet-band' ? '#ff6cf0' : CYAN
     const contourOpacity = materialRole === 'cyan-contour' ? 0.5 : materialRole === 'violet-band' ? 0.7 : 0.3
     const edges = new THREE.LineSegments(
@@ -460,7 +458,7 @@ function splitSectorFaceGroups(mesh: THREE.Mesh) {
     }
     for (let corner = 0; corner < 3; corner += 1) {
       const at = vertex + corner
-      buckets[bucket].push(
+      requireDefined(buckets[bucket], 'holographic-core.model.ts:460').push(
         position.getX(at), position.getY(at), position.getZ(at),
         normal.getX(at), normal.getY(at), normal.getZ(at),
       )
@@ -472,8 +470,8 @@ function splitSectorFaceGroups(mesh: THREE.Mesh) {
   for (const bucket of buckets) {
     groups.push([positions.length / 3, bucket.length / 6])
     for (let at = 0; at < bucket.length; at += 6) {
-      positions.push(bucket[at], bucket[at + 1], bucket[at + 2])
-      normals.push(bucket[at + 3], bucket[at + 4], bucket[at + 5])
+      positions.push(requireDefined(bucket[at], 'holographic-core.model.ts:472'), requireDefined(bucket[at + 1], 'holographic-core.model.ts:472'), requireDefined(bucket[at + 2], 'holographic-core.model.ts:472'))
+      normals.push(requireDefined(bucket[at + 3], 'holographic-core.model.ts:473'), requireDefined(bucket[at + 4], 'holographic-core.model.ts:473'), requireDefined(bucket[at + 5], 'holographic-core.model.ts:473'))
     }
   }
   const rebuilt = new THREE.BufferGeometry()
@@ -587,8 +585,8 @@ function applyTierContrast(runtime: ProceduralModelRuntime) {
       material.opacity = tone.opacity
     })
     sector.traverse(child => {
-      if (!(child instanceof THREE.Mesh || child instanceof THREE.LineSegments)) return
-      const material = child.material
+      if (!(isMesh(child) || child instanceof THREE.LineSegments)) return
+      const material: unknown = child.material
       if (material instanceof THREE.MeshBasicMaterial) material.color.set(TIER_CONTOUR.base)
       else if (material instanceof THREE.LineBasicMaterial) {
         material.color.set(TIER_CONTOUR.base)
@@ -618,7 +616,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     receiveShadow: false,
     qualityPriority: 'reference-fidelity',
   })
-  const runtime = model.userData.sculptRuntime as ProceduralModelRuntime
+  const runtime = model.userData['sculptRuntime'] as ProceduralModelRuntime
   removeInactiveGeneratedTowers(runtime)
   createIntermediateBase(runtime)
   applyHolographicMaterials(runtime)
@@ -698,7 +696,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   const inboundStreams = createInboundStreams(runtime.nodes['core-cap'] ?? model)
   const collarHotspot = addHotspot(runtime.meshes['core-mid-collar'] ?? model, new THREE.Vector3(0, 0.12, 0), 0.024, 0.22)
   const footHotspot = addHotspot(runtime.meshes['core-foot'] ?? model, new THREE.Vector3(0, 0.13, 0), 0.042, 0.3)
-  const axialSpines = [[2.08, 1.6], [0.825, 0.86], [0.24, 0.2]].map(([centerY, height]) => {
+  const axialSpines = ([[2.08, 1.6], [0.825, 0.86], [0.24, 0.2]] as const).map(([centerY, height]) => {
     const spine = new THREE.Mesh(
       new THREE.CylinderGeometry(0.011, 0.011, height, 8, 1, true),
       new THREE.MeshBasicMaterial({ color: '#3deeff', transparent: true, opacity: 0.56, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
@@ -868,7 +866,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   const resolvePart = (object: THREE.Object3D): HolographicPartInfo | null => {
     let current: THREE.Object3D | null = object
     while (current) {
-      const component = current.userData.sculptComponent as HolographicPartComponent | undefined
+      const component = current.userData['sculptComponent'] as HolographicPartComponent | undefined
       if (component?.id) {
         if (NON_SELECTABLE_PART_IDS.has(component.id)) return null
         return {
@@ -910,8 +908,8 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     capHotspot.scale.setScalar(1)
     collarHotspot.scale.setScalar(1)
     footHotspot.scale.setScalar(1)
-    axialSpines.forEach(spine => { (spine.material as THREE.MeshBasicMaterial).opacity = 0.56 })
-    luminousNodes.forEach(nodes => { (nodes.material as THREE.MeshBasicMaterial).opacity = 0.72 })
+    axialSpines.forEach(spine => { (spine.material).opacity = 0.56 })
+    luminousNodes.forEach(nodes => { (nodes.material).opacity = 0.72 })
     beamMaterial.opacity = 0.45
     selectionContours.forEach(contour => { (contour.material as THREE.LineBasicMaterial).opacity = 0.95 })
     towerRing.reset()
@@ -939,13 +937,13 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       runnerMaterial.opacity = 0.66 + Math.sin(elapsedSeconds * Math.PI * 2 / 2.4) * 0.14
       const capPulse = 0.9 + Math.sin(elapsedSeconds * Math.PI * 2 / 3.2) * 0.1
       capHotspot.scale.setScalar(0.96 + capPulse * 0.08)
-      ;(capHotspot.material as THREE.MeshBasicMaterial).opacity = 0.42 * capPulse
+      ;(capHotspot.material).opacity = 0.42 * capPulse
       collarHotspot.scale.setScalar(0.98 + (0.96 + Math.sin(elapsedSeconds * 1.1 + 1) * 0.04) * 0.035)
-      ;(collarHotspot.material as THREE.MeshBasicMaterial).opacity = 0.24 + Math.sin(elapsedSeconds * 1.1 + 1) * 0.03
+      ;(collarHotspot.material).opacity = 0.24 + Math.sin(elapsedSeconds * 1.1 + 1) * 0.03
       footHotspot.scale.setScalar(0.98 + (0.96 + Math.sin(elapsedSeconds * 1.1 + 2) * 0.04) * 0.035)
-      ;(footHotspot.material as THREE.MeshBasicMaterial).opacity = 0.29 + Math.sin(elapsedSeconds * 1.1 + 2) * 0.02
-      axialSpines.forEach(spine => { (spine.material as THREE.MeshBasicMaterial).opacity = 0.48 + Math.sin(elapsedSeconds * 1.1) * 0.06 })
-      luminousNodes.forEach((nodes, index) => { (nodes.material as THREE.MeshBasicMaterial).opacity = 0.52 + (Math.sin(elapsedSeconds * 1.4 + index * 0.9) + 1) * 0.08 })
+      ;(footHotspot.material).opacity = 0.29 + Math.sin(elapsedSeconds * 1.1 + 2) * 0.02
+      axialSpines.forEach(spine => { (spine.material).opacity = 0.48 + Math.sin(elapsedSeconds * 1.1) * 0.06 })
+      luminousNodes.forEach((nodes, index) => { (nodes.material).opacity = 0.52 + (Math.sin(elapsedSeconds * 1.4 + index * 0.9) + 1) * 0.08 })
       towerRing.update(elapsedSeconds)
       crowns.update(elapsedSeconds)
       beamMaterial.opacity = 0.42 + Math.sin(elapsedSeconds * 0.9) * 0.06
@@ -975,10 +973,12 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
       const geometries = new Set<THREE.BufferGeometry>()
       const materials = new Set<THREE.Material>()
       model.traverse((object) => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments || object instanceof THREE.Points) {
+        if (isDrawable(object)) {
+          const geometry = object.geometry
+          const material = object.material
           if (object instanceof THREE.InstancedMesh) object.dispose()
-          geometries.add(object.geometry)
-          const entries = Array.isArray(object.material) ? object.material : [object.material]
+          geometries.add(geometry)
+          const entries = Array.isArray(material) ? material : [material]
           entries.forEach(material => materials.add(material))
         }
       })

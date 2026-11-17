@@ -22,7 +22,7 @@ import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/c
 import { UpdateDatasetSchema, UpdateDatasetDto } from './dtos/update-dataset.dto';
 import { RenameColumnsSchema, RenameColumnsDto } from './dtos/rename-columns.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
+import { ManagementAccessGuard } from '../../../../shared/guards/management-access.guard';
 import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
 import { Action } from '../../../../shared/casl/actions.enum';
 import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
@@ -30,7 +30,7 @@ import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Datasets')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PoliciesGuard)
+@UseGuards(JwtAuthGuard, ManagementAccessGuard)
 @Controller()
 export class DatasetsController {
   constructor(
@@ -58,11 +58,12 @@ export class DatasetsController {
     @Req() req: Request
   ) {
     return new Promise((resolve, reject) => {
-      const bb = busboy({ headers: req.headers, limits: { fileSize: 50 * 1024 * 1024 } });
+      const bb = busboy({ headers: req.headers, limits: { fileSize: 50 * 1024 * 1024, files: 1 } });
       let fileProcessed = false;
 
       bb.on('file', (_fieldName, fileStream, info) => {
         const { filename, mimeType } = info;
+        fileStream.on('limit', () => { const error = new BadRequestException('Tệp CSV tối đa 50 MB.'); fileStream.destroy(error); reject(error); });
         fileProcessed = true;
         const contentLength = req.headers['content-length']
           ? parseInt(req.headers['content-length'], 10)

@@ -1,8 +1,9 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { expect, it, vi } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
 import { HERO_GAUGES, heroLabelForId } from '../../graphics/holographic-core/tower-gauge-config'
-import type { ProceduralModelRuntime } from '../../graphics/holographic-core/generated-core'
+import type { ProceduralModelRuntime } from '../../graphics'
 
 it('names each hero dimension in English and Vietnamese without labelling context as hero', () => {
   expect(heroLabelForId('tower-10')).toBe('Completeness — Đầy đủ')
@@ -19,14 +20,14 @@ it('keeps six distinct permanent crowns inside their old tower envelopes', () =>
   const api = createHolographicCoreProductModel()
   try {
     api.model.updateMatrixWorld(true)
-    const runtime = api.model.userData.sculptRuntime as ProceduralModelRuntime
+    const runtime = api.model.userData['sculptRuntime'] as ProceduralModelRuntime
     const shapes = new Set<string>()
     for (const target of HERO_GAUGES) {
       const tower = runtime.meshes[target.towerId]
-      const crown = tower.getObjectByName(`hero-crown-${target.dimension}`)!
+      const crown = requireDefined(tower, 'tower-crowns.test.ts:27').getObjectByName(`hero-crown-${target.dimension}`)!
       expect(crown?.parent).toBe(tower)
       expect(crown.visible).toBe(true)
-      const envelope = tower.geometry.boundingBox!.clone().applyMatrix4(tower.matrixWorld)
+      const envelope = requireDefined(tower, 'tower-crowns.test.ts:30').geometry.boundingBox!.clone().applyMatrix4(requireDefined(tower, 'tower-crowns.test.ts:30').matrixWorld)
       const bounds = new THREE.Box3().setFromObject(crown)
       expect(envelope.containsBox(bounds), target.dimension).toBe(true)
       const glyph = crown.getObjectByName('hero-crown-glyph') as THREE.Mesh
@@ -59,7 +60,7 @@ it('rotates only the clock hand linearly once per minute, with a static reset po
 it('removes crowns before the model sweep and disposes their shared material once', () => {
   const api = createHolographicCoreProductModel()
   const roots = HERO_GAUGES.map(target => api.model.getObjectByName(`hero-crown-${target.dimension}`)!)
-  const glyph = roots[0].getObjectByName('hero-crown-glyph') as THREE.Mesh
+  const glyph = requireDefined(roots[0], 'tower-crowns.test.ts:63').getObjectByName('hero-crown-glyph') as THREE.Mesh
   const dispose = vi.spyOn(glyph.material as THREE.Material, 'dispose')
   api.dispose()
   expect(dispose).toHaveBeenCalledTimes(1)

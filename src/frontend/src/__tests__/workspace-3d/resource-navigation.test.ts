@@ -1,15 +1,16 @@
+import { requireDefined } from '../../utils/required-value'
 import { expect, it } from 'vitest'
 import { PerspectiveCamera, Vector3 } from 'three'
 import { layoutResources } from '../../math/workspace-3d/resource-layout'
 import { routeCurve, routeResources } from '../../math/workspace-3d/resource-routing'
 import { fitPose, nodeCorners, overviewDirection, overviewPose, panPose } from '../../math/workspace-3d/resource-camera'
 import { extendedPreviewResources, previewResources } from '../../views/workspace-3d/preview-resources'
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import type { ResourceNode } from '../../types'
 
-const many: ResourceNode[] = [previewResources[0], { id: 'p', name: 'Project', kind: 'project', parentId: previewResources[0].id },
+const many: ResourceNode[] = [requireDefined(previewResources[0], 'resource-navigation.test.ts:10'), { id: 'p', name: 'Project', kind: 'project', parentId: requireDefined(previewResources[0], 'resource-navigation.test.ts:10').id },
   ...Array.from({ length: 12 }, (_, i): ResourceNode => ({ id: `d${i}`, name: `Dataset ${i}`, kind: 'dataset', parentId: 'p' }))]
-const manyProjects: ResourceNode[] = [previewResources[0], ...Array.from({ length: 12 }, (_, i): ResourceNode =>
-  ({ id: `p${i}`, name: `Project ${i}`, kind: 'project', parentId: previewResources[0].id }))]
+const manyProjects: ResourceNode[] = [requireDefined(previewResources[0], 'resource-navigation.test.ts:12'), ...Array.from({ length: 12 }, (_, i): ResourceNode =>
+  ({ id: `p${i}`, name: `Project ${i}`, kind: 'project', parentId: requireDefined(previewResources[0], 'resource-navigation.test.ts:13').id }))]
 
 it('keeps routing pure and repeatable, and a rename leaves the ports and route points unchanged', () => {
   const before = layoutResources(previewResources)
@@ -24,7 +25,7 @@ it('keeps routing pure and repeatable, and a rename leaves the ports and route p
 it.each([previewResources, extendedPreviewResources, many, manyProjects].map(resources => ({ resources })))('keeps distinct ports and whole sampled tubes clear of other nodes and tubes (%#)', ({ resources }) => {
   const layout = layoutResources(resources)
   const curves = layout.edges.map(edge => routeCurve(edge.route))
-  const radius = layout.edges[0].route.radius
+  const radius = requireDefined(layout.edges[0], 'resource-navigation.test.ts:28').route.radius
   const samples = curves.map(curve => Array.from({ length: 101 }, (_, i) => curve.getPoint(i / 100)))
   let clearance = Infinity
   const collisions = new Set<string>()
@@ -34,24 +35,24 @@ it.each([previewResources, extendedPreviewResources, many, manyProjects].map(res
   }
   for (let i = 0; i < curves.length; i++) {
     const edge = layout.edges[i]
-    const outlet = edge.source.ports!.find(port => port.id === `${edge.id}:out`)!
-    const inlet = edge.target.ports!.find(port => port.direction === 'in')!
-    expect(curves[i].getTangent(0).dot(new Vector3(...outlet.normal))).toBeGreaterThan(0.99)
-    expect(curves[i].getTangent(1).dot(new Vector3(...inlet.normal))).toBeLessThan(-0.99)
+    const outlet = requireDefined(edge, 'resource-navigation.test.ts:38').source.ports!.find(port => port.id === `${requireDefined(edge, 'resource-navigation.test.ts:38').id}:out`)!
+    const inlet = requireDefined(edge, 'resource-navigation.test.ts:39').target.ports!.find(port => port.direction === 'in')!
+    expect(requireDefined(curves[i], 'resource-navigation.test.ts:40').getTangent(0).dot(new Vector3(...outlet.normal))).toBeGreaterThan(0.99)
+    expect(requireDefined(curves[i], 'resource-navigation.test.ts:41').getTangent(1).dot(new Vector3(...inlet.normal))).toBeLessThan(-0.99)
     for (let step = 0; step <= 100; step++) {
-      const point = samples[i][step]
-      finite &&= point.toArray().every(Number.isFinite)
+      const point = requireDefined(samples[i], 'resource-navigation.test.ts:43')[step]
+      finite &&= requireDefined(point, 'resource-navigation.test.ts:44').toArray().every(Number.isFinite)
       for (const node of layout.nodes) {
-        if (node === edge.source || node === edge.target) continue
+        if (node === requireDefined(edge, 'resource-navigation.test.ts:46').source || node === requireDefined(edge, 'resource-navigation.test.ts:46').target) continue
         const halfWidth = node.resource.kind === 'workspace' ? 1.75 : node.resource.kind === 'project' ? 0.98 : 1.27
         const halfDepth = node.resource.kind === 'workspace' ? 1.75 : node.resource.kind === 'project' ? 0.8 : 0.92
-        const inside = Math.abs(point.x - node.position[0]) < halfWidth + radius
-          && Math.abs(point.z - node.position[2]) < halfDepth + radius
-        if (inside) collisions.add(`${edge.id} → ${node.resource.id}`)
+        const inside = Math.abs(requireDefined(point, 'resource-navigation.test.ts:49').x - node.position[0]) < halfWidth + radius
+          && Math.abs(requireDefined(point, 'resource-navigation.test.ts:50').z - node.position[2]) < halfDepth + radius
+        if (inside) collisions.add(`${requireDefined(edge, 'resource-navigation.test.ts:51').id} → ${node.resource.id}`)
       }
       for (let j = i + 1; j < curves.length; j++) {
         // Compare all sampled points, not just matching curve parameters.
-        for (const other of samples[j]) clearance = Math.min(clearance, point.distanceTo(other))
+        for (const other of requireDefined(samples[j], 'resource-navigation.test.ts:55')) clearance = Math.min(clearance, requireDefined(point, 'resource-navigation.test.ts:55').distanceTo(other))
       }
     }
   }
@@ -63,12 +64,12 @@ it.each([previewResources, extendedPreviewResources, many, manyProjects].map(res
 it('fits a remote node and its ports at wide and narrow aspects, independently of tree span', () => {
   const layout = layoutResources(extendedPreviewResources)
   for (const aspect of [1.7, 0.8]) for (const node of [layout.nodes[0], layout.nodes.at(-1)!]) {
-    const pose = fitPose([node], new Vector3(...node.position), overviewDirection(), 40, aspect)
+    const pose = fitPose([requireDefined(node, 'resource-navigation.test.ts:67')], new Vector3(...requireDefined(node, 'resource-navigation.test.ts:67').position), overviewDirection(), 40, aspect)
     const camera = new PerspectiveCamera(40, aspect, 0.1, 1000)
     camera.position.copy(pose.position)
     camera.lookAt(pose.target)
     camera.updateMatrixWorld()
-    for (const corner of nodeCorners(node)) {
+    for (const corner of nodeCorners(requireDefined(node, 'resource-navigation.test.ts:72'))) {
       corner.project(camera)
       expect(Math.abs(corner.x)).toBeLessThan(0.95)
       expect(Math.abs(corner.y)).toBeLessThan(0.95)

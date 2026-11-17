@@ -1,5 +1,6 @@
-import type { LocalCsvDocument } from '../../types/workspace-3d/local-csv.types'
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import { requireDefined } from '../../utils/required-value'
+import type { LocalCsvDocument } from '../../types'
+import type { ResourceNode } from '../../types'
 
 // Detect separators only outside quotes in the header; never split quoted data with String.split.
 export function parseLocalCsv(text: string): Omit<LocalCsvDocument, 'id' | 'name'> {
@@ -48,7 +49,7 @@ export function parseLocalCsv(text: string): Omit<LocalCsvDocument, 'id' | 'name
   const headers = records.shift()
   if (!headers || headers.every(header => !header.trim())) throw new Error('File CSV chưa có dòng tiêu đề hợp lệ.')
   const invalid = records.findIndex(item => item.length !== headers.length)
-  if (invalid !== -1) throw new Error(`Record dữ liệu ${invalid + 1} có ${records[invalid].length} ô; cần ${headers.length} ô theo tiêu đề.`)
+  if (invalid !== -1) throw new Error(`Record dữ liệu ${invalid + 1} có ${requireDefined(records[invalid], 'local-csv.ts:52').length} ô; cần ${headers.length} ô theo tiêu đề.`)
   return { delimiter, headers, rows: records }
 }
 

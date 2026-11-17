@@ -1,4 +1,6 @@
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import { isMesh } from '../common/typed-objects'
+import { requireDefined } from '../../utils/required-value'
+import type { NeonCubeThemeId } from '../../types'
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
@@ -191,12 +193,12 @@ function roundedSquareShape(half: number, radius: number) {
 }
 
 function paintGeometry(geometry: THREE.BufferGeometry, multiplier: number, linear: ThemeLinear, hotspot?: Hotspot) {
-  const position = geometry.attributes.position
-  const colors = new Float32Array(position.count * 3)
-  for (let index = 0; index < position.count; index += 1) {
+  const position = geometry.attributes['position']
+  const colors = new Float32Array(requireDefined(position, 'neon-cube.model.ts:196').count * 3)
+  for (let index = 0; index < requireDefined(position, 'neon-cube.model.ts:197').count; index += 1) {
     let boost = 1
     if (hotspot) {
-      const distance = Math.hypot(position.getX(index) - hotspot.x, position.getZ(index) - hotspot.z)
+      const distance = Math.hypot(requireDefined(position, 'neon-cube.model.ts:200').getX(index) - hotspot.x, requireDefined(position, 'neon-cube.model.ts:200').getZ(index) - hotspot.z)
       if (distance < hotspot.radius) boost = 1 + hotspot.strength * (1 - distance / hotspot.radius)
     }
     colors[index * 3] = linear[0] * multiplier * boost
@@ -248,7 +250,7 @@ function createRimGeometry(
   hotspot?: Hotspot,
 ) {
   const points = roundedSquareShape(half, cornerRadius).getPoints(24)
-  if (points.length > 1 && points[0].distanceTo(points[points.length - 1]) < 1e-6) points.pop()
+  if (points.length > 1 && requireDefined(points[0], 'neon-cube.model.ts:252').distanceTo(requireDefined(points[points.length - 1], 'neon-cube.model.ts:252')) < 1e-6) points.pop()
   const curve = new THREE.CatmullRomCurve3(
     points.map((point) => new THREE.Vector3(point.x, 0, point.y)),
     true,
@@ -486,17 +488,17 @@ function createNeonEdge() {
 function buildOuterShell(theme: NeonCubeTheme, glassPanel: THREE.Material, neonEdge: THREE.Material) {
   const cubeOuter = new THREE.Group()
   cubeOuter.name = 'cube-outer'
-  cubeOuter.userData.partId = 'cube-outer'
+  cubeOuter.userData['partId'] = 'cube-outer'
 
   const panels = buildPanes(glassPanel)
   panels.name = 'panel-grid'
-  panels.userData.partId = 'panel-grid'
+  panels.userData['partId'] = 'panel-grid'
   panels.position.y = NEON_CUBE.cubeHalf
   cubeOuter.add(panels)
 
   const seamMesh = new THREE.Mesh(buildSeams(theme.neonLinear), neonEdge)
   seamMesh.name = 'seam-grid'
-  seamMesh.userData.partId = 'seam-grid'
+  seamMesh.userData['partId'] = 'seam-grid'
   seamMesh.position.y = NEON_CUBE.cubeHalf
   cubeOuter.add(seamMesh)
 
@@ -505,7 +507,7 @@ function buildOuterShell(theme: NeonCubeTheme, glassPanel: THREE.Material, neonE
     neonEdge,
   )
   edgeMesh.name = 'cube-edges'
-  edgeMesh.userData.partId = 'cube-edges'
+  edgeMesh.userData['partId'] = 'cube-edges'
   edgeMesh.position.y = NEON_CUBE.cubeHalf
   cubeOuter.add(edgeMesh)
 
@@ -514,7 +516,7 @@ function buildOuterShell(theme: NeonCubeTheme, glassPanel: THREE.Material, neonE
     neonEdge,
   )
   cubeCornerMesh.name = 'corner-markers-cube'
-  cubeCornerMesh.userData.partId = 'corner-markers-cube'
+  cubeCornerMesh.userData['partId'] = 'corner-markers-cube'
   cubeOuter.add(cubeCornerMesh)
   return { cubeOuter, panels, seamMesh, edgeMesh, cubeCornerMesh }
 }
@@ -544,7 +546,7 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
   const theme = resolveTheme(options.theme)
   const group = new THREE.Group()
   group.name = 'neon-glass-cube'
-  group.userData.partId = 'root'
+  group.userData['partId'] = 'root'
 
   const glassPanel = createGlassPanel(theme)
   const glassBase = new THREE.MeshPhysicalMaterial({
@@ -602,12 +604,12 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
 
   const baseOuter = new THREE.Group()
   baseOuter.name = 'base-outer'
-  baseOuter.userData.partId = 'base-outer'
+  baseOuter.userData['partId'] = 'base-outer'
   group.add(baseOuter)
 
   const baseOuterMesh = new THREE.Mesh(createBaseOuterGeometry(), glassBase)
   baseOuterMesh.name = 'base-outer-shell'
-  baseOuterMesh.userData.partId = 'base-outer'
+  baseOuterMesh.userData['partId'] = 'base-outer'
   baseOuter.add(baseOuterMesh)
 
   const rimOuterMesh = new THREE.Mesh(
@@ -640,7 +642,7 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
   )
   if (!rimOuterMesh.geometry) throw new Error('Không dựng được viền neon đế ngoài')
   rimOuterMesh.name = 'rim-outer'
-  rimOuterMesh.userData.partId = 'rim-outer'
+  rimOuterMesh.userData['partId'] = 'rim-outer'
   rimOuterMesh.position.y = NEON_CUBE.rimOuterY
   baseOuter.add(rimOuterMesh)
 
@@ -649,17 +651,17 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     neonEdge,
   )
   baseCornerMesh.name = 'corner-markers-base'
-  baseCornerMesh.userData.partId = 'corner-markers-base'
+  baseCornerMesh.userData['partId'] = 'corner-markers-base'
   baseOuter.add(baseCornerMesh)
 
   const lightSheets = new THREE.Mesh(buildLightSheets(), lightSheetMaterial)
   lightSheets.name = 'light-sheets'
-  lightSheets.userData.partId = 'light-sheets'
+  lightSheets.userData['partId'] = 'light-sheets'
   baseOuter.add(lightSheets)
 
   const baseInner = new THREE.Group()
   baseInner.name = 'base-inner'
-  baseInner.userData.partId = 'base-inner'
+  baseInner.userData['partId'] = 'base-inner'
   baseOuter.add(baseInner)
 
   const baseInnerMesh = new THREE.Mesh(
@@ -667,7 +669,7 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     glassBaseInner,
   )
   baseInnerMesh.name = 'base-inner-slab'
-  baseInnerMesh.userData.partId = 'base-inner'
+  baseInnerMesh.userData['partId'] = 'base-inner'
   baseInnerMesh.position.y = NEON_CUBE.innerBaseHeight / 2
   baseInner.add(baseInnerMesh)
 
@@ -682,7 +684,7 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     neonEdge,
   )
   rimInnerMesh.name = 'rim-inner'
-  rimInnerMesh.userData.partId = 'rim-inner'
+  rimInnerMesh.userData['partId'] = 'rim-inner'
   rimInnerMesh.position.y = NEON_CUBE.rimInnerY
   baseInner.add(rimInnerMesh)
 
@@ -692,13 +694,13 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
 
   const cubeInner = new THREE.Group()
   cubeInner.name = 'cube-inner'
-  cubeInner.userData.partId = 'cube-inner'
+  cubeInner.userData['partId'] = 'cube-inner'
   cubeInner.position.y = NEON_CUBE.cubeHalf
   cubeOuter.add(cubeInner)
 
   const coreMesh = new THREE.Mesh(new THREE.BoxGeometry(NEON_CUBE.coreSide, NEON_CUBE.coreSide, NEON_CUBE.coreSide), coreGlass)
   coreMesh.name = 'core-cube'
-  coreMesh.userData.partId = 'cube-inner'
+  coreMesh.userData['partId'] = 'cube-inner'
   cubeInner.add(coreMesh)
 
   const innerEdgeMesh = new THREE.Mesh(
@@ -706,12 +708,12 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     neonEdge,
   )
   innerEdgeMesh.name = 'inner-edges'
-  innerEdgeMesh.userData.partId = 'inner-edges'
+  innerEdgeMesh.userData['partId'] = 'inner-edges'
   cubeInner.add(innerEdgeMesh)
 
   const coreGlow = new THREE.Group()
   coreGlow.name = 'core-glow'
-  coreGlow.userData.partId = 'core-glow'
+  coreGlow.userData['partId'] = 'core-glow'
   cubeInner.add(coreGlow)
 
   const coreSprite = new THREE.Sprite(glowSprite)
@@ -726,9 +728,9 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
   let triangleCount = 0
   let drawCalls = 0
   group.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
+    if (isMesh(object)) {
       const geometry = object.geometry
-      const perInstance = (geometry.index ? geometry.index.count : geometry.attributes.position.count) / 3
+      const perInstance = (geometry.index ? geometry.index.count : requireDefined(geometry.attributes['position'], 'mesh positions').count) / 3
       triangleCount += object instanceof THREE.InstancedMesh ? perInstance * object.count : perInstance
       drawCalls += 1
     } else if (object instanceof THREE.Sprite) {
@@ -770,8 +772,8 @@ export function createNeonCubeModel(options: NeonCubeOptions = {}): NeonCubeMode
     const geometries = new Set<THREE.BufferGeometry>()
     const disposableMaterials = new Set<THREE.Material>()
     group.traverse((object) => {
-      if (object instanceof THREE.Mesh) geometries.add(object.geometry)
-      if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
+      if (isMesh(object)) geometries.add(object.geometry)
+      if (isMesh(object) || object instanceof THREE.Sprite) {
         const material = object.material
         if (Array.isArray(material)) material.forEach((entry) => disposableMaterials.add(entry))
         else disposableMaterials.add(material)

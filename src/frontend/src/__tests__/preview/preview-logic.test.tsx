@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
@@ -13,10 +14,10 @@ it('chặn thành viên ngoài Workspace tại cả lúc tạo và lúc thêm ng
   const outside = { id: 'outside', name: 'Người ngoài Workspace', initials: 'NN', role: 'Member' }
   const before = previewMockStore.getState()
   const project = before.projects[0]
-  await expect(previewMockStore.addProjectMember({ projectId: project.id, person: outside, role: 'Member' }))
+  await expect(previewMockStore.addProjectMember({ projectId: requireDefined(project, 'preview-logic.test.tsx:17').id, person: outside, role: 'Member' }))
     .rejects.toThrow('Chỉ thành viên của Workspace')
   await expect(previewMockStore.createProject({
-    workspaceId: project.workspaceId, name: 'Phân tích', description: '', members: [outside],
+    workspaceId: requireDefined(project, 'preview-logic.test.tsx:20').workspaceId, name: 'Phân tích', description: '', members: [outside],
     dataset: { fileName: 'data.csv', format: 'CSV', rows: 1, columns: 1, sizeMb: 0.001 },
   })).rejects.toThrow('Chỉ thành viên của Workspace')
   expect(previewMockStore.getState()).toBe(before)
@@ -25,16 +26,16 @@ it('chặn thành viên ngoài Workspace tại cả lúc tạo và lúc thêm ng
 it('gỡ thành viên Workspace cũng gỡ khỏi Project; hoàn tác phục hồi cả hai', async () => {
   const person = { id: 'member-test', name: 'Thành viên kiểm thử', initials: 'TV', role: 'Member' }
   const project = previewMockStore.getState().projects[0]
-  await previewMockStore.addWorkspaceMember({ workspaceId: project.workspaceId, person })
-  await previewMockStore.addProjectMember({ projectId: project.id, person, role: 'Member' })
-  const removal = await previewMockStore.removeWorkspaceMember(project.workspaceId, person.id)
-  const memberIds = () => previewMockStore.getState().projects.find(item => item.id === project.id)!.members.map(item => item.id)
+  await previewMockStore.addWorkspaceMember({ workspaceId: requireDefined(project, 'preview-logic.test.tsx:29').workspaceId, person })
+  await previewMockStore.addProjectMember({ projectId: requireDefined(project, 'preview-logic.test.tsx:30').id, person, role: 'Member' })
+  const removal = await previewMockStore.removeWorkspaceMember(requireDefined(project, 'preview-logic.test.tsx:31').workspaceId, person.id)
+  const memberIds = () => previewMockStore.getState().projects.find(item => item.id === requireDefined(project, 'preview-logic.test.tsx:32').id)!.members.map(item => item.id)
   expect(memberIds()).not.toContain(person.id)
-  expect(previewMockStore.getState().workspaces.find(item => item.id === project.workspaceId)!.memberPreview.map(item => item.id))
+  expect(previewMockStore.getState().workspaces.find(item => item.id === requireDefined(project, 'preview-logic.test.tsx:34').workspaceId)!.memberPreview.map(item => item.id))
     .not.toContain(person.id)
   removal.undo()
   expect(memberIds()).toContain(person.id)
-  expect(previewMockStore.getState().workspaces.find(item => item.id === project.workspaceId)!.memberPreview.map(item => item.id))
+  expect(previewMockStore.getState().workspaces.find(item => item.id === requireDefined(project, 'preview-logic.test.tsx:38').workspaceId)!.memberPreview.map(item => item.id))
     .toContain(person.id)
 })
 
@@ -42,10 +43,10 @@ it('không gỡ hoặc đổi vai trò chủ sở hữu bằng đường cập n
   const before = previewMockStore.getState()
   const workspace = before.workspaces[0]
   const project = before.projects[0]
-  await expect(previewMockStore.removeWorkspaceMember(workspace.id, workspace.owner.id)).rejects.toThrow('chủ sở hữu')
-  await expect(previewMockStore.setWorkspaceMemberRole(workspace.id, workspace.owner.id, 'Viewer')).rejects.toThrow('chủ sở hữu')
-  await expect(previewMockStore.removeProjectMember(project.id, project.owner.id)).rejects.toThrow('chủ sở hữu')
-  await expect(previewMockStore.setProjectMemberRole(project.id, project.owner.id, 'Viewer')).rejects.toThrow('chủ sở hữu')
+  await expect(previewMockStore.removeWorkspaceMember(requireDefined(workspace, 'preview-logic.test.tsx:46').id, requireDefined(workspace, 'preview-logic.test.tsx:46').owner.id)).rejects.toThrow('chủ sở hữu')
+  await expect(previewMockStore.setWorkspaceMemberRole(requireDefined(workspace, 'preview-logic.test.tsx:47').id, requireDefined(workspace, 'preview-logic.test.tsx:47').owner.id, 'Viewer')).rejects.toThrow('chủ sở hữu')
+  await expect(previewMockStore.removeProjectMember(requireDefined(project, 'preview-logic.test.tsx:48').id, requireDefined(project, 'preview-logic.test.tsx:48').owner.id)).rejects.toThrow('chủ sở hữu')
+  await expect(previewMockStore.setProjectMemberRole(requireDefined(project, 'preview-logic.test.tsx:49').id, requireDefined(project, 'preview-logic.test.tsx:49').owner.id, 'Viewer')).rejects.toThrow('chủ sở hữu')
   const owned = before.projects.find(item => {
     const parent = before.workspaces.find(ws => ws.id === item.workspaceId)!
     return item.owner.id !== parent.owner.id && parent.memberPreview.some(person => person.id === item.owner.id)
@@ -102,13 +103,13 @@ it('hoàn tác không làm mất cập nhật thông báo hoặc phạm vi đư�
   const initial = previewMockStore.getState()
   const workspace = initial.workspaces[0]
   const notice = initial.notifications.find(item => item.unread)!
-  const favorite = await previewMockStore.toggleFavorite(workspace.id)
+  const favorite = await previewMockStore.toggleFavorite(requireDefined(workspace, 'preview-logic.test.tsx:106').id)
   await previewMockStore.markNotificationsRead([notice.id])
-  previewMockStore.selectWorkspace(initial.workspaces[1].id)
+  previewMockStore.selectWorkspace(requireDefined(initial.workspaces[1], 'preview-logic.test.tsx:108').id)
   const selection = previewMockStore.getState().selection
   favorite.undo()
   const restored = previewMockStore.getState()
-  expect(restored.workspaces[0].favorite).toBe(workspace.favorite)
+  expect(requireDefined(restored.workspaces[0], 'preview-logic.test.tsx:112').favorite).toBe(requireDefined(workspace, 'preview-logic.test.tsx:112').favorite)
   expect(restored.notifications.find(item => item.id === notice.id)?.unread).toBe(false)
   expect(restored.selection).toEqual(selection)
   favorite.undo()
@@ -117,14 +118,14 @@ it('hoàn tác không làm mất cập nhật thông báo hoặc phạm vi đư�
 
 it('hoàn tác cũ không ghi đè thay đổi mới hơn; hoàn tác theo thứ tự ngược vẫn được', async () => {
   const original = previewMockStore.getState().projects[0]
-  const first = await previewMockStore.rename('project', original.id, 'Tên lần một')
-  const second = await previewMockStore.rename('project', original.id, 'Tên lần hai')
+  const first = await previewMockStore.rename('project', requireDefined(original, 'preview-logic.test.tsx:121').id, 'Tên lần một')
+  const second = await previewMockStore.rename('project', requireDefined(original, 'preview-logic.test.tsx:122').id, 'Tên lần hai')
   expect(() => first.undo()).toThrow('thao tác mới hơn')
-  expect(previewMockStore.getState().projects[0].name).toBe('Tên lần hai')
+  expect(requireDefined(previewMockStore.getState().projects[0], 'preview-logic.test.tsx:124').name).toBe('Tên lần hai')
   second.undo()
-  expect(previewMockStore.getState().projects[0].name).toBe('Tên lần một')
+  expect(requireDefined(previewMockStore.getState().projects[0], 'preview-logic.test.tsx:126').name).toBe('Tên lần một')
   first.undo()
-  expect(previewMockStore.getState().projects[0].name).toBe(original.name)
+  expect(requireDefined(previewMockStore.getState().projects[0], 'preview-logic.test.tsx:128').name).toBe(requireDefined(original, 'preview-logic.test.tsx:128').name)
 })
 
 it('bàn phím và double click trên nút con không kích hoạt mở thẻ', () => {

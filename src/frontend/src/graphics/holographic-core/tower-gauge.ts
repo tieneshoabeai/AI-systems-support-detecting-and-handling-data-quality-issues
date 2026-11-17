@@ -1,5 +1,6 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
-import type { DimensionScore } from '../../types/datasets/quality-score.types'
+import type { DimensionScore } from '../../types'
 import type { ProceduralModelRuntime } from './generated-core'
 import { CELL_GAIN, CONTEXT_GAUGES, DIMENSIONS, GAUGE_COLOR, HERO_CELL_COUNT, HERO_GAUGES, heroGaugeDimensions, stateOf, type GaugeTarget, type HeroGaugeTarget } from './tower-gauge-config'
 import { deriveCells, type CellKind } from './tower-gauge-data'
@@ -58,7 +59,7 @@ function paintContext(binding: ContextWindows, score: number) {
   colors.off.set('#14203f')
   const green = new THREE.Color(GAUGE_COLOR.good).multiplyScalar(CELL_GAIN.good * CONTEXT_CELL_EXPOSURE)
   binding.markLevels.forEach((level, index) => {
-    let color = colors[cells[level]]
+    let color = colors[requireDefined(cells[level], 'tower-gauge.ts:62')]
     if (binding.target.towerId === 'tower-01-back-high' && cells[level] === 'off') {
       const fromTop = binding.levelCount - 1 - level
       color = fromTop % 2 === 0 ? green : colors.invalid
@@ -70,8 +71,8 @@ function paintContext(binding: ContextWindows, score: number) {
 
 function buildHeroColumn(runtime: ProceduralModelRuntime, target: HeroGaugeTarget, geometry: THREE.BufferGeometry, material: THREE.Material): HeroColumn {
   const tower = runtime.meshes[target.towerId]
-  tower.geometry.computeBoundingBox()
-  const size = tower.geometry.boundingBox!.getSize(new THREE.Vector3())
+  requireDefined(tower, 'tower-gauge.ts:74').geometry.computeBoundingBox()
+  const size = requireDefined(tower, 'tower-gauge.ts:75').geometry.boundingBox!.getSize(new THREE.Vector3())
   const form = heroGaugeDimensions(size.x, size.y, size.z)
   const mesh = new THREE.InstancedMesh(geometry, material, HERO_CELL_COUNT * 4)
   mesh.name = 'hero-glass-arms'
@@ -97,7 +98,7 @@ function buildHeroColumn(runtime: ProceduralModelRuntime, target: HeroGaugeTarge
     }
   })
   mesh.instanceMatrix.needsUpdate = true
-  tower.add(mesh)
+  requireDefined(tower, 'tower-gauge.ts:101').add(mesh)
   return { target, mesh }
 }
 
@@ -117,9 +118,9 @@ export function createTowerGauge(runtime: ProceduralModelRuntime, rows: readonly
   const contexts: ContextWindows[] = CONTEXT_GAUGES.map(target => {
     const mesh = runtime.meshes[target.towerId]?.getObjectByName('tower-window-panel')
     if (!(mesh instanceof THREE.InstancedMesh)) throw new Error(`Tower gauge: missing window panel for ${target.towerId}`)
-    const markLevels: unknown = mesh.userData.markLevels
+    const markLevels: unknown = mesh.userData['markLevels']
     if (!Array.isArray(markLevels) || markLevels.length !== mesh.count || !markLevels.length ||
-        !markLevels.every(level => Number.isInteger(level) && level >= 0)) {
+        !markLevels.every((level: unknown): level is number => typeof level === 'number' && Number.isInteger(level) && level >= 0)) {
       throw new Error(`Tower gauge: invalid mark levels for ${target.towerId}`)
     }
     return { target, mesh, markLevels, levelCount: Math.max(...markLevels) + 1 }
@@ -160,7 +161,7 @@ export function createTowerGauge(runtime: ProceduralModelRuntime, rows: readonly
   }
   repaint()
   return {
-    applyScores(next: readonly DimensionScore[]) {
+    applyScores(this: void, next: readonly DimensionScore[]) {
       assertActive()
       scores = scoresOf(next)
       repaint()

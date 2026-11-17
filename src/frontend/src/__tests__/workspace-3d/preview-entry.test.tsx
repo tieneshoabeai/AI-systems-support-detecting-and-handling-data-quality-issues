@@ -32,3 +32,18 @@ it('loads the normal application for that same URL in production', async () => {
   expect(calls.app).toHaveBeenCalledTimes(1)
   expect(calls.preview).not.toHaveBeenCalled()
 })
+
+it.each([true, false])('loads auth runtime for private URLs with DEV=%s', async dev => {
+  vi.stubEnv('DEV', dev)
+  for (const url of ['/management', '/processing', '/workspaces/3d-dataset', '/#/preview/projects']) {
+    vi.resetModules()
+    vi.clearAllMocks()
+    document.body.innerHTML = '<div id="root"></div>'
+    window.history.replaceState({}, '', url)
+    await import('../../app/main')
+    await vi.waitFor(() => expect(calls.render).toHaveBeenCalledTimes(2))
+    const { Application } = await import('../../app/application-bootstrap')
+    expect(calls.render.mock.lastCall?.[0]).toMatchObject({ props: { children: { type: Application } } })
+    expect(calls.preview).not.toHaveBeenCalled()
+  }
+})

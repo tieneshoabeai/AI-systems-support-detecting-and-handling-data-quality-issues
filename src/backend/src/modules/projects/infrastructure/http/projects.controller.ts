@@ -28,7 +28,7 @@ import {
   MarkCompletedDto,
 } from './dtos/project-member.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
+import { ManagementAccessGuard } from '../../../../shared/guards/management-access.guard';
 import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
 import { Action } from '../../../../shared/casl/actions.enum';
 import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
@@ -37,7 +37,7 @@ import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PoliciesGuard)
+@UseGuards(JwtAuthGuard, ManagementAccessGuard)
 @Controller()
 export class ProjectsController {
   constructor(
@@ -118,9 +118,9 @@ export class ProjectsController {
   @Get('projects/:id/members')
   @ApiOperation({ summary: 'PROJ-09: Danh sách thành viên project' })
   @CheckPolicies((ability) => ability.can(Action.Read, 'Project'))
-  async listMembers(@Param('id') id: string) {
-    const p = await this.projectsService.getProjectById(id);
-    return { members: p.members ?? [], total: (p.members ?? []).length };
+  async listMembers(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    const members = await this.projectsService.listMemberProfiles(id, user);
+    return { members, total: members.length };
   }
 
   @Post('projects/:id/members')

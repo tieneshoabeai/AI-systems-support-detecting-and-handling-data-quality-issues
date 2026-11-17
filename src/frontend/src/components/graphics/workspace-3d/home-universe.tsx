@@ -1,16 +1,18 @@
+import { requireDefined } from '../../../utils/required-value'
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { AdditiveBlending, Color, DoubleSide, NormalBlending } from 'three'
 import type { Group, Mesh } from 'three'
-import { useSceneMotion } from '../../../hooks/workspace-3d/use-scene-motion'
+import { easeSpin, useDragSpin, useSceneMotion } from '../../../hooks/workspace-3d/use-scene-motion'
+import type { SpinHandle } from '../../../hooks/workspace-3d/use-scene-motion'
 import { setNumberUniform, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
 import { HeroSpaceHole } from './hero-space-hole'
 
 class UniverseBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
+  override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  render() { return this.state.failed ? this.props.fallback : this.props.children }
+  override render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -212,6 +214,116 @@ const LOCAL_VERTEX = `
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }`
 
+// Quỹ đạo là một vệt sáng chạy dọc đường tròn thay vì nét kẻ đều — mắt đọc được hướng quay.
+const ORBIT_FRAGMENT = `
+  uniform float uMix, uPhase;
+  uniform vec3 uDark, uLight;
+  varying vec2 vLocal;
+  void main() {
+    float angle = atan(vLocal.y, vLocal.x);
+    float trail = 0.5 + 0.5 * sin(angle + uPhase);
+    float baseAlpha = mix(0.5, 0.62, uMix);
+    float alpha = (0.2 + 0.75 * pow(trail, 2.6)) * baseAlpha;
+    gl_FragColor = vec4(mix(uDark, uLight, uMix), alpha);
+  }`
+
+const GLOBE_FRAGMENT = `
+  uniform float uMix, uSeed;
+  uniform vec3 uDarkA, uDarkB, uDarkRim, uLightA, uLightB, uLightRim;
+  varying vec3 vNormal;
+  varying vec3 vPos;
+  varying vec3 vView;
+
+  float hash(vec3 v) { return fract(sin(dot(v, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+
+  // Nhiễu value 3D: bờ lục địa gãy khúc tự nhiên, không còn là hình bầu dục do tích ba hàm sin
+  // tạo ra — đó chính là thứ làm quả cầu trông "giả" khi xoay.
+  float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float n000 = hash(i);
+    float n100 = hash(i + vec3(1.0, 0.0, 0.0));
+    float n010 = hash(i + vec3(0.0, 1.0, 0.0));
+    float n110 = hash(i + vec3(1.0, 1.0, 0.0));
+    float n001 = hash(i + vec3(0.0, 0.0, 1.0));
+    float n101 = hash(i + vec3(1.0, 0.0, 1.0));
+    float n011 = hash(i + vec3(0.0, 1.0, 1.0));
+    float n111 = hash(i + vec3(1.0, 1.0, 1.0));
+    return mix(
+      mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+      mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y), f.z);
+  }
+
+  float fbm(vec3 p) {
+    float sum = 0.0;
+    float amp = 0.5;
+    for (int octave = 0; octave < 3; octave++) { sum += amp * noise(p); p *= 2.03; amp *= 0.5; }
+    return sum;
+  }
+
+  void main() {
+    vec3 baseA = mix(uDarkA, uLightA, uMix);
+    vec3 baseB = mix(uDarkB, uLightB, uMix);
+    vec3 rim = mix(uDarkRim, uLightRim, uMix);
+    vec3 n = normalize(vNormal);
+    vec3 p = normalize(vPos);
+    vec3 view = normalize(vView);
+
+    float continents = fbm(p * 2.6 + uSeed);
+    float detail = noise(p * 7.4 + uSeed * 1.7);
+    // Ngưỡng hẹp quanh "mực nước biển": bờ rõ nét nhưng viền lục địa vẫn có hạt.
+    float land = smoothstep(0.50, 0.56, continents + (detail - 0.5) * 0.16);
+    float coast = smoothstep(0.45, 0.50, continents) * (1.0 - land);
+
+    vec3 ocean = mix(baseA, baseB, 0.22 + 0.5 * detail);
+    vec3 ground = mix(baseB * 1.15, rim, smoothstep(0.45, 0.95, detail));
+    vec3 surface = mix(ocean, ground, land);
+    surface = mix(surface, rim, coast * 0.35);
+
+    // Hướng sáng cố định trong không gian màn hình: kéo xoay cảnh thì vùng sáng không trượt theo.
+    vec3 lightDir = normalize(vec3(-0.46, 0.42, 0.78));
+    float lit = smoothstep(-0.35, 0.85, dot(n, lightDir));
+    vec3 color = surface * (0.34 + 0.9 * lit);
+    // Nửa tối ngả xanh lạnh, nửa sáng ấm lên — giúp khối cầu tròn thay vì một mảng phẳng.
+    color *= mix(vec3(0.72, 0.82, 1.18), vec3(1.04, 1.0, 0.96), lit);
+
+    // Chỉ mặt biển bóng: lục địa nhám nên không có đốm sáng.
+    float spec = pow(max(dot(reflect(-lightDir, n), view), 0.0), 48.0) * (1.0 - land) * 0.9;
+    color += vec3(0.82, 0.94, 1.0) * spec;
+
+    float fres = pow(1.0 - clamp(dot(n, view), 0.0, 1.0), 2.6);
+    color += rim * fres * (0.22 + 0.9 * lit);
+
+    gl_FragColor = vec4(color, 1.0);
+  }`
+
+// Nhân quasar: gradient theo fresnel (giữa sáng, rìa đậm) thay cho "hố đen" đĩa đặc.
+const CORE_FRAGMENT = `
+  uniform float uMix;
+  uniform vec3 uDarkIn, uDarkOut, uLightIn, uLightOut;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    float fres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0), 1.35);
+    vec3 color = mix(mix(uDarkIn, uDarkOut, fres), mix(uLightIn, uLightOut, fres), uMix);
+    gl_FragColor = vec4(color, 1.0);
+  }`
+
+// Vành photon: mảnh, sáng lệch theo góc (nửa tiến về phía người xem rực hơn) và
+// đập rất nhẹ để cảnh không đứng im như ảnh chụp.
+const PHOTON_FRAGMENT = `
+  uniform float uMix, uTime;
+  uniform vec3 uDark, uLight;
+  varying vec2 vLocal;
+  void main() {
+    float angle = atan(vLocal.y, vLocal.x);
+    float doppler = 0.55 + 0.45 * sin(angle - 1.9);
+    float pulse = 0.9 + 0.1 * sin(uTime * 1.7);
+    float alpha = clamp(0.45 + 0.55 * doppler, 0.0, 1.0) * pulse;
+    gl_FragColor = vec4(mix(uDark, uLight, uMix), alpha);
+  }`
+
 // Vành đai: tan dần ở hai mép + vân đồng tâm, phối màu theo theme.
 const RING_FRAGMENT = `
   uniform float uMix, uSeed, uInner, uOuter;
@@ -225,46 +337,6 @@ const RING_FRAGMENT = `
     float alpha = edge * strata * lightFall * 0.82;
     vec3 color = mix(mix(uDarkA, uDarkB, strata), mix(uLightA, uLightB, strata), uMix);
     gl_FragColor = vec4(color, alpha);
-  }`
-
-// Quỹ đạo là một vệt sáng chạy dọc đường tròn thay vì nét kẻ đều — mắt đọc được hướng quay.
-const ORBIT_FRAGMENT = `
-  uniform float uMix, uPhase;
-  uniform vec3 uDark, uLight;
-  varying vec2 vLocal;
-  void main() {
-    float angle = atan(vLocal.y, vLocal.x);
-    float trail = 0.5 + 0.5 * sin(angle + uPhase);
-    float baseAlpha = mix(0.34, 0.46, uMix);
-    float alpha = (0.14 + 0.6 * pow(trail, 2.6)) * baseAlpha;
-    gl_FragColor = vec4(mix(uDark, uLight, uMix), alpha);
-  }`
-
-const GLOBE_FRAGMENT = `
-  uniform float uMix, uSeed;
-  uniform vec3 uDarkA, uDarkB, uDarkRim, uLightA, uLightB, uLightRim;
-  varying vec3 vNormal;
-  varying vec3 vPos;
-  varying vec3 vView;
-
-  void main() {
-    vec3 baseA = mix(uDarkA, uLightA, uMix);
-    vec3 baseB = mix(uDarkB, uLightB, uMix);
-    vec3 rim = mix(uDarkRim, uLightRim, uMix);
-    vec3 n = normalize(vNormal);
-    vec3 p = normalize(vPos);
-    vec3 lightDir = normalize(vec3(-0.46, 0.42, 0.78));
-    float lit = smoothstep(-0.32, 0.9, dot(n, lightDir));
-    float surfacePattern = sin(p.x * 3.3 + uSeed) * sin(p.y * 4.1 - uSeed * 0.8) * sin(p.z * 3.7 + uSeed * 1.6);
-    float land = smoothstep(0.0, 0.55, surfacePattern);
-    vec3 surface = mix(mix(baseA, baseB, smoothstep(-0.9, 0.9, p.y)), baseB * 1.15, land * 0.5);
-    vec3 color = surface * (0.52 + 0.56 * lit);
-    color = mix(color * vec3(0.78, 0.86, 1.24), color, lit);
-    vec3 halfV = normalize(lightDir + normalize(vView));
-    color += vec3(0.9, 0.98, 1.0) * pow(max(dot(n, halfV), 0.0), 26.0) * 0.45;
-    float fres = pow(1.0 - clamp(dot(n, normalize(vView)), 0.0, 1.0), 2.2);
-    color += rim * fres * (0.3 + 0.8 * lit);
-    gl_FragColor = vec4(color, 1.0);
   }`
 
 const SCREEN_VERTEX = `
@@ -303,28 +375,42 @@ const NEBULA_FRAGMENT = `
     gl_FragColor = vec4(color, alpha);
   }`
 
-// Nhân quasar: gradient theo fresnel (giữa sáng, rìa đậm) thay cho "hố đen" đĩa đặc.
-const CORE_FRAGMENT = `
-  uniform float uMix;
-  uniform vec3 uDarkIn, uDarkOut, uLightIn, uLightOut;
-  varying vec3 vNormal;
-  varying vec3 vView;
+// Đĩa bồi tụ: vân khí cuộn theo góc + bán kính, và Doppler beaming làm nửa quay về
+// phía người xem sáng gắt hơn nửa kia — nhờ vậy đĩa đọc ra "đang quay" chứ không
+// phải một loạt vành tròn đồng tâm tĩnh.
+const DISK_FRAGMENT = `
+  uniform float uMix, uTime, uInner, uOuter, uAlpha;
+  uniform vec3 uDarkHot, uDarkCool, uLightHot, uLightCool;
+  varying vec2 vLocal;
   void main() {
-    float fres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0), 1.35);
-    vec3 color = mix(mix(uDarkIn, uDarkOut, fres), mix(uLightIn, uLightOut, fres), uMix);
-    gl_FragColor = vec4(color, 1.0);
+    float r = length(vLocal);
+    float angle = atan(vLocal.y, vLocal.x);
+    float swirl = 0.5 + 0.5 * sin(angle * 3.0 + uTime * 1.15 - r * 26.0);
+    float fine = 0.5 + 0.5 * sin(angle * 7.0 + uTime * 1.9 - r * 74.0);
+    float band = smoothstep(uInner, uInner + 0.05, r) * (1.0 - smoothstep(uOuter - 0.26, uOuter, r));
+    float density = band * (0.32 + 0.68 * swirl) * (0.76 + 0.24 * fine);
+    float beam = 0.26 + 0.74 * smoothstep(-0.9, 0.9, -vLocal.x / uOuter);
+    float heat = clamp((uOuter - r) / (uOuter - uInner), 0.0, 1.0);
+    vec3 color = mix(mix(uDarkCool, uDarkHot, heat), mix(uLightCool, uLightHot, heat), uMix);
+    float alpha = clamp(density * beam * uAlpha, 0.0, 1.0);
+    if (alpha < 0.008) discard;
+    gl_FragColor = vec4(color, alpha);
   }`
 
-// Cung sáng của đĩa bồi tụ: nhiều cung lệch pha + tan hai đầu.
-const ARC_FRAGMENT = `
-  uniform float uMix, uPhase, uSegments, uPower, uAlpha;
+// Ảnh bị bẻ cong của nửa xa đĩa: chỉ giữ cung phía trên chân trời, đúng dáng
+// "vòng cung vắt qua đỉnh" của một hố đen thật.
+const LENS_FRAGMENT = `
+  uniform float uMix, uTime, uAlpha;
   uniform vec3 uDarkA, uDarkB, uLightA, uLightB;
   varying vec2 vLocal;
   void main() {
     float angle = atan(vLocal.y, vLocal.x);
-    float arc = pow(0.5 + 0.5 * sin(angle * uSegments + uPhase), uPower);
-    vec3 color = mix(mix(uDarkA, uDarkB, arc), mix(uLightA, uLightB, arc), uMix);
-    gl_FragColor = vec4(color, arc * uAlpha);
+    float upper = smoothstep(0.0, 0.85, sin(angle));
+    float ripple = 0.62 + 0.38 * sin(angle * 4.0 - uTime * 1.6);
+    vec3 color = mix(mix(uDarkA, uDarkB, ripple), mix(uLightA, uLightB, ripple), uMix);
+    float alpha = upper * ripple * uAlpha;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(color, alpha);
   }`
 
 const FLAT_VERTEX = `
@@ -560,7 +646,7 @@ function DataGlobe({ moving, light, mix }: { moving: boolean; light: boolean; mi
       <mesh scale={1.04}>
         <icosahedronGeometry args={[1.05, 2]} />
         <meshBasicMaterial color={light ? '#dbeafe' : '#9ae6ff'} wireframe transparent
-          opacity={light ? 0.34 : 0.22} depthWrite={false} />
+          opacity={light ? 0.2 : 0.12} depthWrite={false} />
       </mesh>
       {nodePositions.map((position, index) => <mesh key={index} position={position}>
         <sphereGeometry args={[0.026, 8, 6]} />
@@ -575,16 +661,16 @@ function DataGlobe({ moving, light, mix }: { moving: boolean; light: boolean; mi
   </group>
 }
 
-const singularityArcs = [
-  { radius: 0.42, thickness: 0.024, segments: 1, speed: 0.2, phase: 0.4, alpha: 0.8 },
-  { radius: 0.5, thickness: 0.028, segments: 2, speed: -0.14, phase: 2.2, alpha: 0.64 },
-  { radius: 0.59, thickness: 0.032, segments: 1, speed: 0.15, phase: 4.1, alpha: 0.56 },
-  { radius: 0.69, thickness: 0.036, segments: 3, speed: -0.1, phase: 1.1, alpha: 0.46 },
-  { radius: 0.8, thickness: 0.042, segments: 2, speed: 0.08, phase: 5.3, alpha: 0.36 },
-]
+// Mỗi tia bụi giữ quỹ đạo và tốc độ riêng nên vành sáng không quay cứng như bánh xe.
+const singularitySparks = Array.from({ length: 30 }, (_, index) => ({
+  radius: 0.42 + (index % 6) * 0.082,
+  angle: index * 2.399,
+  speed: 0.34 + (index % 5) * 0.13,
+  size: index % 7 === 0 ? 0.016 : 0.009,
+  z: ((index % 3) - 1) * 0.018,
+}))
 
 function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; mix: Mix }) {
-  const disk = useRef<Group>(null)
   const sparks = useRef<Group>(null)
   const coreHalo = useRef<Mesh>(null)
   const clock = useRef(0)
@@ -614,22 +700,33 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
 
   const photon = useMemo(() => ({
     uMix: mix,
-    uDark: { value: new Color('#fde68a') },
+    uTime: { value: 0 },
+    uDark: { value: new Color('#fff4d1') },
     uLight: { value: new Color('#f59e0b') },
-    uAlpha: { value: 0.95 },
   }), [mix])
 
-  const arcs = useMemo(() => singularityArcs.map((arc, index) => ({
+  // Một lớp đĩa thay cho năm vành tròn đồng tâm: nóng ở vành trong, nguội dần ra ngoài.
+  const disk = useMemo(() => ({
     uMix: mix,
-    uPhase: { value: arc.phase },
-    uSegments: { value: arc.segments },
-    uPower: { value: 2.6 },
-    uAlpha: { value: arc.alpha },
-    uDarkA: { value: new Color(index % 2 === 0 ? '#67e8f9' : '#c4b5fd') },
-    uDarkB: { value: new Color(index % 2 === 0 ? '#22d3ee' : '#8b5cf6') },
-    uLightA: { value: new Color(index % 2 === 0 ? '#0891b2' : '#7c3aed') },
-    uLightB: { value: new Color(index % 2 === 0 ? '#0e7490' : '#c026d3') },
-  })), [mix])
+    uTime: { value: 0 },
+    uInner: { value: 0.40 },
+    uOuter: { value: 0.94 },
+    uAlpha: { value: 0.95 },
+    uDarkHot: { value: new Color('#fff3cf') },
+    uDarkCool: { value: new Color('#8b5cf6') },
+    uLightHot: { value: new Color('#f59e0b') },
+    uLightCool: { value: new Color('#a855f7') },
+  }), [mix])
+
+  const lens = useMemo(() => ({
+    uMix: mix,
+    uTime: { value: 0 },
+    uAlpha: { value: 0.8 },
+    uDarkA: { value: new Color('#fde68a') },
+    uDarkB: { value: new Color('#f472b6') },
+    uLightA: { value: new Color('#f59e0b') },
+    uLightB: { value: new Color('#be185d') },
+  }), [mix])
 
   const sparkTint = useMemo(() => ({
     uMix: mix,
@@ -642,11 +739,16 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
     if (!moving) return
     const step = Math.min(delta, 0.05)
     clock.current += step
-    disk.current?.children.forEach((child, index) => {
-      child.rotation.z += step * singularityArcs[index].speed
+    // Đĩa và cung sáng tự chảy trong shader; ở đây chỉ đồng bộ đồng hồ và quỹ đạo tia bụi.
+    setNumberUniform(disk.uTime, clock.current)
+    setNumberUniform(lens.uTime, clock.current)
+    setNumberUniform(photon.uTime, clock.current)
+    if (coreHalo.current) coreHalo.current.scale.setScalar(1.5 + Math.sin(clock.current * 1.25) * 0.05)
+    if (sparks.current) sparks.current.children.forEach((child, index) => {
+      const spark = requireDefined(singularitySparks[index], 'singularity spark')
+      const angle = spark.angle + clock.current * spark.speed
+      child.position.set(Math.cos(angle) * spark.radius, Math.sin(angle) * spark.radius, spark.z)
     })
-    if (sparks.current) sparks.current.rotation.z -= step * 0.3
-    if (coreHalo.current) coreHalo.current.scale.setScalar(1.55 + Math.sin(clock.current * 1.4) * 0.06)
   })
 
   return <group>
@@ -664,29 +766,30 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
       <sphereGeometry args={[0.3, 40, 30]} />
       <shaderMaterial uniforms={core} vertexShader={SURFACE_VERTEX} fragmentShader={CORE_FRAGMENT} />
     </mesh>
-    <mesh rotation={[0, 0, 0]}>
-      <torusGeometry args={[0.335, 0.011, 8, 120]} />
-      <shaderMaterial uniforms={photon} vertexShader={FLAT_VERTEX} fragmentShader={FLAT_FRAGMENT}
+    <mesh>
+      <torusGeometry args={[0.322, 0.0085, 8, 160]} />
+      <shaderMaterial uniforms={photon} vertexShader={LOCAL_VERTEX} fragmentShader={PHOTON_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
-    <group rotation={[0.78, 0.14, -0.26]}>
-      <group ref={disk}>
-        {singularityArcs.map((arc, index) => <mesh key={index}>
-          <ringGeometry args={[arc.radius, arc.radius + arc.thickness, 128]} />
-          <shaderMaterial uniforms={arcs[index]} vertexShader={LOCAL_VERTEX} fragmentShader={ARC_FRAGMENT}
+    {/* Ảnh bị uốn cong của nửa xa đĩa: cung vắt qua đỉnh chân trời, dẹt theo trục dọc. */}
+    <mesh position={[0, 0.035, 0.02]} scale={[1, 0.66, 1]}>
+      <ringGeometry args={[0.345, 0.475, 140]} />
+      <shaderMaterial uniforms={lens} vertexShader={LOCAL_VERTEX} fragmentShader={LENS_FRAGMENT}
+        transparent depthWrite={false} side={DoubleSide} blending={light ? NormalBlending : AdditiveBlending} />
+    </mesh>
+    <group rotation={[1.12, 0.16, -0.22]}>
+      <mesh>
+        <ringGeometry args={[0.40, 0.94, 180]} />
+        <shaderMaterial uniforms={disk} vertexShader={LOCAL_VERTEX} fragmentShader={DISK_FRAGMENT}
+          transparent depthWrite={false} side={DoubleSide} blending={light ? NormalBlending : AdditiveBlending} />
+      </mesh>
+      <group ref={sparks}>
+        {singularitySparks.map((spark, index) => <mesh key={index}
+          position={[Math.cos(spark.angle) * spark.radius, Math.sin(spark.angle) * spark.radius, spark.z]}>
+          <sphereGeometry args={[spark.size, 6, 5]} />
+          <shaderMaterial uniforms={sparkTint} vertexShader={FLAT_VERTEX} fragmentShader={FLAT_FRAGMENT}
             transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
         </mesh>)}
-      </group>
-      <group ref={sparks}>
-        {Array.from({ length: 26 }, (_, index) => {
-          const radius = 0.45 + (index % 5) * 0.07
-          const angle = index * 2.399
-          return <mesh key={index} position={[Math.cos(angle) * radius, Math.sin(angle) * radius, (index % 3) * 0.012]}>
-            <sphereGeometry args={[0.014, 6, 5]} />
-            <shaderMaterial uniforms={sparkTint} vertexShader={FLAT_VERTEX} fragmentShader={FLAT_FRAGMENT}
-              transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
-          </mesh>
-        })}
       </group>
     </group>
   </group>
@@ -751,9 +854,29 @@ function Nebula({ mix, light, position, scale }: {
   </mesh>
 }
 
+// Mỗi cụm nội dung chính nhận cùng một góc xoay nhưng quay quanh TÂM CỦA NÓ — kéo ở đâu trên
+// banner thì các khối tâm cùng nghiêng tại chỗ, không bị kéo lê ngang qua banner.
+function SpinGroup({ spin, position, scale, children }: {
+  spin: SpinHandle
+  position?: [number, number, number]
+  scale?: number | [number, number, number]
+  children: ReactNode
+}) {
+  const group = useRef<Group>(null)
+  useFrame(() => {
+    if (!group.current) return
+    group.current.rotation.y = spin.current.x
+    group.current.rotation.x = spin.current.y
+  })
+  return <group ref={group} {...(position === undefined ? {} : { position })} {...(scale === undefined ? {} : { scale })}>{children}</group>
+}
+
 function Universe({ moving, light }: { moving: boolean; light: boolean }) {
   const mix = useThemeMix(light, moving)
-  const { size, camera, invalidate } = useThree()
+  const { size, camera, invalidate, gl } = useThree()
+  // Kéo trên canvas để xoay cảnh; không zoom nên con lăn vẫn dành cho trang.
+  const spin = useDragSpin(gl.domElement, invalidate)
+  useFrame((_, delta) => easeSpin(spin, delta))
   // Camera trực giao giữ hình cầu tròn đều ở mép banner rất rộng.
   const viewport = { width: size.width / Math.max(size.height, 1) * 5.4, height: 5.4 }
   useLayoutEffect(() => {
@@ -768,29 +891,29 @@ function Universe({ moving, light }: { moving: boolean; light: boolean }) {
       scale={[viewport.width * 0.8, viewport.height * 1.35]} />
     <Nebula mix={mix} light={light} position={[viewport.width * 0.6, viewport.height * -0.26, -4]}
       scale={[viewport.width * 0.46, viewport.height * 0.85]} />
-    <group position={[viewport.width * 0.25, viewport.height * -0.015, 0]} scale={scale}>
+    <SpinGroup spin={spin} position={[viewport.width * 0.25, viewport.height * -0.015, 0]} scale={scale}>
       <DataGlobe moving={moving} light={light} mix={mix} />
       {planets.map((planet, index) => <OrbitingPlanet key={index} planet={planet} moving={moving} mix={mix} />)}
       {drifters.map((drifter, index) => <FloatingPlanet key={`drifter-${index}`} planet={drifter.spec}
         position={drifter.position} moving={moving} mix={mix} scale={drifter.scale} />)}
-    </group>
-    <group position={[viewport.width * (compact ? 0.14 : 0.088), viewport.height * (compact ? 0.26 : 0.29), 0]}
+    </SpinGroup>
+    <SpinGroup spin={spin} position={[viewport.width * (compact ? 0.14 : 0.088), viewport.height * (compact ? 0.26 : 0.29), 0]}
       scale={compact ? 0.62 : 0.86}>
       <HaloPlanet moving={moving} light={light} mix={mix} />
-    </group>
-    <group position={[viewport.width * (compact ? 0.05 : -0.025), viewport.height * -0.19, 0.8]} scale={compact ? 0.62 : 0.95}>
+    </SpinGroup>
+    <SpinGroup spin={spin} position={[viewport.width * (compact ? 0.05 : -0.025), viewport.height * -0.19, 0.8]} scale={compact ? 0.62 : 0.95}>
       <HeroSpaceHole moving={moving} mix={mix} />
-    </group>
+    </SpinGroup>
     {[
       { index: 2, x: -.30, y: .34, scale: 1.45 },
       { index: 5, x: -.23, y: -.24, scale: 1.35 },
       { index: 7, x: .39, y: .35, scale: 1.65 },
       { index: 8, x: .43, y: -.31, scale: 1.25 },
     ].map(({ index, x, y, scale: planetScale }) => <FloatingPlanet key={`outer-${index}`}
-      planet={planets[index]} position={[viewport.width * x, viewport.height * y, 0.25]}
+      planet={requireDefined(planets[index], 'outer planet')} position={[viewport.width * x, viewport.height * y, 0.25]}
       moving={moving} mix={mix} scale={compact ? planetScale * .65 : planetScale} />)}
     <group position={[viewport.width * .39, viewport.height * .35, .25]} scale={compact ? .65 : 1}>
-      <OrbitingPlanet planet={{ ...planets[6], orbit: .34, size: .035, speed: .65, tilt: [.7, .2, .4] }} moving={moving} mix={mix} />
+      <OrbitingPlanet planet={{ ...requireDefined(planets[6], 'orbiting planet'), orbit: .34, size: .035, speed: .65, tilt: [.7, .2, .4] }} moving={moving} mix={mix} />
     </group>
     <Starfield width={viewport.width} height={viewport.height} mix={mix} moving={moving} />
   </>
@@ -803,7 +926,7 @@ export default function HomeUniverse({ fallback, paused, light }: { fallback: Re
   const [lost, setLost] = useState(false)
   useEffect(() => {
     if (!host.current || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
+    const observer = new IntersectionObserver(([entry]) => setVisible(requireDefined(entry, 'home-universe.tsx:807').isIntersecting))
     observer.observe(host.current)
     return () => observer.disconnect()
   }, [])

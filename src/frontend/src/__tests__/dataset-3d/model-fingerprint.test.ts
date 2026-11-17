@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 // The image-neutrality gate for the tower refactor (CODE ARCHITECTURE IMPROVEMENT PLAN, Phase 0).
 //
 // p0-baseline.ndjson was written from the tree at the Phase 0 commit. Phases 2-5 claim they move
@@ -54,7 +55,7 @@ describe('holographic core fingerprint vs the Phase 0 baseline', () => {
     if (want.length !== got.length) diffs.push(`line count ${want.length} -> ${got.length}`)
     for (let index = 0; index < Math.min(want.length, got.length); index += 1) {
       if (want[index] === got[index]) continue
-      diffs.push(`#${index}\n    - ${truncate(want[index])}\n    + ${truncate(got[index])}`)
+      diffs.push(`#${index}\n    - ${truncate(requireDefined(want[index], 'model-fingerprint.test.ts:58'))}\n    + ${truncate(requireDefined(got[index], 'model-fingerprint.test.ts:58'))}`)
       if (diffs.length >= 5) break
     }
     expect(diffs, `fingerprint drift at moment "${moment}"`).toEqual([])

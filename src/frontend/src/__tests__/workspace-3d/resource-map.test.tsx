@@ -1,11 +1,12 @@
+import { requireDefined } from '../../utils/required-value'
 import { StrictMode, useState } from 'react'
 import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ResourceMap } from '../../views/workspace-3d/workspace-3d.view'
 import { previewResources } from '../../views/workspace-3d/preview-resources'
 import { useSceneMotion } from '../../hooks/workspace-3d/use-scene-motion'
-import type { ResourceNode } from '../../types/workspace-3d/resource-map.types'
-import type { CameraCommand } from '../../types/workspace-3d/resource-map.types'
+import type { ResourceNode } from '../../types'
+import type { CameraCommand } from '../../types'
 
 // UI tests deliberately do not claim to exercise a GPU.
 const sceneProbe = vi.hoisted(() => vi.fn())
@@ -76,7 +77,7 @@ it('updates a selected name without losing identity and clears removed details',
 it('handles empty/invalid input and keeps accessible selection with a renderer fallback', () => {
   const rendered = render(<Harness resources={[]} />)
   expect(screen.getByRole('heading', { name: 'Chưa có tài nguyên' })).toBeDefined()
-  rendered.rerender(<Harness resources={[{ ...previewResources[3], parentId: 'missing' }]} />)
+  rendered.rerender(<Harness resources={[{ ...requireDefined(previewResources[3], 'invalid-parent fixture'), parentId: 'missing' }]} />)
   expect(screen.getByRole('alert').textContent).toContain('parentId')
   rendered.rerender(<Harness />)
   expect(screen.getByRole('status').textContent).toContain('fallback')

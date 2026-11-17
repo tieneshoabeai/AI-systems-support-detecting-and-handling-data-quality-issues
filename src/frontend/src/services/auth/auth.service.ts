@@ -1,22 +1,21 @@
 import { ApiError, isRecord } from '../../lib/api-error'
-import type { ApiClient } from '../../types/api/api.types'
-import type { LoginRequestDto, LoginResponseDto, LoginResult, RefreshRequestDto, RefreshResult } from '../../types/auth/auth.types'
-import { readAccessToken } from '../../utils/auth/access-token'
+import type { ApiClient } from '../../types'
+import type { LoginRequestDto, LoginResponseDto, LoginResult, RefreshRequestDto, RefreshResult } from '../../types'
+import { readAccessToken } from '../../utils'
 
 const isNonemptyString = (value: unknown): value is string => {
   return typeof value === 'string' && value.trim().length > 0
 }
 
 const isLoginResponse = (value: unknown): value is LoginResponseDto => {
-  if (!isRecord(value) || !isRecord(value.user)) return false
-  const user = value.user
-  return isNonemptyString(value.access_token)
-    && isNonemptyString(value.refresh_token)
-    && typeof value.expires_in === 'number'
-    && Number.isFinite(value.expires_in) && value.expires_in > 0
-    && isNonemptyString(user.id) && isNonemptyString(user.email)
-    && typeof user.first_name === 'string' && typeof user.last_name === 'string'
-    && (user.role === 'admin' || user.role === 'analyst')
+  if (!isRecord(value) || !isRecord(value['user'])) return false
+  const user = value['user']
+  return isNonemptyString(value['access_token'])
+    && isNonemptyString(value['refresh_token'])
+    && typeof value['expires_in'] === 'number'
+    && Number.isFinite(value['expires_in']) && value['expires_in'] > 0
+    && isNonemptyString(user['id']) && isNonemptyString(user['email'])
+    && (user['role'] === 'admin' || user['role'] === 'analyst')
 }
 
 const mapLoginResponse = (value: unknown): LoginResult => {
@@ -38,7 +37,7 @@ const mapLoginResponse = (value: unknown): LoginResult => {
     expiresAtMs: info.expiresAtMs,
     user: {
       id: value.user.id, email: value.user.email,
-      firstName: value.user.first_name, lastName: value.user.last_name, role: value.user.role,
+      role: value.user.role,
     },
   }
 }
@@ -50,24 +49,26 @@ export const createAuthService = (api: ApiClient) => ({
     }
     const response = await api.request<unknown>({
       path: '/auth/refresh', method: 'POST', auth: 'public',
-      data: { refresh_token: input.refresh_token }, signal: options.signal,
+      data: { refresh_token: input.refresh_token }, ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
     const invalidResponse = () => new ApiError({ kind: 'invalid-response', message: 'Phản hồi gia hạn thiếu hoặc sai dữ liệu phiên.' })
-    if (!isRecord(response) || typeof response.access_token !== 'string'
-      || typeof response.expires_in !== 'number' || !Number.isFinite(response.expires_in)
-      || response.expires_in <= 0) throw invalidResponse()
-    const info = readAccessToken(response.access_token)
+    if (!isRecord(response) || !isNonemptyString(response['access_token'])
+      || !isNonemptyString(response['refresh_token'])
+      || typeof response['expires_in'] !== 'number' || !Number.isFinite(response['expires_in'])
+      || response['expires_in'] <= 0) throw invalidResponse()
+    const info = readAccessToken(response['access_token'])
     if (!info) throw invalidResponse()
     // Coordinator kiểm tra hạn, account và phiên hiện tại trước khi ghi.
-    // Backend không rotate refresh token; service không tự tạo/lưu phiên.
-    return { accessToken: response.access_token, accountId: info.accountId, expiresAtMs: info.expiresAtMs }
+    // Backend rotate refresh token; trả cả hai để coordinator lưu cùng một phiên.
+    return { accessToken: response['access_token'], refreshToken: response['refresh_token'],
+      accountId: info.accountId, expiresAtMs: info.expiresAtMs }
   },
 
   async logout(options: { signal?: AbortSignal } = {}): Promise<void> {
     const response = await api.request<unknown>({
-      path: '/auth/logout', method: 'POST', auth: 'session', signal: options.signal,
+      path: '/auth/logout', method: 'POST', auth: 'session', ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
-    if (!isRecord(response) || !isNonemptyString(response.message)) {
+    if (!isRecord(response) || !isNonemptyString(response['message'])) {
       throw new ApiError({ kind: 'invalid-response', message: 'Phản hồi đăng xuất không hợp lệ.' })
     }
     // Chỉ xác nhận response server; dọn credential/cache thuộc coordinator.
@@ -79,7 +80,7 @@ export const createAuthService = (api: ApiClient) => ({
     if (input.device_name !== undefined) data.device_name = input.device_name
 
     const response = await api.request<unknown>({
-      path: '/auth/login', method: 'POST', auth: 'public', data, signal: options.signal,
+      path: '/auth/login', method: 'POST', auth: 'public', data, ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
     // Client đã unwrap envelope đúng một lần. Service kiểm tra DTO cụ thể.
     return mapLoginResponse(response)

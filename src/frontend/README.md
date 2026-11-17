@@ -2,7 +2,7 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại.** Frontend đã có luồng đăng nhập và quản lý phiên, khu vực Management 2D dùng dữ liệu mẫu, khung route AI Data Processing, Workspace 3D dành cho dev, trang review Dataset 3D và repository bản nháp IndexedDB. Management và Processing chưa nối API nghiệp vụ.
+**Trạng thái hiện tại.** Management đã nối API workspace/project/thành viên và tải CSV khi tạo project. Auth, 3D và xử lý dữ liệu chuyên sâu do thành viên FE còn lại phụ trách; thông báo, hồ sơ và báo lỗi đã nối các endpoint hiện có. BE thật chưa được nghiệm thu vì đang chờ URL/tài khoản test.
 
 ## 1. Project Overview
 
@@ -45,9 +45,9 @@ Frontend cần giải quyết các yêu cầu:
 | Module | Phạm vi mục tiêu | Hiện trạng FE |
 |---|---|---|
 | Auth | Đăng nhập/đăng ký, quản lý phiên, gia hạn theo xác nhận người dùng | Có login, phiên và gia hạn. Panel đăng ký là UI thử |
-| User | Xem và cập nhật hồ sơ | Service đọc hồ sơ phiên. Settings preview dùng mock |
-| Workspace | Danh sách, chi tiết và quản lý workspace/thành viên theo quyền | Có khung bảo vệ theo phiên và màn hình preview dùng fixture |
-| Project | Quản lý project trong workspace | Có các màn hình preview dùng fixture |
+| User | Xem và cập nhật hồ sơ | Đọc hồ sơ phiên; Settings lưu họ tên và tùy chọn thông báo qua API |
+| Workspace | Danh sách, chi tiết và quản lý workspace/thành viên theo quyền | Dùng API trong phiên đăng nhập; dữ liệu mẫu chỉ bật tường minh ở dev |
+| Project | Quản lý project trong workspace | Đã nối tạo/đổi tên/xóa, thành viên, chuyển quyền và upload CSV |
 | Dataset | Upload, metadata, schema, đổi tên và xóa | Có repository draft cục bộ và luồng thử CSV trong Workspace 3D |
 | Visualization | Cursor grid, thống kê cột, sửa ô trực tuyến và ranh giới data 3D | Có trang review Dataset 3D với nguồn điểm mẫu |
 | Transformation | Chuẩn bị, xem trước và thực thi phép biến đổi | Có plan; contract backend còn cần xác nhận |
@@ -62,12 +62,11 @@ Các phần dùng chung gồm Foundation, Screen flow và Shared UI. Xem [master
 
 ~~~text
 index.html → src/app/main.tsx
-  ├─ /management, /processing hoặc URL 2D cũ ở dev → WorkbenchEntry (dữ liệu mẫu, không khởi tạo auth runtime)
   ├─ /preview/workspaces-3d ở dev → Workspace 3D
   └─ Luồng chính → Application → providers → BrowserRouter → AppRouter → guard/view
 ~~~
 
-`/workspaces` đi qua guard trước khi render `layout.tsx`. `/workspaces/3d-dataset` tạm bỏ guard để review giao diện theo ghi chú trong [AppRouter](src/app/router/app-router.tsx).
+`/workspaces`, `/workspaces/3d-dataset`, Management và Processing đi qua guard cả dev lẫn production. Page entry nằm trong `app/pages/private`; login và 404 nằm trong `app/pages/public`. `provider/` ghép providers, `context/` giữ AuthProvider implementation.
 
 ### Route Management và AI Data Processing
 
@@ -87,7 +86,7 @@ React Router điều hướng bằng pathname; URL 2D mới không dùng `/previ
 
 Ví dụ URL cũ `/preview/home#/preview/projects/ws-acme/prj-sales` được chuyển hướng bằng `replace` tới `/management/projects/prj-sales`. Workspace không nằm trong định danh URL của project. ID hiện hỗ trợ chữ, số, `_` và `-`; workspace ở query là bộ lọc danh sách.
 
-Production đi qua `ProtectedRoute` cho cả hai khu vực và giữ URL đích hợp lệ khi đăng nhập. Đích mặc định sau đăng nhập được cấu hình là `/processing`; đây chỉ là điều hướng, không thay đổi hoặc chứng minh kết nối Login/API. Dev cho phép review UI mẫu khi API chưa sẵn sàng. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project trên Processing mở `/processing/new`, còn một dòng project mở trang Project hiện tại với Tổng quan, Data View, Data Analysis, Detection. Không có luồng upload/phân tích/đánh giá riêng theo từng trang nữa.
+Mặc định dev và production đi qua `ProtectedRoute` cho Management, Processing và Dataset 3D. Riêng dev có thể đặt `VITE_MANAGEMENT_DATA_MODE=mock` để xem Management/Processing không cần BE; production không dùng nhánh này. Đích mặc định sau đăng nhập là `/processing`; đây chỉ là điều hướng, không chứng minh kết nối API nghiệp vụ. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project mở `/processing/new`; một dòng project mở trang Project hiện tại. Các màn quản lý nhận store API từ `ManagementDataProvider`; chế độ dev mock dùng fixture.
 
 **Upload và lưu kết quả:** Project chưa có dataset có nút Upload data và hộp chọn tệp trên thiết bị; upload thật chưa nối dịch vụ nên không gửi tệp hoặc gắn dataset giả. Mục Detection chuẩn bị khu vực lưu kết quả, hiện không khả dụng vì chưa có kết quả server xác nhận. `ConfirmedProjectResult` là biên tích hợp UI, không phải DTO backend: chỉ truyền vào khi có kết quả thật; callback `save` chỉ được resolve sau khi cả đánh giá và kết quả đã lưu trong hệ thống. Biểu mẫu bắt buộc 1–5 sao và nội dung không trắng, giữ nội dung để thử lại khi lưu lỗi, chặn gửi trùng khi đang chờ. Tải file là tùy chọn và chỉ được bật sau khi lưu thành công, nếu có dịch vụ download. Chưa tự tạo endpoint đánh giá hoặc nối API upload/lưu/xuất; quy tắc nơi lưu khi bỏ qua workspace vẫn chờ chốt.
 
@@ -173,12 +172,14 @@ frontend/
 │   ├── app/
 │   │   ├── constants/
 │   │   ├── context/
+│   │   ├── provider/        # Tổng hợp providers
 │   │   ├── pages/
 │   │   │   ├── private/
 │   │   │   └── public/
 │   │   ├── router/
 │   │   ├── App.tsx
-│   │   ├── layout.tsx
+│   │   ├── app-runtime.ts
+│   │   ├── application-bootstrap.tsx
 │   │   ├── main.tsx
 │   │   └── style.css
 │   ├── assets/
@@ -274,7 +275,7 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 
 ## 9. Limitations
 
-- Preview 2D và Workspace 3D dùng dữ liệu mẫu. Dataset 3D đang phục vụ review hình ảnh.
+- Manager 2D dùng API khi đăng nhập; trang review phát triển mới dùng dữ liệu mẫu. Dataset 3D đang phục vụ review hình ảnh.
 - Một số contract backend còn thiếu hoặc cần đối chiếu DTO/service và response thật; xem ngày/bằng chứng trong contract audit, không coi snapshot cũ là xác nhận server hiện tại.
 - Chưa chốt toàn bộ UX, permission presentation, data 3D mapping và tiêu chí hiệu năng.
 - Repository có schema và quota cục bộ. Luồng replay và đối soát server chờ contract đồng bộ.
@@ -290,3 +291,28 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 7. Thêm automated tests, browser/API integration, accessibility, CI và deployment checks.
 
 Mọi thay đổi quan trọng theo workflow review và human confirmation của dự án. Quy định sử dụng AI: [AI-usage.md](AI-usage.md).
+
+## Tích hợp Manager trên TaiFE
+
+Copy `.env.example` thành `.env`, cấu hình `VITE_API_BASE_URL` và `VITE_API_PREFIX` theo backend rồi chạy `npm run dev`. Mặc định `/management` đi qua ứng dụng có phiên đăng nhập; tải lại trang vẫn dùng API. Chỉ đặt `VITE_MANAGEMENT_DATA_MODE=mock` khi cần xem giao diện mẫu độc lập trong môi trường dev.
+
+Đã nối: danh sách toàn bộ workspace/project qua phân trang, chi tiết và bộ lọc trên dữ liệu đã tải, tạo/đổi tên/sửa mô tả/xóa workspace, tạo/đổi tên/xóa project, tải CSV khi tạo project, thêm/gỡ thành viên workspace và project, đổi vai trò Member/Viewer của project kèm `expectedVersion`. Workspace chỉ hỗ trợ Owner/Member; thay đổi vai trò workspace được khóa vì backend dùng luồng chuyển chủ sở hữu riêng. Yêu thích chỉ tồn tại trong phiên hiện tại.
+
+Các thao tác ghi chờ server; không hiện Hoàn tác cục bộ cho dữ liệu đã lưu. Nếu tạo project/workspace thành công nhưng bước tiếp theo thất bại, thông báo ghi rõ trạng thái tạo một phần để tránh tạo trùng. API danh sách thành viên bổ sung tên/email, chỉ trả trường hiển thị và kiểm tra quyền trước khi đọc hồ sơ.
+
+Điểm bàn giao cho người nối auth/3D: `ManagementDataProvider` dùng `AuthContext` và session storage hiện có, giữ nguyên luồng login/renew/logout. Backend mới dùng một số DTO camelCase; cần đối chiếu auth/users khi nối phiên thật. Không có thay đổi hợp đồng 3D. Đã nối danh sách/đánh dấu đọc thông báo và tùy chọn nhận thông báo chung, tạo/xem báo lỗi kèm upload/download tệp, cập nhật họ tên. Xóa thông báo và các trường hồ sơ ngoài DTO hiện hành bị khóa. Chức năng auth/session vẫn thuộc phần bàn giao auth.
+
+Kiểm tra: frontend build/lint, test manager, test xóa HTTP 204, wizard chờ xác nhận server; backend type-check và test workspace/project/member. Chưa kiểm thử end-to-end với database và tài khoản thật. Kiểm thử 3D/Detection là phạm vi riêng; không cập nhật baseline hình ảnh để che lỗi tích hợp manager.
+
+Các bổ sung manager: chuyển chủ sở hữu workspace/project kèm phiên bản, rời workspace, upload vào project trống đã tồn tại, chờ API thành công mới đóng form. Retry trong cùng phiên dùng lại project/báo lỗi đã tạo. UI dùng các control tại `src/components/ui`; module manager có `index.ts` và README riêng.
+
+Backend manager dùng `ManagementAccessGuard` kiểm tra membership từ database, không phụ thuộc workspace claims trong JWT. Xóa thành viên/rời workspace thu hồi các vai trò project; nếu người rời là Project Owner thì Workspace Owner tiếp quản. Thao tác này dùng transaction MongoDB, cần replica set. Chuyển Owner dùng một phép cập nhật nguyên tử để không có khoảng trống chủ sở hữu.
+
+Kiểm thử HTTP nội bộ dùng repository thay thế để kiểm tra controller, validation và quyền. Cần chạy thêm luồng trình duyệt với tài khoản thật và MongoDB replica set trước khi nghiệm thu; không coi các bài kiểm thử mô phỏng là E2E đầy đủ.
+
+### Ghép kiến trúc frontend và manager
+
+- Màn quản lý nằm trong `src/views/management`; wizard và hộp thành viên nằm trong `src/components/project` và `src/components/workspace`. Các file `views/preview` cũ chỉ giữ điểm export tương thích.
+- Luồng dữ liệu: page → `ApplicationFrame` → `ManagementDataProvider` → hook/session → `services/management` → HTTP client → BE. Chờ xác nhận ghi trước khi chuyển màn thành công; không fallback sang fixture khi BE lỗi.
+- Control manager dùng Design System tại `components/ui`; chuyển quyền/rời workspace thu gọn trong hộp quản lý thành viên. Giữ bố cục trang và các lối vào đã có.
+- Kiểm thử hồi quy nằm tại `src/__tests__/management`, gồm tệp CSV gốc, chờ xác nhận, lỗi quyền và retry. Khi có URL BE mới, kiểm tra thêm CORS, phiên thật, persistence và phân quyền với nhiều tài khoản.

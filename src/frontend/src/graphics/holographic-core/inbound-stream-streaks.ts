@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import type { InboundPath } from './inbound-stream-paths'
 
@@ -135,13 +136,13 @@ function createStreakProfiles(laneIndex: number): StreakProfile[] {
     const grain = GRAIN_CLASSES[classIndex]
     profiles.push({
       jitter: lanePhase + (hash01(laneIndex + 31, streak + 7) - 0.5) * 2 * STREAK_PHASE_JITTER,
-      bodyColor: grain.bodyColor,
-      headColor: grain.headColor,
-      visibleWisps: grain.visibleWisps,
-      headRadius: grain.headRadius,
-      tailRadius: grain.tailRadius,
-      spread: grain.spread,
-      brightness: grain.brightness,
+      bodyColor: requireDefined(grain, 'inbound-stream-streaks.ts:139').bodyColor,
+      headColor: requireDefined(grain, 'inbound-stream-streaks.ts:140').headColor,
+      visibleWisps: requireDefined(grain, 'inbound-stream-streaks.ts:141').visibleWisps,
+      headRadius: requireDefined(grain, 'inbound-stream-streaks.ts:142').headRadius,
+      tailRadius: requireDefined(grain, 'inbound-stream-streaks.ts:143').tailRadius,
+      spread: requireDefined(grain, 'inbound-stream-streaks.ts:144').spread,
+      brightness: requireDefined(grain, 'inbound-stream-streaks.ts:145').brightness,
     })
   }
   return profiles
@@ -181,32 +182,32 @@ function writeLane(lane: Lane, elapsedSeconds: number | null) {
   for (let streak = 0; streak < STREAKS_PER_LANE; streak++) {
     const profile = profiles[streak]
     const headT = elapsedSeconds === null
-      ? fract(streak / STREAKS_PER_LANE + STATIC_PHASE_OFFSET + profile.jitter)
-      : fract(elapsedSeconds / cycle + streak / STREAKS_PER_LANE + profile.jitter)
+      ? fract(streak / STREAKS_PER_LANE + STATIC_PHASE_OFFSET + requireDefined(profile, 'inbound-stream-streaks.ts:185').jitter)
+      : fract(elapsedSeconds / cycle + streak / STREAKS_PER_LANE + requireDefined(profile, 'inbound-stream-streaks.ts:186').jitter)
     const absorb = smoothstep(ABSORB_START, ABSORB_END, headT)
     const visibleLength = baseLength * (1 - (1 - ABSORB_MIN_LENGTH) * absorb)
     const headDistance = headT * path.length
     const tailDistance = Math.max(0, headDistance - visibleLength)
     const brightness = smoothstep(0, SPAWN_FADE, headT)
       * (1 - smoothstep(VANISH_START, VANISH_END, headT))
-      * profile.brightness
+      * requireDefined(profile, 'inbound-stream-streaks.ts:193').brightness
     const streakOffset = streak * TUBES_PER_STREAK * RINGS * RADIAL
 
     for (let tube = 0; tube < TUBES_PER_STREAK; tube++) {
-      const visible = tube <= profile.visibleWisps
+      const visible = tube <= requireDefined(profile, 'inbound-stream-streaks.ts:197').visibleWisps
       const tubeOffset = (streakOffset + tube * RINGS * RADIAL) * 3
       for (let station = 0; station <= STATIONS; station++) {
         const profileT = station / STATIONS
         path.sampleAt(tailDistance + (headDistance - tailDistance) * profileT, samplePosition, sampleTangent)
 
-        const mainRadius = profile.tailRadius
-          + (profile.headRadius - profile.tailRadius) * Math.pow(profileT, 1.2)
+        const mainRadius = requireDefined(profile, 'inbound-stream-streaks.ts:203').tailRadius
+          + (requireDefined(profile, 'inbound-stream-streaks.ts:204').headRadius - requireDefined(profile, 'inbound-stream-streaks.ts:204').tailRadius) * Math.pow(profileT, 1.2)
         const radius = tube === 0 ? mainRadius : mainRadius * WISP_RADIUS_SCALE
         // Wisps hug the bright head and peel off toward the dim tail, so the front stays a single
         // point of light while the trail frays into two or three filaments.
         const lateral = tube === 0
           ? 0
-          : (tube === 1 ? 1 : -1) * profile.spread * smoothstep(WISP_SPLIT_START, 1, 1 - profileT)
+          : (tube === 1 ? 1 : -1) * requireDefined(profile, 'inbound-stream-streaks.ts:210').spread * smoothstep(WISP_SPLIT_START, 1, 1 - profileT)
 
         // The path is planar, so a constant plane normal gives a stable cross-section with no twist.
         const upX = sampleTangent.y * lane.sideZ
@@ -215,9 +216,9 @@ function writeLane(lane: Lane, elapsedSeconds: number | null) {
 
         const body = Math.pow(profileT, BODY_EXPONENT) * brightness
         const head = Math.pow(profileT, HEAD_EXPONENT) * brightness
-        const red = visible ? profile.bodyColor[0] * body + profile.headColor[0] * head : 0
-        const green = visible ? profile.bodyColor[1] * body + profile.headColor[1] * head : 0
-        const blue = visible ? profile.bodyColor[2] * body + profile.headColor[2] * head : 0
+        const red = visible ? requireDefined(profile, 'inbound-stream-streaks.ts:219').bodyColor[0] * body + requireDefined(profile, 'inbound-stream-streaks.ts:219').headColor[0] * head : 0
+        const green = visible ? requireDefined(profile, 'inbound-stream-streaks.ts:220').bodyColor[1] * body + requireDefined(profile, 'inbound-stream-streaks.ts:220').headColor[1] * head : 0
+        const blue = visible ? requireDefined(profile, 'inbound-stream-streaks.ts:221').bodyColor[2] * body + requireDefined(profile, 'inbound-stream-streaks.ts:221').headColor[2] * head : 0
 
         const centerX = samplePosition.x + lateral * lane.sideX
         const centerZ = samplePosition.z + lateral * lane.sideZ
@@ -226,9 +227,9 @@ function writeLane(lane: Lane, elapsedSeconds: number | null) {
           const offset = vertexOffset + ring * 3
           const ringCos = RING_COS[ring]
           const ringSin = RING_SIN[ring]
-          positions[offset] = centerX + radius * (ringCos * lane.sideX + ringSin * upX)
-          positions[offset + 1] = samplePosition.y + radius * ringSin * upY
-          positions[offset + 2] = centerZ + radius * (ringCos * lane.sideZ + ringSin * upZ)
+          positions[offset] = centerX + radius * (requireDefined(ringCos, 'inbound-stream-streaks.ts:230') * lane.sideX + requireDefined(ringSin, 'inbound-stream-streaks.ts:230') * upX)
+          positions[offset + 1] = samplePosition.y + radius * requireDefined(ringSin, 'inbound-stream-streaks.ts:231') * upY
+          positions[offset + 2] = centerZ + radius * (requireDefined(ringCos, 'inbound-stream-streaks.ts:232') * lane.sideZ + requireDefined(ringSin, 'inbound-stream-streaks.ts:232') * upZ)
           colors[offset] = red
           colors[offset + 1] = green
           colors[offset + 2] = blue
@@ -254,7 +255,7 @@ function createLane(path: InboundPath, material: THREE.MeshBasicMaterial, laneIn
 
   const mesh = new THREE.Mesh(geometry, material)
   mesh.name = 'inbound-stream-streaks'
-  mesh.userData.pathId = path.id
+  mesh.userData['pathId'] = path.id
   mesh.frustumCulled = false
   mesh.renderOrder = 7
 

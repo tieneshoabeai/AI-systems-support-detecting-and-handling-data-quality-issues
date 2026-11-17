@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import type { Table } from 'dexie'
-import type { UploadDraft } from '../../types/datasets/upload-draft.types'
+import type { UploadDraft } from '../../types'
 
 export class UploadDraftDatabase extends Dexie {
   drafts!: Table<UploadDraft, string>

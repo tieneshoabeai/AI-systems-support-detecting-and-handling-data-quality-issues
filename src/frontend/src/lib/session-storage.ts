@@ -1,21 +1,22 @@
-import type { StoredSession, SessionReadResult, SessionStoragePort } from '../types/auth/session.types'
-import type { TokenReader } from '../types/api/api.types'
-import { isAccessTokenExpired, readAccessToken } from '../utils/auth/access-token'
+import type { StoredSession, SessionReadResult, SessionStoragePort } from '../types'
+import type { TokenReader } from '../types'
+import { isAccessTokenExpired, readAccessToken } from '../utils'
 import { ApiError, isRecord } from './api-error'
+import { isShoppingDemo } from '../mocks/shopping-trends/demo-mode'
 
 export const SESSION_STORAGE_KEY = 'data-quality.auth.v1'
 
 const validateSession = (value: unknown): { session: StoredSession; expiresAtMs: number } | null => {
-  if (!isRecord(value) || value.schemaVersion !== 1
-    || typeof value.accessToken !== 'string' || typeof value.refreshToken !== 'string'
-    || value.refreshToken.trim().length === 0 || typeof value.accountId !== 'string') return null
-  const info = readAccessToken(value.accessToken)
-  if (!info || info.accountId !== value.accountId) return null
+  if (!isRecord(value) || value['schemaVersion'] !== 1
+    || typeof value['accessToken'] !== 'string' || typeof value['refreshToken'] !== 'string'
+    || value['refreshToken'].trim().length === 0 || typeof value['accountId'] !== 'string') return null
+  const info = readAccessToken(value['accessToken'])
+  if (!info || info.accountId !== value['accountId']) return null
   // Chỉ giữ các trường đã duyệt, không lưu password/role hoặc trường lạ từ caller.
   return {
     session: {
-      schemaVersion: 1, accessToken: value.accessToken,
-      refreshToken: value.refreshToken, accountId: value.accountId,
+      schemaVersion: 1, accessToken: value['accessToken'],
+      refreshToken: value['refreshToken'], accountId: value['accountId'],
     },
     expiresAtMs: info.expiresAtMs,
   }
@@ -27,6 +28,7 @@ type SessionStorageOptions = {
 }
 
 export const createSessionStorage = (options: SessionStorageOptions = {}) => {
+  const storageKey = !options.getStorage && isShoppingDemo() ? 'shopping-demo.session' : SESSION_STORAGE_KEY
   const getStorage = options.getStorage ?? (() => window.sessionStorage)
   const now = options.now ?? Date.now
 
@@ -39,10 +41,10 @@ export const createSessionStorage = (options: SessionStorageOptions = {}) => {
     }
   }
 
-  const clear = (): void => withStorage(storage => storage.removeItem(SESSION_STORAGE_KEY))
+  const clear = (): void => withStorage(storage => storage.removeItem(storageKey))
 
   const read = (): SessionReadResult => {
-    const raw = withStorage(storage => storage.getItem(SESSION_STORAGE_KEY))
+    const raw = withStorage(storage => storage.getItem(storageKey))
     if (raw === null) return { status: 'empty' }
     let value: unknown
     try { value = JSON.parse(raw) } catch { value = null }
@@ -61,7 +63,7 @@ export const createSessionStorage = (options: SessionStorageOptions = {}) => {
   const write = (value: StoredSession): void => {
     const validated = validateSession(value)
     if (!validated) throw new ApiError({ kind: 'session', message: 'Dữ liệu phiên đăng nhập không hợp lệ.' })
-    withStorage(storage => storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(validated.session)))
+    withStorage(storage => storage.setItem(storageKey, JSON.stringify(validated.session)))
   }
 
   const readToken: TokenReader = () => {

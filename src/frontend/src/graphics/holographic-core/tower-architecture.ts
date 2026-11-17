@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 // One tower, as a function of its own dimensions (CODE ARCHITECTURE IMPROVEMENT PLAN, Phase 4 / S1).
 // It takes no ids and no angles — placement belongs to tower-ring.ts — and its material values come from
 // tower-config.ts, so nothing here needs a back-reference into the Core factory.
@@ -157,15 +158,21 @@ function octagonalRingsGeometry(width: number, depth: number, rings: Array<{ y: 
   for (let level = 0; level < points.length - 1; level += 1) {
     for (let i = 0; i < 8; i += 1) {
       const j = (i + 1) % 8
-      triangle(points[level][i], points[level + 1][i], points[level + 1][j])
-      triangle(points[level][i], points[level + 1][j], points[level][j])
+      const lower = requireDefined(points[level], 'lower tower ring')
+      const upper = requireDefined(points[level + 1], 'upper tower ring')
+      const a = requireDefined(lower[i], 'lower ring vertex i')
+      const b = requireDefined(upper[i], 'upper ring vertex i')
+      const c = requireDefined(upper[j], 'upper ring vertex j')
+      const d = requireDefined(lower[j], 'lower ring vertex j')
+      triangle(a, b, c)
+      triangle(a, c, d)
     }
   }
   for (let i = 0; i < 8; i += 1) {
     const j = (i + 1) % 8
-    triangle(new THREE.Vector3(0, rings[0].y, 0), points[0][i], points[0][j])
+    triangle(new THREE.Vector3(0, requireDefined(rings[0], 'tower-architecture.ts:173').y, 0), requireDefined(requireDefined(points[0], 'tower-architecture.ts:173')[i], 'tower-architecture.ts:173'), requireDefined(requireDefined(points[0], 'tower-architecture.ts:173')[j], 'tower-architecture.ts:173'))
     const last = points.length - 1
-    triangle(new THREE.Vector3(0, rings[last].y, 0), points[last][j], points[last][i])
+    triangle(new THREE.Vector3(0, requireDefined(rings[last], 'tower-architecture.ts:175').y, 0), requireDefined(requireDefined(points[last], 'tower-architecture.ts:175')[j], 'tower-architecture.ts:175'), requireDefined(requireDefined(points[last], 'tower-architecture.ts:175')[i], 'tower-architecture.ts:175'))
   }
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
@@ -202,7 +209,7 @@ function buildCompositeHero(mesh: THREE.Mesh, width: number, height: number, dep
   const corners = new THREE.InstancedMesh(cornerGeometry, materials.heroMetal, 4)
   const anchors = [[1, 1], [1, -1], [-1, -1], [-1, 1]]
   anchors.forEach(([sx, sz], index) => {
-    towerPosition.set(sx * form.coreWidth / 2, form.bodyCenterY, sz * form.coreDepth / 2)
+    towerPosition.set(requireDefined(sx, 'tower-architecture.ts:212') * form.coreWidth / 2, form.bodyCenterY, requireDefined(sz, 'tower-architecture.ts:212') * form.coreDepth / 2)
     towerQuaternion.setFromAxisAngle(TOWER_UP, index * Math.PI / 2)
     towerScale.set(index % 2 ? form.armDepth : form.armWidth, form.bodyHeight, index % 2 ? form.armWidth : form.armDepth)
     towerMatrix.compose(towerPosition, towerQuaternion, towerScale)
@@ -285,7 +292,7 @@ export function buildTowerArchitecture(
   }
   for (let floor = 0; floor <= floorCount; floor += 1) {
     const y = bounds.min.y + floor * floorHeight
-    segments.push(-x,y,-z, x,y,-z, x,y,-z, x,y,z, x,y,z, -x,y,z, -x,y,z, -x,y,-z)
+    segments.push(-x, y, -z, x, y, -z, x, y, -z, x, y, z, x, y, z, -x, y, z, -x, y, z, -x, y, -z)
   }
   addTechnicalRods(mesh, segments, {
     name: 'tower-ledger-edges', thickness, opacity: 0.85, color: '#cfe6ff', blending: THREE.NormalBlending,
@@ -315,11 +322,11 @@ export function buildTowerArchitecture(
       towerQuaternion.setFromAxisAngle(TOWER_UP, face.rotation)
       for (const region of regions) {
         const mark = pair ? SHORT_BAR : MARK_SEQUENCE[Math.floor(random() * MARK_SEQUENCE.length)]
-        const markWidth = pair ? mark.width / 2 : mark.width
+        const markWidth = pair ? requireDefined(mark, 'tower-architecture.ts:325').width / 2 : requireDefined(mark, 'tower-architecture.ts:325').width
         const horizontal = (region % 3 - 1 + (random() - 0.5) * 0.18) * (0.42 - markWidth / 2) * span
-        const vertical = (Math.floor(region / 3) - 1 + (random() - 0.5) * 0.18) * (0.42 - mark.height / 2) * floorHeight
+        const vertical = (Math.floor(region / 3) - 1 + (random() - 0.5) * 0.18) * (0.42 - requireDefined(mark, 'tower-architecture.ts:327').height / 2) * floorHeight
         towerPosition.set(front ? horizontal : center, y + vertical, front ? center : horizontal)
-        towerScale.set(span * markWidth, floorHeight * mark.height, panelDepth)
+        towerScale.set(span * markWidth, floorHeight * requireDefined(mark, 'tower-architecture.ts:329').height, panelDepth)
         windows.setMatrixAt(index, towerMatrix.compose(towerPosition, towerQuaternion, towerScale))
         windows.setColorAt(index++, towerColor)
         markLevels.push(floor - 1)
@@ -328,7 +335,7 @@ export function buildTowerArchitecture(
   }
   windows.name = 'tower-window-panel'
   windows.count = index
-  windows.userData.markLevels = markLevels
+  windows.userData['markLevels'] = markLevels
   windows.instanceMatrix.needsUpdate = true
   windows.instanceColor!.needsUpdate = true
   windows.raycast = () => {}
@@ -364,7 +371,7 @@ export function addTowerDataMarks(parent: THREE.Object3D, width: number, height:
   for (let index = 0; index < density; index += 1) {
     const y = (-0.34 + index / Math.max(density - 1, 1) * 0.68) * height
     const start = -width * 0.3
-    const end = start + width * [0.3, 0.62, 0.45, 0.76][index % 4]
+    const end = start + width * requireDefined([0.3, 0.62, 0.45, 0.76][index % 4], 'tower-architecture.ts:374')
     positions.push(start, y, depth / 2 + 0.012, end, y, depth / 2 + 0.012)
     if (index % 2 === 0) positions.push(end, y - height * 0.025, depth / 2 + 0.013, end, y + height * 0.025, depth / 2 + 0.013)
   }

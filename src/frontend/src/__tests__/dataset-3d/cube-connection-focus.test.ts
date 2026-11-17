@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { describe, expect, it, vi } from 'vitest'
 import { PerspectiveCamera } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -47,8 +48,8 @@ describe('cube connection selection sequence', () => {
     sequence.select(theme, false)
     for (let i = 0; i < 240 && sequence.stage === 'overview'; i++) sequence.update(1 / 60)
     expect(sequence.stage).toBe('drawing')
-    camera.position.toArray().forEach((value, index) => expect(value).toBeCloseTo(position[index], 4))
-    controls.target.toArray().forEach((value, index) => expect(value).toBeCloseTo(target[index], 4))
+    camera.position.toArray().forEach((value, index) => expect(value).toBeCloseTo(requireDefined(position[index], 'cube-connection-focus.test.ts:51'), 4))
+    controls.target.toArray().forEach((value, index) => expect(value).toBeCloseTo(requireDefined(target[index], 'cube-connection-focus.test.ts:52'), 4))
     expect(cubeConnectionOverview(theme).position.toArray()).toEqual([...position])
     controls.dispose()
   })

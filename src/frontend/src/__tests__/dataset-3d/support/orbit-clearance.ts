@@ -1,3 +1,4 @@
+import { requireDefined } from '../../../utils/required-value'
 // Shared spec for the Tower<->Core clearance measurement (CODE ARCHITECTURE IMPROVEMENT PLAN, S3 /
 // Phase 1, method established at change-log P32-P33).
 //
@@ -71,7 +72,7 @@ export function orbitSamples(): OrbitSample[] {
     })
   }
   SPOOL_CORE.orbits.radii.forEach((radius, index) => {
-    euler.set(SPOOL_CORE.orbits.tiltX[index], SPOOL_CORE.orbits.yaw[index], 0)
+    euler.set(requireDefined(SPOOL_CORE.orbits.tiltX[index], 'orbit-clearance.ts:75'), requireDefined(SPOOL_CORE.orbits.yaw[index], 'orbit-clearance.ts:75'), 0)
     rotation.makeRotationFromEuler(euler)
     for (let step = 0; step < 512; step += 1) {
       const angle = (step / 512) * Math.PI * 2
@@ -209,7 +210,7 @@ export type TowerRecord = {
 // descendant. That is the conservative direction: a contour can only make a tower look BIGGER, so a
 // gap read from this box is never wider than the drawn truth. It is recorded, not corrected.
 export function towerRecords(model: THREE.Object3D, points: OrbitSample[]): TowerRecord[] {
-  const runtime = model.userData.sculptRuntime as { nodes: Record<string, THREE.Object3D> }
+  const runtime = model.userData['sculptRuntime'] as { nodes: Record<string, THREE.Object3D> }
   return ALL_TOWER_IDS.map(id => {
     const node = runtime.nodes[id]
     if (!node) throw new Error(`missing tower node ${id}`)
@@ -279,7 +280,7 @@ export function buildClearance(model: THREE.Object3D): string[] {
       (s.innerRadius !== undefined ? `|inner=${q(s.innerRadius)}` : '') +
       (s.bottomRadius !== undefined ? `|bottomRadius=${q(s.bottomRadius)}` : '') +
       (s.closed ? '|closed=1' : '') + `|gap=${q(gap)}` +
-      `|at=ring ${worst.ring},${worst.bead ? 'bead' : 'tube'},reach ${q(worst.reach)},y ${q(worst.v.y)}`)
+      `|at=ring ${requireDefined(worst, 'orbit-clearance.ts:283').ring},${requireDefined(worst, 'orbit-clearance.ts:283').bead ? 'bead' : 'tube'},reach ${q(requireDefined(worst, 'orbit-clearance.ts:283').reach)},y ${q(requireDefined(worst, 'orbit-clearance.ts:283').v.y)}`)
   }
   return lines
 }

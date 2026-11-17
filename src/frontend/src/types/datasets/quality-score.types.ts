@@ -30,5 +30,5 @@ export type QualityScoreSource = {
   // 18 bản ghi: 6 overall + 6 sliceA + 6 sliceB.
   read(): Promise<DimensionScore[]>
   // Có thì mới bật đường cập nhật realtime; không có thì caller đọc một lần.
-  subscribe?(next: (rows: DimensionScore[]) => void): () => void
+  subscribe?(this: void, next: (rows: DimensionScore[]) => void): () => void
 }

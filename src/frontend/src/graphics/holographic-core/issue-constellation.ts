@@ -1,6 +1,7 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 import { CUBE_CONNECTIONS } from './cube-connection-paths'
 import {
   CLEAN_LOOP_POINTS,
@@ -78,9 +79,9 @@ function sampleLane(lane: LaneSamples, t: number, target: THREE.Vector3) {
   const a = i0 * 3
   const b = i1 * 3
   target.set(
-    lane.points[a] + (lane.points[b] - lane.points[a]) * blend,
-    lane.points[a + 1] + (lane.points[b + 1] - lane.points[a + 1]) * blend,
-    lane.points[a + 2] + (lane.points[b + 2] - lane.points[a + 2]) * blend,
+    requireDefined(lane.points[a], 'issue-constellation.ts:82') + (requireDefined(lane.points[b], 'issue-constellation.ts:82') - requireDefined(lane.points[a], 'issue-constellation.ts:82')) * blend,
+    requireDefined(lane.points[a + 1], 'issue-constellation.ts:83') + (requireDefined(lane.points[b + 1], 'issue-constellation.ts:83') - requireDefined(lane.points[a + 1], 'issue-constellation.ts:83')) * blend,
+    requireDefined(lane.points[a + 2], 'issue-constellation.ts:84') + (requireDefined(lane.points[b + 2], 'issue-constellation.ts:84') - requireDefined(lane.points[a + 2], 'issue-constellation.ts:84')) * blend,
   )
 }
 
@@ -191,7 +192,7 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
   beads.raycast = () => {}
   beadSeeds.forEach((_seed, index) => {
     const tone = CORE_NUCLEUS.beadPalette[index % CORE_NUCLEUS.beadPalette.length]
-    color.setRGB(tone[0], tone[1], tone[2])
+    color.setRGB(requireDefined(tone, 'issue-constellation.ts:195')[0], requireDefined(tone, 'issue-constellation.ts:195')[1], requireDefined(tone, 'issue-constellation.ts:195')[2])
     beads.setColorAt(index, color)
   })
   if (beads.instanceColor) beads.instanceColor.needsUpdate = true
@@ -243,10 +244,10 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
       const next = lane.closed ? (index + 1) % count : index + 1
       if (next >= count) continue
       lanePositions.push(
-        lane.points[index * 3], lane.points[index * 3 + 1], lane.points[index * 3 + 2],
-        lane.points[next * 3], lane.points[next * 3 + 1], lane.points[next * 3 + 2],
+        requireDefined(lane.points[index * 3], 'issue-constellation.ts:247'), requireDefined(lane.points[index * 3 + 1], 'issue-constellation.ts:247'), requireDefined(lane.points[index * 3 + 2], 'issue-constellation.ts:247'),
+        requireDefined(lane.points[next * 3], 'next lane x'), requireDefined(lane.points[next * 3 + 1], 'next lane y'), requireDefined(lane.points[next * 3 + 2], 'next lane z'),
       )
-      laneColors.push(laneColor[0], laneColor[1], laneColor[2], laneColor[0], laneColor[1], laneColor[2])
+      laneColors.push(requireDefined(laneColor, 'issue-constellation.ts:250')[0], requireDefined(laneColor, 'issue-constellation.ts:250')[1], requireDefined(laneColor, 'issue-constellation.ts:250')[2], requireDefined(laneColor, 'issue-constellation.ts:250')[0], requireDefined(laneColor, 'issue-constellation.ts:250')[1], requireDefined(laneColor, 'issue-constellation.ts:250')[2])
     }
   })
   const laneGeometry = new THREE.BufferGeometry()
@@ -307,7 +308,7 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
   particleSeeds.forEach((seed, index) => {
     const palette = seed.issue ? ISSUE_CONSTELLATION.issuePalette : ISSUE_CONSTELLATION.cleanPalette
     const tone = palette[index % palette.length]
-    color.setRGB(tone[0], tone[1], tone[2])
+    color.setRGB(requireDefined(tone, 'issue-constellation.ts:311')[0], requireDefined(tone, 'issue-constellation.ts:311')[1], requireDefined(tone, 'issue-constellation.ts:311')[2])
     particles.setColorAt(index, color)
   })
   if (particles.instanceColor) particles.instanceColor.needsUpdate = true
@@ -440,21 +441,21 @@ export function createIssueConstellation(options: IssueConstellationOptions = {}
         if (bundle !== next) return
         bundle.lines.forEach((line, index) => {
           const lane = bundle.samples[index]
-          const scaled = value * lane.segments
+          const scaled = value * requireDefined(lane, 'issue-constellation.ts:444').segments
           const complete = Math.floor(scaled)
           const attribute = line.geometry.getAttribute('position') as THREE.BufferAttribute
-          attribute.array.set(lane.points)
+          attribute.array.set(requireDefined(lane, 'issue-constellation.ts:447').points)
           // Interpolate the tip between samples: spatial reveal, not whole-line fading.
-          if (complete < lane.segments) {
+          if (complete < requireDefined(lane, 'issue-constellation.ts:449').segments) {
             const start = complete * 3
             const tip = (complete + 1) * 3
             for (let axis = 0; axis < 3; axis += 1) {
-              attribute.array[tip + axis] = lane.points[start + axis]
-                + (lane.points[tip + axis] - lane.points[start + axis]) * (scaled - complete)
+              attribute.array[tip + axis] = requireDefined(requireDefined(lane, 'issue-constellation.ts:453').points[start + axis], 'issue-constellation.ts:453')
+                + (requireDefined(requireDefined(lane, 'issue-constellation.ts:454').points[tip + axis], 'issue-constellation.ts:454') - requireDefined(requireDefined(lane, 'issue-constellation.ts:454').points[start + axis], 'issue-constellation.ts:454')) * (scaled - complete)
             }
           }
           attribute.needsUpdate = true
-          line.geometry.setDrawRange(0, value === 0 ? 0 : Math.min(complete + 2, lane.segments + 1))
+          line.geometry.setDrawRange(0, value === 0 ? 0 : Math.min(complete + 2, requireDefined(lane, 'issue-constellation.ts:458').segments + 1))
         })
       })
       staticApplied = false

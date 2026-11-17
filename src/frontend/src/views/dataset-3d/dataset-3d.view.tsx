@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { HolographicCoreCanvas } from '../../components/graphics/holographic-core/holographic-core.scene'
-import type { CubeFocus } from '../../types/dataset-3d/cube-focus.types'
-import { NEON_CUBE_LABELS } from '../../graphics/neon-cube/neon-cube-label.config'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
-import type { HolographicPartInfo } from '../../types/dataset-3d/holographic-part.types'
-import './dataset-3d.css'
+import type { CubeFocus } from '../../types'
+import { NEON_CUBE_LABELS } from '../../graphics/neon-cube'
+import type { NeonCubeThemeId } from '../../types'
+import type { HolographicPartInfo } from '../../types'
+import styles from './dataset-3d.module.css'
 
 function useReducedMotion() {
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -87,7 +87,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
     return () => window.removeEventListener('keydown', handleKey)
   }, [cubeFocus, detached, returnToOverview])
 
-  return <Container data-color-mode={colorMode} className={`dataset-3d-page${embedded ? ' dataset-3d-embedded' : ''}`}>
+  return <Container data-color-mode={colorMode} className={`dataset-3d-page ${styles['screen']}${embedded ? ' dataset-3d-embedded' : ''}`}>
     {!embedded && <header className="dataset-3d-header">
       <div>
         <Link className="dataset-3d-back" to="/workspaces">Không gian làm việc</Link>
@@ -98,8 +98,8 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
     </header>}
     <section className="dataset-3d-stage" aria-label="Không gian trực quan Dataset 3D">
       <HolographicCoreCanvas colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} cameraToolbar={cameraToolbar}
-        glassPanel={glassPanel}
-        onFocusComplete={onFocusComplete}
+        {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })}
+        {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
         selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} />
       <div className="dataset-3d-overlay">
         <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>

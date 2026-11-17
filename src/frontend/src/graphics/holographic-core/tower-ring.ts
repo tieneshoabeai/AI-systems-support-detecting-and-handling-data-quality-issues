@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 // The tower ring: build order, placement, the shared tower materials and the riser animation
 // (CODE ARCHITECTURE IMPROVEMENT PLAN, Phase 4 / S1). createTowerRing is a straight relocation of the
 // factory block it was cut from and must keep running at exactly that position: the I1-I7 conditions at
@@ -17,9 +18,9 @@ export function removeInactiveGeneratedTowers(runtime: ProceduralModelRuntime) {
   for (const id of Object.keys(runtime.meshes)) {
     if (!id.startsWith('tower-') || TOWER_IDS.includes(id)) continue
     const mesh = runtime.meshes[id]
-    runtime.nodes[id].removeFromParent()
+    requireDefined(runtime.nodes[id], 'tower-ring.ts:21').removeFromParent()
     // Each generated tower owns its BoxGeometry; its material is shared with retained parts.
-    mesh.geometry.dispose()
+    requireDefined(mesh, 'tower-ring.ts:23').geometry.dispose()
     delete runtime.nodes[id]
     delete runtime.meshes[id]
     delete runtime.colliders[id]
@@ -36,7 +37,7 @@ function createOuterTowers(runtime: ProceduralModelRuntime, model: THREE.Object3
     node.position.set(Math.cos(angle) * tower.radius, tower.baseY + tower.height / 2, Math.sin(angle) * tower.radius)
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(tower.width, tower.height, tower.depth))
     mesh.name = tower.name
-    mesh.userData.sculptComponent = {
+    mesh.userData['sculptComponent'] = {
       id: tower.id,
       name: tower.name,
       level: tower.level,
@@ -143,14 +144,14 @@ function syncTowerRisers(risers: TowerRiser[], elapsedSeconds: number) {
   for (const riser of risers) {
     const { mesh, baseX, baseZ, phases, speeds, lengths, height } = riser
     for (let index = 0; index < phases.length; index += 1) {
-      const travel = (phases[index] + elapsedSeconds * speeds[index] * 0.32) % 1
+      const travel = (requireDefined(phases[index], 'tower-ring.ts:147') + elapsedSeconds * requireDefined(speeds[index], 'tower-ring.ts:147') * 0.32) % 1
       riserPosition.set(
-        baseX[index] + Math.sin(elapsedSeconds * 1.6 + phases[index] * 6.283) * 0.012,
+        requireDefined(baseX[index], 'tower-ring.ts:149') + Math.sin(elapsedSeconds * 1.6 + requireDefined(phases[index], 'tower-ring.ts:149') * 6.283) * 0.012,
         // The leading tip reaches two floors above the roof.
-        -height / 2 + travel * (riser.travelHeight - lengths[index]) + lengths[index] / 2,
-        baseZ[index] + Math.cos(elapsedSeconds * 1.3 + phases[index] * 6.283) * 0.012,
+        -height / 2 + travel * (riser.travelHeight - requireDefined(lengths[index], 'tower-ring.ts:151')) + requireDefined(lengths[index], 'tower-ring.ts:151') / 2,
+        requireDefined(baseZ[index], 'tower-ring.ts:152') + Math.cos(elapsedSeconds * 1.3 + requireDefined(phases[index], 'tower-ring.ts:152') * 6.283) * 0.012,
       )
-      riserScale.set(1, lengths[index], 1)
+      riserScale.set(1, requireDefined(lengths[index], 'tower-ring.ts:154'), 1)
       riserMatrix.compose(riserPosition, riserQuaternion, riserScale)
       mesh.setMatrixAt(index, riserMatrix)
     }

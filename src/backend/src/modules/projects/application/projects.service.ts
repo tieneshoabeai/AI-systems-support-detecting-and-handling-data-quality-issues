@@ -67,6 +67,17 @@ export class ProjectsService {
     return { items, total, page, limit };
   }
 
+  async listMemberProfiles(id: string, actor: { userId: string; role: string }) {
+    const resource = await this.getProjectById(id);
+    const workspace = await this.workspaces.findById(resource.workspaceId);
+    if (actor.role === 'admin' || !workspace || (workspace.ownerId !== actor.userId && !workspace.members.some(m => m.userId === actor.userId))) throw new ForbiddenException('Không có quyền xem thành viên project');
+    return Promise.all(resource.members.map(async member => {
+      const user = await this.users.findById(member.userId);
+      return { ...member, name: user ? `${user.firstName} ${user.lastName}`.trim() : member.userId,
+        email: user?.email };
+    }));
+  }
+
   async getProjectById(id: string, touch = false): Promise<ProjectRecord> {
     if (!isObjectIdHex(id)) throw new BadRequestException('ID Dự án không hợp lệ');
     const project = await this.projects.findById(id);
@@ -148,6 +159,8 @@ export class ProjectsService {
     const p = await this.getProjectById(projectId);
     const target = await this.users.findByEmail(dto.email.trim().toLowerCase());
     if (!target) throw new NotFoundException(`Không tìm thấy người dùng với email: ${dto.email}`);
+    const workspace = await this.workspaces.findById(p.workspaceId);
+    if (target.role === 'admin' || !workspace || (workspace.ownerId !== target.id && !workspace.members.some(m => m.userId === target.id))) throw new BadRequestException('Thành viên project phải thuộc workspace.');
     if ((p.members || []).some((m) => m.userId === target.id)) throw new ConflictException('Người dùng đã là thành viên project');
     await this.projects.addMember(projectId, { userId: target.id, role: dto.role ?? 'viewer' });
     return this.getProjectById(projectId);
@@ -182,9 +195,11 @@ export class ProjectsService {
   async transferProjectOwner(projectId: string, actorUserId: string, dto: TransferProjectOwnerInput): Promise<ProjectRecord> {
     const p = await this.getProjectById(projectId);
     const owner = (p.members || []).find((m) => m.role === 'owner');
-    if (!owner || owner.userId !== actorUserId) throw new ForbiddenException('Chỉ Project Owner mới được nhượng quyền');
+    const workspace = await this.workspaces.findById(p.workspaceId);
+    if (!owner || (owner.userId !== actorUserId && workspace?.ownerId !== actorUserId)) throw new ForbiddenException('Chỉ Project Owner mới được nhượng quyền');
     const target = await this.users.findByEmail(dto.email.trim().toLowerCase());
     if (!target) throw new NotFoundException(`Không tìm thấy người dùng với email: ${dto.email}`);
+    if (!workspace || (workspace.ownerId !== target.id && !workspace.members.some(m => m.userId === target.id))) throw new BadRequestException('Người nhận quyền phải thuộc workspace.');
     if (target.id === actorUserId) throw new BadRequestException('Không thể nhượng cho chính mình');
     const isMember = (p.members || []).some((m) => m.userId === target.id);
     if (!isMember) throw new BadRequestException('Chỉ nhượng cho thành viên project');

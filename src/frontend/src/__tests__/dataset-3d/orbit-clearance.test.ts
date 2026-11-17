@@ -19,6 +19,7 @@
 //     contour, so it is the conservative reading: never wider than the drawn truth.
 //   * After tower-15 removal, all remaining tower gaps must be non-negative.
 
+import { requireDefined } from '../../utils/required-value'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as THREE from 'three'
@@ -41,7 +42,7 @@ function field(lines: string[], prefix: string, key: string): number {
 
 function gapsOf(lines: string[], prefix: string): Array<{ id: string; swept: number }> {
   return lines.filter(line => line.startsWith(prefix)).map(line => ({
-    id: line.split('|')[1],
+    id: requireDefined(line.split('|')[1], 'orbit clearance identifier'),
     swept: field([line], prefix, 'swept'),
   }))
 }

@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 /// <reference types="node" />
 import 'fake-indexeddb/auto'
 import { File as NodeFile } from 'node:buffer'
@@ -5,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UPLOAD_DRAFT_LIMITS } from '../../configs/upload-draft.config'
 import { UploadDraftDatabase } from '../../repositories/datasets/upload-draft.database'
 import { createUploadDraftRepository } from '../../repositories/datasets/upload-draft.repository'
-import type { DraftAccess, UploadDraft } from '../../types/datasets/upload-draft.types'
+import type { DraftAccess, UploadDraft } from '../../types'
 
 const databases: UploadDraftDatabase[] = []
 afterEach(async () => { for (const db of databases.splice(0)) await db.delete() })
@@ -18,7 +19,7 @@ const setup = () => {
   const listeners = new Set<() => void>()
   const access = { read: () => current, subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } } }
   const change = (next: DraftAccess | null) => { current = next; listeners.forEach(fn => fn()) }
-  const repository = createUploadDraftRepository({ db, access, now: () => 1000, estimate: async () => ({}) })
+  const repository = createUploadDraftRepository({ db, access, now: () => 1000, estimate: () => Promise.resolve({}) })
   return { db, repository, change, access }
 }
 
@@ -101,7 +102,7 @@ describe('account-scoped upload drafts', () => {
     const s = setup()
     const otherDb = new UploadDraftDatabase(s.db.name)
     await s.db.drafts.add(metadata('a', UPLOAD_DRAFT_LIMITS.accountBytes - file().size))
-    const other = createUploadDraftRepository({ db: otherDb, access: s.access, now: () => 1000, estimate: async () => ({}) })
+    const other = createUploadDraftRepository({ db: otherDb, access: s.access, now: () => 1000, estimate: () => Promise.resolve({}) })
     try {
       const results = await Promise.allSettled([
         s.repository.save({ projectId: 'p', file: file() }), other.save({ projectId: 'p', file: file() }),
@@ -109,6 +110,8 @@ describe('account-scoped upload drafts', () => {
       expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
       expect(results.filter(r => r.status === 'rejected')).toHaveLength(1)
     } finally { otherDb.close() }
+
+    return Promise.resolve()
   })
 
   it('rolls back metadata when the file write fails with quota error', async () => {
@@ -121,17 +124,21 @@ describe('account-scoped upload drafts', () => {
 
   it('uses estimate as preflight and still allows storage when estimate is unavailable', async () => {
     const s = setup()
-    const blocked = createUploadDraftRepository({ db: s.db, access: s.access, now: () => 1000, estimate: async () => ({ quota: 5, usage: 4 }) })
+    const blocked = createUploadDraftRepository({ db: s.db, access: s.access, now: () => 1000, estimate: () => Promise.resolve({ quota: 5, usage: 4 }) })
     await expect(blocked.save({ projectId: 'p', file: file() })).rejects.toMatchObject({ code: 'DRAFT_DEVICE_QUOTA' })
-    const unavailable = createUploadDraftRepository({ db: s.db, access: s.access, now: () => 1000, estimate: async () => { throw new Error('unsupported') } })
+    const unavailable = createUploadDraftRepository({ db: s.db, access: s.access, now: () => 1000, estimate: () => Promise.reject(new Error('unsupported')) })
     await expect(unavailable.save({ projectId: 'p', file: file() })).resolves.toMatchObject({ status: 'pending' })
+
+    return Promise.resolve()
   })
 
   it('rejects a stale save if logout occurs during storage estimation', async () => {
     const s = setup()
-    const stale = createUploadDraftRepository({ db: s.db, access: s.access, now: () => 1000, estimate: async () => { s.change(null); return {} } })
+    const stale = createUploadDraftRepository({ db: s.db, access: s.access, now: () => 1000, estimate: () => { s.change(null); return Promise.resolve({}) } })
     await expect(stale.save({ projectId: 'p', file: file() })).rejects.toMatchObject({ kind: 'session' })
     expect(await s.db.drafts.count()).toBe(0)
+
+    return Promise.resolve()
   })
 
   it('aborts an in-flight transaction on account change', async () => {
@@ -169,7 +176,7 @@ describe('account-scoped upload drafts', () => {
     vi.spyOn(s.db.drafts, 'put').mockRejectedValueOnce(new Error('ACK journal failure'))
     await expect(s.repository.confirmUploaded(draft.id, { accountId: 'a', projectId: 'p', datasetId: 'd' }))
       .rejects.toMatchObject({ kind: 'storage' })
-    expect((await s.repository.list())[0].status).toBe('pending')
+    expect(requireDefined((await s.repository.list())[0], 'upload-draft.repository.test.ts:173').status).toBe('pending')
     expect(await s.db.files.get(draft.id)).toBeDefined()
   })
 
@@ -179,7 +186,7 @@ describe('account-scoped upload drafts', () => {
     vi.spyOn(s.db.drafts, 'delete').mockRejectedValueOnce(new Error('metadata cleanup failure'))
     expect(await s.repository.confirmUploaded(draft.id, { accountId: 'a', projectId: 'p', datasetId: 'd' }))
       .toEqual({ cleaned: false })
-    expect((await s.repository.list())[0].status).toBe('uploaded')
+    expect(requireDefined((await s.repository.list())[0], 'upload-draft.repository.test.ts:183').status).toBe('uploaded')
     expect(await s.db.files.get(draft.id)).toBeDefined()
   })
 

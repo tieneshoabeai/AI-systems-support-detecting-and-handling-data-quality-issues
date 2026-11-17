@@ -75,3 +75,15 @@ remember/
 
 /docs/*
 !/docs/restructures/
+# Generated agent review captures (keep application assets and test baselines)
+/artwork_button_*.png
+/globe_check*.png
+/screenshot_*.png
+/workspace_detail_*.png
+/workspaces_*_theme*.png
+/.agents/obsidian-ledger/*.jpg
+/src/frontend/.agents/*/captures/**/*.png
+/src/frontend/.agents/*/captures/*.png
+/src/frontend/.agents/workspace-3d/*.png
+
+/temp/

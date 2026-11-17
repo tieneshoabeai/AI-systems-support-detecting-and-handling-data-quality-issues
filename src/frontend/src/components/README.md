@@ -1,5 +1,24 @@
 # components
 
+## Domain ownership after Phase 4
+
+- `project/{create,members,overview,list}`: wizard, member dialog, info card and recent projects.
+- `workspace/dialogs`: shared workspace edit and member surfaces. Workspace creation stays in its view.
+- `resource/{avatar,artwork,presentation}`: shared resource artwork, initials and presentation adapters.
+- `notification/center`, `report/center`: the existing workbench centers.
+- `processing/result-review`: review UI; validation/save state lives in its processing hook.
+
+Each domain and subgroup has explicit `index.ts` exports. Cross-domain imports use
+the owning domain's public entry. Existing files under `views/preview/components`
+remain compatibility exports where implementations moved; they do not create a
+second component or store. View-specific project actions, shell, hero and demo UI
+remain with their existing views. All moved dialogs use the shared inline Dialog;
+Result Review keeps backdrop dismissal disabled and blocks close while saving.
+
+Design System DOM dùng chung nằm tại [ui/README.md](ui/README.md). Mỗi component có
+entry riêng; không import nghiệp vụ hoặc đồ họa từ UI. Các adapter preview giữ export
+cũ trong giai đoạn migration, CSS global/theme chưa được xóa ở Phase 2.
+
 ## 1. Mục đích
 
 Chứa component UI ở cấp ứng dụng và các scene React Three Fiber. Dialog hiển thị lựa chọn gia hạn phiên. Scene dựng canvas, quản lý lifecycle render và trả sự kiện về view. Điều phối phiên thuộc service, còn geometry và vật liệu thuộc graphics.

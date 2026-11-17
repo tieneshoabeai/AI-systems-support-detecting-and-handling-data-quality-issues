@@ -22,11 +22,13 @@ afterEach(() => {
 
 function file(name: string, content: string) {
   const result = new File([content], name, { type: 'text/csv' })
-  Object.defineProperty(result, 'arrayBuffer', { value: async () => new TextEncoder().encode(content).buffer })
+  Object.defineProperty(result, 'arrayBuffer', { value: () => Promise.resolve(new TextEncoder().encode(content).buffer) })
   return result
 }
 async function choose(files: File[]) {
-  await act(async () => { fireEvent.change(screen.getByLabelText('Thử xem file CSV trên máy', { selector: 'input' }), { target: { files } }) })
+  await act(async () => { fireEvent.change(screen.getByLabelText('Thử xem file CSV trên máy', { selector: 'input' }), { target: { files } })
+    return Promise.resolve()
+  })
 }
 
 it('opens the selected file by name/action, pages all rows, and keeps selection when the dialog closes', async () => {

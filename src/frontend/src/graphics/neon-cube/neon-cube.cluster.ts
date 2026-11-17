@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { createNeonCubeModel } from './neon-cube.model'
 import type { NeonCubeModel } from './neon-cube.model'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 
 export type NeonCubeClusterNode = {
   theme: NeonCubeThemeId

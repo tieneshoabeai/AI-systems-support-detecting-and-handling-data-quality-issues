@@ -1,10 +1,11 @@
+import { jsonObject } from '../support/json'
 import { describe, expect, it, vi } from 'vitest'
 import type { AxiosAdapter } from 'axios'
 import { AxiosHeaders } from 'axios'
 import { createSessionStorage, SESSION_STORAGE_KEY } from '../../lib/session-storage'
 import { createAxiosClient } from '../../lib/axios-client'
 import { readAccessToken } from '../../utils/auth/access-token'
-import type { SessionStoragePort, StoredSession } from '../../types/auth/session.types'
+import type { SessionStoragePort, StoredSession } from '../../types'
 
 const token = (claims: unknown) => `e30.${btoa(JSON.stringify(claims)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')}.c2ln`
 const session = (): StoredSession => ({
@@ -41,7 +42,7 @@ describe('session storage', () => {
     expect(manager.read()).toEqual({ status: 'empty' })
     manager.write(session())
     expect(manager.read()).toMatchObject({ status: 'valid', session: session() })
-    expect(JSON.parse(entries.get(SESSION_STORAGE_KEY)!)).toEqual(session())
+    expect(jsonObject(entries.get(SESSION_STORAGE_KEY)!)).toEqual(session())
   })
 
   it('restores after creating another manager', () => {
@@ -118,8 +119,8 @@ describe('session storage', () => {
     const { manager } = setup(JSON.stringify(session()), () => now)
     const adapter = vi.fn<AxiosAdapter>(async config => {
       expect(config.headers.get('Authorization')).toBe(`Bearer ${session().accessToken}`)
-      return { data: { success: true, data: true }, status: 200, statusText: 'OK',
-        config, headers: new AxiosHeaders() }
+      return Promise.resolve({ data: { success: true, data: true }, status: 200, statusText: 'OK',
+        config, headers: new AxiosHeaders() })
     })
     const client = createAxiosClient({ baseUrl: 'http://localhost:3000/api/v1', readToken: manager.readToken, adapter })
     await expect(client.request({ path: 'users/me', auth: 'session' })).resolves.toBe(true)

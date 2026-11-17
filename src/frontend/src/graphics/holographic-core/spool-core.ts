@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { SPOOL_CORE } from './core-visual-config'
@@ -196,7 +197,7 @@ export function createSpoolCore(): SpoolCore {
   )
   lid.name = 'spool-cap-lid'
   lid.renderOrder = 4
-  lid.userData.sculptComponent = {
+  lid.userData['sculptComponent'] = {
     id: 'core-cap-lid', name: 'Cap lid rings', role: 'projected-part', material: 'glass',
     level: 'meso', dimensions: {
       width: cap.lid.outerRadius * 2,
@@ -222,7 +223,7 @@ export function createSpoolCore(): SpoolCore {
   )
   roof.name = 'spool-cap-roof'
   roof.renderOrder = 3
-  roof.userData.sculptComponent = {
+  roof.userData['sculptComponent'] = {
     id: 'core-cap-roof', name: 'Cap sloped roof', role: 'projected-part', material: 'dark-glass',
     level: 'meso', dimensions: {
       width: cap.roof.topOuter * 2, height: cap.roof.topY - cap.roof.bottomY,
@@ -244,7 +245,7 @@ export function createSpoolCore(): SpoolCore {
   )
   drum.name = 'spool-cap-drum'
   drum.renderOrder = 4
-  drum.userData.sculptComponent = {
+  drum.userData['sculptComponent'] = {
     id: 'core-cap-drum', name: 'Cap wide drum', role: 'projected-part', material: 'dark-glass',
     level: 'meso', dimensions: {
       width: cap.drum.outerRadius * 2, height: cap.drum.height, depth: cap.drum.outerRadius * 2, units: 'relative',
@@ -324,7 +325,7 @@ export function createSpoolCore(): SpoolCore {
   chamberGlass.position.y = chamber.centerY
   chamberGlass.name = 'spool-chamber-glass'
   chamberGlass.renderOrder = 3
-  chamberGlass.userData.sculptComponent = {
+  chamberGlass.userData['sculptComponent'] = {
     id: 'core-upper', name: 'Spool chamber', role: 'projected-part', material: 'glass',
     level: 'macro', dimensions: { width: chamber.outerGlass.outerRadius * 2, height: chamber.height, depth: chamber.outerGlass.outerRadius * 2, units: 'relative' },
   }
@@ -429,7 +430,7 @@ export function createSpoolCore(): SpoolCore {
   baseShell.position.y = baseGlass.centerY
   baseShell.name = 'spool-base-glass'
   baseShell.renderOrder = 2
-  baseShell.userData.sculptComponent = {
+  baseShell.userData['sculptComponent'] = {
     id: 'core-lower', name: 'Closed lower drum and inverted roof', role: 'projected-part', material: 'dark-glass + glass',
     level: 'macro', dimensions: {
       width: baseGlass.radius * 2,
@@ -508,7 +509,7 @@ export function createSpoolCore(): SpoolCore {
     const geometry = new THREE.TorusGeometry(radius, SPOOL_CORE.orbits.tube, 4, 128)
     geometry.rotateX(Math.PI / 2)
     geometry.scale(1, 1, SPOOL_CORE.orbits.flatten)
-    euler.set(SPOOL_CORE.orbits.tiltX[index], SPOOL_CORE.orbits.yaw[index], 0)
+    euler.set(requireDefined(SPOOL_CORE.orbits.tiltX[index], 'spool-core.ts:512'), requireDefined(SPOOL_CORE.orbits.yaw[index], 'spool-core.ts:512'), 0)
     rotation.makeRotationFromEuler(euler)
     geometry.applyMatrix4(rotation)
     geometry.translate(0, SPOOL_CORE.orbits.centerY, 0)

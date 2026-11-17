@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Dataset3DView } from '../../views/dataset-3d/dataset-3d.view'
-import type { CubeFocus, NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { CubeFocus, NeonCubeThemeId } from '../../types'
 
 vi.mock('../../components/graphics/holographic-core/holographic-core.scene', () => ({
   HolographicCoreCanvas: ({ cubeFocus, onFocusCube, colorMode }: {

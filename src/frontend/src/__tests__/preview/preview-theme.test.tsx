@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
-import { WorkbenchEntry } from '../../app/router/workbench-routes'
+import { AuthenticatedWorkbenchEntry as WorkbenchEntry } from '../support/authenticated-workbench-entry'
 import { SettingsPreviewView } from '../../views/preview/settings-2d.view'
 import { previewColorKey } from '../../hooks/preview/use-preview-color-scheme'
 import { renderFrame, resetPreviewStore } from './preview-test-kit'
@@ -42,7 +42,7 @@ afterEach(() => {
 it('Dark là mặc định; Light đổi cả frame và được nhớ sau khi tải lại', () => {
   renderFrame(<SettingsPreviewView section="color" />)
   expect(frameTheme()).toBe('dark')
-  expect((screen.getByRole('radio', { name: 'Dark' }) as HTMLInputElement).checked).toBe(true)
+  expect((screen.getByRole<HTMLInputElement>('radio', { name: 'Dark' })).checked).toBe(true)
   choose('Light')
   expect(frameTheme()).toBe('light')
   expect(screen.getByRole('button', { name: 'Chế độ màu' }).getAttribute('title')).toBe('Chế độ màu: Sáng')
@@ -50,7 +50,7 @@ it('Dark là mặc định; Light đổi cả frame và được nhớ sau khi t
   cleanup()
   renderFrame(<SettingsPreviewView section="color" />)
   expect(frameTheme()).toBe('light')
-  expect((screen.getByRole('radio', { name: 'Light' }) as HTMLInputElement).checked).toBe(true)
+  expect((screen.getByRole<HTMLInputElement>('radio', { name: 'Light' })).checked).toBe(true)
 })
 
 it('System theo thiết bị ngay khi chọn, cập nhật trực tiếp và vẫn theo thiết bị sau khi tải lại', () => {
@@ -62,7 +62,7 @@ it('System theo thiết bị ngay khi chọn, cập nhật trực tiếp và v�
   expect(window.localStorage.getItem(previewColorKey)).toBe('system')
   cleanup()
   renderFrame(<SettingsPreviewView section="color" />)
-  expect((screen.getByRole('radio', { name: 'System' }) as HTMLInputElement).checked).toBe(true)
+  expect((screen.getByRole<HTMLInputElement>('radio', { name: 'System' })).checked).toBe(true)
   expect(frameTheme()).toBe('dark')
   changeSystem(false)
   expect(frameTheme()).toBe('light')

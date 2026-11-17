@@ -1,4 +1,6 @@
-import type { CurrentUser, DeviceSession, NotificationPrefs, Person, PreviewNotification, PreviewReport, ProfileInfo, Project, StorageUsage, Workspace } from '../../types/preview/preview.types'
+import { requireDefined } from '../../utils/required-value'
+import type { PreviewCurrentUser as CurrentUser, DeviceSession, NotificationPrefs, Person, PreviewNotification, PreviewReport, ProfileInfo, Project, StorageUsage, Workspace } from '../../types'
+import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
 
 // Nguồn dữ liệu mẫu của batch preview 2D. Đặt ở tầng service để mock store
 // (preview-mock.service.ts) và các view cùng đọc một bản, đúng luồng
@@ -6,7 +8,7 @@ import type { CurrentUser, DeviceSession, NotificationPrefs, Person, PreviewNoti
 // nhánh "đọc mảng cứng" bằng axios mà không đụng vào JSX.
 // File này chỉ được route dev-only /preview/* nạp (main.tsx chặn bằng import.meta.env.DEV).
 
-export const people: Record<string, Person> = {
+export const people: Record<'anh' | 'huy' | 'ha' | 'dung' | 'khoi' | 'vy', Person> = {
   anh: { id: 'u-anh', name: 'Nguyễn Minh Anh', role: 'Quản trị viên', initials: 'MA' },
   huy: { id: 'u-huy', name: 'Trần Quang Huy', role: 'Data Analyst', initials: 'QH' },
   ha: { id: 'u-ha', name: 'Lê Thu Hà', role: 'Data Engineer', initials: 'TH' },
@@ -15,9 +17,10 @@ export const people: Record<string, Person> = {
   vy: { id: 'u-vy', name: 'Bùi Hồ Thảo Vy', role: 'Editor', initials: 'TV' },
 }
 
-const team = [people.anh, people.huy, people.ha, people.dung, people.khoi, people.vy]
+const team = [people['anh'], people['huy'], people['ha'], people['dung'], people['khoi'], people['vy']]
 
-export const currentUser: CurrentUser = { name: people.anh.name, role: people.anh.role, initials: people.anh.initials }
+export const currentUser: CurrentUser = isShoppingDemo() ? { name: 'Demo Analyst', role: 'Data Analyst', initials: 'DA' }
+  : { name: people['anh'].name, role: people['anh'].role, initials: people['anh'].initials }
 
 export const storageUsage: StorageUsage = { usedLabel: '1.24 TB', totalLabel: '3 TB', percent: 42 }
 
@@ -77,12 +80,12 @@ const olderAges = ['3 tháng trước', '4 tháng trước', '5 tháng trước'
 const olderWorkspaces = (): Workspace[] => olderWorkspaceSeeds.map((seed, index) => ({
   id: `ws-old-${String(index + 1).padStart(2, '0')}`,
   name: seed.name, description: seed.description,
-  status: olderStatuses[index % olderStatuses.length],
+  status: requireDefined(olderStatuses[index % olderStatuses.length], 'older workspace status'),
   projects: 0, datasets: 0, members: 2 + (index % 5), storageGb: 18 + index * 7,
-  favorite: false, cover: olderCovers[index % olderCovers.length],
+  favorite: false, cover: requireDefined(olderCovers[index % olderCovers.length], 'older workspace cover'),
   createdAt: `${String(3 + index).padStart(2, '0')}/0${1 + (index % 6)}/2023`,
-  updatedAt: olderAges[index % olderAges.length],
-  owner: team[index % team.length],
+  updatedAt: requireDefined(olderAges[index % olderAges.length], 'older workspace age'),
+  owner: requireDefined(team[index % team.length], 'older workspace owner'),
   memberPreview: team.slice(index % 3, (index % 3) + 2),
 }))
 
@@ -91,13 +94,13 @@ export const seedWorkspaces: readonly Workspace[] = [
     id: 'ws-acme', name: 'Acme Corp', status: 'active', projects: 12, datasets: 36, members: 8,
     description: 'Không gian làm việc chính cho các dự án dữ liệu của Acme Corp.',
     storageGb: 320, favorite: true, cover: 'blue', createdAt: '12/03/2024', updatedAt: '2 giờ trước',
-    owner: people.anh, memberPreview: team.slice(0, 3),
+    owner: people['anh'], memberPreview: team.slice(0, 3),
   },
   {
     id: 'ws-marketing', name: 'Marketing', status: 'active', projects: 8, datasets: 24, members: 5,
     description: 'Phân tích dữ liệu marketing và hiệu suất chiến dịch.',
     storageGb: 180, favorite: false, cover: 'orange', createdAt: '04/04/2024', updatedAt: '1 ngày trước',
-    owner: people.huy, memberPreview: team.slice(1, 4),
+    owner: people['huy'], memberPreview: team.slice(1, 4),
   },
   {
     id: 'ws-finance', name: 'Finance', status: 'active', projects: 6, datasets: 18, members: 4,
@@ -107,31 +110,31 @@ export const seedWorkspaces: readonly Workspace[] = [
     // preview-data): owner là Owner, phần còn lại luân phiên Member · Admin · Member · Viewer.
     // Để anh ở vị trí số 2 là chủ batch có một workspace Admin — nếu không, ô lọc 'Admin'
     // trong ảnh không bao giờ trả về dòng nào và thành một bộ lọc giả.
-    owner: people.ha, memberPreview: [people.huy, people.anh, people.ha],
+    owner: people['ha'], memberPreview: [people['huy'], people['anh'], people['ha']],
   },
   {
     id: 'ws-rnd', name: 'Research & Development', status: 'active', projects: 4, datasets: 12, members: 6,
     description: 'Không gian cho các dự án nghiên cứu và phát triển.',
     storageGb: 240, favorite: true, cover: 'violet', createdAt: '22/05/2024', updatedAt: '1 tuần trước',
-    owner: people.dung, memberPreview: team.slice(2, 5),
+    owner: people['dung'], memberPreview: team.slice(2, 5),
   },
   {
     id: 'ws-operations', name: 'Operations', status: 'active', projects: 5, datasets: 14, members: 3,
     description: 'Quản lý dữ liệu vận hành và quy trình.',
     storageGb: 74, favorite: false, cover: 'cyan', createdAt: '09/06/2024', updatedAt: '2 tuần trước',
-    owner: people.khoi, memberPreview: team.slice(0, 2),
+    owner: people['khoi'], memberPreview: team.slice(0, 2),
   },
   {
     id: 'ws-cs', name: 'Customer Success', status: 'active', projects: 7, datasets: 20, members: 4,
     description: 'Phân tích dữ liệu khách hàng và hỗ trợ.',
     storageGb: 130, favorite: true, cover: 'pink', createdAt: '15/06/2024', updatedAt: '2 tuần trước',
-    owner: people.vy, memberPreview: team.slice(1, 4),
+    owner: people['vy'], memberPreview: team.slice(1, 4),
   },
   {
     id: 'ws-product', name: 'Product', status: 'active', projects: 9, datasets: 28, members: 5,
     description: 'Phân tích sản phẩm và hành vi người dùng.',
     storageGb: 210, favorite: false, cover: 'blue', createdAt: '01/07/2024', updatedAt: '3 tuần trước',
-    owner: people.anh, memberPreview: team.slice(3, 6),
+    owner: people['anh'], memberPreview: team.slice(3, 6),
   },
   {
     id: 'ws-dataeng', name: 'Data Engineering', status: 'paused', projects: 10, datasets: 32, members: 6,
@@ -139,31 +142,31 @@ export const seedWorkspaces: readonly Workspace[] = [
     storageGb: 415, favorite: false, cover: 'cyan', createdAt: '20/07/2024', updatedAt: '3 tuần trước',
     // Vị trí số 4 của anh trong roster này là 'Viewer' — cùng lý do với ws-finance ở trên:
     // cả năm ô vai trò trong ảnh phải có ít nhất một bản ghi khớp.
-    owner: people.ha, memberPreview: [people.huy, people.dung, people.khoi, people.anh],
+    owner: people['ha'], memberPreview: [people['huy'], people['dung'], people['khoi'], people['anh']],
   },
   {
     id: 'ws-sales', name: 'Sales Analytics', status: 'active', projects: 6, datasets: 16, members: 4,
     description: 'Phân tích dữ liệu bán hàng và thị trường.',
     storageGb: 88, favorite: false, cover: 'pink', createdAt: '02/08/2024', updatedAt: '1 tháng trước',
-    owner: people.dung, memberPreview: team.slice(2, 6),
+    owner: people['dung'], memberPreview: team.slice(2, 6),
   },
   {
     id: 'ws-supply', name: 'Supply Chain', status: 'paused', projects: 3, datasets: 9, members: 3,
     description: 'Theo dõi chuỗi cung ứng và tồn kho.',
     storageGb: 52, favorite: false, cover: 'orange', createdAt: '11/08/2024', updatedAt: '1 tháng trước',
-    owner: people.khoi, memberPreview: team.slice(1, 3),
+    owner: people['khoi'], memberPreview: team.slice(1, 3),
   },
   {
     id: 'ws-hr', name: 'People & HR', status: 'archived', projects: 2, datasets: 5, members: 3,
     description: 'Dữ liệu nhân sự và tuyển dụng.',
     storageGb: 24, favorite: false, cover: 'violet', createdAt: '28/08/2024', updatedAt: '2 tháng trước',
-    owner: people.vy, memberPreview: team.slice(4, 6),
+    owner: people['vy'], memberPreview: team.slice(4, 6),
   },
   {
     id: 'ws-risk', name: 'Risk Management', status: 'archived', projects: 4, datasets: 11, members: 4,
     description: 'Phân tích rủi ro và tuân thủ.',
     storageGb: 66, favorite: false, cover: 'green', createdAt: '05/09/2024', updatedAt: '2 tháng trước',
-    owner: people.anh, memberPreview: team.slice(0, 3),
+    owner: people['anh'], memberPreview: team.slice(0, 3),
   },
   // 40 = Home hai trang (24 + 16) và trang Workspaces hai trang (28 + 12): cả bốn tính năng
   // "lướt trong khung", "lật trang Home", "lật trang Workspaces" và "số dòng" đều có thật
@@ -181,84 +184,84 @@ export const seedProjects: readonly Project[] = [
     id: 'prj-sales', code: 'PRJ-001', name: 'Sales Analytics', status: 'active',
     description: 'Phân tích dữ liệu bán hàng và thị trường cho khu vực Đông Nam Á.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'blue', members: team.slice(0, 3),
-    createdAt: '12/03/2024 10:30', updatedAt: '2 giờ trước', owner: people.anh,
+    createdAt: '12/03/2024 10:30', updatedAt: '2 giờ trước', owner: people['anh'],
     dataset: { id: 'ds-sales', fileName: 'sales_data.csv', format: 'CSV', rows: 1_250_000, columns: 24, sizeMb: 245, importedAt: '12/03/2024 14:32', status: 'processed' },
   },
   {
     id: 'prj-marketing', code: 'PRJ-002', name: 'Marketing Insight', status: 'active',
     description: 'Phân tích hiệu quả chiến dịch marketing và hành vi khách hàng.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'violet', members: team.slice(1, 4),
-    createdAt: '18/03/2024 09:10', updatedAt: '1 ngày trước', owner: people.huy,
+    createdAt: '18/03/2024 09:10', updatedAt: '1 ngày trước', owner: people['huy'],
     dataset: { id: 'ds-marketing', fileName: 'marketing_campaigns.csv', format: 'CSV', rows: 850_000, columns: 18, sizeMb: 168, importedAt: '19/03/2024 08:00', status: 'processed' },
   },
   {
     id: 'prj-customer', code: 'PRJ-003', name: 'Customer 360', status: 'paused',
     description: 'Hợp nhất dữ liệu khách hàng từ nhiều nguồn và xây dựng chân dung khách hàng.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'cyan', members: team.slice(0, 4),
-    createdAt: '25/03/2024 16:40', updatedAt: '2 ngày trước', owner: people.ha,
+    createdAt: '25/03/2024 16:40', updatedAt: '2 ngày trước', owner: people['ha'],
     dataset: { id: 'ds-customer', fileName: 'customer_data.csv', format: 'CSV', rows: 2_400_000, columns: 32, sizeMb: 420, importedAt: '26/03/2024 11:20', status: 'processing' },
   },
   {
     id: 'prj-finance', code: 'PRJ-004', name: 'Finance Data', status: 'active',
     description: 'Phân tích dữ liệu tài chính và báo cáo hiệu suất kinh doanh.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'green', members: team.slice(2, 5),
-    createdAt: '02/04/2024 14:05', updatedAt: '3 ngày trước', owner: people.dung,
+    createdAt: '02/04/2024 14:05', updatedAt: '3 ngày trước', owner: people['dung'],
     dataset: { id: 'ds-finance', fileName: 'finance_data.parquet', format: 'Parquet', rows: 980_000, columns: 28, sizeMb: 310, importedAt: '03/04/2024 09:15', status: 'processed' },
   },
   {
     id: 'prj-product', code: 'PRJ-005', name: 'Product Analysis', status: 'active',
     description: 'Phân tích hiệu suất sản phẩm và nhu cầu thị trường.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'blue', members: team.slice(0, 3),
-    createdAt: '10/04/2024 10:00', updatedAt: '5 ngày trước', owner: people.khoi,
+    createdAt: '10/04/2024 10:00', updatedAt: '5 ngày trước', owner: people['khoi'],
     dataset: { id: 'ds-product', fileName: 'product_data.csv', format: 'CSV', rows: 1_800_000, columns: 26, sizeMb: 380, importedAt: '11/04/2024 15:30', status: 'processed' },
   },
   {
     id: 'prj-research', code: 'PRJ-006', name: 'Research Hub', status: 'completed',
     description: 'Nghiên cứu và phát triển dữ liệu mới cho các dự án tương lai.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'violet', members: team.slice(1, 3),
-    createdAt: '21/04/2024 08:20', updatedAt: '1 tuần trước', owner: people.vy,
+    createdAt: '21/04/2024 08:20', updatedAt: '1 tuần trước', owner: people['vy'],
     dataset: { id: 'ds-research', fileName: 'research_data.csv', format: 'CSV', rows: 650_000, columns: 20, sizeMb: 120, importedAt: '22/04/2024 13:45', status: 'processed' },
   },
   {
     id: 'prj-hr', code: 'PRJ-007', name: 'HR Analytics', status: 'active',
     description: 'Phân tích dữ liệu nhân sự và tuyển dụng.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'pink', members: team.slice(3, 6),
-    createdAt: '28/04/2024 09:30', updatedAt: '1 tuần trước', owner: people.anh,
+    createdAt: '28/04/2024 09:30', updatedAt: '1 tuần trước', owner: people['anh'],
     dataset: { id: 'ds-hr', fileName: 'hr_data.csv', format: 'CSV', rows: 420_000, columns: 18, sizeMb: 95, importedAt: '29/04/2024 10:10', status: 'processed' },
   },
   {
     id: 'prj-supply', code: 'PRJ-008', name: 'Supply Chain', status: 'active',
     description: 'Phân tích chuỗi cung ứng và vận hành.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'cyan', members: team.slice(0, 4),
-    createdAt: '06/05/2024 11:15', updatedAt: '2 tuần trước', owner: people.huy,
+    createdAt: '06/05/2024 11:15', updatedAt: '2 tuần trước', owner: people['huy'],
     dataset: { id: 'ds-supply', fileName: 'supply_chain.csv', format: 'CSV', rows: 1_100_000, columns: 22, sizeMb: 210, importedAt: '07/05/2024 16:00', status: 'queued' },
   },
   {
     id: 'prj-risk', code: 'PRJ-009', name: 'Risk Management', status: 'archived',
     description: 'Phân tích rủi ro và tuân thủ.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'orange', members: team.slice(2, 4),
-    createdAt: '14/05/2024 13:50', updatedAt: '1 tháng trước', owner: people.ha,
+    createdAt: '14/05/2024 13:50', updatedAt: '1 tháng trước', owner: people['ha'],
     dataset: { id: 'ds-risk', fileName: 'risk_data.csv', format: 'CSV', rows: 350_000, columns: 16, sizeMb: 80, importedAt: '15/05/2024 09:40', status: 'processed' },
   },
   {
     id: 'prj-growth', code: 'PRJ-010', name: 'Growth Experiments', status: 'active',
     description: 'Thử nghiệm A/B và đo lường tăng trưởng.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'green', members: team.slice(1, 5),
-    createdAt: '23/05/2024 10:05', updatedAt: '1 tháng trước', owner: people.dung,
+    createdAt: '23/05/2024 10:05', updatedAt: '1 tháng trước', owner: people['dung'],
     dataset: { id: 'ds-growth', fileName: 'growth_experiments.json', format: 'JSON', rows: 210_000, columns: 14, sizeMb: 46, importedAt: '24/05/2024 08:30', status: 'processed' },
   },
   {
     id: 'prj-quality', code: 'PRJ-011', name: 'Data Quality Audit', status: 'paused',
     description: 'Kiểm toán chất lượng dữ liệu và phả hệ nguồn gốc.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'violet', members: team.slice(0, 2),
-    createdAt: '02/06/2024 15:20', updatedAt: '2 tháng trước', owner: people.khoi,
+    createdAt: '02/06/2024 15:20', updatedAt: '2 tháng trước', owner: people['khoi'],
     dataset: { id: 'ds-quality', fileName: 'quality_audit.xlsx', format: 'Excel', rows: 120_000, columns: 12, sizeMb: 28, importedAt: '03/06/2024 09:00', status: 'failed' },
   },
   {
     id: 'prj-empty', code: 'PRJ-012', name: 'Open Questions', status: 'active',
     description: 'Dự án mới, chưa nạp tập dữ liệu.',
     workspaceId: 'ws-acme', workspaceName: 'Acme Corp', cover: 'blue', members: team.slice(4, 6),
-    createdAt: '11/06/2024 08:00', updatedAt: '2 tháng trước', owner: people.vy,
+    createdAt: '11/06/2024 08:00', updatedAt: '2 tháng trước', owner: people['vy'],
     dataset: null,
   },
   // 12 project đầu thuộc Acme Corp để trang Projects khớp mockup ("các dự án trong
@@ -268,42 +271,42 @@ export const seedProjects: readonly Project[] = [
     id: 'prj-attribution', code: 'PRJ-013', name: 'Campaign Attribution', status: 'active',
     description: 'Xác định kênh marketing tạo chuyển đổi thực tế.',
     workspaceId: 'ws-marketing', workspaceName: 'Marketing', cover: 'orange', members: team.slice(1, 3),
-    createdAt: '20/04/2024 09:00', updatedAt: '4 giờ trước', owner: people.huy,
+    createdAt: '20/04/2024 09:00', updatedAt: '4 giờ trước', owner: people['huy'],
     dataset: { id: 'ds-attribution', fileName: 'campaign_attribution.csv', format: 'CSV', rows: 540_000, columns: 19, sizeMb: 102, importedAt: '20/04/2024 16:20', status: 'processed' },
   },
   {
     id: 'prj-loyalty', code: 'PRJ-014', name: 'Loyalty Program', status: 'processing',
     description: 'Đo lường hiệu quả chương trình khách hàng thân thiết.',
     workspaceId: 'ws-marketing', workspaceName: 'Marketing', cover: 'pink', members: team.slice(2, 4),
-    createdAt: '14/05/2024 10:40', updatedAt: '6 giờ trước', owner: people.vy,
+    createdAt: '14/05/2024 10:40', updatedAt: '6 giờ trước', owner: people['vy'],
     dataset: null,
   },
   {
     id: 'prj-budget', code: 'PRJ-015', name: 'Budget Variance', status: 'active',
     description: 'So sánh ngân sách và chi phí thực tế theo quý.',
     workspaceId: 'ws-finance', workspaceName: 'Finance', cover: 'green', members: team.slice(0, 2),
-    createdAt: '08/04/2024 13:15', updatedAt: '1 ngày trước', owner: people.ha,
+    createdAt: '08/04/2024 13:15', updatedAt: '1 ngày trước', owner: people['ha'],
     dataset: { id: 'ds-budget', fileName: 'budget_variance.xlsx', format: 'Excel', rows: 96_000, columns: 15, sizeMb: 22, importedAt: '08/04/2024 15:00', status: 'processed' },
   },
   {
     id: 'prj-churn', code: 'PRJ-016', name: 'Churn Prediction', status: 'paused',
     description: 'Dự báo khách hàng có nguy cơ rời bỏ.',
     workspaceId: 'ws-cs', workspaceName: 'Customer Success', cover: 'violet', members: team.slice(3, 5),
-    createdAt: '02/05/2024 08:45', updatedAt: '3 ngày trước', owner: people.dung,
+    createdAt: '02/05/2024 08:45', updatedAt: '3 ngày trước', owner: people['dung'],
     dataset: { id: 'ds-churn', fileName: 'churn_signals.csv', format: 'CSV', rows: 310_000, columns: 21, sizeMb: 64, importedAt: '02/05/2024 11:30', status: 'queued' },
   },
   {
     id: 'prj-adoption', code: 'PRJ-017', name: 'Feature Adoption', status: 'active',
     description: 'Theo dõi mức độ sử dụng tính năng theo nhóm người dùng.',
     workspaceId: 'ws-product', workspaceName: 'Product', cover: 'cyan', members: team.slice(1, 4),
-    createdAt: '25/05/2024 09:20', updatedAt: '5 ngày trước', owner: people.khoi,
+    createdAt: '25/05/2024 09:20', updatedAt: '5 ngày trước', owner: people['khoi'],
     dataset: { id: 'ds-adoption', fileName: 'feature_adoption.json', format: 'JSON', rows: 175_000, columns: 13, sizeMb: 39, importedAt: '25/05/2024 14:10', status: 'processed' },
   },
   {
     id: 'prj-lab', code: 'PRJ-018', name: 'Lab Instrument Logs', status: 'completed',
     description: 'Hợp nhất nhật ký thiết bị phòng thí nghiệm.',
     workspaceId: 'ws-rnd', workspaceName: 'Research & Development', cover: 'blue', members: team.slice(4, 6),
-    createdAt: '17/06/2024 16:00', updatedAt: '1 tuần trước', owner: people.anh,
+    createdAt: '17/06/2024 16:00', updatedAt: '1 tuần trước', owner: people['anh'],
     dataset: { id: 'ds-lab', fileName: 'instrument_logs.parquet', format: 'Parquet', rows: 2_050_000, columns: 11, sizeMb: 480, importedAt: '17/06/2024 18:30', status: 'processed' },
   },
 ]
@@ -483,9 +486,9 @@ export const seedReports: readonly PreviewReport[] = [
 // (organization/phone/bio) sửa được — đúng đặc tả dòng 9. Ảnh mockup vẽ "Alex Carter /
 // Data Analyst" nhưng frame này nhất quán dùng Nguyễn Minh Anh nên giữ người dùng mẫu.
 export const seedProfile: ProfileInfo = {
-  name: people.anh.name,
+  name: people['anh'].name,
   email: 'minh.anh@dataverse.io',
-  role: people.anh.role,
+  role: people['anh'].role,
   organization: 'Đội Phân tích Kinh doanh',
   phone: '+84 90 123 4567',
   bio: 'Chuyên phân tích dữ liệu và xây dựng báo cáo.',

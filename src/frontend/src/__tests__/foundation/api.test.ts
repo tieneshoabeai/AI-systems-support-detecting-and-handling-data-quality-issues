@@ -35,7 +35,7 @@ describe('API configuration', () => {
     vi.stubEnv('VITE_API_PREFIX', '/api/v1')
     const adapter: AxiosAdapter = async config => {
       expect(config.url).toBe(`${baseUrl}/health`)
-      return response(config, { success: true, data: true })
+      return Promise.resolve(response(config, { success: true, data: true }))
     }
     await expect(createAxiosClient({ adapter }).request({ path: '/health', auth: 'public' }))
       .resolves.toBe(true)
@@ -70,7 +70,7 @@ describe('Axios client', () => {
       expect(config.url).toBe(`${baseUrl}/health`)
       expect(config.timeout).toBe(5_000)
       expect(config.headers.get('Authorization')).toBeUndefined()
-      return response(config, { success: true, data: { data: 0 } })
+      return Promise.resolve(response(config, { success: true, data: { data: 0 } }))
     })
     const client = createAxiosClient({ baseUrl, readToken, adapter })
     await expect(client.request({ path: '/health', auth: 'public', timeoutMs: 5_000 }))
@@ -85,7 +85,7 @@ describe('Axios client', () => {
     const adapter: AxiosAdapter = async config => {
       headers.push(config.headers.get('Authorization'))
       expect(config.timeout).toBe(30_000)
-      return response(config, { success: true, data: null })
+      return Promise.resolve(response(config, { success: true, data: null }))
     }
     const client = createAxiosClient({ baseUrl, readToken: () => token, adapter })
     await client.request({ path: 'user/me', auth: 'session' })
@@ -122,20 +122,20 @@ describe('Axios client', () => {
   })
 
   it.each([null, false, 0])('accepts a valid envelope containing %s', async data => {
-    const adapter: AxiosAdapter = async config => response(config, { success: true, data })
+    const adapter: AxiosAdapter = async config => Promise.resolve(response(config, { success: true, data }))
     await expect(createAxiosClient({ baseUrl, adapter }).request({ path: 'health', auth: 'public' }))
       .resolves.toBe(data)
   })
 
   it.each([null, {}, { success: true }, { success: false, data: 1 },
     { success: true, data: 1, meta: [] }])('rejects malformed envelopes', async data => {
-    const adapter: AxiosAdapter = async config => response(config, data)
+    const adapter: AxiosAdapter = async config => Promise.resolve(response(config, data))
     await expect(createAxiosClient({ baseUrl, adapter }).request({ path: 'health', auth: 'public' }))
       .rejects.toMatchObject({ kind: 'invalid-response' })
   })
 
   it('does not retry a timed out write', async () => {
-    const adapter = vi.fn<AxiosAdapter>(async () => { throw new AxiosError('raw secret', 'ECONNABORTED') })
+    const adapter = vi.fn<AxiosAdapter>(async () => { return Promise.reject(new AxiosError('raw secret', 'ECONNABORTED')) })
     await expect(createAxiosClient({ baseUrl, adapter }).request({
       path: 'datasets', method: 'POST', auth: 'public', data: { example: true },
     })).rejects.toMatchObject({ kind: 'timeout' })
@@ -172,4 +172,9 @@ describe('error normalization', () => {
     expect(normalized.fieldErrors).toBeUndefined()
     if (status === 500) expect(normalized.message).not.toContain('server detail')
   })
+})
+
+it('accepts a successful 204 deletion without requiring a JSON envelope', async () => {
+  const api = createAxiosClient({ baseUrl, readToken: () => 'token', adapter: config => Promise.resolve({ ...response(config, ''), status: 204 }) })
+  await expect(api.request({ path: '/workspaces/example', method: 'DELETE', auth: 'session' })).resolves.toBeUndefined()
 })

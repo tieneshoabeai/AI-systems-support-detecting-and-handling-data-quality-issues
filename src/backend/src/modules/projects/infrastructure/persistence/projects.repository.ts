@@ -194,26 +194,20 @@ export class ProjectsRepository implements ProjectRepositoryPort {
   }
 
   async transferOwner(projectId: string, newOwnerId: string, expectedVersion?: number): Promise<boolean | null> {
-    if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(newOwnerId)) return false;
-    const prjId = new Types.ObjectId(projectId);
+    const id = new Types.ObjectId(projectId);
     const newId = new Types.ObjectId(newOwnerId);
-    const scoped: Record<string, unknown> = { _id: prjId, deleted_at: null };
-    if (expectedVersion !== undefined) scoped.version = expectedVersion;
-    const demote = await this.model
-      .updateOne(scoped, { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } }, { arrayFilters: [{ 'o.role': 'owner' }] } as never)
-      .exec();
-    if (demote.matchedCount === 0) {
-      if (expectedVersion !== undefined) {
-        const exists = await this.model.findOne({ _id: prjId, deleted_at: null }).select('_id version').lean().exec();
-        if (exists) return null;
-        return false;
-      }
-      return false;
-    }
-    const r = await this.model
-      .updateOne({ _id: prjId, deleted_at: null, 'members.user_id': newId }, { $set: { 'members.$.role': 'owner' } })
-      .exec();
-    return r.modifiedCount > 0;
+    const scoped = { _id: id, deleted_at: null, 'members.user_id': newId, ...(expectedVersion === undefined ? {} : { version: expectedVersion }) };
+    // One atomic write: never leave a document with no Owner between two requests.
+    const result = await this.model.collection.updateOne(scoped, [{ $set: {
+
+      members: { $map: { input: '$members', as: 'm', in: { $mergeObjects: ['$$m', { role: { $cond: [
+        { $eq: ['$$m.user_id', newId] }, 'owner', { $cond: [{ $eq: ['$$m.role', 'owner'] }, 'member', '$$m.role'] },
+      ] } }] } } },
+      version: { $add: [{ $ifNull: ['$version', 1] }, 1] }, updated_at: new Date(),
+    } }], {});
+    if (result.matchedCount) return true;
+    const exists = await this.model.findOne({ _id: id, deleted_at: null }).select('_id version').lean().exec();
+    return exists && expectedVersion !== undefined ? null : false;
   }
 }
 

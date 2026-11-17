@@ -1,3 +1,5 @@
+import { isMesh } from '../common/typed-objects'
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -36,7 +38,7 @@ if (viewLabel) {
   viewLabel.textContent =
     zoom === 'base'
       ? 'base close-up · azimuth 45° / elevation 42°'
-      : `azimuth ${view.azimuth}° / elevation ${view.elevation}°`
+      : `azimuth ${requireDefined(view, 'neon-cube.preview.ts:40').azimuth}° / elevation ${requireDefined(view, 'neon-cube.preview.ts:40').elevation}°`
 }
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -63,8 +65,8 @@ const target = new THREE.Vector3(
 )
 const distance =
   zoom === 'base' ? numericParam('distance', 12.6) : numericParam('distance', viewDistance)
-const elevation = THREE.MathUtils.degToRad(zoom === 'base' ? 42 : numericParam('elevation', view.elevation))
-const azimuth = THREE.MathUtils.degToRad(view.azimuth)
+const elevation = THREE.MathUtils.degToRad(zoom === 'base' ? 42 : numericParam('elevation', requireDefined(view, 'neon-cube.preview.ts:67').elevation))
+const azimuth = THREE.MathUtils.degToRad(requireDefined(view, 'neon-cube.preview.ts:68').azimuth)
 if (zoom === 'base') target.set(0, 0.16, 0)
 camera.position.set(
   target.x + distance * Math.cos(elevation) * Math.sin(azimuth),
@@ -148,8 +150,8 @@ scene.add(underBaseLight)
 
 const model = createNeonCubeModel()
 scene.add(model.group)
-;(window as unknown as Record<string, unknown>).__neonCubeScene = scene
-;(window as unknown as Record<string, unknown>).__neonCubeRender = () => composer.render()
+;(window as unknown as Record<string, unknown>)['__neonCubeScene'] = scene
+;(window as unknown as Record<string, unknown>)['__neonCubeRender'] = () => composer.render()
 
 const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
@@ -244,7 +246,7 @@ function renderStatus() {
 // It swaps materials on the same model so orbit/explode stay intact.
 const originalMaterials = new Map<THREE.Object3D, THREE.Material | THREE.Material[]>()
 model.group.traverse((object) => {
-  if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) originalMaterials.set(object, object.material)
+  if (isMesh(object) || object instanceof THREE.Sprite) originalMaterials.set(object, object.material)
 })
 const clayMaterial = new THREE.MeshStandardMaterial({
   color: '#c9c5be',
@@ -275,7 +277,7 @@ function setClay(next: boolean) {
   clay = next
   for (const [object, material] of originalMaterials) {
     if (object instanceof THREE.Sprite) object.visible = !next
-    else if (object instanceof THREE.Mesh) object.material = next ? clayMaterial : material
+    else if (isMesh(object)) object.material = next ? clayMaterial : material
   }
   if (lightSheetsPart) lightSheetsPart.visible = !next
   if (coreGlowPart) coreGlowPart.visible = !next
@@ -393,7 +395,7 @@ function frame() {
   if (frames === 2) {
     document.body.classList.add('neon-cube-ready')
     renderStatus()
-    ;(window as unknown as Record<string, unknown>).__neonCube = {
+    ;(window as unknown as Record<string, unknown>)['__neonCube'] = {
       ready: true,
       triangleCount: model.triangleCount,
       drawCalls: model.drawCalls,

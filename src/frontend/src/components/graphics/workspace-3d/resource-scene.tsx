@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Matrix4, Vector3 } from 'three'
 import type { Mesh } from 'three'
-import type { CameraCommand, ResourceLayout } from '../../../types/workspace-3d/resource-map.types'
+import type { CameraCommand, ResourceLayout } from '../../../types'
 import { advanceFlow } from '../../../math/workspace-3d/resource-layout'
 import { shouldShowResourceLabel } from '../../../math/workspace-3d/resource-label-policy'
 import { ResourceHardware } from './resource-hardware'
@@ -15,7 +15,7 @@ type Props = {
   layout: ResourceLayout
   selectedId: string | null
   focusedId?: string | null
-  onSelect(id: string): void
+  onSelect(this: void, id: string): void
   moving: boolean
   tabHidden: boolean
   resetKey: number
@@ -24,10 +24,10 @@ type Props = {
 }
 
 class SceneBoundary extends Component<{ children: ReactNode; onFailure(): void }, { failed: boolean }> {
-  state = { failed: false }
+  override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch() { this.props.onFailure() }
-  render() { return this.state.failed ? null : this.props.children }
+  override componentDidCatch() { this.props.onFailure() }
+  override render() { return this.state.failed ? null : this.props.children }
 }
 
 function DataPipe({ edge, moving }: { edge: ResourceLayout['edges'][number]; moving: boolean }) {
@@ -149,7 +149,7 @@ export function ResourceScene({ layout, selectedId, focusedId = null, onSelect, 
           position={[layout.center[0], -0.79, layout.center[2]]} />
         {layout.edges.map(edge => <DataPipe key={edge.id} edge={edge} moving={moving} />)}
         {layout.nodes.map(node => <ResourceHardware key={node.resource.id} node={node} selected={node.resource.id === selectedId} onSelect={onSelect} onHover={setHoveredId} />)}
-        <ResourceCameraController layout={layout} resetKey={resetKey} command={command} reducedMotion={reducedMotion} active={!tabHidden} onContextLost={onFailure} />
+        <ResourceCameraController layout={layout} resetKey={resetKey} {...(command === undefined ? {} : { command: command })} reducedMotion={reducedMotion} active={!tabHidden} onContextLost={onFailure} />
         <SceneController layout={layout} labels={labels} lines={lines} selectedId={selectedId} hoveredId={hoveredId} focusedId={focusedId} active={!tabHidden} />
       </Canvas>
     </SceneBoundary>}

@@ -24,7 +24,7 @@ class InboundGuideCurve extends THREE.Curve<THREE.Vector3> {
     this.path = path
   }
 
-  getPoint(t: number, optionalTarget = new THREE.Vector3()): THREE.Vector3 {
+  override getPoint(t: number, optionalTarget = new THREE.Vector3()): THREE.Vector3 {
     this.path.sampleAt(t * this.path.length, optionalTarget, guideTangent)
     return optionalTarget
   }
@@ -52,7 +52,7 @@ export function createInboundStreams(capNode: THREE.Object3D): InboundStreams {
       guideMaterial,
     )
     guide.name = 'inbound-stream-guide'
-    guide.userData.pathId = path.definition.groupId
+    guide.userData['pathId'] = path.definition.groupId
     guide.renderOrder = 5
     root.add(guide)
   }

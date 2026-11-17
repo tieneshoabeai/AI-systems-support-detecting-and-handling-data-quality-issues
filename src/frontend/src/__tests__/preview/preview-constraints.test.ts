@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
@@ -23,7 +24,7 @@ const themeCode = readFileSync(join(process.cwd(), 'src/views/preview/preview-th
   .replace(/\/\*[\s\S]*?\*\//g, '')
 
 const definitions = new Map<string, string>()
-for (const match of code.matchAll(/^\s*(--pv-[\w-]+):\s*([^;]+);/gm)) definitions.set(match[1], match[2].trim())
+for (const match of code.matchAll(/^\s*(--pv-[\w-]+):\s*([^;]+);/gm)) definitions.set(requireDefined(match[1], 'preview-constraints.test.ts:27'), requireDefined(match[2], 'preview-constraints.test.ts:27').trim())
 
 const token = (name: string): string => {
   const value = definitions.get(name)
@@ -49,7 +50,7 @@ it('không var(--pv-…) nào trỏ tới token chưa khai báo', () => {
   const themeDefinitions = new Set([...themeCode.matchAll(/(--pv-[\w-]+):/g)].map(match => match[1]))
   const missing = [...`${code}\n${themeCode}`.matchAll(/var\((--pv-[\w-]+)/g)]
     .map(match => match[1])
-    .filter(name => !definitions.has(name) && !themeDefinitions.has(name) && !injectedByJs.has(name))
+    .filter(name => !definitions.has(requireDefined(name, 'preview-constraints.test.ts:53')) && !themeDefinitions.has(name) && !injectedByJs.has(requireDefined(name, 'preview-constraints.test.ts:53')))
   // CSS bỏ qua cả thuộc tính khi var() không phân giải được → triệu chứng là "mất màu",
   // rất khó nhìn ra trong review nên phải bắt bằng test.
   expect([...new Set(missing)]).toEqual([])
@@ -122,7 +123,7 @@ const luminance = (hexValue: string): number => {
     const srgb = value / 255
     return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4
   })
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  return 0.2126 * requireDefined(channels[0], 'preview-constraints.test.ts:126') + 0.7152 * requireDefined(channels[1], 'preview-constraints.test.ts:126') + 0.0722 * requireDefined(channels[2], 'preview-constraints.test.ts:126')
 }
 
 const contrast = (foreground: string, background: string): number => {

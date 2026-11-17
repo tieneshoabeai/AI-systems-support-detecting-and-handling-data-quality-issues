@@ -1,12 +1,13 @@
+import { Button } from '../../../components/ui/controls'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useInRouterContext } from 'react-router'
-import type { PreviewSectionId } from '../../../types/preview/preview.types'
+import type { PreviewSectionId } from '../../../types'
 import { navItems, sectionLabels } from '../preview-data'
 import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
 import { PreviewTopbar } from './preview-topbar'
-import { DataVerseMark } from '../../../components/branding/dataverse-mark'
+import { DataVerseMark } from '../../../components/branding'
 
 // Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
@@ -43,9 +44,7 @@ const readCollapsed = (): boolean => {
   }
 }
 
-export function Avatar({ initials, size = 'md' }: { initials: string; size?: 'sm' | 'md' }) {
-  return <span className={`avatar avatar-${size}`} aria-hidden="true">{initials}</span>
-}
+export { Avatar } from '../../../components/resource/avatar/avatar'
 
 // Sidebar nhớ trạng thái thu gọn giữa các lần tải trang.
 export function PreviewShell({
@@ -140,20 +139,20 @@ export function PreviewShell({
           : <a className="nav-item" href="/processing" title="AI Data Processing">{processingLink}</a>}
         {navItems.map(item => {
           const selected = item.id === active
-          return <button type="button" key={item.id}
+          return <Button type="button" key={item.id}
             className={`nav-item${selected ? ' is-active' : ''}`}
             data-nav={item.id}
             aria-current={selected ? 'page' : undefined} title={item.label}
             onClick={() => navigate(item.id, item.label)}>
             <span className="nav-icon" aria-hidden="true"><PreviewIcon name={item.id} /></span>
             <span className="nav-label">{item.label}</span>
-          </button>
+          </Button>
         })}
       </nav>
       {isContextual && <div className="nav-context">
         <span className="nav-context-label">Đang mở</span>
         <strong>{sectionLabels[active] ?? active}</strong>
-        <button type="button" className="text-link" onClick={() => navigate('home', 'Home')}>Về Home</button>
+        <Button type="button" className="text-link" onClick={() => navigate('home', 'Home')}>Về Home</Button>
       </div>}
     </aside>}
 
@@ -169,12 +168,12 @@ export function PreviewShell({
           {inRouter ? <Link className="button-secondary" to="/management"><PreviewIcon name="workspaces" /> Quản lý</Link>
             : <a className="button-secondary" href="/management"><PreviewIcon name="workspaces" /> Quản lý</a>}
         </span> : context}
-        sidebarToggle={!processing && !narrow && <button type="button" className="sidebar-toggle"
+        sidebarToggle={!processing && !narrow && <Button type="button" className="sidebar-toggle"
           aria-label={compact ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
           aria-expanded={!compact}
           onClick={() => setCollapsed(value => !value)}>
           <PreviewIcon name={compact ? 'expand' : 'collapse'} />
-        </button>}
+        </Button>}
         state={state} />
       <div className={`preview-content ${contentClassName}`} ref={contentRef}>
         {!processing && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}

@@ -2628,3 +2628,90 @@
   [data-preview='2d'] .pv-bar { background: var(--pv-cyan); }
   [data-preview='2d'] :is(.stat-card, .stat-icon, .resource-card, .mini-card, .ws-tile-icon, .pv-bar, .donut, .donut-hole, .legend-dot) { box-shadow: none !important; }
 }
+
+/* ---------- Nhịp phản hồi của nút (micro-motion 2D) ----------
+   Cả frame dùng CHUNG một nhịp — hover 110ms · press 80ms · vệt sáng 140ms, cùng họ đường
+   cong và cùng sắc accent — nhưng mỗi họ nút giữ một ĐỘNG TÁC riêng để mắt đọc ra vai trò
+   trước khi kịp đọc nhãn:
+     · primary    quét sáng + nhấc lên    → hành động chính, đáng nhìn
+     · secondary  nhấc 1px, không quét    → nút phụ đứng cạnh primary
+     · icon       icon nhích lên, nút lún  → thanh công cụ dày đặc
+     · tab        trượt 1px + gạch chân    → đổi lát cắt nội dung
+     · nav        icon nhích theo hướng đi  → điều hướng
+   Đây là bổ sung chuyển động, không đổi bảng màu: nền hover vẫn là --pv-blue-soft, nút
+   disabled không nhận hiệu ứng nào, và khối prefers-reduced-motion ở trên đã ép mọi
+   duration về 1ms nên cả lớp này tắt cùng lúc với phần còn lại. Mọi thời lượng đều lấy từ
+   token hiện có (không thêm mốc mới): ngân sách 140ms của --pv-d-chrome là trần cho cả
+   lớp hiệu ứng này. */
+
+[data-preview='2d'] .button-primary { position: relative; isolation: isolate; overflow: hidden; }
+/* ::after chỉ là vệt sáng, không phải phần tử bấm: pointer-events:none để không nuốt click. */
+[data-preview='2d'] .button-primary::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 34%, rgba(255, 255, 255, .38) 50%, transparent 66%);
+  transform: translateX(-130%);
+  opacity: 0;
+  /* Rời chuột: trả vệt về chỗ cũ tức thì (0s) thay vì để nó chạy ngược lại — chạy ngược
+     thì mắt thấy nút "quét sáng lần hai" dù người dùng không bấm gì; độ mờ tự tắt theo
+     hover token nên không có vệt nào đứng lại. */
+  transition: transform 0s linear, opacity var(--pv-d-hover) linear;
+}
+[data-preview='2d'] .button-primary:not([disabled]):hover::after {
+  transform: translateX(130%);
+  opacity: 1;
+  transition: transform var(--pv-d-chrome) var(--pv-ease-snap), opacity 0s linear;
+}
+/* Nút phụ: nhấc cùng độ với primary nhưng KHÔNG quét sáng — cả hai cùng quét thì hành động
+   chính mất quyền ưu tiên thị giác. */
+[data-preview='2d'] .button-secondary:not([disabled]):hover { transform: translateY(-1px); }
+[data-preview='2d'] .button-secondary:not([disabled]):active { transform: translateY(1px) scale(.995); }
+
+/* Icon: icon nhích 1px, cả nút lún khi bấm. Rule gốc thiếu transform trong transition nên
+   trước đây cú lún xảy ra tức thì và không đọc ra là "nút đã ăn". */
+[data-preview='2d'] .icon-button {
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), box-shadow var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .icon-button .preview-icon { transition: transform var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .icon-button:not([disabled]):hover .preview-icon { transform: translateY(-1px); }
+[data-preview='2d'] .icon-button:not([disabled]):active { transform: scale(.9); }
+/* Nút đảo chiều (mở/đóng) giữ nguyên 180° kể cả lúc hover, nếu không icon xoay ngược lại. */
+[data-preview='2d'] .icon-button.flip:not([disabled]):hover .preview-icon,
+[data-preview='2d'] .icon-button.flip .preview-icon { transform: rotate(180deg); }
+
+/* Tab: nhấc 1px khi rê, lún khi bấm; tab chi tiết có gạch chân chạy để thấy lát cắt đang tới. */
+[data-preview='2d'] .filter-tab,
+[data-preview='2d'] .detail-tab {
+  transition: background-color var(--pv-d-hover) var(--pv-ease-out), color var(--pv-d-hover) var(--pv-ease-out), border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
+}
+[data-preview='2d'] .filter-tab:not(.is-active):hover,
+[data-preview='2d'] .detail-tab:not(.is-active):hover { transform: translateY(-1px); }
+[data-preview='2d'] .filter-tab:active,
+[data-preview='2d'] .detail-tab:active { transform: translateY(0) scale(.97); }
+[data-preview='2d'] .detail-tab { position: relative; }
+[data-preview='2d'] .detail-tab::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
+  border-radius: 2px 2px 0 0; background: var(--pv-cyan);
+  opacity: 0; transform: scaleX(0); transform-origin: left;
+  transition: transform var(--pv-d-hover) var(--pv-ease-out), opacity var(--pv-d-hover) linear;
+}
+[data-preview='2d'] .detail-tab:not(.is-active):hover::after { opacity: .55; transform: scaleX(1); }
+
+/* Điều hướng: icon nhích về phía trang sẽ mở, không đổi cỡ chữ (tránh reflow dòng nhãn). */
+[data-preview='2d'] .nav-item .nav-icon { transition: transform var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .nav-item:hover .nav-icon { transform: translateX(1px); }
+
+/* Chip lọc và nút phân trang: cùng cú lún 80ms với các nút còn lại. */
+[data-preview='2d'] .chip-select { transition: border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out); }
+[data-preview='2d'] .chip-select:active { transform: scale(.985); }
+[data-preview='2d'] .page-button:active { transform: scale(.94); }
+
+@media (prefers-contrast: more) {
+  /* Tương phản cao: bỏ vệt sáng và gạch chân, giữ thay đổi nền/viền sẵn có. */
+  [data-preview='2d'] :is(.button-primary, .detail-tab)::after { display: none; }
+}
+
+/* Shared 2D interaction states; scene rendering is independent. */
+.preview-dialog :is(button, input, select, textarea):focus-visible,
+.settings-screen :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--color-action); outline-offset: 2px; }
+.preview-dialog button[aria-busy="true"] { cursor: progress; opacity: .65; }
+.resource-access-actions { display: grid; gap: var(--space-3); padding: var(--space-4); border-top: 1px solid var(--color-line); }

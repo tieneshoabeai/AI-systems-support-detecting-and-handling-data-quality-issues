@@ -81,6 +81,16 @@ export class WorkspacesService {
     return { items, total, page, limit };
   }
 
+  async listMemberProfiles(id: string, actor: { userId: string; role: string }) {
+    const resource = await this.getWorkspaceById(id);
+    if (actor.role === 'admin' || (resource.ownerId !== actor.userId && !resource.members.some(m => m.userId === actor.userId))) throw new ForbiddenException('Không có quyền xem thành viên workspace');
+    return Promise.all(resource.members.map(async member => {
+      const user = await this.users.findById(member.userId);
+      return { ...member, name: user ? `${user.firstName} ${user.lastName}`.trim() : member.userId,
+        email: user?.email };
+    }));
+  }
+
   async getWorkspaceById(id: string, touch = false): Promise<WorkspaceRecord> {
     if (!isObjectIdHex(id)) throw new BadRequestException('ID Không gian làm việc không hợp lệ');
     const workspace = await this.workspaces.findById(id);
@@ -117,6 +127,8 @@ export class WorkspacesService {
     const workspace = await this.getWorkspaceById(workspaceId);
     const targetUser = await this.users.findByEmail(dto.email);
     if (!targetUser) throw new NotFoundException(`Không tìm thấy người dùng với email: ${dto.email}`);
+    if (targetUser.role === 'admin') throw new BadRequestException('Tài khoản quản trị hệ thống không thuộc workspace.');
+    if (dto.role === 'owner') throw new BadRequestException('Dùng nhượng quyền để thay đổi Owner.');
     const targetUserIdStr = targetUser.id;
     if (workspace.members.some((m) => m.userId === targetUserIdStr)) {
       throw new ConflictException('Người dùng này đã là thành viên của không gian làm việc');

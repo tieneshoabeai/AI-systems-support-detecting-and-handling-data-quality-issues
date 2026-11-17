@@ -1,3 +1,6 @@
+import { Vector4 as UniformVector4 } from 'three'
+import { uniformValue } from '../../../graphics/common/typed-objects'
+import { requireDefined } from '../../../utils/required-value'
 import { useEffect, useMemo } from 'react'
 import type { RefObject } from 'react'
 import { useThree } from '@react-three/fiber'
@@ -32,7 +35,7 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
       const height = image.naturalHeight * scale
       const left = (pageBounds.width - width) / 2
       const top = (pageBounds.height - height) / 2
-      uniforms.uPageBackdropUv.value.set(
+      uniformValue(requireDefined(uniforms['uPageBackdropUv'], 'auth-glass.backdrop.tsx:36'), UniformVector4).set(
         (canvasBounds.left - pageBounds.left - left) / width,
         1 - (canvasBounds.bottom - pageBounds.top - top) / height,
         canvasBounds.width / width,
@@ -43,8 +46,8 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
 
     function showBackdrop() {
       texture.needsUpdate = true
-      uniforms.tPageBackdrop.value = texture
-      uniforms.uHasPageBackdrop.value = true
+      requireDefined(uniforms['tPageBackdrop'], 'auth-glass.backdrop.tsx:47').value = texture
+      requireDefined(uniforms['uHasPageBackdrop'], 'auth-glass.backdrop.tsx:48').value = true
       updateCrop()
     }
 
@@ -59,8 +62,8 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
       observer.disconnect()
       window.removeEventListener('resize', updateCrop)
       image.removeEventListener('load', showBackdrop)
-      uniforms.tPageBackdrop.value = null
-      uniforms.uHasPageBackdrop.value = false
+      requireDefined(uniforms['tPageBackdrop'], 'auth-glass.backdrop.tsx:63').value = null
+      requireDefined(uniforms['uHasPageBackdrop'], 'auth-glass.backdrop.tsx:64').value = false
       texture.dispose()
     }
   }, [canvas, invalidate, material, pageElement])

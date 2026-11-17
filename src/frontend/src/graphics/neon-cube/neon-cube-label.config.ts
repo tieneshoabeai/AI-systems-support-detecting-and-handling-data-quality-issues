@@ -1,4 +1,4 @@
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 
 export const NEON_CUBE_LABELS = {
   violet: { label: 'Tổng quan', detail: 'Khám phá dữ liệu' },

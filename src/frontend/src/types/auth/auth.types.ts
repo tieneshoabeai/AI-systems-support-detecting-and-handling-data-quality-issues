@@ -4,6 +4,7 @@ export type RefreshRequestDto = { refresh_token: string }
 
 export type RefreshResult = {
   accessToken: string
+  refreshToken: string
   accountId: string
   expiresAtMs: number
 }
@@ -21,8 +22,6 @@ export type LoginResponseDto = {
   user: {
     id: string
     email: string
-    first_name: string
-    last_name: string
     role: 'admin' | 'analyst'
   }
 }
@@ -33,8 +32,6 @@ export type LoginResult = {
   user: {
     id: string
     email: string
-    firstName: string
-    lastName: string
     role: LoginResponseDto['user']['role']
   }
 }

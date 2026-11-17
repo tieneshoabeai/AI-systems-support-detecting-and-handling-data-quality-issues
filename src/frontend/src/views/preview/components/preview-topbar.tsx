@@ -1,7 +1,7 @@
+import { Button, Input } from '../../../components/ui/controls'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types/preview/preview.types'
-import { accountInfo } from '../preview-data'
 import { NotificationCenter } from './notification-center'
 import { ReportCenter } from './report-center'
 import { PreviewIcon } from './preview-icons'
@@ -22,7 +22,7 @@ import { TopbarColorMode } from './topbar-color-mode'
 // hướng sang trang (đặc tả dòng 5 + 7). Đặc tả dòng 11 nói rõ nút báo cáo lấy icon "?" và KHÔNG
 // có nút Trợ giúp riêng — nên glyph "?" (help) nay mở ReportCenter, không còn nút thứ tám nữa.
 //
-// Hai combobox là khác biệt lớn nhất so với khung cũ: trước đây chúng là <select> tắt vì
+// Hai combobox là khác biệt lớn nhất so với khung cũ: trước đây chúng là <Select> tắt vì
 // chưa có API. Nay chúng đổi PHẠM VI làm việc thật của frame (danh sách project trên trang
 // Projects · trang chi tiết workspace · wizard "Tạo Project"), nên được bật. Bất biến vẫn giữ,
 // chỉ đổi cách đạt: control nào không có nghiệp vụ phía sau thì bỏ hẳn khỏi thanh (đăng xuất đã
@@ -60,20 +60,20 @@ function PreviewScopeSelect({ label, value, options, onSelect }: {
   const visible = needle ? options.filter(option => option.label.toLowerCase().includes(needle)) : options
 
   return <>
-    <button type="button" ref={triggerRef} className="scope-select" role="combobox" aria-haspopup="listbox"
+    <Button type="button" ref={triggerRef} className="scope-select" role="combobox" aria-haspopup="listbox"
       aria-expanded={open} aria-label={label}
       onClick={() => { setTrigger(triggerRef.current); setQuery(''); setOpen(current => !current) }}>
       <span className="scope-label">{label}</span>
       <span className="scope-value">{selected?.label ?? 'Chưa chọn'}</span>
       <span className="scope-caret" aria-hidden="true"><PreviewIcon name="chevron-down" /></span>
-    </button>
+    </Button>
 
     <PreviewPopover open={open} label={`Chọn ${label.toLowerCase()}`} trigger={trigger} onClose={() => setOpen(false)}>
       <div className="popover-head"><strong>{label}</strong></div>
       <div className="popover-search">
         <span aria-hidden="true"><PreviewIcon name="search" /></span>
         {/* Bấm là gõ tiếp được ngay, không phải click lần nữa vào ô tìm (apple-design mục 1). */}
-        <input role="searchbox" aria-label={`Tìm trong ${label.toLowerCase()}`} value={query} autoFocus
+        <Input role="searchbox" aria-label={`Tìm trong ${label.toLowerCase()}`} value={query} autoFocus
           placeholder={`Tìm ${label.toLowerCase()}…`} onChange={event => setQuery(event.target.value)}
           onKeyDown={event => {
             if (event.key !== 'Enter') return
@@ -85,7 +85,7 @@ function PreviewScopeSelect({ label, value, options, onSelect }: {
       <div role="listbox" aria-label={label} className="option-list">
         {visible.length === 0
           ? <p className="option-empty">Không có mục nào khớp “{query}”.</p>
-          : visible.map(option => <button type="button" role="option" key={option.id}
+          : visible.map(option => <Button type="button" role="option" key={option.id}
             aria-selected={option.id === value} className={`option-row${option.id === value ? ' is-current' : ''}`}
             onClick={() => { onSelect(option.id); setOpen(false) }}>
             <span className="option-label">{option.label}</span>
@@ -94,7 +94,7 @@ function PreviewScopeSelect({ label, value, options, onSelect }: {
                 con số đó, còn trên trigger nó làm ô phình to (phản hồi của user). */}
             {option.meta && needle && <span className="option-meta">{option.meta}</span>}
             {option.id === value && <span className="option-check" aria-hidden="true"><PreviewIcon name="check" /></span>}
-          </button>)}
+          </Button>)}
       </div>
     </PreviewPopover>
   </>
@@ -110,12 +110,12 @@ function TopbarBell({ notifications }: { notifications: PreviewNotification[] })
   const unread = notifications.filter(item => item.unread).length
 
   return <>
-    <button type="button" ref={triggerRef} className="icon-button"
+    <Button type="button" ref={triggerRef} className="icon-button"
       aria-label={`Thông báo${unread ? ` · ${unread} chưa đọc` : ''}`} aria-expanded={open} aria-haspopup="dialog"
       onClick={() => { setTrigger(triggerRef.current); setOpen(current => !current) }}>
       <PreviewIcon name="bell" />
       {unread > 0 && <span className="badge-dot" aria-hidden="true" />}
-    </button>
+    </Button>
     <PreviewPopover open={open} label="Thông báo" trigger={trigger} align="end" size="inbox"
       onClose={() => setOpen(false)}>
       <NotificationCenter />
@@ -132,11 +132,11 @@ function TopbarReport() {
   const [open, setOpen] = useState(false)
 
   return <>
-    <button type="button" ref={triggerRef} className="icon-button"
+    <Button type="button" ref={triggerRef} className="icon-button"
       aria-label="Báo cáo vấn đề" aria-expanded={open} aria-haspopup="dialog"
       onClick={() => { setTrigger(triggerRef.current); setOpen(current => !current) }}>
       <PreviewIcon name="help" />
-    </button>
+    </Button>
     <PreviewPopover open={open} label="Báo cáo vấn đề" trigger={trigger} align="end" size="inbox"
       onClose={() => setOpen(false)}>
       <ReportCenter />
@@ -146,6 +146,8 @@ function TopbarReport() {
 
 function TopbarAccount() {
   const session = usePreviewSession()
+  const profile = session.state.profile
+  const accountInfo = { ...profile, initials: profile.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('') }
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [trigger, setTrigger] = useState<HTMLElement | null>(null)
   const [open, setOpen] = useState(false)
@@ -176,13 +178,13 @@ function TopbarAccount() {
   }
 
   return <>
-    <button type="button" ref={triggerRef} className="topbar-user is-live" aria-haspopup="dialog" aria-expanded={open}
+    <Button type="button" ref={triggerRef} className="topbar-user is-live" aria-haspopup="dialog" aria-expanded={open}
       aria-label={`Tài khoản ${accountInfo.name}`}
       onClick={() => { setTrigger(triggerRef.current); setOpen(current => !current) }}>
       <span className="avatar avatar-md" aria-hidden="true">{accountInfo.initials}</span>
       <span className="user-text"><strong>{accountInfo.name}</strong><small>{accountInfo.role}</small></span>
       <span className="scope-caret" aria-hidden="true"><PreviewIcon name="chevron-down" /></span>
-    </button>
+    </Button>
     <PreviewPopover open={open} label={`Tài khoản ${accountInfo.name}`} trigger={trigger} align="end" size="lg" onClose={() => setOpen(false)}>
       <div className="account-head">
         <span className="avatar avatar-lg" aria-hidden="true">{accountInfo.initials}</span>
@@ -190,12 +192,12 @@ function TopbarAccount() {
       </div>
       <ul className="account-list">
         {rows.map(row => <li key={row.label}>
-          <button type="button" className="account-row" onClick={() => runRow(row)}>
+          <Button type="button" className="account-row" onClick={() => runRow(row)}>
             <span className="menu-icon" aria-hidden="true"><PreviewIcon name={row.icon} /></span>
             <span className="account-text">
               <span className="account-label">{row.label}</span>
             </span>
-          </button>
+          </Button>
         </li>)}
       </ul>
     </PreviewPopover>

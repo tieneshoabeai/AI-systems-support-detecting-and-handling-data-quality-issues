@@ -1,11 +1,14 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
+import type { ComponentProps } from 'react'
+import type { HolographicCoreCanvas } from '../../components/graphics/holographic-core/holographic-core.scene'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import type { HolographicPartInfo } from '../../types/dataset-3d/holographic-part.types'
+import type { HolographicPartInfo } from '../../types'
 import { Dataset3DView } from '../../views/dataset-3d/dataset-3d.view'
 
-const canvasProbe = vi.hoisted(() => vi.fn())
-vi.mock('../../components/graphics/holographic-core/holographic-core.scene', () => ({ HolographicCoreCanvas: (props: { reducedMotion: boolean; detached: boolean; selectedId: string | null; onSelectPart(part: HolographicPartInfo | null): void }) => {
+type CanvasProps = ComponentProps<typeof HolographicCoreCanvas>
+const canvasProbe = vi.hoisted(() => vi.fn<(props: CanvasProps) => void>())
+vi.mock('../../components/graphics/holographic-core/holographic-core.scene', () => ({ HolographicCoreCanvas: (props: CanvasProps) => {
   canvasProbe(props)
   return <div role="img" aria-label="Holographic core fixture" />
 } }))
@@ -46,8 +49,8 @@ it('renders the conceptual module map without claiming live data', () => {
   expect(content.hidden).toBe(false)
   expect(screen.getByText('Nhân dữ liệu')).toBeDefined()
   expect(screen.getByText('Tổng quan')).toBeDefined()
-  expect(screen.getByText('Data View').closest('li')?.dataset.tone).toBe('blue')
-  expect(screen.getByText('Data Analysis').closest('li')?.dataset.tone).toBe('cyan')
+  expect(screen.getByText('Data View').closest('li')?.dataset['tone']).toBe('blue')
+  expect(screen.getByText('Data Analysis').closest('li')?.dataset['tone']).toBe('cyan')
   expect(screen.getByText('Detection')).toBeDefined()
   expect(screen.getByText(/Nhân trung tâm là một bộ dữ liệu/)).toBeDefined()
   expect(screen.getByText(/chưa nối dữ liệu thật/)).toBeDefined()
@@ -93,7 +96,7 @@ it('focuses cubes from the legend and the scene, then clears focus on Escape or 
   fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
   expect(canvasProbe.mock.lastCall?.[0].cubeFocus).toBeNull()
   fireEvent.click(toggle)
-  expect((screen.getByRole('button', { name: 'Focus Data Analysis' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Focus Data Analysis' })).disabled).toBe(true)
 })
 
 it('explodes the model and reports the original English metadata of a picked part', () => {

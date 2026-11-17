@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CameraCommand, ResourceKind, ResourceMapProps } from '../../types/workspace-3d/resource-map.types'
+import type { CameraCommand, ResourceKind, ResourceMapProps } from '../../types'
 import { layoutResources, resourceTrail, validateResources } from '../../math/workspace-3d/resource-layout'
 import { ResourceScene } from '../../components/graphics/workspace-3d/resource-scene'
-import { useSceneMotion } from '../../hooks/workspace-3d/use-scene-motion'
+import { useSceneMotion } from '../../hooks/workspace-3d'
 import logo from '../../assets/8DA AI Network Logo.png'
 import './workspace-3d.css'
 
@@ -15,7 +15,7 @@ export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, lo
   const [resetKey, setResetKey] = useState(0)
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [cameraCommand, setCameraCommand] = useState<CameraCommand>()
-  const issueCamera = (type: CameraCommand['type'], resourceId?: string) => setCameraCommand(previous => ({ sequence: (previous?.sequence ?? 0) + 1, type, resourceId }))
+  const issueCamera = (type: CameraCommand['type'], resourceId?: string) => setCameraCommand(previous => ({ sequence: (previous?.sequence ?? 0) + 1, type, ...(resourceId === undefined ? {} : { resourceId }) }))
   const selectAndFocus = (id: string) => { onSelect(id); issueCamera('focus', id) }
   const { moving, reducedMotion, tabHidden } = useSceneMotion()
   const validResources = useMemo(() => validation.ok ? validation.resources : [], [validation])
@@ -43,7 +43,7 @@ export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, lo
           <section className="resource-scene-panel" aria-labelledby="scene-heading">
             <header className="resource-scene-toolbar"><div><span className="eyebrow">RESOURCE MAP</span><h2 id="scene-heading">{trail.at(-1)?.name ?? 'Không gian tài nguyên'}</h2></div>
               <button type="button" className="button-secondary" onClick={() => setResetKey(value => value + 1)}>Đặt lại góc nhìn</button></header>
-            <ResourceScene layout={layout} selectedId={selected?.id ?? null} focusedId={focusedId} onSelect={selectAndFocus} moving={moving} tabHidden={tabHidden} resetKey={resetKey} command={cameraCommand} reducedMotion={reducedMotion} />
+            <ResourceScene layout={layout} selectedId={selected?.id ?? null} focusedId={focusedId} onSelect={selectAndFocus} moving={moving} tabHidden={tabHidden} resetKey={resetKey} {...(cameraCommand === undefined ? {} : { command: cameraCommand })} reducedMotion={reducedMotion} />
             <div className="resource-camera-actions" role="group" aria-label="Điều khiển camera">
               {([['left', '←', 'Di chuyển trái'], ['forward', '↑', 'Di chuyển tới trước'], ['back', '↓', 'Di chuyển ra sau'], ['right', '→', 'Di chuyển phải'], ['near', '+', 'Nhìn gần hơn'], ['far', '−', 'Nhìn xa hơn']] as const).map(([type, mark, label]) =>
                 <button type="button" key={type} aria-label={label} title={label} onClick={() => issueCamera(type)}>{mark}</button>)}
@@ -60,7 +60,7 @@ export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, lo
               <span className={`resource-kind resource-kind-${selected.kind}`}><span aria-hidden="true">{kindMarks[selected.kind]}</span> {kindLabels[selected.kind]}</span>
               <dl><dt>Tên</dt><dd>{selected.kind === 'dataset' && onOpenDataset
                 ? <button type="button" className="text-link" onClick={() => onOpenDataset(selected.id)}>{selected.name}</button> : selected.name}</dd>
-                <dt>Đường dẫn</dt><dd>{selectedTrail.map(node => node.name).join(' / ')}</dd><dt>Nguồn</dt><dd>{localFileMode ? 'File trên máy · Chưa upload' : 'Dữ liệu demo'}</dd></dl>
+              <dt>Đường dẫn</dt><dd>{selectedTrail.map(node => node.name).join(' / ')}</dd><dt>Nguồn</dt><dd>{localFileMode ? 'File trên máy · Chưa upload' : 'Dữ liệu demo'}</dd></dl>
               {selected.kind === 'dataset' && onOpenDataset && <button type="button" className="button-primary" onClick={() => onOpenDataset(selected.id)}>Xem dữ liệu</button>}
               {selected.kind !== 'dataset' && <button type="button" className="button-primary" onClick={() => changeScope(selected.id)}>Khám phá {kindLabels[selected.kind]} <span aria-hidden="true">→</span></button>}
               <button type="button" className="text-link" onClick={() => onSelect(null)}>Bỏ chọn</button>
@@ -91,7 +91,7 @@ export function Workspace3DView({ resources, onOpenDataset, localFileMode = fals
   return <main className="resource-page">
     <header className="resource-page-header"><a href="/" className="resource-brand" aria-label="Về ứng dụng"><img src={logo} alt="8DA AI Network" width="48" height="48" /><span>Resource explorer</span></a><span className="resource-demo-badge">DEMO · CHỈ XEM THỬ</span></header>
     <div className="resource-intro"><div><span className="eyebrow"><span className="brand-dot" /> WORKSPACE 3D</span><h1>Bản đồ tài nguyên</h1></div><p>Khám phá Workspace, Project và Dataset.<br />{localFileMode ? 'Đọc file CSV trực tiếp trong tab này.' : 'Dữ liệu minh họa trong bộ nhớ tab.'}</p></div>
-    <ResourceMap resources={resources} selectedId={selectedId} onSelect={setSelectedId} onOpenDataset={onOpenDataset} localFileMode={localFileMode} />
+    <ResourceMap resources={resources} selectedId={selectedId} onSelect={setSelectedId} {...(onOpenDataset === undefined ? {} : { onOpenDataset: onOpenDataset })} localFileMode={localFileMode} />
     <footer className="resource-footer">Preview phát triển · Không upload hoặc thay đổi dữ liệu thật</footer>
   </main>
 }

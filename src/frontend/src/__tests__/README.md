@@ -1,5 +1,8 @@
 # __tests__
 
+`components/ui/` kiểm tra Design System: native props/ref, form associations,
+Dialog focus/dismissal, Popover/ContextMenu cleanup, Toast undo và các component trình bày.
+
 ## 1. Mục đích
 
 Kiểm tra contract, trạng thái, tương tác và hình học frontend bằng Vitest. Thư mục này không cung cấp tính năng runtime.

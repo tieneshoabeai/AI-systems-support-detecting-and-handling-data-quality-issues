@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import type { PreviewAppearance, PreviewColorPreference } from '../../types/preview/preview-session.types'
+import type { PreviewAppearance, PreviewColorPreference } from '../../types'
 
 export const previewColorKey = 'data-quality.preview.color.v1'
 const darkQuery = '(prefers-color-scheme: dark)'

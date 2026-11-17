@@ -1,3 +1,4 @@
+import { requireDefined } from '../../../utils/required-value'
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import {
@@ -37,6 +38,7 @@ import {
   WebGLRenderTarget,
 } from 'three'
 import type { Texture, WebGLRenderer } from 'three'
+import { LightEnvironment } from './holographic-core.light-environment'
 import { ORBIT_RINGS, ORBIT_Y } from '../../../graphics/holographic-core/orbit.config'
 import { NEON_CUBE_CLUSTER_LAYOUT } from '../../../graphics/neon-cube/neon-cube.cluster'
 
@@ -693,7 +695,7 @@ function createMeteorTrail(): MeteorTrail {
       ]
       const heading = azimuth + Math.PI * 0.5 + (Math.random() - 0.5) * 0.6
       state.from = start
-      state.to = [start[0] + Math.cos(heading) * METEOR_TRAIL, start[1] - METEOR_TRAIL * 0.35, start[2] + Math.sin(heading) * METEOR_TRAIL]
+      state.to = [requireDefined(start[0], 'holographic-core.environment.tsx:698') + Math.cos(heading) * METEOR_TRAIL, requireDefined(start[1], 'holographic-core.environment.tsx:698') - METEOR_TRAIL * 0.35, requireDefined(start[2], 'holographic-core.environment.tsx:698') + Math.sin(heading) * METEOR_TRAIL]
       state.progress = 0
     }
     if (state.progress < 0) return
@@ -851,35 +853,8 @@ function createSkyDrift(backgroundRotation: Euler) {
   }
 }
 
-function LightEnvironment() {
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 32
-    canvas.height = 512
-    const context = canvas.getContext('2d')!
-    const gradient = context.createLinearGradient(0, 0, 0, 512)
-    gradient.addColorStop(0, '#ffffff')
-    gradient.addColorStop(0.55, '#edf5fc')
-    gradient.addColorStop(1, '#dce9f5')
-    context.fillStyle = gradient
-    context.fillRect(0, 0, 32, 512)
-    const result = new CanvasTexture(canvas)
-    result.colorSpace = SRGBColorSpace
-    return result
-  }, [])
-  useEffect(() => () => texture.dispose(), [texture])
-  return <>
-    <Backdrop texture={texture} />
-    <mesh rotation-x={-Math.PI / 2} position-y={-0.08}>
-      <planeGeometry args={[160, 160]} />
-      <meshBasicMaterial color="#eff5fb" toneMapped={false} />
-    </mesh>
-    <gridHelper args={[100, 100, '#a1b9cf', '#c2d3e3']} position-y={-0.06} />
-  </>
-}
-
 export function HolographicEnvironment({ reducedMotion, colorMode = 'dark' }: { reducedMotion: boolean; colorMode?: 'light' | 'dark' }) {
-  return colorMode === 'light' ? <LightEnvironment /> : <DarkEnvironment reducedMotion={reducedMotion} />
+  return colorMode === 'light' ? <LightEnvironment reducedMotion={reducedMotion} /> : <DarkEnvironment reducedMotion={reducedMotion} />
 }
 
 function DarkEnvironment({ reducedMotion }: { reducedMotion: boolean }) {

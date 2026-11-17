@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import {
@@ -75,8 +76,8 @@ describe('core visual config', () => {
     for (const entry of Object.values(CORE_GLOW_V3)) {
       expect(entry.patch.emissiveIntensity ?? 0).toBeLessThanOrEqual(1)
     }
-    expect(CORE_GLOW_V3['core-upper'].patch.emissiveIntensity).toBe(0.5)
-    expect(CORE_GLOW_V2['core-upper'].patch.emissiveIntensity).toBe(1.35)
+    expect(requireDefined(CORE_GLOW_V3['core-upper'], 'issue-constellation.test.ts:79').patch.emissiveIntensity).toBe(0.5)
+    expect(requireDefined(CORE_GLOW_V2['core-upper'], 'issue-constellation.test.ts:80').patch.emissiveIntensity).toBe(1.35)
     expect(resolveCoreGlow('v2-tier')).toBe(CORE_GLOW_V2)
     expect(resolveCoreNucleus('v4-spool').centerY).toBe(SPOOL_CORE.nucleus.y)
   })
@@ -139,9 +140,9 @@ describe('issue constellation model', () => {
       constellation.root.getObjectByName(`cube-connection-${theme}`) as THREE.Group)
     expect(bundles.every(bundle => !bundle.visible && bundle.children.length === 3)).toBe(true)
     constellation.setConnection('orange', 0.5)
-    const line = bundles[0].children[0] as THREE.Line
+    const line = requireDefined(bundles[0], 'issue-constellation.test.ts:143').children[0] as THREE.Line
     expect(line.geometry.drawRange.count).toBe(34)
-    expect(bundles[0].visible).toBe(true)
+    expect(requireDefined(bundles[0], 'issue-constellation.test.ts:145').visible).toBe(true)
     expect(constellation.root.getObjectByName('detection-beacon-ring')?.visible).toBe(false)
     constellation.setConnection('orange', 1)
     expect(line.geometry.drawRange.count).toBe(65)
@@ -151,7 +152,7 @@ describe('issue constellation model', () => {
     constellation.setConnection('cyan', 1)
     expect(bundles.map(bundle => bundle.visible)).toEqual([false, true, false, false])
     constellation.reset()
-    expect(bundles[1].visible).toBe(true)
+    expect(requireDefined(bundles[1], 'issue-constellation.test.ts:155').visible).toBe(true)
     constellation.setConnection(null, 0)
     expect(bundles.every(bundle => !bundle.visible)).toBe(true)
     constellation.dispose()

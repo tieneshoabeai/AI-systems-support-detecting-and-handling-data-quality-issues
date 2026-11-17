@@ -61,9 +61,10 @@ export class IssuesController {
     @Req() req: Request,
   ) {
     const file = await new Promise<{ filename: string; mimeType: string; size: number; stream: Readable }>((resolve, reject) => {
-      const bb = busboy({ headers: req.headers, limits: { fileSize: 10 * 1024 * 1024 } });
+      const bb = busboy({ headers: req.headers, limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
       let done = false;
       bb.on('file', (_field: string, stream: Readable, info: { filename: string; mimeType: string }) => {
+        stream.on('limit', () => { const error = new BadRequestException('Tệp đính kèm tối đa 10 MB.'); stream.destroy(error); reject(error); });
         const chunks: Buffer[] = [];
         let size = 0;
         stream.on('data', (c: Buffer) => { size += c.length; chunks.push(c); });

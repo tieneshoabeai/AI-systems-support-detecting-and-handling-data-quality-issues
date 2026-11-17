@@ -12,6 +12,7 @@ export type DatasetStatus = 'processed' | 'processing' | 'queued' | 'failed'
 export type CoverHue = 'blue' | 'violet' | 'green' | 'pink' | 'orange' | 'cyan'
 
 export type Person = {
+  joinedAt?: string
   id: string
   name: string
   role: string
@@ -36,6 +37,9 @@ export type DatasetSummary = {
 }
 
 export type Workspace = {
+  canManage?: boolean
+
+  currentUserId?: string
   id: string
   name: string
   description: string
@@ -72,6 +76,7 @@ export type WorkspaceEdit = { name: string; description: string }
 // wizard bắt buộc nạp tệp ở bước "Import Dataset" (view đọc tệp bằng parseLocalCsv rồi đưa số
 // đo thật — rows/columns/sizeMb — qua đây, service chỉ đóng gói thành DatasetSummary).
 export type NewProjectDatasetInput = {
+  file?: File
   fileName: string
   format: DatasetSummary['format']
   rows: number
@@ -102,6 +107,10 @@ export type NewWorkspaceInput = { name: string; description: string; members: Pe
 export type NewWorkspaceMemberInput = { workspaceId: string; person: Person }
 
 export type Project = {
+  canManage?: boolean
+  canDelete?: boolean
+  canUpload?: boolean
+
   id: string
   code: string
   name: string
@@ -194,7 +203,7 @@ export type WorkspaceSort = 'accessed' | 'created' | 'updated' | 'name-asc' | 'n
 
 // Tab lọc ở đầu trang. Nhãn có số đếm nên phải suy từ danh sách đang hiển thị (xem
 // projectTabsFor), không được viết tay.
-export type ProjectFilterTab = 'all' | 'active' | 'paused' | 'completed' | 'archived'
+export type ProjectFilterTab = 'processing' | 'all' | 'active' | 'paused' | 'completed' | 'archived'
 
 /* ---------- Tương tác chuột (menu ngữ cảnh, popover, toast) ---------- */
 
@@ -330,7 +339,7 @@ export type NotificationFilterTab = 'all' | 'unread' | 'read'
 
 // Bốn trạng thái xử lý ở khung 3.4. `closed` là trạng thái thật của vòng đời nhưng bộ
 // lọc (3.2) chỉ vẽ ba tab có bản ghi, nên tab sinh theo danh sách, không viết tay.
-export type ReportStatus = 'processing' | 'needs-info' | 'resolved' | 'closed'
+export type ReportStatus = 'new' | 'processing' | 'needs-info' | 'resolved' | 'closed'
 
 // Danh mục "Loại vấn đề" của ô chọn trong form tạo (3.1) + cột Loại ở danh sách (3.2).
 export type ReportIssueType = 'system' | 'feature' | 'data' | 'suggestion' | 'other'
@@ -340,7 +349,7 @@ export type ReportFilterTab = 'all' | 'processing' | 'needs-info' | 'resolved'
 
 // Tệp đính kèm CHỈ là nhãn (tên + dung lượng hiển thị). Chưa có API upload nên frame
 // không đọc nội dung, không "tải lên" — ghi nhận đúng tên người dùng vừa chọn là đủ.
-export type ReportAttachment = { name: string; sizeLabel: string }
+export type ReportAttachment = { name: string; sizeLabel: string; file?: File; id?: string }
 
 export type PreviewReport = {
   id: string
@@ -443,6 +452,8 @@ export type PreviewSelection = {
 }
 
 export type PreviewStoreState = {
+  source?: 'api' | 'mock'
+
   workspaces: Workspace[]
   projects: Project[]
   notifications: PreviewNotification[]
@@ -455,6 +466,7 @@ export type PreviewStoreState = {
 
 // Kết quả mutation của mock service: undo là hàm đóng, không phải id bản ghi.
 export type PreviewMutationResult = {
+  persisted?: boolean
   message: string
   undo: () => void
 }

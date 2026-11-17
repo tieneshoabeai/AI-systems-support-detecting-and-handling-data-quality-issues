@@ -1,6 +1,7 @@
-import type { PreviewRoute, PreviewRouteIds } from '../../types/preview/preview-route.types'
-import type { PreviewSectionId, SettingsSectionId } from '../../types/preview/preview.types'
-import type { ProcessingStep } from '../../types/processing/processing-route.types'
+import { requireDefined } from '../../utils/required-value'
+import type { PreviewRoute, PreviewRouteIds } from '../../types'
+import type { PreviewSectionId, SettingsSectionId } from '../../types'
+import type { ProcessingStep } from '../../types'
 
 export const processingSteps: readonly ProcessingStep[] = ['upload', 'analysis', 'review', 'results']
 export const defaultAuthenticatedPath = '/processing'
@@ -23,7 +24,7 @@ export const managementHref = (section: PreviewSectionId, ids: PreviewRouteIds =
 
 export const parseManagementRoute = (source: string): PreviewRoute | null => {
   const [pathname, search = ''] = source.split('?')
-  const parts = pathname.replace(/\/$/, '').split('/').slice(1)
+  const parts = requireDefined(pathname, 'application-route.ts:27').replace(/\/$/, '').split('/').slice(1)
   if (parts[0] !== 'management' || parts.length > 3) return null
   const section = parts[1] ?? 'home'
   const id = parts[2] ?? null
@@ -60,9 +61,9 @@ export const isProcessingPath = (pathname: string): boolean => {
   if (parts[0] !== 'processing') return false
   if (parts.length === 1 || (parts.length === 2 && parts[1] === 'new')) return true
   if (parseProjectRoute(pathname)) return true
-  return parts.length === 4 && parts[1] === 'projects' && resourceId.test(parts[2])
-    && processingSteps.some(step => step === parts[3])
+  return parts.length === 4 && parts[1] === 'projects' && resourceId.test(requireDefined(parts[2], 'application-route.ts:64'))
+    && (parts[3] === 'records' || processingSteps.some(step => step === parts[3]))
 }
 
 export const isWorkbenchPath = (source: string): boolean =>
-  parseManagementRoute(source) !== null || isProcessingPath(source.split('?')[0])
+  parseManagementRoute(source) !== null || isProcessingPath(requireDefined(source.split('?')[0], 'application-route.ts:69'))

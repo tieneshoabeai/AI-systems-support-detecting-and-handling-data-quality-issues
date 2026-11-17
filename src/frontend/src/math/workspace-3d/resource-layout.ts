@@ -1,4 +1,4 @@
-import type { PositionedResource, ResourceLayout, ResourceNode } from '../../types/workspace-3d/resource-map.types'
+import type { PositionedResource, ResourceLayout, ResourceNode } from '../../types'
 import { routeResources } from './resource-routing'
 import { connectionRadius } from './resource-connection-profile'
 
@@ -7,16 +7,19 @@ type Validation = { ok: true; resources: readonly ResourceNode[] } | { ok: false
 export function validateResources(input: unknown): Validation {
   if (!Array.isArray(input)) return { ok: false, message: 'Danh sách tài nguyên không hợp lệ.' }
   const ids = new Map<string, ResourceNode>()
-  for (const value of input) {
+  const values: unknown[] = input
+  for (const entry of values) {
+    const value = typeof entry === 'object' && entry !== null ? entry as Record<string, unknown> : null
     if (!value || typeof value !== 'object'
-      || typeof value.id !== 'string' || !value.id.trim()
-      || typeof value.name !== 'string' || !value.name.trim()
-      || !['workspace', 'project', 'dataset'].includes(value.kind)
-      || (value.parentId !== null && (typeof value.parentId !== 'string' || !value.parentId.trim()))) {
+      || typeof value['id'] !== 'string' || !value['id'].trim()
+      || typeof value['name'] !== 'string' || !value['name'].trim()
+      || (value['kind'] !== 'workspace' && value['kind'] !== 'project' && value['kind'] !== 'dataset')
+      || (value['parentId'] !== null && (typeof value['parentId'] !== 'string' || !value['parentId'].trim()))) {
       return { ok: false, message: 'Tài nguyên thiếu ID, tên, loại hoặc thông tin cha hợp lệ.' }
     }
-    if (ids.has(value.id)) return { ok: false, message: 'ID tài nguyên bị trùng. Tên được phép trùng, ID thì không.' }
-    ids.set(value.id, value)
+    if (ids.has(value['id'])) return { ok: false, message: 'ID tài nguyên bị trùng. Tên được phép trùng, ID thì không.' }
+    // All contract fields have been validated; preserve the caller's object identity.
+    ids.set(value['id'], entry as ResourceNode)
   }
   for (const node of ids.values()) {
     const parent = node.parentId === null ? null : ids.get(node.parentId)
@@ -26,7 +29,7 @@ export function validateResources(input: unknown): Validation {
     }
   }
   // Strictly decreasing parent levels also rule out cycles.
-  return { ok: true, resources: input }
+  return { ok: true, resources: values as ResourceNode[] }
 }
 
 export function resourceTrail(resources: readonly ResourceNode[], id: string | null): ResourceNode[] {

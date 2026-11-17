@@ -1,7 +1,7 @@
 import { CanvasTexture, SRGBColorSpace } from 'three'
-import { NEON_CUBE_LABELS } from '../neon-cube/neon-cube-label.config'
-import { NEON_CUBE_THEMES } from '../neon-cube/neon-cube.model'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import { NEON_CUBE_LABELS } from '../neon-cube'
+import { NEON_CUBE_THEMES } from '../neon-cube'
+import type { NeonCubeThemeId } from '../../types'
 import { CUBE_LABEL_ASPECT } from './cube-label-layout'
 
 const FONT = '"Plus Jakarta Sans", sans-serif'

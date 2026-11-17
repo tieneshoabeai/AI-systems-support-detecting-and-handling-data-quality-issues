@@ -1,0 +1,56 @@
+import { Button, Table } from '../../ui/controls'
+import { useState } from 'react'
+import type { ReactNode } from 'react'
+import type { PreviewMenuOrigin, Project } from '../../../types'
+import { byNewestFirst } from '../../../hooks/preview/preview-presentation'
+import { originFromEvent } from '../../../hooks/preview/preview-card'
+import { projectMenu } from '../../../hooks/preview/preview-menu'
+import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { Icon as PreviewIcon } from '../../ui/primitives/icon'
+import { Pagination, Panel, StatusBadge } from '../../resource'
+
+// Both landing pages share sorting, pagination and project/menu navigation.
+export function RecentProjects({ action }: { action?: ReactNode }) {
+  const session = usePreviewSession()
+  const [page, setPage] = useState(1)
+  const perPage = 10
+  const sorted = session.state.projects.slice().sort(byNewestFirst)
+  const safePage = Math.min(page, Math.max(1, Math.ceil(sorted.length / perPage)))
+  const visible = sorted.slice((safePage - 1) * perPage, safePage * perPage)
+  const openMenu = (project: Project, origin: PreviewMenuOrigin) =>
+    session.openMenu({ ...projectMenu(project), origin })
+
+  return <Panel title="Projects gần đây" action={action}>
+    <div className="table-scroll home-table">
+      <Table className="preview-table">
+        <thead><tr><th scope="col">#</th><th scope="col">Project</th><th scope="col">Workspace</th>
+          <th scope="col">Status</th><th scope="col">Last Updated</th><th scope="col">Data File</th>
+          <th scope="col"><span className="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>{visible.map((project, index) => {
+          const target = { kind: 'project' as const, id: project.id, name: project.name }
+          return <tr key={project.id} tabIndex={0}
+            onClick={() => session.run('open', target)}
+            onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') session.run('open', target) }}
+            onContextMenu={event => { event.preventDefault(); openMenu(project, originFromEvent(event)) }}>
+            <td className="row-index">{(safePage - 1) * perPage + index + 1}</td>
+            <th scope="row"><span className="row-name">{project.name}</span><span className="row-sub">{project.description}</span></th>
+            <td>{project.workspaceName}</td>
+            <td><StatusBadge status={project.status} /></td>
+            <td>{project.updatedAt}<span className="row-sub">bởi {project.owner.name}</span></td>
+            <td>{project.dataset
+              ? <span className="file-chip"><PreviewIcon name="file" />{project.dataset.fileName}</span>
+              : <span className="row-sub">chưa có</span>}</td>
+            <td className="row-action">
+              <Button type="button" className="icon-button row-menu" aria-label={`Thao tác với ${project.name}`} aria-haspopup="menu"
+                onClick={event => { event.stopPropagation(); openMenu(project, { kind: 'anchor', element: event.currentTarget }) }}>
+                <PreviewIcon name="more" />
+              </Button>
+            </td>
+          </tr>
+        })}</tbody>
+      </Table>
+      {visible.length === 0 && <p className="panel-sub">Chưa có project nào.</p>}
+    </div>
+    <Pagination label="Projects pagination" total={sorted.length} page={safePage} perPage={perPage} onPage={setPage} hideWhenSinglePage />
+  </Panel>
+}

@@ -1,5 +1,7 @@
 /* A single scene with a readable text overlay, independent of project data. */
-[data-preview='2d'] .home-universe-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+[data-preview='2d'] .home-universe-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: auto; }
+/* Kéo để xoay cảnh; touch-action: pan-y để vuốt dọc trên cảm ứng vẫn cuộn trang. */
+[data-preview='2d'] .home-universe-canvas canvas { cursor: grab; touch-action: pan-y; }
 /* Cảnh chỉ chiếm nửa phải: tan dần vào nền ở mép trái để chữ không bao giờ đứng trên
    một hành tinh sắc nét (mask rẻ hơn blur và không tạo lớp phủ lên nội dung). */
 @media (min-width: 700px) {
@@ -95,3 +97,13 @@
 @media (prefers-contrast: more) {
   [data-preview='2d'] .hero.universe-hero::after { background: var(--pv-bg-1); }
 }
+
+/* DEBUG-SHIFT */
+[data-preview='2d'] .home-universe-canvas { transform: translateX(-175px); }
+[data-preview='2d'] .universe-hero::after { display: none !important; }
+[data-preview='2d'] .universe-hero .hero-stage { z-index: 0 !important; }
+
+/* DEBUG-SHIFT */
+[data-preview='2d'] .home-universe-canvas { transform: translateX(-175px); }
+[data-preview='2d'] .universe-hero::after { display: none !important; }
+[data-preview='2d'] .universe-hero .hero-stage { z-index: 0 !important; }

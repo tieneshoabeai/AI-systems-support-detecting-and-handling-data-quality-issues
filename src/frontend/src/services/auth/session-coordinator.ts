@@ -1,19 +1,21 @@
 import { ApiError, normalizeApiError } from '../../lib/api-error'
-import { readAccessToken, isAccessTokenExpired } from '../../utils/auth/access-token'
-import type { AppError } from '../../types/api/api.types'
-import type { LoginRequestDto } from '../../types/auth/auth.types'
-import type { StoredSession } from '../../types/auth/session.types'
-import type {
-  SessionCoordinatorOptions, SessionSnapshot, SessionUser, SignOutResult,
-} from '../../types/auth/session-coordinator.types'
-import type { DraftAccessPort } from '../../types/datasets/upload-draft.types'
-import type { CurrentUser } from '../../types/users/user.types'
+import { readAccessToken, isAccessTokenExpired } from '../../utils'
+import type { AppError } from '../../types'
+import type { LoginRequestDto } from '../../types'
+import type { StoredSession } from '../../types'
+import type { SessionCoordinatorOptions, SessionSnapshot, SessionUser, SignOutResult } from '../../types'
+import type { DraftAccessPort } from '../../types'
+import type { CurrentUser } from '../../types'
 
 const sessionError = (message: string) => new ApiError({ kind: 'session', message })
 const safeError = (error: unknown): Readonly<AppError> => {
   const value = normalizeApiError(error)
   // Không expose raw Error/config/token hoặc object mutable của caller qua snapshot.
-  return Object.freeze({ kind: value.kind, message: value.message, status: value.status, code: value.code })
+  return Object.freeze({
+    kind: value.kind, message: value.message,
+    ...(value.status === undefined ? {} : { status: value.status }),
+    ...(value.code === undefined ? {} : { code: value.code }),
+  })
 }
 
 export const createSessionCoordinator = (options: SessionCoordinatorOptions) => {
@@ -203,7 +205,7 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
       try {
         const renewed = await options.auth.refresh({ refresh_token: previous.refreshToken }, { signal })
         if (!isCurrent(captured)) return
-        const candidate: StoredSession = { ...previous, accessToken: renewed.accessToken }
+        const candidate: StoredSession = { ...previous, accessToken: renewed.accessToken, refreshToken: renewed.refreshToken }
         if (renewed.accountId !== previous.accountId) throw sessionError('Token gia hạn không khớp tài khoản.')
         requireActiveToken(candidate)
         // Me dùng candidate token, chưa publish/persist candidate vào phiên chính.

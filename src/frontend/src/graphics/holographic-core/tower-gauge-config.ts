@@ -4,7 +4,7 @@
 //
 // Palette mới do human chốt: đạt xanh lá, cảnh báo hổ phách, nghiêm trọng đỏ hồng.
 // Màu AI đã xử lý chỉ được khai báo; không suy diễn trạng thái này từ điểm số.
-import type { DqDimension, ScoreScope } from '../../types/datasets/quality-score.types'
+import type { DqDimension, ScoreScope } from '../../types'
 
 export const DIMENSIONS: readonly DqDimension[] = [
   'completeness',

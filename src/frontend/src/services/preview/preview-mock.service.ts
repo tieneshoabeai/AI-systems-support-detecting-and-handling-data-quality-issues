@@ -1,8 +1,9 @@
-import type {
-  CoverHue, NewProjectInput, NewProjectMemberInput, NewReportInput, NewWorkspaceInput, NewWorkspaceMemberInput, NotificationPrefKey, PreviewMutationResult, PreviewReport, PreviewResourceKind,
-  PreviewStoreState, ProfileEdit, Project, Workspace, WorkspaceEdit,
-} from '../../types/preview/preview.types'
+import { requireDefined } from '../../utils/required-value'
+import type { CoverHue, NewProjectInput, NewProjectMemberInput, NewReportInput, NewWorkspaceInput, NewWorkspaceMemberInput, NotificationPrefKey, PreviewMutationResult, PreviewReport, PreviewResourceKind, PreviewStoreState, ProfileEdit, Project, Workspace, WorkspaceEdit } from '../../types'
 import { people, seedNotifications, seedNotificationPrefs, seedProfile, seedProjects, seedReports, seedSessions, seedWorkspaces } from './preview-fixtures'
+import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
+import shopping from '../../mocks/shopping-trends/project.json'
+import { persistDemoState, restoreDemoState } from '../../mocks/shopping-trends/demo-storage'
 import { fixtureSets, isFixtureSetId, type PreviewFixtureSet, type PreviewFixtureSetId } from './preview-worst-case'
 
 // Mock store của batch preview 2D — chỗ duy nhất được phép "ghi" khi chưa có backend.
@@ -27,7 +28,8 @@ const clone = <T>(value: readonly T[]): T[] => value.map(item => ({ ...item }))
    Tham số chọn fixture chỉ có hiệu lực ở DEV. Management hiện vẫn dùng dữ liệu mẫu
    và ghi rõ trên UI; production mở các màn này qua guard của ứng dụng. */
 const demoBundle: PreviewFixtureSet = {
-  ...fixtureSets[0], workspaces: seedWorkspaces, projects: seedProjects, notifications: seedNotifications,
+  ...requireDefined(fixtureSets[0], 'default fixture set'), workspaces: isShoppingDemo() ? [shopping.workspace as Workspace, ...seedWorkspaces] : seedWorkspaces,
+  projects: isShoppingDemo() ? [shopping.project as Project, ...seedProjects] : seedProjects, notifications: seedNotifications,
 }
 const setData = (set: PreviewFixtureSetId): PreviewFixtureSet =>
   set === 'demo' ? demoBundle : fixtureSets.find(item => item.id === set) ?? demoBundle
@@ -49,7 +51,7 @@ const seedState = (): PreviewStoreState => {
     // nạp 'worst' nghĩa là hộp thư liệt kê những project không còn tồn tại ở bộ đó.
     notifications: clone(notifications ?? seedNotifications),
     reports: clone(seedReports),
-    profile: { ...seedProfile },
+    profile: isShoppingDemo() ? { ...seedProfile, name: 'Demo Analyst', email: 'demo@shopping.test', role: 'Data Analyst', phone: '', bio: '', organization: 'Shopping Demo' } : { ...seedProfile },
     sessions: clone(seedSessions),
     notificationPrefs: { ...seedNotificationPrefs },
     // Bộ 'empty' không có bản ghi nào: selection phải chịu được mảng rỗng, nếu
@@ -58,10 +60,11 @@ const seedState = (): PreviewStoreState => {
   }
 }
 
-let state: PreviewStoreState = seedState()
+let state: PreviewStoreState = isShoppingDemo() ? restoreDemoState(seedState()) : seedState()
 const listeners = new Set<() => void>()
 
 const setState = (next: PreviewStoreState): void => {
+  if (isShoppingDemo()) persistDemoState(next)
   state = next
   listeners.forEach(listener => listener())
 }
@@ -83,7 +86,7 @@ const commit = (mutate: (current: PreviewStoreState) => PreviewStoreState, messa
   const next = mutate(state)
   const changed = (Object.keys(next) as (keyof PreviewStoreState)[])
     .filter(key => key !== 'selection' && next[key] !== previous[key])
-  setState(next)
+  try { setState(next) } catch (error) { return Promise.reject(error instanceof Error ? error : new Error('Không cập nhật được dữ liệu preview', { cause: error })) }
   let undone = false
   return delay({ message, undo: () => {
     if (undone) return
@@ -239,12 +242,12 @@ const createProject = (input: NewProjectInput): Promise<PreviewMutationResult> =
     status: 'active',
     workspaceId: input.workspaceId,
     workspaceName: workspace.name,
-    cover: coverBySeed[seed % coverBySeed.length],
+    cover: requireDefined(coverBySeed[seed % coverBySeed.length], 'project cover'),
     dataset,
     members: input.members,
     createdAt: 'hôm nay',
     updatedAt: 'vừa xong',
-    owner: people.anh,
+    owner: people['anh'],
   }
   return commit(
     current => ({ ...current, projects: [project, ...current.projects] }),
@@ -273,7 +276,7 @@ const createWorkspace = (input: NewWorkspaceInput): Promise<PreviewMutationResul
   const seed = [...name].reduce((total, char) => total + char.charCodeAt(0), 0)
   // Chủ sở hữu không đồng thời là "thành viên ban đầu": roster suy từ memberPreview + owner
   // (xem workspaceMemberRows), nên để trùng là một người xuất hiện hai dòng.
-  const members = input.members.filter(person => person.id !== people.anh.id)
+  const members = input.members.filter(person => person.id !== people['anh'].id)
   const workspace: Workspace = {
     id: `ws-new-${++workspaceSeq}`,
     name,
@@ -285,11 +288,11 @@ const createWorkspace = (input: NewWorkspaceInput): Promise<PreviewMutationResul
     members: members.length + 1,
     storageGb: 0,
     favorite: false,
-    cover: coverBySeed[seed % coverBySeed.length],
+    cover: requireDefined(coverBySeed[seed % coverBySeed.length], 'workspace cover'),
     createdAt: todayLabel(),
     updatedAt: 'vừa xong',
     accessedAt: 'vừa xong',
-    owner: people.anh,
+    owner: people['anh'],
     // Ảnh chỉ vẽ vài avatar trong stack; phần dư thẻ hiển thị "+N" nên cắt ở 6 là đủ.
     memberPreview: members.slice(0, maxMemberPreview),
   }
@@ -304,13 +307,13 @@ export const previewMockStore = {
   getState,
 
   /** Đổi phạm vi làm việc (combobox Không gian ở topbar). Project chọn theo workspace. */
-  selectWorkspace(workspaceId: string): void {
+  selectWorkspace(this: void, workspaceId: string): void {
     if (workspaceId && !state.workspaces.some(item => item.id === workspaceId)) return
     const project = state.projects.find(item => item.workspaceId === workspaceId) ?? null
     setState({ ...state, selection: { workspaceId, projectId: project?.id ?? '' } })
   },
 
-  selectProject(projectId: string): void {
+  selectProject(this: void, projectId: string): void {
     const project = state.projects.find(item => item.id === projectId) ?? null
     if (!project) return
     setState({ ...state, selection: { workspaceId: project.workspaceId, projectId } })
@@ -318,7 +321,7 @@ export const previewMockStore = {
 
   /** Bỏ chọn project nhưng giữ nguyên workspace: đóng "thanh chi tiết kế bên" trên Home,
       đồng thời là phạm vi "Tất cả dự án" của combobox Dự án trên topbar. */
-  clearProject(): void {
+  clearProject(this: void): void {
     if (!state.selection.projectId) return
     setState({ ...state, selection: { ...state.selection, projectId: '' } })
   },

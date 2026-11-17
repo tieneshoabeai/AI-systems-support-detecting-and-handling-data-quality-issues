@@ -1,3 +1,5 @@
+import { isMesh } from '../../graphics/common/typed-objects'
+import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
@@ -18,7 +20,7 @@ const projectionEnd = new THREE.Vector3()
 
 function createFixture() {
   const productModel = createHolographicCoreProductModel()
-  const runtime = productModel.model.userData.sculptRuntime as StreamRuntime
+  const runtime = productModel.model.userData['sculptRuntime'] as StreamRuntime
   const root = productModel.model.getObjectByName('inbound-data-streams')
   if (!root) throw new Error('inbound-data-streams root was not built')
   return { productModel, runtime, root }
@@ -27,7 +29,7 @@ function createFixture() {
 function meshesNamed(root: THREE.Object3D, name: string) {
   const meshes: THREE.Mesh[] = []
   root.traverse(object => {
-    if (object instanceof THREE.Mesh && object.name === name) meshes.push(object)
+    if (isMesh(object) && object.name === name) meshes.push(object)
   })
   return meshes
 }
@@ -43,8 +45,8 @@ function pathMap() {
 }
 
 function lanePath(mesh: THREE.Mesh, paths: Map<string, InboundPath>) {
-  const path = paths.get(mesh.userData.pathId as string)
-  if (!path) throw new Error(`missing path for ${String(mesh.userData.pathId)}`)
+  const path = paths.get(mesh.userData['pathId'] as string)
+  if (!path) throw new Error(`missing path for ${String(mesh.userData['pathId'])}`)
   return path
 }
 
@@ -63,9 +65,9 @@ function stationCentroid(mesh: THREE.Mesh, streak: number, station: number, targ
   target.set(0, 0, 0)
   for (let ring = 0; ring < RADIAL; ring++) {
     const offset = (base + ring) * 3
-    target.x += positions[offset]
-    target.y += positions[offset + 1]
-    target.z += positions[offset + 2]
+    target.x += requireDefined(positions[offset], 'inbound-streams.test.ts:67')
+    target.y += requireDefined(positions[offset + 1], 'inbound-streams.test.ts:68')
+    target.z += requireDefined(positions[offset + 2], 'inbound-streams.test.ts:69')
   }
   return target.multiplyScalar(1 / RADIAL)
 }
@@ -118,20 +120,20 @@ function streakColorTotal(mesh: THREE.Mesh, streak: number) {
   let total = 0
   const start = streak * TUBES_PER_STREAK * RINGS * RADIAL * 3
   const end = start + RINGS * RADIAL * 3
-  for (let index = start; index < end; index++) total += colors[index]
+  for (let index = start; index < end; index++) total += requireDefined(colors[index], 'inbound-streams.test.ts:122')
   return total
 }
 
 function stationLuma(mesh: THREE.Mesh, streak: number, station: number) {
   const colors = colorArray(mesh)
   const offset = (streak * TUBES_PER_STREAK * RINGS + station) * RADIAL * 3
-  return 0.2126 * colors[offset] + 0.7152 * colors[offset + 1] + 0.0722 * colors[offset + 2]
+  return 0.2126 * requireDefined(colors[offset], 'inbound-streams.test.ts:129') + 0.7152 * requireDefined(colors[offset + 1], 'inbound-streams.test.ts:129') + 0.0722 * requireDefined(colors[offset + 2], 'inbound-streams.test.ts:129')
 }
 
 function stationColor(mesh: THREE.Mesh, streak: number, station: number) {
   const colors = colorArray(mesh)
   const offset = (streak * TUBES_PER_STREAK * RINGS + station) * RADIAL * 3
-  return `${colors[offset].toFixed(2)},${colors[offset + 1].toFixed(2)},${colors[offset + 2].toFixed(2)}`
+  return `${requireDefined(colors[offset], 'inbound-streams.test.ts:135').toFixed(2)},${requireDefined(colors[offset + 1], 'inbound-streams.test.ts:135').toFixed(2)},${requireDefined(colors[offset + 2], 'inbound-streams.test.ts:135').toFixed(2)}`
 }
 
 function snapshotPositions(root: THREE.Object3D) {
@@ -150,24 +152,24 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
     expect(guides).toHaveLength(4)
     expect(streaks).toHaveLength(24)
 
-    const guideMaterial = guides[0].material as THREE.MeshBasicMaterial
+    const guideMaterial = requireDefined(guides[0], 'inbound-streams.test.ts:154').material as THREE.MeshBasicMaterial
     for (const guide of guides) {
       expect(guide.material).toBe(guideMaterial)
       expect(guide.renderOrder).toBe(5)
-      expect(guide.userData.pathId).toBeTruthy()
+      expect(guide.userData['pathId']).toBeTruthy()
     }
-    expect(new Set(guides.map(guide => guide.userData.pathId))).toEqual(
+    expect(new Set(guides.map((guide): unknown => guide.userData['pathId']))).toEqual(
       new Set(['azimuth-0', 'azimuth-90', 'azimuth-180', 'azimuth-270']),
     )
     expect(guideMaterial.opacity).toBeLessThanOrEqual(0.15)
     expect(guideMaterial.blending).toBe(THREE.AdditiveBlending)
     expect(guideMaterial.depthWrite).toBe(false)
 
-    const streakMaterial = streaks[0].material as THREE.MeshBasicMaterial
+    const streakMaterial = requireDefined(streaks[0], 'inbound-streams.test.ts:167').material as THREE.MeshBasicMaterial
     for (const streak of streaks) {
       expect(streak.material).toBe(streakMaterial)
       expect(streak.renderOrder).toBe(7)
-      expect(streak.userData.pathId).toBeTruthy()
+      expect(streak.userData['pathId']).toBeTruthy()
       expect((streak.geometry.getAttribute('position') as THREE.BufferAttribute).count).toBe(VERTICES_PER_LANE)
     }
     expect(streakMaterial.vertexColors).toBe(true)
@@ -175,7 +177,7 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
     expect(streakMaterial.depthWrite).toBe(false)
     expect(streakMaterial.opacity).toBeLessThanOrEqual(0.4)
 
-    const ids = new Set(streaks.map(streak => String(streak.userData.pathId)))
+    const ids = new Set(streaks.map(streak => String(streak.userData['pathId'])))
     expect(ids).toEqual(new Set(createInboundPaths().map(path => path.id)))
   })
 
@@ -230,9 +232,9 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
       }
 
       for (let index = 1; index < anchors.length; index++) {
-        expect(anchors[index].tailS - anchors[index - 1].headS).toBeGreaterThan(0.02 * path.length)
+        expect(requireDefined(anchors[index], 'inbound-streams.test.ts:234').tailS - requireDefined(anchors[index - 1], 'inbound-streams.test.ts:234').headS).toBeGreaterThan(0.02 * path.length)
       }
-      const wrapGap = path.length - anchors[anchors.length - 1].headS + anchors[0].tailS
+      const wrapGap = path.length - requireDefined(anchors[anchors.length - 1], 'inbound-streams.test.ts:236').headS + requireDefined(anchors[0], 'inbound-streams.test.ts:236').tailS
       expect(wrapGap).toBeGreaterThan(0.02 * path.length)
     }
   })
@@ -271,7 +273,7 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
   it('T5: shortens and dims the streak while the core absorbs it', () => {
     const { productModel, root } = createFixture()
     const paths = pathMap()
-    const outer = laneMeshes(root).find(mesh => mesh.userData.pathId === LANE_ID)
+    const outer = laneMeshes(root).find(mesh => mesh.userData['pathId'] === LANE_ID)
     if (!outer) throw new Error(`${LANE_ID} lane was not built`)
     const cycle = lanePath(outer, paths).definition.cycleSeconds
 
@@ -302,7 +304,7 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
   it('T7: moves the head forward only, wrapping back to the outer end', () => {
     const { productModel, root } = createFixture()
     const paths = pathMap()
-    const outer = laneMeshes(root).find(mesh => mesh.userData.pathId === LANE_ID)
+    const outer = laneMeshes(root).find(mesh => mesh.userData['pathId'] === LANE_ID)
     if (!outer) throw new Error(`${LANE_ID} lane was not built`)
     const path = lanePath(outer, paths)
     const head = new THREE.Vector3()
@@ -327,12 +329,12 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
     )
     let wraps = 0
     for (let index = 1; index < samples.length; index++) {
-      if (samples[index] < samples[index - 1] - 0.5) {
+      if (requireDefined(samples[index], 'inbound-streams.test.ts:331') < requireDefined(samples[index - 1], 'inbound-streams.test.ts:331') - 0.5) {
         wraps += 1
         expect(samples[index - 1]).toBeGreaterThan(0.9)
         expect(samples[index]).toBeLessThan(0.1)
       } else {
-        expect(samples[index]).toBeGreaterThan(samples[index - 1])
+        expect(samples[index]).toBeGreaterThan(requireDefined(samples[index - 1], 'inbound-streams.test.ts:336'))
       }
     }
     expect(wraps).toBe(1)
@@ -361,8 +363,8 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
     const cap = runtime.nodes['core-cap']
 
     productModel.update(3.7, 0.016)
-    expect(cap.rotation.y).not.toBe(0)
-    expect(root.rotation.y).toBeCloseTo(-cap.rotation.y, 10)
+    expect(requireDefined(cap, 'inbound-streams.test.ts:365').rotation.y).not.toBe(0)
+    expect(root.rotation.y).toBeCloseTo(-requireDefined(cap, 'inbound-streams.test.ts:366').rotation.y, 10)
 
     productModel.model.updateMatrixWorld(true)
     const worldRotation = new THREE.Quaternion()
@@ -375,7 +377,7 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
     productModel.setDetached(true)
     productModel.snapDetach()
     productModel.model.updateMatrixWorld(true)
-    const capWorld = cap.getWorldPosition(new THREE.Vector3())
+    const capWorld = requireDefined(cap, 'inbound-streams.test.ts:379').getWorldPosition(new THREE.Vector3())
     const streamsWorld = root.getWorldPosition(new THREE.Vector3())
     expect(streamsWorld.y - capWorld.y).toBeCloseTo(0.05, 6)
   })
@@ -385,7 +387,7 @@ describe('inbound data streaks', { timeout: 20_000 }, () => {
     const raycaster = new THREE.Raycaster(new THREE.Vector3(0, 6, 0), new THREE.Vector3(0, -1, 0))
     const meshes: THREE.Mesh[] = []
     root.traverse(object => {
-      if (object instanceof THREE.Mesh) meshes.push(object)
+      if (isMesh(object)) meshes.push(object)
     })
 
     expect(meshes).toHaveLength(28)

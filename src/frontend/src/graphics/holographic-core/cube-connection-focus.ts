@@ -1,6 +1,6 @@
 import { PerspectiveCamera, Vector3 } from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { NeonCubeThemeId } from '../../types/dataset-3d/cube-focus.types'
+import type { NeonCubeThemeId } from '../../types'
 import { cubeConnectionOverview } from './cube-connection-paths'
 
 type Pose = { position: Vector3; target: Vector3 }

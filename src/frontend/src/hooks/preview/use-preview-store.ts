@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { createContext, useContext, useSyncExternalStore } from 'react'
 import type { PreviewStoreState, Project, Workspace } from '../../types/preview/preview.types'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 
@@ -6,8 +6,14 @@ import { previewMockStore } from '../../services/preview/preview-mock.service'
 // ngoài React mà không cần copy state vào useState (copy sẽ lệch khi tab khác đổi).
 // getServerSnapshot = cùng một hàm: preview chỉ chạy trên browser nhưng React 19
 // yêu cầu đủ 3 tham số nếu sau này bật SSR.
-export const usePreviewStore = (): PreviewStoreState =>
-  useSyncExternalStore(previewMockStore.subscribe, previewMockStore.getState, previewMockStore.getState)
+import type { ManagementStore } from '../../services/management/management.types'
+export type { ManagementStore } from '../../services/management/management.types'
+export const ManagementStoreContext = createContext<ManagementStore>(previewMockStore)
+export const useManagementStore = () => useContext(ManagementStoreContext)
+export const usePreviewStore = (): PreviewStoreState => {
+  const store = useManagementStore()
+  return useSyncExternalStore(store.subscribe, store.getState, store.getState)
+}
 
 // Hai selector nhỏ để trang khỏi lặp .find(...) khắp nơi. Trả về null chứ không throw:
 // sau thao tác xóa/xem tất cả, id trong selection có thể không còn tồn tại ở phạm vi hiện tại.

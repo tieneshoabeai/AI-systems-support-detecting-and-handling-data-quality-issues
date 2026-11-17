@@ -1,0 +1,1 @@
+:where(.root) { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; padding: 34px 16px; border: 1px dashed var(--pv-line-strong, var(--color-line)); border-radius: var(--pv-radius-lg, var(--radius-input)); color: var(--pv-muted, var(--color-muted)); }

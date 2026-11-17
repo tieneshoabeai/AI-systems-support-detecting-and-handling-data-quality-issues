@@ -1,3 +1,6 @@
+import { Vector4 } from 'three'
+import { uniformValue } from '../../graphics/common/typed-objects'
+import { requireDefined } from '../../utils/required-value'
 import { afterEach, expect, it, vi } from 'vitest'
 import { bindProjectGlassPass, createProjectGlassPass, projectGlassRect } from '../../graphics/holographic-core/project-glass-pass'
 
@@ -26,11 +29,14 @@ it('updates the lens after resize and removes the refractive marker when closed'
   const cleanup = bindProjectGlassPass(pass, canvas, panel, true)
   expect(pass.enabled).toBe(true)
   expect(panel.hasAttribute('data-refractive')).toBe(true)
-  expect(pass.uniforms.uRect.value.toArray()).toEqual([588, 12, 400, 476])
-  expect(pass.uniforms.uLight.value).toBe(1)
+  expect(uniformValue(pass.uniforms['uRect'], Vector4).toArray()).toEqual([588, 12, 400, 476])
+  expect(requireDefined(pass.uniforms['uLight'], 'project-glass-pass.test.ts:31').value).toBe(1)
+  expect(requireDefined(pass.uniforms['uContent'], 'project-glass-pass.test.ts:32').value).toBe(0)
+  panel.dataset['hasContent'] = 'true'
   bounds.mockReturnValue({ left: 24, top: 112, width: 976, height: 476 } as DOMRect)
   window.dispatchEvent(new Event('resize'))
-  expect(pass.uniforms.uRect.value.toArray()).toEqual([12, 12, 976, 476])
+  expect(requireDefined(pass.uniforms['uContent'], 'project-glass-pass.test.ts:36').value).toBe(1)
+  expect(uniformValue(pass.uniforms['uRect'], Vector4).toArray()).toEqual([12, 12, 976, 476])
   cleanup?.()
   expect(pass.enabled).toBe(false)
   expect(panel.hasAttribute('data-refractive')).toBe(false)

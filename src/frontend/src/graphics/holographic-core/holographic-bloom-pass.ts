@@ -1,3 +1,4 @@
+import { requireDefined } from '../../utils/required-value'
 import { HalfFloatType, Vector2, WebGLRenderTarget } from 'three'
 import type { WebGLRenderer } from 'three'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
@@ -39,7 +40,7 @@ export class HolographicBloomPass extends UnrealBloomPass {
       this.renderToScreen = false
       super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
     } finally { this.renderToScreen = toScreen }
-    this.composite.uniforms.tBloom.value = this.renderTargetsHorizontal[0].texture
+    requireDefined(this.composite.uniforms['tBloom'], 'holographic-bloom-pass.ts:43').value = requireDefined(this.renderTargetsHorizontal[0], 'holographic-bloom-pass.ts:43').texture
     this.composite.renderToScreen = toScreen
     this.composite.render(renderer, writeBuffer, this.base, deltaTime, maskActive)
   }

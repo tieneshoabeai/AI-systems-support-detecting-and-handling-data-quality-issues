@@ -1,3 +1,5 @@
+import { isRecord } from '../../lib/api-error'
+import { requireDefined } from '../../utils/required-value'
 // T10 for the towers: a pointer ray dropped on each of the 14 active towers must meet that tower's glass
 // volume first and resolve to that tower's part id, while every decoration hanging off it stays
 // transparent to the ray. This is the half of I6 that the fingerprint cannot state: it hashes
@@ -7,7 +9,7 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
 import { TOWER_IDS } from '../../graphics/holographic-core/tower-config'
-import type { HolographicPartInfo } from '../../types/dataset-3d/holographic-part.types'
+import type { HolographicPartInfo } from '../../types'
 
 type TowerRuntime = {
   nodes: Record<string, THREE.Object3D>
@@ -22,13 +24,13 @@ type ModelApi = ReturnType<typeof createHolographicCoreProductModel>
 // tallest roof (3.75), and the origin comes from world coordinates because detach moves the nodes.
 function dropRay(api: ModelApi, runtime: TowerRuntime, id: string) {
   api.model.updateMatrixWorld(true)
-  const centre = runtime.nodes[id].getWorldPosition(new THREE.Vector3())
+  const centre = requireDefined(runtime.nodes[id], 'tower-picking.test.ts:26').getWorldPosition(new THREE.Vector3())
   return new THREE.Raycaster(new THREE.Vector3(centre.x, centre.y + 3, centre.z), new THREE.Vector3(0, -1, 0))
 }
 
 function createFixture() {
   const api = createHolographicCoreProductModel()
-  return { api, runtime: api.model.userData.sculptRuntime as TowerRuntime }
+  return { api, runtime: api.model.userData['sculptRuntime'] as TowerRuntime }
 }
 
 function firstPick(api: ModelApi, runtime: TowerRuntime, id: string): { hit: THREE.Object3D | undefined; part: HolographicPartInfo | null } {
@@ -48,9 +50,10 @@ describe('tower pointer picking', () => {
       expect(runtime.nodes[id]).toBeUndefined()
     }
     const sceneTowerIds = new Set<string>()
-    runtime.nodes.root.traverse(object => {
-      const id = object.userData.sculptComponent?.id as string | undefined
-      if (id?.startsWith('tower-')) sceneTowerIds.add(id)
+    requireDefined(runtime.nodes['root'], 'tower-picking.test.ts:52').traverse(object => {
+      const component: unknown = object.userData['sculptComponent']
+      const id = isRecord(component) ? component['id'] : undefined
+      if (typeof id === 'string' && id.startsWith('tower-')) sceneTowerIds.add(id)
     })
     expect([...sceneTowerIds].sort()).toEqual([...TOWER_IDS].sort())
     for (const id of TOWER_IDS) expect(runtime.meshes[id], `${id} mesh`).toBeDefined()
@@ -87,7 +90,7 @@ describe('tower pointer picking', () => {
     for (const id of TOWER_IDS) {
       const glass = runtime.meshes[id]
       const decorations: THREE.Object3D[] = []
-      runtime.nodes[id].traverse(object => { if (object !== glass && object !== runtime.nodes[id]) decorations.push(object) })
+      requireDefined(runtime.nodes[id], 'tower-picking.test.ts:91').traverse(object => { if (object !== glass && object !== runtime.nodes[id]) decorations.push(object) })
       expect(decorations.length, `${id} has children to neutralise`).toBeGreaterThan(3)
       for (const object of decorations) {
         expect(dropRay(api, runtime, id).intersectObject(object, true), `${id} ${object.name || object.type}`).toHaveLength(0)
