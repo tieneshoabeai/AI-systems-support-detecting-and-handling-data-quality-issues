@@ -1,7 +1,7 @@
 import * as ss from 'simple-statistics';
 import { toFiniteNumber, toCategory, round4 } from './correlation.util';
 import { isMissingCell, isValidByType, dateOrderOf } from './dq.util';
-import { parseStrictDate, type DayMonthOrder } from './date-parse.util';
+import { parseStrictDate, detectDayMonthOrder, orderModeFor, type DayMonthOrder } from './date-parse.util';
 
 export interface DescriptiveStat {
   column: string;
@@ -21,6 +21,15 @@ export interface DescriptiveStat {
   reason: string | null;
 }
 
+/** Đợt H: độ lệch mẫu (skewness) — chỉ để giải thích DQ-04; < 4 giá trị hoặc không phân tán → null. */
+export function skewnessOf(values: number[]): number | null {
+  if (values.length < 4) return null;
+  const sd = ss.sampleStandardDeviation(values);
+  if (!(sd > 0)) return null;
+  const sk = ss.sampleSkewness(values);
+  return Number.isFinite(sk) ? round4(sk) : null;
+}
+
 function quantileSorted(sorted: number[], q: number): number | null {
   if (sorted.length === 0) return null;
   const pos = (sorted.length - 1) * q;
@@ -35,6 +44,7 @@ export function describeColumn(
   column: string,
   dataType: string,
   rawValues: unknown[],
+  role: string | null = null,
 ): DescriptiveStat {
   let missingCount = 0;
   let invalidCount = 0;
@@ -69,6 +79,15 @@ export function describeColumn(
         mean: null, median: null, min: null, max: null, stdev: null, q1: null, q3: null,
         distinctCount: 0, topValues: null,
         reason: rawValues.length === 0 ? 'no_data_to_evaluate' : 'no_valid_numeric_values',
+      };
+    }
+    // Đợt H (Phần 2 v13 mục 3.45): cột mã định danh — trung bình/trung vị… vô nghĩa, chỉ giữ số đếm
+    if (role === 'identifier') {
+      return {
+        column, dataType, count: validNums.length, missingCount, invalidCount,
+        mean: null, median: null, min: null, max: null, stdev: null, q1: null, q3: null,
+        distinctCount: new Set(validNums.map((n) => String(n))).size, topValues: null,
+        reason: 'identifier_column_no_quantitative_stats',
       };
     }
     const sorted = [...validNums].sort((a, b) => a - b);
@@ -115,10 +134,15 @@ export interface ImbalanceResult {
   reason: string | null;
 }
 
+/**
+ * ANALYSIS-07. Đợt H (Phần 2 v13 mục 3.45): cột nhãn kiểu số được đánh giá khi vai trò hiệu lực là `category`
+ * (vd 0/1); ở cột chữ chỉ ô trống là thiếu (`NA` là một lớp).
+ */
 export function evaluateImbalance(
   labelColumn: string | null,
   labelDataType: string | null,
   rows: Record<string, unknown>[],
+  labelRole: string | null = null,
 ): ImbalanceResult {
   if (!labelColumn) {
     return {
@@ -127,13 +151,16 @@ export function evaluateImbalance(
       validRows: 0, missingLabelRows: 0, reason: 'no_label_selected',
     };
   }
-  if (labelDataType === 'number' || labelDataType === 'date') {
-    return {
-      status: 'not_applicable_continuous', labelColumn, classes: [], classCount: 0,
-      largest: [], smallest: [], imbalanceRatio: null, warning: null,
-      validRows: 0, missingLabelRows: 0, reason: 'label_continuous_not_applicable',
-    };
+  const notApplicable = (reason: string): ImbalanceResult => ({
+    status: 'not_applicable_continuous', labelColumn, classes: [], classCount: 0,
+    largest: [], smallest: [], imbalanceRatio: null, warning: null,
+    validRows: 0, missingLabelRows: 0, reason,
+  });
+  if (labelDataType === 'date') return notApplicable('label_continuous_not_applicable');
+  if (labelDataType === 'number' && labelRole !== 'category') {
+    return notApplicable(labelRole === 'identifier' || labelRole === 'text' ? 'label_role_not_categorical' : 'label_continuous_not_applicable');
   }
+  const textLabel = labelDataType === 'string';
   const freq = new Map<string, number>();
   let missing = 0;
   for (const r of rows) {
@@ -142,7 +169,7 @@ export function evaluateImbalance(
       missing++;
       continue;
     }
-    const c = toCategory(v);
+    const c = toCategory(v, textLabel);
     if (c === null) {
       missing++;
       continue;
@@ -208,6 +235,12 @@ export interface TimeAnalysis {
   reason: string | null;
   /** Dot G: khong co cot ngay nhung co cot nam (+ thang) → goi y, khong tu dung truc thoi gian. */
   timePartColumns?: { year: string; month: string | null } | null;
+  /** Đợt H: thứ tự ngày/tháng đã dùng để đọc cột thời gian (null khi không có cột thời gian). */
+  dateOrder?: DayMonthOrder | 'either' | null;
+  /** Đợt H: cột không phân định được DD/MM hay MM/DD (hoặc mâu thuẫn). */
+  dateOrderAmbiguous?: boolean;
+  /** Đợt H: cột giá trị bị bỏ vì vai trò identifier/text. */
+  valueColumnIgnoredReason?: string | null;
 }
 
 const MONTH_NAMES = new Set([
@@ -300,6 +333,7 @@ export function analyzeTime(
   rows: Record<string, unknown>[],
   granularity: TimeAnalysis['granularity'] = 'day',
   allColumns: { name: string; dataType: string }[] = [],
+  valueColumnIgnoredReason: string | null = null,
 ): TimeAnalysis {
   if (!timeColumn) {
     const parts = detectTimePartColumns(allColumns, rows);
@@ -308,9 +342,13 @@ export function analyzeTime(
       emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [],
       reason: parts ? 'time_parts_without_date_column' : 'no_suitable_time_column',
       timePartColumns: parts,
+      dateOrder: null, dateOrderAmbiguous: false, valueColumnIgnoredReason,
     };
   }
-  const order = dateOrderOf(rows.map((r) => r[timeColumn]));
+  // Đợt H (Phần 7 v10 mục 3.21): ghi lại thứ tự ngày/tháng đã dùng và cờ mơ hồ
+  const detection = detectDayMonthOrder(rows.map((r) => r[timeColumn]));
+  const order = orderModeFor(detection);
+  const orderMeta = { dateOrder: detection === null ? null : order, dateOrderAmbiguous: detection === 'ambiguous' || detection === 'conflict', valueColumnIgnoredReason };
   const byBucket = new Map<string, { dates: Date[]; values: number[]; missing: number; invalid: number }>();
   let invalidDates = 0;
   let missingDates = 0;
@@ -338,6 +376,7 @@ export function analyzeTime(
       status: 'insufficient_data', timeColumn, granularity, buckets: [],
       emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [],
       reason: `no_valid_dates_missing_${missingDates}_invalid_${invalidDates}`,
+      ...orderMeta,
     };
   }
   const sortedKeys = [...byBucket.keys()].sort();
@@ -418,5 +457,6 @@ export function analyzeTime(
   return {
     status: 'evaluated', timeColumn, granularity, buckets,
     emptyBuckets, longestEmptyRun, deltas, volatilePeriods, reason,
+    ...orderMeta,
   };
 }

@@ -63,7 +63,7 @@ import {
 } from '../domain/column-role.util';
 import { computeDq0102, computeDq03, dateOrderOf, detectOutliers, isMissingCell, isValidByType } from '../domain/dq.util';
 import { detectSuspicions } from '../domain/suspicion.util';
-import { describeColumn, evaluateImbalance, analyzeTime } from '../domain/stats.util';
+import { describeColumn, evaluateImbalance, analyzeTime, skewnessOf } from '../domain/stats.util';
 import { toFiniteNumber } from '../domain/correlation.util';
 import { boxPlot, categoryTopN, clampChartTopN, histogram, type ChartData } from '../domain/chart-data.util';
 
@@ -288,6 +288,15 @@ export class AnalysisService {
         resolvedCfg.columnRoles,
       );
       const roleByName = new Map<string, AnalysisRole>(columnRoles.map((r) => [r.name, r.role] as const));
+      // Đợt H: cột nhãn / cột giá trị có thể nằm ngoài danh sách chọn → suy vai trò riêng (có ghi đè người dùng)
+      const roleOfAny = (col: { key: string; name: string; dataType: string } | null): AnalysisRole | null => {
+        if (!col) return null;
+        const known = roleByName.get(col.name);
+        if (known) return known;
+        return inferColumnRoles([{ key: col.key, name: col.name, dataType: col.dataType }], rows, resolvedCfg.columnRoles)[0]?.role ?? null;
+      };
+      const labelRole = roleOfAny(labelCol);
+      const valueRole = roleOfAny(valueCol);
       const analyzable: AnalyzableColumn[] = selectedKeys.map((key) => {
         const col = dataset.columns.find((c) => c.name === key);
         const role = roleByName.get(key) ?? 'text';
@@ -297,7 +306,7 @@ export class AnalysisService {
         }
         const exclusion = correlationExclusionReason(role);
         if (exclusion) return { key, role: 'excluded', reason: exclusion };
-        return { key, role: role === 'measure' ? 'numeric' : 'categorical', reason: null };
+        return { key, role: role === 'measure' ? 'numeric' : 'categorical', reason: null, textColumn: col?.dataType === 'string' };
       });
 
       const { cells, notes } = buildCorrelationMatrix(analyzable, rows, dto.correlation_method);
@@ -368,10 +377,15 @@ export class AnalysisService {
         const inv = dq03ByCol.get(c.column);
         const out = outlierByCol.get(c.column);
         const outlierCount = out ? out.union.length : 0;
+        // Đợt H (Phần 2 v13 mục 3.45): giải thích — không đổi số đếm/mức ảnh hưởng
+        const xs = roleByName.get(c.column) === 'measure' ? numericValues.get(c.column) ?? [] : [];
+        const skewness = skewnessOf(xs);
         return {
           ...c,
           invalidCount: inv?.invalidCount ?? 0,
           invalidRate: inv?.invalidRate ?? null,
+          symbolMissingCount: inv?.reasons['symbol_as_missing_excluded_from_dq01'] ?? 0,
+          skewness,
           outlierCount,
           outlierRate: rowWrappers.length > 0 ? Number((outlierCount / rowWrappers.length).toFixed(4)) : null,
           outlierBreakdown: out ? out.breakdown : null,
@@ -425,12 +439,16 @@ export class AnalysisService {
         }
       }
       const descriptive = selectedKeys.map((c) =>
-        describeColumn(c, colTypeByName.get(c) ?? 'string', rowWrappers.map((w) => w.values[c])),
+        describeColumn(c, colTypeByName.get(c) ?? 'string', rowWrappers.map((w) => w.values[c]), roleByName.get(c) ?? null),
       );
-      const imbalance = evaluateImbalance(labelColumn, labelDataType, rows);
+      const imbalance = evaluateImbalance(labelColumn, labelDataType, rows, labelRole);
+      // Đợt H: cột giá trị có vai trò định danh/văn bản → bỏ, chỉ đếm số dòng theo kỳ, ghi lý do
+      const valueIgnoredReason = valueColumn && (valueRole === 'identifier' || valueRole === 'text')
+        ? `value_column_is_${valueRole}` : null;
       const timeAnalysis = analyzeTime(
-        timeColumn, valueColumn, rows, cfgGranularity as 'day' | 'week' | 'month' | 'year',
+        timeColumn, valueIgnoredReason ? null : valueColumn, rows, cfgGranularity as 'day' | 'week' | 'month' | 'year',
         cols.map((c) => ({ name: c.name, dataType: c.dataType })),
+        valueIgnoredReason,
       );
       // Dot G: nhom Nghi van — chi luu noi bo cho Tong ket/PDF, khong tra trong API ket qua, khong gui AI
       const suspicions = detectSuspicions(
@@ -913,8 +931,10 @@ export class AnalysisService {
     const time = toKey(dto.time_column, 'time_column');
     const value = toKey(dto.value_column, 'value_column');
     const typeOf = (key: string | null): string | undefined => cols.find((c) => c.key === key)?.dataType;
-    if (label && (typeOf(label) === 'number' || typeOf(label) === 'date')) {
-      throw new BadRequestException('label_column phải là cột phân loại (string/boolean)');
+    // Đợt H (Phần 7 v10 mục 3.21): nhãn được là cột số (vd 0/1); có đánh giá mất cân bằng hay không
+    // quyết theo vai trò hiệu lực lúc chạy phân tích. Chỉ cột ngày bị từ chối.
+    if (label && typeOf(label) === 'date') {
+      throw new BadRequestException('label_column không được là cột ngày');
     }
     if (time && typeOf(time) !== 'date') throw new BadRequestException('time_column phải là cột date');
     if (value && typeOf(value) !== 'number') throw new BadRequestException('value_column phải là cột số');

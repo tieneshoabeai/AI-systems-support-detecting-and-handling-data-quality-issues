@@ -111,6 +111,12 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     sentinel: 'Mã sentinel',
     constant_column: 'Cột hằng',
     ambiguous_date_format: 'Ngày mơ hồ',
+    // Đợt H (Phần 2 v13 mục 3.45)
+    identifier_not_unique: 'Mã định danh lặp',
+    duplicate_key: 'Trùng theo khóa',
+    locale_number_format: 'Số theo vùng',
+    conditional_missing: 'Thiếu theo nhóm',
+    leading_zero_numeric: 'Số 0 đầu',
   };
   sections.push({
     heading: '3b. Cần xác nhận với nguồn (nghi vấn)',
@@ -290,6 +296,13 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
           `Cột thời gian: ${time.timeColumn ?? '(không có)'} · mức tổng hợp: ${time.granularity} · trạng thái: ${time.status}`,
           ...(obj(time.timePartColumns)
             ? [`Dữ liệu có cột năm "${String(obj(time.timePartColumns)?.year)}"${obj(time.timePartColumns)?.month ? ` và cột tháng "${String(obj(time.timePartColumns)?.month)}"` : ''} nhưng không có cột ngày — hệ thống không tự dựng trục thời gian; cần cột ngày để phân tích theo thời gian.`]
+            : []),
+          // Đợt H: thứ tự ngày/tháng đã dùng + cột giá trị bị bỏ
+          ...(time.dateOrderAmbiguous === true
+            ? [`Cảnh báo: không phân định được cột "${String(time.timeColumn)}" là DD/MM hay MM/DD — hệ thống đọc theo ${time.dateOrder === 'mdy' ? 'MM/DD' : 'DD/MM (nếu hợp lệ, nếu không thì MM/DD)'}; các kỳ dưới đây có thể sai nếu nguồn dùng cách viết kia. Xác nhận định dạng ngày với nguồn.`]
+            : []),
+          ...(time.valueColumnIgnoredReason
+            ? [`Cột giá trị đã cấu hình là cột ${time.valueColumnIgnoredReason === 'value_column_is_identifier' ? 'mã định danh' : 'văn bản'} — không tính trung bình/tổng theo kỳ, chỉ đếm số dòng.`]
             : []),
           `Kỳ trống: ${arr(time.emptyBuckets).length} (chuỗi trống dài nhất: ${fmt(time.longestEmptyRun, 0)}); kỳ biến động: ${arr<string>(time.volatilePeriods).join(', ') || '-'}`,
           'Khoảng trống hoặc biến động không mặc định là lỗi.',

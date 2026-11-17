@@ -12,6 +12,7 @@ import {
   rateSeverity,
   recommendationFor,
   severityReason,
+  issueExplanation,
   type DqGroup,
   type OutlierBreakdown,
   type Severity,
@@ -54,6 +55,8 @@ export class SummaryService {
         invalidCount: number; invalidRate: number | null;
         outlierCount: number; outlierRate: number | null;
         outlierBreakdown?: OutlierBreakdown | null;
+        symbolMissingCount?: number | null;
+        skewness?: number | null;
       }[];
       duplicateRowCount: number;
       notes: string[];
@@ -62,8 +65,9 @@ export class SummaryService {
     type Issue = { dq: DqGroup; column: string | null; count: number; rate: number | null; severity: Severity; reason: string };
     const issues: Issue[] = [];
     const unassessable: { column: string; reason: string }[] = [];
-    const push = (dq: DqGroup, column: string | null, count: number, rate: number | null, severity: Severity): void => {
-      issues.push({ dq, column, count, rate, severity, reason: severityReason(dq, severity, rate) });
+    const push = (dq: DqGroup, column: string | null, count: number, rate: number | null, severity: Severity, note: string | null = null): void => {
+      const base = severityReason(dq, severity, rate);
+      issues.push({ dq, column, count, rate, severity, reason: note ? `${base} · Lưu ý: ${note}` : base });
     };
     if (dq) {
       for (const c of dq.columns) {
@@ -72,11 +76,11 @@ export class SummaryService {
           continue;
         }
         if (c.missingCount > 0) push('DQ-01', c.column, c.missingCount, c.missingRate, rateSeverity('DQ-01', c.missingRate));
-        if (c.invalidCount > 0) push('DQ-03', c.column, c.invalidCount, c.invalidRate, rateSeverity('DQ-03', c.invalidRate));
+        if (c.invalidCount > 0) push('DQ-03', c.column, c.invalidCount, c.invalidRate, rateSeverity('DQ-03', c.invalidRate), issueExplanation('DQ-03', c));
         if (c.outlierCount > 0) {
           // Ket qua cu chua co breakdown -> coi nhu chi IQR (muc thap nhat), khong suy dien cao hon
           const sev = outlierSeverity(c.outlierBreakdown ?? { iqr: c.outlierCount, iqrExtreme: 0, zscore: 0, both: 0 }) ?? 'low';
-          push('DQ-04', c.column, c.outlierCount, c.outlierRate, sev);
+          push('DQ-04', c.column, c.outlierCount, c.outlierRate, sev, issueExplanation('DQ-04', c));
         }
       }
       if (dq.duplicateRowCount > 0) {

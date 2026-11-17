@@ -56,6 +56,28 @@ export function severityReason(dq: DqGroup, severity: Severity, rate: number | n
   return dq === 'DQ-04' ? `${SEVERITY_LABEL[severity]} theo phương pháp đánh dấu (${rule})` : `${pct} → ${SEVERITY_LABEL[severity]} (${rule})`;
 }
 
+/** Đợt H (Phần 2 v13 mục 3.45): ngưỡng |độ lệch| để kèm cảnh báo phân phối lệch vào lý do DQ-04. */
+export const SKEWNESS_WARN_ABS = 1;
+
+/**
+ * Đợt H: câu giải thích kèm lý do (không đổi mức ảnh hưởng).
+ * DQ-03 cột số: tách ô ký hiệu thiếu khỏi ô sai định dạng thật; DQ-04: cảnh báo phân phối lệch.
+ */
+export function issueExplanation(
+  dq: DqGroup,
+  col: { invalidCount?: number; symbolMissingCount?: number | null; skewness?: number | null },
+): string | null {
+  if (dq === 'DQ-03' && (col.symbolMissingCount ?? 0) > 0) {
+    const sym = col.symbolMissingCount as number;
+    const real = Math.max(0, (col.invalidCount ?? 0) - sym);
+    return `trong đó ${sym} ô là ký hiệu thiếu (NA, null…), ${real} ô sai định dạng thật — tổng số ô không có giá trị thực tế cao hơn tỷ lệ DQ-01`;
+  }
+  if (dq === 'DQ-04' && typeof col.skewness === 'number' && Math.abs(col.skewness) > SKEWNESS_WARN_ABS) {
+    return `phân phối lệch (độ lệch ${col.skewness.toFixed(2)}), đuôi dài có thể là giá trị bình thường — xem xét trước khi coi là lỗi`;
+  }
+  return null;
+}
+
 /** De xuat xu ly tai nguon theo mau (khong do AI sinh). Khong de xuat xoa/sua du lieu trong he thong. */
 export function recommendationFor(dq: DqGroup, column: string | null): string {
   const col = column ? `cột "${column}"` : 'toàn bảng';

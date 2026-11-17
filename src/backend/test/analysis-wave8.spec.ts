@@ -148,8 +148,8 @@ describe('AN-39 / AN-40: hoa/thuong, khoang trang, sentinel, cot hang', () => {
     expect(saved.suspicions.find((x) => x.kind === 'sentinel')).toMatchObject({ count: 2 });
     expect(saved.suspicions.find((x) => x.kind === 'case_variant')?.examples[0]).toMatch(/yellow ×\d+ \/ Yellow ×1/);
   });
-  it('sentinel xuat hien 1 lan hoac nam trong vung du lieu → khong bao', () => {
-    const rows = [1, 2, 3, 4, 5, 6, -999].map((v) => ({ v }));
+  it('sentinel xuat hien 1 lan o cot co gia tri am khac → khong bao (dot H: cot khong am van bao, xem AN-56)', () => {
+    const rows = [1, 2, 3, 4, 5, 6, -3, -999].map((v) => ({ v }));
     expect(detectSuspicions([{ name: 'v', dataType: 'number', role: 'measure', isPii: false }], rows)).toEqual([]);
   });
 });
