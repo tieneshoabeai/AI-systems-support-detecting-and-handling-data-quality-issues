@@ -588,7 +588,8 @@ completed   ──(xoá dataset)────────────────
 | `correlation_method` | String | enum `pearson` \| `spearman` |
 | `outlier_method` | String | enum `iqr` \| `modified_zscore` \| `both` |
 | `time_granularity` | String | enum `day` \| `week` \| `month` \| `quarter` \| `year` |
-| `top_n` | Int | mặc định 10 |
+| `top_n` | Int | mặc định **50** (1–100); trước 2026-11-17 là 10 — đổi để khớp Phần 2 mục 6.6 (PDF top 50) |
+| `chart_top_n` | Int | mặc định 5 (1–20) — Top N biểu đồ cột phân loại (Phần 2 mục 3.21) |
 | `thresholds` | Object | ngưỡng ảnh hưởng đã chốt ở Phần 12 mục 3.11 |
 
 **Quy tắc:**
@@ -1354,6 +1355,7 @@ Không còn đường ghi nào khác. Điều này loại bỏ hẳn các nhóm 
 - `analysis_config`: `selected_columns`, `label_column`, `time_column`, `value_column` lưu **key cột** (`c{i}`); thêm `chart_top_n: Number` (mặc định 5). Bản ghi cũ lưu theo tên được map sang key khi đọc, không cần script migration.
 - `analysis_result`: thêm `charts: Mixed` (cấu trúc theo Phần 7 v7 mục 3.18); `dq_summary.columns[]` thêm `outlierBreakdown: { iqrOnly, zOnly, both }` để tính mức ảnh hưởng DQ-04.
 - `input_fingerprint` tính lại theo cả metadata cột được dùng (key, tên, kiểu, PII), phục vụ phát hiện kết quả lỗi thời.
+- **`project_save.summary`:** `recommendations` giữ kiểu `string[]` (tương thích bản lưu cũ); thêm `recommendation_items: [{ priority, dq, column, severity, text }]`, `issues[].severity/priority/reason`, `config_used`, `thresholds`, `dq05`, `unassessable`, `severity_counts`. Bản lưu tạo trước 2026-11-17 không có các trường mới — trình sinh PDF đọc được cả hai dạng.
 - **Ghi chú triển khai:** `analysis_run.config` lưu thêm `fingerprint_version: 2`, `selected_column_keys` (key thật), `selected_column_names`, `label/time/value_column_key`, `chart_top_n`. Lần chạy cũ (không có `fingerprint_version`) chỉ dựa vào cờ `is_stale` đã lưu, không bị coi là lỗi thời hàng loạt. Sửa thêm: mapper `analysis_config` mặc định `topN` 10 → 50 (sót từ đợt C).
 
 ## 4. Đầu vào và đầu ra
@@ -1437,6 +1439,7 @@ Schema và invariant đáp ứng use case; các thay đổi so với dữ liệu
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Điều chỉnh / 2026-11-17:** Cập nhật bảng `analysis_config` (`top_n` mặc định 50, tối đa 100; thêm `chart_top_n`) và mô tả `project_save.summary` (`recommendations` giữ `string[]`, thêm `recommendation_items`) / Đồng bộ với commit `52df5b7` / Sửa mục 3.8 bảng `analysis_config` và mục 3.15.
 - **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.15 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.15 sang đã thực hiện.
 - **Đề xuất đợt D/E / 2026-11-17:** `analysis_config` theo key cột + `analysis_result.charts` / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.15; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.14 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.14 sang đã thực hiện.

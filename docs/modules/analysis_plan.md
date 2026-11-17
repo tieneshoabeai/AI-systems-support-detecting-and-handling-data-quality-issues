@@ -78,7 +78,7 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 | E3 | Không có outbox/thông báo | `recordEvent` `ANALYSIS_COMPLETED/FAILED`, `AI_JOB_SUCCEEDED/FAILED`; dispatcher + thông báo cho người chạy | Phần 9 v5 mục 3.12 |
 | E4 | Không giới hạn số dòng | `ANALYSIS_MAX_ROWS` (200.000) → 413 `ANALYSIS_TOO_LARGE` | Phần 10 v7 mục 3.17 |
 
-- Test: AN-11 → AN-20 (Phần 13 v8 mục 3.21) trong `test/analysis-wave6.spec.ts` — 22 test; toàn bộ unit 187/187, kiến trúc 3/3. Kết quả chi tiết: Phần 14 v8 mục 3.17.
+- Test: AN-11 → AN-21 (Phần 13 v8 mục 3.21) trong `test/analysis-wave6.spec.ts` — 23 test (AN-21 thêm khi điều chỉnh tương thích API, commit `52df5b7`; toàn bộ unit 188/188); toàn bộ unit 187/187, kiến trúc 3/3. Kết quả chi tiết: Phần 14 v8 mục 3.17.
 - Sửa thêm: worker AI hết lượt ghi nhầm đánh giá `succeeded` rỗng → `markAiFailed`; mapper `topN` mặc định 10 → 50.
 - Lệch so với đề xuất: giữ realtime phát trực tiếp; API cấu hình thêm `*Ref` (giữ `selectedColumns` là tên); `selected_columns` không khớp → 400.
 - **Còn mở:** CASL tĩnh theo vai trò workspace chặn PROJ-MEMBER là WS-MEMBER ở route ghi.

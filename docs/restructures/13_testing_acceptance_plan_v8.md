@@ -1193,6 +1193,7 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 | AN-18 | Thứ tự ưu tiên trong Tổng kết | cao → trung bình → thấp, cùng mức theo tỷ lệ |
 | AN-19 | Phân tích thành công/lỗi, AI xong/hết lượt | ghi đúng sự kiện outbox |
 | AN-20 | `rowCount > ANALYSIS_MAX_ROWS` | 413 `ANALYSIS_TOO_LARGE`, không nạp dữ liệu |
+| AN-21 | Tương thích hợp đồng: `top_n` = 101; `summary.recommendations` | 400 (tối đa 100, mặc định 50); `recommendations` là `string[]` đã sắp ưu tiên, cấu trúc ở `recommendation_items` |
 
 ## 4. Đầu vào và đầu ra
 
@@ -1285,6 +1286,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Điều chỉnh / 2026-11-17:** Thêm AN-21 (tương thích hợp đồng `top_n` tối đa 100, `recommendations` giữ `string[]`) / Đồng bộ với commit `52df5b7` / Bổ sung bảng mục 3.21.
 - **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.21 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.21 sang đã thực hiện.
 - **Đề xuất đợt D/E / 2026-11-17:** Test bổ sung đợt D/E module analysis / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.21; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.20 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.20 sang đã thực hiện.

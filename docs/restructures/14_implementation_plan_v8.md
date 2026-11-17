@@ -1003,10 +1003,14 @@ Kế hoạch thực hiện đã thống nhất trước khi viết code.
 - **Nghiệm thu:** AN-11 → AN-20 (Phần 13 v8 mục 3.21), `tsc`, toàn bộ unit + test kiến trúc, render PDF mẫu.
 - **Kết quả nghiệm thu đợt D/E (2026-11-17):**
   - `npx tsc --noEmit` sạch. Test mới `test/analysis-wave6.spec.ts` (22 test, AN-11 → AN-20). Analysis: 94/94; toàn bộ unit **187/187**; kiến trúc **3/3**. Render PDF mẫu: cột mức ảnh hưởng, mục cấu hình, bảng Top N + "Khác" hiển thị đúng.
-  - Commit nền: `f9f61eb` (đợt A/B/C). Đợt D/E chưa commit.
+  - Commit: `f9f61eb` (đợt A/B/C), `caa7e8c` (đợt D/E), `52df5b7` (điều chỉnh tương thích API trước khi push).
   - Lỗi phát hiện thêm và đã sửa: worker AI hết lượt ghi nhầm đánh giá AI `succeeded` rỗng (`ingestAiResult({})`) → `markAiFailed`; mapper `analysis_config` mặc định `topN` 10.
   - Lệch so với đề xuất: giữ realtime phát trực tiếp (Phần 9 v5 mục 3.12); API cấu hình thêm `*Ref` thay vì đổi kiểu `selectedColumns` (Phần 7 v7 mục 3.18).
   - File mới: `application/project-access.service.ts`, `application/staleness.service.ts`, `domain/input-fingerprint.util.ts`, `domain/chart-data.util.ts`, `domain/impact.util.ts`.
+- **Điều chỉnh tương thích API trước khi push (2026-11-17, commit `52df5b7`):** người dùng hỏi lý do đổi hợp đồng → chọn phương án không phá tương thích:
+  - `top_n`: mặc định 50 giữ nguyên (lý do: spec mục 6.6 v9 PDF top 50, và bằng số phát hiện Tổng kết đã trả trước đây); **tối đa trở lại 100** (việc nâng lên 500 không có yêu cầu từ spec).
+  - `summary.recommendations` **giữ `string[]`** (đã sắp theo ưu tiên); cấu trúc chi tiết chuyển sang trường mới `summary.recommendation_items`.
+  - Test: AN-21; toàn bộ unit **188/188**, kiến trúc 3/3.
 - **Còn mở sau đợt D/E:** CASL tĩnh theo vai trò workspace chặn PROJ-MEMBER là WS-MEMBER ở route ghi (Phần 6 v7 mục 3.21); lưu/khôi phục trạng thái project (3.19); phân tích bất đồng bộ/Kafka + hủy khi đổi cấu hình; DQ-05 rule engine; tinh chỉnh kiểu/vai trò/PII cột (3.22); subset font PDF; e2e với Mongo thật.
 
 ## 4. Đầu vào và đầu ra
@@ -1101,6 +1105,7 @@ Kế hoạch thực hiện đã thống nhất trước khi viết code.
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Điều chỉnh / 2026-11-17:** Ghi lại commit D/E (`caa7e8c`) và commit điều chỉnh tương thích API (`52df5b7`) / Người dùng hỏi lý do đổi `top_n` và kiểu `recommendations` / Bổ sung mục 3.17.
 - **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.17 sang đã thực hiện.
 - **Đề xuất đợt D/E / 2026-11-17:** Đợt D/E hoàn thiện module analysis / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.17; chờ duyệt trước khi sửa code.
 - **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.16 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.16 sang đã thực hiện.
