@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router'
 import { PreviewShell } from '../../preview/components/preview-shell'
+import { usePreviewStore } from '../../../hooks/preview/use-preview-store'
 import { UniverseHero } from '../../preview/components/universe-hero'
 import { RecentProjects } from '../../preview/components/recent-projects'
 import { PreviewIcon } from '../../preview/components/preview-icons'
@@ -10,6 +11,7 @@ import styles from './processing.module.css'
 // Creation remains unavailable until its API/workspace contract is integrated.
 export function ProcessingView() {
   const { pathname } = useLocation()
+  const source = usePreviewStore().source
   const creating = pathname.replace(/\/$/, '') === '/processing/new'
   useEffect(() => { document.getElementById('page-heading')?.focus() }, [pathname])
   return <PreviewShell active="home" area="processing" contentClassName={styles['screen'] ?? ''} context={<>
@@ -32,7 +34,7 @@ export function ProcessingView() {
     </main> : <main className="processing-landing">
       <UniverseHero headingId="page-heading" />
       <RecentProjects action={<Link className="button-primary" to="/processing/new"><PreviewIcon name="plus" /> Tạo Project</Link>} />
-      <p className="action-note">Dữ liệu mẫu, chưa kết nối API. Chọn Project để làm việc với dữ liệu.</p>
+      {source !== 'api' && <p className="action-note">Dữ liệu mẫu, chưa kết nối API. Chọn Project để làm việc với dữ liệu.</p>}
     </main>}
   </PreviewShell>
 }

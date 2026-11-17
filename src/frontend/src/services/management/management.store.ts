@@ -3,11 +3,26 @@ import type { ManagementStore } from './management.types'
 import { validateCsvFile } from './upload-validation'
 import type { Person, PreviewStoreState, PreviewMutationResult, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
 
-type Member = { userId: string; role: string; email?: string; name?: string; joinedAt?: string }
+type Member = { userId: string; role: string; email?: string; name?: string; firstName?: string; lastName?: string; joinedAt?: string }
+// Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
+// ({ items, meta: { hasMore, nextCursor } }). Đọc được cả hai để một bản frontend chạy với cả hai.
+type PageResult<T> = { items?: T[]; total?: number; meta?: { hasMore?: boolean; nextCursor?: string | null } }
+// Danh sách thành viên cũng có hai hình dạng: { members, total } và { items, meta }.
+type MembersResult = { members?: Member[]; items?: Member[] }
+const memberRows = (result: MembersResult): Member[] => {
+  const rows = result.members ?? result.items
+  if (!Array.isArray(rows)) throw new Error('Danh sách thành viên từ máy chủ không hợp lệ.')
+  return rows
+}
 type WorkspaceDto = { id: string; name: string; description: string; ownerId: string; members: Member[]; storageUsedBytes: number; createdAt: string; updatedAt: string; lastAccessedAt: string | null; version: number }
 type ProjectDto = { id: string; workspaceId: string; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
 type DatasetDto = { id: string; originalFileName: string; rowCount: number; columnCount: number; fileSizeBytes: number; createdAt: string; status: string }
 const label = (role: string) => role.charAt(0).toUpperCase() + role.slice(1)
+// Máy chủ trả ISO; card và tiêu đề chi tiết hiển thị ngày theo vi-VN thay vì chuỗi ISO thô.
+const displayDate = (value: string): string => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('vi-VN')
+}
 const unsupported = (): Promise<PreviewMutationResult> => Promise.reject(new Error('Chức năng này chưa được kết nối với máy chủ.'))
 const saved = (message: string): PreviewMutationResult => ({ message, persisted: true, undo: () => { throw new Error('Thao tác đã được lưu trên máy chủ.') } })
 
@@ -28,18 +43,35 @@ export function createManagementStore(api: ApiClient, account: Person) {
   let disposed = false
   const publish = (next: PreviewStoreState) => { if (!disposed) { state = next; listeners.forEach(fn => fn()) } }
   const request = <T>(path: string, options: Omit<ApiRequestOptions, 'path' | 'auth'> = {}) => api.request<T>({ path, auth: 'session', ...options })
+  // Bản backend mới trả firstName/lastName thay vì name đã ghép sẵn.
+  const memberName = (m: Member): string =>
+    (m.name ?? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim()) || people.get(m.userId)?.name || m.userId
   const person = (m: Member): Person => ({ ...people.get(m.userId), id: m.userId,
-    name: m.name ?? people.get(m.userId)?.name ?? m.userId,
-    initials: (m.name ?? people.get(m.userId)?.name ?? m.userId).slice(0, 2).toUpperCase(),
+    name: memberName(m),
+    initials: memberName(m).slice(0, 2).toUpperCase(),
     ...(m.joinedAt === undefined ? {} : { joinedAt: m.joinedAt }), email: m.email ?? people.get(m.userId)?.email ?? '', role: label(m.role) })
   const email = (p: Person) => { if (!p.email) throw new Error('Máy chủ chưa cung cấp email thành viên này. Vui lòng tải lại danh sách.'); return p.email }
   async function pages<T>(path: string): Promise<T[]> {
     const items: T[] = []
+    const seen = new Set<string>()
+    let cursor: string | null = null
     for (let page = 1; ; page++) {
-      const result = await request<{ items: T[]; total: number }>(path, { params: { page, limit: 100 } })
-      if (!Array.isArray(result.items) || !Number.isFinite(result.total)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
+      const params: Record<string, string | number> = cursor === null ? { page, limit: 100 } : { cursor, limit: 100 }
+      const result = await request<PageResult<T>>(path, { params })
+      if (!Array.isArray(result.items)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
       items.push(...result.items)
-      if (items.length >= result.total) return items
+      // Con trỏ: chỉ dừng khi máy chủ nói hết trang.
+      if (typeof result.meta?.hasMore === 'boolean') {
+        if (!result.meta.hasMore) return items
+        const next = result.meta.nextCursor ?? null
+        if (!next || seen.has(next)) throw new Error('Phân trang từ máy chủ không hợp lệ.')
+        seen.add(next)
+        cursor = next
+        continue
+      }
+      // Trang số: dừng khi đã gom đủ tổng số bản ghi.
+      if (!Number.isFinite(result.total)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
+      if (items.length >= (result.total as number)) return items
       if (!result.items.length) throw new Error('Phân trang từ máy chủ không đầy đủ.')
     }
   }
@@ -50,28 +82,30 @@ export function createManagementStore(api: ApiClient, account: Person) {
     const projects: Project[] = []
     const nextVersions = new Map<string, number>()
     for (const w of rows) {
-      const memberResult = await request<{ members: Member[] }>(`/workspaces/${w.id}/members`)
-      const members = memberResult.members.map(person)
+      const memberResult = await request<MembersResult>(`/workspaces/${w.id}/members`)
+      const members = memberRows(memberResult).map(person)
       members.forEach(p => people.set(p.id, p))
       const projectRows = await pages<ProjectDto>(`/workspaces/${w.id}/projects`)
       for (const p of projectRows) {
-        const memberResult = await request<{ members: Member[] }>(`/projects/${p.id}/members`)
+        const memberResult = await request<MembersResult>(`/projects/${p.id}/members`)
         let dataset: DatasetSummary | null = null
         if (p.hasDataset) {
           const { dataset: d } = await request<{ dataset: DatasetDto }>(`/projects/${p.id}/datasets`)
           dataset = { id: d.id, fileName: d.originalFileName, format: 'CSV', rows: d.rowCount, columns: d.columnCount,
             sizeMb: d.fileSizeBytes / 1048576, importedAt: d.createdAt, status: d.status === 'READY' ? 'processed' : d.status === 'FAILED' ? 'failed' : 'processing' }
         }
-        const roster = memberResult.members.map(person)
+        const roster = memberRows(memberResult).map(person)
         projects.push({ canManage: w.ownerId === account.id || roster.some(m => m.id === account.id && m.role === 'Owner'), canDelete: w.ownerId === account.id, canUpload: w.ownerId === account.id || roster.some(m => m.id === account.id && m.role === 'Owner'), id: p.id, code: p.id.slice(-6).toUpperCase(), name: p.name, description: p.description,
           workspaceId: w.id, workspaceName: w.name, status: p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'processing' : 'active',
-          cover: 'blue', dataset, members: roster, owner: roster.find(m => m.role === 'Owner') ?? person({ userId: p.createdBy, role: 'owner' }), createdAt: p.createdAt, updatedAt: p.updatedAt })
+          cover: 'blue', dataset, members: roster, owner: roster.find(m => m.role === 'Owner') ?? person({ userId: p.createdBy, role: 'owner' }),
+          createdAt: displayDate(p.createdAt), updatedAt: displayDate(p.updatedAt) })
         nextVersions.set(p.id, p.version)
       }
       workspaces.push({ canManage: w.ownerId === account.id, id: w.id, name: w.name, description: w.description, status: 'active', currentUserId: account.id,
         projects: projectRows.length, datasets: projectRows.filter(p => p.hasDataset).length, members: members.length,
         storageGb: w.storageUsedBytes / 1073741824, favorite: state.workspaces.find(item => item.id === w.id)?.favorite ?? false, cover: 'blue',
-        createdAt: w.createdAt, updatedAt: w.updatedAt, ...(w.lastAccessedAt === null ? {} : { accessedAt: w.lastAccessedAt }),
+        createdAt: displayDate(w.createdAt), updatedAt: displayDate(w.updatedAt),
+        ...(w.lastAccessedAt === null ? {} : { accessedAt: displayDate(w.lastAccessedAt) }),
         owner: members.find(m => m.id === w.ownerId) ?? person({ userId: w.ownerId, role: 'owner' }), memberPreview: members,
         memberRoles: Object.fromEntries(members.map(m => [m.id, m.role])) })
       nextVersions.set(w.id, w.version)

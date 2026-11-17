@@ -39,6 +39,22 @@ describe('manager API integration', () => {
     expect(store.getState().workspaces).toHaveLength(2)
     expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: '/workspaces', params: { page: 2, limit: 100 } }))
   })
+  // Bản backend đang chạy trả phân trang con trỏ và danh sách thành viên dạng { items }, không có
+  // total. Test này giữ cho store đọc được bản đó mà không phải bỏ hỗ trợ dạng trang-số.
+  it('reads cursor pagination and member items from the deployed backend contract', async () => {
+    const { load, store, request } = harness(r => {
+      if (r.path === '/workspaces' && r.params?.['cursor'] === undefined) return { items: [{ ...workspace, id: 'w1' }], meta: { hasMore: true, nextCursor: 'c2' } }
+      if (r.path === '/workspaces' && r.params?.['cursor'] === 'c2') return { items: [{ ...workspace, id: 'w2' }], meta: { hasMore: false, nextCursor: null } }
+      if (r.path === '/workspaces/w1/members') return { items: [{ userId: 'u1', role: 'owner', firstName: 'Tai', lastName: 'Nguyen', email: account.email }] }
+      if (r.path.endsWith('/members')) return { items: [], meta: { hasMore: false, nextCursor: null } }
+      if (r.path.endsWith('/projects')) return { items: [], meta: { hasMore: false, nextCursor: null } }
+      return undefined
+    })
+    await load()
+    expect(store.getState().workspaces).toHaveLength(2)
+    expect(store.getState().workspaces[0]!.owner.name).toBe('Tai Nguyen')
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: '/workspaces', params: { cursor: 'c2', limit: 100 } }))
+  })
   it('uploads the original CSV after creation and only then reports success', async () => {
     const { store, request } = harness(r => r.path === '/workspaces/w1/projects' && r.method === 'POST' ? { project } : undefined)
     const file = new File(['a,b\n1,2'], 'data.csv', { type: 'text/csv' })
