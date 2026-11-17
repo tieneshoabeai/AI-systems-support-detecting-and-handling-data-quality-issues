@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types'
-import { accountInfo } from '../preview-data'
 import { NotificationCenter } from './notification-center'
 import { ReportCenter } from './report-center'
 import { PreviewIcon } from './preview-icons'
@@ -146,6 +145,8 @@ function TopbarReport() {
 
 function TopbarAccount() {
   const session = usePreviewSession()
+  const profile = session.state.profile
+  const accountInfo = { ...profile, initials: profile.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('') }
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [trigger, setTrigger] = useState<HTMLElement | null>(null)
   const [open, setOpen] = useState(false)

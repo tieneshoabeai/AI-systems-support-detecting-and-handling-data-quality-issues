@@ -36,6 +36,8 @@ export type RequestOptions = {
 }
 
 export type ApiRequestOptions = RequestOptions & {
+  responseType?: 'blob'
+
   path: string
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   data?: unknown

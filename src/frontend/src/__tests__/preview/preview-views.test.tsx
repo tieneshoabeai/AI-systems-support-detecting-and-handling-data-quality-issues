@@ -1,5 +1,5 @@
 import { requireDefined } from '../../utils/required-value'
-import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { WorkspacesPreviewView } from '../../views/preview/workspaces-2d.view'
 import { ProjectsPreviewView } from '../../views/preview/projects-2d.view'
@@ -188,7 +188,7 @@ it('modal "Thông tin Workspace": mở từ ⋯ của header detail, đổi tên
   fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }))
   // Mutation optimistic nên store đổi NGAY; dialog đóng; toast tới sau 160ms (await).
   expect(previewMockStore.getState().workspaces.find(item => item.id === 'ws-acme')!.name).toBe('Acme Holdings')
-  expect(screen.queryByRole('dialog', { name: 'Thông tin Workspace' })).toBeNull()
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thông tin Workspace' })).toBeNull())
   expect(await screen.findByText('Đã cập nhật thông tin “Acme Holdings”')).toBeDefined()
 })
 
@@ -294,7 +294,7 @@ it('wizard "Tạo Project": 4 bước, bước Import bắt buộc một .csv, r
 
   // Màn hình thành công; project mới LUÔN mang một dataset (điều kiện của chủ batch) với đúng số
   // đo vừa đọc từ tệp, và trạng thái 'queued' vì frame này không chạy pipeline làm sạch.
-  expect(within(dialog).getByText('Tạo Project thành công!')).toBeDefined()
+  expect(await within(dialog).findByText('Tạo Project thành công!')).toBeDefined()
   const created = previewMockStore.getState().projects[0]
   expect(requireDefined(created, 'preview-views.test.tsx:297').name).toBe('Đánh giá chất lượng dữ liệu')
   expect(requireDefined(created, 'preview-views.test.tsx:298').workspaceId).toBe('ws-acme')

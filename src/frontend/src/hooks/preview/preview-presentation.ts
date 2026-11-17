@@ -77,7 +77,7 @@ export const formatStorageGb = (gb: number): string =>
 // mới trùng tên sẽ được tính là chủ mà không ai báo.
 export const myPersonId = people['anh'].id
 
-export const isOwnedByMe = (workspace: Workspace): boolean => workspace.owner.id === myPersonId
+export const isOwnedByMe = (workspace: Workspace): boolean => workspace.owner.id === (workspace.currentUserId ?? myPersonId)
 
 // Năm thẻ theo đúng khung 1 của ảnh "Workspace Creation with Email Suggestions": Tổng
 // Workspace · Tổng Project · Sở hữu · Được chia sẻ · Thành viên. Hai điều chủ batch yêu
@@ -135,7 +135,26 @@ export const projectStatusBuckets = (state: PreviewStoreState, workspaceId: stri
 // đều total vào 5 tháng gần nhất, lệch theo mã workspace để hai workspace không cho cùng một
 // biểu đồ. Đây là khung hình khớp ảnh, KHÔNG phải số liệu thật — khi có API thay bằng truy vấn
 // theo createdAt. Không bịa ngày cụ thể cho từng project.
-export const monthlyProgressFor = (workspaceId: string, total: number): readonly { label: string; value: number }[] => {
+const displayDateValue = (value: string): Date => {
+  const parts = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value)
+  return parts ? new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1])) : new Date(value)
+}
+
+export const monthlyProgressFor = (workspaceId: string, total: number, projects?: readonly Project[]): readonly { label: string; value: number }[] => {
+  if (projects) {
+    const now = new Date()
+    return Array.from({ length: 5 }, (_, index) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - 4 + index, 1)
+      return {
+        label: `${month.getMonth() + 1}/${month.getFullYear()}`,
+        value: projects.filter(project => {
+          const created = displayDateValue(project.createdAt)
+          return project.workspaceId === workspaceId && created.getMonth() === month.getMonth()
+            && created.getFullYear() === month.getFullYear()
+        }).length,
+      }
+    })
+  }
   const seed = [...workspaceId].reduce((sum, char) => sum + char.charCodeAt(0), 0)
   const weights = [3, 2, 4, 2, 3].map((weight, index) => weight + ((seed + index) % 3))
   const sumWeights = weights.reduce((sum, weight) => sum + weight, 0)
@@ -182,7 +201,7 @@ export const workspaceMemberRows = (workspace: Workspace): WorkspaceMemberRow[] 
       // Vai trò đã chọn ("Thêm thành viên") thắng vai trò suy theo vị trí: một người được mời
       // làm Member không được nhận badge Admin chỉ vì họ rơi vào ô thứ hai của cycle.
       email: emailForPerson(person), role: workspace.memberRoles?.[person.id] ?? requireDefined(memberRoleCycle[index % memberRoleCycle.length], 'member role cycle'),
-      joinedAt: `${String(12 + index).padStart(2, '0')}/03/2025`, owner: false,
+      joinedAt: person.joinedAt ?? (workspace.currentUserId ? '—' : `${String(12 + index).padStart(2, '0')}/03/2025`), owner: false,
     }))
   return rows
 }
@@ -223,6 +242,10 @@ const recencySeconds: Readonly<Record<string, number>> = {
 }
 
 const ageOf = (label: string): number => {
+  if (/^\d{4}-\d{2}-\d{2}T/.test(label) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(label)) {
+    const timestamp = displayDateValue(label).getTime()
+    return Number.isFinite(timestamp) ? (Date.now() - timestamp) / 1000 : Number.MAX_SAFE_INTEGER
+  }
   const text = label.trim().toLowerCase()
   if (text === 'vừa xong' || text === 'hôm nay') return 0
   const match = /^(\d+(?:[.,]\d+)?) (giây|phút|giờ|ngày|tuần|tháng|năm) trước$/.exec(text)
@@ -263,7 +286,7 @@ export const workspaceSortOptions: readonly { id: WorkspaceSort; label: string }
 // vẽ (bên dưới) thay vì viết thêm một bảng role thứ hai. null = mình không có mặt trong roster
 // của bản ghi mẫu → chỉ khớp 'Tất cả vai trò', không được ăn gian khớp một vai trò nào.
 export const myWorkspaceRole = (workspace: Workspace): string | null =>
-  workspaceMemberRows(workspace).find(row => row.id === people['anh'].id)?.role ?? null
+  workspaceMemberRows(workspace).find(row => row.id === (workspace.currentUserId ?? people['anh'].id))?.role ?? null
 
 export const matchWorkspaceOwnership = (workspace: Workspace, filter: WorkspaceOwnershipFilter): boolean =>
   filter === 'all' || (filter === 'owned' ? isOwnedByMe(workspace) : !isOwnedByMe(workspace))
@@ -289,6 +312,10 @@ const todayKey = (): number => {
   return now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate()
 }
 const createdKey = (label: string): number => {
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(label) || /^\d{4}-\d{2}-\d{2}T/.test(label)) {
+    const date = displayDateValue(label)
+    return Number.isFinite(date.getTime()) ? date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate() : -1
+  }
   const match = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(label.trim())
   if (match) return Number(`${match[3]}${match[2]}${match[1]}`)
   return label.trim().toLowerCase() === 'hôm nay' ? todayKey() : -1
@@ -447,6 +474,7 @@ export const reportIssueTypeOptions: readonly ReportIssueType[] = ['system', 'fe
 // Nhãn + tone của chip trạng thái, khớp bốn màu ở khung 3.4 (brand=đang xử lý, orange=cần
 // bổ sung, green=đã xử lý, muted=đã đóng). Dùng lại họ badge của shell, không mở màu riêng.
 export const reportStatusMeta: Record<ReportStatus, { label: string; tone: 'brand' | 'warn' | 'ok' | 'muted' }> = {
+  new: { label: 'Mới gửi', tone: 'muted' },
   processing: { label: 'Đang xử lý', tone: 'brand' },
   'needs-info': { label: 'Cần bổ sung', tone: 'warn' },
   resolved: { label: 'Đã xử lý', tone: 'ok' },

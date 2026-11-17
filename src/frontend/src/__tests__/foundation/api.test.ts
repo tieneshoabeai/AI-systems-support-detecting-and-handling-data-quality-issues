@@ -173,3 +173,8 @@ describe('error normalization', () => {
     if (status === 500) expect(normalized.message).not.toContain('server detail')
   })
 })
+
+it('accepts a successful 204 deletion without requiring a JSON envelope', async () => {
+  const api = createAxiosClient({ baseUrl, readToken: () => 'token', adapter: config => Promise.resolve({ ...response(config, ''), status: 204 }) })
+  await expect(api.request({ path: '/workspaces/example', method: 'DELETE', auth: 'session' })).resolves.toBeUndefined()
+})

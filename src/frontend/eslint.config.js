@@ -166,7 +166,7 @@ export default defineConfig([
     plugins: { '@stylistic': stylistic },
   },
   {
-    files: ['vite.config.ts', 'vitest.config.ts'],
+    files: ['vite.config.ts', 'vite.e2e.config.ts', 'vitest.config.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: globals.node,
     },

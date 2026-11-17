@@ -34,11 +34,11 @@ export type PreviewSessionModel = {
   // Dòng phản hồi ngắn không gắn với mutation (sidebar báo module chưa mở) để frame
   // chỉ có MỘT vùng thông báo: thêm một <p role="status"> riêng là thêm một live region.
   notify: (text: string, tone?: PreviewToastTone) => void
-  submitRename: (name: string) => void
-  confirmRemove: () => void
+  submitRename: (name: string) => Promise<void>
+  confirmRemove: () => Promise<void>
   // Modal "Thông tin Workspace": lưu tên + mô tả qua MỘT mutation (Hoàn tác trả cả hai) rồi
   // khép modal — surface cấp phiên nên hook là nơi đóng nó.
-  updateWorkspace: (id: string, edit: WorkspaceEdit) => void
+  updateWorkspace: (id: string, edit: WorkspaceEdit) => Promise<void>
   // Hai modal của workspace là surface cấp phiên (mở từ ⋯ của THẺ, không chỉ từ trang chi tiết).
   workspacePanel: PreviewWorkspacePanel | null
   closeWorkspacePanel: () => void
@@ -72,13 +72,13 @@ export type PreviewSessionModel = {
   deleteNotifications: (ids: readonly string[]) => void
   // Gửi một báo cáo vấn đề từ ô "?" trên topbar. Cùng khuôn mutation với các thao tác
   // khác: áp dụng ngay (optimistic), toast báo thành công kèm Hoàn tác.
-  createReport: (input: NewReportInput) => void
+  createReport: (input: NewReportInput) => Promise<boolean>
   // Wizard "Tạo Project" 4 bước: tạo project KÈM tập dữ liệu vừa nạp, optimistic + Hoàn tác.
-  createProject: (input: NewProjectInput) => void
+  createProject: (input: NewProjectInput) => Promise<boolean>
   // Nút "Tạo Workspace" (khung 2 ảnh Workspaces Overview): thêm workspace mới vào danh sách mẫu.
-  createWorkspace: (input: NewWorkspaceInput) => void
+  createWorkspace: (input: NewWorkspaceInput) => Promise<boolean>
   // Nhánh "Accounts" của Settings (nhóm 04): lưu hồ sơ, thu hồi phiên, gạt công tắc thông báo.
-  updateProfile: (edit: ProfileEdit) => void
+  updateProfile: (edit: ProfileEdit) => Promise<boolean>
   revokeSession: (id: string) => void
   revokeAllSessions: () => void
   setNotificationPref: (key: NotificationPrefKey, value: boolean) => void

@@ -90,7 +90,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
   return <Container data-color-mode={colorMode} className={`dataset-3d-page ${styles['screen']}${embedded ? ' dataset-3d-embedded' : ''}`}>
     {!embedded && <header className="dataset-3d-header">
       <div>
-        <Link className="dataset-3d-back" to="/workspaces">Không gian làm việc</Link>
+        <Link className="dataset-3d-back" to="/management/projects">Danh sách project</Link>
         <h1 id="page-heading" tabIndex={-1}>Dataset 3D</h1>
       </div>
       <p>{reducedMotion ? 'Chuyển động tự động đã tắt theo cài đặt thiết bị.' : 'Kéo để xoay, cuộn để phóng to hoặc thu nhỏ.'}</p>

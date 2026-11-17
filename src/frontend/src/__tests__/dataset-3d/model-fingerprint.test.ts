@@ -1,13 +1,12 @@
 import { requireDefined } from '../../utils/required-value'
-// The image-neutrality gate for the tower refactor (CODE ARCHITECTURE IMPROVEMENT PLAN, Phase 0).
+// Structural regression gate, originally established at Phase 0.
+// The historical fixture filename is retained; Batch 4 rebases it to the explicitly accepted
+// current tower/glass/backdrop design. It does not prove image equivalence or WebGL correctness.
+// Changes to matrices, geometry hashes, materials or selection contours require another review.
 //
-// p0-baseline.ndjson was written from the tree at the Phase 0 commit. Phases 2-5 claim they move
-// code without moving pixels; this test is what makes that claim falsifiable. A rebuild that changes
-// any matrix, geometry hash, material group, or selection contour fails here.
-//
-// The baseline itself is regenerated only by
-// .agents/dataset-3d-core/captures/model-fingerprint.measure.ts, which is NOT part of `npm test`: a
-// test that could rewrite its own expected output would not be a gate.
+// Regeneration is a separate reviewed measurement step, using the same buildFingerprint helper
+// as .agents/dataset-3d-core/captures/model-fingerprint.measure.ts. Normal tests only read the
+// fixture: a test that could rewrite its own expected output would not be a gate.
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -38,7 +37,7 @@ function truncate(line: string): string {
   return line.length > 240 ? `${line.slice(0, 240)}... (${line.length} chars)` : line
 }
 
-describe('holographic core fingerprint vs the Phase 0 baseline', () => {
+describe('holographic core fingerprint vs the accepted structural baseline', () => {
   const text = readFileSync(BASELINE, 'utf8')
   const expected = parseBaseline(text)
   const apiFor = () => createHolographicCoreProductModel()

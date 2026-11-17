@@ -15,5 +15,15 @@ export default defineConfig({
     // được: 47-81 s lúc máy nhàn, 160-195 s lúc máy swap, nên mỗi con số chỉ là một buổi đo và
     // phép A/B trên cùng một máy nhàn vẫn nợ (change-log §7.8). Cái mua được là kết quả tất định.
     fileParallelism: false,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      // Test helpers and type declarations are not application runtime code.
+      exclude: ['src/__tests__/**', 'src/**/*.d.ts'],
+      reportsDirectory: '.agents/testing-coverage/coverage',
+      reporter: ['text-summary', 'html', 'json-summary'],
+      reportOnFailure: true,
+      // Baseline first; targets (90/85/90/90) are not enforced in this batch.
+    },
   },
 })

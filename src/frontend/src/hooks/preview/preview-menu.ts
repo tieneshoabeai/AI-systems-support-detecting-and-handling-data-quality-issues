@@ -27,7 +27,7 @@ export const workspaceMenu = (workspace: Workspace): PreviewMenuDescriptor => ({
   items: [
     { id: 'ws-info', label: 'Thông tin Workspace', icon: 'info' },
     { id: 'ws-members', label: 'Quản lý thành viên', icon: 'users' },
-    { id: 'remove', label: 'Xóa Workspace', icon: 'trash', tone: 'danger', separatorBefore: true },
+    { id: 'remove', disabled: workspace.canManage === false, ...(workspace.canManage === false ? { hint: 'Chỉ Workspace Owner được xóa.' } : {}), label: 'Xóa Workspace', icon: 'trash', tone: 'danger', separatorBefore: true },
   ],
 })
 
@@ -49,8 +49,8 @@ export const projectMenu = (project: Project): PreviewMenuDescriptor => ({
     // Thẻ tóm tắt chỉ tồn tại khi trỏ chuột, nên mở từ menu thì nó cũng phải tự đóng khi
     // bấm ra ngoài — cùng một surface, hai lối vào (xem PreviewInfoRequest).
     { id: 'info', label: 'Xem thông tin', icon: 'info' },
-    { id: 'rename', label: 'Đổi tên', icon: 'pencil', separatorBefore: true },
-    { id: 'remove', label: 'Xóa Project', icon: 'trash', tone: 'danger', separatorBefore: true },
+    { id: 'rename', disabled: project.canManage === false, ...(project.canManage === false ? { hint: 'Chỉ chủ sở hữu được sửa project.' } : {}), label: 'Đổi tên', icon: 'pencil', separatorBefore: true },
+    { id: 'remove', disabled: project.canDelete === false, ...(project.canDelete === false ? { hint: 'Chỉ Workspace Owner được xóa.' } : {}), label: 'Xóa Project', icon: 'trash', tone: 'danger', separatorBefore: true },
   ],
 })
 
@@ -69,6 +69,6 @@ export const projectDatasetMenu = (project: Project): PreviewMenuDescriptor => (
     // Ảnh vẽ mục này là một chức năng thật, và nó ĐÃ chạy thật (chủ batch 03/11): mở panel
     // "Quản lý thành viên" của project — thêm người từ roster của workspace, đổi vai trò, gỡ.
     { id: 'pj-members', label: 'Quản lý thành viên', icon: 'users' },
-    { id: 'remove', label: 'Xóa Project', icon: 'trash', tone: 'danger', separatorBefore: true },
+    { id: 'remove', disabled: project.canDelete === false, ...(project.canDelete === false ? { hint: 'Chỉ Workspace Owner được xóa.' } : {}), label: 'Xóa Project', icon: 'trash', tone: 'danger', separatorBefore: true },
   ],
 })

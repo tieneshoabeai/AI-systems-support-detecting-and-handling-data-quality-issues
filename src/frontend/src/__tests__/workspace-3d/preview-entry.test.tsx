@@ -35,7 +35,7 @@ it('loads the normal application for that same URL in production', async () => {
 
 it.each([true, false])('loads auth runtime for private URLs with DEV=%s', async dev => {
   vi.stubEnv('DEV', dev)
-  for (const url of ['/management', '/processing', '/workspaces/3d-dataset', '/#/preview/projects']) {
+  for (const url of ['/management', '/processing', '/processing/projects/prj-sales', '/#/preview/projects']) {
     vi.resetModules()
     vi.clearAllMocks()
     document.body.innerHTML = '<div id="root"></div>'

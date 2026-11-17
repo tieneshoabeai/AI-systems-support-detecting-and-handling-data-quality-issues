@@ -149,7 +149,9 @@ export function NotificationCenter() {
       <div className="popover-foot">
         <button type="button" className="text-link" onClick={goList}>Xem tất cả thông báo</button>
       </div>
-      <p className="popover-note" id={previewNoteIds.notifications}>{previewReasons.notificationInbox}</p>
+      <p className="popover-note" id={previewNoteIds.notifications}>{session.state.source === 'api'
+        ? 'Chọn thông báo để đánh dấu đã đọc. Hiện chưa hỗ trợ xóa thông báo.'
+        : previewReasons.notificationInbox}</p>
     </>}
 
     {view === 'list' && <>
@@ -183,7 +185,7 @@ export function NotificationCenter() {
         <div className="bulk-actions">
           <button type="button" className="button-secondary" disabled={chosen.length === 0}
             aria-describedby={previewNoteIds.notifications} onClick={() => applyRead(chosen)}>Đánh dấu đã đọc</button>
-          <button type="button" className="button-danger" disabled={chosen.length === 0}
+          <button type="button" className="button-danger" title="Máy chủ chưa hỗ trợ xóa thông báo" disabled={session.state.source === 'api' || chosen.length === 0}
             aria-describedby={previewNoteIds.notifications} onClick={() => applyDelete(chosen)}>
             <PreviewIcon name="trash" /> Xóa</button>
           <button type="button" className="text-link" disabled={chosen.length === 0}

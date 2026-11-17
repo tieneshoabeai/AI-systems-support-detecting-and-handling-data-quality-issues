@@ -13,8 +13,8 @@ Là điểm lắp ráp ứng dụng. Tầng này chọn entry, tạo runtime, g�
 - `Application()`, `App()` (default) và `AppRouter()` trả về cây JSX. `AppRouter` cần React Router và Auth context.
 - `createAppRuntime(options: RuntimeOptions): AppRuntime` nhận `clearSessionCache` bắt buộc, tùy chọn `client`, `storage`, `database`, `now`. Trả `coordinator`, `drafts`, `retain()` và `dispose()`. Cấu hình API sai hoặc gọi `retain` sau khi đóng runtime có thể ném `ApiError`.
 - `AppProviders({ queryClient, runtime, configurationError, children })` và `AuthProvider({ runtime, configurationError?, children })` trả về JSX. `AuthContext` có kiểu `AuthContextValue | null`.
-- `ProtectedRoute({ children })`, `PublicOnlyRoute({ children })` và `SessionStatus()` chọn nội dung hoặc chuyển hướng theo snapshot. `WorkspacePage()` render trang workspace.
-- `validReturnTarget(value: unknown): string` chấp nhận `/workspaces` và route hợp lệ dưới `/management`, `/processing`; đích không hợp lệ rơi về `/processing`. Root của người đã đăng nhập cũng trỏ tới `/processing`; không thay đổi logic kết nối API.
+- `ProtectedRoute({ children })`, `PublicOnlyRoute({ children })` và `SessionStatus()` chọn nội dung hoặc chuyển hướng theo snapshot.
+- `validReturnTarget(value: unknown): string` chấp nhận route hợp lệ dưới `/management`, `/processing`; đích không hợp lệ rơi về `/processing`. Hai URL đã gỡ `/workspaces` và `/workspaces/3d-dataset` hiển thị 404 và không được dùng làm đích sau đăng nhập. Dataset 3D được nhúng trong trang project `/processing/projects/:projectId`.
 - `WorkbenchRoutes()` đăng ký route 2D chính thức và chuyển hướng URL cũ. Các route Management/Processing luôn yêu cầu phiên, không có cờ bỏ guard. `WorkbenchEntry()` chỉ ghép BrowserRouter và vẫn cần AuthProvider từ caller.
 - Các route Management/Processing nằm dưới `ApplicationFrame` (tầng views), giữ chung phiên UI/theme qua `Outlet`. Guard vẫn bao bên ngoài; việc dùng chung giao diện không thay đổi xác thực hay kết nối API.
 
@@ -23,7 +23,7 @@ Là điểm lắp ráp ứng dụng. Tầng này chọn entry, tạo runtime, g�
 ```ts
 import { validReturnTarget } from './app/router/return-target'
 
-console.log(validReturnTarget('/workspaces?tab=recent')) // /workspaces?tab=recent
+console.log(validReturnTarget('/management/projects?workspace=ws-acme')) // /management/projects?workspace=ws-acme
 console.log(validReturnTarget('https://example.test')) // /processing
 ```
 
@@ -38,16 +38,15 @@ Chạy trong ngữ cảnh TypeScript dưới `src`. Để đi từ entry thật,
 - [App.tsx](App.tsx) — component gốc ghép router ứng dụng.
 - [provider/app-providers.tsx](provider/app-providers.tsx) — ghép QueryClientProvider và AuthProvider.
 - [app-runtime.ts](app-runtime.ts) — ghép HTTP, phiên, draft, vòng đời retain/release.
-- [pages/private/workspace-page.tsx](pages/private/workspace-page.tsx) — trang workspace và thao tác phiên.
 - `pages/public/login-page.tsx`, `pages/public/not-found-page.tsx` — entry login và 404, tái sử dụng UI hiện có.
-- `pages/private/*-page.tsx` — entry Management, Processing, Project, Shopping Records và Dataset 3D; router áp guard trước khi render.
-- `constants/routes.ts` — đường dẫn login, workspace và Dataset 3D; route helper nghiệp vụ vẫn ở services.
+- `pages/private/*-page.tsx` — entry Management, Processing, Project và Shopping Records; router áp guard trước khi render. Các entry workspace và Dataset 3D cũ không còn được đăng ký trong router.
+- `constants/routes.ts` — đường dẫn login; route helper nghiệp vụ vẫn ở services.
 - `index.ts` — public API runtime/providers, không export module bootstrap có side effects. Lazy pages dùng entry riêng thay vì gom qua barrel tổng.
 - [AuthContext](../hooks/auth/auth-context.ts) — context dùng chung giữa provider và hook, được khai báo ở `hooks/auth`.
 - [context/auth-provider.tsx](context/auth-provider.tsx) — nối coordinator với React và vòng đời trình duyệt.
 - [guards/protected-route.tsx](guards/protected-route.tsx) — giới hạn route theo phiên, hiển thị trạng thái chờ.
 - [guards/public-only-route.tsx](guards/public-only-route.tsx) — điều hướng người đã đăng nhập khỏi route công khai.
-- [router/app-router.tsx](router/app-router.tsx) — danh sách route, lazy load Dataset 3D, xử lý 404 và focus.
+- [router/app-router.tsx](router/app-router.tsx) — danh sách route, xử lý entry và focus; các route nghiệp vụ và 404 được ghép qua WorkbenchRoutes.
 - [router/return-target.ts](router/return-target.ts) — lọc đích quay về sau đăng nhập.
 - [tokens.css](../styles/tokens.css) — font và biến giao diện dùng chung.
 - [global.css](../styles/global.css) — reset, mặc định trang, focus và reduced motion.
@@ -73,7 +72,7 @@ Provider sở hữu vòng đời runtime, còn `dispose()` đóng tài nguyên. 
 
 ## 9. Test & debug
 
-Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/auth-flow.test.tsx`. Kiểm `/`, `/auth/login`, `/workspaces` và một URL không tồn tại. Preview dev có `/#/preview/workspaces` và `/preview/workspaces-3d`.
+Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/auth-flow.test.tsx src/__tests__/auth/private-pages.test.tsx src/__tests__/auth/workbench-return-target.test.ts`. Kiểm `/`, `/auth/login`, `/processing`, `/processing/projects/:projectId` và 404 tại `/workspaces`, `/workspaces/3d-dataset`. Preview dev có `/preview/workspaces-3d`; URL 2D cũ `/#/preview/workspaces` chuyển về `/management/workspaces`.
 
 ## 10. Giới hạn & lưu ý
 

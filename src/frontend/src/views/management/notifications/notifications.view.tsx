@@ -215,7 +215,7 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
         <button type="button" className="button-secondary" disabled={chosen.length === 0}
           aria-describedby={previewNoteIds.notificationList}
           onClick={() => session.markNotificationsRead(chosen)}>Đánh dấu đã đọc</button>
-        <button type="button" className="button-danger" disabled={chosen.length === 0}
+        <button type="button" className="button-danger" title="Máy chủ chưa hỗ trợ xóa thông báo" disabled={session.state.source === 'api' || chosen.length === 0}
           aria-describedby={previewNoteIds.notificationList}
           onClick={() => { session.deleteNotifications(chosen); setPicked([]) }}>
           <PreviewIcon name="trash" /> Xóa</button>
@@ -225,7 +225,9 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
     </div>
 
     {visible.length === 0
-      ? <EmptyHint title="Không có kết quả" note="Đổi tab lọc ở trên để xem nhóm thông báo khác; tải lại trang sẽ trả hộp thư về danh sách ban đầu." />
+      ? <EmptyHint title="Không có kết quả" note={session.state.source === 'api'
+        ? 'Đổi tab lọc ở trên để xem nhóm thông báo khác.'
+        : 'Đổi tab lọc ở trên để xem nhóm thông báo khác; tải lại trang sẽ trả hộp thư về danh sách ban đầu.'} />
       : <Panel title={panelTitleFor(tab)}>
         <div className="table-scroll">
           <table className="preview-table notice-table">
@@ -257,7 +259,9 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
             </tbody>
           </table>
         </div>
-        <ActionNote id={previewNoteIds.notificationList}>{previewReasons.notificationList}</ActionNote>
+        <ActionNote id={previewNoteIds.notificationList}>{session.state.source === 'api'
+          ? 'Chọn thông báo để đánh dấu đã đọc. Hiện chưa hỗ trợ xóa thông báo.'
+          : previewReasons.notificationList}</ActionNote>
       </Panel>}
 
     {/* Không có dòng nào thì không có gì để phân trang: `hideWhenEmpty` để nguyên thanh nghỉ,

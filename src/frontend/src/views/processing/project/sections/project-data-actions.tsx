@@ -1,8 +1,11 @@
-import { useId, useRef, useState } from 'react'
+import { Dialog } from '../../../../components/ui/overlay/dialog'
+import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
+import { usePreviewSession } from '../../../preview/preview-session-context'
+import { validateCsvFile } from '../../../../services/management/upload-validation'
+import { useId, useState } from 'react'
 import type { ConfirmedProjectResult } from '../../../../types'
 import { Panel } from '../../../preview/components/preview-primitives'
 import { ResultReviewDialog } from '../../../preview/components/result-review-dialog'
-import { useDialogFocus } from '../../../preview/components/preview-surface'
 import styles from './project-data-actions.module.css'
 import { PreviewIcon } from '../../../preview/components/preview-icons'
 
@@ -30,24 +33,32 @@ export function ProjectResultDownload({ result }: { result: ConfirmedProjectResu
 }
 
 export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const id = useId()
+  const store = useManagementStore()
+  const session = usePreviewSession()
   const [file, setFile] = useState<File | null>(null)
-  useDialogFocus(ref, onClose)
-  return <div className={`preview-dialog-scrim ${styles['screen']}`}>
-    <div ref={ref} className="preview-dialog" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>Upload data</h2>
-      <label className="dialog-field"><span>Chọn tệp dữ liệu</span>
-        <input type="file" onChange={event => setFile(event.target.files?.[0] ?? null)} />
-      </label>
-      {file && <p className="project-file-selection">Đã chọn trên thiết bị: {file.name}</p>}
-      <p id={`${id}-unavailable`} className="action-note">Chưa kết nối dịch vụ upload. Tệp chưa được gửi lên hệ thống và chưa được gắn vào Project.</p>
-      <div className="dialog-actions">
-        <button type="button" className="button-secondary" onClick={onClose}>Đóng</button>
-        <button type="button" className="button-primary" disabled aria-describedby={`${id}-unavailable`}>Upload data</button>
-      </div>
-    </div>
-  </div>
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const projectId = session.state.selection.projectId
+  const upload = async () => {
+    if (!file || busy || !store.uploadDataset) return
+    setBusy(true); setError('')
+    try {
+      validateCsvFile(file)
+      const result = await store.uploadDataset(projectId, file)
+      session.notify(result.message, 'success'); onClose()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được tệp.') }
+    finally { setBusy(false) }
+  }
+  const id = useId()
+  return <Dialog open onClose={onClose} busy={busy} className={styles['screen']} aria-labelledby={`${id}-title`}>
+    <h2 id={`${id}-title`}>Upload data</h2>
+    <label className="dialog-field"><span>Chọn tệp dữ liệu</span><input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => setFile(e.target.files?.[0] ?? null)} /></label>
+    {file && <p>Đã chọn trên thiết bị: {file.name}</p>}
+    <p className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
+    {!store.uploadDataset && <p className="action-note">Chưa kết nối dịch vụ upload trong chế độ xem trước.</p>}
+    {error && <p role="alert" className="form-error">{error}</p>}
+    <div className="dialog-actions"><button className="button-secondary" disabled={busy} onClick={onClose}>Đóng</button><button className="button-primary" aria-busy={busy} disabled={busy || !file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</button></div>
+  </Dialog>
 }
 
 export function ProjectResultActions({ result, reviewOnly = false }: { result: ConfirmedProjectResult | null; reviewOnly?: boolean }) {

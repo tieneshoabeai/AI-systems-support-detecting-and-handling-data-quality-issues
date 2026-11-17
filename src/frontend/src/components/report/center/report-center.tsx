@@ -1,3 +1,4 @@
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import { useMemo, useState } from 'react'
 import type { PreviewReport, ReportAttachment, ReportFilterTab, ReportIssueType, ReportStatus } from '../../../types'
 import {
@@ -54,6 +55,7 @@ function ReportRow({ item, onOpen }: { item: PreviewReport; onOpen: () => void }
 
 export function ReportCenter() {
   const session = usePreviewSession()
+  const store = useManagementStore()
   const { state } = session
 
   const [view, setView] = useState<CenterView>('landing')
@@ -68,6 +70,7 @@ export function ReportCenter() {
   const [description, setDescription] = useState('')
   const [attachment, setAttachment] = useState<ReportAttachment | null>(null)
   const [error, setError] = useState('')
+  const [sending, setSending] = useState(false)
 
   const filtered = useMemo(
     () => state.reports.filter(item => matchReportTab(item, tab) && matchReportQuery(item, query)),
@@ -89,10 +92,13 @@ export function ReportCenter() {
     const file = files?.[0]
     if (!file) return
     // Chỉ ghi nhận tên + cỡ. Chưa có API nên không "đọc" hay "tải" tệp — nói rõ ở footnote.
-    setAttachment({ name: file.name, sizeLabel: formatSize(file.size) })
+    if (file.size > 10 * 1024 * 1024 || !['image/png', 'image/jpeg', 'application/pdf'].includes(file.type)) { setError('Chọn PNG, JPG hoặc PDF tối đa 10 MB.'); return }
+    setError('')
+    setAttachment({ name: file.name, sizeLabel: formatSize(file.size), file })
   }
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
+    if (sending) return
     // Validate khi bấm gửi thay vì tắt nút: nút "Gửi báo cáo" luôn bật (khớp ảnh), thiếu trường
     // thì nói ngay trong form — không có control tắt không lý do.
     if (!issueType || !title.trim() || !description.trim()) {
@@ -105,7 +111,10 @@ export function ReportCenter() {
     }
     // Qua được nhánh trên thì issueType chắc chắn là một loại hợp lệ (bỏ được ''), nên TS thu hẹp
     // đúng kiểu cho createReport.
-    session.createReport({ issueType, title, description, attachment })
+    setSending(true)
+    const ok = await session.createReport({ issueType, title, description, attachment })
+    setSending(false)
+    if (!ok) return
     resetForm()
     // Sau khi gửi, nhảy sang danh sách để người dùng thấy ngay bản ghi vừa thêm ở đầu.
     setTab('all'); setPage(1); setView('list')
@@ -156,13 +165,13 @@ export function ReportCenter() {
 
         <div className="field">
           <span className="field-label">Tệp đính kèm (tùy chọn)</span>
-          <small>Chỉ lưu thông tin tệp; nội dung chưa được tải lên.</small>
+          <small>Tệp được gửi cùng báo cáo sau khi bạn xác nhận.</small>
           {attachment === null
             ? <label className="dropzone">
               <input type="file" className="visually-hidden" aria-label="Chọn tệp đính kèm"
                 onChange={event => onPickFile(event.target.files)} />
               <span className="dropzone-text">Kéo tệp vào đây hoặc <span className="dropzone-pick">Chọn tệp</span></span>
-              <small>Hỗ trợ .JPG, .PNG, .PDF, .ZIP (tối đa 20 MB)</small>
+              <small>Hỗ trợ .JPG, .PNG, .PDF (tối đa 10 MB)</small>
             </label>
             : <div className="attachment">
               <span className="attachment-name"><PreviewIcon name="file" /> {attachment.name} ({attachment.sizeLabel})</span>
@@ -176,7 +185,7 @@ export function ReportCenter() {
 
         <div className="form-actions">
           <button type="button" className="button-secondary" onClick={backToLanding}>Hủy</button>
-          <button type="button" className="button-primary" onClick={submit}>Gửi báo cáo</button>
+          <button type="button" className="button-primary" disabled={sending} onClick={() => { void submit() }}>Gửi báo cáo</button>
         </div>
       </div>
     </>}
@@ -239,6 +248,16 @@ export function ReportCenter() {
           {detail.attachment
             ? <div className="attachment static">
               <span className="attachment-name"><PreviewIcon name="file" /> {detail.attachment.name} ({detail.attachment.sizeLabel})</span>
+              {detail.attachment.id && store.downloadAttachment && <button disabled={sending} className="button-secondary" onClick={() => { void (async () => {
+                if (sending || !detail.attachment?.id || !store.downloadAttachment) return
+                setSending(true)
+                try {
+                  const blob = await store.downloadAttachment(detail.id, detail.attachment.id)
+                  const url = URL.createObjectURL(blob); const anchor = document.createElement('a')
+                  anchor.href = url; anchor.download = detail.attachment.name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+                } catch (e) { session.notify(e instanceof Error ? e.message : 'Không tải được tệp.', 'danger') }
+                finally { setSending(false) }
+              })() }}>Tải tệp</button>}
             </div>
             : <p className="notice-empty">Báo cáo này không kèm tệp.</p>}
         </div>}

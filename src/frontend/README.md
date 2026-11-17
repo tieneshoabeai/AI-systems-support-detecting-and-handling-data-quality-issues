@@ -66,7 +66,7 @@ index.html → src/app/main.tsx
   └─ Luồng chính → Application → providers → BrowserRouter → AppRouter → guard/view
 ~~~
 
-`/workspaces`, `/workspaces/3d-dataset`, Management và Processing đi qua guard cả dev lẫn production. Page entry nằm trong `app/pages/private`; login và 404 nằm trong `app/pages/public`. `provider/` ghép providers, `context/` giữ AuthProvider implementation.
+Management và Processing đi qua guard cả dev lẫn production. Dataset 3D được nhúng tại `/processing/projects/:projectId`; hai URL cũ `/workspaces` và `/workspaces/3d-dataset` đã gỡ và hiển thị 404. Page entry nằm trong `app/pages/private`; login và 404 nằm trong `app/pages/public`. `provider/` ghép providers, `context/` giữ AuthProvider implementation.
 
 ### Route Management và AI Data Processing
 

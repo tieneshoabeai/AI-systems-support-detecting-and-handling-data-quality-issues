@@ -102,7 +102,7 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
   const perPage = 10
 
   const buckets = projectStatusBuckets(session.state, workspace.id)
-  const monthly = monthlyProgressFor(workspace.id, buckets.total)
+  const monthly = monthlyProgressFor(workspace.id, buckets.total, session.state.source === 'api' ? session.state.projects : undefined)
   const owned = projectsOf(session.state, workspace.id)
 
   const filtered = useMemo(() => {

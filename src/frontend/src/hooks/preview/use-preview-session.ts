@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PreviewSectionNavigator, PreviewSessionModel, PreviewUniverseNavigator } from '../../types'
-import type { NewReportInput, NotificationPrefKey, Person, PreviewActionId, PreviewDialogRequest, PreviewInfoRequest, PreviewMenuOrigin, PreviewMenuRequest, PreviewMutationResult, PreviewProjectPanel, PreviewProjectWizard, PreviewWorkspacePanel, NewProjectInput, PreviewSectionId, PreviewTarget, PreviewToast, PreviewToastTone, ProfileEdit, ProjectStatus, WorkspaceEdit, WorkspaceStatus, NewWorkspaceInput } from '../../types'
-import { previewMockStore } from '../../services/preview/preview-mock.service'
+import type {
+  NewReportInput, NotificationPrefKey, Person, PreviewActionId, PreviewDialogRequest, PreviewInfoRequest, PreviewMenuOrigin,
+  PreviewMenuRequest, PreviewMutationResult, PreviewProjectPanel, PreviewProjectWizard, PreviewWorkspacePanel,
+  NewProjectInput, PreviewSectionId, PreviewTarget, PreviewToast, PreviewToastTone, ProfileEdit, ProjectStatus,
+  WorkspaceEdit, WorkspaceStatus, NewWorkspaceInput,
+} from '../../types/preview/preview.types'
+import { useManagementStore } from './use-preview-store'
 import { previewHref, previewNavigateEvent, universeUrl } from '../../services/preview/preview-route'
 import type { PreviewRouteIds } from '../../types'
 import { usePreviewStore } from './use-preview-store'
@@ -33,6 +38,7 @@ export const usePreviewSessionModel = (
   navigateUniverse: PreviewUniverseNavigator = defaultUniverseNavigator,
   navigateSection?: PreviewSectionNavigator,
 ): PreviewSessionModel => {
+  const previewMockStore = useManagementStore()
   const [menu, setMenu] = useState<PreviewMenuRequest | null>(null)
   const [dialog, setDialog] = useState<PreviewDialogRequest | null>(null)
   const [info, setInfo] = useState<PreviewInfoRequest | null>(null)
@@ -78,7 +84,7 @@ export const usePreviewSessionModel = (
     if (navigateSection && routeWorkspaceId === '' && !routeProjectId) previewMockStore.selectWorkspace('')
     if (routeWorkspaceId) previewMockStore.selectWorkspace(routeWorkspaceId)
     if (routeProjectId) previewMockStore.selectProject(routeProjectId)
-  }, [routeWorkspaceId, routeProjectId, navigateSection])
+  }, [routeWorkspaceId, routeProjectId, navigateSection, previewMockStore])
 
   const closeMenu = useCallback(() => {
     setMenu(null)
@@ -115,12 +121,12 @@ export const usePreviewSessionModel = (
   const openUniverse = useCallback((projectId?: string | null) => {
     const selected = previewMockStore.getState().selection.projectId
     navigateUniverse(universeUrl(projectId || selected || null))
-  }, [navigateUniverse])
+  }, [navigateUniverse, previewMockStore])
 
   // Kết quả mutation luôn kèm Hoàn tác: mock store chỉ sửa bộ nhớ tab nên người review
   // phải rút lại được ngay mà không phải tải lại trang (shared-ui: không khóa người dùng).
   const applyMutation = useCallback((operation: Promise<PreviewMutationResult>) => {
-    void operation
+    return operation
       .then(result => {
         const undoAction = (): boolean => {
           try {
@@ -135,9 +141,10 @@ export const usePreviewSessionModel = (
             return false
           }
         }
-        pushToast(result.message, 'success', undoAction)
+        pushToast(result.message, 'success', result.persisted ? undefined : undoAction)
+        return true
       })
-      .catch(error => pushToast(error instanceof Error ? error.message : 'Không thể thực hiện thao tác. Vui lòng thử lại.', 'danger'))
+      .catch(error => { pushToast(error instanceof Error ? error.message : 'Không thể thực hiện thao tác. Vui lòng thử lại.', 'danger'); return false })
   }, [pushToast])
 
   const run = useCallback((action: PreviewActionId, target: PreviewTarget) => {
@@ -193,7 +200,7 @@ export const usePreviewSessionModel = (
         break
       case 'favorite':
       case 'unfavorite':
-        applyMutation(previewMockStore.toggleFavorite(target.id))
+        void applyMutation(previewMockStore.toggleFavorite(target.id))
         break
       case 'rename':
         setDialog({ mode: 'rename', target, currentName: target.name })
@@ -204,29 +211,31 @@ export const usePreviewSessionModel = (
         setDialog({
           mode: 'remove',
           target,
-          detail: target.kind === 'workspace'
-            ? `Workspace là ranh giới truy cập: gỡ khỏi danh sách mẫu sẽ kéo theo ${current.projects.filter(item => item.workspaceId === target.id).length} project của nó. Thao tác chỉ sửa bộ nhớ tab và có Hoàn tác.`
-            : 'Xóa chỉ gỡ bản ghi khỏi danh sách mẫu trong bộ nhớ tab và có Hoàn tác.',
+          detail: current.source !== 'api'
+            ? target.kind === 'workspace'
+              ? `Workspace là ranh giới truy cập: gỡ khỏi danh sách mẫu sẽ kéo theo ${current.projects.filter(item => item.workspaceId === target.id).length} project của nó. Thao tác chỉ sửa bộ nhớ tab và có Hoàn tác.`
+              : 'Xóa chỉ gỡ bản ghi khỏi danh sách mẫu trong bộ nhớ tab và có Hoàn tác.'
+            : target.kind === 'workspace'
+            ? `Workspace là ranh giới truy cập: xóa workspace sẽ kéo theo ${current.projects.filter(item => item.workspaceId === target.id).length} project của nó. Thao tác xóa dữ liệu trên máy chủ không có hoàn tác trong giao diện.`
+            : 'Project sẽ bị xóa. Bạn không thể hoàn tác trong giao diện.',
         })
         break
     }
-  }, [applyMutation, closeMenu, openSection, openUniverse, pushToast])
+  }, [applyMutation, closeMenu, openSection, openUniverse, pushToast, previewMockStore])
 
   const notify = useCallback((text: string, tone: PreviewToastTone = 'info') => pushToast(text, tone), [pushToast])
 
-  const submitRename = useCallback((name: string) => {
+  const submitRename = useCallback(async (name: string) => {
     if (dialog?.mode !== 'rename') return
     const trimmed = name.trim()
     if (!trimmed) { pushToast('Tên để trống không được chấp nhận.', 'danger'); return }
-    applyMutation(previewMockStore.rename(dialog.target.kind, dialog.target.id, trimmed))
-    setDialog(null)
-  }, [applyMutation, dialog, pushToast])
+    await applyMutation(previewMockStore.rename(dialog.target.kind, dialog.target.id, trimmed)).then(ok => { if (ok) setDialog(null) })
+  }, [applyMutation, dialog, pushToast, previewMockStore])
 
-  const confirmRemove = useCallback(() => {
+  const confirmRemove = useCallback(async () => {
     if (dialog?.mode !== 'remove') return
-    applyMutation(previewMockStore.remove(dialog.target.kind, dialog.target.id))
-    setDialog(null)
-  }, [applyMutation, dialog])
+    await applyMutation(previewMockStore.remove(dialog.target.kind, dialog.target.id)).then(ok => { if (ok) setDialog(null) })
+  }, [applyMutation, dialog, previewMockStore])
 
   return {
     appearance,
@@ -251,57 +260,60 @@ export const usePreviewSessionModel = (
     // KHÉP modal lại. Surface nằm ở cấp phiên nên việc đóng cũng thuộc đây, không thuộc form:
     // để modal ở lại sau khi "Lưu thay đổi" là người dùng bấm nút xong vẫn đứng trong màn hình
     // mà họ vừa nói là đã gửi, và form thì đã đổi dữ liệu dưới chân nó.
-    updateWorkspace: (id: string, edit: WorkspaceEdit) => {
-      setWorkspacePanel(null)
-      applyMutation(previewMockStore.updateWorkspace(id, edit))
+    updateWorkspace: async (id: string, edit: WorkspaceEdit) => {
+      await applyMutation(previewMockStore.updateWorkspace(id, edit)).then(ok => { if (ok) setWorkspacePanel(null) })
     },
     addWorkspaceMember: (workspaceId: string, person: Person) => {
-      applyMutation(previewMockStore.addWorkspaceMember({ workspaceId, person }))
+      void applyMutation(previewMockStore.addWorkspaceMember({ workspaceId, person }))
     },
     setWorkspaceMemberRole: (workspaceId: string, personId: string, role: string) => {
-      applyMutation(previewMockStore.setWorkspaceMemberRole(workspaceId, personId, role))
+      void applyMutation(previewMockStore.setWorkspaceMemberRole(workspaceId, personId, role))
     },
     removeWorkspaceMember: (workspaceId: string, personId: string) => {
-      applyMutation(previewMockStore.removeWorkspaceMember(workspaceId, personId))
+      void applyMutation(previewMockStore.removeWorkspaceMember(workspaceId, personId))
     },
     projectPanel,
     closeProjectPanel: () => setProjectPanel(null),
     addProjectMember: (projectId: string, person: Person, role: string) => {
-      applyMutation(previewMockStore.addProjectMember({ projectId, person, role }))
+      void applyMutation(previewMockStore.addProjectMember({ projectId, person, role }))
     },
     setProjectMemberRole: (projectId: string, personId: string, role: string) => {
-      applyMutation(previewMockStore.setProjectMemberRole(projectId, personId, role))
+      void applyMutation(previewMockStore.setProjectMemberRole(projectId, personId, role))
     },
     removeProjectMember: (projectId: string, personId: string) => {
-      applyMutation(previewMockStore.removeProjectMember(projectId, personId))
+      void applyMutation(previewMockStore.removeProjectMember(projectId, personId))
     },
     projectWizard,
     // Mở wizard ở CẤP PHIÊN nên nó sống sót khi đổi trang — và vì thế nó cũng phải khép lại khi
     // người dùng đi chỗ khác (openSection đã phát previewNavigateEvent, surface nghe tín hiệu đó).
-    openProjectWizard: (workspaceId?: string | null) => setProjectWizard({ workspaceId: workspaceId ?? null }),
+    openProjectWizard: (workspaceId?: string | null) => {
+      if (workspaceId && state.workspaces.find(w => w.id === workspaceId)?.canManage === false) { notify('Chỉ Workspace Owner được tạo project.', 'danger'); return }
+      if (state.source === 'api' && !state.workspaces.some(w => w.canManage)) { notify('Bạn cần sở hữu workspace để tạo project.', 'info'); return }
+      setProjectWizard({ workspaceId: workspaceId ?? null })
+    },
     closeProjectWizard: () => setProjectWizard(null),
     selectWorkspace: previewMockStore.selectWorkspace,
     selectProject: previewMockStore.selectProject,
     clearProject: previewMockStore.clearProject,
     openSection,
     openUniverse,
-    readAllNotifications: () => { applyMutation(previewMockStore.markAllNotificationsRead()) },
-    markNotificationsRead: (ids: readonly string[]) => { applyMutation(previewMockStore.markNotificationsRead(ids)) },
-    deleteNotifications: (ids: readonly string[]) => { applyMutation(previewMockStore.removeNotifications(ids)) },
-    createReport: (input: NewReportInput) => { applyMutation(previewMockStore.createReport(input)) },
-    createProject: (input: NewProjectInput) => { applyMutation(previewMockStore.createProject(input)) },
-    createWorkspace: (input: NewWorkspaceInput) => { applyMutation(previewMockStore.createWorkspace(input)) },
-    updateProfile: (edit: ProfileEdit) => { applyMutation(previewMockStore.updateProfile(edit)) },
-    revokeSession: (id: string) => { applyMutation(previewMockStore.revokeSession(id)) },
+    readAllNotifications: () => { void applyMutation(previewMockStore.markAllNotificationsRead()) },
+    markNotificationsRead: (ids: readonly string[]) => { void applyMutation(previewMockStore.markNotificationsRead(ids)) },
+    deleteNotifications: (ids: readonly string[]) => { void applyMutation(previewMockStore.removeNotifications(ids)) },
+    createReport: (input: NewReportInput) => applyMutation(previewMockStore.createReport(input)),
+    createProject: (input: NewProjectInput) => applyMutation(previewMockStore.createProject(input)),
+    createWorkspace: (input: NewWorkspaceInput) => applyMutation(previewMockStore.createWorkspace(input)),
+    updateProfile: (edit: ProfileEdit) => applyMutation(previewMockStore.updateProfile(edit)),
+    revokeSession: (id: string) => { void applyMutation(previewMockStore.revokeSession(id)) },
     revokeAllSessions: () => {
       // Không còn phiên nào khác ngoài phiên hiện tại → đây là no-op, KHÔNG bật mutation
       // (mutation luôn kèm "Hoàn tác", mà hoàn tác một lần không thay đổi gì rồi báo "Đã hoàn
       // tác" là nói dối). Chỉ notify ngắn, cùng vùng thông báo, không thêm live region.
       const others = previewMockStore.getState().sessions.filter(item => !item.current).length
       if (others === 0) { notify('Chỉ còn phiên hiện tại — không có phiên nào khác để đăng xuất.', 'info'); return }
-      applyMutation(previewMockStore.revokeOtherSessions())
+      void applyMutation(previewMockStore.revokeOtherSessions())
     },
-    setNotificationPref: (key: NotificationPrefKey, value: boolean) => { applyMutation(previewMockStore.setNotificationPref(key, value)) },
+    setNotificationPref: (key: NotificationPrefKey, value: boolean) => { void applyMutation(previewMockStore.setNotificationPref(key, value)) },
     dismissToast,
   }
 }

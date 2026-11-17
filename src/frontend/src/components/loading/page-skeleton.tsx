@@ -50,20 +50,6 @@ export function PageSkeleton({ pathname, message }: { pathname: string; message:
     </main>
   }
 
-  if (path === '/workspaces/3d-dataset') {
-    return <main className="skeleton-dataset">
-      {status}
-      <div className="skeleton-workspace-copy" aria-hidden="true">
-        <span className="skeleton-block skeleton-line" />
-        <span className="skeleton-block skeleton-title" />
-      </div>
-      <div className="skeleton-dataset-stage" aria-hidden="true">
-        <span className="skeleton-block skeleton-brand-mark" />
-        <span className="skeleton-block skeleton-dataset-control" />
-      </div>
-    </main>
-  }
-
   return <main className="workspace-shell">
     {status}
     <div className="workspace-header" aria-hidden="true">

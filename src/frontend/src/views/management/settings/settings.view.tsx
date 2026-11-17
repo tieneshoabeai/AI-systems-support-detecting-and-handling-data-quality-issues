@@ -99,12 +99,15 @@ function ProfileSection() {
     setName(profile.name); setOrganization(profile.organization); setPhone(profile.phone); setBio(profile.bio)
   }
 
-  const save = (): void => {
+  const [saving, setSaving] = useState(false)
+  const save = async (): Promise<void> => {
+    if (saving) return
     // Validate khi bấm "Lưu" thay vì tắt nút: nút luôn bật, thiếu tên thì nói ngay trong form
     // (khớp dấu * ở ảnh) — không có control tắt không lý do.
     if (!name.trim()) { setError('Họ và tên không được để trống.'); return }
     setError('')
-    session.updateProfile({ name: name.trim(), organization: organization.trim(), phone: phone.trim(), bio: bio.trim() })
+    setSaving(true)
+    try { await session.updateProfile({ name: name.trim(), organization: organization.trim(), phone: phone.trim(), bio: bio.trim() }) } finally { setSaving(false) }
   }
 
   return <div className="settings-screen">
@@ -116,6 +119,7 @@ function ProfileSection() {
       </div>
 
       <Panel title="Thông tin cá nhân">
+        {session.state.source === 'api' && <p className="action-note">Hiện có thể cập nhật họ tên. Đơn vị, số điện thoại và giới thiệu chưa được máy chủ hỗ trợ.</p>}
         <div className="settings-form">
           <label className="field">
             <span className="field-label">Họ và tên <span className="req" aria-hidden="true">*</span></span>
@@ -145,7 +149,7 @@ function ProfileSection() {
           <label className="field">
             <span className="field-label">Đơn vị</span>
             <span className="field-control">
-              <input type="text" value={organization} maxLength={80} aria-label="Đơn vị"
+              <input disabled={session.state.source === 'api'} type="text" value={organization} maxLength={80} aria-label="Đơn vị"
                 onChange={event => setOrganization(event.target.value)} />
               <span className="field-affordance" aria-hidden="true"><PreviewIcon name="pencil" /></span>
             </span>
@@ -154,7 +158,7 @@ function ProfileSection() {
           <label className="field">
             <span className="field-label">Số điện thoại</span>
             <span className="field-control">
-              <input type="tel" value={phone} maxLength={20} aria-label="Số điện thoại"
+              <input disabled={session.state.source === 'api'} type="tel" value={phone} maxLength={20} aria-label="Số điện thoại"
                 onChange={event => setPhone(event.target.value)} />
               <span className="field-affordance" aria-hidden="true"><PreviewIcon name="pencil" /></span>
             </span>
@@ -163,7 +167,7 @@ function ProfileSection() {
           <label className="field">
             <span className="field-label">Giới thiệu</span>
             <span className="field-control">
-              <textarea rows={3} value={bio} maxLength={240} aria-label="Giới thiệu"
+              <textarea disabled={session.state.source === 'api'} rows={3} value={bio} maxLength={240} aria-label="Giới thiệu"
                 onChange={event => setBio(event.target.value)} />
               <span className="field-affordance" aria-hidden="true"><PreviewIcon name="pencil" /></span>
             </span>
@@ -174,7 +178,7 @@ function ProfileSection() {
             {/* Đặc tả dòng 9 nói rõ: "hủy thì về trang chính" → Hủy điều hướng về Home (không
                 phải chỉ xóa nháp tại chỗ). Ảnh 4.2 vẽ đúng hai nút Hủy / Lưu thay đổi. */}
             <button type="button" className="button-secondary" onClick={() => session.openSection('home')}>Hủy</button>
-            <button type="button" className="button-primary" onClick={save}>Lưu thay đổi</button>
+            <button type="button" className="button-primary" disabled={saving} aria-busy={saving} onClick={() => { void save() }}>Lưu thay đổi</button>
           </div>
         </div>
       </Panel>
@@ -307,7 +311,7 @@ function NotificationPrefsSection() {
   return <div className="settings-screen">
     <Panel title="Tùy chọn thông báo">
       <div className="pref-list">
-        {notificationPrefRows.map(row => <div key={row.key} className="pref-row">
+        {(session.state.source === 'api' ? [{ key: 'system' as const, label: 'Nhận thông báo', caption: 'Thông báo bắt buộc vẫn được gửi khi tắt tùy chọn này.', icon: 'bell' }] : notificationPrefRows).map(row => <div key={row.key} className="pref-row">
           <span className="pref-icon" aria-hidden="true"><PreviewIcon name={row.icon} /></span>
           <span className="pref-text">
             <strong>{row.label}</strong>

@@ -175,7 +175,7 @@ export function PreviewShell({
         </button>}
         state={state} />
       <div className={`preview-content ${contentClassName}`} ref={contentRef}>
-        {!processing && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}
+        {!processing && state.source !== 'api' && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}
         {children}
       </div>
     </div>

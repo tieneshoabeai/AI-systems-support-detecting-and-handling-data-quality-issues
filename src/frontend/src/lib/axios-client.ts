@@ -117,10 +117,13 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           data: request.data,
           ...(request.params === undefined ? {} : { params: request.params }),
           ...(request.signal === undefined ? {} : { signal: request.signal }),
+          ...(request.responseType === undefined ? {} : { responseType: request.responseType }),
           timeout,
           headers,
         })
 
+        if (response.status === 204) return undefined as T
+        if (request.responseType === 'blob') return response.data as T
         return unwrapEnvelope<T>(response.data)
       } catch (error) {
         throw normalizeApiError(error)

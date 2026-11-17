@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process'
 import dotenv from 'dotenv'
 
 const rootDir = process.cwd()
-dotenv.config({ path: path.join(rootDir, '.env') })
+dotenv.config({ path: path.join(rootDir, '.env'), quiet: true })
 
 const swaggerUrl = process.env.VITE_SWAGGER_URL
 const jsonDir = path.join(rootDir, 'src', 'lib')
@@ -116,7 +116,7 @@ if (!fs.existsSync(typesDir)) {
   fs.mkdirSync(typesDir, { recursive: true })
 }
 
-console.log(`📡 Swagger URL: ${swaggerUrl}`)
+console.log('📡 Loading Swagger specification')
 console.log(`📥 JSON file: ${jsonFile}`)
 console.log(`📝 Output dir: ${typesDir}`)
 
@@ -229,19 +229,11 @@ const getFileNameFromTag = (tag) => {
 
 const getTypeNamePrefixFromRoutePath = (routePath) => {
   const parts = routePath.split('/').filter(Boolean)
-  const servicePart = parts.find((part) => part.startsWith('sgod-')) || ''
-  const serviceName = servicePart.replace(/^sgod-/i, '') || 'default'
   const resourceParts = parts
-    .filter((part) => !part.startsWith('sgod-'))
+    .filter((part) => part.toLowerCase() !== 'api')
     .filter((part) => !/^v\d+$/i.test(part))
     .filter((part) => !part.startsWith('{'))
-  const primaryResource = resourceParts.length ? singularize(resourceParts[0]) : 'endpoint'
-  const servicePascal = toPascalCase(serviceName)
-  const resourcePascal = toPascalCase(primaryResource)
-  const dedupedResourcePascal = resourcePascal.startsWith(servicePascal)
-    ? resourcePascal.slice(servicePascal.length) || resourcePascal
-    : resourcePascal
-  return toCamelCase(`${servicePascal}${dedupedResourcePascal}`)
+  return toCamelCase(resourceParts[0] || 'endpoint')
 }
 
 const singularize = (segment) => {
@@ -542,7 +534,8 @@ const generateServiceTypeFiles = (openapiSpec) => {
   const pathsObj = openapiSpec?.paths || {}
   const groupByTag = new Map()
   const operationNameUsageByTag = new Map()
-  const finalTypeNameUsageByTag = new Map()
+  // Every group is re-exported by index.ts, so stems must be unique across groups.
+  const usedTypeStems = new Set()
 
   for (const [routePath, routeConfig] of Object.entries(pathsObj)) {
     const pathLevelParameters = Array.isArray(routeConfig.parameters) ? routeConfig.parameters : []
@@ -575,12 +568,13 @@ const generateServiceTypeFiles = (openapiSpec) => {
         byParamPart ? `By${byParamPart}` : '',
       )
       const baseTypeStem = `${methodPrefix}${tagPrefixPascal}${normalizedActionName}`
-      const finalUsedNames = finalTypeNameUsageByTag.get(primaryTag) || new Map()
-      const finalCurrentCount = finalUsedNames.get(baseTypeStem) || 0
-      const uniqueTypeStem =
-        finalCurrentCount === 0 ? baseTypeStem : `${baseTypeStem}${finalCurrentCount + 1}`
-      finalUsedNames.set(baseTypeStem, finalCurrentCount + 1)
-      finalTypeNameUsageByTag.set(primaryTag, finalUsedNames)
+      let uniqueTypeStem = baseTypeStem
+      let suffix = 2
+      while (usedTypeStems.has(uniqueTypeStem)) {
+        uniqueTypeStem = `${baseTypeStem}${suffix}`
+        suffix++
+      }
+      usedTypeStems.add(uniqueTypeStem)
       const requestTypeName = `${uniqueTypeStem}Request`
       const lines = [`export type ${requestTypeName} = paths["${routePath}"]["${method}"]`]
 

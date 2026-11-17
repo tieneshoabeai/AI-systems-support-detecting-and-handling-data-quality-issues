@@ -72,7 +72,10 @@ describe('spool core config', () => {
     const backdropRadius = inner - chamber.backdrop.radiusInset
     const bottom = chamber.centerY - chamber.height / 2
     const top = chamber.centerY + chamber.height / 2
-    expect(backdropRadius).toBeLessThan(inner - 0.008)
+    // Current design explicitly retains a 1 mm radial/end inset (approved in Batch 4).
+    expect(inner - backdropRadius).toBeCloseTo(0.001, 6)
+    expect(backdropRadius).toBeLessThan(inner)
+    expect(chamber.backdrop.heightInset).toBe(0.001)
     // Outside the drifting motes, otherwise a mote behind the axis would pop through the wall.
     expect(backdropRadius).toBeGreaterThan(SPOOL_CORE.particles.chamberRadius + 0.05)
     // The lit region is where the light's cutoff sphere crosses the wall, i.e.
@@ -325,13 +328,13 @@ describe('spool core model', () => {
       expect(materials).toHaveLength(2)
       expect(requireDefined(materials[0], 'spool-core.test.ts:324').color.getHexString()).toBe('0a3b45')
       expect(requireDefined(materials[0], 'spool-core.test.ts:325').opacity).toBe(0.42)
-      expect(requireDefined(materials[1], 'spool-core.test.ts:326').color.getHexString()).toBe('e2e8e6')
-      expect(requireDefined(materials[1], 'spool-core.test.ts:327').opacity).toBe(0.65)
-      expect(requireDefined(materials[1], 'spool-core.test.ts:328').roughness).toBe(0.6)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:326').color.getHexString()).toBe('bcc2c0')
+      expect(requireDefined(materials[1], 'spool-core.test.ts:327').opacity).toBe(0.2)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:328').roughness).toBe(0.1)
       expect(requireDefined(materials[1], 'spool-core.test.ts:329').emissiveIntensity).toBe(0)
       expect(requireDefined(materials[1], 'spool-core.test.ts:330').lightMap).toBeInstanceOf(THREE.DataTexture)
       expect(requireDefined(materials[1], 'spool-core.test.ts:331').lightMap?.channel).toBe(0)
-      expect(requireDefined(materials[1], 'spool-core.test.ts:332').lightMapIntensity).toBe(1)
+      expect(requireDefined(materials[1], 'spool-core.test.ts:332').lightMapIntensity).toBe(0.3)
       expect(requireDefined(materials[1], 'spool-core.test.ts:333').depthWrite).toBe(false)
       expect(glass.geometry.groups.map(group => group.materialIndex)).toEqual([0, 1])
       expect(ray(0.945).intersectObject(glass)[0]?.face?.materialIndex).toBe(0)

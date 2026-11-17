@@ -1,8 +1,9 @@
+import { Dialog } from '../../ui/overlay/dialog'
+import { ResourceAccessActions } from '../../resource/access'
 import { useState } from 'react'
 import type { Person, PreviewProjectPanel, Project, Workspace } from '../../../types'
 import { defaultProjectRole, emailForPerson, previewNoteIds, previewReasons, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
-import { Dialog } from '../../ui/overlay/dialog'
 import { Avatar } from '../../resource'
 import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
 
@@ -45,14 +46,14 @@ function ProjectMemberRowCells({ person, isOwner, onChangeRole, onRemove }: {
   onChangeRole: (personId: string, role: string) => void
   onRemove: (personId: string) => void
 }) {
+  const live = usePreviewSession().state.source === 'api'
   if (isOwner) return <>
     <td><span className={roleClass(person.role)}>{person.role}</span></td>
     <td className="row-action"><span className="member-owner-dash" aria-label="Chủ sở hữu không có thao tác">—</span></td>
   </>
 
-  const options = projectRoleOptions.includes(person.role)
-    ? projectRoleOptions
-    : [person.role, ...projectRoleOptions]
+  const allowed = live ? projectRoleOptions.filter(role => role !== 'Admin') : projectRoleOptions
+  const options = allowed.includes(person.role) ? allowed : [person.role, ...allowed]
 
   return <>
     <td>
@@ -110,87 +111,88 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
     setAdding(false)
   }
 
-  return <Dialog open onClose={onClose} className="is-wide" aria-labelledby="pj-members-title">
-    <header className="dialog-head">
-      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
-      <div className="dialog-head-text">
-        <h2 id="pj-members-title">Quản lý thành viên</h2>
-        <p>Xem, thêm và phân quyền thành viên của Project “{project.name}”.</p>
+  return <Dialog open onClose={onClose} className="is-wide" role="dialog" aria-labelledby="pj-members-title">
+      <header className="dialog-head">
+        <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
+        <div className="dialog-head-text">
+          <h2 id="pj-members-title">Quản lý thành viên</h2>
+          <p>Xem, thêm và phân quyền thành viên của Project “{project.name}”.</p>
+        </div>
+        <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" onClick={onClose}>
+          <PreviewIcon name="close" />
+        </button>
+      </header>
+
+      <div className="members-summary">
+        <span className="members-count-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
+        <div className="members-count-text">
+          <strong>{rows.length} thành viên</strong>
+          <span>Trong Project “{project.name}” · Workspace {workspace?.name ?? 'đã bị gỡ'}</span>
+        </div>
+        <button type="button" className="button-primary" aria-expanded={adding} disabled={project.canManage === false} aria-controls="pj-add-member"
+          onClick={() => { setAdding(value => !value); setSearch('') }}>
+          <PreviewIcon name="plus" /> Thêm thành viên
+        </button>
       </div>
-      <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" onClick={onClose}>
-        <PreviewIcon name="close" />
-      </button>
-    </header>
 
-    <div className="members-summary">
-      <span className="members-count-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
-      <div className="members-count-text">
-        <strong>{rows.length} thành viên</strong>
-        <span>Trong Project “{project.name}” · Workspace {workspace?.name ?? 'đã bị gỡ'}</span>
+      {adding && <div className="pv-add-member" id="pj-add-member">
+        <label className="members-search">
+          <span className="visually-hidden">Tìm thành viên của Workspace để thêm vào Project</span>
+          <PreviewIcon name="search" />
+          <input value={search} autoFocus onChange={event => setSearch(event.target.value)}
+            placeholder="Tìm trong thành viên của Workspace…" autoComplete="off"
+            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); const first = candidates[0]; if (first) addMember(first) } }} />
+        </label>
+        {/* Không có ô nhập email ở đây: thêm người ngoài workspace là phá ràng buộc nghiệp vụ mà
+            chính ảnh wizard "Tạo Project" đã viết thành ba dòng ghi chú. */}
+        {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
+          ? 'Workspace của project này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” của Workspace trước.'
+          : 'Toàn bộ thành viên của Workspace đã thuộc Project này.'}</p>}
+        {candidates.length > 0 && <ul className="pv-suggest-list">
+          {candidates.map(person => <li key={person.id} className="pv-suggest-row">
+            <Avatar initials={person.initials} size="sm" />
+            <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
+            <button type="button" className="button-secondary pv-suggest-add" onClick={() => addMember(person)}>
+              <PreviewIcon name="plus" /> Thêm
+            </button>
+          </li>)}
+        </ul>}
+      </div>}
+
+      <div className="members-tools">
+        <label className="members-search">
+          <span className="visually-hidden">Tìm kiếm thành viên của project</span>
+          <PreviewIcon name="search" />
+          <input value={query} onChange={event => setQuery(event.target.value)}
+            placeholder="Tìm kiếm thành viên theo tên hoặc email…" />
+        </label>
+        <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
+          <select value={role} onChange={event => setRole(event.target.value)}>
+            <option value="all">Tất cả vai trò</option>
+            {projectRoleOptions.filter(role => session.state.source !== 'api' || role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
       </div>
-      <button type="button" className="button-primary" aria-expanded={adding} aria-controls="pj-add-member"
-        onClick={() => { setAdding(value => !value); setSearch('') }}>
-        <PreviewIcon name="plus" /> Thêm thành viên
-      </button>
-    </div>
 
-    {adding && <div className="pv-add-member" id="pj-add-member">
-      <label className="members-search">
-        <span className="visually-hidden">Tìm thành viên của Workspace để thêm vào Project</span>
-        <PreviewIcon name="search" />
-        <input value={search} autoFocus onChange={event => setSearch(event.target.value)}
-          placeholder="Tìm trong thành viên của Workspace…" autoComplete="off"
-          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); const first = candidates[0]; if (first) addMember(first) } }} />
-      </label>
-      {/* Không có ô nhập email ở đây: thêm người ngoài workspace là phá ràng buộc nghiệp vụ mà
-          chính ảnh wizard "Tạo Project" đã viết thành ba dòng ghi chú. */}
-      {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
-        ? 'Workspace của project này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” của Workspace trước.'
-        : 'Toàn bộ thành viên của Workspace đã thuộc Project này.'}</p>}
-      {candidates.length > 0 && <ul className="pv-suggest-list">
-        {candidates.map(person => <li key={person.id} className="pv-suggest-row">
-          <Avatar initials={person.initials} size="sm" />
-          <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
-          <button type="button" className="button-secondary pv-suggest-add" onClick={() => addMember(person)}>
-            <PreviewIcon name="plus" /> Thêm
-          </button>
-        </li>)}
-      </ul>}
-    </div>}
+      <div className="table-scroll">
+        <table className="preview-table members-table">
+          <thead><tr><th scope="col">#</th><th scope="col">Thành viên</th><th scope="col">Vai trò</th>
+            <th scope="col"><span className="visually-hidden">Thao tác</span></th></tr></thead>
+          <tbody>{filtered.map((person, index) => <tr key={person.id}>
+            <td>{index + 1}</td>
+            <th scope="row"><span className="member-cell"><Avatar initials={person.initials} size="sm" />
+              <span className="member-id"><span className="row-name">{person.name}</span><span className="row-sub">{emailForPerson(person)}</span></span></span></th>
+            {project.canManage === false ? <><td>{person.role}</td><td>Chỉ xem</td></> : <ProjectMemberRowCells person={person}
+              isOwner={person.id === project.owner.id}
+              onChangeRole={(personId, nextRole) => session.setProjectMemberRole(project.id, personId, nextRole)}
+              onRemove={personId => session.removeProjectMember(project.id, personId)} />}
+          </tr>)}</tbody>
+        </table>
+        {filtered.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
+      </div>
 
-    <div className="members-tools">
-      <label className="members-search">
-        <span className="visually-hidden">Tìm kiếm thành viên của project</span>
-        <PreviewIcon name="search" />
-        <input value={query} onChange={event => setQuery(event.target.value)}
-          placeholder="Tìm kiếm thành viên theo tên hoặc email…" />
-      </label>
-      <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
-        <select value={role} onChange={event => setRole(event.target.value)}>
-          <option value="all">Tất cả vai trò</option>
-          {projectRoleOptions.map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-      </label>
-    </div>
-
-    <div className="table-scroll">
-      <table className="preview-table members-table">
-        <thead><tr><th scope="col">#</th><th scope="col">Thành viên</th><th scope="col">Vai trò</th>
-          <th scope="col"><span className="visually-hidden">Thao tác</span></th></tr></thead>
-        <tbody>{filtered.map((person, index) => <tr key={person.id}>
-          <td>{index + 1}</td>
-          <th scope="row"><span className="member-cell"><Avatar initials={person.initials} size="sm" />
-            <span className="member-id"><span className="row-name">{person.name}</span><span className="row-sub">{emailForPerson(person)}</span></span></span></th>
-          <ProjectMemberRowCells person={person}
-            isOwner={person.id === project.owner.id}
-            onChangeRole={(personId, nextRole) => session.setProjectMemberRole(project.id, personId, nextRole)}
-            onRemove={personId => session.removeProjectMember(project.id, personId)} />
-        </tr>)}</tbody>
-      </table>
-      {filtered.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
-    </div>
-
-    <p className="dialog-note" id={previewNoteIds.projectMembersPage}>{previewReasons.projectMembers}</p>
+      <ResourceAccessActions kind="project" resource={project} onClose={onClose} />
+      <p className="dialog-note" id={previewNoteIds.projectMembersPage}>{previewReasons.projectMembers}</p>
   </Dialog>
 }
 

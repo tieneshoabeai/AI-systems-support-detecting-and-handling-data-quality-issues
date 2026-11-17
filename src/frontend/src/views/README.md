@@ -159,7 +159,7 @@ Giữ thao tác API qua hook/service. Page entry trong app/pages phân loại pu
 
 ## 9. Test & debug
 
-Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview src/__tests__/workspace-3d src/__tests__/dataset-3d/dataset-3d-view.test.tsx`. Review bằng `/auth/login?preview=display-base`, `/#/preview/workspaces`, `/preview/workspaces-3d` và `/workspaces/3d-dataset`.
+Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview src/__tests__/workspace-3d src/__tests__/dataset-3d/dataset-3d-view.test.tsx`. Review bằng `/auth/login?preview=display-base`, `/management/workspaces`, `/preview/workspaces-3d` (chỉ dev) và `/processing/projects/:projectId` với ID project có sẵn.
 
 ## 10. Giới hạn & lưu ý
 
