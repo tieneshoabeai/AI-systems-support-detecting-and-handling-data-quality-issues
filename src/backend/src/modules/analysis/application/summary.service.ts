@@ -129,6 +129,8 @@ export class SummaryService {
       },
       thresholds: THRESHOLDS,
       dq05: result.dq05 ?? { status: 'unassessed', reason: 'no_rule_confirmed' },
+      // Dot G (Phan 2 v12 muc 3.44): nhom Nghi van — tach rieng, khong muc anh huong, khong vao `issues`
+      suspicions: Array.isArray(result.suspicions) ? result.suspicions : [],
       ai_section: ai && (ai as { status?: string }).status === 'succeeded' ? ai : null,
     };
     const saved = await this.analysisRepository.createSave({

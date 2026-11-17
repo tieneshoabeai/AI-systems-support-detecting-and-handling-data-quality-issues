@@ -88,6 +88,7 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     charts: (raw.charts ?? null) as unknown,
     columnRoles: (raw.column_roles ?? null) as unknown,
     aiSamples: (raw.ai_samples ?? null) as Record<string, string[]> | null,
+    suspicions: (raw.suspicions ?? null) as unknown[] | null,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,

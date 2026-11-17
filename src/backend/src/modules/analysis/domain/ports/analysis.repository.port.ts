@@ -64,6 +64,8 @@ export interface AnalysisResultRecord {
   charts?: unknown;
   columnRoles?: unknown;
   aiSamples?: Record<string, string[]> | null;
+  /** Đợt G: nhóm Nghi vấn — không trả trong API kết quả phân tích. */
+  suspicions?: unknown[] | null;
   aiCorrelationAssessment?: unknown;
   isStale: boolean;
   staleReason?: string | null;

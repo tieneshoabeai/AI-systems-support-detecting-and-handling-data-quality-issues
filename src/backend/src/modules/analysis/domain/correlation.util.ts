@@ -1,4 +1,5 @@
 import * as ss from 'simple-statistics';
+import { isMissingToken } from '../../../shared/utils/missing-tokens.util';
 export type CorrelationKind = 'pearson' | 'spearman' | 'cramers_v' | 'eta_squared';
 export interface ICorrelationCell { colA: string; colB: string; coef: number | null; kind: CorrelationKind; n: number; totalScanned: number; missingAOnly: number; missingBOnly: number; missingBoth: number; computable: boolean; reason: string | null; }
 
@@ -10,12 +11,13 @@ export interface AnalyzableColumn {
   reason: string | null;
 }
 
-const NULL_TOKENS = new Set(['', 'null', 'undefined', 'na', 'n/a', 'none', '-']);
+/** Đợt G: ô rỗng hoặc ký hiệu thiếu trong danh sách dùng chung (`shared/utils/missing-tokens.util.ts`). */
+const isNullToken = (s: string): boolean => s.trim() === '' || isMissingToken(s);
 
 export function isMissingValue(val: unknown): boolean {
   if (val === null || val === undefined) return true;
   if (typeof val === 'string') {
-    return NULL_TOKENS.has(val.trim().toLowerCase());
+    return isNullToken(val);
   }
   return false;
 }
@@ -41,7 +43,7 @@ export function toCategory(val: unknown): string | null {
   if (typeof val === 'boolean') return val ? 'true' : 'false';
   if (typeof val === 'string') {
     const t = val.trim();
-    if (NULL_TOKENS.has(t.toLowerCase())) return null;
+    if (isNullToken(t)) return null;
     return t;
   }
   if (val instanceof Date) return null;

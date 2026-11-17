@@ -1,6 +1,7 @@
 import * as ss from 'simple-statistics';
 import { toFiniteNumber, toCategory, round4 } from './correlation.util';
-import { isMissingCell, isValidByType } from './dq.util';
+import { isMissingCell, isValidByType, dateOrderOf } from './dq.util';
+import { parseStrictDate, type DayMonthOrder } from './date-parse.util';
 
 export interface DescriptiveStat {
   column: string;
@@ -39,12 +40,13 @@ export function describeColumn(
   let invalidCount = 0;
   const validNums: number[] = [];
   const validCats: string[] = [];
+  const dateOrder = dataType === 'date' ? dateOrderOf(rawValues) : 'either';
   for (const v of rawValues) {
     if (isMissingCell(v)) {
       missingCount++;
       continue;
     }
-    const r = isValidByType(v, dataType);
+    const r = isValidByType(v, dataType, dateOrder);
     if (!r.valid) {
       invalidCount++;
       continue;
@@ -54,7 +56,8 @@ export function describeColumn(
       if (n === null) invalidCount++;
       else validNums.push(n);
     } else {
-      const c = toCategory(v);
+      // Dot G: o cot chu, ky hieu NA/?... la chuoi hop le (khop DQ-03)
+      const c = dataType === 'string' ? String(v).trim() : toCategory(v);
       if (c === null) invalidCount++;
       else validCats.push(c);
     }
@@ -203,31 +206,69 @@ export interface TimeAnalysis {
   deltas: { period: string; absChange: number | null; pctChange: number | null }[];
   volatilePeriods: string[];
   reason: string | null;
+  /** Dot G: khong co cot ngay nhung co cot nam (+ thang) → goi y, khong tu dung truc thoi gian. */
+  timePartColumns?: { year: string; month: string | null } | null;
 }
 
-function toDateKey(v: unknown): Date | null {
+const MONTH_NAMES = new Set([
+  'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+  'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec',
+]);
+const nameHas = (name: string, words: string[]): boolean =>
+  name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).some((t) => words.includes(t));
+
+/**
+ * Dot G (Phan 2 v12 muc 3.44): do cot nam (so nguyen 1900–2100 hoac ten chua year/nam) va cot thang
+ * (ten thang, hoac so 1–12 voi ten chua month/thang). Chi de bao ro, khong dung truc thoi gian.
+ */
+export function detectTimePartColumns(
+  columns: { name: string; dataType: string }[],
+  rows: Record<string, unknown>[],
+): { year: string; month: string | null } | null {
+  const present = (name: string): unknown[] => rows.map((r) => r[name]).filter((v) => !isMissingCell(v));
+  const share = (vals: unknown[], ok: (v: unknown) => boolean): number => (vals.length ? vals.filter(ok).length / vals.length : 0);
+  const isYear = (v: unknown): boolean => { const n = toFiniteNumber(v); return n !== null && Number.isInteger(n) && n >= 1900 && n <= 2100; };
+  const isMonthNum = (v: unknown): boolean => { const n = toFiniteNumber(v); return n !== null && Number.isInteger(n) && n >= 1 && n <= 12; };
+  const isMonthName = (v: unknown): boolean => typeof v === 'string' && MONTH_NAMES.has(v.trim().toLowerCase());
+  const year = columns.find((c) => {
+    const vals = present(c.name);
+    return vals.length > 0 && share(vals, isYear) >= 0.95 && (c.dataType === 'number' || nameHas(c.name, ['year', 'yr', 'nam']));
+  });
+  if (!year) return null;
+  const month = columns.find((c) => {
+    if (c.name === year.name) return false;
+    const vals = present(c.name);
+    if (vals.length === 0) return false;
+    return share(vals, isMonthName) >= 0.95 || (share(vals, isMonthNum) >= 0.95 && nameHas(c.name, ['month', 'mon', 'thang']));
+  });
+  return { year: year.name, month: month?.name ?? null };
+}
+
+/** Dot G: doc ngay bang bo doc CHAT (ngay khong ton tai → null); khong mui gio = UTC. */
+function toDateKey(v: unknown, order: DayMonthOrder | 'either' = 'either'): Date | null {
   if (v === null || v === undefined) return null;
-  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
-  if (typeof v === 'string' || typeof v === 'number') {
+  if (typeof v === 'number') {
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? null : d;
   }
-  return null;
+  const res = parseStrictDate(v, order);
+  return res.ok ? res.date : null;
 }
 
+/** Khoa nhom theo UTC (ngay–gio khong co mui gio duoc hieu la UTC). */
 function bucketKey(d: Date, g: TimeAnalysis['granularity']): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   if (g === 'year') return `${y}`;
   if (g === 'month') return `${y}-${m}`;
   if (g === 'week') {
-    const tmp = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const dow = (tmp.getDay() + 6) % 7;
-    tmp.setDate(tmp.getDate() - dow);
-    const wy = tmp.getFullYear();
-    const wm = String(tmp.getMonth() + 1).padStart(2, '0');
-    const wd = String(tmp.getDate()).padStart(2, '0');
+    const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dow = (tmp.getUTCDay() + 6) % 7;
+    tmp.setUTCDate(tmp.getUTCDate() - dow);
+    const wy = tmp.getUTCFullYear();
+    const wm = String(tmp.getUTCMonth() + 1).padStart(2, '0');
+    const wd = String(tmp.getUTCDate()).padStart(2, '0');
     return `${wy}-W${wm}-${wd}`;
   }
   return `${y}-${m}-${day}`;
@@ -241,10 +282,15 @@ function nextBucket(key: string, g: TimeAnalysis['granularity']): string {
     const ny = (y as number) + ((m as number) === 12 ? 1 : 0);
     return `${ny}-${String(nm).padStart(2, '0')}`;
   }
-  const d = new Date(key.length === 10 ? `${key}T00:00:00` : `${key.slice(0, 10)}T00:00:00`);
+  // tuan: khoa dang YYYY-Www-dd (W + thang) → doi ve YYYY-MM-DD
+  const iso = g === 'week' ? key.replace('-W', '-') : key;
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return key;
-  if (g === 'week') d.setDate(d.getDate() + 7);
-  else d.setDate(d.getDate() + 1);
+  if (g === 'week') {
+    d.setUTCDate(d.getUTCDate() + 7);
+    return bucketKey(d, 'week');
+  }
+  d.setUTCDate(d.getUTCDate() + 1);
   return bucketKey(d, 'day');
 }
 
@@ -253,18 +299,23 @@ export function analyzeTime(
   valueColumn: string | null,
   rows: Record<string, unknown>[],
   granularity: TimeAnalysis['granularity'] = 'day',
+  allColumns: { name: string; dataType: string }[] = [],
 ): TimeAnalysis {
   if (!timeColumn) {
+    const parts = detectTimePartColumns(allColumns, rows);
     return {
       status: 'no_time_column', timeColumn: null, granularity, buckets: [],
-      emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [], reason: 'no_suitable_time_column',
+      emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [],
+      reason: parts ? 'time_parts_without_date_column' : 'no_suitable_time_column',
+      timePartColumns: parts,
     };
   }
+  const order = dateOrderOf(rows.map((r) => r[timeColumn]));
   const byBucket = new Map<string, { dates: Date[]; values: number[]; missing: number; invalid: number }>();
   let invalidDates = 0;
   let missingDates = 0;
   for (const r of rows) {
-    const d = toDateKey(r[timeColumn]);
+    const d = toDateKey(r[timeColumn], order);
     if (d === null) {
       if (isMissingCell(r[timeColumn])) missingDates++;
       else invalidDates++;

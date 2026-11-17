@@ -102,6 +102,39 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     lines: recommendations.length > 0 ? recommendations.slice(0, Math.max(20, topN)).map((r) => `• ${r}`) : ['(chưa có khuyến nghị)'],
   });
 
+  // Dot G (Phan 2 v12 muc 3.44): nhom Nghi van — khong phai loi da xac nhan, khong co muc anh huong
+  const suspicions = arr<Record<string, unknown>>(summary.suspicions);
+  const SUSPICION_LABEL: Record<string, string> = {
+    missing_token: 'Ký hiệu thiếu',
+    case_variant: 'Nhiều cách viết',
+    whitespace: 'Khoảng trắng thừa',
+    sentinel: 'Mã sentinel',
+    constant_column: 'Cột hằng',
+    ambiguous_date_format: 'Ngày mơ hồ',
+  };
+  sections.push({
+    heading: '3b. Cần xác nhận với nguồn (nghi vấn)',
+    lines: suspicions.length > 0
+      ? [
+          'Các điểm dưới đây CHƯA phải lỗi đã xác nhận: không có mức ảnh hưởng, không tính vào Top phát hiện, hệ thống không tự sửa.',
+          ...suspicions.map((s) => `• ${String(s.message ?? '')} → ${String(s.recommendation ?? '')}`),
+        ]
+      : ['Không có điểm nghi vấn.'],
+    table: suspicions.length > 0
+      ? {
+          headers: ['Loại', 'Cột', 'Số ô', 'Tỷ lệ', 'Ví dụ'],
+          widths: [0.17, 0.18, 0.09, 0.09, 0.47],
+          rows: suspicions.map((s) => [
+            SUSPICION_LABEL[String(s.kind)] ?? String(s.kind),
+            String(s.column ?? ''),
+            fmt(s.count, 0),
+            typeof s.rate === 'number' ? `${(s.rate * 100).toFixed(2)}%` : '-',
+            arr<string>(s.examples).join('; '),
+          ]),
+        }
+      : undefined,
+  });
+
   if (!result) {
     sections.push({
       heading: '4. Kết quả phân tích chi tiết',
@@ -255,6 +288,9 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     lines: time
       ? [
           `Cột thời gian: ${time.timeColumn ?? '(không có)'} · mức tổng hợp: ${time.granularity} · trạng thái: ${time.status}`,
+          ...(obj(time.timePartColumns)
+            ? [`Dữ liệu có cột năm "${String(obj(time.timePartColumns)?.year)}"${obj(time.timePartColumns)?.month ? ` và cột tháng "${String(obj(time.timePartColumns)?.month)}"` : ''} nhưng không có cột ngày — hệ thống không tự dựng trục thời gian; cần cột ngày để phân tích theo thời gian.`]
+            : []),
           `Kỳ trống: ${arr(time.emptyBuckets).length} (chuỗi trống dài nhất: ${fmt(time.longestEmptyRun, 0)}); kỳ biến động: ${arr<string>(time.volatilePeriods).join(', ') || '-'}`,
           'Khoảng trống hoặc biến động không mặc định là lỗi.',
         ]

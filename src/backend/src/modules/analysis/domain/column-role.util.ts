@@ -94,7 +94,8 @@ export function inferColumnRole(
     if (p.allInteger && idName && distinctOfValid >= IDENTIFIER_MIN_DISTINCT_RATIO) {
       return { role: 'identifier', uncertain: false, reason: 'identifier_name_and_unique_integer' };
     }
-    if (p.distinct <= CATEGORY_MAX_DISTINCT && distinctOfValid <= CATEGORY_MAX_DISTINCT_OF_VALID) {
+    // Dot G (RC-15): chi so NGUYEN it gia tri moi la phan loai; so thap phan (vd tien cau duong) la dinh luong
+    if (p.allInteger && p.distinct <= CATEGORY_MAX_DISTINCT && distinctOfValid <= CATEGORY_MAX_DISTINCT_OF_VALID) {
       return { role: 'category', uncertain: true, reason: 'numeric_few_repeated_values' };
     }
     return { role: 'measure', uncertain: idName, reason: idName ? 'identifier_name_but_not_unique' : 'numeric' };

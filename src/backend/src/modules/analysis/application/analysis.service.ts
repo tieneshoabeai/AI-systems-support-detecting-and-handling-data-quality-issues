@@ -61,7 +61,8 @@ import {
   type AnalysisRole,
   type ColumnRoleInfo,
 } from '../domain/column-role.util';
-import { computeDq0102, computeDq03, detectOutliers, isMissingCell, isValidByType } from '../domain/dq.util';
+import { computeDq0102, computeDq03, dateOrderOf, detectOutliers, isMissingCell, isValidByType } from '../domain/dq.util';
+import { detectSuspicions } from '../domain/suspicion.util';
 import { describeColumn, evaluateImbalance, analyzeTime } from '../domain/stats.util';
 import { toFiniteNumber } from '../domain/correlation.util';
 import { boxPlot, categoryTopN, clampChartTopN, histogram, type ChartData } from '../domain/chart-data.util';
@@ -191,7 +192,9 @@ export class AnalysisService {
     const stored = await this.analysisRepository.findConfigByProject(projectId).catch(() => null);
     const cfgGranularity = stored?.timeGranularity ?? 'day';
     const cols = dataset.columns;
-    const allInferable = cols.filter((c) => classifyColumn(c.dataType) !== 'excluded');
+    // Dot G (RC-14, Phan 2 v12 muc 3.44): khong chon cot → MOI cot vao DQ (ke ca cot ngay).
+    // Loc cot cho tuong quan/VIF lam rieng theo vai tro (datetime/identifier/text bi loai kem ly do).
+    const allInferable = cols;
     // D2: cau hinh tham chieu cot bang KEY bat bien; van nhan ten hien tai/ten goc (du lieu cu, request)
     const requestedCols = dto.selected_columns && dto.selected_columns.length > 0 ? dto.selected_columns : stored?.selectedColumns ?? null;
     let selectedCols: typeof cols;
@@ -206,7 +209,7 @@ export class AnalysisService {
       selectedCols = allInferable;
     }
     if (selectedCols.length === 0) {
-      throw new BadRequestException('Không có cột suy luận được để phân tích (toàn bộ là date/không hỗ trợ)');
+      throw new BadRequestException('Dataset không có cột nào để phân tích');
     }
     const selectedKeys = selectedCols.map((c) => c.name); // ten hien tai — dung noi bo cho tinh toan/hien thi
 
@@ -322,6 +325,10 @@ export class AnalysisService {
       }
 
       const dqBase = computeDq0102(selectedKeys, rowWrappers);
+      // Dot G: thu tu ngay/thang (DD/MM hay MM/DD) cua tung cot ngay, dung chung cho DQ-03 / bang chung / mau AI
+      const dateOrderByCol = new Map(
+        selectedKeys.filter((c) => colTypeByName.get(c) === 'date').map((c) => [c, dateOrderOf(rowWrappers.map((w) => w.values[c]))] as const),
+      );
       const dq03Rows = computeDq03(
         selectedKeys.map((c) => ({ column: c, dataType: colTypeByName.get(c) ?? 'string' })),
         rowWrappers,
@@ -421,7 +428,15 @@ export class AnalysisService {
         describeColumn(c, colTypeByName.get(c) ?? 'string', rowWrappers.map((w) => w.values[c])),
       );
       const imbalance = evaluateImbalance(labelColumn, labelDataType, rows);
-      const timeAnalysis = analyzeTime(timeColumn, valueColumn, rows, cfgGranularity as 'day' | 'week' | 'month' | 'year');
+      const timeAnalysis = analyzeTime(
+        timeColumn, valueColumn, rows, cfgGranularity as 'day' | 'week' | 'month' | 'year',
+        cols.map((c) => ({ name: c.name, dataType: c.dataType })),
+      );
+      // Dot G: nhom Nghi van — chi luu noi bo cho Tong ket/PDF, khong tra trong API ket qua, khong gui AI
+      const suspicions = detectSuspicions(
+        selectedCols.map((c) => ({ name: c.name, dataType: c.dataType, role: roleByName.get(c.name) ?? null, isPii: Boolean(c.isPii) })),
+        rows,
+      );
       charts.timeSeries = timeAnalysis.status === 'evaluated'
         ? timeAnalysis.buckets.map((b) => ({ period: b.period, recordCount: b.recordCount }))
         : null;
@@ -459,7 +474,7 @@ export class AnalysisService {
           if (n >= 20) break;
           const v = w.values[c];
           if (isMissingCell(v)) continue;
-          const chk = isValidByType(v, colTypeByName.get(c) ?? 'string');
+          const chk = isValidByType(v, colTypeByName.get(c) ?? 'string', dateOrderByCol.get(c) ?? 'either');
           if (!chk.valid) {
             pushEv(c, w.rowIndex, 'invalid_type', chk.reason, v);
             n++;
@@ -495,7 +510,7 @@ export class AnalysisService {
         for (const w of rowWrappers) {
           if (samples.length >= 20) break;
           const v = w.values[col.key];
-          if (!isMissingCell(v) && !isValidByType(v, dt).valid) add(v);
+          if (!isMissingCell(v) && !isValidByType(v, dt, dateOrderByCol.get(col.key) ?? 'either').valid) add(v);
         }
         for (const ri of outlierByCol.get(col.key)?.union ?? []) add(wrapperByRowIndex.get(ri)?.values[col.key]);
         for (const ri of dupRowIndexes) add(wrapperByRowIndex.get(ri)?.values[col.key]);
@@ -571,6 +586,7 @@ export class AnalysisService {
         charts,
         column_roles: columnRoles,
         ai_samples: maskedSamples,
+        suspicions,
       } as Partial<Parameters<AnalysisRepositoryPort['saveResult']>[0]>);
 
       let previewFewShotBlock = '';

@@ -104,6 +104,8 @@ export interface IAnalysisResult extends Document, BaseEntity {
   column_roles: unknown | null;
   /** Đợt F: mẫu ô lỗi đã che gửi AI (≤ 20/cột). */
   ai_samples: Record<string, string[]> | null;
+  /** Đợt G: nhóm Nghi vấn (nội bộ, chỉ dùng cho Tổng kết/PDF). */
+  suspicions: unknown[] | null;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -129,6 +131,7 @@ export const AnalysisResultSchema = new Schema<IAnalysisResult>(
     charts: { type: Schema.Types.Mixed, default: null },
     column_roles: { type: Schema.Types.Mixed, default: null },
     ai_samples: { type: Schema.Types.Mixed, default: null },
+    suspicions: { type: Schema.Types.Mixed, default: null },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
