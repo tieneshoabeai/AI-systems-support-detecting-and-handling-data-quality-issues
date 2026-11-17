@@ -71,3 +71,5 @@ remember/
 
 # Claude Code local skills
 .claude/
+# Bản xuất DOCX của tài liệu SRS (sinh từ markdown)
+docs/srs/*.docx
