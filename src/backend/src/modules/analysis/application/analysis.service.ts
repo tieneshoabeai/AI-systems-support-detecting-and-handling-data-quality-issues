@@ -48,24 +48,35 @@ export interface AnalysisConfigInput {
   outlier_method: 'iqr' | 'modified_zscore' | 'both';
   top_n: number;
   chart_top_n?: number;
+  /** Đợt F: ghi đè vai trò cột (key → vai trò). undefined → giữ ghi đè đã lưu; null → xóa. */
+  column_roles?: Record<string, string> | null;
 }
 import { ConfigService } from '@nestjs/config';
 import { RagFewShotService } from './services/rag-few-shot.service';
-import { maskCell } from '../domain/pii-mask.util';
+import { maskForAi } from '../domain/pii-mask.util';
+import {
+  correlationExclusionReason,
+  inferColumnRoles,
+  isRoleAllowedForType,
+  type AnalysisRole,
+  type ColumnRoleInfo,
+} from '../domain/column-role.util';
 import { computeDq0102, computeDq03, detectOutliers, isMissingCell, isValidByType } from '../domain/dq.util';
 import { describeColumn, evaluateImbalance, analyzeTime } from '../domain/stats.util';
 import { toFiniteNumber } from '../domain/correlation.util';
 import { boxPlot, categoryTopN, clampChartTopN, histogram, type ChartData } from '../domain/chart-data.util';
 
-/**
- * Phần 12 v8 §3.6b #2 — Che PII trước khi đưa mẫu vào prompt AI.
- * Cột đánh dấu PII → luôn che. Ô không che được → loại khỏi prompt.
- */
-function maskSampleValue(value: unknown, columnMarkedPII: boolean): string | null {
-  const res = maskCell(value, columnMarkedPII);
-  if (res.dropped) return null;
-  if (res.value !== null) return res.value;
-  return 'null';
+/** Đợt F: chỉ giữ ghi đè vai trò của cột còn trong dataset và hợp lệ với kiểu cột. */
+function sanitizeRoleOverrides(
+  roles: Record<string, string> | null | undefined,
+  cols: { key: string; dataType: string }[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, role] of Object.entries(roles ?? {})) {
+    const c = cols.find((x) => x.key === key);
+    if (c && isRoleAllowedForType(role as AnalysisRole, c.dataType)) out[key] = role;
+  }
+  return out;
 }
 
 /** Doi key cot (props) sang ten cot hien thi; ho tro ban ghi cu dung `data`. */
@@ -222,6 +233,7 @@ export class AnalysisService {
       outlierMethod: dto.outlier_method,
       topN: dto.top_n,
       timeGranularity: cfgGranularity,
+      columnRoles: sanitizeRoleOverrides(stored?.columnRoles, cols),
     };
     const config = {
       fingerprint_version: FINGERPRINT_VERSION,
@@ -238,6 +250,7 @@ export class AnalysisService {
       time_granularity: cfgGranularity,
       value_column: valueColumn,
       value_column_key: resolvedCfg.valueKey,
+      column_roles: resolvedCfg.columnRoles ?? {},
     };
     const fp = computeInputFingerprint(
       { id: dataset.id, fileChecksum: dataset.fileChecksum, rowCount: dataset.rowCount, columns: cols },
@@ -265,43 +278,37 @@ export class AnalysisService {
       }));
       const rows: Record<string, unknown>[] = rowWrappers.map((w) => w.values);
 
+      // Đợt F (Phần 12 v10 mục 3.19): vai trò cột quyết định tương quan / VIF / DQ-04
+      const columnRoles: ColumnRoleInfo[] = inferColumnRoles(
+        selectedCols.map((c) => ({ key: c.key, name: c.name, dataType: c.dataType })),
+        rows,
+        resolvedCfg.columnRoles,
+      );
+      const roleByName = new Map<string, AnalysisRole>(columnRoles.map((r) => [r.name, r.role] as const));
       const analyzable: AnalyzableColumn[] = selectedKeys.map((key) => {
         const col = dataset.columns.find((c) => c.name === key);
-        const role = classifyColumn(col?.dataType ?? 'string');
-        return {
-          key,
-          role,
-          reason:
-            role === 'excluded'
-              ? col?.dataType === 'date'
-                ? 'date_column_excluded_from_correlation_vif'
-                : `unsupported_data_type_${col?.dataType ?? 'unknown'}`
-              : null,
-        };
+        const role = roleByName.get(key) ?? 'text';
+        const typeRole = classifyColumn(col?.dataType ?? 'string');
+        if (typeRole === 'excluded' && role !== 'datetime') {
+          return { key, role: 'excluded', reason: `unsupported_data_type_${col?.dataType ?? 'unknown'}` };
+        }
+        const exclusion = correlationExclusionReason(role);
+        if (exclusion) return { key, role: 'excluded', reason: exclusion };
+        return { key, role: role === 'measure' ? 'numeric' : 'categorical', reason: null };
       });
 
       const { cells, notes } = buildCorrelationMatrix(analyzable, rows, dto.correlation_method);
-      const numericCols = analyzable.filter((c) => c.role === 'numeric').map((c) => c.key);
+      // ANALYSIS-05: VIF chỉ trên cột định lượng, loại cột nhãn và định danh
+      const numericCols = analyzable
+        .filter((c) => c.role === 'numeric' && c.key !== labelColumn)
+        .map((c) => c.key);
       const vifComp = computeVif(numericCols, rows);
 
       const piiColumnKeys = new Set(
         dataset.columns.filter((c) => c.isPii).map((c) => c.name),
       );
-      const maskedSamples: Record<string, string[]> = {};
-      for (const col of analyzable) {
-        if (col.role === 'excluded') continue;
-        const samples: string[] = [];
-        const markedPii = piiColumnKeys.has(col.key);
-        for (const row of rows) {
-          if (samples.length >= 20) break;
-          const v = row[col.key];
-          if (v === null || v === undefined || v === '') continue;
-          const masked = maskSampleValue(v, markedPii);
-          if (masked === null) continue; // ô không che được → loại khỏi prompt
-          samples.push(masked);
-        }
-        maskedSamples[col.key] = samples;
-      }
+      const maskOf = (column: string, raw: unknown): string | null =>
+        maskForAi(raw, { markedPii: piiColumnKeys.has(column), role: roleByName.get(column) ?? null })?.value ?? null;
 
       const usedPerColumn = new Map<string, { used: number; excluded: number }>();
       for (const col of analyzable) {
@@ -334,6 +341,8 @@ export class AnalysisService {
           if (n !== null) vals.push({ rowIndex: w.rowIndex, value: n });
         }
         numericValues.set(key, vals.map((x) => x.value));
+        // Đợt F: DQ-04 chỉ chạy trên cột định lượng (không áp cho định danh / phân loại mã hóa số)
+        if (roleByName.get(key) !== 'measure') continue;
         const out = detectOutliers(key, vals, dto.outlier_method);
         outlierByCol.set(key, {
           union: out.union,
@@ -359,6 +368,7 @@ export class AnalysisService {
           outlierCount,
           outlierRate: rowWrappers.length > 0 ? Number((outlierCount / rowWrappers.length).toFixed(4)) : null,
           outlierBreakdown: out ? out.breakdown : null,
+          outlierSkippedReason: !out && colTypeByName.get(c.column) === 'number' ? 'not_measure_column' : null,
           method: out ? `dq01_dq03_${out.method}` : c.method,
           reason: out?.reason ?? c.reason,
         };
@@ -386,15 +396,18 @@ export class AnalysisService {
         categories: [],
         timeSeries: null,
       };
+      // Đợt F: biểu đồ theo vai trò cột — measure: histogram/box; category: Top N;
+      // identifier/text: không vẽ (không in giá trị định danh/họ tên ra Top N của PDF)
       for (const key of selectedKeys) {
         const dt = colTypeByName.get(key) ?? 'string';
-        if (dt === 'number') {
+        const role = roleByName.get(key);
+        if (role === 'measure') {
           const xs = numericValues.get(key) ?? [];
           const h = histogram(key, xs);
           const b = boxPlot(key, xs);
           if (h) charts.histograms.push(h);
           if (b) charts.boxPlots.push(b);
-        } else if (dt === 'string' || dt === 'boolean') {
+        } else if (role === 'category' && dt !== 'date' && !piiColumnKeys.has(key)) {
           const vs: string[] = [];
           for (const w of rowWrappers) {
             const v = w.values[key];
@@ -418,13 +431,7 @@ export class AnalysisService {
         const used = perColCount.get(column) ?? 0;
         if (used >= 20) return;
         perColCount.set(column, used + 1);
-        const isPii = piiColumnKeys.has(column);
-        let masked: string | null = null;
-        if (kind === 'missing') masked = null;
-        else {
-          const mv = maskSampleValue(raw, isPii);
-          masked = mv ?? '***';
-        }
+        const masked: string | null = kind === 'missing' ? null : maskOf(column, raw);
         evidenceDocs.push({
           analysis_run_id: run.id,
           project_id: project.id,
@@ -472,6 +479,27 @@ export class AnalysisService {
         for (const ri of out.union.slice(0, 20)) {
           pushEv(col, ri, 'outlier', out.reason ?? 'dq04_outlier', wrapperByRowIndex.get(ri)?.values[col] ?? null);
         }
+      }
+      // Đợt F: mẫu gửi AI = ô LỖI (sai kiểu, ngoại lệ, trùng) đã che, tối đa 20 ô/cột
+      const maskedSamples: Record<string, string[]> = {};
+      const dupRowIndexes = dqBase.duplicateGroups.flatMap((g) => g.rowIndexes as number[]);
+      for (const col of analyzable) {
+        if (col.role === 'excluded') continue;
+        const samples: string[] = [];
+        const add = (raw: unknown): void => {
+          if (samples.length >= 20) return;
+          const m = maskOf(col.key, raw);
+          if (m !== null) samples.push(m);
+        };
+        const dt = colTypeByName.get(col.key) ?? 'string';
+        for (const w of rowWrappers) {
+          if (samples.length >= 20) break;
+          const v = w.values[col.key];
+          if (!isMissingCell(v) && !isValidByType(v, dt).valid) add(v);
+        }
+        for (const ri of outlierByCol.get(col.key)?.union ?? []) add(wrapperByRowIndex.get(ri)?.values[col.key]);
+        for (const ri of dupRowIndexes) add(wrapperByRowIndex.get(ri)?.values[col.key]);
+        maskedSamples[col.key] = samples;
       }
       await this.analysisRepository.insertEvidences(
         evidenceDocs as unknown as Partial<Parameters<AnalysisRepositoryPort['insertEvidences']>[0][number]>[],
@@ -541,6 +569,8 @@ export class AnalysisService {
         timeAnalysis,
         evidenceSummary,
         charts,
+        column_roles: columnRoles,
+        ai_samples: maskedSamples,
       } as Partial<Parameters<AnalysisRepositoryPort['saveResult']>[0]>);
 
       let previewFewShotBlock = '';
@@ -568,6 +598,7 @@ export class AnalysisService {
           .map((c) => ({
             key: c.key,
             role: c.role,
+            analysisRole: roleByName.get(c.key),
             usedRows: usedPerColumn.get(c.key)?.used ?? 0,
             excludedRows: usedPerColumn.get(c.key)?.excluded ?? 0,
           })),
@@ -871,6 +902,25 @@ export class AnalysisService {
     }
     if (time && typeOf(time) !== 'date') throw new BadRequestException('time_column phải là cột date');
     if (value && typeOf(value) !== 'number') throw new BadRequestException('value_column phải là cột số');
+    // Đợt F (Phần 7 v8 mục 3.19): ghi đè vai trò cột theo key
+    let columnRoles: Record<string, string> | undefined;
+    if (dto.column_roles !== undefined) {
+      columnRoles = {};
+      for (const [key, role] of Object.entries(dto.column_roles ?? {})) {
+        const c = cols.find((x) => x.key === key);
+        if (!c) {
+          throw new BadRequestException({ message: `column_roles có key không tồn tại: ${key}`, error: 'unknown_column', details: { key } } as never);
+        }
+        if (!isRoleAllowedForType(role as AnalysisRole, c.dataType)) {
+          throw new BadRequestException({
+            message: `Vai trò ${role} không hợp lệ cho cột ${c.name} (kiểu ${c.dataType})`,
+            error: 'invalid_column_role',
+            details: { key, role, dataType: c.dataType },
+          } as never);
+        }
+        columnRoles[key] = role;
+      }
+    }
     const saved = await this.analysisRepository.upsertConfig(projectId, project.workspaceId.toString(), {
       project_id: project.id,
       selected_columns: selected,
@@ -882,6 +932,7 @@ export class AnalysisService {
       outlier_method: dto.outlier_method,
       top_n: dto.top_n,
       chart_top_n: dto.chart_top_n ?? 5,
+      ...(columnRoles !== undefined ? { column_roles: columnRoles } : {}),
     });
     await this.analysisRepository.markResultsStale(projectId, '000000000000000000000000', 'config_changed');
     return this.configShape(projectId, saved, cols);
@@ -895,7 +946,7 @@ export class AnalysisService {
       return {
         projectId, selectedColumns: null, selectedColumnRefs: null, labelColumn: null, labelColumnRef: null,
         timeColumn: null, timeColumnRef: null, timeGranularity: 'day', valueColumn: null, valueColumnRef: null,
-        correlationMethod: 'pearson', outlierMethod: 'iqr', topN: 50, chartTopN: 5,
+        correlationMethod: 'pearson', outlierMethod: 'iqr', topN: 50, chartTopN: 5, columnRoles: {},
       };
     }
     const dataset = await this.datasetsRepository.findByProject(projectId).catch(() => null);
@@ -908,7 +959,7 @@ export class AnalysisService {
    */
   private configShape(
     projectId: string,
-    saved: { selectedColumns: string[] | null; labelColumn: string | null; timeColumn: string | null; timeGranularity: string; valueColumn: string | null; correlationMethod?: string; outlierMethod?: string; topN?: number; chartTopN?: number },
+    saved: { selectedColumns: string[] | null; labelColumn: string | null; timeColumn: string | null; timeGranularity: string; valueColumn: string | null; correlationMethod?: string; outlierMethod?: string; topN?: number; chartTopN?: number; columnRoles?: Record<string, string> | null },
     cols: { key: string; name: string; originalName?: string | null; dataType: string }[],
   ): Record<string, unknown> {
     const ref = (r: string | null): { key: string; name: string | null } | null => {
@@ -935,6 +986,7 @@ export class AnalysisService {
       outlierMethod: saved.outlierMethod,
       topN: saved.topN,
       chartTopN: saved.chartTopN ?? 5,
+      columnRoles: saved.columnRoles ?? {},
     };
   }
 
@@ -960,23 +1012,14 @@ export class AnalysisService {
         roleByKey.set(c.name, classifyColumn(c.dataType));
       }
     }
-    const piiColumnKeys = new Set(
-      (dataset?.columns ?? []).filter((c) => c.isPii).map((c) => c.name),
-    );
-    const maskedSamples: Record<string, string[]> = {};
-    for (const key of result.correlationMatrix.columns) {
-      const samples: string[] = [];
-      const markedPii = piiColumnKeys.has(key);
-      for (const row of rows) {
-        if (samples.length >= 20) break;
-        const v = row[key];
-        if (v === null || v === undefined || v === '') continue;
-        const masked = maskSampleValue(v, markedPii);
-        if (masked === null) continue; // ô không che được → loại khỏi prompt
-        samples.push(masked);
+    // Đợt F: vai trò cột + mẫu ô lỗi đã che lưu sẵn ở kết quả (kết quả cũ không có → không gửi mẫu)
+    const analysisRoleByName = new Map<string, string>();
+    if (Array.isArray(result.columnRoles)) {
+      for (const r of result.columnRoles as { name?: unknown; role?: unknown }[]) {
+        if (typeof r.name === 'string' && typeof r.role === 'string') analysisRoleByName.set(r.name, r.role);
       }
-      maskedSamples[key] = samples;
     }
+    const maskedSamples: Record<string, string[]> = result.aiSamples ?? {};
     const columns = result.correlationMatrix.columns.map((key) => {
       let used = 0;
       for (const row of rows) {
@@ -984,9 +1027,12 @@ export class AnalysisService {
         if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) continue;
         used++;
       }
-      return { key, role: roleByKey.get(key) ?? 'unknown', usedRows: used, excludedRows: rows.length - used };
+      const analysisRole = analysisRoleByName.get(key);
+      const role = analysisRole ? (analysisRole === 'measure' ? 'numeric' : 'categorical') : roleByKey.get(key) ?? 'unknown';
+      return { key, role, ...(analysisRole ? { analysisRole } : {}), usedRows: used, excludedRows: rows.length - used };
     });
-    const excludedColumns = (dataset?.columns ?? [])
+    const storedExcluded = (result.correlationMatrix as { excludedColumns?: { column: string; reason: string }[] }).excludedColumns;
+    const excludedColumns = Array.isArray(storedExcluded) ? storedExcluded : (dataset?.columns ?? [])
       .filter((c) => classifyColumn(c.dataType) === 'excluded')
       .map((c) => ({
         column: c.name,
@@ -1046,6 +1092,7 @@ export class AnalysisService {
       imbalance: (result as unknown as { imbalance?: unknown }).imbalance ?? null,
       timeAnalysis: (result as unknown as { timeAnalysis?: unknown }).timeAnalysis ?? null,
       charts: result.charts ?? null,
+      columnRoles: result.columnRoles ?? null,
       evidenceSummary: (result as unknown as { evidenceSummary?: unknown }).evidenceSummary ?? null,
       correlationMatrix: result.correlationMatrix,
       vif: result.vif,

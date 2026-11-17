@@ -129,7 +129,7 @@ export class DatasetsController {
   }
 
   @Patch('datasets/:id/columns')
-  @ApiOperation({ summary: 'Wave 4: Doi ten cot hien thi - key c{i} bat bien' })
+  @ApiOperation({ summary: 'Wave 4: Doi ten cot hien thi (key c{i} bat bien); dot F: danh dau cot PII (is_pii)' })
   @ApiZodBody(RenameColumnsSchema)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
   async renameColumns(

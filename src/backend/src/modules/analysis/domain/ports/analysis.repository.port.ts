@@ -62,6 +62,8 @@ export interface AnalysisResultRecord {
   timeAnalysis?: unknown;
   evidenceSummary?: unknown;
   charts?: unknown;
+  columnRoles?: unknown;
+  aiSamples?: Record<string, string[]> | null;
   aiCorrelationAssessment?: unknown;
   isStale: boolean;
   staleReason?: string | null;
@@ -111,6 +113,7 @@ export interface AnalysisConfigRecord {
   outlierMethod?: string;
   topN?: number;
   chartTopN?: number;
+  columnRoles?: Record<string, string> | null;
   // snake aliases cu
   selected_columns?: string[] | null;
   label_column?: string | null;
@@ -121,6 +124,7 @@ export interface AnalysisConfigRecord {
   outlier_method?: string;
   top_n?: number;
   chart_top_n?: number;
+  column_roles?: Record<string, string> | null;
 }
 
 export interface ProjectSaveRecord {

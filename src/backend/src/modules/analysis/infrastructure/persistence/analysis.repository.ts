@@ -290,7 +290,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const camelMap: Record<string, string> = {
       selectedColumns: 'selected_columns', labelColumn: 'label_column', timeColumn: 'time_column',
       timeGranularity: 'time_granularity', valueColumn: 'value_column',
-      correlationMethod: 'correlation_method', outlierMethod: 'outlier_method', topN: 'top_n', chartTopN: 'chart_top_n',
+      correlationMethod: 'correlation_method', outlierMethod: 'outlier_method', topN: 'top_n', chartTopN: 'chart_top_n', columnRoles: 'column_roles',
     };
     for (const [camel, snake] of Object.entries(camelMap)) {
       if (set[camel] !== undefined && set[snake] === undefined) { set[snake] = set[camel]; delete set[camel]; }

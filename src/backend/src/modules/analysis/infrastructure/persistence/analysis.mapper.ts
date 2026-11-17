@@ -86,6 +86,8 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     timeAnalysis: (raw.timeAnalysis ?? null) as unknown,
     evidenceSummary: (raw.evidenceSummary ?? null) as unknown,
     charts: (raw.charts ?? null) as unknown,
+    columnRoles: (raw.column_roles ?? null) as unknown,
+    aiSamples: (raw.ai_samples ?? null) as Record<string, string[]> | null,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,
@@ -131,6 +133,7 @@ export function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigReco
     outlierMethod: doc.outlier_method ?? 'iqr',
     topN: doc.top_n ?? 50,
     chartTopN: doc.chart_top_n ?? 5,
+    columnRoles: (doc.column_roles ?? null) as Record<string, string> | null,
   };
 }
 

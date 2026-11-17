@@ -5,6 +5,7 @@
  * Ham thuan (khong I/O) de test duoc doc lap voi worker.
  */
 import type { PdfSection } from './pdf-builder.util';
+import { upperTriangleCells } from '../domain/ai-grounding.util';
 import type {
   AnalysisResultRecord,
   CellEvidenceRecord,
@@ -111,9 +112,25 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
 
   const corr = result.correlationMatrix ?? result.correlation ?? null;
   const corrLines: string[] = [];
+  // Đợt F (Phần 12 v10 mục 3.19): mỗi cặp không thứ tự in một lần, bỏ đường chéo, xếp theo |hệ số| giảm dần
+  const pairCells = corr
+    ? upperTriangleCells(arr<Record<string, unknown> & { colA: string; colB: string }>(corr.cells)).sort((a, b) => {
+        const ca = typeof a.coef === 'number' && a.computable !== false ? Math.abs(a.coef) : -1;
+        const cb = typeof b.coef === 'number' && b.computable !== false ? Math.abs(b.coef) : -1;
+        return cb - ca;
+      })
+    : [];
   if (corr) {
     corrLines.push(`Phương pháp số–số: ${corr.method}; số–phân loại: η²; phân loại–phân loại: Cramér's V.`);
-    corrLines.push(`Tổng dòng quét: ${fmt(corr.totalScanned, 0)}.`);
+    corrLines.push(`Tổng dòng quét: ${fmt(corr.totalScanned, 0)}. ${pairCells.length} cặp cột (mỗi cặp một lần, bỏ đường chéo), xếp theo |hệ số| giảm dần.`);
+    const roles = arr<{ name?: string; role?: string; source?: string; uncertain?: boolean }>(result.columnRoles);
+    if (roles.length > 0) {
+      corrLines.push(
+        `Vai trò cột: ${roles
+          .map((r) => `${String(r.name)} = ${String(r.role)}${r.source === 'user' ? ' (người dùng)' : r.uncertain ? ' (chưa chắc chắn)' : ''}`)
+          .join('; ')}.`,
+      );
+    }
     for (const ex of arr<{ column: string; reason: string }>(corr.excludedColumns)) {
       corrLines.push(`Cột bị loại: ${ex.column} — ${ex.reason}`);
     }
@@ -125,7 +142,7 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
       ? {
           headers: ['Cột A', 'Cột B', 'Hệ số', 'Loại', 'n', 'Ghi chú'],
           widths: [0.22, 0.22, 0.1, 0.14, 0.08, 0.24],
-          rows: arr<Record<string, unknown>>(corr.cells).map((c) => [
+          rows: pairCells.map((c) => [
             String(c.colA),
             String(c.colB),
             fmt(c.coef),

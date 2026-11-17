@@ -133,6 +133,14 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     expect((byProject as unknown as Record<string, unknown>)?.storageKey).toBeUndefined();
   });
 
+  it('Dot F AN-33: PATCH cot nhan is_pii, khong doi ten khi chi gui is_pii', async () => {
+    const before = (await service.getDatasetById(mockDatasetId)).columns.find((c) => c.key === 'c0')?.name;
+    const out = await service.renameColumns(mockDatasetId, { columns: [{ key: 'c0', is_pii: true }] });
+    const c0 = out.columns.find((c) => c.key === 'c0');
+    expect(c0?.isPii).toBe(true);
+    expect(c0?.name).toBe(before);
+  });
+
   it('S21: rename doi name, giu key bat bien + tinh lai issues; M15 reset + dao nguoc props', async () => {
     const renamed = await service.renameColumns(mockDatasetId, {
       columns: [{ key: 'c0', name: 'Ho Ten' }],

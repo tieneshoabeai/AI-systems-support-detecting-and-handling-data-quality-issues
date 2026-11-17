@@ -100,6 +100,10 @@ export interface IAnalysisResult extends Document, BaseEntity {
   timeAnalysis: unknown | null;
   evidenceSummary: { total: number; byKind: Record<string, number>; byColumn: Record<string, number>; capped: boolean } | null;
   charts: unknown | null;
+  /** Đợt F: vai trò cột của lần chạy. */
+  column_roles: unknown | null;
+  /** Đợt F: mẫu ô lỗi đã che gửi AI (≤ 20/cột). */
+  ai_samples: Record<string, string[]> | null;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -123,6 +127,8 @@ export const AnalysisResultSchema = new Schema<IAnalysisResult>(
     timeAnalysis: { type: Schema.Types.Mixed, default: null },
     evidenceSummary: { type: Schema.Types.Mixed, default: null },
     charts: { type: Schema.Types.Mixed, default: null },
+    column_roles: { type: Schema.Types.Mixed, default: null },
+    ai_samples: { type: Schema.Types.Mixed, default: null },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },

@@ -1,7 +1,7 @@
 import { buildCorrelationMatrix, computePairCell } from './correlation.util';
 import { computeVif } from './vif.util';
 import { groundAiAssessment } from './ai-grounding.util';
-import { maskCell, maskColumnSamples } from './pii-mask.util';
+import { maskForAi, maskColumnSamples } from './pii-mask.util';
 import {
   computeTrustScore,
   cosineSimilarity,
@@ -199,30 +199,28 @@ describe('v8: Zod strict + sap xep + giu toan bo (nhom A)', () => {
   });
 });
 
-describe('v8: che PII (regex + cot danh dau PII)', () => {
+describe('dot F: che PII theo vai tro cot', () => {
+  const plain = { markedPii: false, role: 'category' as const };
   it('email / dien thoai / CCCD kiem regex → thay bang ***', () => {
-    expect(maskCell('user@example.com', false).value).toBe('***');
-    expect(maskCell('0901234567', false).value).toBe('***');
-    expect(maskCell('079123456789', false).value).toBe('***');
+    expect(maskForAi('user@example.com', plain)?.value).toBe('***');
+    expect(maskForAi('0901234567', plain)?.value).toBe('***');
+    expect(maskForAi('079123456789', plain)?.value).toBe('***');
   });
-  it('cot duoc danh dau PII → luon che du gia tri khop regex', () => {
-    const res = maskCell('Binh An', true);
-    expect(res.masked).toBe(true);
-    expect(res.value).toBe('***');
+  it('cot duoc danh dau PII → luon che', () => {
+    expect(maskForAi('Binh An', { markedPii: true, role: 'category' })).toEqual({ value: '***', kind: 'pii' });
   });
-  it('o khong che duoc → loai khoi prompt (dropped)', () => {
-    const res = maskCell('Binh An', false);
-    expect(res.dropped).toBe(true);
-    expect(res.value).toBeNull();
+  it('cot text/identifier → dang mau, khong loai o', () => {
+    expect(maskForAi('Bình An 12', { markedPii: false, role: 'text' })).toEqual({ value: 'Aaaa Aa dd', kind: 'shape' });
   });
-  it('null / rong → khong phai PII, khong loai', () => {
-    expect(maskCell(null, false).dropped).toBe(false);
-    expect(maskCell('   ', false).dropped).toBe(false);
+  it('cot thuong → gia tri that', () => {
+    expect(maskForAi('Binh An', plain)).toEqual({ value: 'Binh An', kind: 'raw' });
   });
-  it('maskColumnSamples bo o khong che duoc, giu lai toan bo gia tri da che', () => {
-    const out = maskColumnSamples(['a@b.com', 'Binh An', '0901234567'], false);
-    expect(out.samples).toEqual(['***', '***']);
-    expect(out.droppedCount).toBe(1);
+  it('null / rong → null', () => {
+    expect(maskForAi(null, plain)).toBeNull();
+    expect(maskForAi('   ', plain)).toBeNull();
+  });
+  it('maskColumnSamples khong con loai o, che dung tung o', () => {
+    expect(maskColumnSamples(['a@b.com', 'Binh An', '0901234567'], plain)).toEqual(['***', 'Binh An', '***']);
   });
 });
 
