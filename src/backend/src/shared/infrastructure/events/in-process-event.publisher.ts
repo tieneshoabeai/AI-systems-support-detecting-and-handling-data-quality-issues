@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { DomainEventEnvelope, EventPublisherPort } from '../ports/event-publisher.port';
+import type { DomainEventEnvelope, EventPublisherPort } from '../../application/ports/event-publisher.port';
 
 @Injectable()
 export class InProcessEventPublisher implements EventPublisherPort {

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Producer } from 'kafkajs';
-import type { DomainEventEnvelope, EventPublisherPort } from '../ports/event-publisher.port';
+import type { DomainEventEnvelope, EventPublisherPort } from '../../application/ports/event-publisher.port';
 
 function topicFor(eventType: string): string {
   if (eventType.startsWith('ai.')) return 'ai.jobs';

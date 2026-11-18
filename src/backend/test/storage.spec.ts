@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Readable } from 'stream';
-import { StorageService } from '../src/shared/storage/storage.service';
+import { StorageService } from '../src/shared/infrastructure/storage/storage.service';
 
 describe('StorageService (Dual-mode Storage)', () => {
   let service: StorageService;

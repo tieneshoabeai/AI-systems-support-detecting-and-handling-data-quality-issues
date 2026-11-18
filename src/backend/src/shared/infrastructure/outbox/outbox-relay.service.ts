@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OutboxService } from './outbox.service';
-import type { EventPublisherPort } from '../../ports/event-publisher.port';
-import { EVENT_PUBLISHER_PORT } from '../../ports/event-publisher.port';
+import type { EventPublisherPort } from '../../application/ports/event-publisher.port';
+import { EVENT_PUBLISHER_PORT } from '../../application/ports/event-publisher.port';
 
 @Injectable()
 export class OutboxRelayService implements OnModuleInit {

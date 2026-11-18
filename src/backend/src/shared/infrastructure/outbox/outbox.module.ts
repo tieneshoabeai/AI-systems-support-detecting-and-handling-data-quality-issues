@@ -5,7 +5,7 @@ import { ProcessedEventSchema } from './processed-event.schema';
 import { OutboxService } from './outbox.service';
 import { InboxService } from './inbox.service';
 import { OutboxRelayService } from './outbox-relay.service';
-import { OUTBOX_PORT } from '../../ports/outbox.port';
+import { OUTBOX_PORT } from '../../application/ports/outbox.port';
 
 @Global()
 @Module({

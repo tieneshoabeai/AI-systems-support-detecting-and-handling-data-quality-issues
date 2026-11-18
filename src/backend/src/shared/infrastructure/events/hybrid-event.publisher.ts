@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { DomainEventEnvelope, EventPublisherPort } from '../ports/event-publisher.port';
+import type { DomainEventEnvelope, EventPublisherPort } from '../../application/ports/event-publisher.port';
 import { InProcessEventPublisher } from './in-process-event.publisher';
 import { KafkaEventPublisher } from './kafka-event.publisher';
 

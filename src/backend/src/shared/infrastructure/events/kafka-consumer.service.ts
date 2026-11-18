@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventDispatcherService } from './event-dispatcher.service';
-import type { DomainEventEnvelope } from '../ports/event-publisher.port';
+import type { DomainEventEnvelope } from '../../application/ports/event-publisher.port';
 
 /**
  * Nhom 4 - Kafka consumer (worker side). Tat khi khong co KAFKA_BROKERS.

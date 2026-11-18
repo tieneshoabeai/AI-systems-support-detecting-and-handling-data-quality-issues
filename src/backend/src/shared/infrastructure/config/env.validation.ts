@@ -13,6 +13,8 @@ export const EnvironmentSchema = z.object({
   PORT: z.coerce.number().default(3000),
   API_PREFIX: z.string().default('api/v1'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  /** URL gốc của ứng dụng web — dùng cho link trong email (VD: link đặt lại mật khẩu). */
+  APP_URL: z.string().optional(),
 
   // Cloudflare Zero Trust Tunnel & SSL/TLS Configuration
   CLOUDFLARE_TUNNEL_ENABLED: boolEnv(true),

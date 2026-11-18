@@ -1,6 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { StorageService } from './storage.service';
-import { STORAGE_PORT } from '../ports/storage.port';
+import { STORAGE_PORT } from '../../application/ports/storage.port';
 
 @Global()
 @Module({

@@ -13,7 +13,7 @@ import { Readable } from 'stream';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IStorageService, StorageQuotaStatus } from './storage.interface';
-import type { StoragePort } from '../ports/storage.port';
+import type { StoragePort } from '../../application/ports/storage.port';
 
 @Injectable()
 export class StorageService implements IStorageService, StoragePort {

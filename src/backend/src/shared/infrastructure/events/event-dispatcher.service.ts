@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { InProcessEventPublisher } from './in-process-event.publisher';
-import type { DomainEventEnvelope } from '../ports/event-publisher.port';
-import type { RealtimePort } from '../ports/realtime.port';
-import { REALTIME_PORT } from '../ports/realtime.port';
-import type { InboxService } from '../application/outbox/inbox.service';
-import { InboxService as InboxServiceToken } from '../application/outbox/inbox.service';
+import type { DomainEventEnvelope } from '../../application/ports/event-publisher.port';
+import type { RealtimePort } from '../../application/ports/realtime.port';
+import { REALTIME_PORT } from '../../application/ports/realtime.port';
+import type { InboxService } from '../outbox/inbox.service';
+import { InboxService as InboxServiceToken } from '../outbox/inbox.service';
 
 /**
  * Nhom 4 - Event dispatcher (consumer in-process).

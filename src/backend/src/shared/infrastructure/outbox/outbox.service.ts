@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types } from 'mongoose';
 import { IOutboxEvent } from './outbox-event.schema';
-import type { OutboxPort } from '../../ports/outbox.port';
-import type { OutboxEventInput } from '../../ports/outbox.port';
+import type { OutboxPort } from '../../application/ports/outbox.port';
+import type { OutboxEventInput } from '../../application/ports/outbox.port';
 
 @Injectable()
 export class OutboxService implements OutboxPort {
