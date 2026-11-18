@@ -90,9 +90,7 @@ import { GetDatasetByProjectIdHandler as DatasetsGetDatasetByProjectIdHandler } 
 import { GetDatasetSchemaHandler as DatasetsGetDatasetSchemaHandler } from '../../src/modules/datasets/application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler as DatasetsIngestDatasetStreamHandler } from '../../src/modules/datasets/application/commands/ingest-dataset-stream.handler';
 import { MapPropsToOriginalNamesHandler as DatasetsMapPropsToOriginalNamesHandler } from '../../src/modules/datasets/application/commands/map-props-to-original-names.handler';
-import { RenameColumnsHandler as DatasetsRenameColumnsHandler } from '../../src/modules/datasets/application/commands/rename-columns.handler';
-import { ResetColumnNamesHandler as DatasetsResetColumnNamesHandler } from '../../src/modules/datasets/application/commands/reset-column-names.handler';
-import { UpdateDatasetHandler as DatasetsUpdateDatasetHandler } from '../../src/modules/datasets/application/commands/update-dataset.handler';
+import { UpdateColumnPiiHandler as DatasetsUpdateColumnPiiHandler } from '../../src/modules/datasets/application/commands/update-column-pii.handler';
 
 export const datasetsHandlers = {
   deleteDataset: DatasetsDeleteDatasetHandler,
@@ -102,9 +100,7 @@ export const datasetsHandlers = {
   getDatasetSchema: DatasetsGetDatasetSchemaHandler,
   ingestDatasetStream: DatasetsIngestDatasetStreamHandler,
   mapPropsToOriginalNames: DatasetsMapPropsToOriginalNamesHandler,
-  renameColumns: DatasetsRenameColumnsHandler,
-  resetColumnNames: DatasetsResetColumnNamesHandler,
-  updateDataset: DatasetsUpdateDatasetHandler,
+  updateColumnPii: DatasetsUpdateColumnPiiHandler,
 } as const;
 
 // -------------------- feedback --------------------
