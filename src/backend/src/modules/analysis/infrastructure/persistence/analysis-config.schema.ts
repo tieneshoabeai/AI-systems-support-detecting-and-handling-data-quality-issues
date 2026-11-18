@@ -13,6 +13,9 @@ export interface IAnalysisConfig extends Document, BaseEntity {
   correlation_method: 'pearson' | 'spearman';
   outlier_method: 'iqr' | 'modified_zscore' | 'both';
   top_n: number;
+  chart_top_n: number;
+  /** Đợt F: ghi đè vai trò cột (key → vai trò). */
+  column_roles: Record<string, string> | null;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -29,7 +32,9 @@ export const AnalysisConfigSchema = new Schema<IAnalysisConfig>(
     value_column: { type: String, default: null },
     correlation_method: { type: String, enum: ['pearson', 'spearman'], default: 'pearson' },
     outlier_method: { type: String, enum: ['iqr', 'modified_zscore', 'both'], default: 'iqr' },
-    top_n: { type: Number, default: 10 },
+    top_n: { type: Number, default: 50 },
+    chart_top_n: { type: Number, default: 5 },
+    column_roles: { type: Schema.Types.Mixed, default: {} },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },

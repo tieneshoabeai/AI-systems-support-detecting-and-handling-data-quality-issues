@@ -62,6 +62,11 @@ export class EventDispatcherService implements OnModuleInit {
           if (projectId && analysisId) this.realtime.emitAnalysisLifecycle(projectId, analysisId, 'analysis.failed', { status: 'failed' });
           else if (projectId) this.realtime.emitToProject(projectId, 'analysis.failed', { status: 'failed' });
           break;
+        case 'AI_JOB_SUCCEEDED':
+        case 'AI_JOB_FAILED':
+          // AnalysisService da phat `ai.job.status` truc tiep (ke ca khi relay chay o process worker);
+          // khong phat lai o day de tranh trung, va khong roi vao nhanh default.
+          break;
         case 'NOTIFICATION_CREATED': {
           const uid = typeof p.user_id === 'string' ? p.user_id : (typeof p.userId === 'string' ? p.userId : undefined);
           if (uid) this.realtime.emitToUser(uid, 'notification.created', { status: 'created' });

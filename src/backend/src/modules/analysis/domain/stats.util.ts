@@ -1,6 +1,7 @@
 import * as ss from 'simple-statistics';
 import { toFiniteNumber, toCategory, round4 } from './correlation.util';
-import { isMissingCell, isValidByType } from './dq.util';
+import { isMissingCell, isValidByType, dateOrderOf } from './dq.util';
+import { parseStrictDate, detectDayMonthOrder, orderModeFor, type DayMonthOrder } from './date-parse.util';
 
 export interface DescriptiveStat {
   column: string;
@@ -20,6 +21,15 @@ export interface DescriptiveStat {
   reason: string | null;
 }
 
+/** Đợt H: độ lệch mẫu (skewness) — chỉ để giải thích DQ-04; < 4 giá trị hoặc không phân tán → null. */
+export function skewnessOf(values: number[]): number | null {
+  if (values.length < 4) return null;
+  const sd = ss.sampleStandardDeviation(values);
+  if (!(sd > 0)) return null;
+  const sk = ss.sampleSkewness(values);
+  return Number.isFinite(sk) ? round4(sk) : null;
+}
+
 function quantileSorted(sorted: number[], q: number): number | null {
   if (sorted.length === 0) return null;
   const pos = (sorted.length - 1) * q;
@@ -34,17 +44,19 @@ export function describeColumn(
   column: string,
   dataType: string,
   rawValues: unknown[],
+  role: string | null = null,
 ): DescriptiveStat {
   let missingCount = 0;
   let invalidCount = 0;
   const validNums: number[] = [];
   const validCats: string[] = [];
+  const dateOrder = dataType === 'date' ? dateOrderOf(rawValues) : 'either';
   for (const v of rawValues) {
     if (isMissingCell(v)) {
       missingCount++;
       continue;
     }
-    const r = isValidByType(v, dataType);
+    const r = isValidByType(v, dataType, dateOrder);
     if (!r.valid) {
       invalidCount++;
       continue;
@@ -54,7 +66,8 @@ export function describeColumn(
       if (n === null) invalidCount++;
       else validNums.push(n);
     } else {
-      const c = toCategory(v);
+      // Dot G: o cot chu, ky hieu NA/?... la chuoi hop le (khop DQ-03)
+      const c = dataType === 'string' ? String(v).trim() : toCategory(v);
       if (c === null) invalidCount++;
       else validCats.push(c);
     }
@@ -66,6 +79,15 @@ export function describeColumn(
         mean: null, median: null, min: null, max: null, stdev: null, q1: null, q3: null,
         distinctCount: 0, topValues: null,
         reason: rawValues.length === 0 ? 'no_data_to_evaluate' : 'no_valid_numeric_values',
+      };
+    }
+    // Đợt H (Phần 2 v13 mục 3.45): cột mã định danh — trung bình/trung vị… vô nghĩa, chỉ giữ số đếm
+    if (role === 'identifier') {
+      return {
+        column, dataType, count: validNums.length, missingCount, invalidCount,
+        mean: null, median: null, min: null, max: null, stdev: null, q1: null, q3: null,
+        distinctCount: new Set(validNums.map((n) => String(n))).size, topValues: null,
+        reason: 'identifier_column_no_quantitative_stats',
       };
     }
     const sorted = [...validNums].sort((a, b) => a - b);
@@ -112,10 +134,15 @@ export interface ImbalanceResult {
   reason: string | null;
 }
 
+/**
+ * ANALYSIS-07. Đợt H (Phần 2 v13 mục 3.45): cột nhãn kiểu số được đánh giá khi vai trò hiệu lực là `category`
+ * (vd 0/1); ở cột chữ chỉ ô trống là thiếu (`NA` là một lớp).
+ */
 export function evaluateImbalance(
   labelColumn: string | null,
   labelDataType: string | null,
   rows: Record<string, unknown>[],
+  labelRole: string | null = null,
 ): ImbalanceResult {
   if (!labelColumn) {
     return {
@@ -124,13 +151,16 @@ export function evaluateImbalance(
       validRows: 0, missingLabelRows: 0, reason: 'no_label_selected',
     };
   }
-  if (labelDataType === 'number' || labelDataType === 'date') {
-    return {
-      status: 'not_applicable_continuous', labelColumn, classes: [], classCount: 0,
-      largest: [], smallest: [], imbalanceRatio: null, warning: null,
-      validRows: 0, missingLabelRows: 0, reason: 'label_continuous_not_applicable',
-    };
+  const notApplicable = (reason: string): ImbalanceResult => ({
+    status: 'not_applicable_continuous', labelColumn, classes: [], classCount: 0,
+    largest: [], smallest: [], imbalanceRatio: null, warning: null,
+    validRows: 0, missingLabelRows: 0, reason,
+  });
+  if (labelDataType === 'date') return notApplicable('label_continuous_not_applicable');
+  if (labelDataType === 'number' && labelRole !== 'category') {
+    return notApplicable(labelRole === 'identifier' || labelRole === 'text' ? 'label_role_not_categorical' : 'label_continuous_not_applicable');
   }
+  const textLabel = labelDataType === 'string';
   const freq = new Map<string, number>();
   let missing = 0;
   for (const r of rows) {
@@ -139,7 +169,7 @@ export function evaluateImbalance(
       missing++;
       continue;
     }
-    const c = toCategory(v);
+    const c = toCategory(v, textLabel);
     if (c === null) {
       missing++;
       continue;
@@ -203,31 +233,75 @@ export interface TimeAnalysis {
   deltas: { period: string; absChange: number | null; pctChange: number | null }[];
   volatilePeriods: string[];
   reason: string | null;
+  /** Dot G: khong co cot ngay nhung co cot nam (+ thang) → goi y, khong tu dung truc thoi gian. */
+  timePartColumns?: { year: string; month: string | null } | null;
+  /** Đợt H: thứ tự ngày/tháng đã dùng để đọc cột thời gian (null khi không có cột thời gian). */
+  dateOrder?: DayMonthOrder | 'either' | null;
+  /** Đợt H: cột không phân định được DD/MM hay MM/DD (hoặc mâu thuẫn). */
+  dateOrderAmbiguous?: boolean;
+  /** Đợt H: cột giá trị bị bỏ vì vai trò identifier/text. */
+  valueColumnIgnoredReason?: string | null;
 }
 
-function toDateKey(v: unknown): Date | null {
+const MONTH_NAMES = new Set([
+  'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+  'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec',
+]);
+const nameHas = (name: string, words: string[]): boolean =>
+  name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).some((t) => words.includes(t));
+
+/**
+ * Dot G (Phan 2 v12 muc 3.44): do cot nam (so nguyen 1900–2100 hoac ten chua year/nam) va cot thang
+ * (ten thang, hoac so 1–12 voi ten chua month/thang). Chi de bao ro, khong dung truc thoi gian.
+ */
+export function detectTimePartColumns(
+  columns: { name: string; dataType: string }[],
+  rows: Record<string, unknown>[],
+): { year: string; month: string | null } | null {
+  const present = (name: string): unknown[] => rows.map((r) => r[name]).filter((v) => !isMissingCell(v));
+  const share = (vals: unknown[], ok: (v: unknown) => boolean): number => (vals.length ? vals.filter(ok).length / vals.length : 0);
+  const isYear = (v: unknown): boolean => { const n = toFiniteNumber(v); return n !== null && Number.isInteger(n) && n >= 1900 && n <= 2100; };
+  const isMonthNum = (v: unknown): boolean => { const n = toFiniteNumber(v); return n !== null && Number.isInteger(n) && n >= 1 && n <= 12; };
+  const isMonthName = (v: unknown): boolean => typeof v === 'string' && MONTH_NAMES.has(v.trim().toLowerCase());
+  const year = columns.find((c) => {
+    const vals = present(c.name);
+    return vals.length > 0 && share(vals, isYear) >= 0.95 && (c.dataType === 'number' || nameHas(c.name, ['year', 'yr', 'nam']));
+  });
+  if (!year) return null;
+  const month = columns.find((c) => {
+    if (c.name === year.name) return false;
+    const vals = present(c.name);
+    if (vals.length === 0) return false;
+    return share(vals, isMonthName) >= 0.95 || (share(vals, isMonthNum) >= 0.95 && nameHas(c.name, ['month', 'mon', 'thang']));
+  });
+  return { year: year.name, month: month?.name ?? null };
+}
+
+/** Dot G: doc ngay bang bo doc CHAT (ngay khong ton tai → null); khong mui gio = UTC. */
+function toDateKey(v: unknown, order: DayMonthOrder | 'either' = 'either'): Date | null {
   if (v === null || v === undefined) return null;
-  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
-  if (typeof v === 'string' || typeof v === 'number') {
+  if (typeof v === 'number') {
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? null : d;
   }
-  return null;
+  const res = parseStrictDate(v, order);
+  return res.ok ? res.date : null;
 }
 
+/** Khoa nhom theo UTC (ngay–gio khong co mui gio duoc hieu la UTC). */
 function bucketKey(d: Date, g: TimeAnalysis['granularity']): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   if (g === 'year') return `${y}`;
   if (g === 'month') return `${y}-${m}`;
   if (g === 'week') {
-    const tmp = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const dow = (tmp.getDay() + 6) % 7;
-    tmp.setDate(tmp.getDate() - dow);
-    const wy = tmp.getFullYear();
-    const wm = String(tmp.getMonth() + 1).padStart(2, '0');
-    const wd = String(tmp.getDate()).padStart(2, '0');
+    const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dow = (tmp.getUTCDay() + 6) % 7;
+    tmp.setUTCDate(tmp.getUTCDate() - dow);
+    const wy = tmp.getUTCFullYear();
+    const wm = String(tmp.getUTCMonth() + 1).padStart(2, '0');
+    const wd = String(tmp.getUTCDate()).padStart(2, '0');
     return `${wy}-W${wm}-${wd}`;
   }
   return `${y}-${m}-${day}`;
@@ -241,10 +315,15 @@ function nextBucket(key: string, g: TimeAnalysis['granularity']): string {
     const ny = (y as number) + ((m as number) === 12 ? 1 : 0);
     return `${ny}-${String(nm).padStart(2, '0')}`;
   }
-  const d = new Date(key.length === 10 ? `${key}T00:00:00` : `${key.slice(0, 10)}T00:00:00`);
+  // tuan: khoa dang YYYY-Www-dd (W + thang) → doi ve YYYY-MM-DD
+  const iso = g === 'week' ? key.replace('-W', '-') : key;
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return key;
-  if (g === 'week') d.setDate(d.getDate() + 7);
-  else d.setDate(d.getDate() + 1);
+  if (g === 'week') {
+    d.setUTCDate(d.getUTCDate() + 7);
+    return bucketKey(d, 'week');
+  }
+  d.setUTCDate(d.getUTCDate() + 1);
   return bucketKey(d, 'day');
 }
 
@@ -253,18 +332,28 @@ export function analyzeTime(
   valueColumn: string | null,
   rows: Record<string, unknown>[],
   granularity: TimeAnalysis['granularity'] = 'day',
+  allColumns: { name: string; dataType: string }[] = [],
+  valueColumnIgnoredReason: string | null = null,
 ): TimeAnalysis {
   if (!timeColumn) {
+    const parts = detectTimePartColumns(allColumns, rows);
     return {
       status: 'no_time_column', timeColumn: null, granularity, buckets: [],
-      emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [], reason: 'no_suitable_time_column',
+      emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [],
+      reason: parts ? 'time_parts_without_date_column' : 'no_suitable_time_column',
+      timePartColumns: parts,
+      dateOrder: null, dateOrderAmbiguous: false, valueColumnIgnoredReason,
     };
   }
+  // Đợt H (Phần 7 v10 mục 3.21): ghi lại thứ tự ngày/tháng đã dùng và cờ mơ hồ
+  const detection = detectDayMonthOrder(rows.map((r) => r[timeColumn]));
+  const order = orderModeFor(detection);
+  const orderMeta = { dateOrder: detection === null ? null : order, dateOrderAmbiguous: detection === 'ambiguous' || detection === 'conflict', valueColumnIgnoredReason };
   const byBucket = new Map<string, { dates: Date[]; values: number[]; missing: number; invalid: number }>();
   let invalidDates = 0;
   let missingDates = 0;
   for (const r of rows) {
-    const d = toDateKey(r[timeColumn]);
+    const d = toDateKey(r[timeColumn], order);
     if (d === null) {
       if (isMissingCell(r[timeColumn])) missingDates++;
       else invalidDates++;
@@ -287,6 +376,7 @@ export function analyzeTime(
       status: 'insufficient_data', timeColumn, granularity, buckets: [],
       emptyBuckets: [], longestEmptyRun: 0, deltas: [], volatilePeriods: [],
       reason: `no_valid_dates_missing_${missingDates}_invalid_${invalidDates}`,
+      ...orderMeta,
     };
   }
   const sortedKeys = [...byBucket.keys()].sort();
@@ -367,5 +457,6 @@ export function analyzeTime(
   return {
     status: 'evaluated', timeColumn, granularity, buckets,
     emptyBuckets, longestEmptyRun, deltas, volatilePeriods, reason,
+    ...orderMeta,
   };
 }

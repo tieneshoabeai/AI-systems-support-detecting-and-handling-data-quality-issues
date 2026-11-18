@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { isMissingToken } from '../../../../shared/utils/missing-tokens.util';
 import type {
   DatasetColumnIssueRecord,
   DatasetColumnRecord,
@@ -77,8 +78,8 @@ export class SchemaInferenceService {
   private isNullOrEmpty(val: unknown): boolean {
     if (val === null || val === undefined) return true;
     if (typeof val === 'string') {
-      const str = val.trim().toLowerCase();
-      return str === '' || str === 'null' || str === 'undefined' || str === 'na' || str === 'n/a';
+      // Dot F/G: danh sach ky hieu thieu dung chung (shared/utils/missing-tokens.util.ts)
+      return val.trim() === '' || isMissingToken(val);
     }
     return false;
   }

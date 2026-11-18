@@ -1,5 +1,6 @@
 import * as ss from 'simple-statistics';
 import { isMissingValue, toFiniteNumber, toCategory, round4 } from './correlation.util';
+import { detectDayMonthOrder, orderModeFor, parseStrictDate, type DayMonthOrder } from './date-parse.util';
 
 export interface DqColumnFinding {
   column: string;
@@ -96,8 +97,17 @@ export function computeDq0102(
   return { columns: colStats, duplicateGroups, duplicateRowCount, fullyMissingRows, partiallyMissingRows };
 }
 
-/** DQ-03: sai kieu/dinh dang theo data_type da chot. Khong dem o thieu thanh loi kieu. */
-export function isValidByType(val: unknown, dataType: string): { valid: boolean; reason: string | null } {
+/**
+ * DQ-03: sai kieu/dinh dang theo data_type da chot. Khong dem o thieu thanh loi kieu.
+ * Dot G: cot `date` doc bang bo doc CHAT (`date-parse.util.ts`); cot `string` moi gia tri khong rong deu hop le
+ * (ky hieu NA/?... o cot chu la chuoi hop le, duoc bao o nhom Nghi van).
+ * @param dateOrder thu tu ngay/thang cua cot (tinh 1 lan bang `dateOrderOf`), mac dinh 'either'
+ */
+export function isValidByType(
+  val: unknown,
+  dataType: string,
+  dateOrder: DayMonthOrder | 'either' = 'either',
+): { valid: boolean; reason: string | null } {
   if (isMissingCell(val)) return { valid: true, reason: null };
   if (dataType === 'number') {
     const n = toFiniteNumber(val);
@@ -113,17 +123,17 @@ export function isValidByType(val: unknown, dataType: string): { valid: boolean;
     return { valid: false, reason: 'invalid_boolean' };
   }
   if (dataType === 'date') {
-    if (val instanceof Date) {
-      return Number.isNaN(val.getTime()) ? { valid: false, reason: 'invalid_date' } : { valid: true, reason: null };
-    }
-    if (typeof val === 'string' || typeof val === 'number') {
-      const d = new Date(val);
-      return Number.isNaN(d.getTime()) ? { valid: false, reason: 'invalid_date' } : { valid: true, reason: null };
-    }
-    return { valid: false, reason: 'invalid_date' };
+    const res = parseStrictDate(val, dateOrder);
+    return res.ok ? { valid: true, reason: null } : { valid: false, reason: res.reason };
   }
+  if (dataType === 'string') return { valid: true, reason: null };
   const c = toCategory(val);
   return c === null ? { valid: false, reason: 'invalid_string' } : { valid: true, reason: null };
+}
+
+/** Dot G: che do doc ngay cua mot cot (phan dinh DD/MM hay MM/DD theo toan bo gia tri). */
+export function dateOrderOf(values: unknown[]): DayMonthOrder | 'either' {
+  return orderModeFor(detectDayMonthOrder(values));
 }
 
 export function computeDq03(
@@ -131,13 +141,15 @@ export function computeDq03(
   rows: { rowIndex: number; values: Record<string, unknown> }[],
 ): { column: string; validCount: number; invalidCount: number; invalidRate: number | null; reasons: Record<string, number> }[] {
   return colTypes.map(({ column, dataType }) => {
+    const dateOrder = dataType === 'date' ? dateOrderOf(rows.map((r) => r.values[column])) : 'either';
     let validCount = 0;
     let invalidCount = 0;
     let missing = 0;
     const reasons: Record<string, number> = {};
     for (const r of rows) {
       const v = r.values[column];
-      if (isMissingCell(v) || isMissingValue(v)) {
+      // Dot G: o cot chu, ky hieu NA/?... la chuoi hop le (bao o Nghi van), khong dem DQ-03
+      if (isMissingCell(v) || (dataType !== 'string' && isMissingValue(v))) {
         if (isMissingCell(v)) missing++;
         else {
           invalidCount++;
@@ -145,7 +157,7 @@ export function computeDq03(
         }
         continue;
       }
-      const res = isValidByType(v, dataType);
+      const res = isValidByType(v, dataType, dateOrder);
       if (res.valid) validCount++;
       else {
         invalidCount++;

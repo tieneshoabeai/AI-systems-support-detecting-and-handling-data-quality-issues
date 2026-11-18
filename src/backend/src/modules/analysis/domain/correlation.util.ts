@@ -1,4 +1,5 @@
 import * as ss from 'simple-statistics';
+import { isMissingToken } from '../../../shared/utils/missing-tokens.util';
 export type CorrelationKind = 'pearson' | 'spearman' | 'cramers_v' | 'eta_squared';
 export interface ICorrelationCell { colA: string; colB: string; coef: number | null; kind: CorrelationKind; n: number; totalScanned: number; missingAOnly: number; missingBOnly: number; missingBoth: number; computable: boolean; reason: string | null; }
 
@@ -8,14 +9,17 @@ export interface AnalyzableColumn {
   key: string;
   role: ColumnRole;
   reason: string | null;
+  /** Đợt H: cột kiểu chữ — ký hiệu NA/None… là một lớp, chỉ ô trống là thiếu (đồng bộ DQ-01). */
+  textColumn?: boolean;
 }
 
-const NULL_TOKENS = new Set(['', 'null', 'undefined', 'na', 'n/a', 'none', '-']);
+/** Đợt G: ô rỗng hoặc ký hiệu thiếu trong danh sách dùng chung (`shared/utils/missing-tokens.util.ts`). */
+const isNullToken = (s: string): boolean => s.trim() === '' || isMissingToken(s);
 
 export function isMissingValue(val: unknown): boolean {
   if (val === null || val === undefined) return true;
   if (typeof val === 'string') {
-    return NULL_TOKENS.has(val.trim().toLowerCase());
+    return isNullToken(val);
   }
   return false;
 }
@@ -32,7 +36,12 @@ export function toFiniteNumber(val: unknown): number | null {
   return null;
 }
 
-export function toCategory(val: unknown): string | null {
+/**
+ * Chuyển ô thành nhãn lớp; null = thiếu/không hợp lệ.
+ * Đợt H (Phần 12 v12 mục 3.21): `textColumn` = cột kiểu chữ → chỉ ô rỗng/khoảng trắng là thiếu;
+ * cột khác → thêm danh sách ký hiệu thiếu dùng chung.
+ */
+export function toCategory(val: unknown, textColumn = false): string | null {
   if (val === null || val === undefined) return null;
   if (typeof val === 'number') {
     if (!Number.isFinite(val)) return null;
@@ -41,7 +50,8 @@ export function toCategory(val: unknown): string | null {
   if (typeof val === 'boolean') return val ? 'true' : 'false';
   if (typeof val === 'string') {
     const t = val.trim();
-    if (NULL_TOKENS.has(t.toLowerCase())) return null;
+    if (t === '') return null;
+    if (!textColumn && isMissingToken(t)) return null;
     return t;
   }
   if (val instanceof Date) return null;
@@ -160,13 +170,18 @@ export interface PairInput {
   colB: string;
   roleB: ColumnRole;
   rows: Record<string, unknown>[];
+  /** Đợt H: cột A/B là cột kiểu chữ (xem `toCategory`). */
+  textA?: boolean;
+  textB?: boolean;
 }
 
 export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'): ICorrelationCell {
   const totalScanned = input.rows.length;
   const zero: PairMissing = { n: 0, totalScanned, missingAOnly: 0, missingBOnly: 0, missingBoth: 0 };
+  const textOf = (key: string): boolean => (key === input.colA ? Boolean(input.textA) : Boolean(input.textB));
+  const catOf = (key: string, v: unknown): string | null => toCategory(v, textOf(key));
   const isValid = (key: string, role: ColumnRole, v: unknown): boolean =>
-    role === 'numeric' ? toFiniteNumber(v) !== null : toCategory(v) !== null;
+    role === 'numeric' ? toFiniteNumber(v) !== null : catOf(key, v) !== null;
 
   if (input.colA === input.colB) {
     let n = 0;
@@ -223,12 +238,12 @@ export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'
     const bCats: string[] = [];
     const m: PairMissing = { ...zero };
     for (const row of input.rows) {
-      const aOk = toCategory(row[input.colA]) !== null;
-      const bOk = toCategory(row[input.colB]) !== null;
+      const aOk = catOf(input.colA, row[input.colA]) !== null;
+      const bOk = catOf(input.colB, row[input.colB]) !== null;
       countMissing(aOk, bOk, m);
       if (aOk && bOk) {
-        aCats.push(toCategory(row[input.colA]) as string);
-        bCats.push(toCategory(row[input.colB]) as string);
+        aCats.push(catOf(input.colA, row[input.colA]) as string);
+        bCats.push(catOf(input.colB, row[input.colB]) as string);
       }
     }
     const base = { colA: input.colA, colB: input.colB, ...m };
@@ -250,13 +265,13 @@ export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'
   const m: PairMissing = { ...zero };
   for (const row of input.rows) {
     const numOk = toFiniteNumber(row[numKey]) !== null;
-    const catOk = toCategory(row[catKey]) !== null;
+    const catOk = catOf(catKey, row[catKey]) !== null;
     const aOk = input.roleA === 'numeric' ? numOk : catOk;
     const bOk = input.roleA === 'numeric' ? catOk : numOk;
     countMissing(aOk, bOk, m);
     if (numOk && catOk) {
       nums.push(toFiniteNumber(row[numKey]) as number);
-      cats.push(toCategory(row[catKey]) as string);
+      cats.push(catOf(catKey, row[catKey]) as string);
     }
   }
   const base = { colA: input.colA, colB: input.colB, ...m };
@@ -280,7 +295,7 @@ export function buildCorrelationMatrix(
   const cells: ICorrelationCell[] = [];
   for (const a of active) {
     for (const b of active) {
-      cells.push(computePairCell({ colA: a.key, roleA: a.role, colB: b.key, roleB: b.role, rows }, method));
+      cells.push(computePairCell({ colA: a.key, roleA: a.role, colB: b.key, roleB: b.role, rows, textA: a.textColumn, textB: b.textColumn }, method));
     }
   }
   const excluded = columns.filter((c) => c.role === 'excluded');

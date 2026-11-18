@@ -64,6 +64,9 @@ export const EnvironmentSchema = z.object({
     if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
     return Boolean(v);
   }, z.boolean()),
+  REPORT_FONT_PATH: z.string().optional(),
+  /** E4: gioi han so dong cho phan tich dong bo (nap toan bo vao RAM). */
+  ANALYSIS_MAX_ROWS: z.coerce.number().int().min(1).default(200000),
 
   KAFKA_BROKERS: z.string().default(''),
   OUTBOX_RELAY_ENABLED: boolEnv(true),

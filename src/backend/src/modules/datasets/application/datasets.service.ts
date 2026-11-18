@@ -40,7 +40,9 @@ export interface UpdateDatasetInput {
 
 export interface RenameColumnItemInput {
   key: string;
-  name: string;
+  name?: string;
+  /** Dot F: danh dau cot PII (che khi gui AI / bang chung). */
+  is_pii?: boolean;
 }
 
 export interface RenameColumnsInput {
@@ -476,7 +478,8 @@ export class DatasetsService {
       if (!col) {
         throw validationError(`Cot khong ton tai: ${r.key}`, { reason: 'unknown_column_key', key: r.key });
       }
-      col.name = r.name;
+      if (r.name !== undefined) col.name = r.name;
+      if (r.is_pii !== undefined) col.isPii = r.is_pii;
     }
     const names = dataset.columns.map((c) => c.name);
     const issues = this.schemaInferenceService.detectColumnIssues(names).map((iss) => {

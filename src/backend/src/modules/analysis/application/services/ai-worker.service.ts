@@ -97,11 +97,12 @@ export class AiWorkerService implements OnModuleInit {
       if (raw === null) {
         throw new Error('AI tra ve khong phai JSON object');
       }
-      await this.analysisService.ingestAiResult(
+      const ingested = await this.analysisService.ingestAiResult(
         jobId,
         raw as Record<string, unknown>,
         out.modelId ?? job.modelId ?? undefined,
       );
+      const grounded = ingested.status === 'succeeded';
       await this.repository.updateJobById(jobId, {
         finishedAt: new Date(),
         finished_at: new Date(),
@@ -112,7 +113,11 @@ export class AiWorkerService implements OnModuleInit {
         leaseExpiresAt: null,
         lease_expires_at: null,
       });
-      this.logger.log(`AI job ${jobId} succeeded in ${Date.now() - started}ms`);
+      if (grounded) {
+        this.logger.log(`AI job ${jobId} succeeded in ${Date.now() - started}ms`);
+      } else {
+        this.logger.warn(`AI job ${jobId} failed: grounding loai bo toan bo nhan xet (${Date.now() - started}ms)`);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const retryable = /timeout|HTTP 5|ECONN|ENOTFOUND|AI tra ve/i.test(message);
@@ -120,6 +125,17 @@ export class AiWorkerService implements OnModuleInit {
       const maxAttempts =
         (this.config.get<number>('AI_MAX_RETRIES') ?? DEFAULT_MAX_ATTEMPTS) + 1;
       const exhausted = attempt >= maxAttempts;
+      // Chi ghi danh gia AI failed khi da HET luot (moi loai loi) de ket qua khong ket o `pending`;
+      // con luot thi giu job `pending` de worker thu lai (truoc day loi JSON lam job `failed` ngay).
+      // Ghi danh gia failed TRUOC roi ghi trang thai job sau de giu ma loi goc AI_FAILED.
+      // Khong dung ingestAiResult({}): `{}` hop le theo schema -> bi ghi nham `succeeded`.
+      if (exhausted) {
+        try {
+          await this.analysisService.markAiFailed(jobId, 'AI_FAILED', message);
+        } catch {
+          // bo qua, job da danh dau
+        }
+      }
       await this.repository.updateJobById(jobId, {
         status: exhausted ? 'failed' : 'pending',
         attempt,
@@ -129,13 +145,6 @@ export class AiWorkerService implements OnModuleInit {
         duration_ms: exhausted ? Date.now() - started : null,
         error: { code: exhausted ? 'AI_FAILED' : 'AI_RETRY', message, retryable },
       });
-      if (/JSON/i.test(message)) {
-        try {
-          await this.analysisService.ingestAiResult(jobId, {} as Record<string, unknown>, job.modelId ?? undefined);
-        } catch {
-          // bo qua, job da danh dau
-        }
-      }
       this.logger.warn(`AI job ${jobId} loi (attempt ${attempt}): ${message}`);
     } finally {
       clearInterval(heartbeat);

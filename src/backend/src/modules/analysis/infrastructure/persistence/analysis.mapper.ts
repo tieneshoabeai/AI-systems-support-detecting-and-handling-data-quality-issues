@@ -85,6 +85,10 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     temporal: (raw.timeAnalysis ?? null) as unknown,
     timeAnalysis: (raw.timeAnalysis ?? null) as unknown,
     evidenceSummary: (raw.evidenceSummary ?? null) as unknown,
+    charts: (raw.charts ?? null) as unknown,
+    columnRoles: (raw.column_roles ?? null) as unknown,
+    aiSamples: (raw.ai_samples ?? null) as Record<string, string[]> | null,
+    suspicions: (raw.suspicions ?? null) as unknown[] | null,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,
@@ -128,7 +132,9 @@ export function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigReco
     valueColumn: doc.value_column ?? null,
     correlationMethod: doc.correlation_method ?? 'pearson',
     outlierMethod: doc.outlier_method ?? 'iqr',
-    topN: doc.top_n ?? 10,
+    topN: doc.top_n ?? 50,
+    chartTopN: doc.chart_top_n ?? 5,
+    columnRoles: (doc.column_roles ?? null) as Record<string, string> | null,
   };
 }
 
@@ -157,6 +163,9 @@ export function toReportJobRecord(doc: IReportJob): ReportJobRecord {
     storageKey: doc.storage_key ?? null,
     fileSizeBytes: doc.file_size_bytes ?? null,
     error: (doc.error ?? null) as Record<string, unknown> | null,
+    attempt: doc.attempt ?? 0,
+    leaseExpiresAt: doc.lease_expires_at ?? null,
+    heartbeatAt: doc.heartbeat_at ?? null,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
   };
@@ -186,5 +195,7 @@ export function toCellEvidenceRecord(doc: ICellEvidence): CellEvidenceRecord {
     column: doc.column,
     rowIndex: doc.row_index,
     reason: doc.reason ?? null,
+    kind: doc.kind,
+    valueMasked: doc.value_masked ?? null,
   };
 }

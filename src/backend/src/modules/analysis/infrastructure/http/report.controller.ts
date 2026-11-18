@@ -5,6 +5,7 @@ import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
 import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
 import { Action } from '../../../../shared/casl/actions.enum';
 import { ReportService } from '../../application/report.service';
+import { ProjectAccessService } from '../../application/project-access.service';
 import { AuditService } from '../../../audit/application/audit.service';
 import { CurrentUser, CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
 import type { Response, Request } from 'express';
@@ -17,13 +18,16 @@ export class ReportController {
   constructor(
     private readonly reportService: ReportService,
     private readonly audit: AuditService,
+    private readonly access: ProjectAccessService,
   ) {}
 
   @Post('projects/:projectId/report')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'REPORT-01: Yêu cầu sinh PDF ở worker (202, không sinh tại API)', operationId: 'requestReport' })
-  @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
-  async request(@Param('projectId') projectId: string) {
+  @ApiOperation({ summary: 'REPORT-01: Yêu cầu sinh PDF ở worker (202, không sinh tại API) — Viewer được phép', operationId: 'requestReport' })
+  // Phan 6 v7 muc 3.21: Viewer duoc yeu cau sinh + tai PDF (quyet dinh 2026-11-17) -> chi can quyen Read
+  @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  async request(@Param('projectId') projectId: string, @CurrentUser() actor: CurrentUserPayload) {
+    await this.access.assertProjectAccess(projectId, actor, 'read');
     return this.reportService.requestReport(projectId);
   }
 
@@ -37,6 +41,7 @@ export class ReportController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    await this.access.assertProjectAccess(projectId, actor, 'read');
     const meta = await this.reportService.getReportFileMeta(projectId, reportId);
     if (meta.status !== 'succeeded') {
       res.status(202).json(meta);
