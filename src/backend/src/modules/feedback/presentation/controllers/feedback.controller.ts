@@ -10,13 +10,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import {
   CreateFeedbackSchema,
   CreateFeedbackDto,
@@ -24,7 +24,7 @@ import {
   UpdateFeedbackDto,
   ListFeedbackQuerySchema,
   ListFeedbackQueryDto,
-} from './dtos/feedback.dto';
+} from '../dtos/feedback.dto';
 import { AiQualityMetricsHandler } from '../../application/commands/ai-quality-metrics.handler';
 import { CreateFindingFeedbackHandler } from '../../application/commands/create-finding-feedback.handler';
 import { CreateRunFeedbackHandler } from '../../application/commands/create-run-feedback.handler';

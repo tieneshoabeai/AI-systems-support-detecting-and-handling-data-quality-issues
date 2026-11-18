@@ -2,16 +2,18 @@
  * FEEDBACK — Hàm thuần dùng chung cho handlers.
  *
  * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
+ *
+ * **Bước 3 — Rich Domain Model:** `toPlain()` nhận **entity** `Feedback`.
  */
 
-import { type FeedbackRecord } from '../domain/ports/feedback.repository.port';
+import type { Feedback } from '../domain/entities/feedback.entity';
 
 export function toPlain(
-  doc: FeedbackRecord,
+  doc: Feedback,
   viewerId: string,
   authorDisplayName: string | null,
 ): Record<string, unknown> {
-  const isMine = doc.authorId === viewerId;
+  const isMine = doc.isOwnedBy(viewerId);
   const base: Record<string, unknown> = {
     id: doc.id,
     analysisRunId: doc.analysisRunId,

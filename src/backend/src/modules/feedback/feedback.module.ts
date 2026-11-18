@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { FindingFeedbackSchema } from './infrastructure/persistence/finding-feedback.schema';
 import { FeedbackRepository } from './infrastructure/persistence/feedback.repository';
 import { FEEDBACK_REPOSITORY_PORT } from './domain/ports/feedback.repository.port';
-import { FeedbackController } from './infrastructure/http/feedback.controller';
+import { FeedbackController } from './presentation/controllers/feedback.controller';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UsersModule } from '../users/users.module';

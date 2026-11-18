@@ -5,18 +5,11 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import {
   FEEDBACK_REPOSITORY_PORT,
-  type FeedbackRecord,
+  type Feedback,
   type FeedbackRepositoryPort,
 } from '../../domain/ports/feedback.repository.port';
 import {
@@ -28,9 +21,10 @@ import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 import { requiresReason } from '../../domain/value-objects/feedback-label.vo';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { CreateFeedbackInput } from '../feedback.types';
 import { toPlain } from '../feedback.utils';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class CreateRunFeedbackHandler {
@@ -52,15 +46,13 @@ export class CreateRunFeedbackHandler {
 
   private ensureNotAdmin(role: string): void {
     if (role === 'admin') {
-      throw new ForbiddenException(
-        'Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',
-      );
+      throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
     }
   }
 
   private checkReason(label: string, reason: string | null | undefined): void {
     if (requiresReason(label) && (!reason || reason.trim().length === 0)) {
-      throw new BadRequestException('Nhãn này bắt buộc kèm lý do (reason)');
+      throw new ValidationError('Nhãn này bắt buộc kèm lý do (reason)');
     }
   }
 
@@ -68,9 +60,9 @@ export class CreateRunFeedbackHandler {
     analysisId: string,
     userId: string,
   ): Promise<{ run: AnalysisRunRecord; projectRole: string; workspaceRole: string | null }> {
-    if (!isObjectIdHex(analysisId)) throw new BadRequestException('ID lần phân tích không hợp lệ');
+    if (!isObjectIdHex(analysisId)) throw new ValidationError('ID lần phân tích không hợp lệ');
     const run = await this.analysisRepository.findById(analysisId);
-    if (!run) throw new NotFoundException('Không tìm thấy lần phân tích');
+    if (!run) throw new NotFoundError('Không tìm thấy lần phân tích');
     const projectId = run.projectId;
     const { projectRole, workspaceRole } = await this.resolveProjectAccess(projectId, userId);
     return { run, projectRole, workspaceRole };
@@ -89,12 +81,12 @@ export class CreateRunFeedbackHandler {
       workspaceRole,
     );
     if (!projectRole) {
-      throw new ForbiddenException('Không có quyền truy cập project này');
+      throw new ForbiddenError('Không có quyền truy cập project này');
     }
     return { projectRole, workspaceRole, workspaceId };
   }
 
-  private async authorNames(docs: FeedbackRecord[]): Promise<Map<string, string | null>> {
+  private async authorNames(docs: Feedback[]): Promise<Map<string, string | null>> {
     const map = new Map<string, string | null>();
     const ids = [...new Set(docs.map((d) => d.authorId))];
     for (const id of ids) {

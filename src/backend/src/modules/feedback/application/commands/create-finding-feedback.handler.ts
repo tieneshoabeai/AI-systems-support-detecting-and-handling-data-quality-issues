@@ -5,19 +5,10 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import {
   FEEDBACK_REPOSITORY_PORT,
-  type FeedbackRecord,
   type FeedbackRepositoryPort,
 } from '../../domain/ports/feedback.repository.port';
 import {
@@ -35,11 +26,11 @@ import {
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
-import { requiresReason } from '../../domain/value-objects/feedback-label.vo';
-import { assertReasonForLabel } from '../../domain/value-objects/feedback-label.vo';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { Feedback } from '../../domain/entities/feedback.entity';
+import { isObjectIdHex, newObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { CreateFeedbackInput } from '../feedback.types';
 import { toPlain } from '../feedback.utils';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class CreateFindingFeedbackHandler {
@@ -65,15 +56,7 @@ export class CreateFindingFeedbackHandler {
 
   private ensureNotAdmin(role: string): void {
     if (role === 'admin') {
-      throw new ForbiddenException(
-        'Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',
-      );
-    }
-  }
-
-  private checkReason(label: string, reason: string | null | undefined): void {
-    if (requiresReason(label) && (!reason || reason.trim().length === 0)) {
-      throw new BadRequestException('Nhãn này bắt buộc kèm lý do (reason)');
+      throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
     }
   }
 
@@ -81,9 +64,9 @@ export class CreateFindingFeedbackHandler {
     analysisId: string,
     userId: string,
   ): Promise<{ run: AnalysisRunRecord; projectRole: string; workspaceRole: string | null }> {
-    if (!isObjectIdHex(analysisId)) throw new BadRequestException('ID lần phân tích không hợp lệ');
+    if (!isObjectIdHex(analysisId)) throw new ValidationError('ID lần phân tích không hợp lệ');
     const run = await this.analysisRepository.findById(analysisId);
-    if (!run) throw new NotFoundException('Không tìm thấy lần phân tích');
+    if (!run) throw new NotFoundError('Không tìm thấy lần phân tích');
     const projectId = run.projectId;
     const { projectRole, workspaceRole } = await this.resolveProjectAccess(projectId, userId);
     return { run, projectRole, workspaceRole };
@@ -102,12 +85,12 @@ export class CreateFindingFeedbackHandler {
       workspaceRole,
     );
     if (!projectRole) {
-      throw new ForbiddenException('Không có quyền truy cập project này');
+      throw new ForbiddenError('Không có quyền truy cập project này');
     }
     return { projectRole, workspaceRole, workspaceId };
   }
 
-  private async promoteFindingToStore(doc: FeedbackRecord): Promise<void> {
+  private async promoteFindingToStore(doc: Feedback): Promise<void> {
     try {
       const fid = (doc.findingId ?? '').trim();
       if (!fid) return;
@@ -172,7 +155,7 @@ export class CreateFindingFeedbackHandler {
     }
   }
 
-  private async authorNames(docs: FeedbackRecord[]): Promise<Map<string, string | null>> {
+  private async authorNames(docs: Feedback[]): Promise<Map<string, string | null>> {
     const map = new Map<string, string | null>();
     const ids = [...new Set(docs.map((d) => d.authorId))];
     for (const id of ids) {
@@ -196,10 +179,8 @@ export class CreateFindingFeedbackHandler {
   ): Promise<Record<string, unknown>> {
     this.ensureNotAdmin(role);
     const fid = (findingId ?? '').trim();
-    if (!fid) throw new BadRequestException('findingId không được để trống');
-    if (fid.length > 200) throw new BadRequestException('findingId tối đa 200 ký tự');
-    this.checkReason(dto.label, dto.reason ?? null);
-    assertReasonForLabel(dto.label, dto.reason);
+    if (!fid) throw new ValidationError('findingId không được để trống');
+    if (fid.length > 200) throw new ValidationError('findingId tối đa 200 ký tự');
     const { run, projectRole, workspaceRole } = await this.resolveRunProject(analysisId, userId);
 
     let modelId: string | null = null;
@@ -215,20 +196,39 @@ export class CreateFindingFeedbackHandler {
       modelId = null;
     }
 
-    const doc = await this.repo.create({
+    // Entity kiểm tra invariant: nhãn hợp lệ, nhãn bắt buộc lý do,
+    // giới hạn độ dài `reason` / `findingId`.
+    const entity = Feedback.create({
+      id: newObjectIdHex(),
       analysisRunId: run.id,
       findingId: fid,
       projectId: run.projectId,
       workspaceId: run.workspaceId,
       label: dto.label,
-      reason: dto.reason?.trim() ? dto.reason.trim().slice(0, 2000) : null,
+      reason: dto.reason ?? null,
       suggestedSeverity: dto.suggestedSeverity ?? null,
       aiConfidence,
       aiRationale,
       authorId: userId,
       authorRoleAtTime: projectRole ?? workspaceRole ?? 'viewer',
-      model_id: modelId,
-      prompt_version: 'corr-v1',
+      modelId,
+      promptVersion: 'corr-v1',
+    });
+
+    const doc = await this.repo.create({
+      analysisRunId: entity.analysisRunId,
+      findingId: entity.findingId,
+      projectId: entity.projectId,
+      workspaceId: entity.workspaceId,
+      label: entity.label,
+      reason: entity.reason,
+      suggestedSeverity: entity.suggestedSeverity,
+      aiConfidence: entity.aiConfidence,
+      aiRationale: entity.aiRationale,
+      authorId: entity.authorId,
+      authorRoleAtTime: entity.authorRoleAtTime,
+      model_id: entity.modelId,
+      prompt_version: entity.promptVersion,
     });
     await this.promoteFindingToStore(doc);
     const names = await this.authorNames([doc]);

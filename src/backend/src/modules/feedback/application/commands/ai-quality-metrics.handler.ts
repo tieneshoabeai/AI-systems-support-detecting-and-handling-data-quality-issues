@@ -5,14 +5,15 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   FEEDBACK_REPOSITORY_PORT,
   type FeedbackRepositoryPort,
 } from '../../domain/ports/feedback.repository.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class AiQualityMetricsHandler {
@@ -27,9 +28,7 @@ export class AiQualityMetricsHandler {
 
   private ensureNotAdmin(role: string): void {
     if (role === 'admin') {
-      throw new ForbiddenException(
-        'Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',
-      );
+      throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
     }
   }
 
@@ -46,19 +45,19 @@ export class AiQualityMetricsHandler {
       workspaceRole,
     );
     if (!projectRole) {
-      throw new ForbiddenException('Không có quyền truy cập project này');
+      throw new ForbiddenError('Không có quyền truy cập project này');
     }
     return { projectRole, workspaceRole, workspaceId };
   }
 
   async execute(userId: string, role: string, projectId: string): Promise<Record<string, unknown>> {
     this.ensureNotAdmin(role);
-    if (!isObjectIdHex(projectId)) throw new BadRequestException('ID Dự án không hợp lệ');
+    if (!isObjectIdHex(projectId)) throw new ValidationError('ID Dự án không hợp lệ');
     const { projectRole, workspaceRole } = await this.resolveProjectAccess(projectId, userId);
     const allowed =
       workspaceRole === 'owner' || projectRole === 'owner' || projectRole === 'member';
     if (!allowed) {
-      throw new ForbiddenException('Chỉ Owner/Member mới xem thống kê chất lượng AI');
+      throw new ForbiddenError('Chỉ Owner/Member mới xem thống kê chất lượng AI');
     }
     const [groups, total, runs] = await Promise.all([
       this.repo.aggregateByProject(projectId),

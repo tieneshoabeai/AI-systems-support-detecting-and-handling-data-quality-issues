@@ -10,7 +10,7 @@ export {
   FEEDBACK_REPOSITORY_PORT,
   type CreateFeedbackRecord,
   type FeedbackListQuery,
-  type FeedbackRecord,
+  type Feedback,
   type FeedbackRepositoryPort,
   type FeedbackScope,
 } from './domain/ports/feedback.repository.port';
@@ -24,6 +24,15 @@ export {
   type FeedbackLabel,
   type FeedbackSeverity,
 } from './domain/value-objects/feedback-label.vo';
+
+// ── Entities (Bước 3 — Rich Domain Model) ──────────────────────
+export {
+  Feedback as FeedbackEntity,
+  MAX_FEEDBACK_AI_RATIONALE_LENGTH,
+  MAX_FEEDBACK_FINDING_ID_LENGTH,
+  MAX_FEEDBACK_REASON_LENGTH,
+  type FeedbackProps,
+} from './domain/entities/feedback.entity';
 
 // ── Handlers (Command/Query) ──────────────────────────
 // ── Queries (đọc) ──────────────────────────────────────────────

@@ -5,16 +5,10 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   FEEDBACK_REPOSITORY_PORT,
-  type FeedbackRecord,
+  type Feedback,
   type FeedbackRepositoryPort,
 } from '../../domain/ports/feedback.repository.port';
 import {
@@ -25,10 +19,11 @@ import {
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
-import { CursorCodec } from '../../../../shared/pagination/cursor-codec';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { CursorCodec } from '../../../../shared/domain/pagination/cursor-codec';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { ListFeedbackQueryInput } from '../feedback.types';
 import { toPlain } from '../feedback.utils';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class ListRunFeedbackHandler {
@@ -47,9 +42,7 @@ export class ListRunFeedbackHandler {
 
   private ensureNotAdmin(role: string): void {
     if (role === 'admin') {
-      throw new ForbiddenException(
-        'Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',
-      );
+      throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
     }
   }
 
@@ -57,9 +50,9 @@ export class ListRunFeedbackHandler {
     analysisId: string,
     userId: string,
   ): Promise<{ run: AnalysisRunRecord; projectRole: string; workspaceRole: string | null }> {
-    if (!isObjectIdHex(analysisId)) throw new BadRequestException('ID lần phân tích không hợp lệ');
+    if (!isObjectIdHex(analysisId)) throw new ValidationError('ID lần phân tích không hợp lệ');
     const run = await this.analysisRepository.findById(analysisId);
-    if (!run) throw new NotFoundException('Không tìm thấy lần phân tích');
+    if (!run) throw new NotFoundError('Không tìm thấy lần phân tích');
     const projectId = run.projectId;
     const { projectRole, workspaceRole } = await this.resolveProjectAccess(projectId, userId);
     return { run, projectRole, workspaceRole };
@@ -78,7 +71,7 @@ export class ListRunFeedbackHandler {
       workspaceRole,
     );
     if (!projectRole) {
-      throw new ForbiddenException('Không có quyền truy cập project này');
+      throw new ForbiddenError('Không có quyền truy cập project này');
     }
     return { projectRole, workspaceRole, workspaceId };
   }
@@ -87,14 +80,14 @@ export class ListRunFeedbackHandler {
     if (!cursor) return {};
     const decoded = CursorCodec.decode<{ createdAt?: string; id?: string }>(cursor);
     if (!decoded || !decoded.createdAt || !decoded.id || !isObjectIdHex(decoded.id)) {
-      throw new BadRequestException('Cursor không hợp lệ');
+      throw new ValidationError('Cursor không hợp lệ');
     }
     const d = new Date(decoded.createdAt);
-    if (Number.isNaN(d.getTime())) throw new BadRequestException('Cursor không hợp lệ');
+    if (Number.isNaN(d.getTime())) throw new ValidationError('Cursor không hợp lệ');
     return { createdAt: d, id: decoded.id };
   }
 
-  private async authorNames(docs: FeedbackRecord[]): Promise<Map<string, string | null>> {
+  private async authorNames(docs: Feedback[]): Promise<Map<string, string | null>> {
     const map = new Map<string, string | null>();
     const ids = [...new Set(docs.map((d) => d.authorId))];
     for (const id of ids) {
@@ -110,7 +103,7 @@ export class ListRunFeedbackHandler {
   }
 
   private buildPage(
-    docs: FeedbackRecord[],
+    docs: Feedback[],
     limit: number,
     viewerId: string,
     names: Map<string, string | null>,

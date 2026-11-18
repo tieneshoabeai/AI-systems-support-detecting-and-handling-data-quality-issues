@@ -5,13 +5,14 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   FEEDBACK_REPOSITORY_PORT,
   type FeedbackRepositoryPort,
 } from '../../domain/ports/feedback.repository.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
+import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class RemoveHandler {
@@ -27,7 +28,7 @@ export class RemoveHandler {
 
   async execute(userId: string, role: string, id: string): Promise<{ deleted: boolean }> {
     const existing = await this.repo.findByIdActive(id);
-    if (!existing) throw new NotFoundException('Không tìm thấy nhận xét');
+    if (!existing) throw new NotFoundError('Không tìm thấy nhận xét');
     const isMine = existing.authorId === userId;
     if (isMine) {
       if (role === 'admin') {
@@ -54,9 +55,7 @@ export class RemoveHandler {
     );
     const canModerate = projectRole === 'owner' || workspaceRole === 'owner';
     if (!canModerate) {
-      throw new ForbiddenException(
-        'Chỉ chủ nhận xét hoặc Project/Workspace Owner (xử lý vi phạm) được xoá',
-      );
+      throw new ForbiddenError('Chỉ chủ nhận xét hoặc Project/Workspace Owner (xử lý vi phạm) được xoá',);
     }
     this.logger.warn(
       `Owner ${userId} (${projectRole}/${workspaceRole}) xoa nhan xet vi pham ${id} (ghi log kiem toan)`,

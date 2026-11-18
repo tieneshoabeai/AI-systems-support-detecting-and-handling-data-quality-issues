@@ -5,12 +5,12 @@ import { IFindingFeedback } from './finding-feedback.schema';
 import {
   type CreateFeedbackRecord,
   type FeedbackListQuery,
-  type FeedbackRecord,
+  type Feedback,
   type FeedbackRepositoryPort,
   type FeedbackScope,
 } from '../../domain/ports/feedback.repository.port';
-import { toFeedbackPersistence, toFeedbackRecord } from './feedback.mapper';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { toFeedbackPersistence, toFeedbackEntity } from './feedback.mapper';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
@@ -28,7 +28,7 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     private readonly model: Model<IFindingFeedback>,
   ) {}
 
-  async create(doc: CreateFeedbackRecord): Promise<FeedbackRecord> {
+  async create(doc: CreateFeedbackRecord): Promise<Feedback> {
     const raw = doc as unknown as Record<string, unknown>;
     // ho tro ca snake_case + ObjectId cu tu service chua refactor het
     const pickStr = (v: unknown): string | null => {
@@ -60,10 +60,10 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     if (raw.promptVersion !== undefined && raw.prompt_version === undefined) extra.prompt_version = raw.promptVersion;
     for (const [k, v] of Object.entries(extra)) (inst as unknown as Record<string, unknown>)[k] = v;
     const saved = await inst.save();
-    return toFeedbackRecord(saved);
+    return toFeedbackEntity(saved);
   }
 
-  async listByScope(params: FeedbackListQuery): Promise<FeedbackRecord[]> {
+  async listByScope(params: FeedbackListQuery): Promise<Feedback[]> {
     const raw = params as unknown as Record<string, unknown>;
     const analysisRunId = String(raw.analysisRunId ?? raw.analysis_run_id ?? params.analysisRunId);
     const findingId = (raw.findingId !== undefined ? raw.findingId : raw.finding_id) as string | null;
@@ -92,22 +92,22 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
       .sort(sort)
       .limit(limit + 1)
       .exec();
-    return docs.map(toFeedbackRecord);
+    return docs.map(toFeedbackEntity);
   }
 
-  async listActiveByRun(analysisRunId: string): Promise<FeedbackRecord[]> {
+  async listActiveByRun(analysisRunId: string): Promise<Feedback[]> {
     if (!isObjectIdHex(analysisRunId)) return [];
     const docs = await this.model.find({ analysis_run_id: oid(analysisRunId), deleted_at: null }).sort({ created_at: 1 }).exec();
-    return docs.map(toFeedbackRecord);
+    return docs.map(toFeedbackEntity);
   }
 
-  async findByIdActive(id: string): Promise<FeedbackRecord | null> {
+  async findByIdActive(id: string): Promise<Feedback | null> {
     if (!isObjectIdHex(id)) return null;
     const doc = await this.model.findOne({ _id: oid(id), deleted_at: null }).exec();
-    return doc ? toFeedbackRecord(doc) : null;
+    return doc ? toFeedbackEntity(doc) : null;
   }
 
-  async updateById(id: string, update: Partial<CreateFeedbackRecord> & Record<string, unknown>): Promise<FeedbackRecord | null> {
+  async updateById(id: string, update: Partial<CreateFeedbackRecord> & Record<string, unknown>): Promise<Feedback | null> {
     if (!isObjectIdHex(id)) return null;
     const raw = (update as Record<string, unknown>).$set && typeof (update as Record<string, unknown>).$set === 'object'
       ? (update as Record<string, unknown>).$set as Record<string, unknown>
@@ -118,7 +118,7 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     if (raw.suggestedSeverity !== undefined) { set.suggested_severity = raw.suggestedSeverity; delete set.suggestedSeverity; }
     if (raw.suggested_severity !== undefined) set.suggested_severity = raw.suggested_severity;
     const doc = await this.model.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true }).exec();
-    return doc ? toFeedbackRecord(doc) : null;
+    return doc ? toFeedbackEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
