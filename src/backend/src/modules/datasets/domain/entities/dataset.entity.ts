@@ -285,91 +285,6 @@ export class Dataset extends BaseEntity<DatasetProps> {
   }
 
   /**
-   * Đổi tên hiển thị của dataset.
-   *
-   * Invariant: tên rỗng hoặc quá 100 ký tự → `ValidationError`.
-   */
-  rename(name?: string): void {
-    if (name === undefined) return;
-    const trimmed = name.trim();
-    if (trimmed.length === 0) {
-      throw new ValidationError('Ten tap du lieu khong duoc de trong');
-    }
-    if (trimmed.length > 100) {
-      throw new ValidationError('Ten tap du lieu khong duoc vuot qua 100 ky tu');
-    }
-    this.props.name = trimmed;
-    this.props.updatedAt = new Date();
-  }
-
-  /**
-   * Đổi tên hiển thị của một/nhiều cột — **key `c{i}` giữ nguyên** (S21).
-   *
-   * Invariant:
-   *   - Key không tồn tại → `ValidationError`.
-   *   - Tên rỗng → `ValidationError`.
-   *   - Tên trùng nhau → `ConflictError`.
-   *
-   * Phát domain event `dataset.renamed`.
-   */
-  renameColumns(renames: Array<{ key: string; name: string }>): void {
-    const unknownKey = renames.find((r) => !this.columnByKey(r.key));
-    if (unknownKey) {
-      throw new ValidationError(`Cot khong ton tai: ${unknownKey.key}`, {
-        reason: 'unknown_column_key',
-        key: unknownKey.key,
-      });
-    }
-    for (const r of renames) {
-      if (r.name.trim().length === 0) {
-        throw new ValidationError(`Ten cot khong duoc de trong (cot ${r.key})`, {
-          reason: 'empty_column_name',
-          key: r.key,
-        });
-      }
-    }
-    // Kiểm tra trùng tên trên toàn bộ tập cột sau khi đổi.
-    const seen = new Map<string, string>();
-    for (const c of this.props.columns) {
-      const nextName = renames.find((r) => r.key === c.key)?.name ?? c.name;
-      const first = seen.get(nextName);
-      if (first !== undefined) {
-        throw new ConflictError(
-          `Ten cot "${nextName}" bi trung (cot ${first} va cot ${c.key})`,
-          { reason: 'duplicate_column_name', name: nextName },
-        );
-      }
-      seen.set(nextName, c.key);
-    }
-
-    this.props.columns = this.props.columns.map((c) => {
-      const rename = renames.find((r) => r.key === c.key);
-      return rename ? { ...c, name: rename.name } : { ...c };
-    });
-    this.props.updatedAt = new Date();
-    this.addDomainEvent({
-      eventType: DATASET_EVENTS.RENAMED,
-      aggregateId: this.props.id,
-      payload: {
-        renames: renames.map((r) => ({ key: r.key, name: r.name })),
-      },
-      occurredAt: this.props.updatedAt,
-    });
-  }
-
-  /**
-   * Khôi phục tên hiển thị của cột về tên gốc từ file CSV (M15).
-   */
-  resetColumnNames(): void {
-    this.props.columns = this.props.columns.map((c) => ({
-      ...c,
-      name: c.originalName,
-    }));
-    this.props.columnIssues = [];
-    this.props.updatedAt = new Date();
-  }
-
-  /**
    * Ghi nhận kết quả suy luận schema + chuyển trạng thái `READY`.
    *
    * Invariant:
@@ -447,6 +362,52 @@ export class Dataset extends BaseEntity<DatasetProps> {
   setColumnIssues(issues: DatasetColumnIssue[]): void {
     this.props.columnIssues = issues.map((i) => ({ ...i }));
     this.props.updatedAt = new Date();
+  }
+
+  /**
+   * Bật/tắt cờ PII cho một hoặc nhiều cột — GĐ4.
+   *
+   * **Đây KHÔNG phải sửa nội dung dữ liệu.** `isPii` là *metadata phân loại cột*,
+   * nằm ngoài bản chụp dữ liệu — nên vẫn tuân thủ nguyên tắc bất biến
+   * ("dữ liệu nạp vào như nào thì giữ nguyên như vậy").
+   *
+   * Invariant:
+   *   - Key cột không tồn tại → `ValidationError`.
+   *   - Không có cột nào thay đổi → `ValidationError` (payload rỗng về nghĩa).
+   *
+   * Phát domain event `dataset.pii_updated` để audit log ghi lại thay đổi.
+   */
+  setColumnPii(updates: Array<{ columnKey: string; isPii: boolean }>): void {
+    if (updates.length === 0) {
+      throw new ValidationError('Khong co cot nao duoc cap nhat');
+    }
+    const unknown = updates.find((u) => !this.columnByKey(u.columnKey));
+    if (unknown) {
+      throw new ValidationError(`Cot khong ton tai: ${unknown.columnKey}`, {
+        reason: 'unknown_column_key',
+        key: unknown.columnKey,
+      });
+    }
+    const changed: Array<{ columnKey: string; isPii: boolean }> = [];
+    for (const u of updates) {
+      const col = this.columnByKey(u.columnKey);
+      if (!col) continue;
+      if (col.isPii === u.isPii) continue; // không đổi → bỏ qua
+      col.isPii = u.isPii;
+      changed.push({ columnKey: u.columnKey, isPii: u.isPii });
+    }
+    if (changed.length === 0) {
+      throw new ValidationError('Khong co cot nao thay doi', {
+        reason: 'no_column_changed',
+      });
+    }
+    this.props.updatedAt = new Date();
+    this.addDomainEvent({
+      eventType: DATASET_EVENTS.PII_UPDATED,
+      aggregateId: this.props.id,
+      payload: { changes: changed },
+      occurredAt: this.props.updatedAt,
+    });
   }
 
   /** Bản chụp props — dùng cho mapper chuyển entity → persistence. */

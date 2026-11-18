@@ -157,20 +157,22 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     ).toBeUndefined();
   });
 
-  it('S21: rename doi name, giu key bat bien + tinh lai issues; M15 reset + dao nguoc props', async () => {
-    const renamed = await service.renameColumns(mockDatasetId, {
-      columns: [{ key: 'c0', name: 'Ho Ten' }],
-    });
-    const c0 = renamed.columns.find((c) => c.key === 'c0');
-    expect(c0?.name).toBe('Ho Ten');
-    expect(c0?.key).toBe('c0');
+  it('BẤT BIẾN: khong con handler rename/reset — chi ghep props theo ten goc', async () => {
+    // Các handler sửa nội dung dataset đã bị gỡ (bất biến dữ liệu):
+    //   - renameColumns   (đổi tên cột)
+    //   - resetColumnNames(khôi phục tên cột gốc)
+    //   - updateDataset   (đổi tên dataset)
+    expect((service as unknown as Record<string, unknown>)['renameColumns']).toBeUndefined();
+    expect((service as unknown as Record<string, unknown>)['resetColumnNames']).toBeUndefined();
+    expect((service as unknown as Record<string, unknown>)['updateDataset']).toBeUndefined();
+
+    // Gép props → tên gốc vẫn hoạt động (đây là phép đọc, không sửa dữ liệu).
+    const dataset = await service.getDatasetById(mockDatasetId);
     const back = service.mapPropsToOriginalNames(
-      renamed.columns.map((c) => ({ key: c.key, originalName: c.originalName })),
+      dataset.columns.map((c) => ({ key: c.key, originalName: c.originalName })),
       { c0: 'Nguyen Van A', c1: 30 },
     );
     expect(back).toEqual({ Ten: 'Nguyen Van A', Tuoi: 30 });
-    const reset = await service.resetColumnNames(mockDatasetId);
-    expect(reset.columns.find((c) => c.key === 'c0')?.name).toBe('Ten');
   });
 
   it('S19/A13: dataset_record insert-only - repository chi co bulkInsertRecords, khong updateOne/deleteMany', async () => {

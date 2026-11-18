@@ -73,6 +73,3 @@ export { GetDatasetSchemaHandler } from './application/queries/get-dataset-schem
 export { DeleteDatasetHandler } from './application/commands/delete-dataset.handler';
 export { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
 export { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
-export { RenameColumnsHandler } from './application/commands/rename-columns.handler';
-export { ResetColumnNamesHandler } from './application/commands/reset-column-names.handler';
-export { UpdateDatasetHandler } from './application/commands/update-dataset.handler';

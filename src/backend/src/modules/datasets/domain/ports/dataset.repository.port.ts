@@ -54,6 +54,20 @@ export interface DatasetRepositoryPort {
     id: string,
     update: Partial<CreateDatasetInput> & Record<string, unknown>,
   ): Promise<Dataset | null>;
+  /**
+   * GĐ4 — cập nhật **chỉ cờ PII** của các cột.
+   *
+   * Tách khỏi `updateById` vì `updateById` chỉ chạy được khi dataset còn
+   * `INGESTING` (bất biến nội dung), còn cờ PII là *metadata phân loại cột* —
+   * được phép cập nhật trên dataset đã `READY`.
+   *
+   * Method này **không** chạm vào tên cột, số dòng, số cột hay bất kì thuộc
+   * tính nội dung nào — chỉ `columns[].is_pii`.
+   */
+  updateColumnPii(
+    id: string,
+    updates: Array<{ columnKey: string; isPii: boolean }>,
+  ): Promise<Dataset | null>;
   bulkInsertRecords(records: RecordInsertDoc[]): Promise<number>;
   softDeleteDatasetWithRecords(datasetId: string): Promise<boolean>;
 }

@@ -18,10 +18,8 @@ import { GetDatasetByIdHandler } from './application/queries/get-dataset-by-id.h
 import { GetDatasetByProjectIdHandler } from './application/queries/get-dataset-by-project-id.handler';
 import { GetDatasetSchemaHandler } from './application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
+import { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
 import { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
-import { RenameColumnsHandler } from './application/commands/rename-columns.handler';
-import { ResetColumnNamesHandler } from './application/commands/reset-column-names.handler';
-import { UpdateDatasetHandler } from './application/commands/update-dataset.handler';
 import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
 
 /**
@@ -49,10 +47,8 @@ import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy
     { provide: RECORD_QUERY_PORT, useExisting: RecordQueryRepository },
     DeleteDatasetHandler,
     IngestDatasetStreamHandler,
+    UpdateColumnPiiHandler,
     MapPropsToOriginalNamesHandler,
-    RenameColumnsHandler,
-    ResetColumnNamesHandler,
-    UpdateDatasetHandler,
     DownloadDatasetFileHandler,
     GetDatasetByIdHandler,
     GetDatasetByProjectIdHandler,

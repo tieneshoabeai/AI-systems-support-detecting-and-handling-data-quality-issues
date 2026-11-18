@@ -52,6 +52,20 @@ export class DatasetsRepository implements DatasetRepositoryPort {
     return doc ? toDatasetEntity(doc) : null;
   }
 
+  /**
+   * Cập nhật dataset — **chỉ trong lúc nạp** (`status = INGESTING`).
+   *
+   * BẤT BIẾN DỮ LIỆU: một dataset đã nạp xong (`READY`) hoặc thất bại
+   * (`FAILED`) là bản chụp bất biến — không được sửa tên, tên cột, số dòng,
+   * số cột hay bất kì thuộc tính nội dung nào sau đó. Các route chỉnh sửa
+   * (`PATCH /datasets/:id`, `PATCH /datasets/:id/columns`,
+   * `POST /datasets/:id/columns/reset`) đã bị gỡ khỏi API; guard ở đây là
+   * lớp phòng thủ cuối cùng để không nơi nào (kể cả nội bộ) sửa được nội dung
+   * đã nạp.
+   *
+   * Lưu ý: `ingest-dataset-stream.handler` gọi `updateById` để ghi kết quả
+   * suy luận schema khi dataset còn `INGESTING` → vẫn đi qua được.
+   */
   async updateById(
     id: string,
     update: Partial<CreateDatasetInput> & Record<string, unknown>,
@@ -60,12 +74,56 @@ export class DatasetsRepository implements DatasetRepositoryPort {
     const set = toDatasetUpdate(update);
     const doc = await this.datasetModel
       .findOneAndUpdate(
-        { _id: new Types.ObjectId(id), deleted_at: null },
+        { _id: new Types.ObjectId(id), deleted_at: null, status: 'INGESTING' },
         { $set: set },
         { new: true },
       )
       .exec();
     return doc ? toDatasetEntity(doc) : null;
+  }
+
+  /**
+   * GĐ4 — cập nhật chỉ cờ PII của các cột (`columns[].is_pii`).
+   *
+   * Dùng `$set` với **đường dẫn dot-notation** (`columns.0.is_pii`) nên không
+   * ghi đè bất kỳ trường nội dung nào khác của dataset — kể cả khi dataset đã
+   * `READY` (khác với `updateById` chỉ chạy được ở `INGESTING`).
+   *
+   * Đây là **metadata**, không phải nội dung dữ liệu → không vi phạm nguyên tắc
+   * bất biến ("dữ liệu nạp vào như nào thì giữ nguyên như vậy").
+   */
+  async updateColumnPii(
+    id: string,
+    updates: Array<{ columnKey: string; isPii: boolean }>,
+  ): Promise<Dataset | null> {
+    if (!isObjectIdHex(id) || updates.length === 0) return null;
+    const doc = await this.datasetModel
+      .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
+      .exec();
+    if (!doc) return null;
+
+    const columns = doc.columns ?? [];
+    const setOps: Record<string, boolean> = {};
+    let changed = 0;
+    for (const u of updates) {
+      const idx = columns.findIndex((c) => c.key === u.columnKey);
+      if (idx < 0) continue;
+      const current = columns[idx];
+      if (!current) continue;
+      if ((current.is_pii ?? false) === u.isPii) continue;
+      setOps[`columns.${idx}.is_pii`] = u.isPii;
+      changed++;
+    }
+    if (changed === 0) return toDatasetEntity(doc);
+
+    const updated = await this.datasetModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id), deleted_at: null },
+        { $set: { ...setOps, updated_at: new Date() } },
+        { new: true },
+      )
+      .exec();
+    return updated ? toDatasetEntity(updated) : null;
   }
 
   async bulkInsertRecords(records: RecordInsertDoc[]): Promise<number> {

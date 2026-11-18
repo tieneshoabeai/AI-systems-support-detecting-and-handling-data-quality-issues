@@ -149,75 +149,40 @@ describe('Dataset entity — assertIngestible()', () => {
   });
 });
 
-describe('Dataset entity — rename()', () => {
-  it('đổi tên dataset', () => {
+/**
+ * BẤT BIẾN DỮ LIỆU — sau khi nạp, nội dung dataset không được sửa.
+ *
+ * Các method `rename()` / `renameColumns()` / `resetColumnNames()` đã bị gỡ
+ * khỏi entity `Dataset` (và route HTTP tương ứng đã bị gỡ khỏi controller).
+ * Bộ test này khoá lại hành vi đó: không còn cách nào đổi tên dataset, đổi tên
+ * cột hay khôi phục tên cột gốc.
+ */
+describe('Dataset entity — bất biến dữ liệu (không có method sửa nội dung)', () => {
+  it('không còn method rename() trên entity', () => {
     const dataset = buildDataset();
-    dataset.rename('Tên mới');
-    expect(dataset.name).toBe('Tên mới');
+    expect((dataset as unknown as Record<string, unknown>)['rename']).toBeUndefined();
   });
 
-  it('tên rỗng → ValidationError', () => {
+  it('không còn method renameColumns() trên entity', () => {
     const dataset = buildDataset();
-    expect(() => dataset.rename('   ')).toThrow(ValidationError);
+    expect((dataset as unknown as Record<string, unknown>)['renameColumns']).toBeUndefined();
   });
 
-  it('tên quá 100 ký tự → ValidationError', () => {
+  it('không còn method resetColumnNames() trên entity', () => {
     const dataset = buildDataset();
-    expect(() => dataset.rename('x'.repeat(101))).toThrow(ValidationError);
+    expect((dataset as unknown as Record<string, unknown>)['resetColumnNames']).toBeUndefined();
   });
 
-  it('rename(undefined) không đổi gì', () => {
+  it('tên dataset giữ nguyên sau khi tạo (không đổi được)', () => {
     const dataset = buildDataset();
-    dataset.rename(undefined);
     expect(dataset.name).toBe('f');
   });
-});
 
-describe('Dataset entity — renameColumns()', () => {
-  it('đổi tên hiển thị, giữ nguyên key', () => {
+  it('tên cột giữ nguyên như lúc nạp, key c{i} bất biến', () => {
     const dataset = buildDataset();
-    dataset.renameColumns([{ key: 'c0', name: 'Ho Ten' }]);
-
-    expect(dataset.columnByKey('c0')?.name).toBe('Ho Ten');
+    expect(dataset.columnByKey('c0')?.name).toBe('Ten');
     expect(dataset.columnByKey('c0')?.key).toBe('c0');
     expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
-  });
-
-  it('key không tồn tại → ValidationError', () => {
-    const dataset = buildDataset();
-    expect(() => dataset.renameColumns([{ key: 'c99', name: 'X' }])).toThrow(ValidationError);
-  });
-
-  it('tên rỗng → ValidationError', () => {
-    const dataset = buildDataset();
-    expect(() => dataset.renameColumns([{ key: 'c0', name: '  ' }])).toThrow(ValidationError);
-  });
-
-  it('tên trùng với cột khác → ConflictError', () => {
-    const dataset = buildDataset();
-    expect(() => dataset.renameColumns([{ key: 'c0', name: 'Tuoi' }])).toThrow(ConflictError);
-  });
-
-  it('phát domain event dataset.renamed', () => {
-    const dataset = buildDataset();
-    dataset.renameColumns([{ key: 'c0', name: 'Ho Ten' }]);
-
-    const events = dataset.dispatchDomainEvents();
-    expect(events[0]?.eventType).toBe('dataset.renamed');
-    expect(dataset.dispatchDomainEvents()).toHaveLength(0);
-  });
-});
-
-describe('Dataset entity — resetColumnNames()', () => {
-  it('khôi phục tên gốc và xoá lỗi tên cột', () => {
-    const dataset = buildDataset({
-      columnIssues: [{ columnKey: 'c0', issue: 'empty_name', message: 'rong' }],
-    });
-    dataset.renameColumns([{ key: 'c0', name: 'Ho Ten' }]);
-    dataset.resetColumnNames();
-
-    expect(dataset.columnByKey('c0')?.name).toBe('Ten');
-    expect(dataset.columnIssues).toHaveLength(0);
   });
 });
 
