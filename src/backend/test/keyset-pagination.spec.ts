@@ -3,23 +3,23 @@ import {
   decodeKeysetCursor,
   encodeKeysetCursor,
   parseListCursor,
-} from '../src/shared/pagination/keyset-cursor';
+} from '../src/shared/domain/pagination/keyset-cursor';
 import {
   buildKeysetCondition,
   buildKeysetSort,
   type KeysetSortSpec,
-} from '../src/shared/pagination/keyset-filter.util';
-import { extractSortValue } from '../src/shared/pagination/keyset-value.util';
+} from '../src/shared/domain/pagination/keyset-filter.util';
+import { extractSortValue } from '../src/shared/domain/pagination/keyset-value.util';
 import {
   COMMON_SORT_SPECS,
   resolveSortSpec,
-} from '../src/shared/pagination/keyset-sort.util';
+} from '../src/shared/domain/pagination/keyset-sort.util';
 import {
   compareBySort,
   isAfterCursor,
   sortValueOf,
   type InMemorySortable,
-} from '../src/shared/pagination/keyset-memory.util';
+} from '../src/shared/domain/pagination/keyset-memory.util';
 
 describe('Keyset Cursor — encode/decode', () => {
   it('encode → decode giữ nguyên payload', () => {

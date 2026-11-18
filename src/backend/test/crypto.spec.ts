@@ -6,7 +6,7 @@ import {
   decryptAes256GcmBuffer,
   createAes256GcmEncryptStream,
   deriveKeyPbkdf2,
-} from '../src/shared/crypto/crypto.util';
+} from '../src/shared/domain/crypto/crypto.util';
 
 describe('Cryptographic Engine (crypto.util.ts)', () => {
   const samplePassword = 'StrongPassword123!@#';

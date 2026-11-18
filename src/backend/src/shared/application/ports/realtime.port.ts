@@ -21,7 +21,7 @@
 import type {
   RealtimeEventName,
   RealtimeFields,
-} from '../utils/realtime-events';
+} from '../../domain/utils/realtime-events';
 
 export const REALTIME_PORT = Symbol('RealtimePort');
 
@@ -41,4 +41,4 @@ export type {
   RealtimeEnvelope,
   RealtimeEventName,
   RealtimeFields,
-} from '../utils/realtime-events';
+} from '../../domain/utils/realtime-events';
