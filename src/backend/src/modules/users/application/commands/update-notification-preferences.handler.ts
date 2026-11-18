@@ -4,12 +4,15 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** gọi `user.setNotificationsEnabled()`.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   USER_REPOSITORY_PORT,
   type UserRepositoryPort,
 } from '../../domain/ports/user.repository.port';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class UpdateNotificationPreferencesHandler {
@@ -19,9 +22,14 @@ export class UpdateNotificationPreferencesHandler {
   ) {}
 
   async execute(userId: string, enabled: boolean): Promise<boolean> {
+    const current = await this.users.findById(userId);
+    if (!current) {
+      throw new NotFoundError('Không tìm thấy tài khoản người dùng');
+    }
+    current.setNotificationsEnabled(enabled);
     const ok = await this.users.updateNotificationPreferences(userId, enabled);
     if (!ok) {
-      throw new NotFoundException('Không tìm thấy tài khoản người dùng');
+      throw new NotFoundError('Không tìm thấy tài khoản người dùng');
     }
     return enabled;
   }

@@ -13,11 +13,22 @@ export {
   type CreateUserWithGoogleInput,
   type UpdateProfileInput,
   type PasswordResetState,
-  type UserRecord,
   type UserRepositoryPort,
-  type UserSessionRecord,
+  type UserWithResetSecret,
 } from './domain/ports/user.repository.port';
 
+// ── Entities (Bước 3 — Rich Domain Model) ──────────────────────
+export {
+  User,
+  type AuthProvider,
+  type UserProps,
+  MAX_BIO_LENGTH,
+  MAX_NAME_LENGTH,
+} from './domain/entities/user.entity';
+export {
+  UserSession,
+  type UserSessionProps,
+} from './domain/entities/user-session.entity';
 export {
   USER_ROLES,
   USER_STATUSES,
@@ -28,6 +39,13 @@ export {
   type UserRole,
   type UserStatus,
 } from './domain/value-objects/user-role.vo';
+
+// ── Presentation ──────────────────────────────────────────────
+export {
+  toUserResponse,
+  toUserResponses,
+  type UserResponse,
+} from './presentation/responses/user.response';
 
 // ── Handlers (Command/Query) ──────────────────────────
 // ── Queries (đọc) ──────────────────────────────────────────────

@@ -1,17 +1,21 @@
-import { Controller, Get, Patch, Delete, Body, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { UpdateUserSchema, UpdateUserDto } from './dtos/update-user.dto';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { UpdateUserSchema, UpdateUserDto } from '../dtos/update-user.dto';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { FindByIdHandler } from '../../application/queries/find-by-id.handler';
 import { SoftDeleteUserHandler } from '../../application/commands/soft-delete-user.handler';
 import { UpdateProfileHandler } from '../../application/commands/update-profile.handler';
-import type { UserRecord } from '../..';
+import {
+  toUserResponse,
+  type UserResponse,
+} from '../responses/user.response';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -27,12 +31,12 @@ export class UsersController {
   @Get('me')
   @ApiOperation({ summary: 'Lấy thông tin tài khoản hiện tại' })
   @ApiResponse({ status: 200, description: 'Thông tin hồ sơ người dùng thành công' })
-  async getProfile(@CurrentUser() user: CurrentUserPayload): Promise<UserRecord> {
+  async getProfile(@CurrentUser() user: CurrentUserPayload): Promise<UserResponse> {
     const profile = await this.findByIdHandler.execute(user.userId);
     if (!profile) {
-      throw new NotFoundException('Không tìm thấy tài khoản người dùng');
+      throw new NotFoundError('Không tìm thấy tài khoản người dùng');
     }
-    return profile;
+    return toUserResponse(profile);
   }
 
   @Patch('me')
@@ -42,8 +46,9 @@ export class UsersController {
   async updateProfile(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(UpdateUserSchema)) dto: UpdateUserDto,
-  ): Promise<UserRecord> {
-    return this.updateProfileHandler.execute(user.userId, dto);
+  ): Promise<UserResponse> {
+    const updated = await this.updateProfileHandler.execute(user.userId, dto);
+    return toUserResponse(updated);
   }
 
   @Delete('me')

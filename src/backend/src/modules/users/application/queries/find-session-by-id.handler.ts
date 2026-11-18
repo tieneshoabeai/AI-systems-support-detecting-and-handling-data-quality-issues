@@ -4,13 +4,15 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** trả entity `UserSession`.
  */
 import { Inject, Injectable } from '@nestjs/common';
 import {
   USER_REPOSITORY_PORT,
   type UserRepositoryPort,
-  type UserSessionRecord,
 } from '../../domain/ports/user.repository.port';
+import type { UserSession } from '../../domain/entities/user-session.entity';
 
 @Injectable()
 export class FindSessionByIdHandler {
@@ -19,7 +21,7 @@ export class FindSessionByIdHandler {
     private readonly users: UserRepositoryPort,
   ) {}
 
-  async execute(sessionId: string): Promise<UserSessionRecord | null> {
+  async execute(sessionId: string): Promise<UserSession | null> {
     return this.users.findSessionById(sessionId);
   }
 }
