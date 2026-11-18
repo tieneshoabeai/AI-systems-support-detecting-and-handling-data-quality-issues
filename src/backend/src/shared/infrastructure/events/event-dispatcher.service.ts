@@ -5,6 +5,8 @@ import type { RealtimePort } from '../../application/ports/realtime.port';
 import { REALTIME_PORT } from '../../application/ports/realtime.port';
 import type { InboxService } from '../outbox/inbox.service';
 import { InboxService as InboxServiceToken } from '../outbox/inbox.service';
+import type { DomainEventHandlerRegistry } from '../../application/ports/domain-event-handler.port';
+import { DOMAIN_EVENT_HANDLER_REGISTRY } from '../../application/ports/domain-event-handler.port';
 
 /**
  * Nhom 4 - Event dispatcher (consumer in-process).
@@ -18,6 +20,9 @@ export class EventDispatcherService implements OnModuleInit {
     private readonly inProcess: InProcessEventPublisher,
     @Optional() @Inject(REALTIME_PORT) private readonly realtime?: RealtimePort,
     @Optional() @Inject(InboxServiceToken) private readonly inbox?: InboxService,
+    @Optional()
+    @Inject(DOMAIN_EVENT_HANDLER_REGISTRY)
+    private readonly registry?: DomainEventHandlerRegistry,
   ) {}
   onModuleInit(): void {
     this.inProcess.onEvent((e) => { void this.handle(e).catch(() => undefined); });
@@ -32,6 +37,7 @@ export class EventDispatcherService implements OnModuleInit {
     } catch { /* inbox loi -> van xu ly best-effort, khong chan */ }
     try {
       this.route(envelope);
+      await this.dispatchToDomainHandlers(envelope);
       if (this.inbox) await this.inbox.complete('event-dispatcher', envelope.eventId).catch(() => undefined);
     } catch (err: unknown) {
       if (this.inbox) await this.inbox.fail('event-dispatcher', envelope.eventId).catch(() => undefined);
@@ -39,6 +45,38 @@ export class EventDispatcherService implements OnModuleInit {
       this.logger.warn(`dispatch loi event=${envelope.eventType}: ${msg}`);
     }
   }
+  /**
+   * Chuyen event cho cac handler da dang ky (cascade).
+   *
+   * Moi handler co **consumer name rieng** → idempotency tach rieng theo tung
+   * consumer trong Inbox, dung chuan at-least-once delivery.
+   */
+  private async dispatchToDomainHandlers(envelope: DomainEventEnvelope): Promise<void> {
+    if (!this.registry) return;
+    const handlers = this.registry.handlersFor(envelope.eventType);
+    if (handlers.length === 0) return;
+    for (const handler of handlers) {
+      try {
+        if (this.inbox) {
+          const claim = await this.inbox.claim(handler.consumerName, envelope.eventId);
+          if (claim !== 'claimed') continue;
+        }
+        await handler.handle(envelope);
+        if (this.inbox) {
+          await this.inbox.complete(handler.consumerName, envelope.eventId).catch(() => undefined);
+        }
+      } catch (err: unknown) {
+        if (this.inbox) {
+          await this.inbox.fail(handler.consumerName, envelope.eventId).catch(() => undefined);
+        }
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `domain handler ${handler.consumerName} loi event=${envelope.eventType}: ${msg}`,
+        );
+      }
+    }
+  }
+
   private route(e: DomainEventEnvelope): void {
     if (!this.realtime) return;
     try {

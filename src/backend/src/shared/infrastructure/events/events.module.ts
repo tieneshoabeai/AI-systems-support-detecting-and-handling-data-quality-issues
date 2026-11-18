@@ -8,6 +8,8 @@ import { HybridEventPublisher } from './hybrid-event.publisher';
 import { EventDispatcherService } from './event-dispatcher.service';
 import { InboxService } from '../outbox/inbox.service';
 import { KafkaConsumerService } from './kafka-consumer.service';
+import { InMemoryDomainEventHandlerRegistry } from './domain-event-handler.registry';
+import { DOMAIN_EVENT_HANDLER_REGISTRY } from '../../application/ports/domain-event-handler.port';
 
 @Global()
 @Module({
@@ -22,13 +24,31 @@ import { KafkaConsumerService } from './kafka-consumer.service';
     },
     { provide: EVENT_PUBLISHER_PORT, useExisting: HybridEventPublisher },
     {
+      provide: DOMAIN_EVENT_HANDLER_REGISTRY,
+      useExisting: InMemoryDomainEventHandlerRegistry,
+    },
+    InMemoryDomainEventHandlerRegistry,
+    {
       provide: EventDispatcherService,
-      useFactory: (local: InProcessEventPublisher, inbox?: unknown, realtime?: unknown) : EventDispatcherService =>
-        new EventDispatcherService(local, realtime as never, inbox as never),
-      inject: [InProcessEventPublisher, { token: InboxService, optional: true }, { token: REALTIME_PORT, optional: true }],
+      useFactory: (local: InProcessEventPublisher, inbox?: unknown, realtime?: unknown, registry?: unknown) : EventDispatcherService =>
+        new EventDispatcherService(local, realtime as never, inbox as never, registry as never),
+      inject: [
+        InProcessEventPublisher,
+        { token: InboxService, optional: true },
+        { token: REALTIME_PORT, optional: true },
+        { token: DOMAIN_EVENT_HANDLER_REGISTRY, optional: true },
+      ],
     },
     KafkaConsumerService,
   ],
-  exports: [InProcessEventPublisher, KafkaEventPublisher, HybridEventPublisher, EVENT_PUBLISHER_PORT, EventDispatcherService, KafkaConsumerService],
+  exports: [
+    InProcessEventPublisher,
+    KafkaEventPublisher,
+    HybridEventPublisher,
+    EVENT_PUBLISHER_PORT,
+    DOMAIN_EVENT_HANDLER_REGISTRY,
+    EventDispatcherService,
+    KafkaConsumerService,
+  ],
 })
 export class EventsModule {}

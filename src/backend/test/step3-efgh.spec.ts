@@ -4,6 +4,7 @@ import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/port
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { User } from '../src/modules/users/domain/entities/user.entity';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
+import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
 import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
 import {
   compareGeneric,
@@ -96,6 +97,7 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
         ...Object.values(workspacesHandlers),
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
       ],
     }).compile();
     wsService = createHandlerProxy(wsModule, workspacesHandlers);
@@ -109,6 +111,7 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
           useValue: { findById: jest.fn().mockResolvedValue(wsRecord) },
         },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
       ],
     }).compile();
     prjService = createHandlerProxy(prjModule, projectsHandlers);
@@ -313,6 +316,7 @@ describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
         { provide: PROJECT_REPOSITORY_PORT, useValue: prjRepo },
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
       ],
     }).compile();
     service = createHandlerProxy(module, projectsHandlers);

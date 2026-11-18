@@ -70,4 +70,14 @@ export interface DatasetRepositoryPort {
   ): Promise<Dataset | null>;
   bulkInsertRecords(records: RecordInsertDoc[]): Promise<number>;
   softDeleteDatasetWithRecords(datasetId: string): Promise<boolean>;
+  /**
+   * Cascade — soft-delete dataset **thuộc project** đã xóa, kèm xóa bản ghi.
+   *
+   * Dùng bởi consumer của event `PROJECT_DELETED` (module `datasets` sở hữu
+   * collection `datasets` + `dataset_records`).
+   *
+   * Trả về danh sách dataset đã bị xóa (kèm `fileSizeBytes` để trừ dung lượng
+   * đã dùng của workspace).
+   */
+  softDeleteByProject(projectId: string): Promise<Array<{ id: string; fileSizeBytes: number }>>;
 }

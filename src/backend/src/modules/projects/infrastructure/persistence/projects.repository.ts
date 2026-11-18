@@ -176,6 +176,8 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     opts: ProjectListQuery = {},
     /** `true` = quản trị viên hệ thống → xem toàn bộ project, không lọc quyền. */
     isAdmin = false,
+    /** Id workspace đã bị xóa → loại project thuộc chúng khỏi kết quả. */
+    excludedWorkspaceIds: string[] = [],
   ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }> {
     if (!isAdmin && !/^[0-9a-fA-F]{24}$/.test(userId)) {
       return { items: [], nextCursor: null, hasMore: false };
@@ -195,6 +197,14 @@ export class ProjectsRepository implements ProjectRepositoryPort {
 
     const conditions: Record<string, unknown>[] = [{ deleted_at: null }];
     if (!isAdmin) conditions.push({ $or: accessFilter });
+    // Lớp phòng thủ: project thuộc workspace **đã bị xóa** không được hiện ra
+    // (kể cả khi cascade event chưa được worker xử lý).
+    const excludedWsIds = excludedWorkspaceIds
+      .filter((id) => /^[0-9a-fA-F]{24}$/.test(id))
+      .map((id) => new Types.ObjectId(id));
+    if (excludedWsIds.length > 0) {
+      conditions.push({ workspace_id: { $nin: excludedWsIds } });
+    }
     if (opts.search?.trim()) {
       conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
     }
@@ -265,6 +275,34 @@ export class ProjectsRepository implements ProjectRepositoryPort {
       .updateOne({ _id: new Types.ObjectId(id), deleted_at: null }, { $set: { deleted_at: new Date() } })
       .exec();
     return r.modifiedCount > 0;
+  }
+
+  /**
+   * Cascade — soft-delete toàn bộ project thuộc workspace đã xóa.
+   *
+   * Chỉ đánh dấu project **còn sống** (`deleted_at: null`) → chạy lại nhiều lần
+   * vẫn idempotent (trả 0 lần thứ hai).
+   */
+  async softDeleteByWorkspace(workspaceId: string): Promise<number> {
+    if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return 0;
+    const r = await this.model
+      .updateMany(
+        { workspace_id: new Types.ObjectId(workspaceId), deleted_at: null },
+        { $set: { deleted_at: new Date() } },
+      )
+      .exec();
+    return r.modifiedCount ?? 0;
+  }
+
+  /** Id các project còn sống thuộc workspace (dùng cho cascade xuống dataset). */
+  async findAliveIdsByWorkspace(workspaceId: string): Promise<string[]> {
+    if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return [];
+    const docs = await this.model
+      .find({ workspace_id: new Types.ObjectId(workspaceId), deleted_at: null })
+      .select('_id')
+      .lean()
+      .exec();
+    return docs.map((d) => String(d._id));
   }
 
   async setHasDataset(projectId: string, hasDataset: boolean): Promise<boolean> {

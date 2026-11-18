@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
+import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
 import { Workspace } from '../src/modules/workspaces/domain/entities/workspace.entity';
 import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
@@ -88,6 +89,7 @@ describe('WorkspacesService (CRUD & Phân quyền Thành viên)', () => {
         ...Object.values(workspacesHandlers),
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: repository },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
       ],
     }).compile();
 

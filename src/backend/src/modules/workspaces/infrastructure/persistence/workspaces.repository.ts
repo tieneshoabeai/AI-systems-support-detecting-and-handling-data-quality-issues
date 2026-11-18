@@ -102,6 +102,17 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     return docs.map((d) => this.toEntity(d));
   }
 
+  /** Id các workspace đã bị xóa mềm — dùng lọc phòng thủ ở tầng query. */
+  async findDeletedIds(): Promise<string[]> {
+    const s = resolveMongoSession(undefined);
+    const docs = await this.workspaceModel
+      .find({ deleted_at: { $ne: null } }, null, { session: s })
+      .select('_id')
+      .lean()
+      .exec();
+    return docs.map((d) => String(d._id));
+  }
+
   async countActive(): Promise<number> {
     const s = resolveMongoSession(undefined);
     return this.workspaceModel.countDocuments({ deleted_at: null }, { session: s }).exec();

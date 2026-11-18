@@ -29,6 +29,7 @@
     "start:ssl:dev": "bash scripts/generate-ssl-certs.sh && SSL_ENABLED=true SSL_PORT=8443 pnpm run start:dev",
     "db:seed": "ts-node scripts/seed-initial-data.ts",
     "db:bootstrap": "ts-node scripts/bootstrap-database.ts",
+    "db:migrate:coerce": "ts-node scripts/migrate-coerce-and-orphans.ts",
     "db:reset:all": "TARGET=all ts-node scripts/bootstrap-database.ts",
     "db:reset:mongo": "TARGET=mongo ts-node scripts/bootstrap-database.ts",
     "db:reset:storage": "TARGET=storage ts-node scripts/bootstrap-database.ts",

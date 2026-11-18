@@ -112,6 +112,13 @@ export interface WorkspaceRepositoryPort {
     expectedVersion?: number,
   ): Promise<Workspace | null>;
   softDelete(id: string): Promise<boolean>;
+  /**
+   * Danh sách id workspace **đã bị xóa mềm**.
+   *
+   * Dùng để lọc phòng thủ ở tầng query: project thuộc workspace đã xóa không
+   * được hiển thị (kể cả khi cascade event chưa được xử lý).
+   */
+  findDeletedIds(): Promise<string[]>;
   addMember(workspaceId: string, member: WorkspaceMemberRecord): Promise<boolean>;
   removeMember(workspaceId: string, userId: string): Promise<boolean>;
   updateMemberRole(

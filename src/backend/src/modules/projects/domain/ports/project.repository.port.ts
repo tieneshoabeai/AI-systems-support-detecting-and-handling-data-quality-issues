@@ -132,6 +132,11 @@ export interface ProjectRepositoryPort {
     opts?: ProjectListQuery,
     /** `true` = quản trị viên hệ thống → xem toàn bộ project, không lọc quyền. */
     isAdmin?: boolean,
+    /**
+     * Id workspace **đã bị xóa** → project thuộc các workspace này bị loại khỏi
+     * kết quả (lớp phòng thủ: cascade event có thể chưa được xử lý).
+     */
+    excludedWorkspaceIds?: string[],
   ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }>;
   updateById(
     id: string,
@@ -139,6 +144,20 @@ export interface ProjectRepositoryPort {
     expectedVersion?: number,
   ): Promise<Project | null>;
   softDelete(id: string): Promise<boolean>;
+  /**
+   * Cascade — soft-delete **toàn bộ** project thuộc workspace đã xóa.
+   *
+   * Gọi bởi consumer của event `WORKSPACE_DELETED` (module `projects` là chủ
+   * sở hữu collection `projects`, nên chỉ nó mới được ghi vào đây).
+   *
+   * Trả về số project thực sự bị đánh dấu xóa (để log + kiểm thử).
+   */
+  softDeleteByWorkspace(workspaceId: string): Promise<number>;
+  /**
+   * Lấy danh sách id project **còn sống** thuộc workspace (dùng để cascade
+   * xuống dataset — module `datasets` cần biết project nào còn dữ liệu).
+   */
+  findAliveIdsByWorkspace(workspaceId: string): Promise<string[]>;
   setHasDataset(projectId: string, hasDataset: boolean): Promise<boolean>;
   setStatus(projectId: string, status: ProjectStatus): Promise<boolean>;
   touchLastAccessed(projectId: string): Promise<void>;

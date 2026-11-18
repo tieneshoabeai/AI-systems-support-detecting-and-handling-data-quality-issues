@@ -21,6 +21,8 @@ import { IngestDatasetStreamHandler } from './application/commands/ingest-datase
 import { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
 import { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
 import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
+import { CascadeProjectDatasetsHandler } from './application/commands/cascade-project-datasets.handler';
+import { CascadeDatasetEventSubscriber } from './application/commands/cascade-dataset-event.subscriber';
 
 /**
  * DATASETS — Module sở hữu collection `datasets` + `dataset_records`.
@@ -55,6 +57,8 @@ import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy
     GetDatasetSchemaHandler,
     SchemaInferenceService,
     DatasetPolicyLoader,
+    CascadeProjectDatasetsHandler,
+    CascadeDatasetEventSubscriber,
   ],
   exports: [
     DatasetsRepository,

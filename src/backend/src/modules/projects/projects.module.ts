@@ -29,6 +29,8 @@ import { ProjectPolicyLoader } from './application/policy-loaders/project-policy
 import { ProjectScopePolicyLoader } from './application/policy-loaders/project-scope-policy.loader';
 import { WorkspaceScopePolicyLoader } from './application/policy-loaders/workspace-scope-policy.loader';
 import { PROJECT_CONTEXT_PORT } from '../../shared/application/ports/project-context.port';
+import { CascadeWorkspaceProjectsHandler } from './application/commands/cascade-workspace-projects.handler';
+import { CascadeProjectEventSubscriber } from './application/commands/cascade-project-event.subscriber';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { PROJECT_CONTEXT_PORT } from '../../shared/application/ports/project-con
     ProjectPolicyLoader,
     ProjectScopePolicyLoader,
     WorkspaceScopePolicyLoader,
+    CascadeWorkspaceProjectsHandler,
+    CascadeProjectEventSubscriber,
   ],
   exports: [
     ProjectsRepository,

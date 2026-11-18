@@ -36,6 +36,10 @@ import {
   storageKeyForDataset,
 } from '../../domain/value-objects/dataset-limits.vo';
 import {
+  coerceValue,
+  type ColumnDataType,
+} from '../../domain/value-objects/value-coercion.vo';
+import {
   validationError,
   unsupportedFileType,
   assertCsvMagicBytes,
@@ -61,6 +65,23 @@ export class IngestDatasetStreamHandler {
     private readonly outbox: OutboxPort,
   ) {}
 
+  /**
+   * Đọc CSV theo **2 pha** để dữ liệu lưu vào MongoDB **khớp với schema**:
+   *
+   * - **Pha 1 — suy schema**: đọc `SAMPLE_ROWS_CAP` dòng đầu để suy `dataType`
+   *   cho từng cột (dùng đúng `inferSchemaWithIssues` mà `execute()` dùng, nên
+   *   kiểu lúc ghi **khớp** kiểu lưu trong schema).
+   * - **Pha 2 — ép kiểu rồi ghi**: mọi dòng còn lại được ép về đúng kiểu cột
+   *   (`number` → số, `boolean` → bool, `date` → `Date` theo giờ Việt Nam) trước
+   *   khi `bulkInsertRecords`.
+   *
+   * Vì sao cần: trước đây `props` lưu **giá trị thô** từ CSV → cột schema là
+   * `number` nhưng giá trị lưu là chuỗi `"4"`. MongoDB so sánh theo BSON type
+   * nên lọc/sắp xếp/thống kê sai (xem `value-coercion.vo.ts`).
+   *
+   * Bộ nhớ được giới hạn: chỉ `SAMPLE_ROWS_CAP` dòng được giữ lại chờ schema,
+   * phần còn lại ghi theo batch `IMPORT_BATCH_SIZE`.
+   */
   private async processCsvStream(
     datasetId: string,
     stream: Readable,
@@ -76,13 +97,63 @@ export class IngestDatasetStreamHandler {
       let currentBatch: { datasetId: string; rowIndex: number; props: Record<string, unknown> }[] =
         [];
 
+      /** Kiểu của từng cột — `null` = chưa suy xong schema (chưa thể ép kiểu). */
+      let columnTypes: Map<string, ColumnDataType> | null = null;
+      /** Các dòng đã đọc nhưng chưa ghi — chờ schema để biết kiểu cột. */
+      let pendingRows: { rowIndex: number; raw: Record<string, unknown> }[] = [];
+
       const csvStream = fastCsv.parse({ headers: true, trim: false });
+
+      /** Dựng `props` cho một dòng, ép kiểu theo schema nếu đã có. */
+      const buildProps = (raw: Record<string, unknown>): Record<string, unknown> => {
+        const props: Record<string, unknown> = {};
+        headers.forEach((h, i) => {
+          const key = `c${i}`;
+          const value = raw[h];
+          if (value === '' || value === undefined) {
+            props[key] = null;
+            return;
+          }
+          const type = columnTypes?.get(key);
+          props[key] = type ? coerceValue(value, type) : value;
+        });
+        return props;
+      };
 
       const flushBatch = async (): Promise<void> => {
         if (currentBatch.length > 0) {
           const batchToInsert = currentBatch;
           currentBatch = [];
           await this.datasets.bulkInsertRecords(batchToInsert);
+        }
+      };
+
+      /**
+       * Suy schema từ sample và bật ép kiểu cho các dòng đang chờ.
+       *
+       * Dùng **đúng** `inferSchemaWithIssues` mà `execute()` dùng → kiểu cột lúc
+       * ghi luôn khớp với kiểu cột lưu trong `dataset.columns`.
+       */
+      const activateSchema = (): void => {
+        if (columnTypes) return;
+        const { columns } = this.schemaInferenceService.inferSchemaWithIssues(
+          headers,
+          sampleRows,
+        );
+        columnTypes = new Map(columns.map((c) => [c.key, c.dataType] as const));
+      };
+
+      /** Chuyển các dòng đang chờ (chưa ghi) thành batch đã ép kiểu. */
+      const drainPending = (): void => {
+        if (pendingRows.length === 0) return;
+        const rows = pendingRows;
+        pendingRows = [];
+        for (const r of rows) {
+          currentBatch.push({
+            datasetId,
+            rowIndex: r.rowIndex,
+            props: buildProps(r.raw),
+          });
         }
       };
 
@@ -98,13 +169,18 @@ export class IngestDatasetStreamHandler {
           sampleRows.push(row);
         }
 
-        const props: Record<string, unknown> = {};
-        headers.forEach((h, i) => {
-          const raw = row[h];
-          props[`c${i}`] = raw === '' || raw === undefined ? null : raw;
-        });
+        // ── Pha 1: chưa có schema → giữ dòng lại chờ ──────────────────────
+        if (!columnTypes) {
+          pendingRows.push({ rowIndex, raw: row });
+          if (sampleRows.length >= SAMPLE_ROWS_CAP) {
+            activateSchema();
+            drainPending();
+          }
+          return;
+        }
 
-        currentBatch.push({ datasetId, rowIndex, props });
+        // ── Pha 2: đã có schema → ép kiểu rồi ghi ─────────────────────────
+        currentBatch.push({ datasetId, rowIndex, props: buildProps(row) });
 
         if (currentBatch.length >= IMPORT_BATCH_SIZE) {
           csvStream.pause();
@@ -115,6 +191,11 @@ export class IngestDatasetStreamHandler {
       });
 
       csvStream.on('end', () => {
+        // File có ít hơn `SAMPLE_ROWS_CAP` dòng → suy schema lúc kết thúc.
+        if (!columnTypes) {
+          activateSchema();
+          drainPending();
+        }
         flushBatch()
           .then(() => resolve({ totalRows, headers, sampleRows }))
           .catch((err) => reject(err));

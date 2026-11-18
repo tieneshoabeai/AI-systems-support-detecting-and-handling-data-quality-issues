@@ -156,4 +156,33 @@ export class DatasetsRepository implements DatasetRepositoryPort {
     }
     return false;
   }
+
+  /**
+   * Cascade — soft-delete dataset thuộc project đã xóa, kèm xóa bản ghi.
+   *
+   * Trả về dataset nào đã bị xóa + dung lượng file tương ứng để caller trừ
+   * `storage_used` của workspace.
+   */
+  async softDeleteByProject(
+    projectId: string,
+  ): Promise<Array<{ id: string; fileSizeBytes: number }>> {
+    if (!isObjectIdHex(projectId)) return [];
+    const pid = new Types.ObjectId(projectId);
+    const docs = await this.datasetModel
+      .find({ project_id: pid, deleted_at: null })
+      .select('_id file_size_bytes')
+      .lean()
+      .exec();
+    if (docs.length === 0) return [];
+    const ids = docs.map((d) => d._id);
+    await this.datasetModel.updateMany(
+      { _id: { $in: ids }, deleted_at: null },
+      { $set: { deleted_at: new Date() } },
+    );
+    await this.recordModel.deleteMany({ dataset_id: { $in: ids } });
+    return docs.map((d) => ({
+      id: String(d._id),
+      fileSizeBytes: (d as unknown as { file_size_bytes?: number }).file_size_bytes ?? 0,
+    }));
+  }
 }
