@@ -1,0 +1,27 @@
+import type { IAnalysisRun } from './analysis-run.schema';
+import type { IAnalysisResult } from './analysis-result.schema';
+import type { IAiJob } from './ai-job.schema';
+import type { IAnalysisConfig } from './analysis-config.schema';
+import type { IProjectSave } from './project-save.schema';
+import type { IReportJob } from './report-job.schema';
+import type { IFewShotExample } from './few-shot-example.schema';
+import type { ICellEvidence } from './cell-evidence.schema';
+import type { AiJobRecord, AnalysisConfigRecord, AnalysisResultRecord, AnalysisRunRecord, CellEvidenceRecord, FewShotExampleRecord, ProjectSaveRecord, ReportJobRecord } from '../../domain/ports/analysis.repository.port';
+export declare function toAnalysisRunRecord(doc: IAnalysisRun): AnalysisRunRecord;
+export declare function toAnalysisRunPersistence(data: {
+    projectId: string;
+    workspaceId: string;
+    datasetId: string;
+    status: AnalysisRunRecord['status'];
+    inputFingerprint: string;
+    config: Record<string, unknown>;
+    startedBy: string | null;
+    startedAt: Date | null;
+}): Record<string, unknown>;
+export declare function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultRecord;
+export declare function toAiJobRecord(doc: IAiJob): AiJobRecord;
+export declare function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigRecord;
+export declare function toProjectSaveRecord(doc: IProjectSave): ProjectSaveRecord;
+export declare function toReportJobRecord(doc: IReportJob): ReportJobRecord;
+export declare function toFewShotRecord(doc: IFewShotExample): FewShotExampleRecord;
+export declare function toCellEvidenceRecord(doc: ICellEvidence): CellEvidenceRecord;

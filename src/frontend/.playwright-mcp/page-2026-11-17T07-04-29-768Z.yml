@@ -1,0 +1,297 @@
+- generic [ref=e100]:
+  - complementary "Chế độ demo" [ref=e101]:
+    - strong [ref=e102]: Demo — không kết nối backend
+    - link "Mở Shopping Trends" [ref=e103] [cursor=pointer]:
+      - /url: /processing/projects/shopping-trends
+    - button "Reset demo" [ref=e104] [cursor=pointer]
+    - button "Đăng xuất demo" [ref=e105] [cursor=pointer]
+  - generic [ref=e2779]:
+    - banner [ref=e2780]:
+      - generic [ref=e2782]:
+        - link "Trang chủ Processing" [ref=e2783] [cursor=pointer]:
+          - /url: /processing
+          - img [ref=e2784]
+          - strong [ref=e2788]: DataVerse
+        - generic [ref=e2789]:
+          - button "Tải file kết quả" [disabled] [ref=e2790]:
+            - img [ref=e2791]
+          - generic [ref=e2793]: Chưa có file kết quả sau xử lý để tải xuống.
+        - link "Quản lý" [ref=e2794] [cursor=pointer]:
+          - /url: /management
+          - img [ref=e2795]
+          - text: Quản lý
+      - generic [ref=e2797]:
+        - button "Chế độ màu" [ref=e2798] [cursor=pointer]:
+          - img [ref=e2799]
+        - button "Thông báo · 5 chưa đọc" [ref=e2801] [cursor=pointer]:
+          - img [ref=e2802]
+        - button "Báo cáo vấn đề" [ref=e2805] [cursor=pointer]:
+          - img [ref=e2806]
+        - button "Tài khoản Demo Analyst" [ref=e2808] [cursor=pointer]:
+          - generic [ref=e2809]: DA
+          - generic [ref=e2810]:
+            - strong [ref=e2811]: Demo Analyst
+            - generic [ref=e2812]: Data Analyst
+          - img [ref=e2814]
+    - generic [ref=e2816]:
+      - heading "Shopping Trends" [level=1] [ref=e2817]
+      - generic [ref=e2818]:
+        - navigation "Path điều hướng" [ref=e2819]:
+          - button "Workspaces" [ref=e2820] [cursor=pointer]
+          - generic [ref=e2821]: ›
+          - button "Shopping Demo" [ref=e2822] [cursor=pointer]
+          - generic [ref=e2823]: ›
+          - generic [ref=e2824]: Shopping Trends
+        - generic [ref=e2825]:
+          - img [ref=e2827]
+          - generic [ref=e2829]:
+            - strong [ref=e2830]: "Dataset: shopping_trends_corrupted_10pct.csv"
+            - generic [ref=e2831]: 0,395 MB | 3.900 dòng | 18 cột
+          - button "Thao tác với Shopping Trends" [ref=e2832] [cursor=pointer]:
+            - img [ref=e2833]
+      - region "Vũ trụ dữ liệu của Shopping Trends" [ref=e2834]:
+        - region "Không gian trực quan Dataset 3D" [ref=e2836]:
+          - generic:
+            - complementary "Bản đồ module" [ref=e2841]:
+              - button "Mở bản đồ module" [ref=e2843] [cursor=pointer]:
+                - generic [ref=e2844]: ›
+            - button "Về góc tổng quan" [ref=e2867] [cursor=pointer]
+            - button "Tách mô hình" [ref=e2845] [cursor=pointer]
+        - complementary "Detection" [ref=e2868]:
+          - generic [ref=e2869]:
+            - generic [ref=e2870]:
+              - heading "Detection" [level=2] [ref=e2871]
+              - button "Đóng bảng module" [ref=e2872] [cursor=pointer]: ×
+            - generic [ref=e2873]:
+              - paragraph [ref=e2881]:
+                - strong [ref=e2882]: 448 findings
+                - text: trên 390 dòng. Một ô có thể thuộc nhiều nhóm; không cộng số findings thành số ô lỗi.
+              - paragraph [ref=e2883]: Outlier là cảnh báo cần xem xét. Quy tắc miền/categorical là đề xuất demo, có nguồn ghi tại từng finding.
+              - button "Đánh giá" [ref=e2884] [cursor=pointer]
+              - generic [ref=e2885]:
+                - generic [ref=e2886]: "Missing: 80"
+                - generic [ref=e2887]: "NaN: 60"
+                - generic [ref=e2888]: "Ký hiệu thiếu: 0"
+                - generic [ref=e2889]: "Sai kiểu số: 80"
+                - generic [ref=e2890]: "Sai miền giá trị: 62"
+                - generic [ref=e2891]: "Categorical không hợp lệ: 80"
+                - generic [ref=e2892]: "Dòng trùng: 0"
+                - generic [ref=e2893]: "Outlier: 86"
+              - generic [ref=e2894]:
+                - text: Lọc vấn đề
+                - combobox "Lọc vấn đề" [ref=e2895]:
+                  - option "Tất cả" [selected]
+                  - option "Missing"
+                  - option "NaN"
+                  - option "Ký hiệu thiếu"
+                  - option "Sai kiểu số"
+                  - option "Sai miền giá trị"
+                  - option "Categorical không hợp lệ"
+                  - option "Dòng trùng"
+                  - option "Outlier"
+              - article [ref=e2896]:
+                - strong [ref=e2897]: Categorical không hợp lệ · Dòng 6 · Item Purchased
+                - paragraph [ref=e2898]:
+                  - text: "Giá trị:"
+                  - code [ref=e2899]: Unknown_Product
+                  - text: "· Dòng CSV: 7"
+                - paragraph [ref=e2900]: "Không thuộc danh sách nhãn demo: Backpack, Belt, Blouse, Boots, Coat, Dress, Gloves, Handbag, Hat, Hoodie, Jacket, Jeans, Jewelry, Pants, Sandals, Scarf, Shirt, Shoes, Shorts, Skirt, Sneakers, Socks, Sunglasses, Sweater, T-shirt"
+                - generic [ref=e2901]: "Nguồn quy tắc: demo-proposal"
+              - article [ref=e2902]:
+                - strong [ref=e2903]: Sai kiểu số · Dòng 7 · Review Rating
+                - paragraph [ref=e2904]:
+                  - text: "Giá trị:"
+                  - code [ref=e2905]: rating_error
+                  - text: "· Dòng CSV: 8"
+                - paragraph [ref=e2906]: Không chuyển được thành số hữu hạn
+                - generic [ref=e2907]: "Nguồn quy tắc: BE DQ03"
+              - article [ref=e2908]:
+                - strong [ref=e2909]: Sai miền giá trị · Dòng 28 · Age
+                - paragraph [ref=e2910]:
+                  - text: "Giá trị:"
+                  - code [ref=e2911]: "150"
+                  - text: "· Dòng CSV: 29"
+                - paragraph [ref=e2912]: "Ngoài miền demo: (0, 120); số nguyên"
+                - generic [ref=e2913]: "Nguồn quy tắc: demo-proposal"
+              - article [ref=e2914]:
+                - strong [ref=e2915]: Outlier · Dòng 28 · Age
+                - paragraph [ref=e2916]:
+                  - text: "Giá trị:"
+                  - code [ref=e2917]: "150"
+                  - text: "· Dòng CSV: 29"
+                - paragraph [ref=e2918]: Ngoài [Q1 − 1.5 IQR, Q3 + 1.5 IQR]; cần xem xét, chưa kết luận sai
+                - generic [ref=e2919]: "Nguồn quy tắc: BE DQ04"
+              - article [ref=e2920]:
+                - strong [ref=e2921]: Categorical không hợp lệ · Dòng 35 · Season
+                - paragraph [ref=e2922]:
+                  - text: "Giá trị:"
+                  - code [ref=e2923]: Monsoon??
+                  - text: "· Dòng CSV: 36"
+                - paragraph [ref=e2924]: "Không thuộc danh sách nhãn demo: Spring, Summer, Fall, Winter"
+                - generic [ref=e2925]: "Nguồn quy tắc: demo-proposal"
+              - article [ref=e2926]:
+                - strong [ref=e2927]: Missing · Dòng 39 · Location
+                - paragraph [ref=e2928]:
+                  - text: "Giá trị:"
+                  - code [ref=e2929]: ∅
+                  - text: "· Dòng CSV: 40"
+                - paragraph [ref=e2930]: Giá trị rỗng hoặc chỉ có khoảng trắng
+                - generic [ref=e2931]: "Nguồn quy tắc: BE DQ01"
+              - article [ref=e2932]:
+                - strong [ref=e2933]: Outlier · Dòng 40 · Previous Purchases
+                - paragraph [ref=e2934]:
+                  - text: "Giá trị:"
+                  - code [ref=e2935]: "5000"
+                  - text: "· Dòng CSV: 41"
+                - paragraph [ref=e2936]: Ngoài [Q1 − 1.5 IQR, Q3 + 1.5 IQR]; cần xem xét, chưa kết luận sai
+                - generic [ref=e2937]: "Nguồn quy tắc: BE DQ04"
+              - article [ref=e2938]:
+                - strong [ref=e2939]: NaN · Dòng 45 · Category
+                - paragraph [ref=e2940]:
+                  - text: "Giá trị:"
+                  - code [ref=e2941]: NaN
+                  - text: "· Dòng CSV: 46"
+                - paragraph [ref=e2942]: Ký hiệu không có giá trị; giữ nguyên raw string
+                - generic [ref=e2943]: "Nguồn quy tắc: demo classification / BE DQ03 symbols"
+              - article [ref=e2944]:
+                - strong [ref=e2945]: Missing · Dòng 56 · Gender
+                - paragraph [ref=e2946]:
+                  - text: "Giá trị:"
+                  - code [ref=e2947]: ∅
+                  - text: "· Dòng CSV: 57"
+                - paragraph [ref=e2948]: Giá trị rỗng hoặc chỉ có khoảng trắng
+                - generic [ref=e2949]: "Nguồn quy tắc: BE DQ01"
+              - article [ref=e2950]:
+                - strong [ref=e2951]: Sai kiểu số · Dòng 60 · Review Rating
+                - paragraph [ref=e2952]:
+                  - text: "Giá trị:"
+                  - code [ref=e2953]: N/A_ERROR
+                  - text: "· Dòng CSV: 61"
+                - paragraph [ref=e2954]: Không chuyển được thành số hữu hạn
+                - generic [ref=e2955]: "Nguồn quy tắc: BE DQ03"
+              - article [ref=e2956]:
+                - strong [ref=e2957]: NaN · Dòng 64 · Review Rating
+                - paragraph [ref=e2958]:
+                  - text: "Giá trị:"
+                  - code [ref=e2959]: NaN
+                  - text: "· Dòng CSV: 65"
+                - paragraph [ref=e2960]: Ký hiệu không có giá trị; giữ nguyên raw string
+                - generic [ref=e2961]: "Nguồn quy tắc: demo classification / BE DQ03 symbols"
+              - article [ref=e2962]:
+                - strong [ref=e2963]: Sai kiểu số · Dòng 70 · Age
+                - paragraph [ref=e2964]:
+                  - text: "Giá trị:"
+                  - code [ref=e2965]: 18O
+                  - text: "· Dòng CSV: 71"
+                - paragraph [ref=e2966]: Không chuyển được thành số hữu hạn
+                - generic [ref=e2967]: "Nguồn quy tắc: BE DQ03"
+              - article [ref=e2968]:
+                - strong [ref=e2969]: Categorical không hợp lệ · Dòng 88 · Gender
+                - paragraph [ref=e2970]:
+                  - text: "Giá trị:"
+                  - code [ref=e2971]: Unknown??
+                  - text: "· Dòng CSV: 89"
+                - paragraph [ref=e2972]: "Không thuộc danh sách nhãn demo: Male, Female"
+                - generic [ref=e2973]: "Nguồn quy tắc: demo-proposal"
+              - article [ref=e2974]:
+                - strong [ref=e2975]: NaN · Dòng 99 · Review Rating
+                - paragraph [ref=e2976]:
+                  - text: "Giá trị:"
+                  - code [ref=e2977]: NaN
+                  - text: "· Dòng CSV: 100"
+                - paragraph [ref=e2978]: Ký hiệu không có giá trị; giữ nguyên raw string
+                - generic [ref=e2979]: "Nguồn quy tắc: demo classification / BE DQ03 symbols"
+              - article [ref=e2980]:
+                - strong [ref=e2981]: Sai kiểu số · Dòng 102 · Previous Purchases
+                - paragraph [ref=e2982]:
+                  - text: "Giá trị:"
+                  - code [ref=e2983]: count_error
+                  - text: "· Dòng CSV: 103"
+                - paragraph [ref=e2984]: Không chuyển được thành số hữu hạn
+                - generic [ref=e2985]: "Nguồn quy tắc: BE DQ03"
+              - article [ref=e2986]:
+                - strong [ref=e2987]: Missing · Dòng 114 · Gender
+                - paragraph [ref=e2988]:
+                  - text: "Giá trị:"
+                  - code [ref=e2989]: ∅
+                  - text: "· Dòng CSV: 115"
+                - paragraph [ref=e2990]: Giá trị rỗng hoặc chỉ có khoảng trắng
+                - generic [ref=e2991]: "Nguồn quy tắc: BE DQ01"
+              - article [ref=e2992]:
+                - strong [ref=e2993]: Categorical không hợp lệ · Dòng 117 · Color
+                - paragraph [ref=e2994]:
+                  - text: "Giá trị:"
+                  - code [ref=e2995]: Unknown_Color
+                  - text: "· Dòng CSV: 118"
+                - paragraph [ref=e2996]: "Không thuộc danh sách nhãn demo: Beige, Black, Blue, Brown, Charcoal, Cyan, Gold, Gray, Green, Indigo, Lavender, Magenta, Maroon, Olive, Orange, Peach, Pink, Purple, Red, Silver, Teal, Turquoise, Violet, White, Yellow"
+                - generic [ref=e2997]: "Nguồn quy tắc: demo-proposal"
+              - article [ref=e2998]:
+                - strong [ref=e2999]: Outlier · Dòng 125 · Previous Purchases
+                - paragraph [ref=e3000]:
+                  - text: "Giá trị:"
+                  - code [ref=e3001]: "999"
+                  - text: "· Dòng CSV: 126"
+                - paragraph [ref=e3002]: Ngoài [Q1 − 1.5 IQR, Q3 + 1.5 IQR]; cần xem xét, chưa kết luận sai
+                - generic [ref=e3003]: "Nguồn quy tắc: BE DQ04"
+              - article [ref=e3004]:
+                - strong [ref=e3005]: Sai kiểu số · Dòng 127 · Age
+                - paragraph [ref=e3006]:
+                  - text: "Giá trị:"
+                  - code [ref=e3007]: not_a_number
+                  - text: "· Dòng CSV: 128"
+                - paragraph [ref=e3008]: Không chuyển được thành số hữu hạn
+                - generic [ref=e3009]: "Nguồn quy tắc: BE DQ03"
+              - article [ref=e3010]:
+                - strong [ref=e3011]: Outlier · Dòng 137 · Purchase Amount (USD)
+                - paragraph [ref=e3012]:
+                  - text: "Giá trị:"
+                  - code [ref=e3013]: "50000"
+                  - text: "· Dòng CSV: 138"
+                - paragraph [ref=e3014]: Ngoài [Q1 − 1.5 IQR, Q3 + 1.5 IQR]; cần xem xét, chưa kết luận sai
+                - generic [ref=e3015]: "Nguồn quy tắc: BE DQ04"
+              - navigation "Phân trang findings" [ref=e3016]:
+                - button "Trước" [disabled] [ref=e3017]
+                - generic [ref=e3018]: 1 / 23
+                - button "Sau" [ref=e3019] [cursor=pointer]
+              - button "Tải báo cáo JSON" [ref=e3020] [cursor=pointer]
+        - navigation "Bốn module của project" [ref=e2846]:
+          - button "Tổng quan" [ref=e2847] [cursor=pointer]:
+            - img [ref=e2849]
+            - generic [ref=e2851]: Tổng quan
+          - button "Data View" [ref=e2852] [cursor=pointer]:
+            - img [ref=e2854]
+            - generic [ref=e2856]: Data View
+          - button "Data Analysis" [ref=e2857] [cursor=pointer]:
+            - img [ref=e2859]
+            - generic [ref=e2861]: Data Analysis
+          - button "Detection" [ref=e2862] [cursor=pointer]:
+            - img [ref=e2864]
+            - generic [ref=e2866]: Detection
+      - dialog "Đánh giá trước khi lưu kết quả" [ref=e3022]:
+        - heading "Đánh giá trước khi lưu kết quả" [level=2] [ref=e3023]
+        - paragraph [ref=e3024]: Chọn số sao và nhập nội dung đánh giá. Kết quả phải lưu vào hệ thống; tải file về máy là tùy chọn sau khi lưu.
+        - group "Số sao (bắt buộc)" [ref=e3025]:
+          - generic [ref=e3026]: Số sao (bắt buộc)
+          - generic [ref=e3027]:
+            - generic [ref=e3028] [cursor=pointer]:
+              - radio "1 sao" [active] [ref=e3029]
+              - img [ref=e3030]
+            - generic [ref=e3032] [cursor=pointer]:
+              - radio "2 sao" [ref=e3033]
+              - img [ref=e3034]
+            - generic [ref=e3036] [cursor=pointer]:
+              - radio "3 sao" [ref=e3037]
+              - img [ref=e3038]
+            - generic [ref=e3040] [cursor=pointer]:
+              - radio "4 sao" [ref=e3041]
+              - img [ref=e3042]
+            - generic [ref=e3044] [cursor=pointer]:
+              - radio "5 sao" [ref=e3045]
+              - img [ref=e3046]
+        - generic [ref=e3048]:
+          - generic [ref=e3049]: Nội dung đánh giá (bắt buộc)
+          - textbox "Nội dung đánh giá (bắt buộc)" [ref=e3050]
+        - generic [ref=e3051]:
+          - button "Hủy" [ref=e3052] [cursor=pointer]
+          - button "Gửi đánh giá và lưu vào hệ thống" [ref=e3053] [cursor=pointer]
+  - status "Kết quả thao tác trên dữ liệu mẫu"

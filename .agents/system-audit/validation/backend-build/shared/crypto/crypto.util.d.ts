@@ -1,0 +1,13 @@
+import { Readable, Transform } from 'stream';
+export declare const MAGIC_HEADER: Buffer<ArrayBuffer>;
+export declare const SALT_LENGTH = 16;
+export declare const IV_LENGTH = 12;
+export declare const TAG_LENGTH = 16;
+export declare const PBKDF2_ITERATIONS = 100000;
+export declare const KEY_LENGTH = 32;
+export declare function computeSha256Buffer(data: Buffer | string): string;
+export declare function computeSha256Stream(stream: Readable): Promise<string>;
+export declare function deriveKeyPbkdf2(password: string, salt: Buffer): Buffer;
+export declare function encryptAes256GcmBuffer(plainBuffer: Buffer, password: string): Buffer;
+export declare function decryptAes256GcmBuffer(cipherBuffer: Buffer, password: string): Buffer;
+export declare function createAes256GcmEncryptStream(password: string): Transform;

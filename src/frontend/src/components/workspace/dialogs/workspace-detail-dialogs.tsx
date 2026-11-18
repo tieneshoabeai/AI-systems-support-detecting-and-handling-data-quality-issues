@@ -291,14 +291,14 @@ export function WorkspaceMembersDialog({ workspace, rows, onClose, onAddMember, 
         {visible.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
       </div>
 
-      <Pagination label="Phân trang thành viên" total={filtered.length} page={safePage} perPage={perPage}
-        unit="thành viên được liệt kê" perPageOptions={[8, 12, 24]} onPage={setPage}
-        onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
+    <Pagination label="Phân trang thành viên" total={filtered.length} page={safePage} perPage={perPage}
+      unit="thành viên được liệt kê" perPageOptions={[8, 12, 24]} onPage={setPage}
+      onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
 
-      <ResourceAccessActions kind="workspace" resource={workspace} onClose={onClose} />
-      <p className="dialog-note" id={previewNoteIds.wsMembers}>{workspace.currentUserId
-        ? 'Chỉ chủ Workspace được quản lý thành viên. Muốn đổi chủ sở hữu, hãy dùng chức năng chuyển quyền; các thành viên còn lại có vai trò Member.'
-        : previewReasons.wsMembers}</p>
+    <ResourceAccessActions kind="workspace" resource={workspace} onClose={onClose} />
+    <p className="dialog-note" id={previewNoteIds.wsMembers}>{workspace.currentUserId
+      ? 'Chỉ chủ Workspace được quản lý thành viên. Muốn đổi chủ sở hữu, hãy dùng chức năng chuyển quyền; các thành viên còn lại có vai trò Member.'
+      : previewReasons.wsMembers}</p>
   </Dialog>
 }
 
