@@ -1,6 +1,7 @@
-import { CaslAbilityFactory, CurrentUser } from '../../../src/shared/casl/casl-ability.factory';
-import { Action } from '../../../src/shared/casl/actions.enum';
-import { buildSubject } from '../../../src/shared/casl/subject.helper';
+import { CaslAbilityFactory } from '../../../src/shared/interfaces/casl/casl-ability.factory';
+import { Action } from '../../../src/shared/domain/security/action';
+import type { CurrentUser } from '../../../src/shared/domain/security/current-user';
+import { buildSubject } from '../../../src/shared/interfaces/casl/subject.helper';
 
 /**
  * Tang 7 - 48 tinh huong truy cap trai phep (Phan 6 v5 muc 3.17, Phan 13 v7 muc 3.9).
@@ -23,10 +24,10 @@ function at<T>(arr: readonly T[], index: number): T {
 }
 
 const WS_A = 'ws_aaaa'; const WS_B = 'ws_bbbb';
-const ownerA: CurrentUser = { userId: 'u_owner_a', email: 'a@test.local', role: 'analyst', workspaceId: WS_A, workspaceRole: 'owner' };
-const memberA: CurrentUser = { userId: 'u_member_a', email: 'm@test.local', role: 'analyst', workspaceId: WS_A, workspaceRole: 'member' };
+const ownerA: CurrentUser = { userId: 'u_owner_a', email: 'a@test.local', role: 'analyst', workspaceIds: [WS_A], workspaceRoles: { [WS_A]: 'owner' }, ownedWorkspaceIds: [WS_A] };
+const memberA: CurrentUser = { userId: 'u_member_a', email: 'm@test.local', role: 'analyst', workspaceIds: [WS_A], workspaceRoles: { [WS_A]: 'member' }, ownedWorkspaceIds: [] };
 const admin: CurrentUser = { userId: 'u_admin', email: 'admin@test.local', role: 'admin' };
-const stranger: CurrentUser = { userId: 'u_stranger', email: 's@test.local', role: 'analyst', workspaceId: WS_B, workspaceRole: 'member' };
+const stranger: CurrentUser = { userId: 'u_stranger', email: 's@test.local', role: 'analyst', workspaceIds: [WS_B], workspaceRoles: { [WS_B]: 'member' }, ownedWorkspaceIds: [] };
 
 function buildCases(): Case[] {
   const cases: Case[] = [];

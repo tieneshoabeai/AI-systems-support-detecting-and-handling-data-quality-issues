@@ -229,6 +229,70 @@ export function isForbiddenInApplication(raw: string): boolean {
   return APP_FORBIDDEN_PACKAGES.some((p) => raw === p || raw.startsWith(p));
 }
 
+// ── CA20 — Ứng dụng không được phụ thuộc HTTP của framework ────────────────
+
+/**
+ * Exception class của NestJS — **không** được dùng ở tầng `application`.
+ *
+ * Bước 2 (Phần 16) thay toàn bộ `HttpException` bằng `DomainError`:
+ *   - `BadRequestException`    → `ValidationError`    (400 / `VALIDATION_ERROR`)
+ *   - `NotFoundException`      → `NotFoundError`      (404 / `NOT_FOUND`)
+ *   - `ConflictException`      → `ConflictError`      (409 / `CONFLICT`)
+ *   - `ForbiddenException`     → `ForbiddenError`     (403 / `FORBIDDEN`)
+ *   - `UnauthorizedException`  → `UnauthenticatedError` (401 / `UNAUTHENTICATED`)
+ *   - `PayloadTooLargeException` → `FileTooLargeError` (413 / `FILE_TOO_LARGE`)
+ *
+ * Lý do: tầng `application` là **tầng trung** — nó mô tả nghiệp vụ, không
+ * mô tả giao thức. Khi để nó biết HTTP, mọi endpoint mới đều phải viết lại
+ * logic lỗi thay vì dùng chung.
+ */
+export const NESTJS_HTTP_EXCEPTIONS = [
+  'BadRequestException',
+  'NotFoundException',
+  'ConflictException',
+  'ForbiddenException',
+  'UnauthorizedException',
+  'PayloadTooLargeException',
+  'NotImplementedException',
+  'ServiceUnavailableException',
+  'UnprocessableEntityException',
+  'InternalServerErrorException',
+  'HttpException',
+];
+
+/**
+ * Kiểm tra một file `application` có import exception class của NestJS không.
+ *
+ * @param content Nội dung file nguồn.
+ * @returns Danh sách tên exception bị import (rỗng nếu sạch).
+ */
+export function findNestjsHttpExceptionImports(content: string): string[] {
+  const found = new Set<string>();
+  const importRe = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]@nestjs\/common['"]/g;
+  let m: RegExpExecArray | null;
+  while ((m = importRe.exec(content)) !== null) {
+    const names = (m[1] ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const n of names) {
+      if (NESTJS_HTTP_EXCEPTIONS.includes(n)) found.add(n);
+    }
+  }
+  // `import { HttpStatus } from '@nestjs/common'` — HTTP status cũng là giao thức.
+  const statusRe = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]@nestjs\/common['"]/g;
+  while ((m = statusRe.exec(content)) !== null) {
+    const names = (m[1] ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const n of names) {
+      if (n === 'HttpStatus') found.add(n);
+    }
+  }
+  return [...found];
+}
+
 /** Định dạng danh sách vi phạm để in ra lỗi test. */
 export function formatViolations(violations: string[]): string {
   return `Phát hiện ${violations.length} vi phạm:\n` + violations.map((v) => `  - ${v}`).join('\n');

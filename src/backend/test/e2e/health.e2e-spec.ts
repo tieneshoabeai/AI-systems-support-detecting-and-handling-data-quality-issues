@@ -7,9 +7,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import request from 'supertest';
-import { AllExceptionsFilter } from '../../src/shared/filters/all-exceptions.filter';
-import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
-import { RequestIdMiddleware } from '../../src/shared/middleware/request-id.middleware';
+import { AllExceptionsFilter } from '../../src/shared/interfaces/filters/all-exceptions.filter';
+import { TransformInterceptor } from '../../src/shared/interfaces/interceptors/transform.interceptor';
+import { RequestIdMiddleware } from '../../src/shared/interfaces/middleware/request-id.middleware';
 
 @Controller('workspaces')
 class FakeWorkspacesController {

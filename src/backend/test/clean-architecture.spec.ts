@@ -4,6 +4,7 @@ import {
   ImportEdge,
   SourceFile,
   buildImportGraph,
+  findNestjsHttpExceptionImports,
   formatViolations,
   isForbiddenInApplication,
   isInfraPackage,
@@ -354,20 +355,55 @@ describe('Clean Architecture — Dependency Rule', () => {
   describe('CA11 — domain không phụ thuộc shared/ mang framework', () => {
     it('domain không import từ shared/ (ngoại trừ utility thuần)', () => {
       // Các thư mục shared được phép dùng bởi domain: chỉ chứa hàm thuần (không framework).
-      const PURE_SHARED_DIRS = ['utils', 'validation', 'crypto'];
+      //
+      // Lưu ý (Bước 1 — Phần 16 §3.4): các utility thuần đã được **di chuyển**
+      // vào `shared/domain/utils/` (vì chúng là logic nghiệp vụ thuần, không
+      // phải hạ tầng). Vì vậy allowlist ở đây dùng đường dẫn mới.
+      const PURE_SHARED_DIRS = [
+        'shared/domain/utils/',
+        'shared/domain/validation/',
+        'shared/domain/crypto/',
+        // Lớp lỗi nghiệp vụ (Bước 2) — thuần TypeScript, không framework.
+        'shared/domain/errors/',
+        // Lớp cơ sở entity + domain event (Bước 3) — thuần TypeScript.
+        'shared/domain/entities/',
+      ];
       const violations: string[] = [];
 
       for (const edge of edges) {
         if (layerOf(relFromSrc(edge.from.relPath)) !== 'domain') continue;
         if (layerOf(relFromSrc(edge.to.relPath)) !== 'shared') continue;
         const toRel = relFromSrc(edge.to.relPath);
-        const isPure = PURE_SHARED_DIRS.some((d) => toRel.startsWith(`shared/${d}/`));
+        const isPure = PURE_SHARED_DIRS.some((d) => toRel.startsWith(d));
         if (!isPure) violations.push(`${edge.from.relPath} → ${edge.to.relPath}`);
       }
 
       for (const v of violations) record('CA11', v);
 
       expect(formatViolations(newViolations.filter((v) => v.startsWith('[CA11]')))).toBe(
+        formatViolations([]),
+      );
+    });
+  });
+
+  // ── CA20: tầng application không được phụ thuộc HTTP của framework ──────
+  describe('CA20 — application không import exception/HTTP status của NestJS', () => {
+    it('tầng application không dùng HttpException / HttpStatus', () => {
+      const violations: string[] = [];
+
+      for (const file of files) {
+        const srcRel = relFromSrc(file.relPath);
+        if (layerOf(srcRel) !== 'application') continue;
+
+        const found = findNestjsHttpExceptionImports(file.content);
+        for (const name of found) {
+          violations.push(`${srcRel} → ${name}`);
+        }
+      }
+
+      for (const v of violations) record('CA20', v);
+
+      expect(formatViolations(newViolations.filter((v) => v.startsWith('[CA20]')))).toBe(
         formatViolations([]),
       );
     });

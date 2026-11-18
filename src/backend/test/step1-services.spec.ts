@@ -1,11 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  UnauthorizedException,
-  ForbiddenException,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
-import {
   AUTH_SESSION_POLICY_PORT,
   AUTH_SESSION_PORT,
   AUTH_TOKEN_ISSUER_PORT,
@@ -15,14 +9,18 @@ import {
 } from '../src/modules/auth/domain/ports/auth-session.port';
 import {
   ISSUE_REPORT_REPOSITORY_PORT,
-  type IssueReportRecord,
+  type IssueReport,
 } from '../src/modules/issues/domain/ports/issue-report.repository.port';
+import { IssueReport as IssueReportEntity } from '../src/modules/issues/domain/entities/issue-report.entity';
 import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/domain/ports/notification.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { REALTIME_PORT } from '../src/shared/ports/realtime.port';
+import { REALTIME_PORT } from '../src/shared/application/ports/realtime.port';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
 import { authHandlers } from './helpers/module-handlers';
 import { issuesHandlers } from './helpers/module-handlers';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthenticatedError } from '../src/shared/domain/errors';
+
+
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -151,7 +149,7 @@ describe('Buoc 1 / Nhom C — AuthService remember-me', () => {
       sessionRecord({ expiresAt: new Date(Date.now() - 1000) }),
     );
     await expect(service.refreshAccessToken('raw-token')).rejects.toBeInstanceOf(
-      UnauthorizedException,
+      UnauthenticatedError,
     );
   });
 
@@ -168,7 +166,7 @@ describe('Buoc 1 / Nhom C — AuthService remember-me', () => {
   it('getSessionById cua nguoi khac -> NotFound (chong IDOR)', async () => {
     sessions.findSessionById.mockResolvedValue(sessionRecord({ userId: 'user-khac' }));
     await expect(service.getSessionById('user-1', 'sess-1')).rejects.toBeInstanceOf(
-      NotFoundException,
+      NotFoundError,
     );
   });
 
@@ -196,8 +194,12 @@ describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
 
   const userId = 'user-1';
 
-  function issue(overrides: Partial<IssueReportRecord> = {}): IssueReportRecord {
-    return {
+  /**
+   * Bước 3 — Rich Domain Model: repository trả **entity** `IssueReport`,
+   * nên mock phải dựng entity thật để hành vi của entity dùng được.
+   */
+  function issue(overrides: Partial<Parameters<typeof IssueReportEntity.reconstitute>[0]> = {}): IssueReport {
+    return IssueReportEntity.reconstitute({
       id: 'issue-1',
       userId,
       workspaceId: null,
@@ -210,8 +212,9 @@ describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
       version: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
+      deletedAt: null,
       ...overrides,
-    };
+    });
   }
 
   beforeEach(async () => {
@@ -294,7 +297,7 @@ describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
     repo.findByIdForUser.mockResolvedValue(issue({ status: 'in_progress', version: 1 }));
     await expect(
       service.updateMyReport(userId, 'issue-1', { title: 'sua', expectedVersion: 1 }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(ForbiddenError);
     expect(repo.updateByUser).not.toHaveBeenCalled();
   });
 
@@ -302,19 +305,19 @@ describe('Buoc 1 / Nhom D — IssuesService needs_info', () => {
     repo.findByIdForUser.mockResolvedValue(issue({ status: 'needs_info', version: 5 }));
     await expect(
       service.updateMyReport(userId, 'issue-1', { title: 'sua', expectedVersion: 1 }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('khong tim thay bao cao -> NotFound', async () => {
     repo.findByIdForUser.mockResolvedValue(null);
     await expect(
       service.updateMyReport(userId, 'issue-1', { title: 'sua', expectedVersion: 1 }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('khong duoc sua khi khong co truong nao thay doi -> BadRequest (contract)', async () => {
     const { UpdateMyIssueSchema } = await import(
-      '../src/modules/issues/infrastructure/http/dtos/create-issue.dto'
+      '../src/modules/issues/presentation/dtos/create-issue.dto'
     );
     expect(UpdateMyIssueSchema.safeParse({ expectedVersion: 1 }).success).toBe(false);
   });

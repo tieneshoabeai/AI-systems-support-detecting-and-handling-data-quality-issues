@@ -1,23 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
+import { User } from '../src/modules/users/domain/entities/user.entity';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
-import { CursorCodec } from '../src/shared/pagination/cursor-codec';
+import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
 import {
   compareGeneric,
   genericSortValue,
   isAfterGenericCursor,
-} from '../src/shared/pagination/keyset-generic-memory.util';
-import { CreateWorkspaceSchema } from '../src/modules/workspaces/infrastructure/http/dtos/create-workspace.dto';
-import { CreateProjectSchema } from '../src/modules/projects/infrastructure/http/dtos/create-project.dto';
-import { UpdateUserSchema } from '../src/modules/users/infrastructure/http/dtos/update-user.dto';
+} from '../src/shared/domain/pagination/keyset-generic-memory.util';
+import { CreateWorkspaceSchema } from '../src/modules/workspaces/presentation/dtos/create-workspace.dto';
+import { CreateProjectSchema } from '../src/modules/projects/presentation/dtos/create-project.dto';
+import { UpdateUserSchema } from '../src/modules/users/presentation/dtos/update-user.dto';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
 import { overviewHandlers } from './helpers/module-handlers';
 import { projectsHandlers } from './helpers/module-handlers';
 import { usersHandlers } from './helpers/module-handlers';
 import { workspacesHandlers } from './helpers/module-handlers';
+import { ConflictError, NotFoundError, ValidationError } from '../src/shared/domain/errors';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nhóm E — Tìm kiếm/lọc thành viên + endpoint tổng quan
@@ -162,13 +164,13 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
     const cursor = CursorCodec.encode({ s: 'name_asc', k: 'A', n: 0, id: '507f1f77bcf86cd799439011' });
     await expect(
       wsService.listMembers(wsId, { limit: 1, sort: 'joined', cursor } as never),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
   it('WS-06: cursor hỏng → 400', async () => {
     await expect(
       wsService.listMembers(wsId, { limit: 1, cursor: 'khong-hop-le' } as never),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
   it('PROJ-09: tìm kiếm thành viên project theo tên/email', async () => {
@@ -258,7 +260,7 @@ describe('Nhóm E3/E4 — Endpoint tổng quan (Overview)', () => {
 
   it('E4: workspace không tồn tại → 404', async () => {
     (wsRepo.findById as jest.Mock).mockResolvedValueOnce(null);
-    await expect(service.getWorkspaceOverview(wsId)).rejects.toThrow(NotFoundException);
+    await expect(service.getWorkspaceOverview(wsId)).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -342,7 +344,7 @@ describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
     });
     await expect(
       service.createProject(wsId, creatorId, { name: 'P1', owner_id: strangerId }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
   it('owner_id không tồn tại trong hệ thống → 400', async () => {
@@ -357,7 +359,7 @@ describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
     (usersPort.findById as jest.Mock).mockResolvedValue(null);
     await expect(
       service.createProject(wsId, creatorId, { name: 'P1', owner_id: strangerId }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
   it('DTO: owner_id phải là ObjectId hex 24 ký tự', () => {
@@ -379,21 +381,46 @@ describe('Nhóm G — Profile phone & bio (ProxyOf<typeof usersHandlers>)', () =
   const userId = new Types.ObjectId().toHexString();
   const otherId = new Types.ObjectId().toHexString();
 
+  /**
+   * Bước 3 — Rich Domain Model: repository trả **entity** `User`, nên mock
+   * phải dựng entity thật (hành vi `updateProfile()` do entity kiểm tra).
+   */
+  const buildUser = (): User =>
+    User.reconstitute({
+      id: userId,
+      email: 'u@shool.local',
+      passwordHash: null,
+      googleId: null,
+      authProvider: 'local',
+      firstName: 'A',
+      lastName: 'B',
+      avatarUrl: null,
+      phone: null,
+      bio: null,
+      role: 'analyst',
+      notificationsEnabled: true,
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      version: 1,
+    });
+
   beforeEach(async () => {
     repo = {
       findByPhone: jest.fn().mockResolvedValue(null),
-      updateProfile: jest.fn().mockImplementation((_id: string, data: Record<string, unknown>) =>
-        Promise.resolve({
-          id: userId,
-          email: 'u@shool.local',
-          firstName: 'A',
-          lastName: 'B',
-          phone: (data.phone as string | null) ?? null,
-          bio: (data.bio as string | null) ?? null,
-          role: 'analyst',
-        }),
-      ),
-      findById: jest.fn(),
+      updateProfile: jest.fn().mockImplementation((_id: string, data: Record<string, unknown>) => {
+        const entity = buildUser();
+        entity.updateProfile({
+          firstName: data.firstName as string | undefined,
+          lastName: data.lastName as string | undefined,
+          avatarUrl: data.avatarUrl as string | null | undefined,
+          phone: data.phone as string | null | undefined,
+          bio: data.bio as string | null | undefined,
+        });
+        return Promise.resolve(entity);
+      }),
+      findById: jest.fn().mockImplementation(async () => buildUser()),
       findByEmail: jest.fn(),
       findByIds: jest.fn().mockResolvedValue([]),
     };
@@ -421,7 +448,7 @@ describe('Nhóm G — Profile phone & bio (ProxyOf<typeof usersHandlers>)', () =
     (repo.findByPhone as jest.Mock).mockResolvedValueOnce({ id: otherId });
     await expect(
       usersService.updateProfile(userId, { phone: '+84901234567' }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toThrow(ConflictError);
   });
 
   it('phone thuộc chính mình → OK (không lỗi)', async () => {

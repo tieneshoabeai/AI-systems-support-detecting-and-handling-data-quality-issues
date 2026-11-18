@@ -1,4 +1,4 @@
-import { parseDurationMs } from '../src/shared/utils/duration.util';
+import { parseDurationMs } from '../src/shared/domain/utils/duration.util';
 import {
   REFRESH_TOKEN_TTL_MS,
   REMEMBER_ME_REFRESH_TOKEN_TTL_MS,
@@ -16,12 +16,12 @@ import {
 } from '../src/modules/issues/domain/value-objects/issue-status.vo';
 import {
   LoginSchema,
-} from '../src/modules/auth/infrastructure/http/dtos/login.dto';
+} from '../src/modules/auth/presentation/dtos/login.dto';
 import {
   ListIssuesQuerySchema,
   UpdateIssueStatusSchema,
   UpdateMyIssueSchema,
-} from '../src/modules/issues/infrastructure/http/dtos/create-issue.dto';
+} from '../src/modules/issues/presentation/dtos/create-issue.dto';
 
 describe('Buoc 1 / Nhom C — parseDurationMs', () => {
   it('parse du don vi ms/s/m/h/d/w', () => {
