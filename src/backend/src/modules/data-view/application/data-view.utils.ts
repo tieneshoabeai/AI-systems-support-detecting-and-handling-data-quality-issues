@@ -4,16 +4,13 @@
  * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
  */
 
-import { BadRequestException } from '@nestjs/common';
-import { CursorCodec } from '../../../shared/pagination/cursor-codec';
+import { CursorCodec } from '../../../shared/domain/pagination/cursor-codec';
+import { type DomainError, ValidationError } from '../../../shared/domain/errors';
 import type { ColumnStatsResult as DomainColumnStats } from '../../datasets';
 import type { ColumnStatsResult } from './data-view.types';
 
-export function validationError(message: string): BadRequestException {
-  return new BadRequestException({
-    message,
-    error: 'VALIDATION_ERROR',
-  } as never);
+export function validationError(message: string): DomainError {
+  return new ValidationError( message);
 }
 
 export function isObjectIdHex(id: string): boolean {

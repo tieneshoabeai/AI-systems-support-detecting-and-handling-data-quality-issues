@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { RECORD_QUERY_PORT } from '../src/modules/datasets/domain/ports/record-query.port';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { CursorCodec } from '../src/shared/pagination/cursor-codec';
+import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
 import { dataviewHandlers } from './helpers/module-handlers';
 

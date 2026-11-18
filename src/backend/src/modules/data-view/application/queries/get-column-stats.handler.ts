@@ -5,11 +5,12 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../../datasets';
 import { RECORD_QUERY_PORT, type RecordQueryPort } from '../../../datasets';
 import { ColumnStatsResult } from '../data-view.types';
 import { isObjectIdHex, toSnakeStats } from '../data-view.utils';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetColumnStatsHandler {
@@ -22,18 +23,18 @@ export class GetColumnStatsHandler {
 
   async execute(datasetId: string, columnRef: string): Promise<ColumnStatsResult> {
     if (!isObjectIdHex(datasetId)) {
-      throw new BadRequestException('ID Tap du lieu khong hop le');
+      throw new ValidationError('ID Tap du lieu khong hop le');
     }
     const dataset = await this.datasets.findById(datasetId);
     if (!dataset) {
-      throw new NotFoundException(`Khong tim thay tap du lieu ${datasetId}`);
+      throw new NotFoundError(`Khong tim thay tap du lieu ${datasetId}`);
     }
     const targetColumn =
       dataset.columns.find((c) => c.key === columnRef) ??
       dataset.columns.find((c) => c.name === columnRef) ??
       dataset.columns.find((c) => c.originalName === columnRef);
     if (!targetColumn) {
-      throw new NotFoundException(`Khong tim thay cot ${columnRef} trong dataset ${datasetId}`);
+      throw new NotFoundError(`Khong tim thay cot ${columnRef} trong dataset ${datasetId}`);
     }
     const domain = await this.records.getColumnStats(datasetId, targetColumn.key);
     const snake = toSnakeStats({ ...domain, columnName: targetColumn.name });

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { DataViewController } from './infrastructure/http/data-view.controller';
+import { DataViewController } from './presentation/controllers/data-view.controller';
 import { DatasetsModule } from '../datasets/datasets.module';
 import { GetColumnStatsHandler } from './application/queries/get-column-stats.handler';
 import { GetRecordsHandler } from './application/queries/get-records.handler';

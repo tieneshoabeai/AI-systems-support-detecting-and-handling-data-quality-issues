@@ -5,18 +5,19 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../../datasets';
 import { RECORD_QUERY_PORT, type RecordQueryPort, type RecordRow } from '../../../datasets';
 import type { RecordQueryInput } from '../../../datasets';
-import { CursorCodec } from '../../../../shared/pagination/cursor-codec';
+import { CursorCodec } from '../../../../shared/domain/pagination/cursor-codec';
 import { normalizeRecordLimit } from '../../domain/value-objects/record-query.vo';
 import {
   createCursorPaginatedResponse,
   type CursorPaginatedResponse,
-} from '../../../../shared/pagination/cursor-paginated.response';
+} from '../../../../shared/domain/pagination/cursor-paginated.response';
 import { QueryRecordsBodyInput } from '../data-view.types';
 import { isObjectIdHex, resolveColumnKey } from '../data-view.utils';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class QueryRecordsHandler {
@@ -32,11 +33,11 @@ export class QueryRecordsHandler {
     body: QueryRecordsBodyInput,
   ): Promise<CursorPaginatedResponse<RecordRow>> {
     if (!isObjectIdHex(datasetId)) {
-      throw new BadRequestException('ID Tap du lieu khong hop le');
+      throw new ValidationError('ID Tap du lieu khong hop le');
     }
     const dataset = await this.datasets.findById(datasetId);
     if (!dataset) {
-      throw new NotFoundException(`Khong tim thay tap du lieu ${datasetId}`);
+      throw new NotFoundError(`Khong tim thay tap du lieu ${datasetId}`);
     }
     const byKey = new Map(dataset.columns.map((c) => [c.key, c.key]));
     const byName = new Map<string, string>();
