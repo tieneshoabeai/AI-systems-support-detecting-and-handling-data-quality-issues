@@ -4,24 +4,23 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** toàn bộ quy tắc nhượng quyền nằm trong
+ * entity `Project.transferOwnershipTo()`:
+ *   - Chỉ Owner hiện tại được nhượng → `ForbiddenError`.
+ *   - Không nhượng cho chính mình → `ValidationError`.
+ *   - Mục tiêu phải là thành viên → `ValidationError`.
  */
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   PROJECT_REPOSITORY_PORT,
-  type ProjectRecord,
   type ProjectRepositoryPort,
 } from '../../domain/ports/project.repository.port';
+import type { Project } from '../../domain/entities/project.entity';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 import { TransferProjectOwnerInput } from '../projects.types';
 import { GetProjectByIdHandler } from '../queries/get-project-by-id.handler';
+import { ConflictError, NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class TransferProjectOwnerHandler {
@@ -38,26 +37,23 @@ export class TransferProjectOwnerHandler {
     projectId: string,
     actorUserId: string,
     dto: TransferProjectOwnerInput,
-  ): Promise<ProjectRecord> {
-    const p = await this.getProjectByIdHandler.execute(projectId);
-    const owner = (p.members || []).find((m) => m.role === 'owner');
-    if (!owner || owner.userId !== actorUserId)
-      throw new ForbiddenException('Chỉ Project Owner mới được nhượng quyền');
+  ): Promise<Project> {
+    const project = await this.getProjectByIdHandler.execute(projectId);
     const target = await this.users.findByEmail(dto.email.trim().toLowerCase());
-    if (!target) throw new NotFoundException(`Không tìm thấy người dùng với email: ${dto.email}`);
-    if (target.id === actorUserId) throw new BadRequestException('Không thể nhượng cho chính mình');
-    const isMember = (p.members || []).some((m) => m.userId === target.id);
-    if (!isMember) throw new BadRequestException('Chỉ nhượng cho thành viên project');
+    if (!target) throw new NotFoundError(`Không tìm thấy người dùng với email: ${dto.email}`);
+
+    // Entity tự kiểm tra invariant → ném ForbiddenError / ValidationError.
+    project.transferOwnershipTo(actorUserId, target.id);
+
     const ok = await this.projects.transferOwner(projectId, target.id, dto.expectedVersion);
     if (ok === null) {
       const actual = (await this.getProjectByIdHandler.execute(projectId)).version;
-      throw new ConflictException({
-        message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
-        error: 'CONFLICT',
-        details: { expectedVersion: dto.expectedVersion, actualVersion: actual },
-      } as never);
+      throw new ConflictError(
+        'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+        { expectedVersion: dto.expectedVersion, actualVersion: actual },
+      );
     }
-    if (!ok) throw new NotFoundException('Nhượng quyền thất bại');
+    if (!ok) throw new NotFoundError('Nhượng quyền thất bại');
     this.logger.log(`PROJ-11 transfer owner ${projectId}: ${actorUserId} -> ${target.id}`);
     return this.getProjectByIdHandler.execute(projectId);
   }

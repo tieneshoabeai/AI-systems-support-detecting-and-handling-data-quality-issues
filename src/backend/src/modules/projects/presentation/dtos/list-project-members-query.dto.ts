@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PROJECT_MEMBER_SORT_OPTIONS } from '../../../domain/ports/project.repository.port';
+import { PROJECT_MEMBER_SORT_OPTIONS } from '../../domain/ports/project.repository.port';
 
 /**
  * PROJ-09 — Query danh sách thành viên project.

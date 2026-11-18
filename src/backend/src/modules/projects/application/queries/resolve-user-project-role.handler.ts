@@ -10,7 +10,7 @@ import {
   PROJECT_REPOSITORY_PORT,
   type ProjectRepositoryPort,
 } from '../../domain/ports/project.repository.port';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 @Injectable()
 export class ResolveUserProjectRoleHandler {
@@ -25,10 +25,10 @@ export class ResolveUserProjectRoleHandler {
     workspaceRole?: 'owner' | 'member' | null,
   ): Promise<'owner' | 'member' | 'viewer' | null> {
     if (!isObjectIdHex(projectId)) return null;
-    const p = await this.projects.findById(projectId);
-    if (!p) return null;
-    const m = (p.members || []).find((x) => x.userId === userId);
-    if (m) return m.role as 'owner' | 'member' | 'viewer';
+    const project = await this.projects.findById(projectId);
+    if (!project) return null;
+    const role = project.roleOf(userId);
+    if (role) return role;
     if (workspaceRole === 'member') return 'viewer';
     if (workspaceRole === 'owner') return 'owner';
     return null;

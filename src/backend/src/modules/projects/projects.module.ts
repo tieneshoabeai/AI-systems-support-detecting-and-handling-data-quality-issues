@@ -4,7 +4,7 @@ import { ProjectSchema } from './infrastructure/persistence/project.schema';
 import { ProjectsRepository } from './infrastructure/persistence/projects.repository';
 import { PROJECT_REPOSITORY_PORT } from './domain/ports/project.repository.port';
 import { PROJECT_ACCESS_PORT } from './domain/ports/project.access.port';
-import { ProjectsController } from './infrastructure/http/projects.controller';
+import { ProjectsController } from './presentation/controllers/projects.controller';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UsersModule } from '../users/users.module';
 import { ProjectAccessAdapter } from './infrastructure/adapters/project-access.adapter';
@@ -23,6 +23,11 @@ import { SetHasDatasetHandler } from './application/commands/set-has-dataset.han
 import { TransferProjectOwnerHandler } from './application/commands/transfer-project-owner.handler';
 import { UpdateProjectHandler } from './application/commands/update-project.handler';
 import { UpdateProjectMemberRoleHandler } from './application/commands/update-project-member-role.handler';
+import { ProjectContextAdapter } from './infrastructure/adapters/project-context.adapter';
+import { ProjectPolicyLoader } from './application/policy-loaders/project-policy.loader';
+import { ProjectScopePolicyLoader } from './application/policy-loaders/project-scope-policy.loader';
+import { WorkspaceScopePolicyLoader } from './application/policy-loaders/workspace-scope-policy.loader';
+import { PROJECT_CONTEXT_PORT } from '../../shared/application/ports/project-context.port';
 
 @Module({
   imports: [
@@ -51,7 +56,20 @@ import { UpdateProjectMemberRoleHandler } from './application/commands/update-pr
     ResolveUserProjectRoleHandler,
     ProjectAccessAdapter,
     { provide: PROJECT_ACCESS_PORT, useExisting: ProjectAccessAdapter },
+    ProjectContextAdapter,
+    { provide: PROJECT_CONTEXT_PORT, useExisting: ProjectContextAdapter },
+    ProjectPolicyLoader,
+    ProjectScopePolicyLoader,
+    WorkspaceScopePolicyLoader,
   ],
-  exports: [ProjectsRepository, PROJECT_REPOSITORY_PORT, PROJECT_ACCESS_PORT],
+  exports: [
+    ProjectsRepository,
+    PROJECT_REPOSITORY_PORT,
+    PROJECT_ACCESS_PORT,
+    PROJECT_CONTEXT_PORT,
+    ProjectPolicyLoader,
+    ProjectScopePolicyLoader,
+    WorkspaceScopePolicyLoader,
+  ],
 })
 export class ProjectsModule {}

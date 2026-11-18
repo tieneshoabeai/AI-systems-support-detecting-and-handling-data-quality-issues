@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PROJECT_SORT_OPTIONS } from '../../../domain/ports/project.repository.port';
+import { PROJECT_SORT_OPTIONS } from '../../domain/ports/project.repository.port';
 
 /**
  * PROJ-02 — Query danh sách project theo workspace.

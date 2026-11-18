@@ -4,23 +4,21 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** invariant "đúng 1 Owner" được entity
+ * `Project.create()` đảm bảo — người tạo (hoặc `owner_id` được chỉ định)
+ * luôn là thành viên role `owner` duy nhất.
  */
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   PROJECT_REPOSITORY_PORT,
-  type ProjectRecord,
   type ProjectRepositoryPort,
 } from '../../domain/ports/project.repository.port';
+import type { Project } from '../../domain/entities/project.entity';
 import { WORKSPACE_REPOSITORY_PORT, type WorkspaceRepositoryPort } from '../../../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 import { CreateProjectInput } from '../projects.types';
+import { ConflictError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class CreateProjectHandler {
@@ -38,11 +36,11 @@ export class CreateProjectHandler {
     workspaceId: string,
     userId: string,
     dto: CreateProjectInput,
-  ): Promise<ProjectRecord> {
+  ): Promise<Project> {
     const ws = await this.workspaces.findById(workspaceId);
-    if (!ws) throw new NotFoundException('Không tìm thấy không gian làm việc');
+    if (!ws) throw new NotFoundError('Không tìm thấy không gian làm việc');
     const dup = await this.projects.findOneByWorkspaceAndName(workspaceId, dto.name.trim());
-    if (dup) throw new ConflictException('Tên project đã tồn tại trong workspace');
+    if (dup) throw new ConflictError('Tên project đã tồn tại trong workspace');
 
     // F1/F2 — Nếu chỉ định Project Owner thì phải là thành viên của workspace.
     let ownerId = userId;
@@ -50,18 +48,13 @@ export class CreateProjectHandler {
       const isWorkspaceMember =
         ws.ownerId === dto.owner_id || ws.members.some((m) => m.userId === dto.owner_id);
       if (!isWorkspaceMember) {
-        throw new BadRequestException({
-          message:
-            'owner_id không hợp lệ — Project Owner phải là thành viên của không gian làm việc',
-          error: 'VALIDATION_ERROR',
-        } as never);
+        throw new ValidationError(
+          'owner_id không hợp lệ — Project Owner phải là thành viên của không gian làm việc',
+        );
       }
       const ownerUser = await this.users.findById(dto.owner_id);
       if (!ownerUser) {
-        throw new BadRequestException({
-          message: 'owner_id không tồn tại trong hệ thống',
-          error: 'VALIDATION_ERROR',
-        } as never);
+        throw new ValidationError('owner_id không tồn tại trong hệ thống');
       }
       ownerId = dto.owner_id;
     }

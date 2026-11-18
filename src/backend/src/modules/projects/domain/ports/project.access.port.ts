@@ -13,7 +13,7 @@
  * Chỉ những thao tác thực sự cần từ bên ngoài mới được mở ở đây — không
  * expose cả repository, không expose CRUD nội bộ.
  */
-import type { ProjectRecord } from './project.repository.port';
+import type { Project } from '../entities/project.entity';
 
 export const PROJECT_ACCESS_PORT = Symbol('ProjectAccessPort');
 
@@ -21,7 +21,7 @@ export type ProjectAccessRole = 'owner' | 'member' | 'viewer';
 
 export interface ProjectAccessPort {
   /** Đọc một project theo id (không tự động "touch" last-accessed). */
-  getProjectById(id: string): Promise<ProjectRecord>;
+  getProjectById(id: string): Promise<Project>;
   /**
    * Vai trò của user trong project.
    * @param workspaceRole vai trò user trong workspace chứa project (nếu biết) — dùng

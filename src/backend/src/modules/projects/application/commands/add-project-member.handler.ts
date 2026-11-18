@@ -4,16 +4,20 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** invariant "đã là thành viên" do entity
+ * `Project.addMember()` bảo vệ → ném `ConflictError` với mã lỗi ổn định.
  */
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   PROJECT_REPOSITORY_PORT,
-  type ProjectRecord,
   type ProjectRepositoryPort,
 } from '../../domain/ports/project.repository.port';
+import type { Project } from '../../domain/entities/project.entity';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 import { AddProjectMemberInput } from '../projects.types';
 import { GetProjectByIdHandler } from '../queries/get-project-by-id.handler';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class AddProjectMemberHandler {
@@ -25,13 +29,16 @@ export class AddProjectMemberHandler {
     private readonly getProjectByIdHandler: GetProjectByIdHandler,
   ) {}
 
-  async execute(projectId: string, dto: AddProjectMemberInput): Promise<ProjectRecord> {
-    const p = await this.getProjectByIdHandler.execute(projectId);
+  async execute(projectId: string, dto: AddProjectMemberInput): Promise<Project> {
+    const project = await this.getProjectByIdHandler.execute(projectId);
     const target = await this.users.findByEmail(dto.email.trim().toLowerCase());
-    if (!target) throw new NotFoundException(`Không tìm thấy người dùng với email: ${dto.email}`);
-    if ((p.members || []).some((m) => m.userId === target.id))
-      throw new ConflictException('Người dùng đã là thành viên project');
-    await this.projects.addMember(projectId, { userId: target.id, role: dto.role ?? 'viewer' });
+    if (!target) throw new NotFoundError(`Không tìm thấy người dùng với email: ${dto.email}`);
+
+    const role = dto.role ?? 'viewer';
+    // Entity tự kiểm tra invariant → ném ConflictError nếu đã là thành viên.
+    project.addMember(target.id, role);
+
+    await this.projects.addMember(projectId, { userId: target.id, role });
     return this.getProjectByIdHandler.execute(projectId);
   }
 }

@@ -1,8 +1,12 @@
 /**
  * PROJECT — Domain repository port (hexagonal chuẩn).
  * Application chỉ gọi qua port này. Không mongoose, không NestJS.
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `Project`, không trả
+ * interface trần. Adapter map document → entity qua `Project.reconstitute()`.
  */
-import type { ListCursor } from '../../../../shared/utils/list-cursor';
+import type { ListCursor } from '../../../../shared/domain/utils/list-cursor';
+import type { Project } from '../entities/project.entity';
 
 export const PROJECT_REPOSITORY_PORT = Symbol('ProjectRepositoryPort');
 
@@ -47,21 +51,6 @@ export interface ProjectMemberView extends ProjectMemberRecord {
   firstName: string | null;
   lastName: string | null;
   avatarUrl: string | null;
-}
-
-export interface ProjectRecord {
-  id: string;
-  workspaceId: string;
-  name: string;
-  description: string;
-  hasDataset: boolean;
-  status: ProjectStatus;
-  members: ProjectMemberRecord[];
-  lastAccessedAt: Date | null;
-  version: number;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface ProjectListQuery {
@@ -112,26 +101,44 @@ export interface AddProjectMemberRecord {
 }
 
 export interface ProjectRepositoryPort {
-  create(data: CreateProjectRecord): Promise<ProjectRecord>;
-  findById(id: string): Promise<ProjectRecord | null>;
-  findOneByWorkspaceAndName(workspaceId: string, name: string): Promise<ProjectRecord | null>;
-  findByWorkspace(workspaceId: string): Promise<ProjectRecord[]>;
+  create(data: CreateProjectRecord): Promise<Project>;
+  findById(id: string): Promise<Project | null>;
+  findOneByWorkspaceAndName(workspaceId: string, name: string): Promise<Project | null>;
+  findByWorkspace(workspaceId: string): Promise<Project[]>;
   /** E3/E4 — đếm project theo workspace (và theo trạng thái nếu có). */
   countByWorkspace(workspaceId: string, status?: ProjectStatus): Promise<number>;
   /** E3 — đếm project mà user là thành viên/owner. */
   countByUser(userId: string): Promise<number>;
+  /**
+   * Tất cả project user có quyền truy cập (là thành viên `project.members` hoặc
+   * thuộc workspace user làm chủ) — dùng để resolve project context cho CASL.
+   */
+  findAllByUser(userId: string): Promise<Project[]>;
   findByWorkspacePaged(
     workspaceId: string,
     opts?: ProjectListQuery,
-  ): Promise<{ items: ProjectRecord[]; nextCursor: string | null; hasMore: boolean }>;
-  updateById(id: string, update: { name?: string; description?: string }, expectedVersion?: number): Promise<ProjectRecord | null>;
+  ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }>;
+  updateById(
+    id: string,
+    update: { name?: string; description?: string },
+    expectedVersion?: number,
+  ): Promise<Project | null>;
   softDelete(id: string): Promise<boolean>;
   setHasDataset(projectId: string, hasDataset: boolean): Promise<boolean>;
   setStatus(projectId: string, status: ProjectStatus): Promise<boolean>;
   touchLastAccessed(projectId: string): Promise<void>;
   addMember(projectId: string, member: AddProjectMemberRecord): Promise<boolean>;
   removeMember(projectId: string, userId: string): Promise<boolean>;
-  updateMemberRole(projectId: string, userId: string, role: ProjectMemberRole, expectedVersion?: number): Promise<boolean | null>;
-  transferOwner(projectId: string, newOwnerId: string, expectedVersion?: number): Promise<boolean | null>;
+  updateMemberRole(
+    projectId: string,
+    userId: string,
+    role: ProjectMemberRole,
+    expectedVersion?: number,
+  ): Promise<boolean | null>;
+  transferOwner(
+    projectId: string,
+    newOwnerId: string,
+    expectedVersion?: number,
+  ): Promise<boolean | null>;
   markCompleted(projectId: string, expectedVersion: number): Promise<boolean | null>;
 }

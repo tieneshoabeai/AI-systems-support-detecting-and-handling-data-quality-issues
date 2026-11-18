@@ -21,11 +21,18 @@ export {
   type ProjectMemberSort,
   type ProjectMemberRole,
   type ProjectMemberRecord,
+  type ProjectMemberView,
   type ProjectStatus,
-  type ProjectRecord,
   type ProjectRepositoryPort,
   type CreateProjectRecord,
 } from './domain/ports/project.repository.port';
+
+// ── Entity domain (Rich Domain Model — Bước 3) ─────────────────────────────
+export {
+  Project,
+  type ProjectProps,
+  type ProjectMember,
+} from './domain/entities/project.entity';
 
 export {
   PROJECT_ACCESS_PORT,
@@ -38,6 +45,11 @@ export {
   canAccessProject,
   canModerateProject,
 } from './domain/value-objects/project-role.vo';
+
+// ── Policy loaders (dùng cho `@PolicyResource` — tầng động chống IDOR) ────
+export { ProjectPolicyLoader } from './application/policy-loaders/project-policy.loader';
+export { ProjectScopePolicyLoader } from './application/policy-loaders/project-scope-policy.loader';
+export { WorkspaceScopePolicyLoader } from './application/policy-loaders/workspace-scope-policy.loader';
 
 // ── Handlers (Command/Query) ──────────────────────────
 // ── Queries (đọc) ──────────────────────────────────────────────

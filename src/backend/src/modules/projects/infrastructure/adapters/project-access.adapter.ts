@@ -13,7 +13,7 @@ import {
   type ProjectAccessPort,
   type ProjectAccessRole,
 } from '../../domain/ports/project.access.port';
-import type { ProjectRecord } from '../../domain/ports/project.repository.port';
+import type { Project } from '../../domain/entities/project.entity';
 import { GetProjectByIdHandler } from '../../application/queries/get-project-by-id.handler';
 import { ResolveUserProjectRoleHandler } from '../../application/queries/resolve-user-project-role.handler';
 import { SetHasDatasetHandler } from '../../application/commands/set-has-dataset.handler';
@@ -26,7 +26,7 @@ export class ProjectAccessAdapter implements ProjectAccessPort {
     private readonly setHasDatasetHandler: SetHasDatasetHandler,
   ) {}
 
-  getProjectById(id: string): Promise<ProjectRecord> {
+  getProjectById(id: string): Promise<Project> {
     return this.getProjectByIdHandler.execute(id);
   }
 

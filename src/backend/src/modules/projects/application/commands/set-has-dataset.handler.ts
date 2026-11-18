@@ -4,6 +4,10 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** `status` **suy ra** từ `hasDataset`
+ * (Phần 2 v11 §3.36.1) → entity `Project.setHasDataset()` tự tính lại trạng
+ * thái, handler chỉ ghi kết quả xuống persistence.
  */
 import { Inject, Injectable } from '@nestjs/common';
 import {
@@ -21,12 +25,16 @@ export class SetHasDatasetHandler {
   ) {}
 
   async execute(projectId: string, hasDataset: boolean): Promise<boolean> {
-    const p = await this.getProjectByIdHandler.execute(projectId);
+    const project = await this.getProjectByIdHandler.execute(projectId);
+    const previousStatus = project.status;
+
+    // Entity suy ra lại `status` từ `hasDataset` (một nguồn sự thật duy nhất).
+    project.setHasDataset(hasDataset);
+
     const ok = await this.projects.setHasDataset(projectId, hasDataset);
-    if (hasDataset && p.status === 'not_started')
-      await this.projects.setStatus(projectId, 'in_progress');
-    if (!hasDataset && p.status !== 'not_started')
-      await this.projects.setStatus(projectId, 'not_started');
+    if (project.status !== previousStatus) {
+      await this.projects.setStatus(projectId, project.status);
+    }
     return ok;
   }
 }

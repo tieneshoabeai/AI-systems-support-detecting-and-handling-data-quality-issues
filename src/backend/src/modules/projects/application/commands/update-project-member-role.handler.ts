@@ -4,21 +4,19 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** invariant "không đổi vai trò Owner tại đây"
+ * do entity `Project.changeMemberRole()` bảo vệ.
  */
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   PROJECT_REPOSITORY_PORT,
-  type ProjectRecord,
   type ProjectRepositoryPort,
 } from '../../domain/ports/project.repository.port';
+import type { Project } from '../../domain/entities/project.entity';
 import { UpdateProjectMemberInput } from '../projects.types';
 import { GetProjectByIdHandler } from '../queries/get-project-by-id.handler';
+import { ConflictError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class UpdateProjectMemberRoleHandler {
@@ -32,14 +30,13 @@ export class UpdateProjectMemberRoleHandler {
     projectId: string,
     memberUserId: string,
     dto: UpdateProjectMemberInput,
-  ): Promise<ProjectRecord> {
-    const p = await this.getProjectByIdHandler.execute(projectId);
-    const m = (p.members || []).find((x) => x.userId === memberUserId);
-    if (!m) throw new NotFoundException('Người dùng không thuộc project này');
-    if (m.role === 'owner')
-      throw new BadRequestException(
-        'Không đổi vai trò Owner tại đây — dùng nhượng quyền (PROJ-11)',
-      );
+  ): Promise<Project> {
+    const project = await this.getProjectByIdHandler.execute(projectId);
+    // Entity tự kiểm tra invariant:
+    //   - Không phải thành viên → NotFoundError.
+    //   - Là Project Owner → ValidationError (dùng nhượng quyền — PROJ-11).
+    project.changeMemberRole(memberUserId, dto.role);
+
     const okRole = await this.projects.updateMemberRole(
       projectId,
       memberUserId,
@@ -48,11 +45,10 @@ export class UpdateProjectMemberRoleHandler {
     );
     if (okRole === null) {
       const actual = (await this.getProjectByIdHandler.execute(projectId)).version;
-      throw new ConflictException({
-        message: 'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
-        error: 'CONFLICT',
-        details: { expectedVersion: dto.expectedVersion, actualVersion: actual },
-      } as never);
+      throw new ConflictError(
+        'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
+        { expectedVersion: dto.expectedVersion, actualVersion: actual },
+      );
     }
     return this.getProjectByIdHandler.execute(projectId);
   }
