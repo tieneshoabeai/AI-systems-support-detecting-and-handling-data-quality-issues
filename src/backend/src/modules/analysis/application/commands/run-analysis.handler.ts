@@ -37,6 +37,10 @@ import { toFiniteNumber } from '../../domain/correlation.util';
 import { RunAnalysisInput } from '../analysis.types';
 import { maskSampleValue } from '../analysis.utils';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
+import {
+  assertAnalysisRowLimit,
+  resolveAnalysisMaxRows,
+} from '../analysis-limit.util';
 
 @Injectable()
 export class RunAnalysisHandler {
@@ -102,6 +106,13 @@ export class RunAnalysisHandler {
     if (!dataset) {
       throw new NotFoundError('Project chưa có dataset để phân tích');
     }
+
+    // GĐ0 — chặn sớm theo số dòng, TRƯỚC khi đọc bất kỳ record nào từ MongoDB.
+    // Xem `analysis-limit.util.ts` để hiểu vì sao cần lớp chặn này.
+    assertAnalysisRowLimit(
+      dataset.rowCount,
+      resolveAnalysisMaxRows(this.configService.get('ANALYSIS_MAX_ROWS')),
+    );
 
     const stored = await this.analysisRepository.findConfigByProject(projectId).catch(() => null);
     const cfgSelected = stored?.selectedColumns ?? null;
@@ -172,19 +183,37 @@ export class RunAnalysisHandler {
     });
 
     try {
+      // GĐ0b — Dọn bản sao trung gian để giảm peak-RAM.
+      //
+      // Trước đây chuỗi biến đổi tạo **3 bản sao** dữ liệu cho mỗi dòng:
+      //   recordRows → records (mảng mới) → rows (object `named` mới)
+      //                                    → rowWrappers (object `named` mới LẦN NỮA)
+      // Với 100k dòng × N cột, phần `named` bị nhân đôi là nguồn peak-RAM lớn nhất.
+      //
+      // Nay: tạo `values` (object đã đổi tên key) **đúng một lần** rồi chia sẻ
+      // giữa `rows` và `rowWrappers` — hai mảng này chỉ chứa *tham chiếu*.
       const recordRows = await this.records.listAllRecords(dataset.id);
-      const records = recordRows.map((r) => ({ row_index: r.rowIndex, props: r.props }));
       const keyToName = new Map((dataset?.columns ?? []).map((c) => [c.key, c.name] as const));
-      const rows: Record<string, unknown>[] = records.map((r) => {
-        const legacy = r as unknown as {
+
+      /** Bọc dòng chuẩn hoá — `values` là object đã đổi tên key (dùng chung). */
+      const rowWrappers: { rowIndex: number; values: Record<string, unknown> }[] = [];
+      for (let i = 0; i < recordRows.length; i++) {
+        const r = recordRows[i] as unknown as {
+          row_index?: number;
+          rowIndex?: number;
           props?: Record<string, unknown>;
           data?: Record<string, unknown>;
         };
-        const props = (legacy.props ?? legacy.data ?? {}) as Record<string, unknown>;
+        const props = (r.props ?? r.data ?? {}) as Record<string, unknown>;
         const named: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-        return named;
-      });
+        rowWrappers.push({
+          rowIndex: typeof r.row_index === 'number' ? r.row_index : (r.rowIndex ?? i),
+          values: named,
+        });
+      }
+      /** Mảng dữ liệu phẳng — chỉ chứa tham chiếu tới `values`, không sao chép. */
+      const rows: Record<string, unknown>[] = rowWrappers.map((w) => w.values);
 
       const analyzable: AnalyzableColumn[] = selectedKeys.map((key) => {
         const col = dataset.columns.find((c) => c.name === key);
@@ -233,20 +262,6 @@ export class RunAnalysisHandler {
         usedPerColumn.set(col.key, { used, excluded: rows.length - used });
       }
 
-      const rowWrappers = records.map((r, i) => {
-        const legacy = r as unknown as {
-          row_index?: number;
-          props?: Record<string, unknown>;
-          data?: Record<string, unknown>;
-        };
-        const props = (legacy.props ?? legacy.data ?? {}) as Record<string, unknown>;
-        const named: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-        return {
-          rowIndex: typeof legacy.row_index === 'number' ? legacy.row_index : i,
-          values: named,
-        };
-      });
       const dqBase = computeDq0102(selectedKeys, rowWrappers);
       const dq03Rows = computeDq03(
         selectedKeys.map((c) => ({ column: c, dataType: colTypeByName.get(c) ?? 'string' })),

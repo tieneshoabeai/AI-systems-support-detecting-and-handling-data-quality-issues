@@ -6,6 +6,7 @@
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
@@ -17,6 +18,10 @@ import { buildCorrV1Prompt } from '../../domain/ai-grounding.util';
 import { RagFewShotService } from '../services/rag-few-shot.service';
 import { maskSampleValue } from '../analysis.utils';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import {
+  assertAnalysisRowLimit,
+  resolveAnalysisMaxRows,
+} from '../analysis-limit.util';
 
 @Injectable()
 export class BuildPromptForJobHandler {
@@ -29,6 +34,7 @@ export class BuildPromptForJobHandler {
     private readonly records: RecordQueryPort,
     @Optional()
     private readonly ragFewShot: RagFewShotService,
+    private readonly configService: ConfigService,
   ) {}
 
   async execute(jobId: string): Promise<string> {
@@ -42,19 +48,27 @@ export class BuildPromptForJobHandler {
     }
     if (!job.datasetId) throw new NotFoundError('AI job thiếu dataset');
     const dataset = await this.datasetsRepository.findById(job.datasetId);
+    // GĐ0d — chặn sớm theo số dòng, trước khi nạp dataset lần thứ 2 vào RAM.
+    if (dataset) {
+      assertAnalysisRowLimit(
+        dataset.rowCount,
+        resolveAnalysisMaxRows(this.configService.get('ANALYSIS_MAX_ROWS')),
+      );
+    }
     const recordRows2 = await this.records.listAllRecords(job.datasetId);
-    const records = recordRows2.map((r) => ({ row_index: r.rowIndex, props: r.props }));
     const keyToName = new Map((dataset?.columns ?? []).map((c) => [c.key, c.name] as const));
-    const rows: Record<string, unknown>[] = records.map((r) => {
-      const legacy = r as unknown as {
+    // GĐ0b — tạo object `named` đúng một lần cho mỗi dòng (không nhân đôi).
+    const rows: Record<string, unknown>[] = [];
+    for (let i = 0; i < recordRows2.length; i++) {
+      const r = recordRows2[i] as unknown as {
         props?: Record<string, unknown>;
         data?: Record<string, unknown>;
       };
-      const props = (legacy.props ?? legacy.data ?? {}) as Record<string, unknown>;
+      const props = (r.props ?? r.data ?? {}) as Record<string, unknown>;
       const named: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-      return named;
-    });
+      rows.push(named);
+    }
     const roleByKey = new Map<string, string>();
     if (dataset) {
       for (const c of dataset.columns) {

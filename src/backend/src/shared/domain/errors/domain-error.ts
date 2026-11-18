@@ -182,3 +182,18 @@ export class DuplicateResourceError extends DomainError {
     super(ERROR_CODES.DUPLICATE_RESOURCE, message, details);
   }
 }
+
+/**
+ * Payload phân tích vượt quá giới hạn an toàn của máy (GĐ0 — chống quá tải).
+ *
+ * Khác `FileTooLargeError` (kích thước *tệp* tải lên): lỗi này nói về
+ * **số lượng dòng dữ liệu** sẽ được nạp vào RAM để tính toán. Ngưỡng do
+ * `ANALYSIS_MAX_ROWS` quyết định.
+ *
+ * Ứng với HTTP 413.
+ */
+export class PayloadTooLargeError extends DomainError {
+  constructor(message: string, details?: unknown) {
+    super(ERROR_CODES.ANALYSIS_TOO_LARGE, message, details);
+  }
+}

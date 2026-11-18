@@ -20,6 +20,7 @@ export {
   DependencyNotConfiguredError,
   FileTooLargeError,
   DuplicateResourceError,
+  PayloadTooLargeError,
 } from './domain-error';
 
 export { ERROR_CODES, ERROR_CODE_VALUES, type ErrorCode } from './error-codes';

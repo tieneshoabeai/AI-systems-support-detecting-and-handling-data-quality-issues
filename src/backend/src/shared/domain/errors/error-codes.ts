@@ -48,6 +48,14 @@ export const ERROR_CODES = {
   FILE_TOO_LARGE: 'FILE_TOO_LARGE',
   /** Tệp đính kèm vượt quá giới hạn kích thước cho phép. */
   ATTACHMENT_TOO_LARGE: 'ATTACHMENT_TOO_LARGE',
+  /**
+   * Payload phân tích vượt quá giới hạn an toàn của máy (GĐ0 — chống quá tải).
+   *
+   * Dataset có `rowCount` vượt `ANALYSIS_MAX_ROWS` sẽ bị từ chối **trước khi**
+   * đọc record nào từ MongoDB, tránh peak-RAM vài GB gây OOM / quá nhiệt CPU.
+   * Ứng với HTTP 413.
+   */
+  ANALYSIS_TOO_LARGE: 'ANALYSIS_TOO_LARGE',
   /** Định dạng tệp không được hỗ trợ (chỉ nhận CSV…). */
   UNSUPPORTED_FILE_TYPE: 'UNSUPPORTED_FILE_TYPE',
   /** Kiểu media của tệp đính kèm không được hỗ trợ. */

@@ -102,8 +102,17 @@ export const EnvironmentSchema = z.object({
   AI_RAG_ENABLED: boolEnv(true),
   AI_RAG_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
   AI_RAG_MIN_TRUST_SCORE: z.coerce.number().min(0).max(1).default(0.6),
-  AI_RAM_GUARD_PERCENT: z.coerce.number().int().min(1).max(100).default(85),
-  AI_MIN_RAM_GB: z.coerce.number().int().min(1).default(12),
+  AI_RAM_GUARD_PERCENT: z.coerce.number().int().min(1).max(100).default(90),
+  AI_MIN_RAM_GB: z.coerce.number().int().min(1).default(4),
+  /**
+   * GĐ0 — ngưỡng an toàn chống quá tải máy khi phân tích AI.
+   * Dataset có `rowCount` vượt ngưỡng này sẽ bị từ chối bằng HTTP 413
+   * (`ANALYSIS_TOO_LARGE`) TRƯỚC khi đọc bất kỳ record nào từ MongoDB.
+   * Lý do: `listAllRecords()` nạp toàn bộ dataset vào RAM, BSON deserialization
+   * + biến đổi in-memory tạo peak-memory vài GB → OOM / quá nhiệt CPU.
+   * @see modules/analysis/application/commands/run-analysis.handler.ts
+   */
+  ANALYSIS_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(100_000),
   EMBEDDING_MODEL: z.string().default('qwen3-embedding-0.6b'),
   EMBEDDING_DIM: z.coerce.number().int().min(1).default(1024),
 
