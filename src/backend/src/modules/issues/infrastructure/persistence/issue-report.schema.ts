@@ -1,6 +1,6 @@
 import type { Document, Types } from 'mongoose';
 import { Schema } from 'mongoose';
-import type { BaseEntity } from '../../../../shared/database/base-mongo.repository';
+import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
 
 import type { IssueType } from '../../domain/value-objects/issue-type.vo';
 export type { IssueType };

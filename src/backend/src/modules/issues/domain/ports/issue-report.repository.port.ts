@@ -1,34 +1,19 @@
 /**
- * ISSUE-REPORT — Domain repository port (hexagonal chuẩn).
+ * ISSUE-REPORT — Domain repository port (chuẩn hexagonal).
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `IssueReport`
+ * (không phải record trần) → handler có thể gọi hành vi của entity
+ * (`transitionTo()`, `updateByUser()`, `addAttachment()`).
  */
 
+import type { IssueReport } from '../entities/issue-report.entity';
+import type { IssueAttachment, IssueContext } from '../entities/issue-report.entity';
 import type { IssueStatus } from '../value-objects/issue-status.vo';
 import type { IssueType } from '../value-objects/issue-type.vo';
 
 export const ISSUE_REPORT_REPOSITORY_PORT = Symbol('IssueReportRepositoryPort');
 
-export interface IssueAttachmentRecord {
-  id: string;
-  filename: string;
-  storageKey: string;
-  sizeBytes: number;
-  contentType: string;
-}
-
-export interface IssueReportRecord {
-  id: string;
-  userId: string;
-  workspaceId: string | null;
-  issueType: string;
-  title: string;
-  description: string;
-  status: IssueStatus;
-  attachments: Array<{ id: string; filename: string; storageKey?: string; sizeBytes: number; contentType: string }>;
-  context: { apiPath?: string | null; errorMessage?: string | null; occurredAt?: Date | null } | null;
-  version: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type { IssueReport, IssueAttachment, IssueContext } from '../entities/issue-report.entity';
 
 export interface IssueListQuery {
   limit: number;
@@ -46,7 +31,7 @@ export interface CreateIssueRecord {
   issueType: IssueType;
   title: string;
   description: string;
-  context?: { apiPath?: string | null; errorMessage?: string | null; occurredAt?: Date | null };
+  context?: IssueContext | null;
 }
 
 /** Dữ liệu người dùng tự sửa khi admin yêu cầu bổ sung thông tin. */
@@ -60,17 +45,17 @@ export interface UpdateIssueByUserInput {
 }
 
 export interface IssueReportRepositoryPort {
-  create(doc: CreateIssueRecord): Promise<IssueReportRecord>;
-  findById(id: string): Promise<IssueReportRecord | null>;
-  findByIdForUser(id: string, userId: string): Promise<IssueReportRecord | null>;
-  addAttachment(id: string, attachment: { id: string; filename: string; storageKey: string; sizeBytes: number; contentType: string }): Promise<IssueReportRecord | null>;
-  list(opts: IssueListQuery): Promise<IssueReportRecord[]>;
-  updateStatus(id: string, status: IssueStatus, expectedVersion: number): Promise<IssueReportRecord | null>;
+  create(doc: CreateIssueRecord): Promise<IssueReport>;
+  findById(id: string): Promise<IssueReport | null>;
+  findByIdForUser(id: string, userId: string): Promise<IssueReport | null>;
+  addAttachment(id: string, attachment: IssueAttachment): Promise<IssueReport | null>;
+  list(opts: IssueListQuery): Promise<IssueReport[]>;
+  updateStatus(id: string, status: IssueStatus, expectedVersion: number): Promise<IssueReport | null>;
   /**
    * Người dùng tự sửa báo cáo của chính mình (chỉ khi `status = needs_info`).
    * Ghi đè `title`/`description`, gỡ tệp đính kèm theo yêu cầu, tăng `version`
    * và chuyển trạng thái về `in_progress` (luồng "gửi lại sau khi bổ sung").
    */
-  updateByUser(id: string, input: UpdateIssueByUserInput): Promise<IssueReportRecord | null>;
+  updateByUser(id: string, input: UpdateIssueByUserInput): Promise<IssueReport | null>;
   findStatusById(id: string): Promise<IssueStatus | null>;
 }

@@ -5,21 +5,12 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   ISSUE_REPORT_REPOSITORY_PORT,
   type IssueReportRepositoryPort,
 } from '../../domain/ports/issue-report.repository.port';
 import {
-  assertAllowedIssueTransition,
   type IssueStatus,
 } from '../../domain/value-objects/issue-status.vo';
 import {
@@ -29,6 +20,7 @@ import {
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 import { dispatchViaPorts, toResponse } from '../issues.utils';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class UpdateStatusHandler {
@@ -51,21 +43,14 @@ export class UpdateStatusHandler {
     expectedVersion: number,
   ): Promise<Record<string, unknown>> {
     if (role !== 'admin')
-      throw new ForbiddenException('Chỉ quản trị viên được đổi trạng thái báo cáo');
+      throw new ForbiddenError('Chỉ quản trị viên được đổi trạng thái báo cáo');
     const existing = await this.repo.findById(id);
-    if (!existing) throw new NotFoundException('Không tìm thấy báo cáo sự cố');
-    try {
-      assertAllowedIssueTransition(existing.status, status);
-    } catch {
-      throw new BadRequestException(
-        `Chuyển trạng thái không hợp lệ: ${existing.status} -> ${status}`,
-      );
-    }
+    if (!existing) throw new NotFoundError('Không tìm thấy báo cáo sự cố');
+    // Entity kiểm tra luồng chuyển trạng thái hợp lệ (5 trạng thái, 8 transition).
+    existing.transitionTo(status);
     const updated = await this.repo.updateStatus(id, status, expectedVersion);
     if (!updated) {
-      throw new ConflictException(
-        'Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',
-      );
+      throw new ConflictError('Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)',);
     }
     // `needs_info` = admin yêu cầu user bổ sung thông tin (luồng mới).
     // `new` giữ lại để tương thích ngược với luồng cũ (in_progress → new).

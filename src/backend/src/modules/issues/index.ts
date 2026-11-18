@@ -9,12 +9,23 @@
 export {
   ISSUE_REPORT_REPOSITORY_PORT,
   type CreateIssueRecord,
-  type IssueAttachmentRecord,
+  type IssueAttachment,
+  type IssueContext,
   type IssueListQuery,
-  type IssueReportRecord,
+  type IssueReport,
   type IssueReportRepositoryPort,
   type UpdateIssueByUserInput,
 } from './domain/ports/issue-report.repository.port';
+
+// ── Entities (Bước 3 — Rich Domain Model) ──────────────────────
+export {
+  IssueReport as IssueReportEntity,
+  MAX_ATTACHMENT_FILENAME_LENGTH,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_ISSUE_DESCRIPTION_LENGTH,
+  MAX_ISSUE_TITLE_LENGTH,
+  type IssueReportProps,
+} from './domain/entities/issue-report.entity';
 
 export {
   ALLOWED_ISSUE_TRANSITIONS,

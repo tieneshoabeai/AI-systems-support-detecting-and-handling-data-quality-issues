@@ -1,27 +1,14 @@
-import {
-  Inject,
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
-  Body,
-  Query,
-  Req,
-  Res,
-  UseGuards,
-  BadRequestException,
-} from '@nestjs/common';
+import { Inject, Controller, Get, Post, Patch, Param, Body, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { RolesGuard } from '../../../../shared/guards/roles.guard';
-import { Roles } from '../../../../shared/decorators/roles.decorator';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/interfaces/guards/roles.guard';
+import { Roles } from '../../../../shared/interfaces/decorators/roles.decorator';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
 import type { Request, Response } from 'express';
 import busboy from 'busboy';
@@ -37,7 +24,7 @@ import {
   UpdateIssueStatusDto,
   UpdateMyIssueSchema,
   UpdateMyIssueDto,
-} from './dtos/create-issue.dto';
+} from '../dtos/create-issue.dto';
 import { CreateReportHandler } from '../../application/commands/create-report.handler';
 import { DownloadAttachmentHandler } from '../../application/queries/download-attachment.handler';
 import { GetForAdminHandler } from '../../application/queries/get-for-admin.handler';
@@ -47,6 +34,7 @@ import { ListMineHandler } from '../../application/queries/list-mine.handler';
 import { UpdateMyReportHandler } from '../../application/commands/update-my-report.handler';
 import { UpdateStatusHandler } from '../../application/commands/update-status.handler';
 import { UploadAttachmentHandler } from '../../application/commands/upload-attachment.handler';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @ApiTags('Issues')
 @ApiBearerAuth()
@@ -134,7 +122,7 @@ export class IssuesController {
       );
       bb.on('error', (e: unknown) => reject(e));
       bb.on('finish', () => {
-        if (!done) reject(new BadRequestException('Không tìm thấy tệp đính kèm trong yêu cầu'));
+        if (!done) reject(new ValidationError('Không tìm thấy tệp đính kèm trong yêu cầu'));
       });
       req.pipe(bb);
     });

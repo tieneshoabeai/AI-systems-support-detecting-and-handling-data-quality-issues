@@ -4,16 +4,22 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** dùng `IssueReport.create()` để áp dụng
+ * invariant (loại hợp lệ, title ≤ 200, description ≤ 5000) — handler chỉ
+ * chuẩn hoá input thô (workspaceId/occurredAt) rồi giao cho domain.
  */
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ISSUE_REPORT_REPOSITORY_PORT,
   type CreateIssueRecord,
   type IssueReportRepositoryPort,
 } from '../../domain/ports/issue-report.repository.port';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { IssueReport } from '../../domain/entities/issue-report.entity';
+import { isObjectIdHex, newObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { CreateIssueInput } from '../issues.types';
 import { toResponse } from '../issues.utils';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class CreateReportHandler {
@@ -26,27 +32,39 @@ export class CreateReportHandler {
     let workspaceId: string | null = null;
     if (dto.workspaceId) {
       if (!isObjectIdHex(dto.workspaceId)) {
-        throw new BadRequestException('workspaceId không hợp lệ');
+        throw new ValidationError('workspaceId không hợp lệ');
       }
       workspaceId = dto.workspaceId;
     }
     let occurredAt: Date | null = null;
     if (dto.occurredAt) {
       const d = new Date(dto.occurredAt);
-      if (Number.isNaN(d.getTime())) throw new BadRequestException('occurredAt không hợp lệ');
+      if (Number.isNaN(d.getTime())) throw new ValidationError('occurredAt không hợp lệ');
       occurredAt = d;
     }
-    const input: CreateIssueRecord = {
+
+    // Entity kiểm tra invariant nghiệp vụ.
+    const entity = IssueReport.create({
+      id: newObjectIdHex(),
       userId,
-      workspaceId: workspaceId ?? null,
+      workspaceId,
       issueType: dto.issueType,
-      title: dto.title.trim(),
-      description: dto.description.trim(),
+      title: dto.title,
+      description: dto.description,
       context: {
         apiPath: dto.apiPath ?? null,
         errorMessage: dto.errorMessage ?? null,
         occurredAt,
       },
+    });
+
+    const input: CreateIssueRecord = {
+      userId: entity.userId,
+      workspaceId: entity.workspaceId,
+      issueType: entity.issueType,
+      title: entity.title,
+      description: entity.description,
+      context: entity.context,
     };
     const doc = await this.repo.create(input);
     return toResponse(doc);

@@ -5,12 +5,13 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ISSUE_REPORT_REPOSITORY_PORT,
   type IssueReportRepositoryPort,
 } from '../../domain/ports/issue-report.repository.port';
 import { toResponse } from '../issues.utils';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetMineHandler {
@@ -21,7 +22,7 @@ export class GetMineHandler {
 
   async execute(userId: string, id: string): Promise<Record<string, unknown>> {
     const doc = await this.repo.findByIdForUser(id, userId);
-    if (!doc) throw new NotFoundException('Không tìm thấy báo cáo sự cố');
+    if (!doc) throw new NotFoundError('Không tìm thấy báo cáo sự cố');
     return toResponse(doc);
   }
 }

@@ -2,6 +2,13 @@
  * ISSUES — Hàm thuần dùng chung cho handlers.
  *
  * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
+ *
+ * **Bước 3 — Rich Domain Model:** `toResponse()` nhận **entity** `IssueReport`.
+ *
+ * **Bảo mật:** `storageKey` của tệp đính kèm là **chi tiết hạ tầng** (đường dẫn
+ * R2) — tuyệt đối không lộ ra API. Trước đây mapper trả nguyên object
+ * attachment (`...a`) nên `storageKey` bị lộ cùng response. Nay chỉ trả
+ * `id`, `filename`, `sizeBytes`, `contentType` + `downloadUrl`.
  */
 
 import { isMandatoryNotification, shouldDispatch } from '../../notifications';
@@ -9,9 +16,10 @@ import type { NotificationRepositoryPort } from '../../notifications';
 import type { UserRepositoryPort } from '../../users';
 import type { RealtimePort } from '../../realtime';
 
-import { type IssueReportRecord } from '../domain/ports/issue-report.repository.port';
+import type { IssueReport } from '../domain/entities/issue-report.entity';
 
-export function toResponse(doc: IssueReportRecord): Record<string, unknown> {
+/** Shape trả về cho client — giữ nguyên hợp đồng cũ (camelCase). */
+export function toResponse(doc: IssueReport): Record<string, unknown> {
   return {
     id: doc.id,
     userId: doc.userId,
@@ -21,8 +29,11 @@ export function toResponse(doc: IssueReportRecord): Record<string, unknown> {
     description: doc.description,
     status: doc.status,
     attachments: (doc.attachments ?? []).map((a) => ({
-      ...(a as unknown as Record<string, unknown>),
-      downloadUrl: `/api/v1/issues/${doc.id}/attachments/${(a as unknown as { id: string }).id}`,
+      id: a.id,
+      filename: a.filename,
+      sizeBytes: a.sizeBytes,
+      contentType: a.contentType,
+      downloadUrl: `/api/v1/issues/${doc.id}/attachments/${a.id}`,
     })),
     context: doc.context,
     version: doc.version,

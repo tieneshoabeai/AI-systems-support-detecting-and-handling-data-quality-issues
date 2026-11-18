@@ -1,9 +1,21 @@
 import { Types } from 'mongoose';
 import type { IIssueReport } from './issue-report.schema';
-import type { CreateIssueRecord, IssueReportRecord } from '../../domain/ports/issue-report.repository.port';
+import type { CreateIssueRecord } from '../../domain/ports/issue-report.repository.port';
+import {
+  IssueReport,
+  type IssueAttachment,
+} from '../../domain/entities/issue-report.entity';
 
-export function toIssueRecord(doc: IIssueReport): IssueReportRecord {
-  return {
+/**
+ * ISSUES — Mapper infrastructure ↔ domain entity.
+ *
+ * **Bước 3 — Rich Domain Model:** chiều document → entity dùng
+ * `reconstitute()` (không phát domain event).
+ */
+
+/** Document Mongoose → entity `IssueReport`. */
+export function toIssueEntity(doc: IIssueReport): IssueReport {
+  return IssueReport.reconstitute({
     id: doc._id.toString(),
     userId: doc.user_id.toString(),
     workspaceId: doc.workspace_id ? doc.workspace_id.toString() : null,
@@ -11,22 +23,30 @@ export function toIssueRecord(doc: IIssueReport): IssueReportRecord {
     title: doc.title,
     description: doc.description,
     status: doc.status,
-    attachments: (doc.attachments ?? []).map((a) => ({
-      id: a.id.toString(),
-      filename: a.filename,
-      storageKey: (a as unknown as Record<string, unknown>).storage_key as string,
-      sizeBytes: a.size_bytes,
-      contentType: a.content_type,
-    })),
+    attachments: (doc.attachments ?? []).map(
+      (a): IssueAttachment => ({
+        id: a.id.toString(),
+        filename: a.filename,
+        storageKey: (a as unknown as Record<string, unknown>).storage_key as string,
+        sizeBytes: a.size_bytes,
+        contentType: a.content_type,
+      }),
+    ),
     context: doc.context
-      ? { apiPath: doc.context.api_path ?? null, errorMessage: doc.context.error_message ?? null, occurredAt: doc.context.occurred_at ?? null }
+      ? {
+          apiPath: doc.context.api_path ?? null,
+          errorMessage: doc.context.error_message ?? null,
+          occurredAt: doc.context.occurred_at ?? null,
+        }
       : null,
     version: doc.version,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
-  };
+    deletedAt: doc.deleted_at ?? null,
+  });
 }
 
+/** Dữ liệu tạo mới → shape lưu trữ (Mongoose). */
 export function toIssuePersistence(data: CreateIssueRecord): Record<string, unknown> {
   return {
     user_id: new Types.ObjectId(data.userId),
@@ -37,7 +57,11 @@ export function toIssuePersistence(data: CreateIssueRecord): Record<string, unkn
     status: 'new',
     attachments: [],
     context: data.context
-      ? { api_path: data.context.apiPath ?? null, error_message: data.context.errorMessage ?? null, occurred_at: data.context.occurredAt ?? null }
+      ? {
+          api_path: data.context.apiPath ?? null,
+          error_message: data.context.errorMessage ?? null,
+          occurred_at: data.context.occurredAt ?? null,
+        }
       : undefined,
     version: 1,
     deleted_at: null,

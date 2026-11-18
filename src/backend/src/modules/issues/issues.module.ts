@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { IssueReportSchema } from './infrastructure/persistence/issue-report.schema';
 import { IssuesRepository } from './infrastructure/persistence/issues.repository';
 import { ISSUE_REPORT_REPOSITORY_PORT } from './domain/ports/issue-report.repository.port';
-import { IssuesController } from './infrastructure/http/issues.controller';
+import { IssuesController } from './presentation/controllers/issues.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { CreateReportHandler } from './application/commands/create-report.handler';
