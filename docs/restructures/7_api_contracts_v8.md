@@ -2,7 +2,7 @@
 
 - **Version:** v8
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-16 (v8)
+- **Cập nhật gần nhất:** 2026-11-18 (v8.1)
 - **Trạng thái:** Đã chốt quy ước hợp đồng (response, error, **cursor pagination**, URL, upload, bất đồng bộ, download) và **bảng đầy đủ 86 tính năng → 86 route HTTP thực thi**. **v4 bổ sung: DQ-05 kích hoạt có điều kiện trong kết quả phân tích + ma trận tương quan/VIF và nhận xét AI (theo Phần 2 v7, Phần 12 v6).** **v5 bổ sung: breakdown thiếu pairwise, cảnh báo mất mẫu VIF, excludedColumns/date, worker AI (theo Phần 2 v8, Phần 12 v7).** **v6 chốt nhóm B (2026-11-07): không ETag, list project theo workspace mẫu, /health + /health/ready ngoài /api/v1, version mọi resource, lọc server-side, đính kèm 10MB×3 png/jpg/pdf.** **v7 (2026-11-15) — Nhóm A đã hiện thực hoá cursor pagination cho `GET /workspaces` và `GET /workspaces/{workspaceId}/projects`: bỏ `page`, thêm `cursor` opaque, response `{ items, meta: { nextCursor, hasMore, limit } }`, bỏ `total`/`page`/`totalPages` (mục 3.5).** **v8 (2026-11-16) — Đối chiếu với mã nguồn thực tế sau Bước 2–6: bảng endpoint cập nhật từ 85 → **86 route HTTP thực thi** (mục 3.13), bổ sung hợp đồng Google OAuth 2.0 (mục 3.5c), endpoint tổng quan workspace (mục 3.5d), tìm kiếm thành viên project, sửa báo cáo của chính mình `PATCH /issues/{id}`, quản lý cột dataset, `DELETE /users/me`.** Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 7; sử dụng kết quả đã xác nhận của các phần trước.
@@ -198,16 +198,30 @@ HTTP/1.1 204 No Content
 
 | Endpoint | Mặc định | Các giá trị `sortBy` cho phép |
 |---|---|---|
-| `GET /workspaces` | `lastAccessedAt` desc | `lastAccessedAt`, `joinedAt`, `updatedAt`, `name` |
-| `GET /projects` | `lastAccessedAt` desc | `lastAccessedAt`, `joinedAt`, `updatedAt`, `name` |
-| `GET /workspaces/{id}/members` | `joinedAt` asc | `joinedAt`, `name`, `email` |
+| `GET /workspaces` † | `last_accessed` desc | `last_accessed`, `updated`, `name_asc`, `name_desc`, `joined` |
+| `GET /workspaces/{workspaceId}/projects` † | `last_accessed` desc | `last_accessed`, `updated`, `name_asc`, `name_desc`, `joined` |
+| `GET /workspaces/{id}/members` † | `name_asc` | `name_asc`, `name_desc`, `joined`, `role` |
+| `GET /projects/{id}/members` † | `name_asc` | `name_asc`, `name_desc`, `joined`, `role` |
 | `GET /notifications` | `createdAt` desc | `createdAt` |
 | `GET /issues` (của tôi) | `createdAt` desc | `createdAt`, `updatedAt`, `status` |
-| `GET /issues` (Admin) | `createdAt` desc | `createdAt`, `updatedAt`, `status`, `severity` |
+| `GET /admin/issues` (quản trị) | `createdAt` desc | `createdAt`, `updatedAt`, `status`, `severity` |
 | `GET /admin/users` | `createdAt` desc | `createdAt`, `updatedAt`, `name`, `email`, `role`, `status` |
+
+> **† Ngoại lệ (v8.1, 2026-11-18) — tham số `sort` thay vì `sortBy`/`sortOrder`:**
+> 4 endpoint đánh dấu `†` dùng **một tham số `sort`** duy nhất (giá trị gộp cả chiều:
+> `last_accessed`, `updated`, `name_asc`, `name_desc`, `joined`, `role`) — **không** có
+> `sortBy`/`sortOrder`. Lý do: chúng đã hiện thực hoá cursor pagination từ v7 và đã có
+> client theo hợp đồng đó; đổi tên tham số lúc này là breaking change không cần thiết.
+> Mọi endpoint còn lại dùng cặp chuẩn `sortBy` + `sortOrder` như bảng trên.
+>
+> Chi tiết cơ chế ràng buộc con trỏ theo `sort` — xem mục 3.5b.
+>
+> **P5 (v8.1):** dòng `GET /issues` (quản trị) trong bảng gốc ghi sai — route thực tế
+> là **`GET /admin/issues`** (đã sửa ở bảng trên).
 
 **Quy tắc bắt buộc:**
 1. `sortBy` không hợp lệ → `VALIDATION_ERROR` với `details.allowedValues` — **không** fallback sang mặc định im lặng.
+   (Với 4 endpoint `†`: `sort` không hợp lệ → `VALIDATION_ERROR` tương tự.)
 2. Lọc `role`/`status` không hợp lệ → `VALIDATION_ERROR` tương tự.
 3. `search` tìm theo **substring, không phân biệt hoa/thường** (đã chốt ở Phần 2 mục 3.27).
 4. Lọc bộ lọc trong Data Views dùng cơ chế riêng (`filters` param) — xem mục 3.7.
@@ -227,7 +241,22 @@ Hai endpoint này đã chuyển từ **offset pagination** (`page`/`limit` + `to
 | `role` (workspaces) | `owner` \| `member` | — | Giá trị khác → `VALIDATION_ERROR` |
 | `status` (projects) | `not_started` \| `in_progress` \| `completed` | — | Giá trị khác → `VALIDATION_ERROR` |
 
-> **Lưu ý tên tham số:** hai endpoint này dùng tham số **`sort`** (một giá trị từ danh sách kết hợp cả chiều) chứ không phải cặp `sortBy`/`sortOrder` như bảng quy ước chung ở trên. Đây là điểm lệch **đã biết** — sẽ được chuẩn hoá về `sortBy`/`sortOrder` ở đợt tinh chỉnh hợp đồng API tiếp theo (Bước 3–4), khi đã có frontend sử dụng.
+> **Lưu ý tên tham số (v8.1, 2026-11-18 — ĐÃ CHỐT):** hai endpoint này dùng tham số **`sort`**
+> (một giá trị từ danh sách kết hợp cả chiều) chứ không phải cặp `sortBy`/`sortOrder` như bảng
+> quy ước chung ở trên. **Quyết định 2026-11-18: giữ nguyên `sort`** — đây là ngoại lệ
+> **đã chốt**, không phải lệch tạm thời. Bảng §3.4 đã được cập nhật để ghi rõ ngoại lệ
+> (ký hiệu `†`) nhằm tránh client mới dùng `sortBy` và nhận `VALIDATION_ERROR`.
+>
+> Cùng quyết định này, `GET /workspaces/{id}/members` và `GET /projects/{id}/members`
+> cũng dùng `sort` (`name_asc` mặc định) — cũng đánh dấu `†` ở §3.4.
+>
+> **Đã chuyển sang cursor pagination (v8.1, 2026-11-18): `GET /admin/users`** — trước đây
+> dùng offset pagination (`page`/`limit`/`total`). Nay dùng `cursor` + `limit` +
+> `sortBy`/`sortOrder` chuẩn, trả `{ items, meta: { nextCursor, hasMore, limit } }`.
+> Đây là **breaking change** — client đang dùng `page`/`total` phải chuyển sang cursor.
+> `sortBy` cho phép: `createdAt`, `updatedAt`, `name`, `email`, `role`, `status`
+> (mặc định `createdAt` desc). `name` được đại diện bằng `first_name` (trường tính toán
+> không sort được trực tiếp trong MongoDB).
 
 **Response thực tế:**
 
@@ -273,7 +302,7 @@ Hai endpoint này đã chuyển từ **offset pagination** (`page`/`limit` + `to
 | Method/Path | `GET /api/v1/auth/google` |
 | Auth | Công khai (`@Public()`) |
 | Query | Không có |
-| Side effect | Đặt cookie `google_oauth_state` (HttpOnly, SameSite=Lax, maxAge 10 phút, `secure` theo `req.secure`) |
+| Side effect | Đặt cookie `google_oauth_state` (HttpOnly, SameSite=Lax, Path=`/`, maxAge 10 phút, `secure` theo `req.secure`) |
 | Response | **302 Found** → `Location: https://accounts.google.com/o/oauth2/v2auth?...&state=<uuid>&client_id=...&redirect_uri=...&response_type=code&scope=openid+email+profile` |
 | Lỗi | **501** `DEPENDENCY_UNAVAILABLE` khi thiếu `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` |
 
@@ -286,6 +315,13 @@ Hai endpoint này đã chuyển từ **offset pagination** (`page`/`limit` + `to
 | Query | `code`, `state`, `error` (Google trả `error` khi người dùng từ chối) |
 | Response (thành công) | **200** — JSON giống hệt `POST /auth/login` (xem mục 3.12) |
 | Response (lỗi) | **401** `VALIDATION_ERROR` (mã/code không hợp lệ, `state` lệch, email chưa xác minh) · **409** `CONFLICT` (email đã có tài khoản local) · **403** `FORBIDDEN` (tài khoản bị khoá) · **501** `DEPENDENCY_UNAVAILABLE` (thiếu credential) |
+| Side effect | **Xoá cookie `google_oauth_state`** ở **mọi** nhánh kết thúc: thành công, Google trả `error=`, hoặc exception từ handler. Dùng **cùng** thuộc tính với lúc set (`Path=/`, `HttpOnly`, `SameSite=Lax`, `secure` theo `req.secure`) |
+
+> **v8.1 (2026-11-18) — yêu cầu middleware:** backend phải đăng ký `cookie-parser`
+> (`app.use(cookieParser())` trong `main.ts`) để `req.cookies` có giá trị. Express 5 chỉ có
+> `res.cookie()` native — **thiếu middleware ⇒ `req.cookies` là `undefined` ⇒ mọi callback hợp lệ
+> bị từ chối 401**. Có test guard trong
+> `test/e2e/security/cookie-parser-regression.e2e-spec.ts` chặn hồi quy.
 
 **Body thành công (200) — cùng shape với `POST /auth/login`:**
 
@@ -309,14 +345,14 @@ Hai endpoint này đã chuyển từ **offset pagination** (`page`/`limit` + `to
 | 401 | `VALIDATION_ERROR` | `invalid_authorization_code` | Mã ủy quyền không hợp lệ / đã dùng / hết hạn |
 | 401 | `VALIDATION_ERROR` | `email_not_verified` | `email_verified !== true` trong id_token |
 | 401 | `VALIDATION_ERROR` | `oauth_error` | Google trả `error` (người dùng từ chối) |
-| 409 | `CONFLICT` | `email_already_registered` | Email đã có tài khoản **local** → **không** tự động liên kết |
+| 409 | `CONFLICT` | `google_id_already_linked` | `google_id` đã bị một tài khoản khác chiếm → **không** liên kết tự động |
 | 403 | `FORBIDDEN` | `account_blocked` | `user.status = 'blocked'` |
 | 501 | `DEPENDENCY_UNAVAILABLE` | `google_oauth_not_configured` | Thiếu biến môi trường Google |
 
 **Quy tắc bắt buộc:**
 1. **Bắt buộc** kiểm tra `email_verified === true`. Không xác minh → `401`, **không** tạo tài khoản.
 2. Nếu `user.google_id` đã gắn với một tài khoản → **đăng nhập thẳng**, **không** hỏi mật khẩu.
-3. Nếu `google_id` chưa gắn **nhưng** email đã tồn tại → `409 CONFLICT`. **Cấm tự động liên kết** — đây là ranh giới chống chiếm đoạt tài khoản (Phần 6 v7 mục 3.7).
+3. Nếu `google_id` chưa gắn **nhưng** email đã tồn tại → **liên kết tự động** (email đã được Google xác minh `email_verified === true` → đủ cơ sở tin cậy; `google_id` unique nên không thể chiếm đoạt). Gắn `google_id` vào tài khoản đó rồi đăng nhập; mật khẩu hiện có giữ nguyên. Nếu `google_id` đã bị tài khoản khác chiếm → `409 CONFLICT`. *(Quyết định sản phẩm 2026-11-17.)*
 4. Nếu cả hai đều mới → tạo tài khoản với `role = 'analyst'`, `status = 'active'`, `auth_provider = 'google'`, **không** có `password_hash`.
 5. Cookie `google_oauth_state` phải được **xoá** sau khi dùng (kể cả khi lỗi).
 6. Client **không** được tự dựng URL Google — luôn đi qua `GET /auth/google`.
@@ -357,6 +393,27 @@ Hai endpoint này đã chuyển từ **offset pagination** (`page`/`limit` + `to
 | `NOT_FOUND` | Không tìm thấy workspace |
 
 > Hai endpoint này **trả thẳng dữ liệu** (không bọc `{ ... }`) — tuân thủ quy tắc "response thẳng dữ liệu" ở mục 3.2, khác với `GET /projects/{id}` vẫn bọc `{ project: {...} }` (sẽ chuẩn hoá ở đợt hợp đồng tiếp theo).
+
+> **Bổ sung v8 (2026-11-17) — kiểm tra quyền 3 tầng đã áp dụng thực tế:**
+>
+> Mọi endpoint thao tác trên **một tài nguyên cụ thể** hoặc **một phạm vi** đều đã gắn `@PolicyResource(subject, loader, param?)` để chống IDOR ở tầng động (chi tiết cơ chế ở Phần 6 v7 mục 3.10b):
+>
+> | Nhóm endpoint | Loader | Kiểm tra |
+> |---|---|---|
+> | `/workspaces/{id}/...` | `WorkspacePolicyLoader` | `ability.can(action, instance)` với `id` thật |
+> | `/projects/{id}/...` | `ProjectPolicyLoader` | instance có `workspace_id` thật |
+> | `/workspaces/{workspaceId}/projects` | `WorkspaceScopePolicyLoader` | `workspace_id` + `owner_id` |
+> | `/projects/{projectId}/datasets/...`, `/projects/{projectId}/analysis/...`, `/projects/{projectId}/summary`, `/projects/{projectId}/report` | `ProjectScopePolicyLoader` | `project_id` + `workspace_id` |
+> | `/datasets/{id}/...`, `/datasets/{datasetId}/records`, `/datasets/{datasetId}/columns/...` | `DatasetPolicyLoader` | dataset thật (kế thừa `project_id`) |
+> | `/analysis/jobs/{jobId}` | `AnalysisJobPolicyLoader` | `project_id` + `workspace_id` (suy ra qua `AnalysisRun`) |
+>
+> Hệ quả trực tiếp trên hợp đồng API:
+>
+> - `GET /projects/{projectId}/datasets` → `403 FORBIDDEN` nếu user không có quyền đọc trong project đó (trước đây chỉ kiểm tra "có quyền đọc Dataset nào đó" → có thể lộ ID).
+> - `POST /projects/{projectId}/datasets/upload` → `403` với `PROJ-MEMBER` (`UC-08` chỉ `WS-OWNER`/`PROJ-OWNER`).
+> - `DELETE /projects/{projectId}` → `403` với `PROJ-OWNER` (`PROJ-05` chỉ `WS-OWNER`).
+> - `PUT /projects/{projectId}/snapshot` → dùng `Action.Execute` nên `PROJ-MEMBER` được phép (`UC-25`), `PROJ-VIEWER` bị `403`.
+> - `POST /workspaces/{workspaceId}/projects` → `403` nếu user không phải `WS-OWNER` (`UC-05`).
 
 ### 3.6. Quy ước URL
 
@@ -613,11 +670,15 @@ GET  /api/v1/projects/{projectId}/report/{reportId}/file → 200 (tải PDF)
 - Refresh token hết hạn → `401` `{ code: 'TOKEN_EXPIRED' }`.
 - Refresh token đã bị thu hồi (phát hiện tái sử dụng) → `401` `{ code: 'TOKEN_INVALID' }` **và** thu hồi toàn bộ phiên.
 
-### 3.13. Danh sách endpoint đầy đủ — 86 route HTTP thực thi (v8)
+### 3.13. Danh sách endpoint đầy đủ — 87 route HTTP thực thi (v8.1)
 
 Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = thao tác trên chính mình. `SYS-ADMIN` = quản trị hệ thống.
 
-> **v8 — nguồn sự thật:** bảng này được **đối chiếu 1-1 với mã nguồn thực thi** (`src/backend/src/modules/**/infrastructure/http/*.controller.ts`) bằng cách quét tự động toàn bộ decorator `@Get/@Post/@Patch/@Put/@Delete` → **86 route HTTP**. v7 ghi "85 endpoint" theo thiết kế; số thực tế là **86** vì có thêm các route ở Nhóm D/E/H (Bước 3) và `POST /analysis/jobs/{jobId}/result` (kênh AI nội bộ).
+> **v8 — nguồn sự thật:** bảng này được **đối chiếu 1-1 với mã nguồn thực thi** (`src/backend/src/modules/**/presentation/controllers/*.controller.ts`) bằng cách quét tự động toàn bộ decorator `@Get/@Post/@Patch/@Put/@Delete` → **86 route HTTP** (v8). v7 ghi "85 endpoint" theo thiết kế; số thực tế là **86** vì có thêm các route ở Nhóm D/E/H (Bước 3) và `POST /analysis/jobs/{jobId}/result` (kênh AI nội bộ).
+>
+> **v8.1 (2026-11-18): 87 route** — thêm `GET /auth/sessions/me` (AUTH-09b). Công cụ đối chiếu:
+> `src/backend/scripts/check-api-coverage.cjs` (chạy `node scripts/check-api-coverage.cjs`).
+> Kết quả đợt này: **87/87 khớp — thiếu 0, thừa 0.**
 
 #### Nhóm AUTH — xác thực và phiên (12 route / 14 tính năng)
 
@@ -633,10 +694,18 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 | 8 | `AUTH-07` Thay đổi mật khẩu | POST | `/auth/change-password` | SELF |
 | 9 | `AUTH-08` Danh sách phiên | GET | `/auth/sessions` | SELF |
 | 10 | `AUTH-09` Chi tiết phiên | GET | `/auth/sessions/{sessionId}` | SELF |
+| 10b | **`AUTH-09b` Chi tiết phiên hiện tại** *(v8.1, mới)* | GET | `/auth/sessions/me` | SELF |
 | 11 | `AUTH-10` Đăng xuất thiết bị khác | DELETE | `/auth/sessions/{sessionId}` | SELF |
 | 12 | `AUTH-11` Đăng xuất hiện tại | POST | `/auth/logout` | SELF |
 | 13 | `AUTH-12` Làm mới token | POST | `/auth/refresh` | công khai (dùng refresh token) |
 | 14 | `AUTH-13` Rate-limit | — | *(hạ tầng, không có endpoint)* | — |
+
+> **v8.1 (2026-11-18) — `GET /auth/sessions/me`:** bổ sung theo quy tắc §3.5 ("tài nguyên của
+> chính mình dùng `/me`"). `sessionId` lấy từ **JWT** (`request.user.sessionId`), **không**
+> nhận từ query/path → không thể truy cập phiên của người khác.
+> Route **phải khai báo trước** `/auth/sessions/{sessionId}` — NestJS phân giải route theo
+> thứ tự đăng ký, nếu không chuỗi `me` sẽ bị `:sessionId` nuốt mất.
+> Có test guard thứ tự khai báo trong `test/gap-analysis-p2-p3.spec.ts`.
 
 #### Nhóm USER / ADMIN — hồ sơ (5 route / 6 tính năng)
 
@@ -782,12 +851,12 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 
 **Kiểm tra bao phủ (v8):**
 
-| Chỉ số | v7 (thiết kế) | v8 (thực thi) |
-|---|---|---|
-| Route HTTP | 85 | **86** |
-| Kênh WebSocket | 1 | 1 |
-| Tính năng có endpoint riêng | 79 | **86** |
-| Tính năng không có endpoint riêng | 5 | 5 (`AUTH-04` client-side, `AUTH-13` hạ tầng, `DQ-01`→`DQ-05` và `ANALYSIS-04`→`ANALYSIS-07` nằm trong `ANALYSIS-03`) |
+| Chỉ số | v7 (thiết kế) | v8 (thực thi) | v8.1 (thực thi) |
+|---|---|---|---|
+| Route HTTP | 85 | **86** | **87** |
+| Kênh WebSocket | 1 | 1 | 1 |
+| Tính năng có endpoint riêng | 79 | **86** | **87** |
+| Tính năng không có endpoint riêng | 5 | 5 (`AUTH-04` client-side, `AUTH-13` hạ tầng, `DQ-01`→`DQ-05` và `ANALYSIS-04`→`ANALYSIS-07` nằm trong `ANALYSIS-03`) | 5 (không đổi) |
 
 Bảng trên **không** còn đếm dòng "không có endpoint" vào tổng như v7 — v8 **tách bạch**: mỗi dòng là **một route thật đã hiện thực hoá** trong mã nguồn.
 
@@ -1056,7 +1125,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 - Phần 5 v3 — keyset cursor pagination, trường `version`, cấu trúc handler/controller.
 - Phần 6 v7 — ma trận quyền 66 use case, chính sách token, chính sách liên kết Google OAuth, quy tắc tải file.
 - Phần 12 v8 — cơ chế AI bất đồng bộ, input fingerprint, quy tắc import file.
-- Mã nguồn hiện tại — 18 controller, **86 route HTTP thực thi**, `all-exceptions.filter.ts`, `zod-validation.pipe.ts`.
+- Mã nguồn hiện tại — 18 controller, **87 route HTTP thực thi**, `all-exceptions.filter.ts`, `zod-validation.pipe.ts`.
 
 **Đầu ra**
 - 8 quyết định nền tảng về hợp đồng.
@@ -1118,6 +1187,16 @@ Có API contract cùng ví dụ thành công/lỗi và liên kết tới tiêu c
 - Cấu hình R2/S3 cho file gốc và tệp đính kèm.
 
 ## 7. Prompting log và lịch sử thay đổi
+
+- **Xác nhận v8.1 / 2026-11-18 (đợt rà soát API — P1–P5):** đối chiếu tự động route mã nguồn
+  với bảng §3.13 bằng `src/backend/scripts/check-api-coverage.cjs` → **87/87 khớp**;
+  thêm `GET /auth/sessions/me` (AUTH-09b, §3.5 + §3.13); `GET /admin/users` chuyển sang
+  **keyset cursor** + `sortBy`/`sortOrder` (§3.4, §3.5b — **breaking change**: bỏ `page`/`total`);
+  §3.4 ghi rõ **ngoại lệ `†`** cho 4 endpoint dùng tham số `sort` thay vì `sortBy`/`sortOrder`
+  (quyết định **giữ nguyên** `sort` — không phải sửa code); sửa tên route quản trị
+  `GET /issues` → `GET /admin/issues`; bổ sung yêu cầu middleware `cookie-parser` cho
+  Google OAuth (§3.4) / Theo quyết định người dùng ngày 2026-11-18 / Chi tiết:
+  `docs/restructures/17_api_gap_analysis_v1.md`.
 
 - **Xác nhận v8 / 2026-11-16 (Nhóm B/D/E/H — đối chiếu mã nguồn thực thi):** bảng endpoint cập nhật từ 85 → **86 route HTTP thực thi**; thêm mục **3.5c** (hợp đồng Google OAuth 2.0 + ma trận 7 lỗi) và mục **3.5d** (hợp đồng tổng quan workspace); sửa 4 lệch so với v7: `PROJ-09` dùng `GET /projects/{id}/members` (không có `/members/search`), `PATCH /datasets/{id}` + `DELETE /datasets/{id}` **đã hiện thực hoá** (v7 ghi "Bỏ"), `ANALYSIS-01` dùng `POST` + thêm route `GET` xem cấu hình, `DELETE /users/me` **đã hiện thực hoá**; thêm bảng 10 endpoint mới / Theo yêu cầu vệ sinh tài liệu Bước 8 (`edit/02_ke_hoach_thuc_thien.md` Nhóm I3) / Đối chiếu bằng quét tự động decorator `@Get/@Post/@Patch/@Put/@Delete` trên toàn bộ controller.
 - **Xác nhận v7 / 2026-11-15 (Nhóm A — keyset cursor):** `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` chuyển từ offset (`page`/`total`) sang **keyset cursor** (`cursor`/`limit`); response `{ items, meta: { nextCursor, hasMore, limit } }`, bỏ `total`/`page`/`totalPages`; cursor ràng buộc theo `sort` → `VALIDATION_ERROR` / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Cập nhật mục 3.1 (quyết định 5), 3.2 (rule 3b), 3.5 + thêm mục 3.5b, quy tắc C4.

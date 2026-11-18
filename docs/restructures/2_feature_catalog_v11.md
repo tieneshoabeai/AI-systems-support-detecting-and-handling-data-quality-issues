@@ -842,9 +842,11 @@ Module `workspaces` đã có: `POST /workspaces`, `GET /workspaces`, `GET /works
 
 - **Mô tả chuẩn hoá:** Tạo workspace mới kèm tên, mô tả và danh sách email thành viên được mời.
 - **Quy tắc nghiệp vụ:** Người tạo là Workspace Owner duy nhất. Thành viên được mời trở thành `member` (mặc định `PROJ-VIEWER` trong mọi project). Nếu email chưa có tài khoản → gửi lời mời (cần `EMAIL`).
+- **Giới hạn chống spam (phương án B — đã chốt 2026-11-17, đã hiện thực hoá):** tối đa **20 workspace** do một tài khoản thường làm chủ sở hữu (`MAX_WORKSPACES_PER_USER`); vượt trần → `429 Too Many Requests` với `error: 'LIMIT_EXCEEDED'` và `details: { currentCount, max }`. Quản trị viên hệ thống (`role === 'admin'`) **không** bị giới hạn. Workspace user chỉ là **thành viên** không tính vào trần.
 - **Trùng với:** UC-01 và UC-03 của Phần 3; `POST /workspaces` hiện có nhưng chưa có phần mời email.
 - **Module:** `workspaces`. **Phụ thuộc:** `users`, `EMAIL` (cho lời mời).
 - **Ưu tiên:** **Must** (đã có phần lõi).
+- **Trạng thái hiện thực hoá (v11, 2026-11-17):** `CreateWorkspaceHandler.execute()` kiểm tra quota qua `WORKSPACE_REPOSITORY_PORT.countOwnedByUser(userId)`; value object `workspace-quota.vo.ts`. Test: `test/workspace-invitation-email.spec.ts` (3 ca quota). Chi tiết quyền theo vai trò: Phần 6 v7 mục 3.10b.
 
 #### WS-02. Lấy danh sách Workspace
 
@@ -1104,7 +1106,7 @@ Yêu cầu #48 và #51 cần lọc project theo trạng thái "chưa xử lý / 
 - **Quy tắc nghiệp vụ (đã hiện thực hoá, khớp hoàn toàn với thiết kế v10):**
   1. **Bắt buộc** `email_verified === true` trong id_token → nếu false trả `401 VALIDATION_ERROR`. Không xác minh → **không** tạo tài khoản.
   2. `google_id` **đã gắn** → đăng nhập thẳng, **không** hỏi mật khẩu.
-  3. `google_id` **chưa gắn** nhưng email **đã tồn tại** → `409 CONFLICT` (`email_already_registered`). **Cấm tự động liên kết** — đây là biện pháp chống chiếm đoạt tài khoản đã nêu ở v10.
+  3. `google_id` **chưa gắn** nhưng email **đã tồn tại** → **liên kết tự động**: gắn `google_id` vào tài khoản đó rồi đăng nhập. *(Quyết định sản phẩm 2026-11-17 — thay đổi so với v10/v11 cũ.)* Lý do an toàn: email đã được Google **xác minh** (`email_verified === true`) → đã là chốt chặn đủ mạnh; thêm nữa `google_id` là **duy nhất** (unique sparse index) nên không thể chiếm đoạt tài khoản khác. Nếu `google_id` đã bị tài khoản khác chiếm → `409 CONFLICT`. Mật khẩu hiện có (nếu có) **giữ nguyên** — người dùng vẫn đăng nhập được bằng cả hai cách.
   4. Cả hai đều mới → tạo tài khoản: `role = 'analyst'`, `status = 'active'`, `auth_provider = 'google'`, **không** có `password_hash`.
   5. Tài khoản `status = 'blocked'` → `403 FORBIDDEN`.
 - **Chống CSRF:** cookie HttpOnly `google_oauth_state` (SameSite=Lax, maxAge 10 phút) sinh ở `GET /auth/google`, đối chiếu ở `GET /auth/google/callback`. Cookie phải được xoá sau khi dùng (kể cả khi lỗi).

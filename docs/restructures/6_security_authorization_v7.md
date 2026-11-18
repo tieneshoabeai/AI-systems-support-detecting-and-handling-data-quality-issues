@@ -465,6 +465,71 @@ Request → JwtAuthGuard → xác thực token, kiểm tra session chưa revoke 
 
 **Rủi ro đã biết và biện pháp:** cấu hình CASL viết tay dễ sót. Bắt buộc có test tự động (Phần 13) khẳng định `SYS-ADMIN` bị `FORBIDDEN` trên **toàn bộ** endpoint nghiệp vụ, và test khẳng định **không** phát sinh truy vấn đọc dữ liệu nghiệp vụ cho tài khoản `SYS-ADMIN`.
 
+#### 3.10b. Cơ chế 3 tầng đã hiện thực hoá (v7 — `PoliciesGuard`)
+
+**Bối cảnh — lỗi đã phát hiện và sửa (2026-11-17):**
+
+`CurrentUser.workspaceId` / `workspaceRole` **không bao giờ được gán** ở bất kỳ đâu trong mã nguồn → toàn bộ nhánh phân quyền theo workspace/project trong `CaslAbilityFactory` là **code chết**. Kết quả: **mọi** endpoint `Workspace` / `Project` / `Dataset` trả `403` cho tài khoản thường, kể cả khi họ là Owner. Nguyên nhân gốc: một user có thể ở **nhiều** workspace với vai trò khác nhau, nên một cặp `workspaceId`/`workspaceRole` trong token không đủ biểu diễn (đúng như cảnh báo ở mục 3.10 trước đây).
+
+**Kiến trúc đã áp dụng — 3 tầng kiểm tra:**
+
+| Tầng | Cơ chế | Mục đích | Kết quả khi thiếu |
+|---|---|---|---|
+| **1 — Tĩnh (coarse)** | `PoliciesGuard` → `ability.can(action, subjectName)` | Chặn sớm khi user không có **loại** quyền đó (VD `WS-MEMBER` không được `Update` workspace) | Chặn oan nếu rule viết sai |
+| **2 — Nạp tài nguyên (dynamic)** | `@PolicyResource(subject, loader, param?)` → `loader.load(id)` gắn vào `request.resource` | Lấy **instance thật** từ DB để kiểm tra thuộc tính | **IDOR** — đọc được tài nguyên của người khác |
+| **3 — Instance (fine-grained)** | `buildSubject()` chuẩn hoá camelCase → snake_case rồi `ability.can(action, instance)` | So khớp `workspace_id` / `project_id` / `owner_id` với điều kiện CASL | Chỉ có kiểm tra type → IDOR |
+
+**Resolve context theo request (tầng trước cả 3 tầng trên):**
+
+- `WORKSPACE_CONTEXT_PORT` (`shared/ports/workspace-context.port.ts`) → module `workspaces` hiện thực (`WorkspaceContextAdapter`) → trả `{ workspaceIds, roles, ownedWorkspaceIds }`.
+- `PROJECT_CONTEXT_PORT` (`shared/ports/project-context.port.ts`) → module `projects` hiện thực (`ProjectContextAdapter`) → trả `{ projectIds, roles, workspaceIds }`.
+- `PoliciesGuard` resolve 2 port này qua `ModuleRef.get(token, { strict: false })` trong `try/catch` → giữ đúng ranh giới tầng (CA5: `shared/` **không** import từ `modules/`).
+- Suy ra vai trò project (quy tắc 2 + 3 mục 3.1): có mặt trong `project.members` → lấy đúng vai trò; không có mặt nhưng là `WS-OWNER` → `owner`; không có mặt nhưng là `WS-MEMBER` → `viewer`.
+
+**Các loader tài nguyên (`@PolicyResource`):**
+
+| Loader | Trả về | Dùng cho |
+|---|---|---|
+| `WorkspacePolicyLoader` | workspace thật | `workspaces/:id` |
+| `ProjectPolicyLoader` | project thật | `projects/:id` |
+| `ProjectScopePolicyLoader` | `{ id, project_id, workspace_id }` | `projects/:projectId/...` (kiểm tra subject con) |
+| `WorkspaceScopePolicyLoader` | `{ id, workspace_id, owner_id }` | `workspaces/:workspaceId/projects` |
+| `DatasetPolicyLoader` | dataset thật | `datasets/:id`, `datasets/:datasetId/...` |
+| `AnalysisJobPolicyLoader` | `{ id, project_id, workspace_id }` từ `AiJob` + `AnalysisRun` | `analysis/jobs/:jobId` |
+| `AnalysisRunPolicyLoader` | `{ id, project_id, workspace_id }` | nhóm `FB-*` (`:analysisId`) |
+
+**Quy tắc CASL bắt buộc (rút ra từ lỗi đã gặp — v7):**
+
+1. **KHÔNG dùng mảng điều kiện** trong `can(action, subject, conditions)`. CASL hiểu `[{...}, {...}]` theo nghĩa **"khớp bất kỳ trường nào"** (any-field-match), **KHÔNG** phải OR → dễ mở cổng IDOR. Muốn biểu đạt OR phải ghi **nhiều lệnh `can()` riêng biệt** (CASL ghép các rule bằng OR).
+2. Điều kiện luôn dùng tên trường **snake_case** (`workspace_id`, `project_id`, `owner_id`) vì `buildSubject()` ánh xạ camelCase của domain record sang snake_case.
+3. **Chỉ dùng `can` với điều kiện, không `cannot` có điều kiện** — `cannot` có điều kiện làm tầng tĩnh trả `false` cho **mọi** instance → chặn oan.
+4. Rule `$in` với mảng rỗng vẫn cho tầng tĩnh = `true` nhưng instance check = `false` — cơ chế **cố ý** để endpoint "liệt kê" chạy được với user chưa có tài nguyên nào.
+5. Mọi endpoint thao tác trên **một tài nguyên cụ thể** phải khai báo `@PolicyResource(...)`; endpoint theo **phạm vi** (`:workspaceId` / `:projectId`) dùng loader *scope* tương ứng.
+
+**Ma trận quyền đã hiện thực hoá trong `CaslAbilityFactory` (đối chiếu mục 3.4/3.5):**
+
+| Subject | `WS-OWNER` | `WS-MEMBER` | `PROJ-OWNER` | `PROJ-MEMBER` | `PROJ-VIEWER` |
+|---|---|---|---|---|---|
+| `Workspace` | `Manage` | `Read` | — | — | — |
+| `Project` | `Manage` (kể cả `Create`/`Delete`) | `Read` | `Read`+`Update`+`Execute` | `Read`+`Execute` | `Read` |
+| `Dataset` | `Manage` | `Read` | `Manage` | `Read`+`Update` (ghi metadata cột) | `Read` |
+| `DataRecord` | `Manage` | `Read` | `Read` | `Read` | `Read` |
+| `Analysis` | `Manage` | `Read` | `Manage` | `Create`+`Read`+`Update`+`Execute` | `Read` |
+
+Ghi chú: `PROJ-OWNER` **không** được `Delete` `Project` (chỉ `WS-OWNER` — `PROJ-05`); `PROJ-MEMBER` **không** được `Create` `Dataset` (import dữ liệu — `UC-08`) và **không** được `Update`/`Delete` `Project` (`UC-06`, `PROJ-05`); `PROJ-VIEWER` chỉ đọc (`UC-10`, `UC-12`, `UC-20` → `FORBIDDEN`).
+
+**Giới hạn chống spam (phương án B — đã chốt 2026-11-17):**
+
+| Hạng mục | Giá trị |
+|---|---|
+| Hằng số | `MAX_WORKSPACES_PER_USER = 20` (`modules/workspaces/domain/value-objects/workspace-quota.vo.ts`) |
+| Phạm vi | Số workspace user là **chủ sở hữu** (`owner_id`) — không tính workspace user chỉ là thành viên |
+| Ngoại lệ | `role === 'admin'` — **không** bị giới hạn |
+| Hành vi | `429 Too Many Requests` với `error: 'LIMIT_EXCEEDED'`, `details: { currentCount, max }` |
+| Vị trí thực thi | `CreateWorkspaceHandler.execute()` — tầng nghiệp vụ, không phải guard |
+
+**Trạng thái kiểm thử (2026-11-17):** `test/casl.spec.ts` (12 ca — đủ 6 vai trò + chống IDOR), `test/e2e/security/authorization.e2e-spec.ts` (49 ca), `test/workspace-invitation-email.spec.ts` (10 ca — gồm quota).
+
 ### 3.11. Chính sách giữ và xoá dữ liệu
 
 **Quyết định v3 (người dùng xác nhận):** đợt này **không xoá tự động** bằng chứng / kết quả phân tích / dữ liệu nghiệp vụ.
@@ -614,6 +679,9 @@ Bổ sung ở v3 (chi tiết MIME type còn để Phần 8 chốt, nhưng nguyê
 | 22 | `modules/auth/strategies/jwt.strategy.ts` | JWT payload mang `workspaceId`/`workspaceRole` | ✅ **Đã sửa** — quyền đọc từ DB mỗi request qua guard |
 | 23 | `modules/issues/domain/value-objects/issue-status.vo.ts` | Thiếu trạng thái `needs_info` | ✅ **Đã sửa** — 5 trạng thái, `USER_EDITABLE_ISSUE_STATUSES = ['needs_info']` (mục 3.21) |
 | 24 | `modules/auth/infrastructure/security/google-oauth.adapter.ts` | Chưa có OAuth 2.0 thật | ✅ **Đã sửa** — Authorization Code flow + verify RS256 qua JWKS + `state` chống CSRF (mục 3.20) |
+| 25 | `shared/casl/casl-ability.factory.ts` + `PoliciesGuard` | `CurrentUser.workspaceId`/`workspaceRole` **không bao giờ được gán** → nhánh phân quyền workspace/project là code chết, mọi endpoint trả `403` | ✅ **Đã sửa** — chuyển sang mô hình 3 tầng: context ports (`WORKSPACE_CONTEXT_PORT`, `PROJECT_CONTEXT_PORT`) + `@PolicyResource` loader + instance check (mục 3.10b) |
+| 26 | `shared/casl/casl-ability.factory.ts` | Mảng điều kiện `[{...}, {...}]` bị CASL hiểu là **any-field-match** (không phải OR) → mở cổng IDOR | ✅ **Đã sửa** — mỗi điều kiện là một lệnh `can()` độc lập (mục 3.10b, quy tắc 1) |
+| 27 | `modules/workspaces/application/commands/create-workspace.handler.ts` | Chưa giới hạn số workspace/user → có thể spam lời mời email | ✅ **Đã sửa** — `MAX_WORKSPACES_PER_USER = 20`, trả `429 LIMIT_EXCEEDED`; admin miễn trần (mục 3.10b) |
 
 ### 3.17. Các tình huống truy cập trái phép bắt buộc kiểm thử
 
@@ -676,12 +744,12 @@ Danh sách này là **đầu vào bắt buộc** cho Phần 13 (chiến lược 
 |---|---|---|
 | 49 | Callback có `state` **không** khớp cookie `google_oauth_state` (hoặc thiếu cả hai) | `401` `VALIDATION_ERROR` — chặn CSRF trên luồng OAuth. Cookie `state` phải là `httpOnly`, `sameSite=lax`, hạn **10 phút** |
 | 50 | Google trả `email_verified = false` | `401` `VALIDATION_ERROR` — **không** tạo tài khoản, **không** cấp token |
-| 51 | `google_id` **chưa** gắn nhưng email **đã có** tài khoản local | `409` `CONFLICT` — **không** tự động gắn `google_id`, **không** cấp token. Thông báo yêu cầu đăng nhập bằng mật khẩu để liên kết |
+| 51 | `google_id` **chưa** gắn nhưng email **đã có** tài khoản local | **Liên kết tự động** — gắn `google_id` vào tài khoản đó, cấp phiên & token, giữ nguyên mật khẩu hiện có. Nếu `google_id` đã bị tài khoản khác chiếm → `409 CONFLICT`. *(Quyết định sản phẩm 2026-11-17: email đã được Google xác minh `email_verified === true` → đủ cơ sở tin cậy; `google_id` unique chặn chiếm đoạt.)* |
 | 52 | `google_id` đã gắn với tài khoản `status = 'blocked'` | `403` `FORBIDDEN` — kiểm tra trạng thái khoá **sau** khi xác thực Google, trước khi cấp phiên |
 | 53 | Thiếu `GOOGLE_CLIENT_ID` / `_SECRET` / `GOOGLE_REDIRECT_URI` (bất kỳ biến nào) | `501` `DEPENDENCY_UNAVAILABLE` — **không** phải `500`; hệ thống vẫn khởi động bình thường |
 | 54 | `id_token` có chữ ký RS256 không hợp lệ với JWKS của Google | `401` `VALIDATION_ERROR` — **không** tin payload chưa verify |
 | 55 | Google trả lỗi ở callback (`?error=access_denied`) | `401` `VALIDATION_ERROR`; cookie `state` **phải** được xoá dù thành công hay thất bại |
-| 56 | Người dùng có tài khoản local muốn liên kết Google | **Chưa hỗ trợ** trong đợt này — `409 CONFLICT` yêu cầu đăng nhập bằng mật khẩu; luồng liên kết chủ động là **nợ kỹ thuật** (xem mục 3.20.5) |
+| 56 | Người dùng có tài khoản local muốn liên kết Google | ✅ **Đã hỗ trợ** (2026-11-17) — liên kết **tự động** ngay trong luồng đăng nhập Google khi email đã được Google xác minh. Luồng liên kết chủ động (đăng nhập local rồi xác nhận ở giao diện) vẫn là **nợ kỹ thuật** tùy nhu cầu UX (xem mục 3.20.5) |
 
 ### 3.18. Bảo mật kết nối Socket.IO (v5)
 
@@ -799,7 +867,7 @@ Danh sách này là **đầu vào bắt buộc** cho Phần 13 (chiến lược 
 
 | # | Hạng mục | Trạng thái |
 |---|---|---|
-| 1 | Luồng **liên kết** Google vào tài khoản local đã tồn tại (đăng nhập bằng mật khẩu rồi xác nhận) | ❌ **Chưa hiện thực hoá** — hiện trả `409 CONFLICT`. Cần: sau khi đăng nhập local thành công, hiển thị màn hình "liên kết Google" → `POST /auth/google/link` với access token đã xác thực |
+| 1 | Luồng **liên kết** Google vào tài khoản local đã tồn tại (đăng nhập bằng mật khẩu rồi xác nhận) | ✅ **Đã hiện thực hoá** (2026-11-17) — theo hướng **liên kết tự động** trong luồng OAuth: email đã được Google xác minh → gắn `google_id` vào tài khoản đó. Luồng *chủ động* (đăng nhập local → màn hình xác nhận → `POST /auth/google/link`) vẫn chưa làm — có thể thêm sau nếu UX yêu cầu |
 | 2 | `access_type=offline` được gửi nhưng **refresh token** của Google **không** được lưu | ⚠️ Chấp nhận — hệ thống dùng JWT riêng; không cần refresh token phía Google |
 | 3 | `prompt=select_account` cho phép chọn nhiều tài khoản Google | ⚠️ Chấp nhận — `email_verified` + `google_id` là chốt chặn cuối |
 | 4 | Chưa có thông báo "đăng nhập bằng Google lần đầu" cho người dùng | ⚠️ Ghi nhận — có thể bổ sung notification type `security_alert` (đã có trong danh mục) |
