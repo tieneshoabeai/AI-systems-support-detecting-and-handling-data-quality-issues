@@ -8,7 +8,26 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { DomainError } from '../../domain/errors/domain-error';
+import { ERROR_CODES } from '../../domain/errors/error-codes';
+import { StatusError } from '../../application/errors/status.error';
+import { httpStatusForErrorCode } from '../errors/error-http-mapping';
 
+/**
+ * Bộ lọc lỗi toàn cục — **điểm tập trung duy nhất** của hợp đồng lỗi HTTP.
+ *
+ * Luồng xử lý (theo thứ tự ưu tiên):
+ *   1. `DomainError` (tầng domain/application)  → ánh xạ `code → HTTP status`.
+ *   2. `HttpException` (tầng presentation/framework) → giữ nguyên `getStatus()`.
+ *   3. `ZodError`                                 → 400 `VALIDATION_ERROR`.
+ *   4. Lỗi MongoDB duplicate key (code `11000`)   → 409 `DUPLICATE_RESOURCE`.
+ *   5. `Error` khác                               → 500 `INTERNAL_ERROR`.
+ *
+ * Bước 2 (Bước 2 của Phần 16) đã thay toàn bộ `HttpException` ném từ tầng
+ * `application`/`infrastructure` bằng `DomainError`. Nhánh `HttpException`
+ * vẫn còn để phục vụ các exception do chính framework NestJS ném ra
+ * (validation pipe, router, throttler) — không phải lỗi nghiệp vụ.
+ */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -20,13 +39,26 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: unknown = 'Lỗi máy chủ nội bộ (Internal Server Error)';
-    let code = 'INTERNAL_ERROR';
+    // `code` là mã lỗi nghiệp vụ hoặc mã dự phòng dạng `HTTP_<status>` cho
+    // exception của framework (NestJS) — nên khai báo kiểu rộng.
+    let code: string = ERROR_CODES.INTERNAL_ERROR;
 
     let details: unknown = undefined;
     const isThrottle =
       (exception as { name?: string })?.name === 'ThrottlerException' ||
       ((exception instanceof HttpException) && exception.getStatus() === HttpStatus.TOO_MANY_REQUESTS && String((exception as Error).message || '').includes('Throttler'));
-    if (exception instanceof HttpException) {
+
+    if (exception instanceof DomainError) {
+      // ── Lỗi nghiệp vụ: mã ổn định + status do lớp Error Mapping quyết định.
+      // `StatusError` được phép ghi đè status tường minh (VD: Google OAuth 401).
+      status =
+        exception instanceof StatusError
+          ? exception.status
+          : httpStatusForErrorCode(exception.code);
+      code = exception.code;
+      message = exception.message;
+      details = exception.details;
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
       if (typeof res === 'string') {
@@ -38,13 +70,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         details = (resObj as Record<string, unknown>).details ?? (resObj as Record<string, unknown>).errors;
         // Chuẩn hợp đồng: Zod pipe bắn { errors: [...] } -> map sang VALIDATION_ERROR + details.fields
         if (Array.isArray((resObj as Record<string, unknown>).errors) && code === `HTTP_${status}`) {
-          code = 'VALIDATION_ERROR';
+          code = ERROR_CODES.VALIDATION_ERROR;
         }
-        if (Array.isArray(details) && code === 'VALIDATION_ERROR') {
+        if (Array.isArray(details) && code === ERROR_CODES.VALIDATION_ERROR) {
           details = { fields: details };
         }
         if (status === HttpStatus.TOO_MANY_REQUESTS && (isThrottle || code === `HTTP_${status}`)) {
-          code = 'LIMIT_EXCEEDED';
+          code = ERROR_CODES.LIMIT_EXCEEDED;
           if (message === 'ThrottlerException: Too Many Requests' || message === `HTTP_${status}`) {
             message = 'Bạn thao tác quá nhanh. Vui lòng thử lại sau.';
           }
@@ -52,7 +84,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof ZodError) {
       status = HttpStatus.BAD_REQUEST;
-      code = 'ZOD_VALIDATION_ERROR';
+      code = ERROR_CODES.VALIDATION_ERROR;
       message = exception.errors.map((e) => ({
         field: e.path.join('.'),
         message: e.message,
@@ -64,7 +96,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         (exception as { code?: unknown }).code === 11000
       ) {
         status = HttpStatus.CONFLICT;
-        code = 'DUPLICATE_RESOURCE';
+        code = ERROR_CODES.DUPLICATE_RESOURCE;
         message = 'Dữ liệu đã tồn tại trong hệ thống (Duplicate Key Error)';
       }
     }

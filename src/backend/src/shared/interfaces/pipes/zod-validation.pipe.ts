@@ -1,4 +1,5 @@
-import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
+import { PipeTransform, Injectable, ArgumentMetadata } from '@nestjs/common';
+import { ValidationError } from '../../domain/errors';
 import { ZodSchema, ZodError, type ZodTypeAny } from 'zod';
 
 @Injectable()
@@ -19,11 +20,9 @@ export class ZodValidationPipe implements PipeTransform {
         code: err.code,
       }));
 
-      throw new BadRequestException({
-        message: 'Dữ liệu gửi lên không hợp lệ.',
-        error: 'VALIDATION_ERROR',
-        details: { fields: formattedErrors },
-      } as never);
+      throw new ValidationError('Dữ liệu gửi lên không hợp lệ.', {
+        fields: formattedErrors,
+      });
     }
 
     return result.data as ZodTypeAny;

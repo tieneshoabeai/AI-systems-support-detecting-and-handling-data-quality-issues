@@ -1,7 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { ForbiddenError } from '../../domain/errors';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import type { CurrentUserPayload } from '../../domain/security/current-user-payload';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -19,12 +20,12 @@ export class RolesGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest<{ user?: CurrentUserPayload }>();
     if (!user) {
-      throw new ForbiddenException('Yêu cầu xác thực tài khoản để truy cập tài nguyên này');
+      throw new ForbiddenError('Yêu cầu xác thực tài khoản để truy cập tài nguyên này');
     }
 
     const hasRole = requiredRoles.includes(user.role);
     if (!hasRole) {
-      throw new ForbiddenException(`Tài khoản không có quyền hạn cần thiết: Yêu cầu vai trò [${requiredRoles.join(', ')}]`);
+      throw new ForbiddenError(`Tài khoản không có quyền hạn cần thiết: Yêu cầu vai trò [${requiredRoles.join(', ')}]`);
     }
 
     return true;

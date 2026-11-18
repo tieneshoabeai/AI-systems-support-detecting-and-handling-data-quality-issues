@@ -1,4 +1,5 @@
-import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ExecutionContext } from '@nestjs/common';
+import { UnauthenticatedError } from '../../domain/errors';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
@@ -28,7 +29,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       if (err instanceof Error) {
         throw err;
       }
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)');
+      throw new UnauthenticatedError('Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)');
     }
     return user;
   }
