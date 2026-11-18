@@ -140,7 +140,8 @@ function updateModule(moduleName: string, handlers: HandlerInfo[]): void {
 // ── 2. Controller ────────────────────────────────────────────────────────────
 
 function updateControllers(moduleName: string, handlers: HandlerInfo[]): void {
-  const infraDir = path.join(SRC, moduleName, 'infrastructure/http');
+  // Controller đã được tách sang tầng presentation (Phần 16 §3.5).
+  const infraDir = path.join(SRC, moduleName, 'presentation/controllers');
   if (!fs.existsSync(infraDir)) return;
 
   const files = fs

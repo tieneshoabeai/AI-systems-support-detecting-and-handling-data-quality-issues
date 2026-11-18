@@ -13,7 +13,7 @@
 import { Test } from '@nestjs/testing';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { AppModule } from '../src/app.module';
-import { STORAGE_PORT } from '../src/shared/ports/storage.port';
+import { STORAGE_PORT } from '../src/shared/application/ports/storage.port';
 
 async function main(): Promise<void> {
   const mongooseStub = {
