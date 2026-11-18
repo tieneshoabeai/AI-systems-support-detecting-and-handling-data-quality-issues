@@ -5,13 +5,14 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetResultHandler {
@@ -30,7 +31,7 @@ export class GetResultHandler {
     promptPreview: string | null,
   ): Promise<Record<string, unknown>> {
     const result = await this.analysisRepository.findResultByRun(runId);
-    if (!result) throw new NotFoundException('Không tìm thấy kết quả phân tích');
+    if (!result) throw new NotFoundError('Không tìm thấy kết quả phân tích');
     return {
       analysisId: resultId,
       analysisRunId: runId,
@@ -51,16 +52,16 @@ export class GetResultHandler {
 
   async execute(projectId: string): Promise<Record<string, unknown>> {
     if (!isObjectIdHex(projectId)) {
-      throw new BadRequestException('ID Dự án không hợp lệ');
+      throw new ValidationError('ID Dự án không hợp lệ');
     }
     await this.projects.getProjectById(projectId);
     const run = await this.analysisRepository.findLatestRunByProject(projectId);
     if (!run) {
-      throw new NotFoundException('Chưa có lần phân tích nào cho project này');
+      throw new NotFoundError('Chưa có lần phân tích nào cho project này');
     }
     const result = await this.analysisRepository.findResultByRun(run.id);
     if (!result) {
-      throw new NotFoundException('Chưa có kết quả phân tích cho lần chạy mới nhất');
+      throw new NotFoundError('Chưa có kết quả phân tích cho lần chạy mới nhất');
     }
     return this.toApiShape(result.id, run.id, result.inputFingerprint, null, null);
   }

@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
-import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
-import { Action } from '../../../../shared/casl/actions.enum';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
+import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
+import { PolicyResource } from '../../../../shared/interfaces/casl/policy-resource.decorator';
+import { Action } from '../../../../shared/domain/security/action';
+import { ProjectScopePolicyLoader } from '../../../projects';
 import { CreateSummaryHandler } from '../../application/commands/create-summary.handler';
 import { GetSummaryHandler } from '../../application/queries/get-summary.handler';
 
@@ -23,6 +25,8 @@ export class SummaryController {
     summary: 'SUMMARY-01: Tạo Tổng kết từ kết quả phân tích hệ thống mới nhất',
     operationId: 'createSummary',
   })
+  // UC-23 (tạo Tổng kết): PROJ-MEMBER trở lên.
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async create(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.createSummaryHandler.execute(projectId);
@@ -30,6 +34,8 @@ export class SummaryController {
 
   @Get('projects/:projectId/summary')
   @ApiOperation({ summary: 'SUMMARY-01: Xem Tổng kết mới nhất', operationId: 'getSummary' })
+  // UC-23/UC-24: PROJ-VIEWER cũng xem được Tổng kết.
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
   async get(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getSummaryHandler.execute(projectId);

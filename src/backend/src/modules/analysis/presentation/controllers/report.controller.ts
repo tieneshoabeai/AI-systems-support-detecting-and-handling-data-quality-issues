@@ -11,16 +11,18 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
-import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
-import { Action } from '../../../../shared/casl/actions.enum';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
+import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
+import { PolicyResource } from '../../../../shared/interfaces/casl/policy-resource.decorator';
+import { Action } from '../../../../shared/domain/security/action';
 import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
 import type { Response, Request } from 'express';
+import { ProjectScopePolicyLoader } from '../../../projects';
 import { DownloadReportFileHandler } from '../../application/queries/download-report-file.handler';
 import { GetReportFileMetaHandler } from '../../application/queries/get-report-file-meta.handler';
 import { RequestReportHandler } from '../../application/commands/request-report.handler';
@@ -46,6 +48,8 @@ export class ReportController {
     summary: 'REPORT-01: Yêu cầu sinh PDF ở worker (202, không sinh tại API)',
     operationId: 'requestReport',
   })
+  // UC-23 (tạo Tổng kết): PROJ-MEMBER trở lên.
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async request(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.requestReportHandler.execute(projectId);
@@ -56,6 +60,8 @@ export class ReportController {
     summary: 'REPORT-01: Tải file PDF do worker sinh',
     operationId: 'downloadReport',
   })
+  // UC-26 (tải PDF Tổng kết): PROJ-VIEWER cũng được tải.
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
   async download(
     @Param('projectId') projectId: string,

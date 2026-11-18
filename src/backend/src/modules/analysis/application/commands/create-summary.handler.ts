@@ -5,13 +5,14 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class CreateSummaryHandler {
@@ -23,15 +24,15 @@ export class CreateSummaryHandler {
   ) {}
 
   async execute(projectId: string): Promise<Record<string, unknown>> {
-    if (!isObjectIdHex(projectId)) throw new BadRequestException('ID Dự án không hợp lệ');
+    if (!isObjectIdHex(projectId)) throw new ValidationError('ID Dự án không hợp lệ');
     const project = await this.projects.getProjectById(projectId);
     const run = await this.analysisRepository.findLatestRunByProject(projectId);
     if (!run)
-      throw new NotFoundException('Chưa chạy phân tích — hãy chạy Data Analysis & Detection trước');
+      throw new NotFoundError('Chưa chạy phân tích — hãy chạy Data Analysis & Detection trước');
     if (run.status !== 'succeeded')
-      throw new BadRequestException('Phân tích hệ thống chưa thành công — hãy chạy lại phân tích');
+      throw new ValidationError('Phân tích hệ thống chưa thành công — hãy chạy lại phân tích');
     const result = await this.analysisRepository.findResultByRun(run.id);
-    if (!result) throw new NotFoundException('Chưa có kết quả phân tích cho lần chạy mới nhất');
+    if (!result) throw new NotFoundError('Chưa có kết quả phân tích cho lần chạy mới nhất');
     const dq = (result.dqSummary ?? result.dq_summary ?? null) as unknown as {
       totalScanned: number;
       columns: {

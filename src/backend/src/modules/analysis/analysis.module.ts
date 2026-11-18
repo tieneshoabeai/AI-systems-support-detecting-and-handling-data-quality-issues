@@ -9,18 +9,22 @@ import { ProjectSaveSchema } from './infrastructure/persistence/project-save.sch
 import { ReportJobSchema } from './infrastructure/persistence/report-job.schema';
 import { AnalysisConfigSchema } from './infrastructure/persistence/analysis-config.schema';
 import { ReportWorkerService } from './application/report-worker.service';
-import { SummaryController } from './infrastructure/http/summary.controller';
-import { ReportController } from './infrastructure/http/report.controller';
+import { SummaryController } from './presentation/controllers/summary.controller';
+import { ReportController } from './presentation/controllers/report.controller';
 import { AnalysisRepository } from './infrastructure/persistence/analysis.repository';
 import { ANALYSIS_REPOSITORY_PORT } from './domain/ports/analysis.repository.port';
 import { RAG_FEW_SHOT_PORT } from './domain/ports/rag-few-shot.port';
 import { AiInferencePort } from './application/ports/ai-inference.port';
+import { RESOURCE_GUARD_PORT } from './application/ports/resource-guard.port';
 import { LocalInferenceAdapter } from './infrastructure/ai/local-inference.adapter';
+import { SystemResourceGuardAdapter } from './infrastructure/ai/system-resource-guard.adapter';
+import { AnalysisJobPolicyLoader } from './application/policy-loaders/analysis-job-policy.loader';
+import { AnalysisRunPolicyLoader } from './application/policy-loaders/analysis-run-policy.loader';
 import { AiWorkerService } from './application/services/ai-worker.service';
 import { RagFewShotService } from './application/services/rag-few-shot.service';
-import { AnalysisController } from './infrastructure/http/analysis.controller';
+import { AnalysisController } from './presentation/controllers/analysis.controller';
 import { ProjectsModule } from '../projects/projects.module';
-import { StorageModule } from '../../shared/storage/storage.module';
+import { StorageModule } from '../../shared/infrastructure/storage/storage.module';
 import { DatasetsModule } from '../datasets/datasets.module';
 import { BuildPromptForJobHandler } from './application/commands/build-prompt-for-job.handler';
 import { GetConfigHandler } from './application/queries/get-config.handler';
@@ -77,6 +81,10 @@ import { RequestReportHandler } from './application/commands/request-report.hand
     GetReportFileMetaHandler,
     ReportWorkerService,
     { provide: AiInferencePort, useClass: LocalInferenceAdapter },
+    SystemResourceGuardAdapter,
+    { provide: RESOURCE_GUARD_PORT, useExisting: SystemResourceGuardAdapter },
+    AnalysisJobPolicyLoader,
+    AnalysisRunPolicyLoader,
     AiWorkerService,
     RagFewShotService,
     { provide: RAG_FEW_SHOT_PORT, useExisting: RagFewShotService },

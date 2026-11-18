@@ -5,15 +5,16 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../../datasets';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { AnalysisConfigInput } from '../analysis.types';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class SaveConfigHandler {
@@ -27,7 +28,7 @@ export class SaveConfigHandler {
   ) {}
 
   async execute(projectId: string, dto: AnalysisConfigInput): Promise<Record<string, unknown>> {
-    if (!isObjectIdHex(projectId)) throw new BadRequestException('ID Dự án không hợp lệ');
+    if (!isObjectIdHex(projectId)) throw new ValidationError('ID Dự án không hợp lệ');
     const project = await this.projects.getProjectById(projectId);
     const dataset = await this.datasetsRepository.findByProject(projectId);
     const known = new Set((dataset?.columns ?? []).map((c) => c.name));
@@ -44,7 +45,7 @@ export class SaveConfigHandler {
       dto.selected_columns.length > 0 &&
       (!selected || selected.length === 0)
     ) {
-      throw new BadRequestException('selected_columns không khớp cột nào của dataset');
+      throw new ValidationError('selected_columns không khớp cột nào của dataset');
     }
     const label = norm(dto.label_column ?? null);
     const time = norm(dto.time_column ?? null);
@@ -52,15 +53,15 @@ export class SaveConfigHandler {
     if (label && dataset) {
       const dt = dataset.columns.find((c) => c.name === label)?.dataType;
       if (dt === 'number' || dt === 'date')
-        throw new BadRequestException('label_column phải là cột phân loại (string/boolean)');
+        throw new ValidationError('label_column phải là cột phân loại (string/boolean)');
     }
     if (time && dataset) {
       const dt = dataset.columns.find((c) => c.name === time)?.dataType;
-      if (dt !== 'date') throw new BadRequestException('time_column phải là cột date');
+      if (dt !== 'date') throw new ValidationError('time_column phải là cột date');
     }
     if (value && dataset) {
       const dt = dataset.columns.find((c) => c.name === value)?.dataType;
-      if (dt !== 'number') throw new BadRequestException('value_column phải là cột số');
+      if (dt !== 'number') throw new ValidationError('value_column phải là cột số');
     }
     const saved = await this.analysisRepository.upsertConfig(
       projectId,

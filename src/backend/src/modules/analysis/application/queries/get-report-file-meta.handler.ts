@@ -5,11 +5,12 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetReportFileMetaHandler {
@@ -20,7 +21,7 @@ export class GetReportFileMetaHandler {
 
   async execute(projectId: string, reportId: string): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findReportById(reportId);
-    if (!job || job.projectId !== projectId) throw new NotFoundException('Không tìm thấy báo cáo');
+    if (!job || job.projectId !== projectId) throw new NotFoundError('Không tìm thấy báo cáo');
     if (job.status !== 'succeeded' || !job.storageKey) {
       return { reportId, status: job.status, error: job.error ?? null };
     }

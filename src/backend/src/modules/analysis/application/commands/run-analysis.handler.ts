@@ -6,14 +6,7 @@ import * as crypto from 'crypto';
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import {
   ANALYSIS_REPOSITORY_PORT,
@@ -22,7 +15,7 @@ import {
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../../datasets';
 import { RECORD_QUERY_PORT, type RecordQueryPort } from '../../../datasets';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import {
   AnalyzableColumn,
   buildCorrelationMatrix,
@@ -43,6 +36,7 @@ import { describeColumn, evaluateImbalance, analyzeTime } from '../../domain/sta
 import { toFiniteNumber } from '../../domain/correlation.util';
 import { RunAnalysisInput } from '../analysis.types';
 import { maskSampleValue } from '../analysis.utils';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class RunAnalysisHandler {
@@ -76,7 +70,7 @@ export class RunAnalysisHandler {
     promptPreview: string | null,
   ): Promise<Record<string, unknown>> {
     const result = await this.analysisRepository.findResultByRun(runId);
-    if (!result) throw new NotFoundException('Không tìm thấy kết quả phân tích');
+    if (!result) throw new NotFoundError('Không tìm thấy kết quả phân tích');
     return {
       analysisId: resultId,
       analysisRunId: runId,
@@ -101,12 +95,12 @@ export class RunAnalysisHandler {
     userId?: string,
   ): Promise<Record<string, unknown>> {
     if (!isObjectIdHex(projectId)) {
-      throw new BadRequestException('ID Dự án không hợp lệ');
+      throw new ValidationError('ID Dự án không hợp lệ');
     }
     const project = await this.projects.getProjectById(projectId);
     const dataset = await this.datasetsRepository.findByProject(projectId);
     if (!dataset) {
-      throw new NotFoundException('Project chưa có dataset để phân tích');
+      throw new NotFoundError('Project chưa có dataset để phân tích');
     }
 
     const stored = await this.analysisRepository.findConfigByProject(projectId).catch(() => null);
@@ -127,15 +121,13 @@ export class RunAnalysisHandler {
         .map((k) => (known.has(k) ? k : (byKey.get(k) ?? knownOriginal.get(k) ?? k)))
         .filter((k) => known.has(k));
       if (selectedKeys.length === 0) {
-        throw new BadRequestException('selected_columns không khớp cột nào của dataset');
+        throw new ValidationError('selected_columns không khớp cột nào của dataset');
       }
     } else {
       selectedKeys = allInferable.map((c) => c.name);
     }
     if (selectedKeys.length === 0) {
-      throw new BadRequestException(
-        'Không có cột suy luận được để phân tích (toàn bộ là date/không hỗ trợ)',
-      );
+      throw new ValidationError('Không có cột suy luận được để phân tích (toàn bộ là date/không hỗ trợ)',);
     }
 
     const colTypeByName = new Map(dataset.columns.map((c) => [c.name, c.dataType] as const));

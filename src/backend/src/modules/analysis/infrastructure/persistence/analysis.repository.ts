@@ -32,7 +32,7 @@ import {
   toProjectSaveRecord,
   toReportJobRecord,
 } from './analysis.mapper';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);

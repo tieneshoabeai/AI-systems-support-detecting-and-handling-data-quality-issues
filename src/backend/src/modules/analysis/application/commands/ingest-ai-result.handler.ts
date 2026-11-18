@@ -5,13 +5,14 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { groundAiAssessment, RawAiAssessment } from '../../domain/ai-grounding.util';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class IngestAiResultHandler {
@@ -25,12 +26,12 @@ export class IngestAiResultHandler {
 
   async execute(jobId: string, raw: unknown, modelId?: string): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
-    if (!job) throw new NotFoundException('Không tìm thấy AI job');
+    if (!job) throw new NotFoundError('Không tìm thấy AI job');
     const result = await this.analysisRepository.findResultByRun(
       (job.analysisRunId as string).toString(),
     );
     if (!result || !result.correlationMatrix || !result.vif) {
-      throw new NotFoundException('Kết quả hệ thống chưa sẵn sàng để gắn nhận xét AI');
+      throw new NotFoundError('Kết quả hệ thống chưa sẵn sàng để gắn nhận xét AI');
     }
     const grounded = groundAiAssessment(
       raw as RawAiAssessment,

@@ -9,18 +9,21 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { RunAnalysisSchema, RunAnalysisDto } from './dtos/run-analysis.dto';
-import { AnalysisConfigSchema } from './dtos/analysis-config.dto';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
-import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
-import { Action } from '../../../../shared/casl/actions.enum';
+import { RunAnalysisSchema, RunAnalysisDto } from '../dtos/run-analysis.dto';
+import { AnalysisConfigSchema } from '../dtos/analysis-config.dto';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
+import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
+import { PolicyResource } from '../../../../shared/interfaces/casl/policy-resource.decorator';
+import { Action } from '../../../../shared/domain/security/action';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
+import { ProjectScopePolicyLoader } from '../../../projects';
+import { AnalysisJobPolicyLoader } from '../../application/policy-loaders/analysis-job-policy.loader';
 import { GetConfigHandler } from '../../application/queries/get-config.handler';
 import { GetJobHandler } from '../../application/queries/get-job.handler';
 import { GetResultHandler } from '../../application/queries/get-result.handler';
@@ -51,6 +54,8 @@ export class AnalysisController {
     operationId: 'saveAnalysisConfig',
   })
   @ApiZodBody(AnalysisConfigSchema)
+  // UC-19 (cấu hình cột phân tích): PROJ-MEMBER trở lên.
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async saveConfig(
     @Param('projectId') projectId: string,
@@ -64,6 +69,7 @@ export class AnalysisController {
     summary: 'ANALYSIS-01: Xem cấu hình cột phân tích',
     operationId: 'getAnalysisConfig',
   })
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
   async getConfig(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getConfigHandler.execute(projectId);
@@ -75,6 +81,8 @@ export class AnalysisController {
     operationId: 'runAnalysis',
   })
   @ApiZodBody(RunAnalysisSchema)
+  // UC-20 (chạy phân tích): PROJ-MEMBER trở lên.
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async runAnalysis(
     @Param('projectId') projectId: string,
@@ -91,6 +99,7 @@ export class AnalysisController {
       'ANALYSIS-03: Kết quả phân tích (DQ-05 có điều kiện + ma trận tương quan + VIF + nhận xét AI)',
     operationId: 'getAnalysisResult',
   })
+  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
   async getResult(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getResultHandler.execute(projectId);
@@ -98,6 +107,8 @@ export class AnalysisController {
 
   @Get('analysis/jobs/:jobId')
   @ApiOperation({ summary: 'AI-01: Trạng thái AI job corr-v1', operationId: 'getAiJob' })
+  // UC-21 (xem trạng thái job AI): mọi vai trò đọc được project đều xem được.
+  @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
   async getJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
     return this.getJobHandler.execute(jobId);
@@ -106,6 +117,8 @@ export class AnalysisController {
   @Post('analysis/jobs/:jobId/retry')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'AI-01: Thử lại AI job (tối đa 2 retry)', operationId: 'retryAiJob' })
+  // UC-22 (thử lại AI): PROJ-MEMBER trở lên.
+  @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async retryJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
     return this.retryJobHandler.execute(jobId);
@@ -117,6 +130,7 @@ export class AnalysisController {
     summary: 'AI nội bộ: Gắn kết quả AI corr-v1 đã grounding vào analysis_result',
     operationId: 'ingestAiResult',
   })
+  @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   async ingestAiResult(
     @Param('jobId') jobId: string,

@@ -1,6 +1,6 @@
 import type { Document, Types } from 'mongoose';
 import { Schema } from 'mongoose';
-import type { BaseEntity } from '../../../../shared/database/base-mongo.repository';
+import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
 
 /**
  * Phan 12 v8 §3.16.4 — Kho mau few-shot cho RAG (T1).

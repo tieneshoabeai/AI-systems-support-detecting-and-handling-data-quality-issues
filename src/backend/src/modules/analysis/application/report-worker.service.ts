@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../domain/ports/analysis.repository.port';
-import { STORAGE_PORT, type StoragePort } from '../../../shared/ports/storage.port';
+import { STORAGE_PORT, type StoragePort } from '../../../shared/application/ports/storage.port';
 import { Readable } from 'stream';
 import { buildReportPdf } from './pdf-builder.util';
 

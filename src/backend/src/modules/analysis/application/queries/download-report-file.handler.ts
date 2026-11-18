@@ -5,13 +5,14 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Readable } from 'stream';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
-import { STORAGE_PORT, type StoragePort } from '../../../../shared/ports/storage.port';
+import { STORAGE_PORT, type StoragePort } from '../../../../shared/application/ports/storage.port';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class DownloadReportFileHandler {
@@ -28,10 +29,10 @@ export class DownloadReportFileHandler {
   ): Promise<{ stream: Readable; fileSizeBytes: number | null }> {
     const job = await this.analysisRepository.findReportById(reportId);
     if (!job || job.projectId !== projectId || !job.storageKey) {
-      throw new NotFoundException('Không tìm thấy báo cáo');
+      throw new NotFoundError('Không tìm thấy báo cáo');
     }
     if (job.status !== 'succeeded') {
-      throw new NotFoundException('Báo cáo chưa sẵn sàng');
+      throw new NotFoundError('Báo cáo chưa sẵn sàng');
     }
     const stream = await this.storage.downloadStream(job.storageKey);
     return { stream, fileSizeBytes: job.fileSizeBytes ?? null };

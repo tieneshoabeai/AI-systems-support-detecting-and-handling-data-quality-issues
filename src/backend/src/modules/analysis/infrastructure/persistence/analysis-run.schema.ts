@@ -1,6 +1,6 @@
 import type { Document, Types } from 'mongoose';
 import { Schema } from 'mongoose';
-import type { BaseEntity } from '../../../../shared/database/base-mongo.repository';
+import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
 
 export type AnalysisRunStatus = 'pending' | 'running' | 'succeeded' | 'failed';
 

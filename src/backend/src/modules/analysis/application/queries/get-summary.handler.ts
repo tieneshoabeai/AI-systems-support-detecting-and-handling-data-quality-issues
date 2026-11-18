@@ -5,13 +5,14 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetSummaryHandler {
@@ -23,10 +24,10 @@ export class GetSummaryHandler {
   ) {}
 
   async execute(projectId: string): Promise<Record<string, unknown>> {
-    if (!isObjectIdHex(projectId)) throw new BadRequestException('ID Dự án không hợp lệ');
+    if (!isObjectIdHex(projectId)) throw new ValidationError('ID Dự án không hợp lệ');
     await this.projects.getProjectById(projectId);
     const saved = await this.analysisRepository.findLatestSaveByProject(projectId);
-    if (!saved) throw new NotFoundException('Chưa có Tổng kết cho project này');
+    if (!saved) throw new NotFoundError('Chưa có Tổng kết cho project này');
     return {
       saveId: saved.id,
       projectId,

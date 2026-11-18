@@ -5,7 +5,7 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
@@ -16,6 +16,7 @@ import { classifyColumn } from '../../domain/correlation.util';
 import { buildCorrV1Prompt } from '../../domain/ai-grounding.util';
 import { RagFewShotService } from '../services/rag-few-shot.service';
 import { maskSampleValue } from '../analysis.utils';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class BuildPromptForJobHandler {
@@ -32,14 +33,14 @@ export class BuildPromptForJobHandler {
 
   async execute(jobId: string): Promise<string> {
     const job = await this.analysisRepository.findJobById(jobId);
-    if (!job) throw new NotFoundException('Không tìm thấy AI job');
+    if (!job) throw new NotFoundError('Không tìm thấy AI job');
     const result = await this.analysisRepository.findResultByRun(
       (job.analysisRunId as string).toString(),
     );
     if (!result || !result.correlationMatrix || !result.vif) {
-      throw new NotFoundException('Kết quả hệ thống chưa sẵn sàng để dựng prompt AI');
+      throw new NotFoundError('Kết quả hệ thống chưa sẵn sàng để dựng prompt AI');
     }
-    if (!job.datasetId) throw new NotFoundException('AI job thiếu dataset');
+    if (!job.datasetId) throw new NotFoundError('AI job thiếu dataset');
     const dataset = await this.datasetsRepository.findById(job.datasetId);
     const recordRows2 = await this.records.listAllRecords(job.datasetId);
     const records = recordRows2.map((r) => ({ row_index: r.rowIndex, props: r.props }));

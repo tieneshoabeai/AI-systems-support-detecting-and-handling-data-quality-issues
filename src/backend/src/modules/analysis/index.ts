@@ -62,3 +62,7 @@ export { RequestReportHandler } from './application/commands/request-report.hand
 export { RetryJobHandler } from './application/commands/retry-job.handler';
 export { RunAnalysisHandler } from './application/commands/run-analysis.handler';
 export { SaveConfigHandler } from './application/commands/save-config.handler';
+
+// ── Policy loaders (dùng cho `@PolicyResource` — tầng động chống IDOR) ────
+export { AnalysisJobPolicyLoader } from './application/policy-loaders/analysis-job-policy.loader';
+export { AnalysisRunPolicyLoader } from './application/policy-loaders/analysis-run-policy.loader';

@@ -5,12 +5,13 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { ConfigService } from '@nestjs/config';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class RetryJobHandler {
@@ -22,12 +23,10 @@ export class RetryJobHandler {
 
   async execute(jobId: string): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
-    if (!job) throw new NotFoundException('Không tìm thấy AI job');
+    if (!job) throw new NotFoundError('Không tìm thấy AI job');
     const maxAttempts = (this.configService.get<number>('AI_MAX_RETRIES') ?? 2) + 1;
     if (job.attempt >= maxAttempts) {
-      throw new BadRequestException(
-        `AI job đã hết lượt thử lại (tối đa ${maxAttempts - 1} lần retry)`,
-      );
+      throw new ValidationError(`AI job đã hết lượt thử lại (tối đa ${maxAttempts - 1} lần retry)`,);
     }
     const updated = await this.analysisRepository.updateJobById(jobId, {
       status: 'pending',
