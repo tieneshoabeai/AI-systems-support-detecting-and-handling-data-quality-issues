@@ -4,9 +4,11 @@ import type { postIssuesReportRequestBody as CreateReportBody } from '../../type
 import type { patchUsersProfileRequestBody as ProfileBody } from '../../types/services-type/users'
 import type { patchUsersPreferencesRequestBody as PreferencesBody } from '../../types/services-type/notifications'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
-import type { ManagementStore } from './management.types'
+import type { ManagementStore, SessionDetail, WorkspaceDetailOverview, WorkspaceOverview } from './management.types'
 import { validateCsvFile } from './upload-validation'
-import type { Person, PreviewStoreState, PreviewMutationResult, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
+import { createAdminService } from './admin.service'
+import { createDatasetService } from '../processing/dataset.service'
+import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
 
 type Member = { userId: string; role: string; email?: string; name?: string; firstName?: string; lastName?: string; joinedAt?: string }
 // Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
@@ -22,6 +24,25 @@ const memberRows = (result: MembersResult): Member[] => {
 type WorkspaceDto = { id: string; name: string; description: string; ownerId: string; members: Member[]; storageUsedBytes: number; createdAt: string; updatedAt: string; lastAccessedAt: string | null; version: number }
 type ProjectDto = { id: string; workspaceId: string; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
 type DatasetDto = { id: string; originalFileName: string; rowCount: number; columnCount: number; fileSizeBytes: number; createdAt: string; status: string }
+const isWorkspaceOverview = (value: unknown): value is WorkspaceOverview => {
+  if (typeof value !== 'object' || value === null) return false
+  return ['totalWorkspaces', 'totalProjects', 'ownedWorkspaces', 'sharedWorkspaces', 'myProjects']
+    .every(key => {
+      const count = (value as Record<string, unknown>)[key]
+      return typeof count === 'number' && Number.isInteger(count) && count >= 0
+    })
+}
+const isWorkspaceDetailOverview = (value: unknown): value is WorkspaceDetailOverview => {
+  if (typeof value !== 'object' || value === null) return false
+  const record = value as Record<string, unknown>
+  return typeof record['workspaceId'] === 'string'
+    && ['projectCount', 'notStartedCount', 'inProgressCount', 'completedCount', 'memberCount', 'storageUsedBytes']
+      .every(key => {
+        const count = record[key]
+        return typeof count === 'number' && Number.isFinite(count) && count >= 0
+      })
+    && (record['lastAccessedAt'] === null || typeof record['lastAccessedAt'] === 'string')
+}
 const label = (role: string) => role.charAt(0).toUpperCase() + role.slice(1)
 // Máy chủ trả ISO; card và tiêu đề chi tiết hiển thị ngày theo vi-VN thay vì chuỗi ISO thô.
 const displayDate = (value: string): string => {
@@ -31,7 +52,7 @@ const displayDate = (value: string): string => {
 const unsupported = (): Promise<PreviewMutationResult> => Promise.reject(new Error('Chức năng này chưa được kết nối với máy chủ.'))
 const saved = (message: string): PreviewMutationResult => ({ message, persisted: true, undo: () => { throw new Error('Thao tác đã được lưu trên máy chủ.') } })
 
-export function createManagementStore(api: ApiClient, account: Person) {
+export function createManagementStore(api: ApiClient, account: Person, options: { readSessionId?: () => string | null } = {}) {
   let state: PreviewStoreState = {
     source: 'api', workspaces: [], projects: [], notifications: [], reports: [], sessions: [],
     profile: { name: account.name, email: account.email ?? '', role: account.role, organization: '', phone: '', bio: '' },
@@ -141,12 +162,15 @@ export function createManagementStore(api: ApiClient, account: Person) {
     }
   }
   async function loadPersonal() {
-    const [profile, notifications, reports] = await Promise.all([
+    const [profile, notifications, reports, unread] = await Promise.all([
       request<{ firstName: string; lastName: string; email: string; role: string; notificationsEnabled: boolean }>('/users/me'),
       cursorPages<NotificationDto>('/notifications'), cursorPages<IssueDto>('/issues'),
+      request<{ unreadCount: number }>('/notifications/unread-count'),
     ])
+    if (!Number.isInteger(unread.unreadCount) || unread.unreadCount < 0) throw new Error('Số thông báo chưa đọc từ máy chủ không hợp lệ.')
     const enabled = profile.notificationsEnabled
     publish({ ...state,
+      unreadNotificationCount: unread.unreadCount,
       profile: { ...state.profile, name: `${profile.firstName} ${profile.lastName}`.trim(), email: profile.email, role: profile.role },
       notificationPrefs: { system: enabled, projects: enabled, quality: enabled, workspace: enabled },
       notifications: notifications.map(n => ({ id: n.id, title: n.title, context: n.summary ?? '', description: n.summary ?? '', tone: 'info', kind: 'system', unread: !n.readAt, at: n.createdAt, atFull: new Date(n.createdAt).toLocaleString('vi-VN'), projectId: n.payload?.targetType === 'project' ? n.payload.targetId ?? null : null })),
@@ -162,8 +186,91 @@ export function createManagementStore(api: ApiClient, account: Person) {
     if (value !== 'member' && value !== 'viewer') throw new Error('Project chỉ hỗ trợ vai trò Member hoặc Viewer.')
     return value
   }
+  async function loadSessions() {
+    const rows = await request<{ id: string; deviceName?: string | null; userAgent?: string | null; ipAddress?: string | null; createdAt?: string | null }[]>('/auth/sessions')
+    if (!Array.isArray(rows) || rows.some(row => !row || typeof row.id !== 'string')) {
+      throw new Error('Danh sách phiên đăng nhập từ máy chủ không hợp lệ.')
+    }
+    const currentId = options.readSessionId?.()
+    publish({ ...state, sessions: rows.map(row => ({
+      id: row.id, platform: row.deviceName || 'Thiết bị không xác định',
+      browser: row.userAgent || 'Không có thông tin trình duyệt', icon: 'monitor',
+      location: 'Máy chủ không cung cấp vị trí', ip: row.ipAddress || 'Không có thông tin',
+      current: row.id === currentId,
+      startedAt: row.createdAt ? new Date(row.createdAt).toLocaleString('vi-VN') : 'Không có thông tin',
+    })) })
+  }
+  function requireCurrentSession() {
+    const id = options.readSessionId?.()
+    if (!id) throw new Error('Không xác định được phiên hiện tại. Vui lòng đăng nhập lại trước khi thu hồi phiên.')
+    return id
+  }
   const version = (id: string): number => { const value = versions.get(id); if (value === undefined) throw new Error('Hãy tải lại tài nguyên trước khi lưu thay đổi.'); return value }
   const store: ManagementStore = {
+    ...(account.role.toLowerCase() === 'admin' ? { adminService: createAdminService(api) } : {}),
+    datasetService: createDatasetService(api),
+    getWorkspaceOverview: async () => {
+      const overview = await request<unknown>('/overview/workspaces')
+      if (!isWorkspaceOverview(overview)) throw new Error('Tổng quan workspace từ máy chủ không hợp lệ.')
+      return overview
+    },
+    getWorkspaceDetailOverview: async workspaceId => {
+      const overview = await request<unknown>(`/workspaces/${encodeURIComponent(workspaceId)}/overview`)
+      if (!isWorkspaceDetailOverview(overview) || overview.workspaceId !== workspaceId) {
+        throw new Error('Tổng quan workspace từ máy chủ không hợp lệ.')
+      }
+      return overview
+    },
+    getSessionDetail: async sessionId => {
+      const detail = await request<Record<string, unknown>>(`/auth/sessions/${encodeURIComponent(sessionId)}`)
+      if (typeof detail['id'] !== 'string' || detail['id'] !== sessionId
+        || typeof detail['is_revoked'] !== 'boolean' || typeof detail['remember_me'] !== 'boolean') {
+        throw new Error('Chi tiết phiên từ máy chủ không hợp lệ.')
+      }
+      const optionalString = (value: unknown): string | null => typeof value === 'string' ? value : null
+      const result: SessionDetail = {
+        id: detail['id'], deviceName: optionalString(detail['device_name']),
+        ipAddress: optionalString(detail['ip_address']), userAgent: optionalString(detail['user_agent']),
+        lastUsedAt: optionalString(detail['last_used_at']), expiresAt: optionalString(detail['expires_at']),
+        createdAt: optionalString(detail['created_at']), isRevoked: detail['is_revoked'],
+        rememberMe: detail['remember_me'],
+      }
+      return result
+    },
+    getNotificationDetail: async id => {
+      const notification = await request<NotificationDto>(`/notifications/${encodeURIComponent(id)}`)
+      const item: PreviewNotification = {
+        id: notification.id, title: notification.title, context: notification.summary ?? '',
+        description: notification.summary ?? '', tone: 'info', kind: 'system', unread: false,
+        at: notification.createdAt, atFull: new Date(notification.createdAt).toLocaleString('vi-VN'),
+        projectId: notification.payload?.targetType === 'project' ? notification.payload.targetId ?? null : null,
+      }
+      const previous = state.notifications.find(row => row.id === id)
+      const unreadCount = state.unreadNotificationCount
+      publish({
+        ...state,
+        notifications: state.notifications.map(row => row.id === id ? item : row),
+        ...(previous?.unread && unreadCount !== undefined
+          ? { unreadNotificationCount: Math.max(0, unreadCount - 1) } : {}),
+      })
+    },
+    getIssueDetail: async id => {
+      const issue = await request<IssueDto>(`/issues/${encodeURIComponent(id)}`)
+      const report: PreviewReport = {
+        id: issue.id, code: issue.id, title: issue.title, description: issue.description,
+        issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(key => issueTypes[key] === issue.issueType) ?? 'other',
+        status: issue.status === 'needs_info' ? 'needs-info'
+          : issue.status === 'new' ? 'new'
+            : issue.status === 'closed' ? 'closed'
+              : issue.status === 'resolved' ? 'resolved' : 'processing',
+        createdAt: new Date(issue.createdAt).toLocaleString('vi-VN'), updatedAt: issue.updatedAt,
+        attachment: issue.attachments?.[0] ? {
+          id: issue.attachments[0].id, name: issue.attachments[0].filename,
+          sizeLabel: `${Math.ceil(issue.attachments[0].sizeBytes / 1024)} KB`,
+        } : null,
+      }
+      publish({ ...state, reports: state.reports.map(row => row.id === id ? report : row) })
+    },
     subscribe: fn => { listeners.add(fn); return () => { listeners.delete(fn) } }, getState: () => state,
     selectWorkspace: workspaceId => { if (workspaceId && !state.workspaces.some(w => w.id === workspaceId)) return; publish({ ...state, selection: { workspaceId, projectId: '' } }) },
     selectProject: projectId => { const p = state.projects.find(p => p.id === projectId); if (p) publish({ ...state, selection: { workspaceId: p.workspaceId, projectId } }) },
@@ -241,7 +348,28 @@ export function createManagementStore(api: ApiClient, account: Person) {
       await request('/users/me', { method: 'PATCH', data: { first_name: parts.slice(0, -1).join(' '), last_name: parts.at(-1) ?? '' } satisfies ProfileBody })
       await loadPersonal(); return saved('Đã cập nhật họ tên.')
     },
-    revokeSession: unsupported, revokeOtherSessions: unsupported,
+    loadSessions,
+    changePassword: async input => {
+      await request('/auth/change-password', { method: 'POST', data: input })
+      // A successful password change must not be reported as failed if the follow-up read fails.
+      publish({ ...state, sessions: [] })
+    },
+    revokeSession: async id => {
+      if (id === requireCurrentSession()) throw new Error('Hãy dùng Đăng xuất để kết thúc phiên hiện tại.')
+      await request(`/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      publish({ ...state, sessions: state.sessions.filter(row => row.id !== id) })
+      return saved('Đã thu hồi phiên đăng nhập.')
+    },
+    revokeOtherSessions: async () => {
+      const currentId = requireCurrentSession()
+      await loadSessions()
+      for (const row of [...state.sessions]) {
+        if (row.id === currentId) continue
+        await request(`/auth/sessions/${encodeURIComponent(row.id)}`, { method: 'DELETE' })
+        publish({ ...state, sessions: state.sessions.filter(item => item.id !== row.id) })
+      }
+      return saved('Đã thu hồi các phiên đăng nhập khác.')
+    },
     setNotificationPref: async (_key, value) => {
       await request('/users/me/notification-preferences', { method: 'PATCH', data: { notificationsEnabled: value } satisfies PreferencesBody })
       await loadPersonal(); return saved('Đã lưu tùy chọn thông báo.')

@@ -4,7 +4,7 @@ export function AuthProviderButtons({ action }: { action: 'Đăng nhập' | 'Đ�
   return <>
     <div className="auth-glass-providers" role="group" aria-label={`Tùy chọn ${action.toLowerCase()} khác`} aria-describedby="auth-providers-status">
       {authGlassProviderIcons.map(({ name, paths }) => (
-        <button key={name} type="button" aria-label={`${action} bằng ${name}`}>
+        <button key={name} type="button" disabled aria-label={`${action} bằng ${name}`}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             {paths.map(({ fill, d }) => <path key={d} fill={fill} d={d} />)}
           </svg>

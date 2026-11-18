@@ -1,7 +1,9 @@
 import { Button, Input, Select, Textarea, Table } from '../../ui/controls'
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import type { WorkspaceDetailOverview } from '../../../services/management/management.types'
 import type { Person, PreviewWorkspacePanel, Project, Workspace, WorkspaceEdit } from '../../../types/preview/preview.types'
 import {
   directory, emailForPerson, personFromEmail, previewNoteIds, previewReasons, workspaceMemberRows,
@@ -39,9 +41,23 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
   onClose: () => void
   onSave: (edit: WorkspaceEdit) => void | Promise<void>
 }) {
+  const store = useManagementStore()
   const [name, setName] = useState(workspace.name)
   const [description, setDescription] = useState(workspace.description)
   const [error, setError] = useState<string | null>(null)
+  const [overview, setOverview] = useState<WorkspaceDetailOverview | null>(null)
+  const [overviewError, setOverviewError] = useState('')
+
+  useEffect(() => {
+    if (store.getState().source !== 'api' || !store.getWorkspaceDetailOverview) return
+    let active = true
+    void store.getWorkspaceDetailOverview(workspace.id).then(result => {
+      if (active) { setOverview(result); setOverviewError('') }
+    }).catch((cause: unknown) => {
+      if (active) setOverviewError(cause instanceof Error ? cause.message : 'Không tải được tổng quan workspace.')
+    })
+    return () => { active = false }
+  }, [store, workspace.id])
 
   const [busy, setBusy] = useState(false)
   const submit = async (): Promise<void> => {
@@ -100,8 +116,10 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
             <span className="info-sub">{ownerEmail}</span></dd></div>
         <div><dt><PreviewIcon name="clock" /> Ngày tạo</dt><dd>{workspace.createdAt}</dd></div>
         <div><dt><PreviewIcon name="reset" /> Cập nhật gần nhất</dt><dd>{workspace.updatedAt}</dd></div>
-        <div><dt><PreviewIcon name="users" /> Số lượng thành viên</dt><dd>{workspace.members} thành viên</dd></div>
-        <div><dt><PreviewIcon name="box" /> Số lượng Project</dt><dd>{projectCount} Project</dd></div>
+        <div><dt><PreviewIcon name="users" /> Số lượng thành viên</dt><dd>{overview?.memberCount ?? workspace.members} thành viên</dd></div>
+        <div><dt><PreviewIcon name="box" /> Số lượng Project</dt><dd>{overview?.projectCount ?? projectCount} Project</dd></div>
+        {overview && <div><dt><PreviewIcon name="database" /> Dung lượng đã dùng</dt><dd>{(overview.storageUsedBytes / 1073741824).toFixed(2)} GB</dd></div>}
+        {overviewError !== '' && <div className="span-all"><dt>Tổng quan máy chủ</dt><dd role="status">{overviewError} Đang hiển thị số liệu đã tải trước đó.</dd></div>}
       </dl>
 
       {error && <p className="dialog-error" id="ws-edit-error" role="alert">{error}</p>}

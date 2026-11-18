@@ -76,5 +76,9 @@ export const composeApiConfig = (baseValue: unknown, prefixValue: unknown): ApiC
 
 // Đọc khi caller tạo client; import file này không chặn UI khởi động.
 export const getApiConfig = (): ApiConfig => {
-  return composeApiConfig(import.meta.env.VITE_API_BASE_URL, import.meta.env.VITE_API_PREFIX)
+  const config = composeApiConfig(import.meta.env.VITE_API_BASE_URL, import.meta.env.VITE_API_PREFIX)
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && new URL(config.baseUrl).protocol !== 'https:') {
+    throw new ApiError({ kind: 'config', message: 'Frontend HTTPS cần API HTTPS để tránh bị trình duyệt chặn mixed content.' })
+  }
+  return config
 }

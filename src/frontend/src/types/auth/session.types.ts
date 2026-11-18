@@ -8,6 +8,7 @@ export type StoredSession = {
 export type AccessTokenInfo = {
   accountId: string
   expiresAtMs: number
+  sessionId?: string
 }
 
 export type SessionReadResult =

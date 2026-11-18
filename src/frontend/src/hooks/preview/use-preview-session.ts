@@ -245,7 +245,9 @@ export const usePreviewSessionModel = (
     dialog,
     info,
     workspacePanel,
-    unreadNotifications: state.notifications.filter(item => item.unread).length,
+    unreadNotifications: state.source === 'api' && Number.isInteger(state.unreadNotificationCount)
+      ? state.unreadNotificationCount as number
+      : state.notifications.filter(item => item.unread).length,
     openMenu,
     closeMenu,
     closeDialog: () => setDialog(null),

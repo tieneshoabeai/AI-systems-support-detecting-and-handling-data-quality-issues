@@ -457,6 +457,7 @@ export type PreviewStoreState = {
   workspaces: Workspace[]
   projects: Project[]
   notifications: PreviewNotification[]
+  unreadNotificationCount?: number
   reports: PreviewReport[]
   profile: ProfileInfo
   sessions: DeviceSession[]

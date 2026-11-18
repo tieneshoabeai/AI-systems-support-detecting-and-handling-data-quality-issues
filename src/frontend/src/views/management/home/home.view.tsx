@@ -1,6 +1,8 @@
 import { Button, Select } from '../../../components/ui/controls'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PreviewMenuOrigin, Workspace } from '../../../types'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import type { WorkspaceOverview } from '../../../services/management/management.types'
 import {
   byNewestFirst, homeOverviewStats, pluralEn,
   projectsOf, projectsPerWorkspaceFor, projectStatusShareFor,
@@ -15,6 +17,7 @@ import { previewCardProps, stopCardBubble } from '../../preview/preview-card'
 import { UniverseHero } from '../../preview/components/universe-hero'
 import type { UniverseHeroProps } from '../../preview/components/universe-hero'
 import { RecentProjects } from '../../preview/components/recent-projects'
+import { AdminApiPanel } from './admin-api-panel'
 export { UniverseHero } from '../../preview/components/universe-hero'
 export type { UniverseHeroProps } from '../../preview/components/universe-hero'
 
@@ -80,7 +83,10 @@ function WorkspaceTile({ workspace }: { workspace: Workspace }) {
 
 export function HomePreviewView({ scene }: UniverseHeroProps) {
   const session = usePreviewSession()
+  const store = useManagementStore()
   const [range, setRange] = useState('30 ngày gần nhất')
+  const [serverOverview, setServerOverview] = useState<WorkspaceOverview | null>(null)
+  const [overviewError, setOverviewError] = useState('')
   // Workspaces phân trang trong khung; Projects giữ logic riêng trong RecentProjects.
   const [wsPage, setWsPage] = useState(1)
   const wsPerPage = 24
@@ -94,8 +100,26 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
   const workspacesShown = wsSorted.slice((wsSafePage - 1) * wsPerPage, wsSafePage * wsPerPage)
   const statusShare = projectStatusShareFor(state)
   const perWorkspace = projectsPerWorkspaceFor(state, 5)
+  useEffect(() => {
+    if (state.source !== 'api' || !store.getWorkspaceOverview) return
+    let active = true
+    void store.getWorkspaceOverview().then(overview => {
+      if (active) { setServerOverview(overview); setOverviewError('') }
+    }).catch((error: unknown) => {
+      if (active) setOverviewError(error instanceof Error ? error.message : 'Không tải được tổng quan workspace.')
+    })
+    return () => { active = false }
+  }, [state.source, store])
+  const activeOverview = state.source === 'api' ? serverOverview : null
+  const overviewStats = homeOverviewStats(state).map(stat => {
+    if (!activeOverview) return stat
+    if (stat.id === 'ov-ws') return { ...stat, value: String(activeOverview.totalWorkspaces) }
+    if (stat.id === 'ov-prj') return { ...stat, value: String(activeOverview.totalProjects) }
+    return stat
+  })
   return <PreviewShell active="home">
     <UniverseHero scene={scene} />
+    {store.adminService && <AdminApiPanel />}
 
     <div className="home-overview">
       <Panel title="Activity Overview" className="panel-overview"
@@ -105,7 +129,8 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
             <option value="30 ngày gần nhất">30 ngày gần nhất</option>
             <option value="90 ngày gần nhất">90 ngày gần nhất</option>
           </Select></label>}>
-        <StatRow stats={homeOverviewStats(state)} />
+        <StatRow stats={overviewStats} />
+        {state.source === 'api' && overviewError !== '' && <p className="panel-sub" role="status">{overviewError} Đang hiển thị số liệu từ danh sách đã tải.</p>}
       </Panel>
 
       <Panel title="Projects by Status">

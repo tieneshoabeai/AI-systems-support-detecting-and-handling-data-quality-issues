@@ -7,6 +7,7 @@ import { createSessionStorage } from '../../lib/session-storage'
 import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
 import { createManagementStore } from '../../services/management/management.store'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
+import { readAccessToken } from '../../utils/auth/access-token'
 
 type LoadResult = {
   snapshot: SessionSnapshot
@@ -43,7 +44,11 @@ export function ManagementDataProvider({ children }: { children: ReactNode }) {
       const data = createManagementStore(api, {
         id: snapshot.accountId, name, email: user.email, role: user.role,
         initials: name.slice(0, 2).toUpperCase(),
-      })
+      }, { readSessionId: () => {
+        const current = storage.read()
+        return current.status === 'valid' && current.session.accountId === snapshot.accountId
+          ? readAccessToken(current.session.accessToken)?.sessionId ?? null : null
+      } })
       dispose = data.dispose
       void data.load().then(() => {
         if (active) setResult({ snapshot, store: data.store })
