@@ -5,6 +5,28 @@ import { Logger } from '@nestjs/common';
 const logger = new Logger('RedisIoAdapter');
 
 /**
+ * Client Redis đang mở của Socket.IO adapter — giữ tham chiếu để có thể đóng
+ * tường minh (shutdown, test teardown). ioredis giữ socket mở nên nếu không
+ * disconnect thì tiến trình Node không thoát sạch (jest bị treo sau khi test).
+ */
+const activeClients = new Set<{ disconnect(): void }>();
+
+/**
+ * Đóng toàn bộ client Redis của realtime adapter.
+ * An toàn khi gọi nhiều lần. Dùng trong `onApplicationShutdown` và test teardown.
+ */
+export function closeRedisIoAdapterClients(): void {
+  for (const client of activeClients) {
+    try {
+      client.disconnect();
+    } catch {
+      /* bỏ qua */
+    }
+  }
+  activeClients.clear();
+}
+
+/**
  * Gắn Socket.IO Redis adapter nếu cấu hình REDIS_URL và kết nối thành công.
  * - Hỗ trợ REDIS_PASSWORD riêng: nếu URL chưa có credentials thì tự chèn vào.
  * - Mọi lỗi (NOAUTH, ECONNREFUSED, timeout 5s) đều fallback về 'memory', KHÔNG crash app.
@@ -41,6 +63,8 @@ export async function useRedisAdapterIfConfigured(app: INestApplication): Promis
     // Chặn crash "missing error handler" — ioredis ném 'error' event bất đồng bộ.
     pubClient.on('error', () => undefined);
     subClient.on('error', () => undefined);
+    activeClients.add(pubClient);
+    activeClients.add(subClient);
     // Timeout 5s: Redis lỗi/chậm thì fallback memory, không treo bootstrap.
     await Promise.race([
       (async (): Promise<void> => {
@@ -64,6 +88,17 @@ export async function useRedisAdapterIfConfigured(app: INestApplication): Promis
       })(app.getHttpServer() as never),
     );
     logger.log('Realtime adapter: redis (Socket.IO Redis adapter)');
+    // Đóng kết nối Redis khi app shutdown — nếu không, ioredis giữ socket mở
+    // và tiến trình không thoát sạch (rò rỉ khi restart / rolling deploy).
+    const shutdown = (): void => {
+      closeRedisIoAdapterClients();
+    };
+    // `enableShutdownHooks` có thể không có trên app giả (unit test) → gọi có điều kiện.
+    if (typeof (app as { enableShutdownHooks?: () => void }).enableShutdownHooks === 'function') {
+      app.enableShutdownHooks();
+    }
+    process.once('SIGTERM', shutdown);
+    process.once('SIGINT', shutdown);
     return 'redis';
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -74,6 +109,8 @@ export async function useRedisAdapterIfConfigured(app: INestApplication): Promis
     try {
       (sub as unknown as { disconnect(): void } | null)?.disconnect();
     } catch { /* bỏ qua */ }
+    if (pub) activeClients.delete(pub);
+    if (sub) activeClients.delete(sub);
     return 'memory';
   }
 }
