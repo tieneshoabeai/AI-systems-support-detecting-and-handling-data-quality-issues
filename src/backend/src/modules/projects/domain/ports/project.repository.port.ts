@@ -118,6 +118,21 @@ export interface ProjectRepositoryPort {
     workspaceId: string,
     opts?: ProjectListQuery,
   ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }>;
+  /**
+   * PROJ-02b — danh sách project **toàn hệ thống** (không giới hạn theo workspace),
+   * phân trang keyset giống `findByWorkspacePaged`.
+   *
+   * Dùng cho màn hình "Danh sách dự án" của người dùng — gom project từ mọi
+   * workspace mà họ có quyền. Quyền được lọc ở tầng application (CASL), không
+   * lọc workspace trong query.
+   */
+  findAllPaged(
+    userId: string,
+    workspaceIds: string[],
+    opts?: ProjectListQuery,
+    /** `true` = quản trị viên hệ thống → xem toàn bộ project, không lọc quyền. */
+    isAdmin?: boolean,
+  ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }>;
   updateById(
     id: string,
     update: { name?: string; description?: string },

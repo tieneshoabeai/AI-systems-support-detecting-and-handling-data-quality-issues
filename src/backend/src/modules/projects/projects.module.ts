@@ -16,6 +16,7 @@ import { GetProjectsByWorkspaceHandler } from './application/queries/get-project
 import { GetWorkspaceNameHandler } from './application/queries/get-workspace-name.handler';
 import { ListMembersHandler } from './application/queries/list-members.handler';
 import { ListProjectsByWorkspaceHandler } from './application/queries/list-projects-by-workspace.handler';
+import { ListAllProjectsHandler } from './application/queries/list-all-projects.handler';
 import { MarkCompletedHandler } from './application/commands/mark-completed.handler';
 import { RemoveProjectMemberHandler } from './application/commands/remove-project-member.handler';
 import { ResolveUserProjectRoleHandler } from './application/queries/resolve-user-project-role.handler';
@@ -53,6 +54,7 @@ import { PROJECT_CONTEXT_PORT } from '../../shared/application/ports/project-con
     GetWorkspaceNameHandler,
     ListMembersHandler,
     ListProjectsByWorkspaceHandler,
+    ListAllProjectsHandler,
     ResolveUserProjectRoleHandler,
     ProjectAccessAdapter,
     { provide: PROJECT_ACCESS_PORT, useExisting: ProjectAccessAdapter },

@@ -164,6 +164,84 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     return { items, nextCursor, hasMore };
   }
 
+  /**
+   * PROJ-02b — danh sách project toàn hệ thống (keyset pagination).
+   *
+   * Khác `findByWorkspacePaged` ở chỗ **không** lọc theo `workspace_id`.
+   * `search` / `status` / `sort` / `cursor` hoạt động y hệt.
+   */
+  async findAllPaged(
+    userId: string,
+    workspaceIds: string[],
+    opts: ProjectListQuery = {},
+    /** `true` = quản trị viên hệ thống → xem toàn bộ project, không lọc quyền. */
+    isAdmin = false,
+  ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }> {
+    if (!isAdmin && !/^[0-9a-fA-F]{24}$/.test(userId)) {
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+    const uid = new Types.ObjectId(userId);
+    // Workspace mà user tham gia (owner hoặc member) → user có quyền đọc
+    // project thuộc workspace đó (rule CASL `workspace_id: { $in: [...] }`).
+    const wsIds = workspaceIds
+      .filter((id) => /^[0-9a-fA-F]{24}$/.test(id))
+      .map((id) => new Types.ObjectId(id));
+
+    const accessFilter: Record<string, unknown>[] = [
+      { created_by: uid },
+      { 'members.user_id': uid },
+    ];
+    if (wsIds.length > 0) accessFilter.push({ workspace_id: { $in: wsIds } });
+
+    const conditions: Record<string, unknown>[] = [{ deleted_at: null }];
+    if (!isAdmin) conditions.push({ $or: accessFilter });
+    if (opts.search?.trim()) {
+      conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
+    }
+    if (opts.status) conditions.push({ status: opts.status });
+
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || DEFAULT_LIMIT));
+    const { code, spec } = resolveSortSpec(COMMON_SORT_SPECS, opts.sort);
+
+    const cursor = opts.cursor;
+    if (cursor) {
+      conditions.push(
+        buildKeysetCondition(spec, {
+          value: cursor.value,
+          isNull: cursor.isNull,
+          id: cursor.id,
+        }),
+      );
+    }
+
+    const docs = await this.model
+      .find({ $and: conditions })
+      .sort(buildKeysetSort(spec))
+      .limit(limit + 1)
+      .exec();
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+    const items = page.map((doc) => toProjectEntity(doc));
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const raw = last as unknown as Record<string, unknown>;
+        const sortValue = extractSortValue(spec, raw);
+        nextCursor = encodeKeysetCursor({
+          s: code,
+          k: sortValue.value,
+          n: sortValue.isNull ? 1 : 0,
+          id: last._id.toString(),
+        });
+      }
+    }
+
+    return { items, nextCursor, hasMore };
+  }
+
   async updateById(
     id: string,
     update: { name?: string; description?: string },
