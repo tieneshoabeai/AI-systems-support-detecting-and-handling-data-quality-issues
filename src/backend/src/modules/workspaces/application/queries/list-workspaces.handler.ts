@@ -5,28 +5,29 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   WORKSPACE_REPOSITORY_PORT,
   type WorkspaceListInput,
-  type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
-import type { CurrentUser } from '../../../../shared/casl/casl-ability.factory';
-import type { ListCursor } from '../../../../shared/utils/list-cursor';
+import type { Workspace } from '../../domain/entities/workspace.entity';
+import type { CurrentUser } from '../../../../shared/domain/security/current-user';
+import type { ListCursor } from '../../../../shared/domain/utils/list-cursor';
 import {
   InvalidCursorError,
   encodeKeysetCursor,
   parseListCursor,
-} from '../../../../shared/pagination/keyset-cursor';
+} from '../../../../shared/domain/pagination/keyset-cursor';
 import {
   compareBySort,
   isAfterCursor,
   sortValueOf,
-} from '../../../../shared/pagination/keyset-memory.util';
-import type { CursorMeta } from '../../../../shared/pagination/cursor-paginated.response';
-import { createCursorPage } from '../../../../shared/pagination/cursor-paginated.response';
+} from '../../../../shared/domain/pagination/keyset-memory.util';
+import type { CursorMeta } from '../../../../shared/domain/pagination/cursor-paginated.response';
+import { createCursorPage } from '../../../../shared/domain/pagination/cursor-paginated.response';
 import { DEFAULT_LIMIT } from '../workspaces.types';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class ListWorkspacesHandler {
@@ -38,7 +39,7 @@ export class ListWorkspacesHandler {
   async execute(
     user: CurrentUser,
     q: WorkspaceListInput,
-  ): Promise<{ items: WorkspaceRecord[]; meta: CursorMeta }> {
+  ): Promise<{ items: Workspace[]; meta: CursorMeta }> {
     const limit = Math.min(100, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
     const sort = q.sort || 'last_accessed';
 
@@ -48,10 +49,7 @@ export class ListWorkspacesHandler {
       cursor = parseListCursor(q.cursor, sort);
     } catch (e: unknown) {
       if (e instanceof InvalidCursorError) {
-        throw new BadRequestException({
-          message: e.message,
-          error: 'VALIDATION_ERROR',
-        } as never);
+        throw new ValidationError(e.message);
       }
       throw e;
     }

@@ -4,13 +4,17 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** invariant "không xoá được Owner" và
+ * "user phải là thành viên" do chính entity `Workspace` bảo vệ
+ * (`removeMember()`), không nằm ở handler nữa.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   WORKSPACE_REPOSITORY_PORT,
-  type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
+import type { Workspace } from '../../domain/entities/workspace.entity';
 import { GetWorkspaceByIdHandler } from '../queries/get-workspace-by-id.handler';
 
 @Injectable()
@@ -21,14 +25,12 @@ export class RemoveMemberHandler {
     private readonly getWorkspaceByIdHandler: GetWorkspaceByIdHandler,
   ) {}
 
-  async execute(workspaceId: string, memberUserId: string): Promise<WorkspaceRecord> {
+  async execute(workspaceId: string, memberUserId: string): Promise<Workspace> {
     const workspace = await this.getWorkspaceByIdHandler.execute(workspaceId);
-    if (workspace.ownerId === memberUserId) {
-      throw new BadRequestException('Không thể xóa chủ sở hữu chính của không gian làm việc');
-    }
-    if (!workspace.members.some((m) => m.userId === memberUserId)) {
-      throw new NotFoundException('Người dùng không thuộc danh sách thành viên của không gian này');
-    }
+
+    // Entity tự kiểm tra invariant → ném ValidationError / NotFoundError.
+    workspace.removeMember(memberUserId);
+
     await this.workspaces.removeMember(workspaceId, memberUserId);
     return this.getWorkspaceByIdHandler.execute(workspaceId);
   }

@@ -2,25 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IWorkspace } from './workspace.schema';
-import { resolveMongoSession } from '../../../../shared/database/mongo-session-context';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 import {
   type CreateWorkspaceRecord,
   type WorkspaceListQuery as DomainListQuery,
   type WorkspaceMemberRecord,
-  type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
-import { toMemberPersistence, toWorkspaceRecord } from './workspace.mapper';
+import type { Workspace } from '../../domain/entities/workspace.entity';
+import { toMemberPersistence, toWorkspaceEntity } from './workspace.mapper';
 import {
   buildKeysetCondition,
   buildKeysetSort,
-} from '../../../../shared/pagination/keyset-filter.util';
-import { encodeKeysetCursor } from '../../../../shared/pagination/keyset-cursor';
-import { extractSortValue } from '../../../../shared/pagination/keyset-value.util';
+} from '../../../../shared/domain/pagination/keyset-filter.util';
+import { encodeKeysetCursor } from '../../../../shared/domain/pagination/keyset-cursor';
+import { extractSortValue } from '../../../../shared/domain/pagination/keyset-value.util';
 import {
   COMMON_SORT_SPECS,
   resolveSortSpec,
-} from '../../../../shared/pagination/keyset-sort.util';
+} from '../../../../shared/domain/pagination/keyset-sort.util';
 
 export type WorkspaceListQuery = DomainListQuery;
 
@@ -36,11 +36,11 @@ const DEFAULT_LIMIT = 15;
 export class WorkspacesRepository implements WorkspaceRepositoryPort {
   constructor(@InjectModel('Workspace') private readonly workspaceModel: Model<IWorkspace>) {}
 
-  private toRecord(doc: IWorkspace): WorkspaceRecord {
-    return toWorkspaceRecord(doc);
+  private toEntity(doc: IWorkspace): Workspace {
+    return toWorkspaceEntity(doc);
   }
 
-  async create(data: CreateWorkspaceRecord): Promise<WorkspaceRecord> {
+  async create(data: CreateWorkspaceRecord): Promise<Workspace> {
     const userObjectId = new Types.ObjectId(data.ownerId);
     const inst = new this.workspaceModel({
       name: data.name,
@@ -52,20 +52,20 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
       deleted_at: null,
     });
     const saved = await inst.save();
-    return this.toRecord(saved);
+    return this.toEntity(saved);
   }
 
-  async findById(id: string): Promise<WorkspaceRecord | null> {
+  async findById(id: string): Promise<Workspace | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await this.workspaceModel.findOne({ _id: new Types.ObjectId(id), deleted_at: null }).exec();
-    return doc ? this.toRecord(doc) : null;
+    return doc ? this.toEntity(doc) : null;
   }
 
   async updateById(
     id: string,
     update: { name?: string; description?: string },
     expectedVersion?: number,
-  ): Promise<WorkspaceRecord | null> {
+  ): Promise<Workspace | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const filter: Record<string, unknown> =
       expectedVersion !== undefined
@@ -74,7 +74,7 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     const doc = await this.workspaceModel
       .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { new: true })
       .exec();
-    return doc ? this.toRecord(doc) : null;
+    return doc ? this.toEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
@@ -86,20 +86,20 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
     return r.modifiedCount > 0;
   }
 
-  async findByUser(userId: string): Promise<WorkspaceRecord[]> {
+  async findByUser(userId: string): Promise<Workspace[]> {
     const s = resolveMongoSession(undefined);
     const userObjectId = new Types.ObjectId(userId);
     const docs = await this.workspaceModel
       .find({ deleted_at: null, $or: [{ owner_id: userObjectId }, { 'members.user_id': userObjectId }] }, null, { session: s })
       .sort({ updated_at: -1 })
       .exec();
-    return docs.map((d) => this.toRecord(d));
+    return docs.map((d) => this.toEntity(d));
   }
 
-  async findAllActive(): Promise<WorkspaceRecord[]> {
+  async findAllActive(): Promise<Workspace[]> {
     const s = resolveMongoSession(undefined);
     const docs = await this.workspaceModel.find({ deleted_at: null }, null, { session: s }).sort({ updated_at: -1 }).exec();
-    return docs.map((d) => this.toRecord(d));
+    return docs.map((d) => this.toEntity(d));
   }
 
   async countActive(): Promise<number> {
@@ -127,7 +127,7 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
   async findByUserPaged(
     userId: string,
     opts: DomainListQuery = {},
-  ): Promise<{ items: WorkspaceRecord[]; nextCursor: string | null; hasMore: boolean }> {
+  ): Promise<{ items: Workspace[]; nextCursor: string | null; hasMore: boolean }> {
     const s = resolveMongoSession(undefined);
     const userObjectId = new Types.ObjectId(userId);
     const conditions: Record<string, unknown>[] = [
@@ -167,7 +167,7 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
 
     const hasMore = docs.length > limit;
     const page = hasMore ? docs.slice(0, limit) : docs;
-    const items = page.map((d) => this.toRecord(d));
+    const items = page.map((d) => this.toEntity(d));
 
     let nextCursor: string | null = null;
     if (hasMore) {

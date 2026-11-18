@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WORKSPACE_SORT_OPTIONS } from '../../../domain/ports/workspace.repository.port';
+import { WORKSPACE_SORT_OPTIONS } from '../../domain/ports/workspace.repository.port';
 
 /**
  * WS-02 — Query danh sách workspace.

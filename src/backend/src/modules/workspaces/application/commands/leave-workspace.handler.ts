@@ -4,8 +4,11 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** invariant "Owner phải nhượng quyền trước
+ * khi rời" do entity `Workspace.leave()` bảo vệ.
  */
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   WORKSPACE_REPOSITORY_PORT,
   type WorkspaceRepositoryPort,
@@ -22,10 +25,10 @@ export class LeaveWorkspaceHandler {
 
   async execute(workspaceId: string, userId: string): Promise<{ left: boolean }> {
     const workspace = await this.getWorkspaceByIdHandler.execute(workspaceId);
-    if (workspace.ownerId === userId)
-      throw new BadRequestException('Workspace Owner phải nhượng quyền trước khi rời (WS-09)');
-    if (!workspace.members.some((m) => m.userId === userId))
-      throw new NotFoundException('Bạn không phải thành viên workspace này');
+
+    // Entity tự kiểm tra invariant → ném ValidationError / NotFoundError.
+    workspace.leave(userId);
+
     await this.workspaces.removeMember(workspaceId, userId);
     return { left: true };
   }

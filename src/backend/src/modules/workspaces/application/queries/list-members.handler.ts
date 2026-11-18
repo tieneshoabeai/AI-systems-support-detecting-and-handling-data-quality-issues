@@ -5,28 +5,29 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   type WorkspaceMembersListInput,
   type WorkspaceMemberView,
 } from '../../domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
-import type { ListCursor } from '../../../../shared/utils/list-cursor';
+import type { ListCursor } from '../../../../shared/domain/utils/list-cursor';
 import {
   InvalidCursorError,
   encodeKeysetCursor,
   parseListCursor,
-} from '../../../../shared/pagination/keyset-cursor';
+} from '../../../../shared/domain/pagination/keyset-cursor';
 import {
   compareGeneric,
   genericSortValue,
   isAfterGenericCursor,
-} from '../../../../shared/pagination/keyset-generic-memory.util';
-import type { CursorMeta } from '../../../../shared/pagination/cursor-paginated.response';
-import { createCursorPage } from '../../../../shared/pagination/cursor-paginated.response';
+} from '../../../../shared/domain/pagination/keyset-generic-memory.util';
+import type { CursorMeta } from '../../../../shared/domain/pagination/cursor-paginated.response';
+import { createCursorPage } from '../../../../shared/domain/pagination/cursor-paginated.response';
 import { DEFAULT_LIMIT } from '../workspaces.types';
 import { memberSortSpec } from '../workspaces.utils';
 import { GetWorkspaceByIdHandler } from '../queries/get-workspace-by-id.handler';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class ListMembersHandler {
@@ -49,10 +50,7 @@ export class ListMembersHandler {
       cursor = parseListCursor(q.cursor, sort);
     } catch (e: unknown) {
       if (e instanceof InvalidCursorError) {
-        throw new BadRequestException({
-          message: e.message,
-          error: 'VALIDATION_ERROR',
-        } as never);
+        throw new ValidationError(e.message);
       }
       throw e;
     }

@@ -7,7 +7,7 @@
 import {
   type GenericSortSpec,
   type SortValueAccessor,
-} from '../../../shared/pagination/keyset-generic-memory.util';
+} from '../../../shared/domain/pagination/keyset-generic-memory.util';
 
 export function memberSortSpec<
   T extends {

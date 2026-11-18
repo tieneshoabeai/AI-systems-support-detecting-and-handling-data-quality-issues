@@ -2,8 +2,13 @@
  * WORKSPACE — Domain repository port (hexagonal chuẩn).
  * Application chỉ gọi qua port này. Không mongoose, không NestJS.
  * Mọi id là string (hex ObjectId).
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `Workspace`, không trả
+ * interface trần. Adapter có nhiệm vụ map document → entity qua
+ * `Workspace.reconstitute()` (Phần 5 §3.7 quy tắc 1).
  */
-import type { ListCursor } from '../../../../shared/utils/list-cursor';
+import type { ListCursor } from '../../../../shared/domain/utils/list-cursor';
+import type { Workspace } from '../entities/workspace.entity';
 
 export const WORKSPACE_REPOSITORY_PORT = Symbol('WorkspaceRepositoryPort');
 
@@ -47,19 +52,6 @@ export interface WorkspaceMemberView extends WorkspaceMemberRecord {
   avatarUrl: string | null;
 }
 
-export interface WorkspaceRecord {
-  id: string;
-  name: string;
-  description: string;
-  ownerId: string;
-  members: WorkspaceMemberRecord[];
-  storageUsedBytes: number;
-  lastAccessedAt: Date | null;
-  version: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface WorkspaceListQuery {
   search?: string;
   role?: 'owner' | 'member';
@@ -100,10 +92,10 @@ export interface CreateWorkspaceRecord {
 }
 
 export interface WorkspaceRepositoryPort {
-  create(data: CreateWorkspaceRecord): Promise<WorkspaceRecord>;
-  findById(id: string): Promise<WorkspaceRecord | null>;
-  findByUser(userId: string): Promise<WorkspaceRecord[]>;
-  findAllActive(): Promise<WorkspaceRecord[]>;
+  create(data: CreateWorkspaceRecord): Promise<Workspace>;
+  findById(id: string): Promise<Workspace | null>;
+  findByUser(userId: string): Promise<Workspace[]>;
+  findAllActive(): Promise<Workspace[]>;
   /** E3 — đếm workspace theo các tiêu chí khác nhau (tổng quan người dùng). */
   countActive(): Promise<number>;
   /** E3 — số workspace mà user làm chủ sở hữu. */
@@ -113,13 +105,26 @@ export interface WorkspaceRepositoryPort {
   findByUserPaged(
     userId: string,
     opts?: WorkspaceListQuery,
-  ): Promise<{ items: WorkspaceRecord[]; nextCursor: string | null; hasMore: boolean }>;
-  updateById(id: string, update: { name?: string; description?: string }, expectedVersion?: number): Promise<WorkspaceRecord | null>;
+  ): Promise<{ items: Workspace[]; nextCursor: string | null; hasMore: boolean }>;
+  updateById(
+    id: string,
+    update: { name?: string; description?: string },
+    expectedVersion?: number,
+  ): Promise<Workspace | null>;
   softDelete(id: string): Promise<boolean>;
   addMember(workspaceId: string, member: WorkspaceMemberRecord): Promise<boolean>;
   removeMember(workspaceId: string, userId: string): Promise<boolean>;
-  updateMemberRole(workspaceId: string, userId: string, role: 'owner' | 'member', expectedVersion?: number): Promise<boolean | null>;
+  updateMemberRole(
+    workspaceId: string,
+    userId: string,
+    role: 'owner' | 'member',
+    expectedVersion?: number,
+  ): Promise<boolean | null>;
   touchLastAccessed(workspaceId: string): Promise<void>;
   addStorageUsed(workspaceId: string, deltaBytes: number): Promise<void>;
-  transferOwner(workspaceId: string, newOwnerId: string, expectedVersion: number): Promise<boolean | null>;
+  transferOwner(
+    workspaceId: string,
+    newOwnerId: string,
+    expectedVersion: number,
+  ): Promise<boolean | null>;
 }

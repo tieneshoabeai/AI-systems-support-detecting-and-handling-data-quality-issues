@@ -5,8 +5,9 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { GetWorkspaceByIdHandler } from '../queries/get-workspace-by-id.handler';
+import { RateLimitExceededError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class CheckWorkspaceUploadQuotaHandler {
@@ -16,13 +17,9 @@ export class CheckWorkspaceUploadQuotaHandler {
     const ws = await this.getWorkspaceByIdHandler.execute(workspaceId);
     const used = ws.storageUsedBytes ?? 0;
     if (used + incomingBytes > quotaBytes) {
-      throw new HttpException(
-        {
-          message: `Vượt quota workspace: đã dùng ${used}B + thêm ${incomingBytes}B > giới hạn ${quotaBytes}B (§3.8: 500 MB/workspace)`,
-          error: 'LIMIT_EXCEEDED',
-          details: { usedBytes: used, incomingBytes, quotaBytes },
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
+      throw new RateLimitExceededError(
+        `Vượt quota workspace: đã dùng ${used}B + thêm ${incomingBytes}B > giới hạn ${quotaBytes}B (§3.8: 500 MB/workspace)`,
+        { usedBytes: used, incomingBytes, quotaBytes },
       );
     }
   }

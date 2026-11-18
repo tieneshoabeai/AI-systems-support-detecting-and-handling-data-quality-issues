@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WORKSPACE_MEMBER_SORT_OPTIONS } from '../../../domain/ports/workspace.repository.port';
+import { WORKSPACE_MEMBER_SORT_OPTIONS } from '../../domain/ports/workspace.repository.port';
 
 /**
  * WS-06 — Query danh sách thành viên workspace.

@@ -10,7 +10,7 @@ import {
   WORKSPACE_REPOSITORY_PORT,
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 @Injectable()
 export class ResolveUserWorkspaceRoleHandler {

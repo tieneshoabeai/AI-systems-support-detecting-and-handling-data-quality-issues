@@ -4,7 +4,7 @@ import { WorkspaceSchema } from './infrastructure/persistence/workspace.schema';
 import { WorkspacesRepository } from './infrastructure/persistence/workspaces.repository';
 import { WORKSPACE_REPOSITORY_PORT } from './domain/ports/workspace.repository.port';
 import { WORKSPACE_ACCESS_PORT } from './domain/ports/workspace.access.port';
-import { WorkspacesController } from './infrastructure/http/workspaces.controller';
+import { WorkspacesController } from './presentation/controllers/workspaces.controller';
 import { UsersModule } from '../users/users.module';
 import { WorkspaceAccessAdapter } from './infrastructure/adapters/workspace-access.adapter';
 import { AddMemberHandler } from './application/commands/add-member.handler';
@@ -21,6 +21,9 @@ import { RemoveMemberHandler } from './application/commands/remove-member.handle
 import { ResolveUserWorkspaceRoleHandler } from './application/queries/resolve-user-workspace-role.handler';
 import { TransferOwnerHandler } from './application/commands/transfer-owner.handler';
 import { UpdateWorkspaceHandler } from './application/commands/update-workspace.handler';
+import { WorkspaceContextAdapter } from './infrastructure/adapters/workspace-context.adapter';
+import { WorkspacePolicyLoader } from './application/policy-loaders/workspace-policy.loader';
+import { WORKSPACE_CONTEXT_PORT } from '../../shared/application/ports/workspace-context.port';
 
 @Module({
   imports: [
@@ -47,7 +50,16 @@ import { UpdateWorkspaceHandler } from './application/commands/update-workspace.
     ResolveUserWorkspaceRoleHandler,
     WorkspaceAccessAdapter,
     { provide: WORKSPACE_ACCESS_PORT, useExisting: WorkspaceAccessAdapter },
+    WorkspaceContextAdapter,
+    { provide: WORKSPACE_CONTEXT_PORT, useExisting: WorkspaceContextAdapter },
+    WorkspacePolicyLoader,
   ],
-  exports: [WorkspacesRepository, WORKSPACE_REPOSITORY_PORT, WORKSPACE_ACCESS_PORT],
+  exports: [
+    WorkspacesRepository,
+    WORKSPACE_REPOSITORY_PORT,
+    WORKSPACE_ACCESS_PORT,
+    WORKSPACE_CONTEXT_PORT,
+    WorkspacePolicyLoader,
+  ],
 })
 export class WorkspacesModule {}

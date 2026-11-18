@@ -21,10 +21,12 @@ export {
   type WorkspaceMemberSort,
   type WorkspaceMemberRecord,
   type WorkspaceMemberView,
-  type WorkspaceRecord,
   type WorkspaceRepositoryPort,
   type CreateWorkspaceRecord,
 } from './domain/ports/workspace.repository.port';
+
+// ── Entity domain (Rich Domain Model — Bước 3) ─────────────────────────────
+export { Workspace, type WorkspaceProps, type WorkspaceMember } from './domain/entities/workspace.entity';
 
 export {
   WORKSPACE_ACCESS_PORT,
@@ -39,6 +41,9 @@ export {
   resolveWorkspaceRole,
   type WorkspaceRole,
 } from './domain/value-objects/workspace-role.vo';
+
+// ── Policy loader (dùng cho `@PolicyResource` — tầng động chống IDOR) ─────
+export { WorkspacePolicyLoader } from './application/policy-loaders/workspace-policy.loader';
 
 // ── Handlers (Command/Query) ──────────────────────────
 // ── Queries (đọc) ──────────────────────────────────────────────

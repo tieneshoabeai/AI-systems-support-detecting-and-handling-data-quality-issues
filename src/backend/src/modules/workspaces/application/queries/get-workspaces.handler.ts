@@ -8,10 +8,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   WORKSPACE_REPOSITORY_PORT,
-  type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
-import type { CurrentUser } from '../../../../shared/casl/casl-ability.factory';
+import type { Workspace } from '../../domain/entities/workspace.entity';
+import type { CurrentUser } from '../../../../shared/domain/security/current-user';
 
 @Injectable()
 export class GetWorkspacesHandler {
@@ -20,7 +20,7 @@ export class GetWorkspacesHandler {
     private readonly workspaces: WorkspaceRepositoryPort,
   ) {}
 
-  async execute(user: CurrentUser): Promise<WorkspaceRecord[]> {
+  async execute(user: CurrentUser): Promise<Workspace[]> {
     if (user.role === 'admin') return this.workspaces.findAllActive();
     return this.workspaces.findByUser(user.userId);
   }

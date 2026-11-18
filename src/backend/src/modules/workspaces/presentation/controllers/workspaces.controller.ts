@@ -12,22 +12,23 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { CreateWorkspaceSchema, CreateWorkspaceDto } from './dtos/create-workspace.dto';
-import { UpdateWorkspaceSchema, UpdateWorkspaceDto } from './dtos/update-workspace.dto';
-import { AddMemberSchema, AddMemberDto } from './dtos/add-member.dto';
-import { TransferOwnerSchema, TransferOwnerDto } from './dtos/transfer-owner.dto';
-import { ListWorkspacesQuerySchema } from './dtos/list-workspaces-query.dto';
-import { ListWorkspaceMembersQuerySchema } from './dtos/list-workspace-members-query.dto';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
-import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
-import { Action } from '../../../../shared/casl/actions.enum';
+import { CreateWorkspaceSchema, CreateWorkspaceDto } from '../dtos/create-workspace.dto';
+import { UpdateWorkspaceSchema, UpdateWorkspaceDto } from '../dtos/update-workspace.dto';
+import { AddMemberSchema, AddMemberDto } from '../dtos/add-member.dto';
+import { TransferOwnerSchema, TransferOwnerDto } from '../dtos/transfer-owner.dto';
+import { ListWorkspacesQuerySchema } from '../dtos/list-workspaces-query.dto';
+import { ListWorkspaceMembersQuerySchema } from '../dtos/list-workspace-members-query.dto';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
+import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
+import { PolicyResource } from '../../../../shared/interfaces/casl/policy-resource.decorator';
+import { Action } from '../../../../shared/domain/security/action';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { AddMemberHandler } from '../../application/commands/add-member.handler';
 import { CreateWorkspaceHandler } from '../../application/commands/create-workspace.handler';
 import { DeleteWorkspaceHandler } from '../../application/commands/delete-workspace.handler';
@@ -38,8 +39,14 @@ import { ListWorkspacesHandler } from '../../application/queries/list-workspaces
 import { RemoveMemberHandler } from '../../application/commands/remove-member.handler';
 import { TransferOwnerHandler } from '../../application/commands/transfer-owner.handler';
 import { UpdateWorkspaceHandler } from '../../application/commands/update-workspace.handler';
-import type { WorkspaceMemberView, WorkspaceRecord } from '../..';
-import type { CursorMeta } from '../../../../shared/pagination/cursor-paginated.response';
+import { WorkspacePolicyLoader } from '../../application/policy-loaders/workspace-policy.loader';
+import type { WorkspaceMemberView } from '../..';
+import {
+  toWorkspaceResponse,
+  toWorkspaceResponses,
+  type WorkspaceResponse,
+} from '../responses/workspace.response';
+import type { CursorMeta } from '../../../../shared/domain/pagination/cursor-paginated.response';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -66,11 +73,11 @@ export class WorkspacesController {
   async createWorkspace(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(CreateWorkspaceSchema)) dto: CreateWorkspaceDto,
-  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
+  ): Promise<{ message: string; workspace: WorkspaceResponse; }> {
     const workspace = await this.createWorkspaceHandler.execute(user.userId, dto);
     return {
       message: 'Tạo không gian làm việc thành công',
-      workspace,
+      workspace: toWorkspaceResponse(workspace),
     };
   }
 
@@ -86,37 +93,40 @@ export class WorkspacesController {
   async listWorkspaces(
     @CurrentUser() user: CurrentUserPayload,
     @Query(new ZodValidationPipe(ListWorkspacesQuerySchema)) query: Record<string, unknown>,
-  ): Promise<{ items: WorkspaceRecord[]; meta: CursorMeta; }> {
+  ): Promise<{ items: WorkspaceResponse[]; meta: CursorMeta; }> {
     const result = await this.listWorkspacesHandler.execute(user, query as never);
-    return { ...result };
+    return { items: toWorkspaceResponses(result.items), meta: result.meta };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'WS-03: Xem chi tiết không gian làm việc' })
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
-  async getWorkspaceById(@Param('id') id: string): Promise<{ workspace: WorkspaceRecord; }> {
+  async getWorkspaceById(@Param('id') id: string): Promise<{ workspace: WorkspaceResponse; }> {
     const workspace = await this.getWorkspaceByIdHandler.execute(id, true);
-    return { workspace };
+    return { workspace: toWorkspaceResponse(workspace) };
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'WS-04: Cập nhật thông tin không gian làm việc' })
   @ApiZodBody(UpdateWorkspaceSchema)
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
   async updateWorkspace(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateWorkspaceSchema)) dto: UpdateWorkspaceDto,
-  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
+  ): Promise<{ message: string; workspace: WorkspaceResponse; }> {
     const workspace = await this.updateWorkspaceHandler.execute(id, dto);
     return {
       message: 'Cập nhật không gian làm việc thành công',
-      workspace,
+      workspace: toWorkspaceResponse(workspace),
     };
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'WS-05: Xóa mềm không gian làm việc' })
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Delete, 'Workspace'))
   async deleteWorkspace(@Param('id') id: string): Promise<void> {
     await this.deleteWorkspaceHandler.execute(id);
@@ -130,6 +140,7 @@ export class WorkspacesController {
       'Response: `{ items, meta: { nextCursor, hasMore, limit } }` — không có `total`/`page`.',
   })
   @ApiZodQuery(ListWorkspaceMembersQuerySchema)
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
   async listMembers(
     @Param('id') id: string,
@@ -140,47 +151,61 @@ export class WorkspacesController {
   }
 
   @Post(':id/members')
-  @ApiOperation({ summary: 'WS-07: Thêm thành viên vào không gian làm việc' })
+  @ApiOperation({
+    summary: 'WS-07: Thêm thành viên vào không gian làm việc',
+    description:
+      'Email đã có tài khoản → thêm thành viên ngay. ' +
+      'Email chưa có tài khoản → gửi lời mời qua email (trả `invited: true`).',
+  })
   @ApiZodBody(AddMemberSchema)
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
   async addMember(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(AddMemberSchema)) dto: AddMemberDto,
-  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
-    const workspace = await this.addMemberHandler.execute(id, dto);
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<{ message: string; workspace: WorkspaceResponse; invited: boolean; }> {
+    const result = await this.addMemberHandler.execute(id, dto, user.userId);
     return {
-      message: 'Thêm thành viên vào không gian làm việc thành công',
-      workspace,
+      message: result.invited
+        ? 'Đã gửi lời mời tham gia không gian làm việc qua email'
+        : 'Thêm thành viên vào không gian làm việc thành công',
+      workspace: toWorkspaceResponse(result.workspace),
+      invited: result.invited,
     };
   }
 
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Xóa thành viên khỏi không gian làm việc' })
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
-  async removeMember(@Param('id') id: string, @Param('userId') userId: string): Promise<{ message: string; workspace: WorkspaceRecord; }> {
+  async removeMember(@Param('id') id: string, @Param('userId') userId: string): Promise<{ message: string; workspace: WorkspaceResponse; }> {
     const workspace = await this.removeMemberHandler.execute(id, userId);
     return {
       message: 'Xóa thành viên khỏi không gian làm việc thành công',
-      workspace,
+      workspace: toWorkspaceResponse(workspace),
     };
   }
 
   @Post(':id/transfer-owner')
   @ApiOperation({ summary: 'WS-09: Nhượng quyền Workspace Owner' })
   @ApiZodBody(TransferOwnerSchema)
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
   async transferOwner(
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(TransferOwnerSchema)) dto: TransferOwnerDto,
-  ): Promise<{ message: string; workspace: WorkspaceRecord; }> {
+  ): Promise<{ message: string; workspace: WorkspaceResponse; }> {
     const workspace = await this.transferOwnerHandler.execute(id, user.userId, dto);
-    return { message: 'Nhượng quyền Owner thành công', workspace };
+    return { message: 'Nhượng quyền Owner thành công', workspace: toWorkspaceResponse(workspace) };
   }
 
   @Post(':id/leave')
   @ApiOperation({ summary: 'WS-10: Rời workspace' })
+  // WS-10: phải là thành viên của workspace mới rời được → instance check.
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
   async leave(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload): Promise<{ left: boolean; message: string; }> {
     const r = await this.leaveWorkspaceHandler.execute(id, user.userId);
