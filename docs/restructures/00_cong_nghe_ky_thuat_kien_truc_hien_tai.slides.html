@@ -155,7 +155,7 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
 <div class="grid"><div class="card"><h3>Audit + Overview</h3><ul>
 <li><b>Audit:</b> facade port <code>AUDIT_LOGGER_PORT</code> → <code>LogHandler</code> → <code>AuditRepository</code>; append-only, best-effort</li><li>audit_logs: 5 index (actor/target/workspace/action/created_at)</li><li><b>Overview:</b> GET /overview/workspaces + GET /workspaces/:id/overview</li><li>Dashboard: total/owned/shared workspace, số project theo trạng thái</li></ul></div>
 <div class="card"><h3>Google OAuth 2.0 (AUTH-03)</h3><ul>
-<li>Authorization Code flow, CSRF <code>state</code> kiểm lại khi callback</li><li>Verify RS256 qua JWKS của Google</li><li>Email đã tồn tại → <b>409 CONFLICT</b> (không tự liên kết)</li><li>Thiếu credential → <b>501 DEPENDENCY_UNAVAILABLE</b></li></ul></div></div></section>
+<li>Authorization Code flow, CSRF <code>state</code> kiểm lại khi callback</li><li>Verify RS256 qua JWKS của Google</li><li>Email đã tồn tại → <b>liên kết tự động</b> (email đã được Google xác minh)</li><li>Thiếu credential → <b>501 DEPENDENCY_UNAVAILABLE</b></li></ul></div></div></section>
 
 <!-- 14 TEST -->
 <section class="slide"><div class="kicker">6 • Kiểm thử</div><h2>24 file test • 262 ca PASS • lint 0 cảnh báo</h2>
