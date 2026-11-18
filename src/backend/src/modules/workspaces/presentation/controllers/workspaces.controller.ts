@@ -11,7 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateWorkspaceSchema, CreateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { UpdateWorkspaceSchema, UpdateWorkspaceDto } from '../dtos/update-workspace.dto';
 import { AddMemberSchema, AddMemberDto } from '../dtos/add-member.dto';
@@ -102,6 +102,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'WS-03: Xem chi tiết không gian làm việc' })
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getWorkspaceById(@Param('id') id: string): Promise<{ workspace: WorkspaceResponse; }> {
     const workspace = await this.getWorkspaceByIdHandler.execute(id, true);
     return { workspace: toWorkspaceResponse(workspace) };
@@ -112,6 +113,7 @@ export class WorkspacesController {
   @ApiZodBody(UpdateWorkspaceSchema)
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async updateWorkspace(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateWorkspaceSchema)) dto: UpdateWorkspaceDto,
@@ -128,6 +130,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'WS-05: Xóa mềm không gian làm việc' })
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Delete, 'Workspace'))
+  @ApiResponse({ status: 204, description: 'Thành công, không có nội dung phản hồi' })
   async deleteWorkspace(@Param('id') id: string): Promise<void> {
     await this.deleteWorkspaceHandler.execute(id);
   }
@@ -142,6 +145,7 @@ export class WorkspacesController {
   @ApiZodQuery(ListWorkspaceMembersQuerySchema)
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async listMembers(
     @Param('id') id: string,
     @Query(new ZodValidationPipe(ListWorkspaceMembersQuerySchema)) query: Record<string, unknown>,
@@ -160,6 +164,7 @@ export class WorkspacesController {
   @ApiZodBody(AddMemberSchema)
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async addMember(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(AddMemberSchema)) dto: AddMemberDto,
@@ -180,6 +185,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Xóa thành viên khỏi không gian làm việc' })
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async removeMember(@Param('id') id: string, @Param('userId') userId: string): Promise<{ message: string; workspace: WorkspaceResponse; }> {
     const workspace = await this.removeMemberHandler.execute(id, userId);
     return {
@@ -193,6 +199,7 @@ export class WorkspacesController {
   @ApiZodBody(TransferOwnerSchema)
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Workspace'))
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async transferOwner(
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
@@ -207,6 +214,7 @@ export class WorkspacesController {
   // WS-10: phải là thành viên của workspace mới rời được → instance check.
   @PolicyResource('Workspace', WorkspacePolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async leave(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload): Promise<{ left: boolean; message: string; }> {
     const r = await this.leaveWorkspaceHandler.execute(id, user.userId);
     return { message: 'Rời workspace thành công', ...r };

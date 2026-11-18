@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import {
   CurrentUser,
@@ -51,6 +51,7 @@ export class FeedbackController {
   @Post('analyses/:analysisId/findings/:findingId/feedback')
   @ApiOperation({ summary: 'FB-01: Nhận xét một phát hiện' })
   @ApiZodBody(CreateFeedbackSchema)
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async createFindingFeedback(
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
@@ -69,6 +70,7 @@ export class FeedbackController {
   @Post('analyses/:analysisId/feedback')
   @ApiOperation({ summary: 'FB-02: Nhận xét cả lần phân tích' })
   @ApiZodBody(CreateFeedbackSchema)
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async createRunFeedback(
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
@@ -80,6 +82,7 @@ export class FeedbackController {
   @Get('analyses/:analysisId/findings/:findingId/feedback')
   @ApiOperation({ summary: 'FB-03: Xem nhận xét của một phát hiện' })
   @ApiZodQuery(ListFeedbackQuerySchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async listFindingFeedback(
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
@@ -98,6 +101,7 @@ export class FeedbackController {
   @Get('analyses/:analysisId/feedback')
   @ApiOperation({ summary: 'FB-04: Xem nhận xét của một lần phân tích' })
   @ApiZodQuery(ListFeedbackQuerySchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async listRunFeedback(
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
@@ -109,6 +113,7 @@ export class FeedbackController {
   @Patch('feedback/:id')
   @ApiOperation({ summary: 'FB-05: Sửa nhận xét của chính mình' })
   @ApiZodBody(UpdateFeedbackSchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async updateMine(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
@@ -119,12 +124,14 @@ export class FeedbackController {
 
   @Delete('feedback/:id')
   @ApiOperation({ summary: 'FB-05: Xoá nhận xét (chủ hoặc Owner xử lý vi phạm)' })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<{ deleted: boolean; }> {
     return this.removeHandler.execute(user.userId, user.role, id);
   }
 
   @Get('projects/:projectId/ai-quality-metrics')
   @ApiOperation({ summary: 'FB-06: Thống kê chất lượng AI theo project' })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async aiQualityMetrics(
     @CurrentUser() user: CurrentUserPayload,
     @Param('projectId') projectId: string,

@@ -8,7 +8,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RunAnalysisSchema, RunAnalysisDto } from '../dtos/run-analysis.dto';
 import { AnalysisConfigSchema } from '../dtos/analysis-config.dto';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
@@ -57,6 +57,7 @@ export class AnalysisController {
   // UC-19 (cấu hình cột phân tích): PROJ-MEMBER trở lên.
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async saveConfig(
     @Param('projectId') projectId: string,
     @Body(new ZodValidationPipe(AnalysisConfigSchema)) dto: unknown,
@@ -71,6 +72,7 @@ export class AnalysisController {
   })
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getConfig(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getConfigHandler.execute(projectId);
   }
@@ -84,6 +86,7 @@ export class AnalysisController {
   // UC-20 (chạy phân tích): PROJ-MEMBER trở lên.
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async runAnalysis(
     @Param('projectId') projectId: string,
     @CurrentUser() user: CurrentUserPayload,
@@ -101,6 +104,7 @@ export class AnalysisController {
   })
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getResult(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getResultHandler.execute(projectId);
   }
@@ -110,6 +114,7 @@ export class AnalysisController {
   // UC-21 (xem trạng thái job AI): mọi vai trò đọc được project đều xem được.
   @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
     return this.getJobHandler.execute(jobId);
   }
@@ -120,6 +125,7 @@ export class AnalysisController {
   // UC-22 (thử lại AI): PROJ-MEMBER trở lên.
   @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiResponse({ status: 202, description: 'Đã tiếp nhận yêu cầu (xử lý bất đồng bộ)' })
   async retryJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
     return this.retryJobHandler.execute(jobId);
   }
@@ -132,6 +138,7 @@ export class AnalysisController {
   })
   @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async ingestAiResult(
     @Param('jobId') jobId: string,
     @Body() body: { result: unknown; modelId?: string },

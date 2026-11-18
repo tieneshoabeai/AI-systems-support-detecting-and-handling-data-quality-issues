@@ -17,6 +17,7 @@ import { ResetPasswordHandler } from '../../../src/modules/auth/application/comm
 import { RevokeSessionHandler } from '../../../src/modules/auth/application/commands/revoke-session.handler';
 import { GetSessionByIdHandler } from '../../../src/modules/auth/application/queries/get-session-by-id.handler';
 import { GetSessionsHandler } from '../../../src/modules/auth/application/queries/get-sessions.handler';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * E2E — AUTH-03 cookie `google_oauth_state` (Buoc 6 / Nhom B — P1 gap analysis).
@@ -32,6 +33,14 @@ import { GetSessionsHandler } from '../../../src/modules/auth/application/querie
  */
 describe('E2E — AUTH-03 Google OAuth cookie state', () => {
   let app: INestApplication;
+
+  /** Config stub — `APP_URL` dùng để dựng URL redirect về frontend. */
+  const configStub = {
+    get: jest.fn((key: string) => {
+      if (key === 'APP_URL') return 'http://localhost:5173';
+      return undefined;
+    }),
+  };
 
   const handlerStub = {
     buildAuthorizationUrl: jest.fn((state: string) => `https://accounts.google.com/o/oauth2/v2/auth?state=${state}`),
@@ -62,6 +71,7 @@ describe('E2E — AUTH-03 Google OAuth cookie state', () => {
         { provide: RevokeSessionHandler, useValue: {} },
         { provide: GetSessionByIdHandler, useValue: {} },
         { provide: GetSessionsHandler, useValue: {} },
+        { provide: ConfigService, useValue: configStub },
       ],
     }).compile();
 
@@ -153,6 +163,113 @@ describe('E2E — AUTH-03 Google OAuth cookie state', () => {
 
     expect(res.status).toBe(200);
     expect(firstCallArgs().slice(0, 3)).toEqual(['abc', 's1', '']);
+  });
+
+  // ── Hợp đồng response (v8.2) ───────────────────────────────────────────
+  //
+  // §3.5c: "Response (thành công) — JSON giống hệt `POST /auth/login`".
+  // `POST /auth/login` qua `TransformInterceptor` → `{ success: true, data: {...} }`.
+  // Trước đây callback dùng `res.json(result)` (bypass interceptor) → trả RAW →
+  // frontend đọc `data.access_token` được `undefined` → KHÔNG đăng nhập được.
+
+  it('GET /auth/google/callback thanh cong -> tra ENVELOPE giong POST /auth/login', async () => {
+    handlerStub.execute.mockResolvedValue({
+      access_token: 'acc-1',
+      refresh_token: 'ref-1',
+      expires_in: 900,
+      user: { id: 'u1', email: 'a@b.com', role: 'analyst' },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get('/auth/google/callback?code=abc&state=state-123')
+      .set('Cookie', ['google_oauth_state=state-123']);
+
+    expect(res.status).toBe(200);
+    // Envelope bắt buộc — frontend đọc `data.access_token`.
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        access_token: 'acc-1',
+        refresh_token: 'ref-1',
+        expires_in: 900,
+        user: { id: 'u1', email: 'a@b.com', role: 'analyst' },
+      },
+    });
+    expect(res.body.data.access_token).toBe('acc-1');
+  });
+
+  it('GET /auth/google/callback voi ?format=redirect -> 302 ve APP_URL kem token trong FRAGMENT', async () => {
+    handlerStub.execute.mockResolvedValue({
+      access_token: 'acc-1',
+      refresh_token: 'ref-1',
+    });
+
+    const res = await request(app.getHttpServer())
+      .get('/auth/google/callback?code=abc&state=state-123&format=redirect')
+      .set('Cookie', ['google_oauth_state=state-123']);
+
+    expect(res.status).toBe(302);
+    const location = String(res.headers['location'] ?? '');
+    // Origin phải đúng `APP_URL` (chống open redirect).
+    expect(location.startsWith('http://localhost:5173')).toBe(true);
+    // Token phải nằm trong FRAGMENT (`#`), KHÔNG phải query string —
+    // fragment không bị ghi vào access log của proxy.
+    expect(location).toContain('#');
+    expect(location).not.toContain('?');
+    const fragment = location.slice(location.indexOf('#') + 1);
+    const params = new URLSearchParams(fragment);
+    expect(params.get('access_token')).toBe('acc-1');
+    expect(params.get('refresh_token')).toBe('ref-1');
+    expect(params.get('provider')).toBe('google');
+  });
+
+  it('GET /auth/google/callback voi ?format=redirect va LOI -> 302 ve APP_URL kem ma loi', async () => {
+    handlerStub.execute.mockRejectedValue(
+      new StatusError(401, 'VALIDATION_ERROR', 'Google từ chối mã ủy quyền.'),
+    );
+
+    const res = await request(app.getHttpServer())
+      .get('/auth/google/callback?code=abc&state=state-123&format=redirect')
+      .set('Cookie', ['google_oauth_state=state-123']);
+
+    expect(res.status).toBe(302);
+    const location = String(res.headers['location'] ?? '');
+    expect(location.startsWith('http://localhost:5173')).toBe(true);
+    const params = new URLSearchParams(location.slice(location.indexOf('#') + 1));
+    expect(params.get('error')).toBe('VALIDATION_ERROR');
+    expect(params.get('error_description')).toBe('Google từ chối mã ủy quyền.');
+  });
+
+  it('GET /auth/google?format=json -> set cookie mode de callback doc lai', async () => {
+    const res = await request(app.getHttpServer()).get('/auth/google?format=json');
+
+    expect(res.status).toBe(302);
+    const cookies = (res.headers['set-cookie'] ?? []) as string[];
+    const formatCookie = cookies.find((c: string) => c.startsWith('google_oauth_format='));
+    expect(formatCookie).toBeDefined();
+    expect(formatCookie).toContain('google_oauth_format=json');
+    expect(formatCookie).toContain('HttpOnly');
+  });
+
+  it('GET /auth/google KHONG truyen format -> KHONG set cookie mode (mac dinh json)', async () => {
+    const res = await request(app.getHttpServer()).get('/auth/google');
+
+    expect(res.status).toBe(302);
+    const cookies = (res.headers['set-cookie'] ?? []) as string[];
+    expect(cookies.find((c: string) => c.startsWith('google_oauth_format='))).toBeUndefined();
+  });
+
+  it('GET /auth/google/callback xoa cookie mode sau khi dung', async () => {
+    handlerStub.execute.mockResolvedValue({ access_token: 'a' });
+
+    const res = await request(app.getHttpServer())
+      .get('/auth/google/callback?code=abc&state=state-123')
+      .set('Cookie', ['google_oauth_state=state-123', 'google_oauth_format=json']);
+
+    expect(res.status).toBe(200);
+    const cleared = setCookieHeader(res);
+    expect(cleared).toContain('google_oauth_format=');
+    expect(cleared).toContain('Expires=Thu, 01 Jan 1970');
   });
 
   it('GET /auth/google khi thieu credential -> 501 DEPENDENCY_UNAVAILABLE', async () => {

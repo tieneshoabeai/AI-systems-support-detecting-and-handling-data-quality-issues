@@ -10,7 +10,7 @@ import {
   Res,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
 import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
@@ -51,6 +51,7 @@ export class ReportController {
   // UC-23 (tạo Tổng kết): PROJ-MEMBER trở lên.
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiResponse({ status: 202, description: 'Đã tiếp nhận yêu cầu (xử lý bất đồng bộ)' })
   async request(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.requestReportHandler.execute(projectId);
   }
@@ -63,6 +64,8 @@ export class ReportController {
   // UC-26 (tải PDF Tổng kết): PROJ-VIEWER cũng được tải.
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'File PDF (stream) — tải về khi report đã sinh xong' })
+  @ApiResponse({ status: 202, description: 'Report chưa sẵn sàng — trả metadata trạng thái để client thử lại' })
   async download(
     @Param('projectId') projectId: string,
     @Param('reportId') reportId: string,

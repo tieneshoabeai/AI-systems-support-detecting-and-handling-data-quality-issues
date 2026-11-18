@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
 import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
@@ -28,6 +28,7 @@ export class SummaryController {
   // UC-23 (tạo Tổng kết): PROJ-MEMBER trở lên.
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async create(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.createSummaryHandler.execute(projectId);
   }
@@ -37,6 +38,7 @@ export class SummaryController {
   // UC-23/UC-24: PROJ-VIEWER cũng xem được Tổng kết.
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async get(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getSummaryHandler.execute(projectId);
   }

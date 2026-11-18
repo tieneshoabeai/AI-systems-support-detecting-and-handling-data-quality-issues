@@ -1,5 +1,5 @@
 import { Inject, Controller, Get, Post, Patch, Param, Body, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/interfaces/guards/roles.guard';
 import { Roles } from '../../../../shared/interfaces/decorators/roles.decorator';
@@ -66,6 +66,7 @@ export class IssuesController {
   @Post('issues')
   @ApiOperation({ summary: 'ISSUE-01: Tạo báo cáo sự cố' })
   @ApiZodBody(CreateIssueSchema)
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async createReport(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(CreateIssueSchema)) dto: CreateIssueDto,
@@ -76,6 +77,7 @@ export class IssuesController {
   @Get('issues')
   @ApiOperation({ summary: 'ISSUE-02: Danh sách báo cáo của tôi' })
   @ApiZodQuery(ListIssuesQuerySchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async listMine(
     @CurrentUser() user: CurrentUserPayload,
     @Query(new ZodValidationPipe(ListIssuesQuerySchema)) query: ListIssuesQueryDto,
@@ -86,6 +88,7 @@ export class IssuesController {
   @Post('issues/:id/attachments')
   @ApiOperation({ summary: 'ISSUE-01: Upload tệp đính kèm (png/jpg/pdf, <=10MB, tối đa 3 tệp)' })
   @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Tạo mới thành công' })
   async uploadAttachment(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
@@ -142,6 +145,7 @@ export class IssuesController {
 
   @Get('issues/:id/attachments/:attachmentId')
   @ApiOperation({ summary: 'Tải tệp đính kèm báo cáo (kiểm tra quyền, có audit log)' })
+  @ApiResponse({ status: 200, description: 'File đính kèm (stream) — tải trực tiếp từ storage' })
   async downloadAttachment(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
@@ -176,6 +180,7 @@ export class IssuesController {
 
   @Get('issues/:id')
   @ApiOperation({ summary: 'ISSUE-03: Chi tiết báo cáo của tôi' })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getMine(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     return this.getMineHandler.execute(user.userId, id);
   }
@@ -186,6 +191,7 @@ export class IssuesController {
       'ISSUE-EDIT: Sửa báo cáo của tôi (chỉ khi status = needs_info — quản trị viên đã yêu cầu bổ sung)',
   })
   @ApiZodBody(UpdateMyIssueSchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async updateMine(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
@@ -221,6 +227,7 @@ export class IssuesController {
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Danh sách báo cáo (quản trị)' })
   @ApiZodQuery(AdminListIssuesQuerySchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async listForAdmin(
     @Query(new ZodValidationPipe(AdminListIssuesQuerySchema)) query: AdminListIssuesQueryDto,
   ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; }> {
@@ -230,6 +237,7 @@ export class IssuesController {
   @Get('admin/issues/:id')
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Chi tiết báo cáo (quản trị)' })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getForAdmin(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<Record<string, unknown>> {
     return this.getForAdminHandler.execute(id, user.role);
   }
@@ -238,6 +246,7 @@ export class IssuesController {
   @Roles('admin')
   @ApiOperation({ summary: 'ISSUE-04: Đổi trạng thái báo cáo (optimistic locking)' })
   @ApiZodBody(UpdateIssueStatusSchema)
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async updateStatus(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,

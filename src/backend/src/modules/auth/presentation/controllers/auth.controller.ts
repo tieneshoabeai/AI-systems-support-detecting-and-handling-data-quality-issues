@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Optional,
   Query,
   Res,
 } from '@nestjs/common';
@@ -48,9 +49,23 @@ import { RefreshAccessTokenHandler } from '../../application/commands/refresh-ac
 import { RegisterHandler } from '../../application/commands/register.handler';
 import { ResetPasswordHandler } from '../../application/commands/reset-password.handler';
 import { RevokeSessionHandler } from '../../application/commands/revoke-session.handler';
+import { ConfigService } from '@nestjs/config';
+import {
+  buildFrontendRedirectUrl,
+  type GoogleCallbackMode,
+} from '../google-redirect.util';
 
 /** Tên cookie state CSRF của Google OAuth. */
 const GOOGLE_STATE_COOKIE = 'google_oauth_state';
+
+/**
+ * Cookie lưu chế độ trả kết quả của callback (`json` | `redirect`).
+ *
+ * Vì sao cần cookie: `redirect_uri` đăng ký ở Google Cloud Console phải **khớp
+ * tuyệt đối** — không thể thêm `?format=json` vào nó. Nên chế độ do frontend chọn
+ * ở `GET /auth/google?format=json` được gửi kèm qua cookie, và callback đọc lại.
+ */
+const GOOGLE_FORMAT_COOKIE = 'google_oauth_format';
 
 /**
  * Xoá cookie state Google OAuth.
@@ -60,6 +75,13 @@ const GOOGLE_STATE_COOKIE = 'google_oauth_state';
  */
 function clearGoogleStateCookie(res: Response, req: Request): void {
   res.clearCookie(GOOGLE_STATE_COOKIE, {
+    path: '/',
+    httpOnly: true,
+    secure: req.secure,
+    sameSite: 'lax',
+  });
+  // Xoá luôn cookie chế độ trả kết quả (nếu có) — tránh cookie rác tồn đọng.
+  res.clearCookie(GOOGLE_FORMAT_COOKIE, {
     path: '/',
     httpOnly: true,
     secure: req.secure,
@@ -82,6 +104,11 @@ export class AuthController {
     private readonly revokeSessionHandler: RevokeSessionHandler,
     private readonly getSessionByIdHandler: GetSessionByIdHandler,
     private readonly getSessionsHandler: GetSessionsHandler,
+    /**
+     * `ConfigService` là **optional**: chỉ cần cho luồng redirect về frontend
+     * (`APP_URL`). Thiếu nó → callback trả JSON (chế độ mặc định) — an toàn.
+     */
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   @Public()
@@ -127,6 +154,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-05: Quên mật khẩu — gửi OTP 6 số (TTL 10 phút)' })
   @ApiZodBody(ForgotPasswordSchema, 'Email nhận mã OTP')
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async forgotPassword(@Body(new ZodValidationPipe(ForgotPasswordSchema)) dto: ForgotPasswordDto): Promise<{ message: string; }> {
     return this.forgotPasswordHandler.execute(dto.email);
   }
@@ -137,6 +165,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-06: Đặt lại mật khẩu bằng OTP' })
   @ApiZodBody(ResetPasswordSchema, 'Email + OTP + mật khẩu mới')
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async resetPassword(@Body(new ZodValidationPipe(ResetPasswordSchema)) dto: ResetPasswordDto): Promise<{ message: string; }> {
     return this.resetPasswordHandler.execute(dto.email, dto.otp, dto.new_password);
   }
@@ -148,6 +177,7 @@ export class AuthController {
   @Throttle({ default: { limit: 500, ttl: 3600000 } })
   @ApiOperation({ summary: 'AUTH-07: Đổi mật khẩu (giữ phiên hiện tại)' })
   @ApiZodBody(ChangePasswordSchema, 'Mật khẩu hiện tại + mật khẩu mới 2 lần nhập')
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async changePassword(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(ChangePasswordSchema)) dto: ChangePasswordDto,
@@ -166,7 +196,11 @@ export class AuthController {
   @ApiOperation({ summary: 'AUTH-03: Đăng nhập Google — chuyển hướng tới trang xác thực Google' })
   @ApiResponse({ status: 302, description: 'Chuyển hướng tới Google (chỉ khi đã cấu hình credential)' })
   @ApiResponse({ status: 501, description: 'Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI' })
-  async googleStart(@Req() req: Request, @Res() res: Response): Promise<void> {
+  async googleStart(
+    @Query('format') format: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const state = randomUUID();
     const url = this.loginWithGoogleHandler.buildAuthorizationUrl(state);
     // Lưu state để callback đối chiếu (chống CSRF).
@@ -179,13 +213,103 @@ export class AuthController {
       path: '/',
       maxAge: 10 * 60 * 1000,
     });
+    // Lưu chế độ trả kết quả để callback đọc lại (`redirect_uri` của Google
+    // phải khớp tuyệt đối nên không thể truyền query).
+    if (format === 'json' || format === 'redirect') {
+      res.cookie(GOOGLE_FORMAT_COOKIE, format, {
+        httpOnly: true,
+        secure: req.secure,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 10 * 60 * 1000,
+      });
+    }
     res.redirect(url);
+  }
+
+  /**
+   * Chế độ trả kết quả của `GET /auth/google/callback`.
+   *
+   * - `?format=json` → trả JSON envelope (giống hệt `POST /auth/login`).
+   * - còn lại → **redirect** về `APP_URL` kèm token trong fragment.
+   *
+   * Nếu `APP_URL` chưa cấu hình → ép về `json` (không thể redirect, không được
+   * làm người dùng mất token).
+   */
+  private resolveCallbackMode(
+    format: string | undefined,
+    req?: Request,
+  ): GoogleCallbackMode {
+    // Ưu tiên query param (dùng trực tiếp khi gọi callback bằng `fetch`).
+    if (format === 'json') return 'json';
+    if (format === 'redirect') return 'redirect';
+    // Đọc cookie chế độ do `GET /auth/google?format=...` thiết lập.
+    const cookies = req?.cookies as Record<string, unknown> | undefined;
+    const cookieFormat = cookies?.[GOOGLE_FORMAT_COOKIE];
+    if (cookieFormat === 'json') return 'json';
+    if (cookieFormat === 'redirect') return 'redirect';
+    // Mặc định: JSON envelope — khớp `POST /auth/login` và hợp đồng §3.5c.
+    return 'json';
+  }
+
+  /**
+   * Dựng URL redirect về frontend kèm token trong **fragment**.
+   *
+   * Chỉ dùng `APP_URL` đã cấu hình — KHÔNG nhận URL từ query (chống open redirect).
+   * Token đặt trong fragment (`#`) để không bị ghi vào access log của proxy.
+   */
+  private buildSuccessRedirect(
+    result: Record<string, unknown>,
+    format: string | undefined,
+    req?: Request,
+  ): string | null {
+    if (this.resolveCallbackMode(format, req) !== 'redirect') return null;
+    const accessToken = typeof result['access_token'] === 'string' ? result['access_token'] : '';
+    const refreshToken = typeof result['refresh_token'] === 'string' ? result['refresh_token'] : '';
+    if (!accessToken) return null;
+
+    const params: Record<string, string> = {
+      access_token: accessToken,
+      provider: 'google',
+    };
+    if (refreshToken) params['refresh_token'] = refreshToken;
+
+    return buildFrontendRedirectUrl(this.config?.get<string>('APP_URL'), params);
+  }
+
+  /**
+   * Dựng URL redirect về frontend kèm **mã lỗi** trong fragment.
+   *
+   * Chỉ dùng `APP_URL` đã cấu hình (chống open redirect).
+   * Trả `null` nếu không thể redirect → caller ném lỗi HTTP bình thường.
+   */
+  private buildErrorRedirect(
+    format: string | undefined,
+    code: string,
+    message: string,
+    req?: Request,
+  ): string | null {
+    if (this.resolveCallbackMode(format, req) !== 'redirect') return null;
+    return buildFrontendRedirectUrl(this.config?.get<string>('APP_URL'), {
+      error: code,
+      error_description: message,
+    });
+  }
+
+  /** Rút mã lỗi chuẩn từ exception (hỗ trợ `StatusError` và `DomainError`). */
+  private extractErrorCode(err: unknown): string {
+    if (err && typeof err === 'object' && 'code' in err) {
+      const code = (err as { code?: unknown }).code;
+      if (typeof code === 'string' && code.length > 0) return code;
+    }
+    return ERROR_CODES.VALIDATION_ERROR;
   }
 
   @Public()
   @Get('google/callback')
   @ApiOperation({ summary: 'AUTH-03: Google callback — đổi mã lấy token và đăng nhập' })
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token' })
+  @ApiResponse({ status: 302, description: 'Đăng nhập thành công — chuyển hướng về frontend kèm token (che do `?format=redirect`)' })
   @ApiResponse({ status: 401, description: 'Mã ủy quyền không hợp lệ hoặc email chưa được xác minh' })
   @ApiResponse({
     status: 409,
@@ -196,6 +320,7 @@ export class AuthController {
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') oauthError: string | undefined,
+    @Query('format') format: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -204,11 +329,15 @@ export class AuthController {
       // `VALIDATION_ERROR` (không phải 400 — đây là lỗi xác thực).
       // Cookie state phải bị xoá dù lỗi (tránh tái sử dụng state cũ).
       clearGoogleStateCookie(res, req);
-      throw new StatusError(
-        401,
-        ERROR_CODES.VALIDATION_ERROR,
-        `Google từ chối yêu cầu đăng nhập (${oauthError}).`,
-      );
+      const message = `Google từ chối yêu cầu đăng nhập (${oauthError}).`;
+      // Chế độ redirect → đưa mã lỗi về frontend, không phải trả JSON lỗi
+      // (trình duyệt sẽ hiển thị JSON thay vì quay lại trang đăng nhập).
+      const errorRedirect = this.buildErrorRedirect(format, ERROR_CODES.VALIDATION_ERROR, message, req);
+      if (errorRedirect) {
+        res.redirect(errorRedirect);
+        return;
+      }
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, message);
     }
     const cookies = req.cookies as Record<string, unknown> | undefined;
     const expectedState =
@@ -229,11 +358,48 @@ export class AuthController {
     } catch (err: unknown) {
       // Xoá cookie state kể cả khi lỗi (state sai / lỗi Google / email chưa xác minh).
       clearGoogleStateCookie(res, req);
+      // Chế độ redirect → đưa mã lỗi về frontend thay vì trả JSON lỗi.
+      const errorRedirect = this.buildErrorRedirect(
+        format,
+        this.extractErrorCode(err),
+        err instanceof Error ? err.message : 'Đăng nhập Google thất bại.',
+        req,
+      );
+      if (errorRedirect) {
+        res.redirect(errorRedirect);
+        return;
+      }
       throw err;
     }
     // Xoá cookie state sau khi dùng (dùng thành công hay lỗi).
     clearGoogleStateCookie(res, req);
-    res.json(result);
+
+    // ── Trả kết quả: JSON envelope (mặc định) hoặc redirect về frontend ──
+    //
+    // Hợp đồng §3.5c: response phải **giống hệt `POST /auth/login`** → tức là
+    // envelope `{ success: true, data: {...} }` do `TransformInterceptor` bọc.
+    // Trước đây dùng `res.json(result)` (bypass interceptor) nên trả **raw** →
+    // frontend đọc `data.access_token` được `undefined` → không đăng nhập được.
+    if (this.resolveCallbackMode(format, req) === 'json') {
+      // `res.json` tự bọc theo envelope để khớp `POST /auth/login`.
+      res.json({ success: true, data: result });
+      return;
+    }
+
+    // Chế độ redirect (`?format=redirect`): chuyển hướng về frontend kèm token
+    // trong **fragment** (`#`) — fragment không bị ghi vào access log.
+    const redirectUrl = this.buildSuccessRedirect(
+      result as Record<string, unknown>,
+      format,
+      req,
+    );
+    if (redirectUrl) {
+      res.redirect(redirectUrl);
+      return;
+    }
+
+    // Không có `APP_URL` hợp lệ → không thể redirect → trả JSON để không mất token.
+    res.json({ success: true, data: result });
   }
 
   @Post('logout')

@@ -80,6 +80,7 @@ export class AdminUsersController {
   @Get(':id')
   @Roles('admin')
   @ApiOperation({ summary: 'ADMIN-01: Chi tiết hồ sơ (chỉ đọc, có audit log)' })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async detail(@CurrentUser() actor: CurrentUserPayload, @Param('id') id: string): Promise<UserResponse> {
     const u = await this.findByIdHandler.execute(id);
     if (!u) throw new NotFoundError('Không tìm thấy tài khoản người dùng');

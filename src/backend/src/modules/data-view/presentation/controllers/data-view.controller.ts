@@ -9,7 +9,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { QueryRecordsSchema, QueryRecordsDto } from '../dtos/query-records.dto';
 import { QueryRecordsBodySchema, QueryRecordsBodyDto } from '../dtos/query-records-body.dto';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
@@ -47,6 +47,7 @@ export class DataViewController {
   // UC-14 (xem bảng dữ liệu): mọi vai trò đều đọc được.
   @PolicyResource('DataRecord', DatasetPolicyLoader, 'datasetId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'DataRecord'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getRecords(
     @Param('datasetId') datasetId: string,
     @Query(new ZodValidationPipe(QueryRecordsSchema)) query: QueryRecordsDto,
@@ -62,6 +63,7 @@ export class DataViewController {
   @ApiZodBody(QueryRecordsBodySchema)
   @PolicyResource('DataRecord', DatasetPolicyLoader, 'datasetId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'DataRecord'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async queryRecords(
     @Param('datasetId') datasetId: string,
     @Body(new ZodValidationPipe(QueryRecordsBodySchema)) body: QueryRecordsBodyDto,
@@ -75,6 +77,7 @@ export class DataViewController {
   })
   @PolicyResource('Dataset', DatasetPolicyLoader, 'datasetId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getColumnStats(
     @Param('datasetId') datasetId: string,
     @Param('columnKey') columnKey: string,
