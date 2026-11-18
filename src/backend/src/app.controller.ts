@@ -2,8 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { StorageService } from './shared/storage/storage.service';
-import { Public } from './shared/decorators/public.decorator';
+import { StorageService } from './shared/infrastructure/storage/storage.service';
+import { Public } from './shared/interfaces/decorators/public.decorator';
 import type { ConnectionStates } from 'mongoose';
 
 @ApiTags('Health')

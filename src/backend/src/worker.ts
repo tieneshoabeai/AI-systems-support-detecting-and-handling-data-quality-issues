@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
-import { OutboxRelayService } from './shared/application/outbox/outbox-relay.service';
+import { OutboxRelayService } from './shared/infrastructure/outbox/outbox-relay.service';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['log', 'error', 'warn'] });
