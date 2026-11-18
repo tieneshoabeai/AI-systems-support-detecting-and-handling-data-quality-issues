@@ -63,6 +63,8 @@ export function ReportCenter() {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
 
   // Trường của form tạo (3.1). issueType rỗng = chưa chọn → bắt buộc trước khi gửi.
   const [issueType, setIssueType] = useState<'' | ReportIssueType>('')
@@ -86,7 +88,14 @@ export function ReportCenter() {
   const goCreate = (): void => { resetForm(); setView('create') }
   const goList = (): void => { setView('list') }
   const backToLanding = (): void => { setView('landing'); setQuery(''); setPage(1) }
-  const openDetail = (id: string): void => { setDetailId(id); setView('detail') }
+  const openDetail = (id: string): void => {
+    setDetailId(id); setView('detail'); setDetailError('')
+    if (state.source !== 'api' || !store.getIssueDetail) return
+    setDetailLoading(true)
+    void store.getIssueDetail(id).catch((error: unknown) => {
+      setDetailError(error instanceof Error ? error.message : 'Không tải được chi tiết báo cáo.')
+    }).finally(() => setDetailLoading(false))
+  }
 
   const onPickFile = (files: FileList | null): void => {
     const file = files?.[0]
@@ -229,9 +238,11 @@ export function ReportCenter() {
         </button>
       </div>
 
-      {detail === null
+      {detailLoading && <p role="status">Đang tải chi tiết báo cáo từ máy chủ.</p>}
+      {detailError !== '' && <p className="form-error" role="alert">{detailError}</p>}
+      {detail === null && !detailLoading
         ? <p className="notice-empty">Báo cáo này không còn trong danh sách mẫu — có thể vừa bị Hoàn tác.</p>
-        : <div className="detail-body">
+        : detail !== null && <div className="detail-body">
           <div className="report-detail-head">
             <code className="report-code">{detail.code}</code>
             <ReportStatusChip status={detail.status} />

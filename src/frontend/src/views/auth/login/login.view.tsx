@@ -11,6 +11,8 @@ import { parseDisplayBaseView } from '../../../graphics/auth-glass/display-base/
 import '../login-glass.css'
 import { isShoppingDemo } from '../../../mocks/shopping-trends/demo-mode'
 import demoAuth from '../../../mocks/shopping-trends/auth.json'
+import { createAccountService } from '../../../services/auth/account.service'
+import { PasswordRecoveryDialog } from './sections/password-recovery-dialog'
 
 const compactLoginQuery = '(width < 992px)'
 const sceneLoadTimeoutMs = 10_000
@@ -39,6 +41,10 @@ export const LoginView = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [activePanel, setActivePanel] = useState<AuthGlassPanel>('login')
   const [registerDraft, setRegisterDraft] = useState({ familyName: '', givenName: '', email: '', password: '' })
+  const [registerPending, setRegisterPending] = useState(false)
+  const [registerError, setRegisterError] = useState('')
+  const [accountNotice, setAccountNotice] = useState('')
+  const [recovering, setRecovering] = useState(false)
   const [compact, setCompact] = useState(() => window.matchMedia?.(compactLoginQuery)?.matches ?? false)
   const [sceneStatus, setSceneStatus] = useState<'loading' | 'ready' | 'failed'>('loading')
   const showScene = !compact && typeof WebGL2RenderingContext !== 'undefined' && sceneStatus !== 'failed'
@@ -68,10 +74,24 @@ export const LoginView = () => {
   }
 
   function changePanel(panel: AuthGlassPanel) {
+    if (registerPending) return
     setShowPassword(false)
     setActivePanel(panel)
   }
-  const disabled = form.pending || !!form.configurationError || !!form.cleanupError
+  const disabled = form.pending || registerPending || !!form.configurationError || !!form.cleanupError
+  const register = async () => {
+    if (disabled || isShoppingDemo()) return
+    setRegisterPending(true); setRegisterError(''); setAccountNotice('')
+    try {
+      await createAccountService().register({ email: registerDraft.email.trim(), password: registerDraft.password,
+        first_name: registerDraft.familyName.trim(), last_name: registerDraft.givenName.trim() })
+      form.setEmail(registerDraft.email.trim())
+      setRegisterDraft({ familyName: '', givenName: '', email: '', password: '' })
+      setAccountNotice('Đã tạo tài khoản. Hãy đăng nhập để tiếp tục.')
+      setActivePanel('login')
+    } catch (cause) { setRegisterError(cause instanceof Error ? cause.message : 'Không tạo được tài khoản.') }
+    finally { setRegisterPending(false) }
+  }
   const overlay = searchParams.get('overlay') === '1'
   const low = searchParams.get('quality') === 'low'
   const debugMode = import.meta.env.DEV ? searchParams.get('glassDebug') : null
@@ -116,7 +136,7 @@ export const LoginView = () => {
             </Suspense>
           </LoginSceneBoundary>
         </div>}
-        {(!showScene || activePanel === 'login') ? <section className="auth-glass-login-form auth-glass-form-panel" ref={formElement} hidden={sceneLoading} aria-labelledby="page-heading">
+        {activePanel === 'login' ? <section className="auth-glass-login-form auth-glass-form-panel" ref={formElement} hidden={sceneLoading} aria-labelledby="page-heading">
           <DataVerseMark className="auth-glass-sign-in-mark" />
           <div className="auth-glass-sign-in-content">
             <header className="auth-glass-form-header">
@@ -126,6 +146,7 @@ export const LoginView = () => {
             </header>
             {form.configurationError && <div className="feedback-error" role="alert">Dịch vụ đăng nhập chưa được cấu hình. Vui lòng liên hệ người quản trị.</div>}
             {!form.configurationError && form.error && <div id="login-error" className="feedback-error" role="alert">{form.error}</div>}
+            {accountNotice && <p role="status">{accountNotice}</p>}
             <form aria-label="Đăng nhập" aria-busy={form.pending} aria-describedby={!form.configurationError && form.error ? 'login-error' : undefined} onSubmit={event => {
               event.preventDefault()
               if (event.currentTarget.reportValidity()) void form.submit()
@@ -152,8 +173,8 @@ export const LoginView = () => {
                 </div>
               </div>
               <div className="auth-glass-sign-in-options">
-                <label><input type="checkbox" /> Ghi nhớ đăng nhập</label>
-                <button type="button">Quên mật khẩu</button>
+                <span>Phiên đăng nhập được giữ trong tab này.</span>
+                <button type="button" disabled={disabled || isShoppingDemo()} onClick={() => setRecovering(true)}>Quên mật khẩu</button>
               </div>
               <button className="button-primary login-submit" type="submit" disabled={disabled}>
                 {form.pending ? 'Đang đăng nhập…' : 'Đăng nhập'}
@@ -163,7 +184,7 @@ export const LoginView = () => {
             <AuthProviderButtons action="Đăng nhập" />
             <p className="auth-glass-sign-in-register">
               Chưa có tài khoản?{' '}
-              <button type="button" disabled={!showScene} onClick={() => changePanel('register')}>Đăng ký</button>
+              <button type="button" disabled={disabled || isShoppingDemo()} onClick={() => changePanel('register')}>Đăng ký</button>
             </p>
             {form.cleanupError && <button type="button" className="text-link" onClick={() => { void form.signOut() }}>Thử dọn phiên lại</button>}
           </div>
@@ -179,36 +200,37 @@ export const LoginView = () => {
               <h2 id="register-heading" tabIndex={-1}>Tạo tài khoản</h2>
               <p className="form-intro">Đăng ký để bắt đầu với DataVerse.</p>
             </header>
-            <form aria-label="Đăng ký" onSubmit={event => event.preventDefault()}>
+            {registerError && <p role="alert">{registerError}</p>}
+            <form aria-label="Đăng ký" aria-busy={registerPending} onSubmit={event => { event.preventDefault(); void register() }}>
               <div className="auth-glass-name-fields">
                 <div className="form-field">
                   <label htmlFor="register-family-name">Họ</label>
                   <input id="register-family-name" name="familyName" autoComplete="family-name" placeholder="Nhập họ" required
-                    value={registerDraft.familyName} onChange={event => updateRegisterDraft('familyName', event.target.value)} />
+                    disabled={disabled} maxLength={50} value={registerDraft.familyName} onChange={event => updateRegisterDraft('familyName', event.target.value)} />
                 </div>
                 <div className="form-field">
                   <label htmlFor="register-given-name">Tên</label>
                   <input id="register-given-name" name="givenName" autoComplete="given-name" placeholder="Nhập tên" required
-                    value={registerDraft.givenName} onChange={event => updateRegisterDraft('givenName', event.target.value)} />
+                    disabled={disabled} maxLength={50} value={registerDraft.givenName} onChange={event => updateRegisterDraft('givenName', event.target.value)} />
                 </div>
               </div>
               <div className="form-field">
                 <label htmlFor="register-email">Email</label>
                 <input id="register-email" name="email" type="email" autoComplete="email" placeholder="Nhập email" required
-                  value={registerDraft.email} onChange={event => updateRegisterDraft('email', event.target.value)} />
+                  disabled={disabled} value={registerDraft.email} onChange={event => updateRegisterDraft('email', event.target.value)} />
               </div>
               <div className="form-field">
                 <label htmlFor="register-password">Mật khẩu</label>
                 <input id="register-password" name="password" type="password" autoComplete="new-password" placeholder="Nhập mật khẩu" required
-                  value={registerDraft.password} onChange={event => updateRegisterDraft('password', event.target.value)} />
+                  disabled={disabled} minLength={8} maxLength={100} value={registerDraft.password} onChange={event => updateRegisterDraft('password', event.target.value)} />
               </div>
-              <button className="button-primary login-submit" type="button">Tạo tài khoản</button>
-              <p className="form-status">Chưa mở đăng ký tài khoản.</p>
+              <button className="button-primary login-submit" type="submit" disabled={disabled || isShoppingDemo()}>Tạo tài khoản</button>
+              <p className="form-status" role="status">{registerPending ? 'Đang tạo tài khoản.' : ''}</p>
             </form>
             <AuthProviderButtons action="Đăng ký" />
             <p className="auth-glass-sign-in-register">
               Đã có tài khoản?{' '}
-              <button type="button" onClick={() => changePanel('login')}>Đăng nhập</button>
+              <button type="button" disabled={registerPending} onClick={() => changePanel('login')}>Đăng nhập</button>
             </p>
           </div>
         </section>}
@@ -224,5 +246,6 @@ export const LoginView = () => {
         </ul>
       </section>
     </div>
+    {recovering && <PasswordRecoveryDialog initialEmail={form.email} onClose={() => setRecovering(false)} />}
   </main>
 }

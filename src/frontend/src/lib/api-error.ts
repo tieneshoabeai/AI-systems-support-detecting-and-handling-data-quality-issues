@@ -75,7 +75,10 @@ export const normalizeApiError = (error: unknown): ApiError => {
           : 'Yêu cầu không được máy chủ chấp nhận.'
 
       const code = isClientError && typeof serverError?.['code'] === 'string' ? serverError['code'] : undefined
-      const fieldErrors = isClientError ? readFieldErrors(serverError?.['message']) : undefined
+      const details = serverError?.['details']
+      const fieldErrors = isClientError
+        ? readFieldErrors(serverError?.['message']) ?? readFieldErrors(isRecord(details) ? details['fields'] : undefined)
+        : undefined
       return new ApiError({
         kind: 'http',
         status,

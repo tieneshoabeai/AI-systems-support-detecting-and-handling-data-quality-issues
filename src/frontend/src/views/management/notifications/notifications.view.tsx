@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { NotificationFilterTab, PreviewNotification } from '../../../types'
 import {
   matchNotificationTab, notificationIcon, notificationKindLabels,
@@ -73,8 +74,23 @@ function BackOutOfInbox() {
 
 function NotificationDetail({ notification }: { notification: PreviewNotification }) {
   const session = usePreviewSession()
+  const store = useManagementStore()
+  const [detailRequest, setDetailRequest] = useState<{ id: string; error?: string } | null>(null)
+  const detailLoading = session.state.source === 'api' && detailRequest?.id !== notification.id
+  const detailError = detailRequest?.id === notification.id ? detailRequest.error ?? '' : ''
   const project = session.state.projects.find(item => item.id === notification.projectId) ?? null
   const gap: NoticeOpenGap = project ? 'ok' : notification.projectId ? 'project-removed' : 'no-project'
+
+  useEffect(() => {
+    if (session.state.source !== 'api' || !store.getNotificationDetail) return
+    let active = true
+    void store.getNotificationDetail(notification.id).then(() => {
+      if (active) setDetailRequest({ id: notification.id })
+    }).catch((error: unknown) => {
+      if (active) setDetailRequest({ id: notification.id, error: error instanceof Error ? error.message : 'Không tải được chi tiết thông báo.' })
+    })
+    return () => { active = false }
+  }, [notification.id, session.state.source, store])
 
   return <>
     <BackToList />
@@ -89,6 +105,8 @@ function NotificationDetail({ notification }: { notification: PreviewNotificatio
     </div>
 
     <Panel title="Chi tiết thông báo">
+      {detailLoading && <p role="status">Đang tải chi tiết thông báo từ máy chủ.</p>}
+      {detailError !== '' && <p role="alert">{detailError}</p>}
       <dl className="detail-meta">
         <div><dt>Thời gian</dt><dd>{notification.atFull}</dd></div>
         <div><dt>Loại</dt><dd>{notificationKindLabels[notification.kind]}</dd></div>

@@ -9,7 +9,7 @@ import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Pagination, Panel, StatusBadge } from '../../resource'
 
 // Both landing pages share sorting, pagination and project/menu navigation.
-export function RecentProjects({ action }: { action?: ReactNode }) {
+export function RecentProjects({ action, onOpenProject }: { action?: ReactNode; onOpenProject?: (id: string) => void }) {
   const session = usePreviewSession()
   const [page, setPage] = useState(1)
   const perPage = 10
@@ -27,9 +27,10 @@ export function RecentProjects({ action }: { action?: ReactNode }) {
           <th scope="col"><span className="visually-hidden">Actions</span></th></tr></thead>
         <tbody>{visible.map((project, index) => {
           const target = { kind: 'project' as const, id: project.id, name: project.name }
+          const open = () => onOpenProject ? onOpenProject(project.id) : session.run('open', target)
           return <tr key={project.id} tabIndex={0}
-            onClick={() => session.run('open', target)}
-            onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') session.run('open', target) }}
+            onClick={open}
+            onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') open() }}
             onContextMenu={event => { event.preventDefault(); openMenu(project, originFromEvent(event)) }}>
             <td className="row-index">{(safePage - 1) * perPage + index + 1}</td>
             <th scope="row"><span className="row-name">{project.name}</span><span className="row-sub">{project.description}</span></th>

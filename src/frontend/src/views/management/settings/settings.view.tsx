@@ -1,4 +1,5 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { ReactNode } from 'react'
 import type { DeviceSession, SettingsNavLeaf, SettingsNavItem, SettingsSectionId } from '../../../types'
 import { isSettingsNavGroup } from '../../../types/preview'
@@ -188,29 +189,43 @@ function ProfileSection() {
 
 // ---------- 4.3 Bảo mật ----------
 // "Đổi mật khẩu" dạng thu giãn (khớp dấu › trong ảnh). 2FA đã BỎ theo đặc tả dòng 9. Chưa có
-// API Auth nên đổi mật khẩu chỉ là xác thực biểu mẫu + toast, không ghi lại ở đâu (nói rõ ở note).
+// API Auth xác nhận thay đổi trước khi hiển thị thành công; preview không thay mật khẩu thật.
 function SecuritySection() {
   const session = usePreviewSession()
+  const store = useManagementStore()
+  const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
+    if (busy) return
     if (!current || !next || !confirm) { setError('Cần điền đủ mật khẩu hiện tại, mật khẩu mới và nhập lại mật khẩu mới.'); return }
     if (next.length < 8) { setError('Mật khẩu mới cần tối thiểu 8 ký tự.'); return }
     if (next !== confirm) { setError('Mật khẩu mới và nhập lại không khớp.'); return }
     setError('')
-    setCurrent(''); setNext(''); setConfirm(''); setOpen(false)
-    session.notify('Đã đổi mật khẩu (dữ liệu mẫu — không ghi lại).', 'success')
+    setBusy(true)
+    try {
+      if (session.state.source === 'api') {
+        if (!store.changePassword) throw new Error('Dịch vụ đổi mật khẩu chưa sẵn sàng.')
+        await store.changePassword({ current_password: current, new_password: next, confirm_password: confirm })
+        session.notify('Đã đổi mật khẩu. Các phiên đăng nhập khác đã được thu hồi.', 'success')
+      } else {
+        session.notify('Đã kiểm tra biểu mẫu mẫu; mật khẩu không được thay đổi.', 'info')
+      }
+      setCurrent(''); setNext(''); setConfirm(''); setOpen(false)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Không đổi được mật khẩu.')
+    } finally { setBusy(false) }
   }
 
   return <div className="settings-screen">
     <Panel title="Bảo mật tài khoản">
       <div className="security-list">
         <button type="button" className="security-row" aria-expanded={open}
-          onClick={() => { setOpen(value => !value); setError('') }}>
+          disabled={busy} onClick={() => { setOpen(value => !value); setError('') }}>
           <span className="security-icon" aria-hidden="true"><PreviewIcon name="key" /></span>
           <span className="security-text">
             <strong>Đổi mật khẩu</strong>
@@ -234,8 +249,8 @@ function SecuritySection() {
           </label>
           {error !== '' && <p className="form-error" role="alert">{error}</p>}
           <div className="form-actions">
-            <button type="button" className="button-secondary" onClick={() => { setOpen(false); setError('') }}>Hủy</button>
-            <button type="button" className="button-primary" onClick={submit}>Đổi mật khẩu</button>
+            <button type="button" className="button-secondary" disabled={busy} onClick={() => { setOpen(false); setError('') }}>Hủy</button>
+            <button type="button" className="button-primary" disabled={busy} aria-busy={busy} onClick={() => { void submit() }}>Đổi mật khẩu</button>
           </div>
         </div>}
       </div>
@@ -246,8 +261,23 @@ function SecuritySection() {
 // ---------- 4.4 Đăng nhập & phiên ----------
 function SessionRow({ item }: { item: DeviceSession }) {
   const session = usePreviewSession()
+  const store = useManagementStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const [detail, setDetail] = useState<Awaited<ReturnType<NonNullable<typeof store.getSessionDetail>>> | null>(null)
+
+  const toggleDetail = (): void => {
+    const next = !detailOpen
+    setDetailOpen(next)
+    setMenuOpen(false)
+    if (!next || session.state.source !== 'api' || !store.getSessionDetail) return
+    setDetailLoading(true); setDetailError('')
+    void store.getSessionDetail(item.id).then(setDetail).catch((cause: unknown) => {
+      setDetailError(cause instanceof Error ? cause.message : 'Không tải được chi tiết phiên.')
+    }).finally(() => setDetailLoading(false))
+  }
 
   // Ảnh 4.4: phiên HIỆN TẠI không có ⋮ (đang xem preview mà tự đăng xuất là tự cắt lối vào,
   // và đăng xuất thật thuộc trang auth của bạn T). "Phiên hiện tại" là chữ inline sau vị trí,
@@ -267,7 +297,7 @@ function SessionRow({ item }: { item: DeviceSession }) {
     </div>
 
     {menuOpen && <div className="session-menu" role="menu" aria-label={`Tùy chọn phiên ${item.platform}`}>
-      <button type="button" role="menuitem" className="session-menu-item" onClick={() => { setDetailOpen(value => !value); setMenuOpen(false) }}>
+      <button type="button" role="menuitem" className="session-menu-item" onClick={toggleDetail}>
         <PreviewIcon name="search" /> Xem chi tiết
       </button>
       <button type="button" role="menuitem" className="session-menu-item is-danger"
@@ -277,8 +307,14 @@ function SessionRow({ item }: { item: DeviceSession }) {
     </div>}
 
     {detailOpen && <dl className="detail-meta session-detail">
-      <div><dt>Địa chỉ IP</dt><dd>{item.ip}</dd></div>
-      <div><dt>Đăng nhập lúc</dt><dd>{item.startedAt}</dd></div>
+      {detailLoading && <div role="status"><dt>Chi tiết</dt><dd>Đang tải từ máy chủ.</dd></div>}
+      {detailError !== '' && <div role="alert"><dt>Chi tiết</dt><dd>{detailError} Đang hiển thị thông tin trong danh sách.</dd></div>}
+      <div><dt>Địa chỉ IP</dt><dd>{detail?.ipAddress ?? item.ip}</dd></div>
+      <div><dt>Trình duyệt</dt><dd>{detail?.userAgent ?? item.browser}</dd></div>
+      <div><dt>Đăng nhập lúc</dt><dd>{detail?.createdAt ? new Date(detail.createdAt).toLocaleString('vi-VN') : item.startedAt}</dd></div>
+      {detail?.lastUsedAt && <div><dt>Hoạt động gần nhất</dt><dd>{new Date(detail.lastUsedAt).toLocaleString('vi-VN')}</dd></div>}
+      {detail?.expiresAt && <div><dt>Hết hạn lúc</dt><dd>{new Date(detail.expiresAt).toLocaleString('vi-VN')}</dd></div>}
+      {detail && <div><dt>Ghi nhớ đăng nhập</dt><dd>{detail.rememberMe ? 'Có' : 'Không'}</dd></div>}
       <div><dt>Vị trí</dt><dd>{item.location}</dd></div>
     </dl>}
   </li>
@@ -286,6 +322,19 @@ function SessionRow({ item }: { item: DeviceSession }) {
 
 function SessionsSection() {
   const session = usePreviewSession()
+  const store = useManagementStore()
+  const [loadState, setLoadState] = useState<{ error?: string; loading: boolean }>({ loading: Boolean(store.loadSessions) })
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    if (!store.loadSessions) return
+    let active = true
+    void store.loadSessions().then(() => {
+      if (active) setLoadState({ loading: false })
+    }).catch((cause: unknown) => {
+      if (active) setLoadState({ loading: false, error: cause instanceof Error ? cause.message : 'Không tải được danh sách phiên.' })
+    })
+    return () => { active = false }
+  }, [store, attempt])
   const sessions = session.state.sessions
   const others = sessions.filter(item => !item.current).length
 
@@ -293,8 +342,12 @@ function SessionsSection() {
   // settings-head của SettingsPreviewView), KHÔNG nằm trong header Panel. Panel chỉ còn tiêu đề.
   return <div className="settings-screen">
     <Panel title={`Các phiên đang hoạt động (${sessions.length})`}>
+      {loadState.loading && <p role="status">Đang tải danh sách phiên.</p>}
+      {loadState.error && <div role="alert">{loadState.error} <button onClick={() => {
+        setLoadState({ loading: true }); setAttempt(value => value + 1)
+      }}>Thử lại</button></div>}
       {sessions.length === 0
-        ? <p className="notice-empty">Không còn phiên nào. Tải lại trang để xem lại danh sách.</p>
+        ? !loadState.loading && !loadState.error && <p className="notice-empty">Không còn phiên nào. Tải lại trang để xem lại danh sách.</p>
         : <ul className="session-list">{sessions.map(item => <SessionRow key={item.id} item={item} />)}</ul>}
       {others === 0 && sessions.length > 0 && <p className="settings-hint">Chỉ còn phiên hiện tại — không còn phiên nào khác để đăng xuất.</p>}
     </Panel>

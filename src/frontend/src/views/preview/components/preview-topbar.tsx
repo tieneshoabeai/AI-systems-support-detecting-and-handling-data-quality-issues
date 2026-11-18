@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useContext, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types'
 import { NotificationCenter } from './notification-center'
@@ -7,6 +7,7 @@ import { PreviewIcon } from './preview-icons'
 import { PreviewPopover } from './preview-popover'
 import { usePreviewSession } from '../preview-session-context'
 import { TopbarColorMode } from './topbar-color-mode'
+import { AuthContext } from '../../../hooks/auth/auth-context'
 
 // Topbar theo "UI-UX/Global Application Shell" (Design Board + đặc tả.txt dòng 11), thứ tự trái
 // sang phải đúng như DOM — (1) toggle sidebar, (2) combobox Workspace, (3) combobox Projects,
@@ -145,19 +146,19 @@ function TopbarReport() {
 
 function TopbarAccount() {
   const session = usePreviewSession()
+  const auth = useContext(AuthContext)
   const profile = session.state.profile
   const accountInfo = { ...profile, initials: profile.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('') }
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [trigger, setTrigger] = useState<HTMLElement | null>(null)
   const [open, setOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState(false)
 
   // Design Board 4.1 vẽ ba mục: Hồ sơ cá nhân · Cài đặt tài khoản · Đăng xuất. Hai mục đầu
   // ĐIỀU HƯỚNG sang nhánh Accounts của Settings (đặc tả dòng 9), không chạy "trong ô".
   // Ảnh 4.1 có gắn nhãn "Settings" nhỏ bên hai mục điều hướng — chủ batch yêu cầu BỎ: đích đến
   // đã hiện rõ khi bấm, còn nhãn thì lặp lại tên một trang bên cạnh hai nhãn việc làm.
-  // "Đăng xuất" KHÔNG còn trong menu (chủ batch 03/11): khung preview không có phiên đăng nhập
-  // thật nào để kết thúc, nên nó là một mục bấm không làm gì — để lại thì phải kèm một dòng
-  // giải thích. Hai mục còn lại đều chạy thật.
   // 'Ngôn ngữ"/"Chủ đề" và cả tiện ích dev "Khôi phục dữ liệu mẫu" đều BỎ để khớp ảnh — reset
   // dữ liệu mẫu giờ bằng cách tải lại trang (store là in-memory, F5 về fixtures ban đầu).
   // 'overview' = '#/preview/settings' trần (màn tổng quan). Chủ batch 03/11 hỏi "tại sao bấm
@@ -198,6 +199,22 @@ function TopbarAccount() {
             </span>
           </button>
         </li>)}
+        {auth && <li>
+          <button type="button" className="account-row" disabled={signingOut} onClick={() => {
+            setSigningOut(true)
+            setSignOutError(false)
+            void auth.signOut().catch(() => {
+              setSigningOut(false)
+              setSignOutError(true)
+            })
+          }}>
+            <span className="menu-icon" aria-hidden="true"><PreviewIcon name="logout" /></span>
+            <span className="account-text">
+              <span className="account-label">{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
+            </span>
+          </button>
+          {signOutError && <p role="alert">Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.</p>}
+        </li>}
       </ul>
     </PreviewPopover>
   </>

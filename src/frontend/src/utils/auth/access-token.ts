@@ -12,12 +12,12 @@ export const readAccessToken = (token: string): AccessTokenInfo | null => {
     const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
     const claims: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
     if (typeof claims !== 'object' || claims === null || Array.isArray(claims)) return null
-    const { sub, exp } = claims as Record<string, unknown>
+    const { sub, exp, sessionId } = claims as Record<string, unknown>
     if (typeof sub !== 'string' || sub.trim().length === 0
       || typeof exp !== 'number' || !Number.isFinite(exp)) return null
     const expiresAtMs = exp * 1000
     if (!Number.isFinite(expiresAtMs) || !Number.isFinite(new Date(expiresAtMs).getTime())) return null
-    return { accountId: sub, expiresAtMs }
+    return { accountId: sub, expiresAtMs, ...(typeof sessionId === 'string' && sessionId ? { sessionId } : {}) }
   } catch {
     return null
   }

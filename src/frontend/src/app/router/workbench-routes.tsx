@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useContext } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router'
 import { PageSkeleton } from '../../components/loading'
 import { NotFoundPage } from '../pages/public/not-found-page'
@@ -6,6 +6,7 @@ import { legacyManagementRedirect } from '../../services/preview/preview-route'
 import { ProtectedRoute } from '../guards/protected-route'
 import { managementHref } from '../../services/navigation'
 import { usePreviewStore } from '../../hooks/preview/use-preview-store'
+import { ProcessingDataContext } from '../../views/application/processing-data-context'
 
 const ManagementPage = lazy(() => import('../pages/private/management-page').then(module => ({ default: module.ManagementPage })))
 const ProcessingPage = lazy(() => import('../pages/private/processing-page').then(module => ({ default: module.ProcessingPage })))
@@ -16,8 +17,13 @@ const ShoppingRecordsPage = lazy(() => import('../pages/private/shopping-records
 function ProcessingProject() {
   const { projectId } = useParams()
   const state = usePreviewStore()
-  return projectId && state.projects.some(project => project.id === projectId)
-    ? <ProjectWorkspacePage key={projectId} projectId={projectId} /> : <NotFoundPage title="Không tìm thấy project" />
+  const processing = useContext(ProcessingDataContext)
+  if (!projectId || (!processing && !state.projects.some(project => project.id === projectId))) {
+    return <NotFoundPage title="Không tìm thấy project" />
+  }
+  return <Suspense key={projectId} fallback={<PageSkeleton pathname={`/processing/projects/${projectId}`} message="Đang mở scene 3D…" />}>
+    <ProjectWorkspacePage projectId={projectId} />
+  </Suspense>
 }
 
 function LegacyRedirect() {

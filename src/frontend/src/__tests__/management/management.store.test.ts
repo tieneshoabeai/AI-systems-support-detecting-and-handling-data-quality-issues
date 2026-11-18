@@ -9,6 +9,7 @@ function harness(override?: (r: ApiRequestOptions) => unknown) {
     const result = override?.(r)
     if (result !== undefined) return await Promise.resolve(result)
     if (r.path === '/users/me') return { firstName: 'Tai', lastName: 'Nguyen', email: account.email, role: 'analyst', notificationsEnabled: true }
+    if (r.path === '/notifications/unread-count') return { unreadCount: 0 }
     if (['/issues', '/notifications'].includes(r.path)) return { items: [], meta: { hasMore: false, nextCursor: null } }
     if (r.path.endsWith('/members')) return { members: [{ userId: 'u1', role: 'owner', name: 'Tai', email: account.email }] }
     if (r.path === '/workspaces') return { items: [workspace], total: 1 }

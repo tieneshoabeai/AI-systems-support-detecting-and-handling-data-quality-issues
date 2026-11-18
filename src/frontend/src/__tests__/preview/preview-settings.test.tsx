@@ -158,8 +158,8 @@ it('Bảo mật: bỏ 2FA theo đặc tả, chỉ còn "Đổi mật khẩu" —
   fireEvent.change(screen.getByLabelText('Mật khẩu mới'), { target: { value: 'matkhuoimoi123' } })
   fireEvent.change(screen.getByLabelText('Nhập lại mật khẩu mới'), { target: { value: 'matkhuoimoi123' } })
   fireEvent.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
-  // Chưa có API Auth → chỉ toast xác thực biểu mẫu, nói rõ không ghi lại ở đâu.
-  expect(await screen.findByText(/Đã đổi mật khẩu/)).toBeDefined()
+  // Fixture không đổi mật khẩu thật; toast phải nói rõ đây chỉ là kiểm tra biểu mẫu.
+  expect(await screen.findByText('Đã kiểm tra biểu mẫu mẫu; mật khẩu không được thay đổi.')).toBeDefined()
 })
 
 it('Phiên: đếm theo danh sách, đăng xuất phiên khác có Hoàn tác, không tự cắt phiên hiện tại', async () => {

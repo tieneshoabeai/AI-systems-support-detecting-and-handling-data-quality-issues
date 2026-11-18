@@ -10,6 +10,7 @@ const calls = vi.hoisted(() => ({ dataset: vi.fn() }))
 // This suite checks route admission; data loading is covered by management-data-provider.test.
 vi.mock('../../views/application/management-data-provider', () => ({
   ManagementDataProvider: ({ children }: { children: import('react').ReactNode }) => children,
+  ProcessingDataProvider: ({ children }: { children: import('react').ReactNode }) => children,
 }))
 vi.mock('../../views/auth/login.view', () => ({ LoginView: () => <h1>Login page</h1> }))
 vi.mock('../../views/dataset-3d/dataset-3d.view', () => {
