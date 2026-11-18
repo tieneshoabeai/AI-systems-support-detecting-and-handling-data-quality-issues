@@ -1,10 +1,15 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
+import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
+import { PolicyResource } from '../../../../shared/interfaces/casl/policy-resource.decorator';
+import { Action } from '../../../../shared/domain/security/action';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { WorkspacePolicyLoader } from '../../../workspaces';
 import { GetUserOverviewHandler } from '../../application/queries/get-user-overview.handler';
 import { GetWorkspaceOverviewHandler } from '../../application/queries/get-workspace-overview.handler';
 
@@ -22,7 +27,7 @@ import { GetWorkspaceOverviewHandler } from '../../application/queries/get-works
  */
 @ApiTags('Overview')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller()
 export class OverviewController {
   constructor(
@@ -37,6 +42,8 @@ export class OverviewController {
       'Trả về: `totalWorkspaces`, `totalProjects`, `ownedWorkspaces`, `sharedWorkspaces`, `myProjects`.',
   })
   @ApiResponse({ status: 200, description: 'Các chỉ số tổng quan workspace' })
+  // E3: tổng quan của chính user → không cần instance check.
+  @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
   async userWorkspacesOverview(@CurrentUser() user: CurrentUserPayload): Promise<{ totalWorkspaces: number; totalProjects: number; ownedWorkspaces: number; sharedWorkspaces: number; myProjects: number; }> {
     return this.getUserOverviewHandler.execute(user.userId);
   }
@@ -50,6 +57,9 @@ export class OverviewController {
   })
   @ApiResponse({ status: 200, description: 'Các chỉ số tổng quan workspace' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy không gian làm việc' })
+  // E4: chỉ WS-OWNER/WS-MEMBER của workspace đó mới xem được tổng quan.
+  @PolicyResource('Workspace', WorkspacePolicyLoader)
+  @CheckPolicies((ability) => ability.can(Action.Read, 'Workspace'))
   async workspaceOverview(@Param('id') id: string): Promise<{ workspaceId: string; projectCount: number; notStartedCount: number; inProgressCount: number; completedCount: number; memberCount: number; storageUsedBytes: number; lastAccessedAt: string | null; }> {
     return this.getWorkspaceOverviewHandler.execute(id);
   }

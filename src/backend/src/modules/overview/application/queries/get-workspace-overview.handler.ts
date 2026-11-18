@@ -5,9 +5,10 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { WORKSPACE_REPOSITORY_PORT, type WorkspaceRepositoryPort } from '../../../workspaces';
 import { PROJECT_REPOSITORY_PORT, type ProjectRepositoryPort } from '../../../projects';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetWorkspaceOverviewHandler {
@@ -29,7 +30,7 @@ export class GetWorkspaceOverviewHandler {
     lastAccessedAt: string | null;
   }> {
     const ws = await this.workspaces.findById(workspaceId);
-    if (!ws) throw new NotFoundException('Không tìm thấy không gian làm việc hoặc đã bị xóa');
+    if (!ws) throw new NotFoundError('Không tìm thấy không gian làm việc hoặc đã bị xóa');
     const [projectCount, notStartedCount, inProgressCount, completedCount] = await Promise.all([
       this.projects.countByWorkspace(workspaceId),
       this.projects.countByWorkspace(workspaceId, 'not_started'),

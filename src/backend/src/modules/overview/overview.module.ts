@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ProjectsModule } from '../projects/projects.module';
-import { OverviewController } from './infrastructure/http/overview.controller';
+import { OverviewController } from './presentation/controllers/overview.controller';
 import { GetUserOverviewHandler } from './application/queries/get-user-overview.handler';
 import { GetWorkspaceOverviewHandler } from './application/queries/get-workspace-overview.handler';
 
