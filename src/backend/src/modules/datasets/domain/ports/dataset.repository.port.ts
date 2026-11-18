@@ -1,27 +1,26 @@
 /**
  * DATASET — Domain repository port (hexagonal chuẩn).
  * Application chỉ gọi qua port này. Không mongoose, không schema.
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `Dataset` (không phải
+ * record trần) → handler có thể gọi hành vi của entity để kiểm tra invariant
+ * trước khi ghi.
  */
+
+import type {
+  Dataset,
+  DatasetColumn,
+  DatasetColumnIssue,
+} from '../entities/dataset.entity';
 
 export const DATASET_REPOSITORY_PORT = Symbol('DatasetRepositoryPort');
 
-export interface DatasetColumnRecord {
-  key: string;
-  index: number;
-  name: string;
-  dataType: 'string' | 'number' | 'boolean' | 'date';
-  originalName: string;
-  missingCount: number;
-  isPii: boolean;
-}
+/** Loại lỗi tên cột — re-export từ entity để tầng ngoài không import sâu. */
+export type { DatasetColumnIssue, DatasetColumnIssueType } from '../entities/dataset.entity';
+export type { DatasetColumn, DatasetStatus, DatasetDelimiter } from '../entities/dataset.entity';
 
-export interface DatasetColumnIssueRecord {
-  columnKey: string | null;
-  issue: 'empty_name' | 'duplicate_name' | 'whitespace_only';
-  message: string;
-}
-
-export interface DatasetRecord {
+/** Dữ liệu tạo dataset mới — repository map sang document. */
+export interface CreateDatasetInput {
   id: string;
   projectId: string;
   workspaceId: string;
@@ -33,14 +32,12 @@ export interface DatasetRecord {
   storageKey: string;
   rowCount: number;
   columnCount: number;
-  columns: DatasetColumnRecord[];
-  columnIssues: DatasetColumnIssueRecord[];
+  columns: DatasetColumn[];
+  columnIssues: DatasetColumnIssue[];
   hasHeader: boolean;
   delimiter: ',' | ';' | '\t' | '|';
   currentVersion: number;
   status: 'INGESTING' | 'READY' | 'FAILED';
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface RecordInsertDoc {
@@ -49,30 +46,14 @@ export interface RecordInsertDoc {
   props: Record<string, unknown>;
 }
 
-export interface CreateDatasetRecord {
-  projectId: string;
-  workspaceId: string;
-  name: string;
-  originalFileName: string;
-  fileFormat: 'csv';
-  fileSizeBytes: number;
-  fileChecksum: string;
-  storageKey: string;
-  rowCount: number;
-  columnCount: number;
-  columns: DatasetColumnRecord[];
-  columnIssues: DatasetColumnIssueRecord[];
-  hasHeader: boolean;
-  delimiter: ',' | ';' | '\t' | '|';
-  status: 'INGESTING' | 'READY' | 'FAILED';
-  currentVersion?: number;
-}
-
 export interface DatasetRepositoryPort {
-  create(data: CreateDatasetRecord): Promise<DatasetRecord>;
-  findById(id: string): Promise<DatasetRecord | null>;
-  findByProject(projectId: string): Promise<DatasetRecord | null>;
-  updateById(id: string, update: Partial<CreateDatasetRecord> & Record<string, unknown>): Promise<DatasetRecord | null>;
+  create(data: CreateDatasetInput): Promise<Dataset>;
+  findById(id: string): Promise<Dataset | null>;
+  findByProject(projectId: string): Promise<Dataset | null>;
+  updateById(
+    id: string,
+    update: Partial<CreateDatasetInput> & Record<string, unknown>,
+  ): Promise<Dataset | null>;
   bulkInsertRecords(records: RecordInsertDoc[]): Promise<number>;
   softDeleteDatasetWithRecords(datasetId: string): Promise<boolean>;
 }

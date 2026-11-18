@@ -1,19 +1,4 @@
-import {
-  Inject,
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  Req,
-  Res,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-  BadRequestException,
-} from '@nestjs/common';
+import { Inject, Controller, Get, Post, Patch, Delete, Param, Body, Req, Res, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import busboy from 'busboy';
@@ -21,15 +6,16 @@ import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { UpdateDatasetSchema, UpdateDatasetDto } from './dtos/update-dataset.dto';
-import { RenameColumnsSchema, RenameColumnsDto } from './dtos/rename-columns.dto';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../../shared/casl/policies.guard';
-import { CheckPolicies } from '../../../../shared/casl/check-policies.decorator';
-import { Action } from '../../../../shared/casl/actions.enum';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { UpdateDatasetSchema, UpdateDatasetDto } from '../dtos/update-dataset.dto';
+import { RenameColumnsSchema, RenameColumnsDto } from '../dtos/rename-columns.dto';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
+import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
+import { PolicyResource } from '../../../../shared/interfaces/casl/policy-resource.decorator';
+import { Action } from '../../../../shared/domain/security/action';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { DeleteDatasetHandler } from '../../application/commands/delete-dataset.handler';
 import { DownloadDatasetFileHandler } from '../../application/queries/download-dataset-file.handler';
 import { GetDatasetByIdHandler } from '../../application/queries/get-dataset-by-id.handler';
@@ -39,7 +25,10 @@ import { IngestDatasetStreamHandler } from '../../application/commands/ingest-da
 import { RenameColumnsHandler } from '../../application/commands/rename-columns.handler';
 import { ResetColumnNamesHandler } from '../../application/commands/reset-column-names.handler';
 import { UpdateDatasetHandler } from '../../application/commands/update-dataset.handler';
-import type { DatasetColumnRecord, DatasetRecord } from '../..';
+import { DatasetPolicyLoader } from '../../application/policy-loaders/dataset-policy.loader';
+import { ProjectScopePolicyLoader } from '../../../projects';
+import { toDatasetResponse, type DatasetResponse } from '../responses/dataset.response';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @ApiTags('Datasets')
 @ApiBearerAuth()
@@ -85,6 +74,9 @@ export class DatasetsController {
     },
   })
   @CheckPolicies((ability) => ability.can(Action.Create, 'Dataset'))
+  // UC-08: import dữ liệu chỉ WS-OWNER hoặc PROJ-OWNER → instance check theo
+  // `project_id` của project chứa dataset.
+  @PolicyResource('Dataset', ProjectScopePolicyLoader, 'projectId')
   async uploadDataset(@Param('projectId') projectId: string, @Req() req: Request): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const bb = busboy({ headers: req.headers, limits: { fileSize: 50 * 1024 * 1024 } });
@@ -108,7 +100,7 @@ export class DatasetsController {
           .then((dataset) => {
             resolve({
               message: 'Tai len va xu ly tap du lieu CSV thanh cong',
-              dataset,
+              dataset: toDatasetResponse(dataset),
             });
           })
           .catch((err: unknown) => reject(err));
@@ -118,7 +110,7 @@ export class DatasetsController {
 
       bb.on('finish', () => {
         if (!fileProcessed) {
-          reject(new BadRequestException('Khong tim thay tep dinh kem trong yeu cau'));
+          reject(new ValidationError('Khong tim thay tep dinh kem trong yeu cau'));
         }
       });
 
@@ -128,59 +120,67 @@ export class DatasetsController {
 
   @Get('projects/:projectId/datasets')
   @ApiOperation({ summary: 'F4.2: Lay thong tin tap du lieu cua du an' })
+  @PolicyResource('Dataset', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  async getDatasetByProject(@Param('projectId') projectId: string): Promise<{ dataset: DatasetRecord | null; }> {
+  async getDatasetByProject(@Param('projectId') projectId: string): Promise<{ dataset: DatasetResponse | null; }> {
     const dataset = await this.getDatasetByProjectIdHandler.execute(projectId);
-    return { dataset };
+    return { dataset: dataset ? toDatasetResponse(dataset) : null };
   }
 
   @Get('datasets/:id')
   @ApiOperation({ summary: 'F4.3: Xem chi tiet thong tin tap du lieu (khong bao gom storage_key)' })
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  async getDatasetById(@Param('id') id: string): Promise<{ dataset: DatasetRecord; }> {
+  async getDatasetById(@Param('id') id: string): Promise<{ dataset: DatasetResponse; }> {
     const dataset = await this.getDatasetByIdHandler.execute(id);
-    return { dataset };
+    return { dataset: toDatasetResponse(dataset) };
   }
 
   @Patch('datasets/:id')
   @ApiOperation({ summary: 'F4.4: Cap nhat ten tap du lieu' })
   @ApiZodBody(UpdateDatasetSchema)
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
   async updateDataset(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateDatasetSchema)) dto: UpdateDatasetDto,
-  ): Promise<{ message: string; dataset: DatasetRecord; }> {
+  ): Promise<{ message: string; dataset: DatasetResponse; }> {
     const dataset = await this.updateDatasetHandler.execute(id, dto);
     return {
       message: 'Cap nhat tap du lieu thanh cong',
-      dataset,
+      dataset: toDatasetResponse(dataset),
     };
   }
 
   @Patch('datasets/:id/columns')
   @ApiOperation({ summary: 'Wave 4: Doi ten cot hien thi - key c{i} bat bien' })
   @ApiZodBody(RenameColumnsSchema)
+  // UC-10 (đổi tên cột): PROJ-MEMBER trở lên → instance check theo `project_id`.
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
   async renameColumns(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(RenameColumnsSchema)) dto: RenameColumnsDto,
-  ): Promise<{ dataset: DatasetRecord; }> {
+  ): Promise<{ dataset: DatasetResponse; }> {
     const dataset = await this.renameColumnsHandler.execute(id, dto);
-    return { dataset };
+    return { dataset: toDatasetResponse(dataset) };
   }
 
   @Post('datasets/:id/columns/reset')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Wave 4 (M15): Khoi phuc ten cot ve ten goc tu file CSV' })
+  // UC-12 (Reset tên cột): PROJ-MEMBER trở lên, KHÔNG bao gồm PROJ-VIEWER.
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  async resetColumnNames(@Param('id') id: string): Promise<{ dataset: DatasetRecord; }> {
+  async resetColumnNames(@Param('id') id: string): Promise<{ dataset: DatasetResponse; }> {
     const dataset = await this.resetColumnNamesHandler.execute(id);
-    return { dataset };
+    return { dataset: toDatasetResponse(dataset) };
   }
 
   @Delete('datasets/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'F4.5: Xoa mem tap du lieu va giai phong du an' })
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Delete, 'Dataset'))
   async deleteDataset(@Param('id') id: string): Promise<void> {
     await this.deleteDatasetHandler.execute(id);
@@ -188,6 +188,8 @@ export class DatasetsController {
 
   @Get('datasets/:id/file')
   @ApiOperation({ summary: 'FILE-01: Tải file gốc .csv (stream trực tiếp, có audit log)' })
+  // FILE-01: PROJ-VIEWER cũng được tải file gốc (quyết định v3 mục 3.4).
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
   async downloadDatasetFile(
     @Param('id') id: string,
@@ -219,9 +221,20 @@ export class DatasetsController {
 
   @Get('datasets/:id/schema')
   @ApiOperation({ summary: 'F4.6: Xem schema voi key cot on dinh c0..cN' })
+  @PolicyResource('Dataset', DatasetPolicyLoader)
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  async getDatasetSchema(@Param('id') id: string): Promise<{ columns: DatasetColumnRecord[]; }> {
+  async getDatasetSchema(@Param('id') id: string): Promise<{ columns: DatasetResponse['columns']; }> {
     const columns = await this.getDatasetSchemaHandler.execute(id);
-    return { columns };
+    return {
+      columns: columns.map((c) => ({
+        key: c.key,
+        index: c.index,
+        name: c.name,
+        dataType: c.dataType,
+        originalName: c.originalName,
+        missingCount: c.missingCount,
+        isPii: c.isPii,
+      })),
+    };
   }
 }

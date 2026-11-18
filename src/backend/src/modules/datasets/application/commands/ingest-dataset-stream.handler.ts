@@ -6,27 +6,25 @@ import { createHash } from 'node:crypto';
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** dùng entity `Dataset` làm trạng thái chuẩn —
+ * `Dataset.create()` (INGESTING) → `markReady()` (kèm schema) → `markFailed()`.
+ * Invariant (chỉ `.csv`, ≤ 50 MB, ≤ 1000 cột, phải có header, key cột ổn định)
+ * do entity kiểm tra, không phải handler.
  */
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  Logger,
-  PayloadTooLargeException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PassThrough, Readable } from 'stream';
 import {
   DATASET_REPOSITORY_PORT,
-  type CreateDatasetRecord,
-  type DatasetRecord,
+  type CreateDatasetInput,
   type DatasetRepositoryPort,
 } from '../../domain/ports/dataset.repository.port';
+import { Dataset } from '../../domain/entities/dataset.entity';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
 import { ConfigService } from '@nestjs/config';
-import { STORAGE_PORT, type StoragePort } from '../../../../shared/ports/storage.port';
-import { OUTBOX_PORT, type OutboxPort } from '../../../../shared/ports/outbox.port';
+import { STORAGE_PORT, type StoragePort } from '../../../../shared/application/ports/storage.port';
+import { OUTBOX_PORT, type OutboxPort } from '../../../../shared/application/ports/outbox.port';
 import { SchemaInferenceService } from '../services/schema-inference.service';
 import {
   IMPORT_BATCH_SIZE,
@@ -43,6 +41,7 @@ import {
   assertCsvMagicBytes,
   newHexId,
 } from '../datasets.utils';
+import { ConflictError, FileTooLargeError, ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class IngestDatasetStreamHandler {
@@ -133,7 +132,7 @@ export class IngestDatasetStreamHandler {
     fileName: string;
     mimeType: string;
     contentLength?: number;
-  }): Promise<DatasetRecord> {
+  }): Promise<Dataset> {
     const { projectId, fileStream, fileName, mimeType, contentLength = 0 } = params;
 
     try {
@@ -146,32 +145,21 @@ export class IngestDatasetStreamHandler {
       typeof mimeType === 'string' &&
       /excel|spreadsheet|officedocument|ms-excel/i.test(mimeType)
     ) {
-      throw new BadRequestException({
-        message: 'File Excel không được chấp nhận. Vui lòng xuất sang CSV.',
-        error: 'VALIDATION_ERROR',
-        details: { reason: 'excel_not_allowed', mimeType, fileName },
-      } as never);
+      throw new ValidationError( 'File Excel không được chấp nhận. Vui lòng xuất sang CSV.', { reason: 'excel_not_allowed', mimeType, fileName });
     }
     if (contentLength > MAX_FILE_BYTES) {
-      throw new PayloadTooLargeException({
-        message: `File vuot qua gioi han 50MB (nhan duoc ${contentLength} bytes)`,
-        error: 'FILE_TOO_LARGE',
-      } as never);
+      throw new FileTooLargeError( `File vuot qua gioi han 50MB (nhan duoc ${contentLength} bytes)`);
     }
 
     const project = await this.projects.getProjectById(projectId);
     if (project.hasDataset) {
-      throw new ConflictException(
-        'Moi Project chi duoc phep lien ket toi da 1 Dataset hoat dong. Vui long xoa hoac luu tru Dataset hien tai truoc khi tai len du lieu moi.',
-      );
+      throw new ConflictError('Moi Project chi duoc phep lien ket toi da 1 Dataset hoat dong. Vui long xoa hoac luu tru Dataset hien tai truoc khi tai len du lieu moi.',);
     }
 
     if (contentLength > 0) {
       const quota = await this.storage.checkUploadQuota(contentLength);
       if (!quota.allowed) {
-        throw new PayloadTooLargeException(
-          'Dung luong luu tru vuot qua gioi han 10GB cua Cloudflare R2 (Hard Block 100%).',
-        );
+        throw new FileTooLargeError('Dung luong luu tru vuot qua gioi han 10GB cua Cloudflare R2 (Hard Block 100%).',);
       }
       const wsQuota = Number(
         this.configService.get<number>('WORKSPACE_STORAGE_QUOTA_BYTES', 524288000),
@@ -183,24 +171,21 @@ export class IngestDatasetStreamHandler {
     const datasetName = datasetNameFromFile(fileName);
     const storageKey = storageKeyForDataset(datasetId);
 
-    const initialDataset = await this.datasets.create({
+    // ── Tạo entity `Dataset` ở trạng thái INGESTING ───────────────────────
+    const entity = Dataset.create({
+      id: datasetId,
       projectId: project.id,
       workspaceId: project.workspaceId,
       name: datasetName,
       originalFileName: fileName,
-      fileFormat: 'csv',
       fileSizeBytes: contentLength,
-      fileChecksum: 'calculating...',
       storageKey,
-      rowCount: 0,
-      columnCount: 0,
-      columns: [],
-      columnIssues: [],
-      hasHeader: true,
-      delimiter: ',',
-      status: 'INGESTING',
-      currentVersion: 1,
-    } as CreateDatasetRecord);
+    });
+
+    const initialDataset = await this.datasets.create({
+      ...entity.toProps(),
+      id: datasetId,
+    } as CreateDatasetInput);
 
     const hashStream = createHash('sha256');
     const uploadPassThrough = new PassThrough();
@@ -236,10 +221,7 @@ export class IngestDatasetStreamHandler {
       bytesTransferred += buf.length;
       if (bytesTransferred > MAX_FILE_BYTES) {
         uploadFailed = true;
-        const err = new PayloadTooLargeException({
-          message: 'File vuot qua gioi han 50MB trong luc tai len',
-          error: 'FILE_TOO_LARGE',
-        } as never);
+        const err = new FileTooLargeError( 'File vuot qua gioi han 50MB trong luc tai len');
         uploadPassThrough.destroy(err as never);
         parsePassThrough.destroy(err as never);
         fileStream.destroy(err as never);
@@ -297,10 +279,7 @@ export class IngestDatasetStreamHandler {
       ]);
 
       if (uploadFailed || bytesTransferred > MAX_FILE_BYTES) {
-        throw new PayloadTooLargeException({
-          message: 'File vuot qua gioi han 50MB',
-          error: 'FILE_TOO_LARGE',
-        } as never);
+        throw new FileTooLargeError( 'File vuot qua gioi han 50MB');
       }
 
       if (headers.length > MAX_COLUMNS) {
@@ -320,14 +299,23 @@ export class IngestDatasetStreamHandler {
 
       const fileChecksum = `sha256:${hashStream.digest('hex')}`;
 
-      const finalDataset = await this.datasets.updateById(datasetId, {
+      // ── Entity tự kiểm tra invariant rồi chuyển sang READY ───────────────
+      entity.markReady({
         fileChecksum,
         fileSizeBytes: bytesTransferred,
         rowCount: totalRows,
-        columnCount: columns.length,
         columns,
         columnIssues: issues,
-        status: 'READY',
+      });
+
+      const finalDataset = await this.datasets.updateById(datasetId, {
+        fileChecksum: entity.fileChecksum,
+        fileSizeBytes: entity.fileSizeBytes,
+        rowCount: entity.rowCount,
+        columnCount: entity.columnCount,
+        columns: entity.columns.map((c) => ({ ...c })),
+        columnIssues: entity.columnIssues.map((i) => ({ ...i })),
+        status: entity.status,
       });
 
       await this.projects.setHasDataset(projectId, true);
@@ -355,7 +343,8 @@ export class IngestDatasetStreamHandler {
     } catch (err: unknown) {
       await cleanupOnFailure();
       try {
-        await this.datasets.updateById(datasetId, { status: 'FAILED' });
+        entity.markFailed(err instanceof Error ? err.message : String(err));
+        await this.datasets.updateById(datasetId, { status: entity.status });
       } catch {
         /* best-effort */
       }

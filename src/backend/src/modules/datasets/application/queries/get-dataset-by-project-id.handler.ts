@@ -4,14 +4,17 @@
  *
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
+ *
+ * **Bước 3 — Rich Domain Model:** trả về **entity** `Dataset` (hoặc `null`).
  */
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   DATASET_REPOSITORY_PORT,
-  type DatasetRecord,
   type DatasetRepositoryPort,
 } from '../../domain/ports/dataset.repository.port';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import type { Dataset } from '../../domain/entities/dataset.entity';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { ValidationError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetDatasetByProjectIdHandler {
@@ -20,14 +23,12 @@ export class GetDatasetByProjectIdHandler {
     private readonly datasets: DatasetRepositoryPort,
   ) {}
 
-  async execute(projectId: string): Promise<DatasetRecord | null> {
+  async execute(projectId: string): Promise<Dataset | null> {
     if (!isObjectIdHex(projectId)) {
-      throw new BadRequestException('ID Du an khong hop le');
+      throw new ValidationError('ID Du an khong hop le');
     }
     const found = await this.datasets.findByProject(projectId);
-    if (!found) return null;
-    const { storageKey: _sk2, ...safe } = found as DatasetRecord & { storageKey?: string };
-    void _sk2;
-    return safe as DatasetRecord;
+    // S14: `storageKey` không lộ ra API — mapper `toDatasetResponse()` loại bỏ.
+    return found;
   }
 }

@@ -2,15 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Readable } from 'stream';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { STORAGE_PORT } from '../src/shared/ports/storage.port';
-import { OUTBOX_PORT } from '../src/shared/ports/outbox.port';
+import { STORAGE_PORT } from '../src/shared/application/ports/storage.port';
+import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
 import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
 import { ConfigService } from '@nestjs/config';
-import { ConflictException, PayloadTooLargeException } from '@nestjs/common';
 import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
 import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
 import { datasetsHandlers } from './helpers/module-handlers';
+import { ConflictError, FileTooLargeError } from '../src/shared/domain/errors';
+
 
 describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
   let service: ProxyOf<typeof datasetsHandlers>;
@@ -119,7 +120,7 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
         fileName: 'another_file.csv',
         mimeType: 'text/csv',
       }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toThrow(ConflictError);
   });
 
   it('ingestDatasetStream should reject upload when R2 storage quota reaches 100%', async () => {
@@ -139,7 +140,7 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
         mimeType: 'text/csv',
         contentLength: 5000000,
       }),
-    ).rejects.toThrow(PayloadTooLargeException);
+    ).rejects.toThrow(FileTooLargeError);
   });
 
   it('SchemaInferenceService should accurately detect types (number, boolean, date, string)', () => {

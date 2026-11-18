@@ -10,12 +10,20 @@
  * cũng nằm ở đây, không nằm ở `data-view` (L2 — quy tắc R3/CA6).
  */
 
+// ── Domain entity (Bước 3 — Rich Domain Model) ────────────────────────────
+export {
+  Dataset,
+  type DatasetColumn,
+  type DatasetColumnIssue,
+  type DatasetColumnIssueType,
+  type DatasetDelimiter,
+  type DatasetProps,
+  type DatasetStatus,
+} from './domain/entities/dataset.entity';
+
 export {
   DATASET_REPOSITORY_PORT,
-  type CreateDatasetRecord,
-  type DatasetColumnIssueRecord,
-  type DatasetColumnRecord,
-  type DatasetRecord,
+  type CreateDatasetInput,
   type DatasetRepositoryPort,
   type RecordInsertDoc,
 } from './domain/ports/dataset.repository.port';
@@ -37,6 +45,9 @@ export {
   stableColumnKey,
   type ColumnDataType,
 } from './domain/value-objects/column-type.vo';
+
+// ── Policy loader (dùng cho `@PolicyResource` — tầng động chống IDOR) ─────
+export { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
 
 export {
   IMPORT_BATCH_SIZE,

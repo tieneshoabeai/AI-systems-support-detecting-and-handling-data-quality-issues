@@ -6,12 +6,12 @@ import { DatasetsRepository } from './infrastructure/persistence/datasets.reposi
 import { DATASET_REPOSITORY_PORT } from './domain/ports/dataset.repository.port';
 import { RECORD_QUERY_PORT } from './domain/ports/record-query.port';
 import { RecordQueryRepository } from './infrastructure/persistence/record-query.repository';
-import { DatasetsController } from './infrastructure/http/datasets.controller';
+import { DatasetsController } from './presentation/controllers/datasets.controller';
 import { SchemaInferenceService } from './application/services/schema-inference.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
-import { StorageModule } from '../../shared/storage/storage.module';
-import { OutboxModule } from '../../shared/application/outbox/outbox.module';
+import { StorageModule } from '../../shared/infrastructure/storage/storage.module';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { DeleteDatasetHandler } from './application/commands/delete-dataset.handler';
 import { DownloadDatasetFileHandler } from './application/queries/download-dataset-file.handler';
 import { GetDatasetByIdHandler } from './application/queries/get-dataset-by-id.handler';
@@ -22,6 +22,7 @@ import { MapPropsToOriginalNamesHandler } from './application/commands/map-props
 import { RenameColumnsHandler } from './application/commands/rename-columns.handler';
 import { ResetColumnNamesHandler } from './application/commands/reset-column-names.handler';
 import { UpdateDatasetHandler } from './application/commands/update-dataset.handler';
+import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
 
 /**
  * DATASETS — Module sở hữu collection `datasets` + `dataset_records`.
@@ -57,7 +58,14 @@ import { UpdateDatasetHandler } from './application/commands/update-dataset.hand
     GetDatasetByProjectIdHandler,
     GetDatasetSchemaHandler,
     SchemaInferenceService,
+    DatasetPolicyLoader,
   ],
-  exports: [DatasetsRepository, DATASET_REPOSITORY_PORT, RECORD_QUERY_PORT, SchemaInferenceService],
+  exports: [
+    DatasetsRepository,
+    DATASET_REPOSITORY_PORT,
+    RECORD_QUERY_PORT,
+    SchemaInferenceService,
+    DatasetPolicyLoader,
+  ],
 })
 export class DatasetsModule {}
