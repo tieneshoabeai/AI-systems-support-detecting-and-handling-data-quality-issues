@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EmailSchema } from '../../../../../shared/validation/common-schemas';
+import { EmailSchema } from '../../../../shared/domain/validation/common-schemas';
 
 /**
  * "Ghi nhớ đăng nhập" — hạn phiên 30 ngày (`JWT_REFRESH_REMEMBER_EXPIRATION`)

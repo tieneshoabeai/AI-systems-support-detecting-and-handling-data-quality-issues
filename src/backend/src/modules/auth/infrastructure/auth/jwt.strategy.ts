@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -8,7 +8,8 @@ import {
   type UserRepositoryPort,
 } from '../../../users';
 
-import { CurrentUserPayload } from '../../../../shared/decorators/current-user.decorator';
+import { CurrentUserPayload } from '../../../../shared/domain/security/current-user-payload';
+import { UnauthenticatedError } from '../../../../shared/domain/errors';
 
 export interface JwtPayload {
   sub: string;
@@ -36,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<CurrentUserPayload> {
     const user = await this.users.findById(payload.sub);
     if (!user || !canUserLogin(user.status, user.deletedAt)) {
-      throw new UnauthorizedException('Tài khoản không tồn tại, đã bị khóa hoặc đã bị xóa mềm');
+      throw new UnauthenticatedError('Tài khoản không tồn tại, đã bị khóa hoặc đã bị xóa mềm');
     }
 
     return {

@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, NotImplementedException } from '@nestjs/common';
 import request from 'supertest';
-import { AllExceptionsFilter } from '../../../src/shared/filters/all-exceptions.filter';
-import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
-import { AuthController } from '../../../src/modules/auth/infrastructure/http/auth.controller';
+import { AllExceptionsFilter } from '../../../src/shared/interfaces/filters/all-exceptions.filter';
+import { TransformInterceptor } from '../../../src/shared/interfaces/interceptors/transform.interceptor';
+import { AuthController } from '../../../src/modules/auth/presentation/controllers/auth.controller';
 import { LoginWithGoogleHandler } from '../../../src/modules/auth/application/commands/login-with-google.handler';
 import { ChangePasswordHandler } from '../../../src/modules/auth/application/commands/change-password.handler';
 import { ForgotPasswordHandler } from '../../../src/modules/auth/application/commands/forgot-password.handler';

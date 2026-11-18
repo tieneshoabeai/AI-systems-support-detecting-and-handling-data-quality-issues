@@ -104,6 +104,14 @@ export interface AuthUserLookupPort {
   create(data: AuthUserCreateInput): Promise<AuthUserLookup>;
   /** Tạo tài khoản từ hồ sơ Google (không mật khẩu). */
   createWithGoogle(data: AuthUserCreateWithGoogleInput): Promise<AuthUserLookup>;
+  /**
+   * Gắn `google_id` vào tài khoản đã có — liên kết tự động theo email đã
+   * được Google xác minh (AUTH-03).
+   *
+   * @returns tài khoản sau khi gắn, hoặc `null` nếu không tìm thấy /
+   *          `google_id` đã bị tài khoản khác chiếm.
+   */
+  linkGoogleId(userId: string, googleId: string): Promise<AuthUserLookup | null>;
 }
 
 export const PASSWORD_HASHER_PORT = Symbol('PasswordHasherPort');

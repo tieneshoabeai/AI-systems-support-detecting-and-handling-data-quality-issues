@@ -5,8 +5,9 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AUTH_SESSION_PORT, type AuthSessionPort } from '../../domain/ports/auth-session.port';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class GetSessionByIdHandler {
@@ -19,7 +20,7 @@ export class GetSessionByIdHandler {
     const session = await this.sessions.findSessionById(sessionId);
     // Trả về 404 (không phải 403) để không lộ sự tồn tại của phiên của người khác.
     if (!session || session.userId !== userId) {
-      throw new NotFoundException('Không tìm thấy phiên đăng nhập');
+      throw new NotFoundError('Không tìm thấy phiên đăng nhập');
     }
     return {
       id: session.id,

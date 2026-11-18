@@ -50,6 +50,7 @@ export { GetSessionsHandler } from './application/queries/get-sessions.handler';
 
 // ── Commands (ghi) ─────────────────────────────────────────────
 export { ChangePasswordHandler } from './application/commands/change-password.handler';
+export { SecurityAlertService } from './application/security-alert.service';
 export { ForgotPasswordHandler } from './application/commands/forgot-password.handler';
 export { LoginHandler } from './application/commands/login.handler';
 export { LoginWithGoogleHandler } from './application/commands/login-with-google.handler';

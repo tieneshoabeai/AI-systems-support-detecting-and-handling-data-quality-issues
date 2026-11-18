@@ -10,7 +10,7 @@ import {
   AUTH_USER_LOOKUP_PORT,
   PASSWORD_HASHER_PORT,
 } from './domain/ports/auth-session.port';
-import { AuthController } from './infrastructure/http/auth.controller';
+import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtStrategy } from './infrastructure/auth/jwt.strategy';
 import { BcryptHasherAdapter } from './infrastructure/security/bcrypt-hasher.adapter';
 import { EnvAuthSessionPolicyAdapter } from './infrastructure/security/env-auth-session-policy.adapter';
@@ -30,6 +30,7 @@ import { RefreshAccessTokenHandler } from './application/commands/refresh-access
 import { RegisterHandler } from './application/commands/register.handler';
 import { ResetPasswordHandler } from './application/commands/reset-password.handler';
 import { RevokeSessionHandler } from './application/commands/revoke-session.handler';
+import { SecurityAlertService } from './application/security-alert.service';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { RevokeSessionHandler } from './application/commands/revoke-session.hand
   providers: [
     ChangePasswordHandler,
     ForgotPasswordHandler,
+    SecurityAlertService,
     LoginHandler,
     LoginWithGoogleHandler,
     LogoutHandler,

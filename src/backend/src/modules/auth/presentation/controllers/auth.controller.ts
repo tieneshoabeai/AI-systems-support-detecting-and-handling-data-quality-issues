@@ -11,15 +11,16 @@ import {
   HttpStatus,
   Query,
   Res,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { Throttle } from '@nestjs/throttler';
-import { RegisterSchema, RegisterDto } from './dtos/register.dto';
-import { LoginSchema, LoginDto } from './dtos/login.dto';
-import { RefreshTokenSchema, RefreshTokenDto } from './dtos/refresh-token.dto';
+import { ERROR_CODES, NotFoundError } from '../../../../shared/domain/errors';
+import { StatusError } from '../../../../shared/application/errors';
+import { RegisterSchema, RegisterDto } from '../dtos/register.dto';
+import { LoginSchema, LoginDto } from '../dtos/login.dto';
+import { RefreshTokenSchema, RefreshTokenDto } from '../dtos/refresh-token.dto';
 import {
   ForgotPasswordSchema,
   ResetPasswordSchema,
@@ -27,15 +28,15 @@ import {
   type ForgotPasswordDto,
   type ResetPasswordDto,
   type ChangePasswordDto,
-} from './dtos/password-reset.dto';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { Public } from '../../../../shared/decorators/public.decorator';
+} from '../dtos/password-reset.dto';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
+import { Public } from '../../../../shared/interfaces/decorators/public.decorator';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ApiZodBody } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { ChangePasswordHandler } from '../../application/commands/change-password.handler';
 import { ForgotPasswordHandler } from '../../application/commands/forgot-password.handler';
 import { GetSessionByIdHandler } from '../../application/queries/get-session-by-id.handler';
@@ -47,6 +48,24 @@ import { RefreshAccessTokenHandler } from '../../application/commands/refresh-ac
 import { RegisterHandler } from '../../application/commands/register.handler';
 import { ResetPasswordHandler } from '../../application/commands/reset-password.handler';
 import { RevokeSessionHandler } from '../../application/commands/revoke-session.handler';
+
+/** Tên cookie state CSRF của Google OAuth. */
+const GOOGLE_STATE_COOKIE = 'google_oauth_state';
+
+/**
+ * Xoá cookie state Google OAuth.
+ *
+ * Phải dùng **cùng thuộc tính** với lúc `res.cookie()` (đặc biệt `path` và `secure`)
+ * — nếu lệch thì trình duyệt không xoá cookie cũ, để lại state đã dùng.
+ */
+function clearGoogleStateCookie(res: Response, req: Request): void {
+  res.clearCookie(GOOGLE_STATE_COOKIE, {
+    path: '/',
+    httpOnly: true,
+    secure: req.secure,
+    sameSite: 'lax',
+  });
+}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -66,7 +85,7 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Throttle({ default: { limit: 100, ttl: 3600000 } })
   @Post('register')
   @ApiOperation({ summary: 'Đăng ký tài khoản mới (F1.1)' })
   @ApiZodBody(RegisterSchema, 'Thông tin đăng ký tài khoản mới')
@@ -76,7 +95,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Throttle({ default: { limit: 100, ttl: 3600000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng nhập hệ thống (F1.2) — hỗ trợ "ghi nhớ đăng nhập"' })
@@ -92,7 +111,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Throttle({ default: { limit: 100, ttl: 3600000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cấp mới Access Token bằng Refresh Token (F1.3)' })
@@ -103,7 +122,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Throttle({ default: { limit: 500, ttl: 3600000 } })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-05: Quên mật khẩu — gửi OTP 6 số (TTL 10 phút)' })
@@ -113,7 +132,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Throttle({ default: { limit: 100, ttl: 3600000 } })
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-06: Đặt lại mật khẩu bằng OTP' })
@@ -126,7 +145,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Throttle({ default: { limit: 500, ttl: 3600000 } })
   @ApiOperation({ summary: 'AUTH-07: Đổi mật khẩu (giữ phiên hiện tại)' })
   @ApiZodBody(ChangePasswordSchema, 'Mật khẩu hiện tại + mật khẩu mới 2 lần nhập')
   async changePassword(
@@ -152,10 +171,12 @@ export class AuthController {
     const url = this.loginWithGoogleHandler.buildAuthorizationUrl(state);
     // Lưu state để callback đối chiếu (chống CSRF).
     // `secure` theo `req.secure` — tôn trọng cấu hình `trust proxy` (Cloudflare Tunnel).
-    res.cookie('google_oauth_state', state, {
+    res.cookie(GOOGLE_STATE_COOKIE, state, {
       httpOnly: true,
       secure: req.secure,
       sameSite: 'lax',
+      // `path` phải khớp với lúc `clearCookie` và rõ ràng (không phụ thuộc thư mục URI).
+      path: '/',
       maxAge: 10 * 60 * 1000,
     });
     res.redirect(url);
@@ -166,7 +187,11 @@ export class AuthController {
   @ApiOperation({ summary: 'AUTH-03: Google callback — đổi mã lấy token và đăng nhập' })
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token' })
   @ApiResponse({ status: 401, description: 'Mã ủy quyền không hợp lệ hoặc email chưa được xác minh' })
-  @ApiResponse({ status: 409, description: 'Email đã có tài khoản — cần đăng nhập bằng mật khẩu để liên kết' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Không thể liên kết — định danh Google đã bị một tài khoản khác chiếm',
+  })
   async googleCallback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
@@ -175,24 +200,39 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     if (oauthError) {
-      throw new UnauthorizedException({
-        message: `Google từ chối yêu cầu đăng nhập (${oauthError}).`,
-        error: 'VALIDATION_ERROR',
-      });
+      // Hợp đồng Phần 7 §3.4: Google từ chối yêu cầu → **401** với mã
+      // `VALIDATION_ERROR` (không phải 400 — đây là lỗi xác thực).
+      // Cookie state phải bị xoá dù lỗi (tránh tái sử dụng state cũ).
+      clearGoogleStateCookie(res, req);
+      throw new StatusError(
+        401,
+        ERROR_CODES.VALIDATION_ERROR,
+        `Google từ chối yêu cầu đăng nhập (${oauthError}).`,
+      );
     }
     const cookies = req.cookies as Record<string, unknown> | undefined;
-    const expectedState = typeof cookies?.google_oauth_state === 'string' ? cookies.google_oauth_state : '';
+    const expectedState =
+      typeof cookies?.[GOOGLE_STATE_COOKIE] === 'string'
+        ? (cookies[GOOGLE_STATE_COOKIE] as string)
+        : '';
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    const result = await this.loginWithGoogleHandler.execute(
-      code ?? '',
-      state ?? '',
-      expectedState,
-      ipAddress,
-      userAgent,
-    );
+    let result: unknown;
+    try {
+      result = await this.loginWithGoogleHandler.execute(
+        code ?? '',
+        state ?? '',
+        expectedState,
+        ipAddress,
+        userAgent,
+      );
+    } catch (err: unknown) {
+      // Xoá cookie state kể cả khi lỗi (state sai / lỗi Google / email chưa xác minh).
+      clearGoogleStateCookie(res, req);
+      throw err;
+    }
     // Xoá cookie state sau khi dùng (dùng thành công hay lỗi).
-    res.clearCookie('google_oauth_state');
+    clearGoogleStateCookie(res, req);
     res.json(result);
   }
 
@@ -213,6 +253,29 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Danh sách các phiên đăng nhập' })
   async getSessions(@CurrentUser() user: CurrentUserPayload): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }[]> {
     return this.getSessionsHandler.execute(user.userId);
+  }
+
+  /**
+   * Phiên đăng nhập **hiện tại** (tài nguyên "của chính mình" → `/me` theo hợp đồng §3.5).
+   *
+   * PHẢI khai báo **TRƯỚC** `@Get('sessions/:id')` — nếu không, NestJS sẽ match chuỗi
+   * `me` vào `:id` và trả 404 / lỗi id không hợp lệ.
+   */
+  @Get('sessions/me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Chi tiết phiên đăng nhập hiện tại (tài nguyên của chính mình)' })
+  @ApiResponse({ status: 200, description: 'Chi tiết phiên hiện tại' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy phiên hiện tại (đã thu hồi hoặc hết hạn)' })
+  async getCurrentSession(
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }> {
+    // `sessionId` do JWT mang — không nhận từ client (tránh truy cập phiên của người khác).
+    const sessionId = user.sessionId;
+    if (!sessionId) {
+      throw new NotFoundError('Không tìm thấy phiên đăng nhập hiện tại');
+    }
+    return this.getSessionByIdHandler.execute(user.userId, sessionId);
   }
 
   @Get('sessions/:id')

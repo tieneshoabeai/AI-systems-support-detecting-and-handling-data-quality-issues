@@ -5,7 +5,7 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   AUTH_USER_LOOKUP_PORT,
   PASSWORD_HASHER_PORT,
@@ -13,6 +13,7 @@ import {
   type PasswordHasherPort,
 } from '../../domain/ports/auth-session.port';
 import { RegisterInput } from '../auth.types';
+import { ConflictError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class RegisterHandler {
@@ -27,7 +28,7 @@ export class RegisterHandler {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.users.findByEmail(email);
     if (existing) {
-      throw new ConflictException('Email này đã được sử dụng bởi một tài khoản khác');
+      throw new ConflictError('Email này đã được sử dụng bởi một tài khoản khác');
     }
     const passwordHash = await this.hasher.hash(dto.password);
     // Đặc tả §3.34.1: không có endpoint công khai để tự phong admin — ép analyst.

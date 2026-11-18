@@ -10,20 +10,21 @@
  *   2. `email_verified` phải là `true` → nếu không: `VALIDATION_ERROR`.
  *   3. `google_id` đã gắn với tài khoản nào → đăng nhập tài khoản đó.
  *      - Tài khoản `blocked` → `FORBIDDEN`.
- *   4. `google_id` chưa gắn NHƯNG email đã có tài khoản → `CONFLICT`,
- *      yêu cầu đăng nhập bằng mật khẩu để liên kết. **Không** tự gắn `google_id`.
+ *   4. `google_id` chưa gắn NHƯNG email đã có tài khoản → **liên kết tự động**
+ *      (email đã được Google xác minh `email_verified = true` → đủ cơ sở tin cậy).
+ *      Gắn `google_id` vào tài khoản đó rồi đăng nhập. Mật khẩu (nếu có) giữ nguyên.
  *   5. Cả hai đều mới → tạo tài khoản (role `analyst`, không có mật khẩu).
  *   6. Tạo phiên + phát access/refresh token.
  */
 import * as crypto from 'crypto';
-import { ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_BYTES,
   isAccountLocked,
 } from '../../domain/value-objects/auth-policy.vo';
-import { computeSha256Buffer } from '../../../../shared/crypto/crypto.util';
-import { detectDeviceName } from '../../../../shared/utils/device-detector.util';
+import { computeSha256Buffer } from '../../../../shared/domain/crypto/crypto.util';
+import { detectDeviceName } from '../../../../shared/domain/utils/device-detector.util';
 import {
   AUTH_SESSION_POLICY_PORT,
   AUTH_TOKEN_ISSUER_PORT,
@@ -39,9 +40,12 @@ import {
   type GoogleProfile,
 } from '../../domain/ports/google-oauth.port';
 import type { GoogleLoginResult } from '../auth.types';
+import { ConflictError, ERROR_CODES, ForbiddenError } from '../../../../shared/domain/errors';
+import { StatusError } from '../../../../shared/application/errors';
 
 @Injectable()
 export class LoginWithGoogleHandler {
+  private readonly logger = new Logger(LoginWithGoogleHandler.name);
   constructor(
     @Inject(AUTH_USER_LOOKUP_PORT)
     private readonly users: AuthUserLookupPort,
@@ -77,29 +81,33 @@ export class LoginWithGoogleHandler {
 
     if (!user) {
       // `google_id` chưa gắn — kiểm tra email có sẵn tài khoản chưa.
-      // Nếu có → KHÔNG tự liên kết (tránh chiếm đoạt tài khoản).
+      // Nếu có → liên kết tự động: email đã được Google xác minh
+      // (`email_verified = true`) nên đủ cơ sở tin cậy để gắn `google_id`.
+      // Mật khẩu hiện có (nếu có) được giữ nguyên — người dùng vẫn đăng nhập
+      // được bằng cả mật khẩu lẫn Google.
       const existing = await this.users.findByEmail(email);
       if (existing) {
-        throw new ConflictException({
-          message:
-            'Email này đã có tài khoản. Vui lòng đăng nhập bằng mật khẩu để liên kết tài khoản Google.',
-          error: 'CONFLICT',
+        const linked = await this.users.linkGoogleId(existing.id, profile.googleId);
+        if (!linked) {
+          throw new ConflictError( 'Không thể liên kết tài khoản Google. Định danh Google này đã được gắn với một tài khoản khác.');
+        }
+        this.logger.log(
+          `[AUTH-03] Đã liên kết tự động tài khoản Google với tài khoản hiện có (email đã được xác minh).`,
+        );
+        user = linked;
+      } else {
+        user = await this.users.createWithGoogle({
+          email,
+          googleId: profile.googleId,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          avatarUrl: profile.avatarUrl ?? null,
         });
       }
-      user = await this.users.createWithGoogle({
-        email,
-        googleId: profile.googleId,
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        avatarUrl: profile.avatarUrl ?? null,
-      });
     }
 
     if (isAccountLocked(user.status)) {
-      throw new ForbiddenException({
-        message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
-        error: 'FORBIDDEN',
-      });
+      throw new ForbiddenError( 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.');
     }
 
     return this.issueSession(user, ipAddress, userAgent, rememberMe);
@@ -107,10 +115,7 @@ export class LoginWithGoogleHandler {
 
   private assertEmailVerified(profile: GoogleProfile): void {
     if (!profile.emailVerified) {
-      throw new UnauthorizedException({
-        message: 'Email của tài khoản Google chưa được xác minh. Không thể đăng nhập.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Email của tài khoản Google chưa được xác minh. Không thể đăng nhập.');
     }
   }
 

@@ -1,15 +1,12 @@
-import {
-  Injectable,
-  NotImplementedException,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createPublicKey, verify } from 'crypto';
 import {
   type GoogleOAuthPort,
   type GoogleProfile,
 } from '../../domain/ports/google-oauth.port';
+import { DependencyUnavailableError, ERROR_CODES } from '../../../../shared/domain/errors';
+import { StatusError } from '../../../../shared/application/errors';
 
 /**
  * Adapter GOOGLE_OAUTH_PORT — gọi trực tiếp endpoint của Google
@@ -76,16 +73,10 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
   async exchangeCode(code: string, state: string, expectedState: string): Promise<GoogleProfile> {
     const { clientId, clientSecret, redirectUri } = this.requireConfig();
     if (!state || state !== expectedState) {
-      throw new UnauthorizedException({
-        message: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
     }
     if (!code) {
-      throw new UnauthorizedException({
-        message: 'Thiếu mã ủy quyền từ Google.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Thiếu mã ủy quyền từ Google.');
     }
 
     const tokenRes = await this.postForm(GOOGLE_TOKEN_ENDPOINT, {
@@ -107,19 +98,13 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
     }
 
     if (!claims) {
-      throw new UnauthorizedException({
-        message: 'Không đọc được thông tin tài khoản từ Google.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Không đọc được thông tin tài khoản từ Google.');
     }
 
     const googleId = claims.sub;
     const email = claims.email;
     if (!googleId || !email) {
-      throw new UnauthorizedException({
-        message: 'Không đọc được thông tin tài khoản từ Google.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Không đọc được thông tin tài khoản từ Google.');
     }
 
     const nameParts = (claims.name ?? '').trim().split(/\s+/);
@@ -139,15 +124,28 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
 
   // ── Nội bộ ────────────────────────────────────────────────────────────
 
-  /** Đọc & kiểm tra 3 biến cấu hình — nếu thiếu thì ném `DEPENDENCY_UNAVAILABLE` (501). */
+  /**
+   * Đọc & kiểm tra 3 biến cấu hình — nếu thiếu thì ném
+   * `DEPENDENCY_UNAVAILABLE` với status **501**.
+   *
+   * Vì sao 501 mà không phải 503 (mặc định của mã)?
+   *   - **501** (Not Implemented) — tính năng có, nhưng **chưa cấu hình**
+   *     (thiếu `GOOGLE_CLIENT_ID`…). Lỗi do phía vận hành.
+   *   - **503** (Service Unavailable) — đã cấu hình, nhưng dịch vụ ngoài
+   *     đang không phản hồi. Lỗi phía hạ tầng bên ngoài.
+   *
+   * Hợp đồng API (Phần 7 §3.4) quy định mã lỗi ổn định và status tách biệt,
+   * nên cả hai trường hợp dùng **cùng mã** `DEPENDENCY_UNAVAILABLE` nhưng
+   * **khác status** → `StatusError` là lớp thích hợp.
+   */
   private requireConfig(): { clientId: string; clientSecret: string; redirectUri: string } {
     const { clientId, clientSecret, redirectUri } = this;
     if (!clientId || !clientSecret || !redirectUri) {
-      throw new NotImplementedException({
-        message:
-          'Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      });
+      throw new StatusError(
+        501,
+        ERROR_CODES.DEPENDENCY_UNAVAILABLE,
+        'Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI.',
+      );
     }
     return { clientId, clientSecret, redirectUri };
   }
@@ -164,25 +162,20 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
         body: new URLSearchParams(body).toString(),
       });
     } catch {
-      throw new ServiceUnavailableException({
-        message: 'Không thể kết nối tới dịch vụ xác thực Google.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      });
+      throw new DependencyUnavailableError(
+        'Không thể kết nối tới dịch vụ xác thực Google.',
+      );
     }
     const text = await res.text();
     if (!res.ok) {
-      throw new UnauthorizedException({
-        message: 'Google từ chối mã ủy quyền. Vui lòng thử lại.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Google từ chối mã ủy quyền. Vui lòng thử lại.');
     }
     try {
       return JSON.parse(text) as Record<string, unknown>;
     } catch {
-      throw new ServiceUnavailableException({
-        message: 'Phản hồi không hợp lệ từ dịch vụ xác thực Google.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      });
+      throw new DependencyUnavailableError(
+        'Phản hồi không hợp lệ từ dịch vụ xác thực Google.',
+      );
     }
   }
 
@@ -195,19 +188,13 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
   private async verifyIdToken(idToken: string): Promise<GoogleClaims> {
     const parts = idToken.split('.');
     if (parts.length !== 3) {
-      throw new UnauthorizedException({
-        message: 'Token Google không hợp lệ.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Token Google không hợp lệ.');
     }
     const headerB64 = parts[0];
     const payloadB64 = parts[1];
     const signatureB64 = parts[2];
     if (!headerB64 || !payloadB64 || !signatureB64) {
-      throw new UnauthorizedException({
-        message: 'Token Google không hợp lệ.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Token Google không hợp lệ.');
     }
 
     const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8')) as {
@@ -215,19 +202,13 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
       kid?: string;
     };
     if (header.alg !== 'RS256') {
-      throw new UnauthorizedException({
-        message: 'Thuật toán ký token Google không được hỗ trợ.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Thuật toán ký token Google không được hỗ trợ.');
     }
 
     const jwks = await this.fetchJwks();
     const jwk = jwks.keys.find((k) => k.kid === header.kid) ?? jwks.keys[0];
     if (!jwk?.n || !jwk.e) {
-      throw new UnauthorizedException({
-        message: 'Không tìm thấy khóa công khai của Google.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Không tìm thấy khóa công khai của Google.');
     }
 
     const publicKey = this.buildRsaPublicKey(jwk.n, jwk.e);
@@ -235,10 +216,7 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
     const signature = Buffer.from(signatureB64, 'base64url');
     const ok = verify('RSA-SHA256', signed, publicKey, signature);
     if (!ok) {
-      throw new UnauthorizedException({
-        message: 'Chữ ký token Google không hợp lệ.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Chữ ký token Google không hợp lệ.');
     }
 
     const claims = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')) as GoogleClaims & {
@@ -247,23 +225,14 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
       exp?: number;
     };
     if (claims.iss !== 'https://accounts.google.com' && claims.iss !== 'accounts.google.com') {
-      throw new UnauthorizedException({
-        message: 'Nguồn phát hành token Google không hợp lệ.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Nguồn phát hành token Google không hợp lệ.');
     }
     const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
     if (!audiences.includes(this.requireConfig().clientId)) {
-      throw new UnauthorizedException({
-        message: 'Token Google không được cấp cho ứng dụng này.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Token Google không được cấp cho ứng dụng này.');
     }
     if (typeof claims.exp === 'number' && claims.exp * 1000 < Date.now()) {
-      throw new UnauthorizedException({
-        message: 'Token Google đã hết hạn.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Token Google đã hết hạn.');
     }
     return claims;
   }
@@ -273,16 +242,14 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
     try {
       res = await fetch(GOOGLE_JWKS_ENDPOINT);
     } catch {
-      throw new ServiceUnavailableException({
-        message: 'Không thể lấy khóa công khai từ Google.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      });
+      throw new DependencyUnavailableError(
+        'Không thể lấy khóa công khai từ Google.',
+      );
     }
     if (!res.ok) {
-      throw new ServiceUnavailableException({
-        message: 'Không thể lấy khóa công khai từ Google.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      });
+      throw new DependencyUnavailableError(
+        'Không thể lấy khóa công khai từ Google.',
+      );
     }
     return (await res.json()) as { keys: Array<{ kid?: string; n?: string; e?: string }> };
   }
@@ -294,16 +261,12 @@ export class GoogleOAuthAdapter implements GoogleOAuthPort {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
     } catch {
-      throw new ServiceUnavailableException({
-        message: 'Không thể kết nối tới dịch vụ xác thực Google.',
-        error: 'DEPENDENCY_UNAVAILABLE',
-      });
+      throw new DependencyUnavailableError(
+        'Không thể kết nối tới dịch vụ xác thực Google.',
+      );
     }
     if (!res.ok) {
-      throw new UnauthorizedException({
-        message: 'Google từ chối yêu cầu lấy thông tin người dùng.',
-        error: 'VALIDATION_ERROR',
-      });
+      throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Google từ chối yêu cầu lấy thông tin người dùng.');
     }
     return (await res.json()) as GoogleClaims;
   }

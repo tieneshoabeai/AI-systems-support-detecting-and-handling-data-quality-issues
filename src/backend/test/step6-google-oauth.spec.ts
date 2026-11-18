@@ -1,11 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  ConflictException,
-  ForbiddenException,
-  NotImplementedException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import {
   AUTH_SESSION_POLICY_PORT,
   AUTH_SESSION_PORT,
   AUTH_TOKEN_ISSUER_PORT,
@@ -19,6 +13,8 @@ import {
 } from '../src/modules/auth/domain/ports/google-oauth.port';
 import { LoginWithGoogleHandler } from '../src/modules/auth/application/commands/login-with-google.handler';
 import { GoogleOAuthAdapter } from '../src/modules/auth/infrastructure/security/google-oauth.adapter';
+import { StatusError } from '../src/shared/application/errors';
+import { ConflictError, ForbiddenError } from '../src/shared/domain/errors';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -73,6 +69,7 @@ describe('Buoc 6 / Nhom B — Google OAuth 2.0 (AUTH-03)', () => {
     findByGoogleId: jest.Mock;
     findByEmail: jest.Mock;
     createWithGoogle: jest.Mock;
+    linkGoogleId: jest.Mock;
   };
   let sessions: { createSession: jest.Mock };
 
@@ -88,6 +85,7 @@ describe('Buoc 6 / Nhom B — Google OAuth 2.0 (AUTH-03)', () => {
       findByGoogleId: jest.fn().mockResolvedValue(null),
       findByEmail: jest.fn().mockResolvedValue(null),
       createWithGoogle: jest.fn().mockResolvedValue(userRecord()),
+      linkGoogleId: jest.fn().mockResolvedValue(userRecord()),
     };
     sessions = {
       createSession: jest.fn(async (d: Record<string, unknown>) => sessionRecord({ userId: d.userId as string })),
@@ -144,42 +142,55 @@ describe('Buoc 6 / Nhom B — Google OAuth 2.0 (AUTH-03)', () => {
     expect(sessions.createSession).toHaveBeenCalledTimes(1);
   });
 
-  it('email da co tai khoan nhung chua gan google -> CONFLICT, KHONG tu lien ket', async () => {
+  it('email da co tai khoan nhung chua gan google -> lien ket tu dong (email da xac minh)', async () => {
     users.findByEmail.mockResolvedValue(userRecord({ googleId: null, passwordHash: 'hashed' }));
 
-    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toBeInstanceOf(ConflictException);
+    await handler.execute('code-abc', STATE, STATE);
+    expect(users.linkGoogleId).toHaveBeenCalledWith('user-1', 'google-sub-1');
+    expect(users.createWithGoogle).not.toHaveBeenCalled();
+    expect(sessions.createSession).toHaveBeenCalled();
+  });
+
+  it('lien ket that bai (google_id da bi tai khoan khac chiem) -> CONFLICT', async () => {
+    users.findByEmail.mockResolvedValue(userRecord({ googleId: null, passwordHash: 'hashed' }));
+    users.linkGoogleId.mockResolvedValue(null);
+
+    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toBeInstanceOf(ConflictError);
     expect(users.createWithGoogle).not.toHaveBeenCalled();
     expect(sessions.createSession).not.toHaveBeenCalled();
   });
 
   // ── Luồng lỗi ──────────────────────────────────────────────────────────
 
-  it('email chua xac minh -> Unauthorized (VALIDATION_ERROR)', async () => {
+  it('email chua xac minh -> 401 VALIDATION_ERROR', async () => {
     google.exchangeCode.mockResolvedValue({ ...PROFILE, emailVerified: false });
 
-    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toBeInstanceOf(StatusError);
+    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toMatchObject({
+      status: 401,
+      code: 'VALIDATION_ERROR',
+    });
     expect(users.createWithGoogle).not.toHaveBeenCalled();
   });
 
   it('tai khoan bi blocked -> Forbidden', async () => {
     users.findByGoogleId.mockResolvedValue(userRecord({ status: 'blocked' }));
 
-    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(handler.execute('code-abc', STATE, STATE)).rejects.toBeInstanceOf(ForbiddenError);
     expect(sessions.createSession).not.toHaveBeenCalled();
   });
 
   it('state khong khop -> adapter nem Unauthorized, khong tao tai khoan', async () => {
     google.exchangeCode.mockRejectedValue(
-      new UnauthorizedException({
-        message: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
-        error: 'VALIDATION_ERROR',
-      }),
+      new StatusError(
+        401,
+        'VALIDATION_ERROR',
+        'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
+      ),
     );
 
     await expect(handler.execute('code-abc', 'state-khac', STATE)).rejects.toBeInstanceOf(
-      UnauthorizedException,
+      StatusError,
     );
     expect(users.createWithGoogle).not.toHaveBeenCalled();
   });
@@ -192,7 +203,7 @@ describe('Buoc 6 / Nhom B — Google OAuth 2.0 (AUTH-03)', () => {
     expect(google.buildAuthorizationUrl).toHaveBeenCalledWith(STATE);
   });
 
-  it('adapter: thieu credential -> NotImplementedException (501 DEPENDENCY_UNAVAILABLE)', () => {
+  it('adapter: thieu credential -> StatusError 501 (DEPENDENCY_UNAVAILABLE)', () => {
     const adapter = new GoogleOAuthAdapter({
       get: () => undefined,
     } as never);
@@ -200,13 +211,11 @@ describe('Buoc 6 / Nhom B — Google OAuth 2.0 (AUTH-03)', () => {
     expect(adapter.isConfigured()).toBe(false);
     try {
       adapter.buildAuthorizationUrl(STATE);
-      throw new Error('phai nem NotImplementedException');
+      throw new Error('phai nem StatusError 501');
     } catch (err) {
-      expect(err).toBeInstanceOf(NotImplementedException);
-      expect((err as NotImplementedException).getStatus()).toBe(501);
-      expect((err as NotImplementedException).getResponse()).toEqual(
-        expect.objectContaining({ error: 'DEPENDENCY_UNAVAILABLE' }),
-      );
+      expect(err).toBeInstanceOf(StatusError);
+      expect((err as StatusError).status).toBe(501);
+      expect((err as StatusError).code).toBe('DEPENDENCY_UNAVAILABLE');
     }
   });
 
@@ -239,7 +248,11 @@ describe('Buoc 6 / Nhom B — Google OAuth 2.0 (AUTH-03)', () => {
     } as never);
 
     await expect(adapter.exchangeCode('code', 'state-a', 'state-b')).rejects.toBeInstanceOf(
-      UnauthorizedException,
+      StatusError,
     );
+    await expect(adapter.exchangeCode('code', 'state-a', 'state-b')).rejects.toMatchObject({
+      status: 401,
+      code: 'VALIDATION_ERROR',
+    });
   });
 });

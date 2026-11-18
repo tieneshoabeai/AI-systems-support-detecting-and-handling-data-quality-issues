@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EmailSchema, PasswordSchema } from '../../../../../shared/validation/common-schemas';
+import { EmailSchema, PasswordSchema } from '../../../../shared/domain/validation/common-schemas';
 
 // AUTH-05: Quên mật khẩu — gửi OTP 6 số qua email
 export const ForgotPasswordSchema = z.object({

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { parseDurationMs } from '../../../../shared/utils/duration.util';
+import { parseDurationMs } from '../../../../shared/domain/utils/duration.util';
 import {
   AUTH_SESSION_POLICY_PORT,
   type AuthSessionPolicyPort,
