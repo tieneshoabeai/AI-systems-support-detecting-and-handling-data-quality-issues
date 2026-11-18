@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationSchema } from './infrastructure/persistence/notification.schema';
 import { NotificationsRepository } from './infrastructure/persistence/notifications.repository';
 import { NOTIFICATION_REPOSITORY_PORT } from './domain/ports/notification.repository.port';
-import { NotificationsController } from './infrastructure/http/notifications.controller';
+import { NotificationsController } from './presentation/controllers/notifications.controller';
 import { UsersModule } from '../users/users.module';
 import { CountUnreadHandler } from './application/queries/count-unread.handler';
 import { DispatchHandler } from './application/commands/dispatch.handler';

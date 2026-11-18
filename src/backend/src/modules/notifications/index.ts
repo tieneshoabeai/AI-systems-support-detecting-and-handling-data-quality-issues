@@ -9,11 +9,20 @@
 export {
   NOTIFICATION_REPOSITORY_PORT,
   type CreateNotificationRecord,
+  type Notification,
   type NotificationDispatch,
   type NotificationListQuery,
-  type NotificationRecord,
+  type NotificationPayload,
   type NotificationRepositoryPort,
 } from './domain/ports/notification.repository.port';
+
+// ── Entities (Bước 3 — Rich Domain Model) ──────────────────────
+export {
+  Notification as NotificationEntity,
+  MAX_SUMMARY_LENGTH,
+  MAX_TITLE_LENGTH,
+  type NotificationProps,
+} from './domain/entities/notification.entity';
 
 export {
   MANDATORY_NOTIFICATION_TYPES,

@@ -5,35 +5,40 @@ import { INotification } from './notification.schema';
 import {
   type CreateNotificationRecord,
   type NotificationListQuery,
-  type NotificationRecord,
   type NotificationRepositoryPort,
 } from '../../domain/ports/notification.repository.port';
-import { toNotificationPersistence, toNotificationRecord } from './notification.mapper';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import type { Notification } from '../../domain/entities/notification.entity';
+import {
+  toNotificationEntity,
+  toNotificationPersistence,
+} from './notification.mapper';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 /**
  * NOTIFICATIONS — Infrastructure adapter (driven).
  * Nơi duy nhất chạm Mongoose. Triển khai NOTIFICATION_REPOSITORY_PORT.
+ *
+ * **Bước 3 — Rich Domain Model:** trả entity `Notification`.
  */
 @Injectable()
 export class NotificationsRepository implements NotificationRepositoryPort {
   constructor(@InjectModel('Notification') private readonly model: Model<INotification>) {}
 
-  async create(doc: CreateNotificationRecord): Promise<NotificationRecord> {
+  async create(doc: CreateNotificationRecord): Promise<Notification> {
     const inst = new this.model(toNotificationPersistence(doc));
     const saved = await inst.save();
-    return toNotificationRecord(saved);
+    return toNotificationEntity(saved);
   }
 
-  async findByIdForUser(id: string, userId: string): Promise<NotificationRecord | null> {
+  async findByIdForUser(id: string, userId: string): Promise<Notification | null> {
     if (!isObjectIdHex(id) || !isObjectIdHex(userId)) return null;
     const doc = await this.model
       .findOne({ _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) })
       .exec();
-    return doc ? toNotificationRecord(doc) : null;
+    return doc ? toNotificationEntity(doc) : null;
   }
 
-  async listForUser(userId: string, opts: NotificationListQuery): Promise<NotificationRecord[]> {
+  async listForUser(userId: string, opts: NotificationListQuery): Promise<Notification[]> {
     if (!isObjectIdHex(userId)) return [];
     const filter: Record<string, unknown> = { user_id: new Types.ObjectId(userId) };
     if (opts.read === 'true') filter.read_at = { $ne: null };
@@ -51,7 +56,7 @@ export class NotificationsRepository implements NotificationRepositoryPort {
       .sort({ created_at: dir, _id: dir })
       .limit(opts.limit + 1)
       .exec();
-    return docs.map(toNotificationRecord);
+    return docs.map(toNotificationEntity);
   }
 
   async countUnread(userId: string): Promise<number> {
@@ -59,7 +64,7 @@ export class NotificationsRepository implements NotificationRepositoryPort {
     return this.model.countDocuments({ user_id: new Types.ObjectId(userId), read_at: null }).exec();
   }
 
-  async markAsRead(id: string, userId: string): Promise<NotificationRecord | null> {
+  async markAsRead(id: string, userId: string): Promise<Notification | null> {
     if (!isObjectIdHex(id) || !isObjectIdHex(userId)) return null;
     const doc = await this.model
       .findOneAndUpdate(
@@ -68,15 +73,15 @@ export class NotificationsRepository implements NotificationRepositoryPort {
         { new: true },
       )
       .exec();
-    return doc ? toNotificationRecord(doc) : null;
+    return doc ? toNotificationEntity(doc) : null;
   }
 
-  async createIfEventNotExists(doc: CreateNotificationRecord): Promise<NotificationRecord | null> {
+  async createIfEventNotExists(doc: CreateNotificationRecord): Promise<Notification | null> {
     if (!doc.sourceEventId) return this.create(doc);
     try {
       const inst = new this.model(toNotificationPersistence(doc));
       const saved = await inst.save();
-      return toNotificationRecord(saved);
+      return toNotificationEntity(saved);
     } catch (err: unknown) {
       const code = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).code : null;
       if (code === 11000) return null;
@@ -92,4 +97,3 @@ export class NotificationsRepository implements NotificationRepositoryPort {
     return c > 0;
   }
 }
-

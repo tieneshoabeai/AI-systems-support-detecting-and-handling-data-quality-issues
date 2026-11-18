@@ -5,8 +5,9 @@
  * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class UpdatePreferencesHandler {
@@ -17,7 +18,7 @@ export class UpdatePreferencesHandler {
 
   async execute(userId: string, enabled: boolean): Promise<{ notificationsEnabled: boolean }> {
     const ok = await this.users.updateNotificationPreferences(userId, enabled);
-    if (!ok) throw new NotFoundException('Không tìm thấy tài khoản người dùng');
+    if (!ok) throw new NotFoundError('Không tìm thấy tài khoản người dùng');
     return { notificationsEnabled: enabled };
   }
 }

@@ -1,20 +1,20 @@
 import { Controller, Get, Patch, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import {
   CurrentUser,
   CurrentUserPayload,
-} from '../../../../shared/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../../../shared/pipes/zod-validation.pipe';
-import { ApiZodBody, ApiZodQuery } from '../../../../shared/swagger/api-zod.decorator';
+} from '../../../../shared/interfaces/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import {
   ListNotificationsQuerySchema,
   ListNotificationsQueryDto,
-} from './dtos/list-notifications-query.dto';
+} from '../dtos/list-notifications-query.dto';
 import {
   UpdateNotificationPreferencesSchema,
   UpdateNotificationPreferencesDto,
-} from './dtos/update-preferences.dto';
+} from '../dtos/update-preferences.dto';
 import { CountUnreadHandler } from '../../application/queries/count-unread.handler';
 import { GetDetailHandler } from '../../application/queries/get-detail.handler';
 import { ListForUserHandler } from '../../application/queries/list-for-user.handler';
