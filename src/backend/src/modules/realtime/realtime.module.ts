@@ -2,12 +2,12 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { RealtimeService } from './application/realtime.service';
 import { RealtimeAuthService } from './application/realtime-auth.service';
-import { RealtimeGateway } from './infrastructure/websocket/realtime.gateway';
+import { RealtimeGateway } from './presentation/gateways/realtime.gateway';
 import { SocketIoRealtimeTransport } from './infrastructure/websocket/socket-io-realtime.transport';
 import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
-import { REALTIME_PORT } from '../../shared/ports/realtime.port';
+import { REALTIME_PORT } from '../../shared/application/ports/realtime.port';
 import { REALTIME_TRANSPORT_PORT } from './domain/ports/realtime-transport.port';
 
 /**

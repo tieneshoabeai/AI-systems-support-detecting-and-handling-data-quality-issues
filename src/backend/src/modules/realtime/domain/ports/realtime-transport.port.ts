@@ -7,11 +7,11 @@
  *
  * Dependency Rule: domain (contract) ← application (consumer) ← infrastructure (adapter).
  *
- * Lưu ý CA11: `domain/` chỉ được import `shared/` ở thư mục thuần
- * (`utils|validation|crypto`) — vì vậy envelope được import từ
- * `shared/utils/realtime-events.ts` chứ không phải `shared/ports/`.
+ * Lưu ý CA11: `domain/` chỉ được import `shared/` ở tầng thuần
+ * (`shared/domain/`) — vì vậy envelope được import từ
+ * `shared/domain/utils/realtime-events.ts` chứ không phải `shared/application/ports/`.
  */
-import type { RealtimeEnvelope } from '../../../../shared/utils/realtime-events';
+import type { RealtimeEnvelope } from '../../../../shared/domain/utils/realtime-events';
 
 export const REALTIME_TRANSPORT_PORT = Symbol('RealtimeTransportPort');
 
@@ -21,4 +21,14 @@ export interface RealtimeTransportPort {
    * @returns `true` nếu đã gửi, `false` nếu transport chưa sẵn sàng (chưa gắn driver).
    */
   emitToRoom(room: string, envelope: RealtimeEnvelope): boolean;
+
+  /**
+   * Gắn driver (Socket.IO server) vào transport.
+   *
+   * Hợp đồng dùng `unknown` vì tầng Domain không được biết tới kiểu `Server`
+   * của `socket.io` (thư viện hạ tầng). Adapter hiện thực với kiểu cụ thể
+   * hơn (`attachServer(server: Server)`) — TypeScript chấp nhận contravariance
+   * lỏng cho method, nên vẫn hiện thực được interface này.
+   */
+  attachServer(server: unknown): void;
 }

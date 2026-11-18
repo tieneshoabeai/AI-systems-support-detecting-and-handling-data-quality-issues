@@ -6,8 +6,8 @@ import {
   RealtimeRooms,
   assertNoSensitiveData,
   buildEnvelope,
-} from '../../../shared/utils/realtime-events';
-import type { RealtimePort } from '../../../shared/ports/realtime.port';
+} from '../../../shared/domain/utils/realtime-events';
+import type { RealtimePort } from '../../../shared/application/ports/realtime.port';
 import { REALTIME_TRANSPORT_PORT } from '../domain/ports/realtime-transport.port';
 import { Inject } from '@nestjs/common';
 

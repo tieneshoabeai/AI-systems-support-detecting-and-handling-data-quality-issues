@@ -4,7 +4,7 @@ import {
   RealtimeRooms,
   assertNoSensitiveData,
   buildEnvelope,
-} from '../src/shared/utils/realtime-events';
+} from '../src/shared/domain/utils/realtime-events';
 import { RealtimeService } from '../src/modules/realtime/application/realtime.service';
 
 describe('REALTIME-01: envelope + room + no-sensitive-data', () => {

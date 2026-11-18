@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
-import type { RealtimeEnvelope } from '../../../../shared/utils/realtime-events';
+import type { RealtimeEnvelope } from '../../../../shared/domain/utils/realtime-events';
 import type { RealtimeTransportPort } from '../../domain/ports/realtime-transport.port';
 
 /**

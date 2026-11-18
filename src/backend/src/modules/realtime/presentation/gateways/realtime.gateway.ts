@@ -9,13 +9,16 @@ import {
 } from '@nestjs/websockets';
 import { Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { Server, Socket } from 'socket.io';
 import { RealtimeAuthService, RealtimeClientIdentity } from '../../application/realtime-auth.service';
-import { SocketIoRealtimeTransport } from './socket-io-realtime.transport';
+import {
+  REALTIME_TRANSPORT_PORT,
+  type RealtimeTransportPort,
+} from '../../domain/ports/realtime-transport.port';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
-import { RealtimeRooms } from '../../../../shared/utils/realtime-events';
+import { RealtimeRooms } from '../../../../shared/domain/utils/realtime-events';
 
 interface JoinProjectPayload {
   projectId?: string;
@@ -51,7 +54,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
   constructor(
     private readonly auth: RealtimeAuthService,
-    private readonly transport: SocketIoRealtimeTransport,
+    @Inject(REALTIME_TRANSPORT_PORT)
+    private readonly transport: RealtimeTransportPort,
     @Inject(PROJECT_ACCESS_PORT)
     private readonly projects: ProjectAccessPort,
     @Inject(WORKSPACE_ACCESS_PORT)
