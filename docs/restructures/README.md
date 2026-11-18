@@ -27,11 +27,11 @@ python3 docs/generate_reports.py
 | File báo cáo | Nguồn Markdown |
 |---|---|
 | `01-luong-nghiep-vu-va-use-case.docx` | `3_business_workflows_v6.md` |
-| `02-thiet-ke-ports-and-adapters.docx` | `5_ports_adapters_design_v3.md` |
+| `02-thiet-ke-ports-and-adapters.docx` | `5_ports_adapters_design_v4.md` |
 | `03-ho-dong-api.docx` | `7_api_contracts_v8.md` |
 | `04-cong-nghe-ky-thuat.docx` | `00_cong_nghe_ky_thuat_kien_truc_hien_tai.md` (báo cáo hiện trạng thực thi) |
 | `05-danh-muc-tinh-nang.docx` | `2_feature_catalog_v11.md` |
-| `06-ranh-gioui-module.docx` | `4_module_boundaries_v4.md` |
+| `06-ranh-gioui-module.docx` | `4_module_boundaries_v5.md` |
 | `07-xac-thuc-va-phan-quyen.docx` | `6_security_authorization_v7.md` |
 | `08-du-lieu-va-database-schema.docx` | `8_database_schema_v7.md` |
 | `09-tich-hop-su-kien-va-worker.docx` | `9_integrations_events_workers_v4.md` |
@@ -52,8 +52,8 @@ Báo cáo kỹ thuật và công nghệ (file 04) là báo cáo **hiện trạng
 | 1 | [Định hướng, mục tiêu và quy trình](1_architecture_direction_v1.md) | **v1** | Đã thống nhất hướng kiến trúc và phạm vi; còn các câu hỏi được hoãn |
 | 2 | [Danh sách tính năng backend](2_feature_catalog_v11.md) | **v11** | **85 tính năng**. v11 cập nhật trạng thái hiện thực hoá của **11 tính năng** (Google OAuth, remember-me, `needs_info`, keyset cursor, Search/Overview/Profile/Project Owner) — mục 3.36c |
 | 3 | [Luồng nghiệp vụ và use case](3_business_workflows_v6.md) | **v6** | **66 use case**; gỡ `UC-09`/`UC-11`/`UC-18`/`UC-28`→`UC-30`/`UC-58`/`UC-59`; thêm nhóm `UC-68`→`UC-72` cho nhận xét kết quả |
-| 4 | [Ranh giới module và phân tích ảnh hưởng](4_module_boundaries_v4.md) | **v4** | **21 module** sau khi gỡ 5 module LEGACY và thêm module `feedback` — mô hình **read-only** |
-| 5 | [Thiết kế Ports and Adapters](5_ports_adapters_design_v3.md) | **v3** | Cấu trúc tầng + quy tắc chiều dependency, Rich Domain Model, port (`domain/ports` + `application/ports`), Symbol DI token, **106 command/query handler**, cursor pagination, outbox → Kafka. **v3: bỏ monorepo `packages/core`/`packages/contracts`**, bổ sung `GOOGLE_OAUTH_PORT` |
+| 4 | [Ranh giới module và phân tích ảnh hưởng](4_module_boundaries_v5.md) | **v5** | **21 module** sau khi gỡ 5 module LEGACY và thêm module `feedback` — mô hình **read-only**. **v5: ranh giới 4 tầng trong mỗi module (`domain`/`application`/`infrastructure`/`presentation`) + 4 phân tầng `shared/`** theo Clean Architecture (Phần 16) |
+| 5 | [Thiết kế Ports and Adapters](5_ports_adapters_design_v4.md) | **v4** | Cấu trúc tầng + quy tắc chiều dependency, Rich Domain Model, port (`domain/ports` + `application/ports`), Symbol DI token, **106 command/query handler**, cursor pagination, outbox → Kafka. **v4: tách `presentation/` khỏi `infrastructure/`, `shared/` chia 4 phân tầng, rule CA12–CA16 chặn CI** |
 | 6 | [Xác thực, phân quyền và bảo vệ dữ liệu](6_security_authorization_v7.md) | **v7** | Mô hình **5 vai trò**, ma trận quyền **66 use case**, **chính sách Google OAuth 2.0** (mục 3.20), **quyền sửa báo cáo `needs_info`** (mục 3.21), quyền Socket.IO, bảo mật AI cục bộ; **56 tình huống** truy cập trái phép |
 | 7 | [Thiết kế hợp đồng API](7_api_contracts_v8.md) | **v8** | Quyết định hợp đồng (response thẳng dữ liệu, camelCase, lỗi `{ error: { code, message } }`, REST URL, **cursor pagination**) và **bảng 86 route HTTP thực thi + 1 kết nối WS**; hợp đồng Google OAuth, Overview, Issue update |
 | 8 | [Thiết kế dữ liệu và database schema](8_database_schema_v7.md) | **v7** | **21 collection**; **mục 3.3b đối chiếu 21 schema Mongoose thực tế**; `user.phone`/`bio`/`google_id`/`auth_provider`, `user_session.remember_me`/`last_used_at`, sửa TTL session, trạng thái `needs_info`; **24 quy tắc S1–S24** |
@@ -64,12 +64,14 @@ Báo cáo kỹ thuật và công nghệ (file 04) là báo cáo **hiện trạng
 | 13 | [Chiến lược kiểm thử và tiêu chí nghiệm thu](13_testing_acceptance_plan_v9.md) | **v9** | **9 tầng test**; **ma trận truy xuất ngược 143 quy tắc** (135 tự động + 8 thủ công); 4 bảng mapping (**85 tính năng / 66 use case / 86 route HTTP**); **5 bộ test mới 83 ca**; **262 ca tự động đã PASS** |
 | 14 | [Kế hoạch thực hiện tái cấu trúc](14_implementation_plan_v7.md) | **v7** | Chiến lược Hybrid; **7 đợt giao hàng**; ước lượng **~189,5 ngày công**; 15 rủi ro R1–R15 |
 | 15 | [Đánh giá cuối và bàn giao backend](15_evaluation_handover_v1.md) | **v1** | Khung chờ thảo luận |
+| 16 | [Lộ trình tái cấu trúc Clean Architecture](16_clean_architecture_restructuring_v1.md) | **v1** | Ranh giới 4 tầng (`domain`/`application`/`infrastructure`/`presentation`) cho module và `shared/`; lộ trình 4 bước; rule CA12–CA16. **Bước 1 + Bước 3 (Rich Domain Model) đã hoàn thành** — 8/8 lát cắt, 546 test pass |
+| 17 | [Báo cáo rà soát API (gap analysis)](17_api_gap_analysis_v1.md) | **v1** | Đối chiếu tự động **86 route code vs 86 route hợp đồng §3.13 → khớp 100%**; 5 vấn đề phát hiện (P1–P5); **P1 (thiếu `cookie-parser` → Google Login trả 401) đã sửa** |
 
 **Phiên bản trước (giữ để đối chiếu):**
 - Phần 2: [v10](2_feature_catalog_v10.md) · [v9](2_feature_catalog_v9.md) · [v8](2_feature_catalog_v8.md) · [v7](2_feature_catalog_v7.md) · [v6](2_feature_catalog_v6.md) · [v5](2_feature_catalog_v5.md) · [v4](2_feature_catalog_v4.md) · [v3](2_feature_catalog_v3.md) · [v2](2_feature_catalog_v2.md) · [v1](2_feature_catalog_v1.md)
 - Phần 3: [v5](3_business_workflows_v5.md) · [v4](3_business_workflows_v4.md) · [v3](3_business_workflows_v3.md) · [v2](3_business_workflows_v2.md) · [v1](3_business_workflows_v1.md)
-- Phần 4: [v3](4_module_boundaries_v3.md) · [v2](4_module_boundaries_v2.md) · [v1](4_module_boundaries_v1.md)
-- Phần 5: [v2](5_ports_adapters_design_v2.md) · [v1](5_ports_adapters_design_v1.md)
+- Phần 4: [v4](4_module_boundaries_v4.md) · [v3](4_module_boundaries_v3.md) · [v2](4_module_boundaries_v2.md) · [v1](4_module_boundaries_v1.md)
+- Phần 5: [v3](5_ports_adapters_design_v3.md) · [v2](5_ports_adapters_design_v2.md) · [v1](5_ports_adapters_design_v1.md)
 - Phần 6: [v6](6_security_authorization_v6.md) · [v5](6_security_authorization_v5.md) · [v4](6_security_authorization_v4.md) · [v3](6_security_authorization_v3.md) · [v2](6_security_authorization_v2.md) · [v1](6_security_authorization_v1.md)
 - Phần 7: [v7](7_api_contracts_v7.md) · [v6](7_api_contracts_v6.md) · [v5](7_api_contracts_v5.md) · [v4](7_api_contracts_v4.md) · [v3](7_api_contracts_v3.md) · [v2](7_api_contracts_v2.md) · [v1](7_api_contracts_v1.md)
 - Phần 8: [v6](8_database_schema_v6.md) · [v5](8_database_schema_v5.md) · [v4](8_database_schema_v4.md) · [v3](8_database_schema_v3.md) · [v2](8_database_schema_v2.md) · [v1](8_database_schema_v1.md)
@@ -348,7 +350,7 @@ Tiếp theo: **phần 15 — Đánh giá cuối và bàn giao**. Các câu hỏi
 
 | # | Hạng mục | Kết quả |
 |---|---|---|
-| I1 | `5_ports_adapters_design_v3.md` | Bỏ monorepo `packages/core`/`packages/contracts`; bổ sung `GOOGLE_OAUTH_PORT`; **106 command/query handler** |
+| I1 | `5_ports_adapters_design_v4.md` | Bỏ monorepo `packages/core`/`packages/contracts`; bổ sung `GOOGLE_OAUTH_PORT`; **106 command/query handler** |
 | I2 | `README.md` + `docs/generate_reports.py` | Bảng mapping `.docx` trỏ đúng phiên bản mới nhất; metadata cover cập nhật (86 route HTTP, 143 quy tắc) |
 | I3 | `7_api_contracts_v8.md` | Bảng **86 route HTTP thực thi**; contract Google OAuth, Overview, Issue update, Member search |
 | I4 | `2_feature_catalog_v11.md` | **85 tính năng**; cập nhật trạng thái hiện thực hoá của **11 tính năng** (mục 3.36c) |
