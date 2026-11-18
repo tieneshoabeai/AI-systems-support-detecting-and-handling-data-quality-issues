@@ -1,6 +1,7 @@
-import { CaslAbilityFactory, CurrentUser } from '../src/shared/casl/casl-ability.factory';
-import { Action } from '../src/shared/casl/actions.enum';
-import { buildSubject } from '../src/shared/casl/subject.helper';
+import { CaslAbilityFactory } from '../src/shared/interfaces/casl/casl-ability.factory';
+import { Action } from '../src/shared/domain/security/action';
+import type { CurrentUser } from '../src/shared/domain/security/current-user';
+import { buildSubject } from '../src/shared/interfaces/casl/subject.helper';
 
 describe('CASL Authorization Engine (casl-ability.factory.ts)', () => {
   let factory: CaslAbilityFactory;
@@ -29,8 +30,9 @@ describe('CASL Authorization Engine (casl-ability.factory.ts)', () => {
       userId: 'user_owner',
       email: 'owner@workspace.com',
       role: 'analyst',
-      workspaceId: 'ws_123',
-      workspaceRole: 'owner',
+      workspaceIds: ['ws_123'],
+      workspaceRoles: { ws_123: 'owner' },
+      ownedWorkspaceIds: ['ws_123'],
     };
 
     it('should be able to manage workspace and all datasets inside its workspace', () => {
@@ -49,8 +51,9 @@ describe('CASL Authorization Engine (casl-ability.factory.ts)', () => {
       userId: 'user_member',
       email: 'member@workspace.com',
       role: 'analyst',
-      workspaceId: 'ws_123',
-      workspaceRole: 'member',
+      workspaceIds: ['ws_123'],
+      workspaceRoles: { ws_123: 'member' },
+      ownedWorkspaceIds: [],
     };
 
     it('should only be able to read resources in its workspace, and cannot create/update/delete/execute', () => {

@@ -8,19 +8,13 @@ import type { ManagementStore, SessionDetail, WorkspaceDetailOverview, Workspace
 import { validateCsvFile } from './upload-validation'
 import { createAdminService } from './admin.service'
 import { createDatasetService } from '../processing/dataset.service'
+import { ApiError } from '../../lib/api-error'
 import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
 
 type Member = { userId: string; role: string; email?: string; name?: string; firstName?: string; lastName?: string; joinedAt?: string }
 // Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
 // ({ items, meta: { hasMore, nextCursor } }). Đọc được cả hai để một bản frontend chạy với cả hai.
-type PageResult<T> = { items?: T[]; total?: number; meta?: { hasMore?: boolean; nextCursor?: string | null } }
-// Danh sách thành viên cũng có hai hình dạng: { members, total } và { items, meta }.
-type MembersResult = { members?: Member[]; items?: Member[] }
-const memberRows = (result: MembersResult): Member[] => {
-  const rows = result.members ?? result.items
-  if (!Array.isArray(rows)) throw new Error('Danh sách thành viên từ máy chủ không hợp lệ.')
-  return rows
-}
+type PageResult<T> = { items?: T[]; members?: T[]; total?: number; meta?: { hasMore?: boolean; nextCursor?: string | null } }
 type WorkspaceDto = { id: string; name: string; description: string; ownerId: string; members: Member[]; storageUsedBytes: number; createdAt: string; updatedAt: string; lastAccessedAt: string | null; version: number }
 type ProjectDto = { id: string; workspaceId: string; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
 type DatasetDto = { id: string; originalFileName: string; rowCount: number; columnCount: number; fileSizeBytes: number; createdAt: string; status: string }
@@ -67,6 +61,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const inFlight = new Map<string, Promise<PreviewMutationResult>>()
   let revision = 0
   let disposed = false
+  let hasProjectIndex = true
   const publish = (next: PreviewStoreState) => { if (!disposed) { state = next; listeners.forEach(fn => fn()) } }
   const request = <T>(path: string, options: Omit<ApiRequestOptions, 'path' | 'auth'> = {}) => api.request<T>({ path, auth: 'session', ...options })
   // Bản backend mới trả firstName/lastName thay vì name đã ghép sẵn.
@@ -77,15 +72,27 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     initials: memberName(m).slice(0, 2).toUpperCase(),
     ...(m.joinedAt === undefined ? {} : { joinedAt: m.joinedAt }), email: m.email ?? people.get(m.userId)?.email ?? '', role: label(m.role) })
   const email = (p: Person) => { if (!p.email) throw new Error('Máy chủ chưa cung cấp email thành viên này. Vui lòng tải lại danh sách.'); return p.email }
-  async function pages<T>(path: string): Promise<T[]> {
+  async function readProjectDataset(projectId: string, signal?: AbortSignal): Promise<DatasetSummary | null> {
+    const { dataset } = await request<{ dataset: DatasetDto | null }>(`/projects/${encodeURIComponent(projectId)}/datasets`, signal ? { signal } : {})
+    if (!dataset) return null
+    return {
+      id: dataset.id, fileName: dataset.originalFileName, format: 'CSV', rows: dataset.rowCount, columns: dataset.columnCount,
+      sizeMb: dataset.fileSizeBytes / 1048576, importedAt: dataset.createdAt,
+      status: dataset.status === 'READY' ? 'processed' : dataset.status === 'FAILED' ? 'failed' : 'processing',
+    }
+  }
+  async function pages<T>(path: string, memberList = false): Promise<T[]> {
     const items: T[] = []
     const seen = new Set<string>()
     let cursor: string | null = null
     for (let page = 1; ; page++) {
-      const params: Record<string, string | number> = cursor === null ? { page, limit: 100 } : { cursor, limit: 100 }
+      const params: Record<string, string | number> = { limit: 100 }
+      if (cursor !== null) params['cursor'] = cursor
+      else if (!memberList && (path !== '/projects' || page > 1)) params['page'] = page
       const result = await request<PageResult<T>>(path, { params })
-      if (!Array.isArray(result.items)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
-      items.push(...result.items)
+      const rows = result.items ?? (memberList ? result.members : undefined)
+      if (!Array.isArray(rows)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
+      items.push(...rows)
       // Con trỏ: chỉ dừng khi máy chủ nói hết trang.
       if (typeof result.meta?.hasMore === 'boolean') {
         if (!result.meta.hasMore) return items
@@ -95,38 +102,43 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
         cursor = next
         continue
       }
+      if (memberList) return items
       // Trang số: dừng khi đã gom đủ tổng số bản ghi.
       if (!Number.isFinite(result.total)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
       if (items.length >= (result.total as number)) return items
-      if (!result.items.length) throw new Error('Phân trang từ máy chủ không đầy đủ.')
+      if (!rows.length) throw new Error('Phân trang từ máy chủ không đầy đủ.')
     }
   }
   async function load() {
     const current = ++revision
     const rows = await pages<WorkspaceDto>('/workspaces')
+    let visibleProjects: ProjectDto[] | undefined
+    if (hasProjectIndex) {
+      try {
+        visibleProjects = await pages<ProjectDto>('/projects')
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error
+        hasProjectIndex = false
+      }
+    }
+    const projectsByWorkspace = new Map<string, ProjectDto[]>()
+    for (const project of visibleProjects ?? []) {
+      const group = projectsByWorkspace.get(project.workspaceId)
+      if (group) group.push(project)
+      else projectsByWorkspace.set(project.workspaceId, [project])
+    }
+    const workspaceById = new Map(rows.map(workspace => [workspace.id, workspace]))
+    const legacyProjects: ProjectDto[] = []
     const workspaces: Workspace[] = []
     const projects: Project[] = []
     const nextVersions = new Map<string, number>()
     for (const w of rows) {
-      const memberResult = await request<MembersResult>(`/workspaces/${w.id}/members`)
-      const members = memberRows(memberResult).map(person)
+      const members = (await pages<Member>(`/workspaces/${w.id}/members`, true)).map(person)
       members.forEach(p => people.set(p.id, p))
-      const projectRows = await pages<ProjectDto>(`/workspaces/${w.id}/projects`)
-      for (const p of projectRows) {
-        const memberResult = await request<MembersResult>(`/projects/${p.id}/members`)
-        let dataset: DatasetSummary | null = null
-        if (p.hasDataset) {
-          const { dataset: d } = await request<{ dataset: DatasetDto }>(`/projects/${p.id}/datasets`)
-          dataset = { id: d.id, fileName: d.originalFileName, format: 'CSV', rows: d.rowCount, columns: d.columnCount,
-            sizeMb: d.fileSizeBytes / 1048576, importedAt: d.createdAt, status: d.status === 'READY' ? 'processed' : d.status === 'FAILED' ? 'failed' : 'processing' }
-        }
-        const roster = memberRows(memberResult).map(person)
-        projects.push({ canManage: w.ownerId === account.id || roster.some(m => m.id === account.id && m.role === 'Owner'), canDelete: w.ownerId === account.id, canUpload: w.ownerId === account.id || roster.some(m => m.id === account.id && m.role === 'Owner'), id: p.id, code: p.id.slice(-6).toUpperCase(), name: p.name, description: p.description,
-          workspaceId: w.id, workspaceName: w.name, status: p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'processing' : 'active',
-          cover: 'blue', dataset, members: roster, owner: roster.find(m => m.role === 'Owner') ?? person({ userId: p.createdBy, role: 'owner' }),
-          createdAt: displayDate(p.createdAt), updatedAt: displayDate(p.updatedAt) })
-        nextVersions.set(p.id, p.version)
-      }
+      const projectRows = visibleProjects
+        ? projectsByWorkspace.get(w.id) ?? []
+        : await pages<ProjectDto>(`/workspaces/${w.id}/projects`)
+      if (!visibleProjects) legacyProjects.push(...projectRows)
       workspaces.push({ canManage: w.ownerId === account.id, id: w.id, name: w.name, description: w.description, status: 'active', currentUserId: account.id,
         projects: projectRows.length, datasets: projectRows.filter(p => p.hasDataset).length, members: members.length,
         storageGb: w.storageUsedBytes / 1073741824, favorite: state.workspaces.find(item => item.id === w.id)?.favorite ?? false, cover: 'blue',
@@ -135,6 +147,23 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
         owner: members.find(m => m.id === w.ownerId) ?? person({ userId: w.ownerId, role: 'owner' }), memberPreview: members,
         memberRoles: Object.fromEntries(members.map(m => [m.id, m.role])) })
       nextVersions.set(w.id, w.version)
+    }
+    for (const p of visibleProjects ?? legacyProjects) {
+      const workspace = workspaceById.get(p.workspaceId)
+      const roster = (await pages<Member>(`/projects/${p.id}/members`, true)).map(person)
+      const dataset = p.hasDataset ? await readProjectDataset(p.id) : null
+      const projectRole = roster.find(member => member.id === account.id)?.role
+      const ownsWorkspace = workspace?.ownerId === account.id
+      const canManage = ownsWorkspace || projectRole === 'Owner'
+      const canWorkOnProject = canManage || projectRole === 'Member' || account.role === 'admin'
+      projects.push({ canManage, canDelete: ownsWorkspace, canUpload: canManage,
+        canUpdateDatasetMetadata: canWorkOnProject, canComplete: canWorkOnProject,
+        id: p.id, code: p.id.slice(-6).toUpperCase(), name: p.name, description: p.description,
+        workspaceId: p.workspaceId, workspaceName: workspace?.name ?? p.workspaceId,
+        status: p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'processing' : 'active',
+        cover: 'blue', dataset, members: roster, owner: roster.find(m => m.role === 'Owner') ?? person({ userId: p.createdBy, role: 'owner' }),
+        createdAt: displayDate(p.createdAt), updatedAt: displayDate(p.updatedAt) })
+      nextVersions.set(p.id, p.version)
     }
     if (disposed || current !== revision) return
     versions.clear(); nextVersions.forEach((v, k) => versions.set(k, v))
@@ -149,7 +178,25 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   const issueTypes = { system: 'display_error', feature: 'function_error', data: 'data_error', suggestion: 'feature_feedback', other: 'other' } as const
   type NotificationDto = { id: string; title: string; summary: string | null; type: string; readAt: string | null; createdAt: string; payload?: { targetType?: string; targetId?: string } }
-  type IssueDto = { id: string; issueType: string; title: string; description: string; status: string; createdAt: string; updatedAt: string; attachments?: { id: string; filename: string; sizeBytes: number }[] }
+  type IssueDto = { id: string; issueType: string; title: string; description: string; status: string; version?: number; createdAt: string; updatedAt: string; attachments?: { id: string; filename: string; sizeBytes: number }[] }
+  const mapIssue = (issue: IssueDto): PreviewReport => {
+    const attachment = issue.attachments?.[0]
+    return {
+      id: issue.id, code: issue.id, title: issue.title, description: issue.description,
+      ...(issue.version === undefined ? {} : { version: issue.version }),
+      issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(key => issueTypes[key] === issue.issueType) ?? 'other',
+      status: issue.status === 'needs_info' ? 'needs-info'
+        : issue.status === 'new' || issue.status === 'closed' || issue.status === 'resolved' ? issue.status : 'processing',
+      createdAt: new Date(issue.createdAt).toLocaleString('vi-VN'), updatedAt: issue.updatedAt,
+      attachment: attachment ? {
+        id: attachment.id, name: attachment.filename, sizeLabel: `${Math.ceil(attachment.sizeBytes / 1024)} KB`,
+      } : null,
+    }
+  }
+  const publishIssue = (issue: IssueDto) => {
+    const detail = mapIssue(issue)
+    publish({ ...state, reports: state.reports.map(row => row.id === detail.id && (row.version ?? 0) <= (detail.version ?? 0) ? detail : row) })
+  }
   async function cursorPages<T>(path: string): Promise<T[]> {
     const items: T[] = []; let cursor: string | undefined
     const visited = new Set<string>()
@@ -163,7 +210,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   async function loadPersonal() {
     const [profile, notifications, reports, unread] = await Promise.all([
-      request<{ firstName: string; lastName: string; email: string; role: string; notificationsEnabled: boolean }>('/users/me'),
+      request<{ firstName: string; lastName: string; email: string; role: string; notificationsEnabled: boolean; phone?: string | null; bio?: string | null }>('/users/me'),
       cursorPages<NotificationDto>('/notifications'), cursorPages<IssueDto>('/issues'),
       request<{ unreadCount: number }>('/notifications/unread-count'),
     ])
@@ -171,14 +218,11 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     const enabled = profile.notificationsEnabled
     publish({ ...state,
       unreadNotificationCount: unread.unreadCount,
-      profile: { ...state.profile, name: `${profile.firstName} ${profile.lastName}`.trim(), email: profile.email, role: profile.role },
+      profile: { ...state.profile, name: `${profile.firstName} ${profile.lastName}`.trim(), email: profile.email, role: profile.role,
+        phone: profile.phone ?? '', bio: profile.bio ?? '' },
       notificationPrefs: { system: enabled, projects: enabled, quality: enabled, workspace: enabled },
       notifications: notifications.map(n => ({ id: n.id, title: n.title, context: n.summary ?? '', description: n.summary ?? '', tone: 'info', kind: 'system', unread: !n.readAt, at: n.createdAt, atFull: new Date(n.createdAt).toLocaleString('vi-VN'), projectId: n.payload?.targetType === 'project' ? n.payload.targetId ?? null : null })),
-      reports: reports.map(r => ({ id: r.id, code: r.id, title: r.title, description: r.description,
-        issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(k => issueTypes[k] === r.issueType) ?? 'other',
-        status: r.status === 'new' ? 'new' : r.status === 'closed' ? 'closed' : r.status === 'resolved' ? 'resolved' : 'processing',
-        createdAt: new Date(r.createdAt).toLocaleString('vi-VN'), updatedAt: r.updatedAt,
-        attachment: r.attachments?.[0] ? { id: r.attachments[0].id, name: r.attachments[0].filename, sizeLabel: `${Math.ceil(r.attachments[0].sizeBytes / 1024)} KB` } : null })),
+      reports: reports.map(mapIssue),
     })
   }
   const projectRole = (role: string) => {
@@ -187,18 +231,25 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     return value
   }
   async function loadSessions() {
-    const rows = await request<{ id: string; deviceName?: string | null; userAgent?: string | null; ipAddress?: string | null; createdAt?: string | null }[]>('/auth/sessions')
+    const rows = await request<{
+      id: string
+      device_name?: string | null; user_agent?: string | null; ip_address?: string | null; created_at?: string | null
+      deviceName?: string | null; userAgent?: string | null; ipAddress?: string | null; createdAt?: string | null
+    }[]>('/auth/sessions')
     if (!Array.isArray(rows) || rows.some(row => !row || typeof row.id !== 'string')) {
       throw new Error('Danh sách phiên đăng nhập từ máy chủ không hợp lệ.')
     }
     const currentId = options.readSessionId?.()
-    publish({ ...state, sessions: rows.map(row => ({
-      id: row.id, platform: row.deviceName || 'Thiết bị không xác định',
-      browser: row.userAgent || 'Không có thông tin trình duyệt', icon: 'monitor',
-      location: 'Máy chủ không cung cấp vị trí', ip: row.ipAddress || 'Không có thông tin',
-      current: row.id === currentId,
-      startedAt: row.createdAt ? new Date(row.createdAt).toLocaleString('vi-VN') : 'Không có thông tin',
-    })) })
+    publish({ ...state, sessions: rows.map(row => {
+      const createdAt = row.created_at ?? row.createdAt
+      return {
+        id: row.id, platform: (row.device_name ?? row.deviceName) || 'Thiết bị không xác định',
+        browser: (row.user_agent ?? row.userAgent) || 'Không có thông tin trình duyệt', icon: 'monitor',
+        location: 'Máy chủ không cung cấp vị trí', ip: (row.ip_address ?? row.ipAddress) || 'Không có thông tin',
+        current: row.id === currentId,
+        startedAt: createdAt ? new Date(createdAt).toLocaleString('vi-VN') : 'Không có thông tin',
+      }
+    }) })
   }
   function requireCurrentSession() {
     const id = options.readSessionId?.()
@@ -209,6 +260,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const store: ManagementStore = {
     ...(account.role.toLowerCase() === 'admin' ? { adminService: createAdminService(api) } : {}),
     datasetService: createDatasetService(api),
+    completeProject: id => mutate(`/projects/${encodeURIComponent(id)}/snapshot`, 'PUT', { expectedVersion: version(id) }),
     getWorkspaceOverview: async () => {
       const overview = await request<unknown>('/overview/workspaces')
       if (!isWorkspaceOverview(overview)) throw new Error('Tổng quan workspace từ máy chủ không hợp lệ.')
@@ -221,8 +273,26 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       }
       return overview
     },
+    refreshProject: async (projectId, signal) => {
+      const { project } = await request<{ project: ProjectDto & { workspaceName?: string | null } }>(
+        `/projects/${encodeURIComponent(projectId)}`, { signal },
+      )
+      if (project?.id !== projectId) throw new Error('Chi tiết project từ máy chủ không hợp lệ.')
+      const cached = state.projects.find(item => item.id === projectId)
+      if (!cached) return
+      const dataset = project.hasDataset ? await readProjectDataset(projectId, signal) : null
+      if (signal.aborted || disposed || (versions.get(projectId) ?? 0) > project.version) return
+      versions.set(projectId, project.version)
+      publish({ ...state, projects: state.projects.map(item => item.id === projectId ? {
+        ...item, name: project.name, description: project.description, workspaceName: project.workspaceName ?? item.workspaceName,
+        status: project.status === 'completed' ? 'completed' : project.status === 'in_progress' ? 'processing' : 'active',
+        dataset,
+        createdAt: displayDate(project.createdAt), updatedAt: displayDate(project.updatedAt),
+      } : item) })
+    },
     getSessionDetail: async sessionId => {
-      const detail = await request<Record<string, unknown>>(`/auth/sessions/${encodeURIComponent(sessionId)}`)
+      const resource = sessionId === options.readSessionId?.() ? 'me' : encodeURIComponent(sessionId)
+      const detail = await request<Record<string, unknown>>(`/auth/sessions/${resource}`)
       if (typeof detail['id'] !== 'string' || detail['id'] !== sessionId
         || typeof detail['is_revoked'] !== 'boolean' || typeof detail['remember_me'] !== 'boolean') {
         throw new Error('Chi tiết phiên từ máy chủ không hợp lệ.')
@@ -256,20 +326,13 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     },
     getIssueDetail: async id => {
       const issue = await request<IssueDto>(`/issues/${encodeURIComponent(id)}`)
-      const report: PreviewReport = {
-        id: issue.id, code: issue.id, title: issue.title, description: issue.description,
-        issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(key => issueTypes[key] === issue.issueType) ?? 'other',
-        status: issue.status === 'needs_info' ? 'needs-info'
-          : issue.status === 'new' ? 'new'
-            : issue.status === 'closed' ? 'closed'
-              : issue.status === 'resolved' ? 'resolved' : 'processing',
-        createdAt: new Date(issue.createdAt).toLocaleString('vi-VN'), updatedAt: issue.updatedAt,
-        attachment: issue.attachments?.[0] ? {
-          id: issue.attachments[0].id, name: issue.attachments[0].filename,
-          sizeLabel: `${Math.ceil(issue.attachments[0].sizeBytes / 1024)} KB`,
-        } : null,
-      }
-      publish({ ...state, reports: state.reports.map(row => row.id === id ? report : row) })
+      if (issue?.id !== id) throw new Error('Chi tiết báo cáo từ máy chủ không hợp lệ.')
+      publishIssue(issue)
+    },
+    updateIssue: async (id, input) => {
+      const updated = await request<IssueDto>(`/issues/${encodeURIComponent(id)}`, { method: 'PATCH', data: input })
+      if (updated?.id !== id) throw new Error('Máy chủ trả về báo cáo không khớp. Hãy mở lại chi tiết để kiểm tra.')
+      publishIssue(updated)
     },
     subscribe: fn => { listeners.add(fn); return () => { listeners.delete(fn) } }, getState: () => state,
     selectWorkspace: workspaceId => { if (workspaceId && !state.workspaces.some(w => w.id === workspaceId)) return; publish({ ...state, selection: { workspaceId, projectId: '' } }) },
@@ -345,8 +408,12 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     updateProfile: async edit => {
       const parts = edit.name.trim().split(/\s+/)
       if (parts.length < 2) throw new Error('Vui lòng nhập đầy đủ họ và tên.')
-      await request('/users/me', { method: 'PATCH', data: { first_name: parts.slice(0, -1).join(' '), last_name: parts.at(-1) ?? '' } satisfies ProfileBody })
-      await loadPersonal(); return saved('Đã cập nhật họ tên.')
+      const data = {
+        first_name: parts.slice(0, -1).join(' '), last_name: parts.at(-1) ?? '',
+        phone: edit.phone.trim() || null, bio: edit.bio.trim() || null,
+      } satisfies ProfileBody
+      await request('/users/me', { method: 'PATCH', data })
+      await loadPersonal(); return saved('Đã cập nhật hồ sơ cá nhân.')
     },
     loadSessions,
     changePassword: async input => {

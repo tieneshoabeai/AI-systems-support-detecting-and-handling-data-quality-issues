@@ -694,7 +694,7 @@ try {
   } else {
     fs.writeFileSync(jsonFile, JSON.stringify(sanitizedSpec, null, 2))
   }
-  execSync(`npx openapi-typescript "${jsonFile}" -o "${openapiTypesFile}"`, {
+  execSync('npx openapi-typescript "src/lib/openapi.json" -o "src/lib/openapi.ts"', {
     stdio: 'inherit',
   })
 

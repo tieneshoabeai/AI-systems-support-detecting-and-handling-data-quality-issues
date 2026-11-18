@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../domain/ports/analysis.repository.port';
-import { STORAGE_PORT, type StoragePort } from '../../../shared/ports/storage.port';
+import { STORAGE_PORT, type StoragePort } from '../../../shared/application/ports/storage.port';
 import { Readable } from 'stream';
-import { buildReportPdf } from './pdf-builder.util';
+import { buildReportPdfAsync } from './pdf-builder.util';
 
 @Injectable()
 export class ReportWorkerService implements OnModuleInit {
@@ -78,7 +78,7 @@ export class ReportWorkerService implements OnModuleInit {
         return `${idx + 1}. [${dq}] cot=${col} so_luong=${count} ty_le=${rate}`;
       });
 
-      const pdf = buildReportPdf({
+      const pdf = await buildReportPdfAsync({
         title: 'Bao cao Tong ket Chat luong Du lieu',
         sections: [
           {

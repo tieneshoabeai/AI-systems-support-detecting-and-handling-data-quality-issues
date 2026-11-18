@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AiInferencePort, InferenceRequest, InferenceResponse } from '../../application/ports/ai-inference.port';
+import { RESOURCE_GUARD_PORT, type ResourceGuardPort } from '../../application/ports/resource-guard.port';
+import { Inject } from '@nestjs/common';
 
 type Engine = 'vllm' | 'ollama';
 
@@ -15,7 +17,11 @@ export class LocalInferenceAdapter extends AiInferencePort {
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    @Inject(RESOURCE_GUARD_PORT)
+    private readonly resourceGuard: ResourceGuardPort,
+  ) {
     super();
     const raw = (config.get<string>('AI_ENGINE') ?? 'ollama').toLowerCase();
     this.engine = raw === 'vllm' ? 'vllm' : 'ollama';
@@ -26,6 +32,12 @@ export class LocalInferenceAdapter extends AiInferencePort {
   async complete(req: InferenceRequest): Promise<InferenceResponse> {
     if (!this.baseUrl) {
       throw new Error('AI_INFERENCE_BASE_URL chua duoc cau hinh');
+    }
+    // Phan 12 v8 §3.15.4: RAM Guard — fail an toan truoc khi nap model moi
+    // khi RAM khong du (tranh OOM tren VPS 15 GB).
+    const reason = this.resourceGuard.blockReason();
+    if (reason !== null) {
+      throw new Error(`AI inference bi chan boi RAM Guard: ${reason}`);
     }
     const started = Date.now();
     const controller = new AbortController();

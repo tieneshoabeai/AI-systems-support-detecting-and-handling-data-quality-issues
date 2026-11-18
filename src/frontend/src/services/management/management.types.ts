@@ -35,9 +35,12 @@ export type ManagementStore = typeof previewMockStore & {
   adminService?: import('./admin.service').AdminService
   getWorkspaceOverview?: () => Promise<WorkspaceOverview>
   getWorkspaceDetailOverview?: (workspaceId: string) => Promise<WorkspaceDetailOverview>
+  refreshProject?: (projectId: string, signal: AbortSignal) => Promise<void>
+  completeProject?: (projectId: string) => Promise<import('../../types/preview/preview.types').PreviewMutationResult>
   getSessionDetail?: (sessionId: string) => Promise<SessionDetail>
   getNotificationDetail?: (id: string) => Promise<void>
   getIssueDetail?: (id: string) => Promise<void>
+  updateIssue?: (id: string, input: import('../../types/services-type/issues').patchIssuesByIdMineRequestBody) => Promise<void>
   datasetService?: import('../processing/dataset.service').DatasetService
   changePassword?: (input: import('../../types/services-type/auth').postAuthChangePasswordRequestBody) => Promise<void>
   loadSessions?: () => Promise<void>

@@ -3,7 +3,7 @@ import {
   maskPhone,
   maskCitizenId,
   sanitizeObjectForLog,
-} from '../src/shared/crypto/mask-pii';
+} from '../src/shared/domain/crypto/mask-pii';
 
 describe('PII Masking & Data Privacy (mask-pii.ts)', () => {
   it('maskEmail should hide internal characters of email name', () => {

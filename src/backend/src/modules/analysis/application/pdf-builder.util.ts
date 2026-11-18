@@ -1,139 +1,149 @@
 /**
- * PDF nhi phan toi thieu (PDF 1.4, khong phu thuoc thu vien ngoai).
- * Du de doc bang moi trinh doc PDF, dung cho REPORT-01.
- * Hoi ve font Helvetica WinAnsi — chi ASCII + thay the dau tieng Viet.
+ * PDF builder — sinh báo cáo Tổng kết (REPORT-01).
+ *
+ * ## Vì sao dùng PDFKit + font nhúng
+ *
+ * Bản đầu tiên tự dựng PDF 1.4 thủ công với font `Helvetica` (WinAnsi).
+ * Hệ quả: **tiếng Việt mất dấu** (`Nguyễn` → `Nguyên`, `đ` → `d`), vì
+ * WinAnsi không có glyph cho dấu than/khứ/dấu nặng. Với hệ thống báo cáo
+ * chất lượng dữ liệu tiếng Việt, đó là lỗi nghiêm trọng — báo cáo tải về
+ * không đọc được nội dung.
+ *
+ * Nay dùng `pdfkit` + nhúng font `DejaVuSans` (hỗ trợ đầy đủ Unicode/Vietnamese)
+ * → giữ nguyên dấu tiếng Việt trong file PDF.
+ *
+ * ## Font
+ *
+ * Font được nhúng sẵn trong repo (`assets/fonts/`) để không phụ thuộc font
+ * hệ thống (container/CI có thể không cài `fonts-dejavu`). Nếu đọc file font
+ * thất bại → fallback về font chuẩn của PDFKit (`Helvetica`), chấp nhận mất dấu
+ * thay vì crash worker.
  */
+import PDFDocument from 'pdfkit';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
-function stripVietnamese(s: string): string {
-  return s
-    .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
-    .replace(/[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ]/g, 'A')
-    .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
-    .replace(/[ÈÉẸẺẼÊỀẾỆỂỄ]/g, 'E')
-    .replace(/[ìíịỉĩ]/g, 'i')
-    .replace(/[ÌÍỊỈĨ]/g, 'I')
-    .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
-    .replace(/[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]/g, 'O')
-    .replace(/[ùúụủũưừứựửữ]/g, 'u')
-    .replace(/[ÙÚỤỦŨƯỪỨỰỬỮ]/g, 'U')
-    .replace(/[ỳýỵỷỹ]/g, 'y')
-    .replace(/[ỲÝỴỶỸ]/g, 'Y')
-    .replace(/[đ]/g, 'd')
-    .replace(/[Đ]/g, 'D');
-}
-
-function toPdfText(s: string): string {
-  const ascii = stripVietnamese(String(s ?? ''));
-  return ascii
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)')
-    .replace(/[^\x20-\x7E]/g, '?')
-    .slice(0, 1000);
-}
+/** Thư mục chứa font nhúng. */
+const FONT_DIR = path.join(__dirname, '..', 'assets', 'fonts');
+const FONT_REGULAR = path.join(FONT_DIR, 'DejaVuSans.ttf');
+const FONT_BOLD = path.join(FONT_DIR, 'DejaVuSans-Bold.ttf');
+/** Font hệ thống — dự phòng khi bản build không kèm assets. */
+const SYSTEM_FONT_DIR = '/usr/share/fonts/truetype/dejavu';
 
 export interface PdfSection {
   heading: string;
   lines: string[];
 }
 
-export function buildReportPdf(opts: { title: string; sections: PdfSection[] }): Buffer {
-  const W = 595; // A4 width pt
-  const H = 842; // A4 height pt
-  const MARGIN = 48;
-  const TITLE_SIZE = 16;
-  const HEAD_SIZE = 12;
-  const BODY_SIZE = 9;
-  const LEAD = 13;
+export interface BuildReportPdfOptions {
+  title: string;
+  sections: PdfSection[];
+  /** Ngày sinh báo cáo (mặc định: hiện tại). */
+  generatedAt?: Date;
+  /** Chân trang (mặc định: câu thông báo bất biến dữ liệu). */
+  footer?: string;
+}
 
-  const pages: string[][] = [];
-  let cur: string[] = [];
-  let y = H - MARGIN;
+/** Cỡ chữ (pt). */
+const FONT_SIZE = { title: 16, heading: 12, body: 9 } as const;
+/** Lề trang (pt). */
+const MARGIN = 48;
+/** Chiều rộng nội dung (pt) — A4 595pt trừ 2 lề. */
+const CONTENT_WIDTH = 595 - MARGIN * 2;
 
-  const push = (text: string, size: number, opts2?: { bold?: boolean; gapAfter?: number }) => {
-    const need = (opts2?.gapAfter ?? 0) + LEAD;
-    if (y - need < MARGIN) {
-      pages.push(cur);
-      cur = [];
-      y = H - MARGIN;
+/**
+ * Nạp font TrueType có hỗ trợ tiếng Việt.
+ *
+ * Trả `false` nếu không đọc được (thiếu file font / bản build không kèm assets)
+ * → caller fallback về font chuẩn của PDFKit.
+ */
+function loadVietnameseFont(doc: PDFKit.PDFDocument, bold: boolean): boolean {
+  const name = bold ? 'DejaVu-Bold' : 'DejaVu';
+  const candidates = [
+    bold ? FONT_BOLD : FONT_REGULAR,
+    path.join(SYSTEM_FONT_DIR, bold ? 'DejaVuSans-Bold.ttf' : 'DejaVuSans.ttf'),
+  ];
+  for (const file of candidates) {
+    if (!existsSync(file)) continue;
+    try {
+      doc.registerFont(name, file);
+      return true;
+    } catch {
+      /* thử file tiếp theo */
     }
-    const x = MARGIN;
-    const op = opts2?.bold ? 'BT /F2' : 'BT /F1';
-    cur.push(`${op} ${size} Tf ${x} ${y.toFixed(1)} Td (${toPdfText(text)}) Tj ET`);
-    y -= LEAD + (opts2?.gapAfter ?? 0);
-  };
+  }
+  return false;
+}
 
-  push(opts.title, TITLE_SIZE, { bold: true, gapAfter: 6 });
-  push(`Ngay sinh: ${new Date().toISOString()}`, BODY_SIZE, { gapAfter: 8 });
+/** Bỏ ký tự điều khiển mà PDF không chấp nhận (giữ nguyên dấu tiếng Việt). */
+function sanitize(text: string): string {
+  return String(text ?? '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .trim();
+}
+
+/**
+ * Sinh buffer PDF (bất đồng bộ — PDFKit phát sự kiện `end` bất đồng bộ).
+ *
+ * - Giữ nguyên dấu tiếng Việt (font Unicode nhúng sẵn).
+ * - Tự động ngắt dòng theo bề rộng trang + phân trang tự động.
+ */
+export async function buildReportPdfAsync(opts: BuildReportPdfOptions): Promise<Buffer> {
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+  });
+
+  const chunks: Buffer[] = [];
+  doc.on('data', (c: Buffer) => chunks.push(c));
+  const done = new Promise<Buffer>((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+  });
+
+  const hasUnicode = loadVietnameseFont(doc, false);
+  const hasUnicodeBold = hasUnicode && loadVietnameseFont(doc, true);
+  const regular = hasUnicode ? 'DejaVu' : 'Helvetica';
+  const bold = hasUnicodeBold ? 'DejaVu-Bold' : 'Helvetica-Bold';
+
+  doc.font(regular);
+  doc.fontSize(FONT_SIZE.title).font(bold).text(sanitize(opts.title), { align: 'left' });
+  doc.moveDown(0.3);
+  doc
+    .font(regular)
+    .fontSize(FONT_SIZE.body)
+    .fillColor('#555555')
+    .text(`Ngày sinh: ${(opts.generatedAt ?? new Date()).toISOString()}`);
+  doc.fillColor('#000000');
+  doc.moveDown(0.8);
+
   for (const sec of opts.sections) {
-    push(sec.heading, HEAD_SIZE, { bold: true, gapAfter: 2 });
-    if (sec.lines.length === 0) push('(khong co du lieu)', BODY_SIZE);
-    for (const ln of sec.lines) {
-      // cat dong dai thanh nhieu dong PDF
-      let rest = ln;
-      while (rest.length > 110) {
-        push(rest.slice(0, 110), BODY_SIZE);
-        rest = rest.slice(110);
-      }
-      push(rest, BODY_SIZE);
+    doc.font(bold).fontSize(FONT_SIZE.heading).text(sanitize(sec.heading));
+    doc.moveDown(0.2);
+    doc.font(regular).fontSize(FONT_SIZE.body);
+    const lines = sec.lines.length > 0 ? sec.lines : ['(không có dữ liệu)'];
+    for (const ln of lines) {
+      // `width` của PDFKit tự ngắt dòng theo bề rộng khả dụng.
+      doc.text(sanitize(ln), { width: CONTENT_WIDTH, align: 'left' });
     }
-    y -= 8;
-    if (y < MARGIN + LEAD) {
-      pages.push(cur);
-      cur = [];
-      y = H - MARGIN;
-    }
-  }
-  push('He thong chi phat hien va bao cao - khong tu sua du lieu tai nguon.', BODY_SIZE, { gapAfter: 0 });
-  pages.push(cur);
-
-  const objects: string[] = [];
-  // 1: Catalog, 2: Pages, fonts 3 (regular) 4 (bold)
-  const pageCount = pages.length;
-  const pageObjNums: number[] = [];
-  let nextObj = 5;
-  const contentObjNums: number[] = [];
-  for (let i = 0; i < pageCount; i++) {
-    pageObjNums.push(nextObj++);
-    contentObjNums.push(nextObj++);
-  }
-  const kids = pageObjNums.map((n) => `${n} 0 R`).join(' ');
-
-  objects[1] = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
-  objects[2] = `2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pageCount} >>\nendobj\n`;
-  objects[3] = `3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`;
-  objects[4] = `4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`;
-
-  for (let i = 0; i < pageCount; i++) {
-    const content = pages[i].join('\n');
-    const len = Buffer.byteLength(content, 'utf-8');
-    objects[contentObjNums[i]] =
-      `${contentObjNums[i]} 0 obj\n<< /Length ${len} >>\nstream\n${content}\nendstream\nendobj\n`;
-    objects[pageObjNums[i]] =
-      `${pageObjNums[i]} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] ` +
-      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjNums[i]} 0 R >>\nendobj\n`;
+    doc.moveDown(0.6);
   }
 
-  const header = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
-  let out = header;
-  const offsets: number[] = [];
-  const maxObj = Math.max(...pageObjNums, ...contentObjNums, 4);
-  for (let n = 1; n <= maxObj; n++) {
-    if (!objects[n]) continue;
-    offsets[n] = Buffer.byteLength(out, 'utf-8');
-    out += objects[n];
-  }
-  const xrefPos = Buffer.byteLength(out, 'utf-8');
-  const size = maxObj + 1;
-  out += `xref\n0 ${size}\n`;
-  out += `0000000000 65535 f \n`;
-  for (let n = 1; n <= maxObj; n++) {
-    if (!objects[n]) {
-      out += `0000000000 00000 f \n`;
-      continue;
-    }
-    out += `${String(offsets[n]).padStart(10, '0')} 00000 n \n`;
-  }
-  out += `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
-  return Buffer.from(out, 'utf-8');
+  doc.moveDown(0.4);
+  doc
+    .font(regular)
+    .fontSize(FONT_SIZE.body)
+    .fillColor('#555555')
+    .text(
+      sanitize(
+        opts.footer ??
+          'Hệ thống chỉ phát hiện và báo cáo — không tự sửa dữ liệu tại nguồn.',
+      ),
+      { width: CONTENT_WIDTH },
+    );
+
+  doc.end();
+  return done;
 }

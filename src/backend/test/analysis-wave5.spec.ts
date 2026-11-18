@@ -120,14 +120,14 @@ describe('Wave5 ANALYSIS-04/06/07: mo ta / can bang / thoi gian', () => {
 
 describe('Wave5 I13: API khong chua ma sinh PDF', () => {
   it('report.controller khong import pdfkit/puppeteer', () => {
-    const p = path.resolve(__dirname, '../src/modules/analysis/infrastructure/http/report.controller.ts');
+    const p = path.resolve(__dirname, '../src/modules/analysis/presentation/controllers/report.controller.ts');
     const src = fs.readFileSync(p, 'utf8').toLowerCase();
     expect(src).not.toMatch(/pdfkit|puppeteer|pdf-lib|html-pdf/);
   });
   it('report sinh file o worker service, khong o controller', () => {
     const worker = fs.readFileSync(path.resolve(__dirname, '../src/modules/analysis/application/report-worker.service.ts'), 'utf8');
     expect(worker).toMatch(/uploadStream/);
-    const ctrl = fs.readFileSync(path.resolve(__dirname, '../src/modules/analysis/infrastructure/http/report.controller.ts'), 'utf8');
+    const ctrl = fs.readFileSync(path.resolve(__dirname, '../src/modules/analysis/presentation/controllers/report.controller.ts'), 'utf8');
     expect(ctrl).not.toMatch(/uploadStream/);
   });
 });

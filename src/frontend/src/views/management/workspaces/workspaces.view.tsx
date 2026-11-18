@@ -1,5 +1,5 @@
 import { Button, Input, Select, Table } from '../../../components/ui/controls'
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import styles from './workspaces.module.css'
 import type { PreviewMenuOrigin, Project, ProjectStatus, Workspace, WorkspaceOwnershipFilter, WorkspaceRoleFilter, WorkspaceSort } from '../../../types'
 import {
@@ -13,6 +13,8 @@ import { CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBad
 import { ResourceAvatarPicker } from '../../preview/components/resource-avatar'
 import { WorkspaceCreateDialog } from './sections/workspace-create-dialog'
 import { usePreviewSession } from '../../preview/preview-session-context'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import type { WorkspaceDetailOverview } from '../../../services/management/management.types'
 import { projectMenu, workspaceMenu } from '../../preview/preview-menu'
 import { previewCardProps, stopCardBubble } from '../../preview/preview-card'
 
@@ -96,14 +98,36 @@ export function WorkspaceCard({ workspace, selected, view }: {
 // đã bỏ thanh tìm kiếm chung của mọi trang).
 function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
   const session = usePreviewSession()
+  const store = useManagementStore()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<'all' | ProjectStatus>('all')
   const [sort, setSort] = useState<DetailSort>('recent')
   const [page, setPage] = useState(1)
+  const [serverOverview, setServerOverview] = useState<WorkspaceDetailOverview | null>(null)
   const perPage = 10
 
+  useEffect(() => {
+    if (session.state.source !== 'api' || !store.getWorkspaceDetailOverview) {
+      setServerOverview(null)
+      return
+    }
+    let active = true
+    void store.getWorkspaceDetailOverview(workspace.id).then(overview => {
+      if (active) setServerOverview(overview)
+    }).catch(() => {
+      if (active) setServerOverview(null)
+    })
+    return () => { active = false }
+  }, [session.state.source, store, workspace.id])
+
   const buckets = projectStatusBuckets(session.state, workspace.id)
-  const monthly = monthlyProgressFor(workspace.id, buckets.total, session.state.source === 'api' ? session.state.projects : undefined)
+  const liveBuckets = serverOverview ? {
+    total: serverOverview.projectCount,
+    unprocessed: serverOverview.notStartedCount,
+    processing: serverOverview.inProgressCount,
+    completed: serverOverview.completedCount,
+  } : buckets
+  const monthly = monthlyProgressFor(workspace.id, liveBuckets.total, session.state.source === 'api' ? session.state.projects : undefined)
   const owned = projectsOf(session.state, workspace.id)
 
   const filtered = useMemo(() => {
@@ -121,10 +145,10 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
   const visible = filtered.slice((safePage - 1) * perPage, safePage * perPage)
 
   const stats = [
-    { id: 'wsd-total', label: 'Tổng Project', value: String(buckets.total), delta: '', tone: 'brand' as const, icon: 'projects' },
-    { id: 'wsd-unproc', label: 'Chưa xử lý', value: String(buckets.unprocessed), delta: '', tone: 'orange' as const, icon: 'clock' },
-    { id: 'wsd-proc', label: 'Đang xử lý', value: String(buckets.processing), delta: '', tone: 'cyan' as const, icon: 'processing' },
-    { id: 'wsd-done', label: 'Đã hoàn thành', value: String(buckets.completed), delta: '', tone: 'green' as const, icon: 'check-circle' },
+    { id: 'wsd-total', label: 'Tổng Project', value: String(liveBuckets.total), delta: '', tone: 'brand' as const, icon: 'projects' },
+    { id: 'wsd-unproc', label: 'Chưa xử lý', value: String(liveBuckets.unprocessed), delta: '', tone: 'orange' as const, icon: 'clock' },
+    { id: 'wsd-proc', label: 'Đang xử lý', value: String(liveBuckets.processing), delta: '', tone: 'cyan' as const, icon: 'processing' },
+    { id: 'wsd-done', label: 'Đã hoàn thành', value: String(liveBuckets.completed), delta: '', tone: 'green' as const, icon: 'check-circle' },
   ]
 
   const openProjectMenu = (project: Project, origin: PreviewMenuOrigin) =>
@@ -166,10 +190,10 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
     <div className="detail-charts">
       <Panel title="Tiến độ Project theo thời gian"><ProgressBar data={monthly} /></Panel>
       <Panel title="Phân bố trạng thái Project">
-        <StatusDonut total={buckets.total} rows={[
-          { label: 'Chưa xử lý', value: buckets.unprocessed },
-          { label: 'Đang xử lý', value: buckets.processing },
-          { label: 'Đã hoàn thành', value: buckets.completed },
+        <StatusDonut total={liveBuckets.total} rows={[
+          { label: 'Chưa xử lý', value: liveBuckets.unprocessed },
+          { label: 'Đang xử lý', value: liveBuckets.processing },
+          { label: 'Đã hoàn thành', value: liveBuckets.completed },
         ]} />
       </Panel>
     </div>

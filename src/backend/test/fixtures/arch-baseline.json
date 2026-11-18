@@ -1,0 +1,9 @@
+{
+  "_comment": "Baseline nợ kỹ thuật Clean Architecture. Mỗi vi phạm đã biết được liệt kê để test không báo động. Vi phạm MỚI (không có trong file này) sẽ FAIL CI. Cập nhật file bằng: pnpm run arch:baseline",
+  "CA3": [],
+  "CA5": [],
+  "CA6": [],
+  "CA7": [],
+  "CA8": [],
+  "CA11": []
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Input, Select } from '../../../../components/ui/controls'
+import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
 import type { ColumnStats, DatasetColumn, RecordPage, RecordQuery } from '../../../../services/processing/dataset.service'
 import type { Project } from '../../../../types/preview/preview.types'
@@ -21,10 +22,12 @@ const cell = (value: unknown): string => {
 
 export function LiveDatasetPanel({ project, overview = false }: { project: Project; overview?: boolean }) {
   const service = useManagementStore().datasetService
+  const store = useManagementStore()
   const dataset = project.dataset
   const id = dataset?.id
   const [columns, setColumns] = useState<DatasetColumn[]>([])
   const [page, setPage] = useState<RecordPage | null>(null)
+  const [detail, setDetail] = useState<{ name: string; rowCount: number; columnCount: number } | null>(null)
   const [query, setQuery] = useState<RecordQuery>({ limit: 50 })
   const [history, setHistory] = useState<RecordQuery[]>([])
   const [search, setSearch] = useState('')
@@ -32,12 +35,12 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
   const [sort, setSort] = useState('')
   const [filter, setFilter] = useState<FilterOperator | ''>('')
   const [filterValue, setFilterValue] = useState('')
-  const [renamed, setRenamed] = useState('')
   const [stats, setStats] = useState<ColumnStats | null>(null)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (!id || !service) return
@@ -45,9 +48,10 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
     void Promise.all([
       service.schema(id, controller.signal),
       overview ? Promise.resolve(null) : service.records(id, query, controller.signal),
-    ]).then(([schema, rows]) => {
+      overview ? service.detail(id, controller.signal) : Promise.resolve(null),
+    ]).then(([schema, rows, datasetDetail]) => {
       if (controller.signal.aborted) return
-      setColumns(schema); setPage(rows); setError(''); setLoading(false)
+      setColumns(schema); setPage(rows); setDetail(datasetDetail); setError(''); setLoading(false)
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted) { setError(message(cause)); setLoading(false) }
     })
@@ -55,7 +59,8 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
   }, [id, service, query, overview, attempt])
   if (!dataset) return <p>Project chưa có tập dữ liệu. Hãy tải CSV lên trước.</p>
   if (!service || !id) return <p>Dịch vụ dữ liệu chưa sẵn sàng.</p>
-  const selectedColumn = column || columns[0]?.key || ''
+  const activeColumn = columns.find(item => item.key === column) ?? columns[0]
+  const selectedColumn = activeColumn?.key ?? ''
   const action = async (operation: () => Promise<void>) => {
     if (busy) return
     setBusy(true); setActionError('')
@@ -70,11 +75,26 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   return <section className="project-module-review" aria-label={overview ? 'Tổng quan tập dữ liệu' : 'Bản ghi dữ liệu'}>
-    <p><strong>{dataset.fileName}</strong> · {dataset.rows.toLocaleString('vi-VN')} dòng · {dataset.columns} cột</p>
+    <p><strong>{detail?.name ?? dataset.fileName}</strong> · {(detail?.rowCount ?? dataset.rows).toLocaleString('vi-VN')} dòng · {detail?.columnCount ?? dataset.columns} cột</p>
     <div className="form-actions">
       <Button disabled={busy} onClick={() => { void action(download) }}>Tải CSV gốc</Button>
       <Button disabled={loading || busy} onClick={reload}>Tải lại</Button>
+      {project.canManage && <Button disabled={busy} onClick={() => setConfirmDelete(true)}>Xóa dataset</Button>}
     </div>
+    <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} busy={busy} aria-labelledby="delete-dataset-title">
+      <h2 id="delete-dataset-title">Xóa dataset?</h2>
+      <p>Dataset sẽ bị xóa mềm khỏi Project. Dữ liệu không thể dùng trong Data View sau thao tác này.</p>
+      <div className="form-actions">
+        <Button type="button" className="button-secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>Hủy</Button>
+        <Button type="button" className="button-primary" disabled={busy} onClick={() => {
+          void action(async () => {
+            await service.delete(id)
+            await store.refreshProject?.(project.id, new AbortController().signal)
+            setConfirmDelete(false)
+          })
+        }}>Xác nhận xóa</Button>
+      </div>
+    </Dialog>
     {loading && <p role="status">Đang tải dữ liệu từ máy chủ.</p>}
     {error && <p role="alert">{error}</p>}
     {actionError && <p role="alert">{actionError}</p>}
@@ -101,7 +121,7 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
       setQuery({ limit: 50, ...(search && selectedColumn ? { search: { columns: [selectedColumn], value: search } } : {}),
         filters, ...(sort && selectedColumn ? { sort: [{ column: selectedColumn, order: sort === 'desc' ? 'desc' : 'asc' }] } : {}) })
     }}>
-      <label>Cột <Select value={selectedColumn} onChange={event => { setColumn(event.target.value); setStats(null); setRenamed('') }}>
+      <label>Cột <Select value={selectedColumn} disabled={busy} onChange={event => { setColumn(event.target.value); setStats(null) }}>
         {columns.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
       </Select></label>
       <label>Tìm kiếm <Input value={search} maxLength={200} onChange={event => setSearch(event.target.value)} /></label>
@@ -118,7 +138,7 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
       </label>}
       <Button type="submit" disabled={loading || !selectedColumn}>Áp dụng</Button>
     </form>}
-    {overview ? <dl>{columns.map(c => <div key={c.key}><dt>{c.name}</dt><dd>{c.dataType}</dd></div>)}</dl>
+    {overview ? <dl>{columns.map(c => <div key={c.key}><dt>{c.name}</dt><dd>{c.dataType}{c.isPii && ' · PII'}</dd></div>)}</dl>
       : page && !loading && !error && <>
         <div className="table-scroll"><table className="preview-table"><thead><tr><th>Dòng</th>{columns.map(c => <th key={c.key}>{c.name}</th>)}</tr></thead>
           <tbody>{page.items.map(row => <tr key={row.rowIndex}><td>{row.rowIndex}</td>{columns.map(c => <td key={c.key}>{cell(row.props[c.key])}</td>)}</tr>)}</tbody>
@@ -151,16 +171,13 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
         {stats.max !== undefined && <div><dt>Lớn nhất</dt><dd>{stats.max}</dd></div>}
         {stats.average !== undefined && <div><dt>Trung bình</dt><dd>{stats.average}</dd></div>}
       </dl>}
-      {project.canManage && <form onSubmit={event => {
-        event.preventDefault(); void action(async () => {
-          await service.renameColumns(id, { columns: [{ key: selectedColumn, name: renamed.trim() }] })
-          setRenamed(''); reload()
+      {activeColumn && <p>{activeColumn.isPii ? 'Cột được đánh dấu là PII.' : 'Cột chưa được đánh dấu là PII.'}</p>}
+      {project.canUpdateDatasetMetadata && activeColumn && <Button disabled={busy || loading || Boolean(error)} onClick={() => {
+        void action(async () => {
+          await service.updateColumnPii(id, activeColumn.key, !activeColumn.isPii)
+          reload()
         })
-      }}>
-        <label>Tên hiển thị mới <Input value={renamed} maxLength={120} onChange={event => setRenamed(event.target.value)} /></label>
-        <Button type="submit" disabled={busy || !renamed.trim()}>Đổi tên cột</Button>
-        <Button type="button" disabled={busy} onClick={() => { void action(async () => { await service.resetColumns(id); reload() }) }}>Khôi phục tên cột gốc</Button>
-      </form>}
+      }}>{activeColumn.isPii ? 'Bỏ đánh dấu PII' : 'Đánh dấu là PII'}</Button>}
     </>}
   </section>
 }

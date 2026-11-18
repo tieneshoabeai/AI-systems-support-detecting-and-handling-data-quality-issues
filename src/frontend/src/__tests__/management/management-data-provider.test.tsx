@@ -44,9 +44,10 @@ function tree(snapshot: SessionSnapshot = authenticated) {
   return <AuthContext.Provider value={value}><ManagementDataProvider><Probe /></ManagementDataProvider></AuthContext.Provider>
 }
 const response = (r: ApiRequestOptions): Promise<unknown> => Promise.resolve().then(() => {
-  if (r.path === '/workspaces') return { items: [], total: 0 }
+  if (r.path === '/workspaces' || r.path === '/projects') return { items: [], total: 0 }
   if (r.path === '/users/me') return { firstName: 'Test', lastName: 'User', email: 'user@example.test', role: 'analyst', notificationsEnabled: true }
   if (r.path === '/notifications' || r.path === '/issues') return { items: [], meta: { hasMore: false, nextCursor: null } }
+  if (r.path === '/notifications/unread-count') return { unreadCount: 0 }
   throw new Error(`Unexpected request: ${r.path}`)
 })
 beforeEach(() => {
@@ -63,7 +64,7 @@ it('waits for API data and exposes the real store without fixture records', asyn
   expect(screen.getByRole('status').textContent).toContain('Đang tải')
   expect(screen.queryByTestId('source')).toBeNull()
   await waitFor(() => expect(screen.getByTestId('source').textContent).toBe('api:0'))
-  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/workspaces', '/users/me', '/notifications', '/issues'])
+  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/workspaces', '/projects', '/users/me', '/notifications', '/issues', '/notifications/unread-count'])
 })
 
 it('shows server errors without fixtures and retries only on user request', async () => {

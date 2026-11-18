@@ -8,9 +8,44 @@ import { ProjectUploadDialog } from '../../views/preview/components/project-data
 import { WorkspaceEditDialog } from '../../views/preview/components/workspace-detail-dialogs'
 import { ProjectWizard } from '../../components/project/create/project-wizard'
 import { WorkspaceCreateDialog } from '../../views/management/workspaces/sections/workspace-create-dialog'
+import { ReportCenter } from '../../components/report/center/report-center'
+import { createManagementStore } from '../../services/management/management.store'
+import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
 import { within } from '@testing-library/react'
 
 afterEach(cleanup)
+it('submits the report edit from the detail UI and renders the server response', async () => {
+  const issue = { id: 'i1', title: 'Issue to edit', description: 'Initial', issueType: 'data_error', status: 'needs_info',
+    version: 2, updatedAt: '2026-11-18', createdAt: '2026-11-18' }
+  const request = vi.fn(async (options: ApiRequestOptions) => {
+    switch (options.path) {
+      case '/workspaces':
+      case '/projects': return { items: [], total: 0 }
+      case '/users/me': return { firstName: 'Test', lastName: 'User', notificationsEnabled: true }
+      case '/notifications': return { items: [], meta: { hasMore: false } }
+      case '/notifications/unread-count': return { unreadCount: 0 }
+      case '/issues': return { items: [issue], meta: { hasMore: false } }
+      case '/issues/i1': return options.method === 'PATCH'
+        ? { ...issue, description: 'More information', status: 'in_progress', version: 3 } : issue
+      default: throw new Error(`Unexpected request: ${options.path}`)
+    }
+  })
+  const { store, load } = createManagementStore({ request } as ApiClient, { id: 'u1', role: 'analyst', name: 'Test User', initials: 'TU' })
+  await load()
+  render(<ManagementStoreContext.Provider value={store}><PreviewSessionProvider routeIds={{}}>
+    <ReportCenter />
+  </PreviewSessionProvider></ManagementStoreContext.Provider>)
+  fireEvent.click(screen.getByRole('button', { name: 'Xem các báo cáo của tôi' }))
+  fireEvent.click(screen.getByRole('button', { name: /Issue to edit/ }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Bổ sung báo cáo' }))
+  fireEvent.change(screen.getByLabelText('Mô tả bổ sung'), { target: { value: 'More information' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi bổ sung' }))
+
+  expect(await screen.findByText('More information')).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Bổ sung báo cáo' })).toBeNull()
+  expect(request).toHaveBeenLastCalledWith({ path: '/issues/i1', method: 'PATCH', auth: 'session',
+    data: { title: 'Issue to edit', description: 'More information', expectedVersion: 2 } })
+})
 it('keeps an upload open on failure, prevents a second request, closes only after acknowledgment', async () => {
   let accept!: () => void
   const uploadDataset = vi.fn().mockRejectedValueOnce(new Error('Server unavailable')).mockImplementationOnce(() => new Promise(resolve => { accept = () => resolve({ persisted: true, message: 'Đã tải CSV', undo: () => {} }) }))

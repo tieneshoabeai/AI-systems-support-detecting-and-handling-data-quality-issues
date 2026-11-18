@@ -39,6 +39,7 @@ export type getAuthGoogleStartResponse501 = NonNullable<getAuthGoogleStartRespon
 export type getAuthGoogleCallbackRequest = paths["/api/v1/auth/google/callback"]["get"]
 export type getAuthGoogleCallbackResponses = getAuthGoogleCallbackRequest["responses"]
 export type getAuthGoogleCallbackResponse200 = NonNullable<getAuthGoogleCallbackResponses["200"]>
+export type getAuthGoogleCallbackResponse302 = NonNullable<getAuthGoogleCallbackResponses["302"]>
 export type getAuthGoogleCallbackResponse401 = NonNullable<getAuthGoogleCallbackResponses["401"]>
 export type getAuthGoogleCallbackResponse409 = NonNullable<getAuthGoogleCallbackResponses["409"]>
 
@@ -49,6 +50,11 @@ export type postAuthLogoutResponse200 = NonNullable<postAuthLogoutResponses["200
 export type getAuthSessionsRequest = paths["/api/v1/auth/sessions"]["get"]
 export type getAuthSessionsResponses = getAuthSessionsRequest["responses"]
 export type getAuthSessionsResponse200 = NonNullable<getAuthSessionsResponses["200"]>
+
+export type getAuthCurrentSessionRequest = paths["/api/v1/auth/sessions/me"]["get"]
+export type getAuthCurrentSessionResponses = getAuthCurrentSessionRequest["responses"]
+export type getAuthCurrentSessionResponse200 = NonNullable<getAuthCurrentSessionResponses["200"]>
+export type getAuthCurrentSessionResponse404 = NonNullable<getAuthCurrentSessionResponses["404"]>
 
 export type getAuthByIdRequest = paths["/api/v1/auth/sessions/{id}"]["get"]
 export type getAuthByIdParams = getAuthByIdRequest["parameters"]

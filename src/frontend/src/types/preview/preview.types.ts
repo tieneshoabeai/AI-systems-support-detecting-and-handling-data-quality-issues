@@ -108,6 +108,8 @@ export type NewWorkspaceMemberInput = { workspaceId: string; person: Person }
 
 export type Project = {
   canManage?: boolean
+  canUpdateDatasetMetadata?: boolean
+  canComplete?: boolean
   canDelete?: boolean
   canUpload?: boolean
 
@@ -353,6 +355,7 @@ export type ReportAttachment = { name: string; sizeLabel: string; file?: File; i
 
 export type PreviewReport = {
   id: string
+  version?: number
   /** Mã công khai kiểu DV-250120-001 (Design Board 3.2–3.3), không phải id nội bộ. */
   code: string
   issueType: ReportIssueType

@@ -199,8 +199,8 @@ export function detectOutliers(
   const nums = values.map((v) => v.value).sort((a, b) => a - b);
   const useIqr = method === 'iqr' || method === 'both';
   const useZ = method === 'modified_zscore' || method === 'both';
-  let iqrSet = new Set<number>();
-  let extremeSet = new Set<number>();
+  const iqrSet = new Set<number>();
+  const extremeSet = new Set<number>();
   if (useIqr) {
     const q1 = quantileSorted(nums, 0.25);
     const q3 = quantileSorted(nums, 0.75);
@@ -219,7 +219,7 @@ export function detectOutliers(
       }
     }
   }
-  let zSet = new Set<number>();
+  const zSet = new Set<number>();
   if (useZ) {
     const med = ss.median(nums);
     const deviations = nums.map((v) => Math.abs(v - med)).sort((a, b) => a - b);

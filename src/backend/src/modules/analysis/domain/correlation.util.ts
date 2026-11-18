@@ -70,9 +70,18 @@ function rank(values: number[]): number[] {
   let i = 0;
   while (i < indexed.length) {
     let j = i;
-    while (j + 1 < indexed.length && indexed[j + 1].v === indexed[i].v) j++;
+    const current = indexed[i];
+    if (!current) break;
+    while (j + 1 < indexed.length) {
+      const next = indexed[j + 1];
+      if (!next || next.v !== current.v) break;
+      j++;
+    }
     const avg = (i + j) / 2 + 1;
-    for (let k = i; k <= j; k++) ranks[indexed[k].i] = avg;
+    for (let k = i; k <= j; k++) {
+      const entry = indexed[k];
+      if (entry) ranks[entry.i] = avg;
+    }
     i = j + 1;
   }
   return ranks;
@@ -109,18 +118,22 @@ function cramersV(aCats: string[], bCats: string[]): { v: number | null; r: numb
   const bIdx = new Map(bLevels.map((v, i) => [v, i]));
   const obs: number[][] = Array.from({ length: r }, () => new Array<number>(c).fill(0));
   for (let k = 0; k < n; k++) {
-    const i = aIdx.get(aCats[k]) ?? -1;
-    const j = bIdx.get(bCats[k]) ?? -1;
-    if (i >= 0 && j >= 0) obs[i][j] += 1;
+    const i = aIdx.get(aCats[k] ?? '') ?? -1;
+    const j = bIdx.get(bCats[k] ?? '') ?? -1;
+    if (i >= 0 && j >= 0) {
+      const row = obs[i];
+      const cell = row?.[j];
+      if (row && cell !== undefined) row[j] = cell + 1;
+    }
   }
   const rowSum = obs.map((row) => row.reduce((s, v) => s + v, 0));
-  const colSum = bLevels.map((_, j) => obs.reduce((s, row) => s + row[j], 0));
+  const colSum = bLevels.map((_, j) => obs.reduce((s, row) => s + (row[j] ?? 0), 0));
   let chi2 = 0;
   for (let i = 0; i < r; i++) {
     for (let j = 0; j < c; j++) {
-      const expected = (rowSum[i] * colSum[j]) / n;
+      const expected = ((rowSum[i] ?? 0) * (colSum[j] ?? 0)) / n;
       if (expected <= 0) continue;
-      const d = obs[i][j] - expected;
+      const d = (obs[i]?.[j] ?? 0) - expected;
       chi2 += (d * d) / expected;
     }
   }
@@ -134,9 +147,12 @@ function etaSquared(nums: number[], cats: string[]): { eta2: number | null; grou
   const groups = new Map<string, number[]>();
   for (let k = 0; k < nums.length; k++) {
     const g = cats[k];
+    if (g === undefined) continue;
+    const value = nums[k];
+    if (value === undefined) continue;
     const arr = groups.get(g);
-    if (arr) arr.push(nums[k]);
-    else groups.set(g, [nums[k]]);
+    if (arr) arr.push(value);
+    else groups.set(g, [value]);
   }
   if (groups.size < 2) return { eta2: null, groups: groups.size };
   for (const arr of groups.values()) {
@@ -165,13 +181,13 @@ export interface PairInput {
 export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'): ICorrelationCell {
   const totalScanned = input.rows.length;
   const zero: PairMissing = { n: 0, totalScanned, missingAOnly: 0, missingBOnly: 0, missingBoth: 0 };
-  const isValid = (key: string, role: ColumnRole, v: unknown): boolean =>
+  const isValid = (role: ColumnRole, v: unknown): boolean =>
     role === 'numeric' ? toFiniteNumber(v) !== null : toCategory(v) !== null;
 
   if (input.colA === input.colB) {
     let n = 0;
     for (const row of input.rows) {
-      if (isValid(input.colA, input.roleA, row[input.colA])) n++;
+      if (isValid(input.roleA, row[input.colA])) n++;
     }
     if (input.roleA === 'numeric') {
       return {

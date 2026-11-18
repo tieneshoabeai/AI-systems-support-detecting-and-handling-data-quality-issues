@@ -5,6 +5,7 @@ import type { AppRuntime } from '../app-runtime'
 import type { AppError } from '../../types'
 import type { SessionSnapshot } from '../../types'
 import { ApiError } from '../../lib/api-error'
+import { consumeGoogleCallback } from '../../services/auth/google-sign-in'
 
 const unavailable: SessionSnapshot = Object.freeze({
   phase: 'anonymous', generation: 0, sessionEnded: false, accountId: null, user: null,
@@ -22,7 +23,14 @@ export const AuthProvider = ({ runtime, configurationError = null, children }: P
   useEffect(() => {
     if (!runtime) return
     const release = runtime.retain()
-    void runtime.coordinator.restore()
+    const googleCallback = consumeGoogleCallback()
+    void runtime.coordinator.restore().then(async () => {
+      if (googleCallback && runtime.coordinator.getSnapshot().phase === 'anonymous') {
+        await runtime.coordinator.signInWithGoogle(googleCallback).catch(() => {
+          // The coordinator publishes sign-in failures for the login form.
+        })
+      }
+    })
     return release
   }, [runtime])
 
@@ -59,6 +67,7 @@ export const AuthProvider = ({ runtime, configurationError = null, children }: P
       snapshot, configurationError,
       signIn: coordinator?.signIn ?? (() => Promise.reject(missing())),
       signOut: coordinator?.signOut ?? (() => Promise.reject(missing())),
+      ...(coordinator ? { deleteAccount: coordinator.deleteAccount } : {}),
       confirmRenewal: coordinator?.confirmRenewal ?? (() => Promise.reject(missing())),
     }
   }, [snapshot, configurationError, coordinator])

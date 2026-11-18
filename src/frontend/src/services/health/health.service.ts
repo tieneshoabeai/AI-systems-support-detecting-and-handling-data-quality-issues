@@ -5,7 +5,7 @@ import type { AuthHealth } from '../../types'
 export const createHealthService = (api: ApiClient) => ({
   async check(options: { signal?: AbortSignal } = {}): Promise<AuthHealth> {
     const response = await api.request<unknown>({
-      path: '/health', auth: 'public', timeoutMs: 5000, ...(options.signal === undefined ? {} : { signal: options.signal }),
+      path: '/health', scope: 'health', auth: 'public', timeoutMs: 5000, ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
     if (!isRecord(response) || response['status'] !== 'ok' || !isRecord(response['services'])
       || !isRecord(response['services']['mongodb_atlas'])

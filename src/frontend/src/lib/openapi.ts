@@ -262,6 +262,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sessions/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chi tiết phiên đăng nhập hiện tại (tài nguyên của chính mình) */
+        get: operations["AuthController_getCurrentSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/sessions/{id}": {
         parameters: {
             query?: never;
@@ -416,6 +433,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PROJ-02b: Danh sách project toàn hệ thống (không theo workspace)
+         * @description Trả về mọi project người dùng có quyền đọc, gom từ tất cả workspace. Phân trang keyset: dùng `meta.nextCursor` làm tham số `cursor` của request kế tiếp. Response: `{ items, meta: { nextCursor, hasMore, limit } }`.
+         */
+        get: operations["ProjectsController_listAllProjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}": {
         parameters: {
             query?: never;
@@ -557,11 +594,10 @@ export interface paths {
         delete: operations["DatasetsController_deleteDataset"];
         options?: never;
         head?: never;
-        /** F4.4: Cap nhat ten tap du lieu */
-        patch: operations["DatasetsController_updateDataset"];
+        patch?: never;
         trace?: never;
     };
-    "/api/v1/datasets/{id}/columns": {
+    "/api/v1/datasets/{id}/columns/pii": {
         parameters: {
             query?: never;
             header?: never;
@@ -574,25 +610,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Wave 4: Doi ten cot hien thi - key c{i} bat bien */
-        patch: operations["DatasetsController_renameColumns"];
-        trace?: never;
-    };
-    "/api/v1/datasets/{id}/columns/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Wave 4 (M15): Khoi phuc ten cot ve ten goc tu file CSV */
-        post: operations["DatasetsController_resetColumnNames"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        /**
+         * GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)
+         * @description Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.
+         */
+        patch: operations["DatasetsController_updateColumnPii"];
         trace?: never;
     };
     "/api/v1/datasets/{id}/file": {
@@ -1282,6 +1304,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Danh sách hồ sơ — `{ items, meta: { nextCursor, hasMore, limit } }` (keyset cursor, không có `total`/`page`) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1301,6 +1324,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1414,6 +1438,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1441,6 +1466,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1467,6 +1493,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1511,6 +1538,13 @@ export interface operations {
         responses: {
             /** @description Đăng nhập thành công, trả về JWT Access Token và Refresh Token */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Đăng nhập thành công — chuyển hướng về frontend kèm token (che do `?format=redirect`) */
+            302: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1561,6 +1595,31 @@ export interface operations {
         responses: {
             /** @description Danh sách các phiên đăng nhập */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_getCurrentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chi tiết phiên hiện tại */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Không tìm thấy phiên hiện tại (đã thu hồi hoặc hết hạn) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1674,6 +1733,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1693,6 +1753,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công, không có nội dung phản hồi */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1720,6 +1781,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1745,6 +1807,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1776,6 +1839,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1796,6 +1860,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1823,6 +1888,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1842,6 +1908,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1867,6 +1934,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1894,7 +1962,32 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ProjectsController_listAllProjects: {
+        parameters: {
+            query?: {
+                search?: string;
+                status?: "not_started" | "in_progress" | "completed";
+                sort?: "last_accessed" | "updated" | "name_asc" | "name_desc" | "joined";
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách project + cursor phân trang */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1913,6 +2006,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1932,6 +2026,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công, không có nội dung phản hồi */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1959,6 +2054,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1984,6 +2080,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2009,6 +2106,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2040,6 +2138,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2060,6 +2159,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2088,6 +2188,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2115,6 +2216,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2142,6 +2244,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2161,6 +2264,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2180,6 +2284,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2199,6 +2304,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công, không có nội dung phản hồi */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -2207,7 +2313,7 @@ export interface operations {
             };
         };
     };
-    DatasetsController_updateDataset: {
+    DatasetsController_updateColumnPii: {
         parameters: {
             query?: never;
             header?: never;
@@ -2216,62 +2322,34 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DatasetsController_renameColumns: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
+        /** @description Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …) */
         requestBody: {
             content: {
                 "application/json": {
                     columns: {
-                        key: string;
-                        name: string;
+                        columnKey: string;
+                        isPii: boolean;
                     }[];
                 };
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-        };
-    };
-    DatasetsController_resetColumnNames: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
+            /** @description Key cột không tồn tại hoặc không có cột nào thay đổi */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
+            /** @description Không tìm thấy dataset */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2290,6 +2368,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description File CSV gốc (stream) — tải trực tiếp từ storage */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2309,6 +2388,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2333,6 +2413,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2380,6 +2461,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2400,6 +2482,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2419,6 +2502,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2464,6 +2548,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2501,6 +2586,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2520,6 +2606,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2539,6 +2626,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2558,6 +2646,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Đã tiếp nhận yêu cầu (xử lý bất đồng bộ) */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2577,6 +2666,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2596,6 +2686,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2615,6 +2706,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2634,6 +2726,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Đã tiếp nhận yêu cầu (xử lý bất đồng bộ) */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2654,7 +2747,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description File PDF (stream) — tải về khi report đã sinh xong */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Report chưa sẵn sàng — trả metadata trạng thái để client thử lại */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2677,6 +2778,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2694,6 +2796,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2713,6 +2816,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2732,6 +2836,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2755,6 +2860,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2778,6 +2884,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2809,6 +2916,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2828,6 +2936,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2848,6 +2957,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description File đính kèm (stream) — tải trực tiếp từ storage */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2867,6 +2977,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2895,6 +3006,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2918,6 +3030,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2937,6 +3050,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2964,6 +3078,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2989,6 +3104,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3019,6 +3135,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -3043,6 +3160,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3072,6 +3190,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Tạo mới thành công */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -3091,6 +3210,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3120,6 +3240,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3139,6 +3260,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Thành công */
             200: {
                 headers: {
                     [name: string]: unknown;

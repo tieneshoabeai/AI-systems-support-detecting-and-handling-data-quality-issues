@@ -495,6 +495,8 @@ Mỗi 30 giây: quét outbox_event { status: 'pending', created_at: <= now - 60s
 | Lời mời vào workspace | `WS-07` | ✅ | Tên workspace, vai trò, link tham gia |
 | Thông báo bắt buộc (báo cáo cần bổ sung) | `issue.statusChanged` → `new` | ✅ | Tiêu đề báo cáo, link |
 | Cảnh báo bảo mật | `security_alert` | ✅ | Phát hiện tái sử dụng refresh token, thay đổi mật khẩu |
+| Kết quả phân tích / báo cáo PDF | `analysis_completed`, `report_ready` | ❌ | Tên project, link tới trang kết quả |
+| Thông báo chung (project, thành viên) | `project_created`, `project_member_added` | ❌ | Tiêu đề + nội dung ngắn |
 
 **Quy tắc bắt buộc:**
 1. Email **không** chứa liên kết tới file dữ liệu hay PDF — chỉ liên kết tới trang web.
@@ -502,6 +504,22 @@ Mỗi 30 giây: quét outbox_event { status: 'pending', created_at: <= now - 60s
 3. Lỗi gửi email **không** làm fail thao tác chính — log cảnh báo, retry tối đa 3 lần.
 4. Email bắt buộc gửi **bất kể** công tắc `notifications_enabled` (Phần 2 mục 3.37).
 5. OTP lưu dạng **hash** trong `user.password_reset_otp_hash` (Phần 8 mục 3.4.1), hạn 10 phút, tối đa 5 lần thử sai → khoá OTP.
+
+**Trạng thái hiện thực hoá (2026-11-17):**
+
+| Hạng mục | Trạng thái |
+|---|---|
+| `EMAIL_SENDER_PORT` (`shared/ports/email.port.ts`) | ✅ Đã có |
+| `SmtpEmailSenderAdapter` (`shared/adapters/smtp-email-sender.adapter.ts`) | ✅ Nodemailer — thiếu cấu hình → fail an toàn, retry 3 lần |
+| `PUSH_SENDER_PORT` (`shared/ports/push.port.ts`) | ✅ Đã có |
+| `NtfyPushSenderAdapter` (`shared/adapters/ntfy-push-sender.adapter.ts`) | ✅ HTTP POST tới `ntfy.sh` |
+| Template email tiếng Việt | ✅ `shared/utils/email-templates.ts` — 9 loại, escape HTML |
+| `AUTH-05` gửi OTP qua email | ✅ `ForgotPasswordHandler` — lưu **hash**, giới hạn 5 lần/giờ → 429 |
+| `WS-01`/`WS-07` lời mời workspace | ✅ Email chưa có tài khoản → gửi lời mời (thay vì lỗi 400) |
+| Cảnh báo bảo mật | ✅ `SecurityAlertService` — đổi/đặt lại mật khẩu, tái sử dụng refresh token |
+| Kênh email + push trong `DispatchHandler` | ✅ Fire-and-forget, lỗi không ảnh hưởng luồng chính |
+| Gửi bất đồng bộ qua BullMQ | ⏳ Chưa làm — hiện gửi đồng bộ (fire-and-forget trong handler) |
+| Script kiểm chứng tích hợp thật | ✅ `scripts/verify-external-services.ts` |
 
 #### 3.5.6. Job cleanup-retention
 

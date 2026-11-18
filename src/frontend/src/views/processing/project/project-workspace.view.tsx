@@ -1,4 +1,5 @@
 import { Button } from '../../../components/ui/controls'
+import { Dialog } from '../../../components/ui/overlay/dialog'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
@@ -22,6 +23,7 @@ import { ShoppingContent } from '../../preview/components/shopping-demo-content'
 import { ResultReviewDialog } from '../../preview/components/result-review-dialog'
 import { downloadShopping } from '../../../mocks/shopping-trends/data'
 import { LiveDatasetPanel } from './sections/live-dataset-panel'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 
 // Project chrome and actions stay in this view; Dataset3DView owns scene interactions.
 const MODULE_CUBES = {
@@ -33,6 +35,18 @@ const PROJECT_PANEL_ENABLED = true
 
 export function ProjectWorkspaceView({ projectId, scene, result = null }: { projectId: string; scene?: ReactNode; result?: ConfirmedProjectResult | null }) {
   const session = usePreviewSession()
+  const store = useManagementStore()
+  const [projectLoadError, setProjectLoadError] = useState<{ id: string; message: string } | null>(null)
+  useEffect(() => {
+    if (!store.refreshProject) return
+    const controller = new AbortController()
+    void store.refreshProject(projectId, controller.signal).then(() => {
+      if (!controller.signal.aborted) setProjectLoadError(null)
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setProjectLoadError({ id: projectId, message: error instanceof Error ? error.message : 'Không tải được chi tiết project.' })
+    })
+    return () => controller.abort()
+  }, [projectId, store])
   // No selected module until the user chooses a nav button or a scene cube.
   const [focus, setFocus] = useState<CubeFocus | null>(null)
   const [completedFocus, setCompletedFocus] = useState<CubeFocus | null>(null)
@@ -130,6 +144,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
     headerAction={<ProjectResultDownload result={demo && flow.state.status === 'reviewed'
       ? { id: 'shopping-detection', save, download: () => downloadShopping('report') } : result} />}>
     <h1 id="page-heading" tabIndex={-1} className="visually-hidden">{project.name}</h1>
+    {projectLoadError?.id === projectId && <p role="alert">{projectLoadError.message}</p>}
     <div className="pj-head-row">
       <nav className="ws-crumb" aria-label="Path điều hướng">
         <Button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</Button>
@@ -149,6 +164,11 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
             : 'Project chưa có tập dữ liệu.'}</span>
         </div>
         {!dataset && project.canUpload !== false && <Button type="button" className="button-primary" onClick={() => setUploading(true)}>Upload data</Button>}
+        {project.status === 'processing' && project.canComplete && store.completeProject &&
+          <CompleteProjectAction key={project.id} onComplete={async () => {
+            const response = await store.completeProject!(project.id)
+            session.notify(response.message, 'success')
+          }} />}
         <Button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
           aria-haspopup="menu" onClick={event => menuButton(event.currentTarget)}>
           <PreviewIcon name="more" />
@@ -208,4 +228,28 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
         mục đó đã BẬT THẬT và chính modal của nó mang ghi chú ở chân (id `projectMembersPage`).
         Để note trùng id ở đây là hai phần tử cùng một id trong DOM khi modal mở. */}
   </PreviewShell>
+}
+
+function CompleteProjectAction({ onComplete }: { onComplete: () => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+  const close = () => { setOpen(false); setError('') }
+  return <>
+    <Button type="button" className="button-secondary" onClick={() => setOpen(true)}>Hoàn thành Project</Button>
+    <Dialog open={open} onClose={close} busy={pending} aria-labelledby="complete-project-title">
+      <h2 id="complete-project-title">Hoàn thành Project</h2>
+      <p>Lưu trạng thái hiện tại và đánh dấu Project là đã hoàn thành.</p>
+      {error && <p role="alert">{error}</p>}
+      <div className="form-actions">
+        <Button type="button" className="button-secondary" onClick={close} disabled={pending}>Hủy</Button>
+        <Button type="button" className="button-primary" disabled={pending} onClick={() => {
+          setPending(true); setError('')
+          void onComplete().then(close).catch((cause: unknown) => {
+            setError(cause instanceof Error ? cause.message : 'Không lưu được trạng thái Project.')
+          }).finally(() => setPending(false))
+        }}>Xác nhận hoàn thành</Button>
+      </div>
+    </Dialog>
+  </>
 }

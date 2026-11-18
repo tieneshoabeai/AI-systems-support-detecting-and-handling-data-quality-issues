@@ -1,5 +1,6 @@
-import { Schema, Document, Types } from 'mongoose';
-import { BaseEntity } from '../../../../shared/database/base-mongo.repository';
+import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
+import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
 
 import type { IssueType } from '../../domain/value-objects/issue-type.vo';
 export type { IssueType };
@@ -7,7 +8,7 @@ export const IssueTypes = ['function_error','display_error','data_error','featur
 
 import type { IssueStatus } from '../../domain/value-objects/issue-status.vo';
 export type { IssueStatus };
-export const IssueStatuses = ['new', 'in_progress', 'resolved', 'closed'] as const;
+export const IssueStatuses = ['new', 'needs_info', 'in_progress', 'resolved', 'closed'] as const;
 
 export interface IIssueAttachment {
   id: Types.ObjectId;

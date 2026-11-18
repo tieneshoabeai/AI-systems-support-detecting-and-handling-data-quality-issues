@@ -85,7 +85,12 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           throw new ApiError({ kind: 'config', message: 'Request chưa khai báo chế độ xác thực.' })
         }
 
-        const url = resolveApiPath(request.path, config.baseUrl)
+        const health = request.scope === 'health'
+        if (health && (request.auth !== 'public' || (request.method ?? 'GET') !== 'GET'
+          || !['/health', '/health/ready'].includes(request.path))) {
+          throw new ApiError({ kind: 'config', message: 'Đường dẫn kiểm tra trạng thái không hợp lệ.' })
+        }
+        const url = resolveApiPath(request.path, health ? new URL(config.baseUrl).origin : config.baseUrl)
         const timeout = request.timeoutMs ?? config.timeoutMs
 
         if (!Number.isFinite(timeout) || timeout <= 0) {
@@ -122,10 +127,14 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           headers,
         })
 
+        console.info('[qa-network]', request.method ?? 'GET', request.path, response.status)
         if (response.status === 204) return undefined as T
         if (request.responseType === 'blob') return response.data as T
         return unwrapEnvelope<T>(response.data)
       } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+          console.info('[qa-network]', request.method ?? 'GET', request.path, error.response.status)
+        }
         throw normalizeApiError(error)
       }
     },

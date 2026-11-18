@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { AUTH_TOKEN_ISSUER_PORT, type AuthTokenIssuerPort, type AuthTokenPayload } from '../../domain/ports/auth-session.port';
+import { type AuthTokenIssuerPort, type AuthTokenPayload } from '../../domain/ports/auth-session.port';
 
 /** JWT issuer adapter (driven) — nơi duy nhất chạm JwtService để sign/verify. */
 @Injectable()

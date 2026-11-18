@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
-import { validate } from './shared/config/env.validation';
+import { validate } from './shared/infrastructure/config/env.validation';
 import { SharedModule } from './shared/shared.module';
-import { DatabaseModule } from './shared/database/database.module';
-import { StorageModule } from './shared/storage/storage.module';
+import { DatabaseModule } from './shared/infrastructure/database/database.module';
+import { StorageModule } from './shared/infrastructure/storage/storage.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
@@ -18,9 +18,11 @@ import { IssuesModule } from './modules/issues/issues.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AuditModule } from './modules/audit/audit.module';
-import { OutboxModule } from './shared/application/outbox/outbox.module';
-import { EventsModule } from './shared/events/events.module';
+import { OverviewModule } from './modules/overview/overview.module';
+import { OutboxModule } from './shared/infrastructure/outbox/outbox.module';
+import { EventsModule } from './shared/infrastructure/events/events.module';
 import { AppController } from './app.controller';
+import { RequestIdMiddleware } from './shared/interfaces/middleware/request-id.middleware';
 
 @Module({
   imports: [
@@ -54,6 +56,7 @@ import { AppController } from './app.controller';
     FeedbackModule,
     RealtimeModule,
     AuditModule,
+    OverviewModule,
   ],
   controllers: [AppController],
   providers: [
@@ -63,4 +66,12 @@ import { AppController } from './app.controller';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Gắn X-Request-Id cho mọi request (có thể nhận sẵn từ header `x-request-id`
+   * để trace xuyên qua Cloudflare Tunnel / gateway).
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

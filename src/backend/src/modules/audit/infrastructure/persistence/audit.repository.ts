@@ -9,7 +9,7 @@ import {
   type CreateAuditLogInput,
   type AuditChangeInput,
 } from '../../domain/ports/audit.repository.port';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 function toOid(v: string | null | undefined): Types.ObjectId | null {
   if (!v || !isObjectIdHex(v)) return null;

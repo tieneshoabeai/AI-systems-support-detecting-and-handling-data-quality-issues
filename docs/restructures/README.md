@@ -26,40 +26,61 @@ python3 docs/generate_reports.py
 
 | File báo cáo | Nguồn Markdown |
 |---|---|
-| `01-luong-nghiep-vu-va-use-case.docx` | `3_business_workflows_v5.md` |
-| `02-thiet-ke-ports-and-adapters.docx` | `5_ports_adapters_design_v2.md` |
-| `03-ho-dong-api.docx` | `7_api_contracts_v4.md` |
-| `04-cong-nghe-ky-thuat.docx` | `_cong_nghe_ky_thuat.md` (tổng hợp từ Phần 1–14) |
-| `05-danh-muc-tinh-nang.docx` | `2_feature_catalog_v9.md` |
-| `06-ranh-gioui-module.docx` | `4_module_boundaries_v4.md` |
-| `07-xac-thuc-va-phan-quyen.docx` | `6_security_authorization_v5.md` |
-| `08-du-lieu-va-database-schema.docx` | `8_database_schema_v4.md` |
-| `09-tich-hop-su-kien-va-worker.docx` | `9_integrations_events_workers_v3.md` |
-| `10-van-hanh-va-quan-sat.docx` | `10_runtime_operations_v5.md` |
+| `01-luong-nghiep-vu-va-use-case.docx` | `3_business_workflows_v6.md` |
+| `02-thiet-ke-ports-and-adapters.docx` | `5_ports_adapters_design_v4.md` |
+| `03-ho-dong-api.docx` | `7_api_contracts_v8.md` |
+| `04-cong-nghe-ky-thuat.docx` | `00_cong_nghe_ky_thuat_kien_truc_hien_tai.md` (báo cáo hiện trạng thực thi) |
+| `05-danh-muc-tinh-nang.docx` | `2_feature_catalog_v11.md` |
+| `06-ranh-gioui-module.docx` | `4_module_boundaries_v5.md` |
+| `07-xac-thuc-va-phan-quyen.docx` | `6_security_authorization_v7.md` |
+| `08-du-lieu-va-database-schema.docx` | `8_database_schema_v7.md` |
+| `09-tich-hop-su-kien-va-worker.docx` | `9_integrations_events_workers_v4.md` |
+| `10-van-hanh-va-quan-sat.docx` | `10_runtime_operations_v7.md` |
 | `11-chuyen-doi-du-lieu-va-rollback.docx` | `11_migration_compatibility_v4.md` |
-| `12-logic-xu-ly-du-lieu-va-ai.docx` | `12_processing_logic_ai_v6.md` |
-| `13-chien-luoc-kiem-thu.docx` | `13_testing_acceptance_plan_v6.md` |
-| `14-ke-hoach-thuc-hien.docx` | `14_implementation_plan_v6.md` |
+| `12-logic-xu-ly-du-lieu-va-ai.docx` | `12_processing_logic_ai_v8.md` |
+| `13-chien-luuc-kiem-thu.docx` | `13_testing_acceptance_plan_v9.md` |
+| `14-ke-hoach-thuc-hien.docx` | `14_implementation_plan_v7.md` |
 
-Báo cáo kỹ thuật và công nghệ (file 04) là báo cáo **tổng hợp**, nguồn nằm ở `_cong_nghe_ky_thuat.md` — liên kết các quyết định công nghệ rải rác trong Phần 1–14 về một tài liệu thống nhất: stack, hạ tầng dữ liệu, tích hợp AI, vận hành, bảo mật, hiệu năng và công cụ kiểm thử.
+Báo cáo kỹ thuật và công nghệ (file 04) là báo cáo **hiện trạng thực thi**, nguồn nằm ở `00_cong_nghe_ky_thuat_kien_truc_hien_tai.md` — rà soát toàn bộ mã nguồn backend: stack, hạ tầng dữ liệu, tích hợp AI, kiến trúc, module, vận hành, bảo mật và chiến lược kiểm thử. Bản Markdown kèm bản trình chiếu: `00_cong_nghe_ky_thuat_kien_truc_hien_tai.slides.html`.
 
 ## Thứ tự thực hiện
 
-1. [Định hướng, mục tiêu và quy trình](1_architecture_direction_v1.md) — đã thống nhất hướng kiến trúc và phạm vi; còn các câu hỏi được hoãn.
-2. [Danh sách tính năng backend](2_feature_catalog_v9.md) — **v9 đang dùng** (giữ để đối chiếu: [v8](2_feature_catalog_v8.md), [v7](2_feature_catalog_v7.md), [v6](2_feature_catalog_v6.md), [v5](2_feature_catalog_v5.md), [v4](2_feature_catalog_v4.md), [v3](2_feature_catalog_v3.md), [v2](2_feature_catalog_v2.md), [v1](2_feature_catalog_v1.md)). **85 tính năng** sau khi áp dụng quyết định **dữ liệu bất biến**, 5 quyết định kiến trúc v2, **v7: DQ-05 kích hoạt có điều kiện + ma trận tương quan/VIF do AI đánh giá** và **v8: breakdown thiếu pairwise + cảnh báo mất mẫu VIF + date bị loại + worker AI corr-v1**.
-3. [Luồng nghiệp vụ và use case](3_business_workflows_v6.md) — **v6 đang dùng** (giữ để đối chiếu: [v5](3_business_workflows_v5.md), [v4](3_business_workflows_v4.md), [v3](3_business_workflows_v3.md), [v2](3_business_workflows_v2.md), [v1](3_business_workflows_v1.md)). **66 use case**: đã gỡ `UC-09` (chọn sheet), `UC-11` (xoá dòng), `UC-18` (sửa ô), `UC-28`→`UC-30` (clean-rules, lineage, exports), `UC-58`/`UC-59` (lịch sử phiên bản project); thêm **nhóm 11** `UC-68`→`UC-72` cho nhận xét kết quả. Kèm ma trận quyền và các vòng đời trạng thái.
-4. [Ranh giới module và phân tích ảnh hưởng](4_module_boundaries_v4.md) — **v4 đang dùng** (giữ để đối chiếu: [v3](4_module_boundaries_v3.md), [v2](4_module_boundaries_v2.md), [v1](4_module_boundaries_v1.md)). **21 module** sau khi gỡ 5 module LEGACY (`versions`, `cell-edit`, `clean-rules`, `lineage`, `exports`) và thêm module `feedback` — mô hình **read-only**: dữ liệu bất biến, không có đường ghi nào ngoài Import.
-5. [Thiết kế Ports and Adapters](5_ports_adapters_design_v2.md) — **v2 đang dùng** (giữ để đối chiếu: [v1](5_ports_adapters_design_v1.md)). Cấu trúc tầng + quy tắc chiều dependency, Rich Domain Model với `create()`/`reconstitute()`, vị trí port (`domain/ports` + `application/ports`), Symbol DI token, 1 handler/use case, trường `version` cho optimistic locking, **cursor pagination**, luồng gom domain event → transactional outbox → Kafka, nội dung `packages/core` + `packages/contracts`.
-6. [Xác thực, phân quyền và bảo vệ dữ liệu](6_security_authorization_v6.md) — **v6 đang dùng** (giữ để đối chiếu: [v5](6_security_authorization_v5.md), [v4](6_security_authorization_v4.md), [v3](6_security_authorization_v3.md), [v2](6_security_authorization_v2.md), [v1](6_security_authorization_v1.md)). Mô hình **5 vai trò**, ma trận quyền đầy đủ **66 use case**, quyền cho nhóm nhận xét `UC-68`→`UC-72`, quyền kết nối **Socket.IO**, chính sách bảo mật cho **AI chạy nội bộ**; đã gỡ toàn bộ quyền liên quan đến sheet (chỉ còn `.csv`).
-7. [Thiết kế hợp đồng API](7_api_contracts_v6.md) — **v6 đang dùng** (giữ để đối chiếu: [v5](7_api_contracts_v5.md), [v4](7_api_contracts_v4.md), [v3](7_api_contracts_v3.md), [v2](7_api_contracts_v2.md), [v1](7_api_contracts_v1.md)). Quyết định hợp đồng (response thẳng dữ liệu, camelCase, lỗi `{ error: { code, message, details? } }`, REST URL, **cursor pagination** `{ items, nextCursor, hasMore }`, 202 Accepted, download stream) và **bảng 85 HTTP endpoint + 1 kết nối WS**.
-8. [Thiết kế dữ liệu và database schema](8_database_schema_v6.md) — **v6 đang dùng** (giữ để đối chiếu: [v5](8_database_schema_v5.md), [v4](8_database_schema_v4.md), [v3](8_database_schema_v3.md), [v2](8_database_schema_v2.md), [v1](8_database_schema_v1.md)). Thiết kế **21 collection** đầy đủ kèm index/unique constraint; gộp `dataset_sheet` vào `dataset` (chỉ `.csv`), thêm `finding_feedback` + `feedback_example`; `ai_job` cập nhật cho Kafka + model; **ràng buộc insert-only cho `dataset_record`**.
-9. [Tích hợp, sự kiện và worker](9_integrations_events_workers_v4.md) — **v4 đang dùng** (giữ để đối chiếu: [v3](9_integrations_events_workers_v3.md), [v2](9_integrations_events_workers_v2.md), [v1](9_integrations_events_workers_v1.md)). **Kafka** (5 topic, 6 consumer group, DLQ) + **Socket.IO** realtime; cơ chế outbox 2 kênh; consumer idempotent qua `processed_event`; 6 nhóm sự kiện realtime.
-10. [Cấu hình, vận hành và quan sát hệ thống](10_runtime_operations_v6.md) — **v6 đang dùng** (giữ để đối chiếu: [v5](10_runtime_operations_v5.md), [v4](10_runtime_operations_v4.md), [v3](10_runtime_operations_v3.md), [v2](10_runtime_operations_v2.md), [v1](10_runtime_operations_v1.md)). Docker Compose với container `ai-engine`; RAM guard; biến môi trường AI cục bộ, Kafka, realtime; 3 cấp độ health check; log JSON; backup 2 tầng; quy trình deploy + rollback; 35 quy tắc O1–O35.
-11. [Chuyển đổi dữ liệu, tương thích và rollback](11_migration_compatibility_v4.md) — **v4 đang dùng** (giữ để đối chiếu: [v3](11_migration_compatibility_v3.md), [v2](11_migration_compatibility_v2.md), [v1](11_migration_compatibility_v1.md)). 15 quyết định migration; **17 collection cũ → 21 collection mới**; xoá `dataset_sheet`, bỏ qua dataset có `file_format != 'csv'`; script xoá 7 collection LEGACY; smoke test; 29 quy tắc M1–M29.
-12. [Logic xử lý dữ liệu và phạm vi AI](12_processing_logic_ai_v8.md) — **v8 đang dùng** (giữ để đối chiếu: [v7](12_processing_logic_ai_v7.md), [v6](12_processing_logic_ai_v6.md), [v5](12_processing_logic_ai_v5.md), [v4](12_processing_logic_ai_v4.md), [v3](12_processing_logic_ai_v3.md), [v2](12_processing_logic_ai_v2.md), [v1](12_processing_logic_ai_v1.md)). Logic AI **cục bộ** (che PII, không egress), cơ chế **học lại RAG T1**, ngưỡng ảnh hưởng, bất biến dữ liệu (`input_fingerprint`) và **quy trình benchmark 5 model / 9 chỉ số** với đường Pareto, kiểm định thống kê và định tuyến hai tầng.
-13. [Chiến lược kiểm thử và tiêu chí nghiệm thu](13_testing_acceptance_plan_v7.md) — **v7 đang dùng** (giữ để đối chiếu: [v6](13_testing_acceptance_plan_v6.md), [v5](13_testing_acceptance_plan_v5.md), [v4](13_testing_acceptance_plan_v4.md), [v3](13_testing_acceptance_plan_v3.md), [v2](13_testing_acceptance_plan_v2.md), [v1](13_testing_acceptance_plan_v1.md)). **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**); **ma trận truy xuất ngược 125 quy tắc**; 3 bảng mapping (**85 tính năng / 66 use case / 85 endpoint**); **48 tình huống** phân quyền tự động.
-14. [Kế hoạch thực hiện tái cấu trúc](14_implementation_plan_v7.md) — **v7 đang dùng** (giữ để đối chiếu: [v6](14_implementation_plan_v6.md), [v5](14_implementation_plan_v5.md), [v4](14_implementation_plan_v4.md), [v3](14_implementation_plan_v3.md), [v2](14_implementation_plan_v2.md), [v1](14_implementation_plan_v1.md)). Chiến lược Hybrid; monorepo pnpm; **7 đợt giao hàng** (thêm Đợt 7 — Feedback & học lại, Đợt 5 gồm benchmark 5 model); ước lượng **~189,5 ngày công** ↔ ~53–71 đơn vị thực thi; 15 rủi ro R1–R15.
-15. [Đánh giá cuối và bàn giao backend](15_evaluation_handover_v1.md) — khung chờ thảo luận.
+> **Trạng thái phiên bản chuẩn (cập nhật 2026-11-16 — sau Bước 1–6):** các tài liệu dưới đây đã được **đồng bộ với mã nguồn thực thi**. Bảng nguồn cho báo cáo `.docx` cũng đã trỏ sang các phiên bản mới nhất.
+
+| # | Phần | Phiên bản đang dùng | Nội dung chính |
+|---|---|---|---|
+| 1 | [Định hướng, mục tiêu và quy trình](1_architecture_direction_v1.md) | **v1** | Đã thống nhất hướng kiến trúc và phạm vi; còn các câu hỏi được hoãn |
+| 2 | [Danh sách tính năng backend](2_feature_catalog_v11.md) | **v11** | **85 tính năng**. v11 cập nhật trạng thái hiện thực hoá của **11 tính năng** (Google OAuth, remember-me, `needs_info`, keyset cursor, Search/Overview/Profile/Project Owner) — mục 3.36c |
+| 3 | [Luồng nghiệp vụ và use case](3_business_workflows_v6.md) | **v6** | **66 use case**; gỡ `UC-09`/`UC-11`/`UC-18`/`UC-28`→`UC-30`/`UC-58`/`UC-59`; thêm nhóm `UC-68`→`UC-72` cho nhận xét kết quả |
+| 4 | [Ranh giới module và phân tích ảnh hưởng](4_module_boundaries_v5.md) | **v5** | **21 module** sau khi gỡ 5 module LEGACY và thêm module `feedback` — mô hình **read-only**. **v5: ranh giới 4 tầng trong mỗi module (`domain`/`application`/`infrastructure`/`presentation`) + 4 phân tầng `shared/`** theo Clean Architecture (Phần 16) |
+| 5 | [Thiết kế Ports and Adapters](5_ports_adapters_design_v4.md) | **v4** | Cấu trúc tầng + quy tắc chiều dependency, Rich Domain Model, port (`domain/ports` + `application/ports`), Symbol DI token, **106 command/query handler**, cursor pagination, outbox → Kafka. **v4: tách `presentation/` khỏi `infrastructure/`, `shared/` chia 4 phân tầng, rule CA12–CA16 chặn CI** |
+| 6 | [Xác thực, phân quyền và bảo vệ dữ liệu](6_security_authorization_v7.md) | **v7** | Mô hình **5 vai trò**, ma trận quyền **66 use case**, **chính sách Google OAuth 2.0** (mục 3.20), **quyền sửa báo cáo `needs_info`** (mục 3.21), quyền Socket.IO, bảo mật AI cục bộ; **56 tình huống** truy cập trái phép |
+| 7 | [Thiết kế hợp đồng API](7_api_contracts_v8.md) | **v8** | Quyết định hợp đồng (response thẳng dữ liệu, camelCase, lỗi `{ error: { code, message } }`, REST URL, **cursor pagination**) và **bảng 86 route HTTP thực thi + 1 kết nối WS**; hợp đồng Google OAuth, Overview, Issue update |
+| 8 | [Thiết kế dữ liệu và database schema](8_database_schema_v7.md) | **v7** | **21 collection**; **mục 3.3b đối chiếu 21 schema Mongoose thực tế**; `user.phone`/`bio`/`google_id`/`auth_provider`, `user_session.remember_me`/`last_used_at`, sửa TTL session, trạng thái `needs_info`; **24 quy tắc S1–S24** |
+| 9 | [Tích hợp, sự kiện và worker](9_integrations_events_workers_v4.md) | **v4** | **Kafka** (5 topic, 6 consumer group, DLQ) + **Socket.IO** realtime; cơ chế outbox 2 kênh; consumer idempotent qua `processed_event` |
+| 10 | [Cấu hình, vận hành và quan sát hệ thống](10_runtime_operations_v7.md) | **v7** | Docker Compose với `ai-engine`; **nhóm biến `GOOGLE_*`, `CLOUDFLARE_*`, `SSL_*`, `NTFY_*`**; `JWT_REFRESH_REMEMBER_EXPIRATION`; RAM guard; 3 cấp độ health check; log JSON; backup 2 tầng; deploy + rollback; **quy tắc O1–O39** |
+| 11 | [Chuyển đổi dữ liệu, tương thích và rollback](11_migration_compatibility_v4.md) | **v4** | 15 quyết định migration; **17 collection cũ → 21 collection mới**; script xoá 7 collection LEGACY; smoke test; 29 quy tắc M1–M29 |
+| 12 | [Logic xử lý dữ liệu và phạm vi AI](12_processing_logic_ai_v8.md) | **v8** | Logic AI **cục bộ** (che PII, không egress), cơ chế **học lại RAG T1**, bất biến dữ liệu (`input_fingerprint`) và **quy trình benchmark 5 model / 9 chỉ số** |
+| 13 | [Chiến lược kiểm thử và tiêu chí nghiệm thu](13_testing_acceptance_plan_v9.md) | **v9** | **9 tầng test**; **ma trận truy xuất ngược 143 quy tắc** (135 tự động + 8 thủ công); 4 bảng mapping (**85 tính năng / 66 use case / 86 route HTTP**); **5 bộ test mới 83 ca**; **262 ca tự động đã PASS** |
+| 14 | [Kế hoạch thực hiện tái cấu trúc](14_implementation_plan_v7.md) | **v7** | Chiến lược Hybrid; **7 đợt giao hàng**; ước lượng **~189,5 ngày công**; 15 rủi ro R1–R15 |
+| 15 | [Đánh giá cuối và bàn giao backend](15_evaluation_handover_v1.md) | **v1** | Khung chờ thảo luận |
+| 16 | [Lộ trình tái cấu trúc Clean Architecture](16_clean_architecture_restructuring_v1.md) | **v1** | Ranh giới 4 tầng (`domain`/`application`/`infrastructure`/`presentation`) cho module và `shared/`; lộ trình 4 bước; rule CA12–CA16. **Bước 1 + Bước 3 (Rich Domain Model) đã hoàn thành** — 8/8 lát cắt, 546 test pass |
+| 17 | [Báo cáo rà soát API (gap analysis)](17_api_gap_analysis_v1.md) | **v1** | Đối chiếu tự động **86 route code vs 86 route hợp đồng §3.13 → khớp 100%**; 5 vấn đề phát hiện (P1–P5); **P1 (thiếu `cookie-parser` → Google Login trả 401) đã sửa** |
+
+**Phiên bản trước (giữ để đối chiếu):**
+- Phần 2: [v10](2_feature_catalog_v10.md) · [v9](2_feature_catalog_v9.md) · [v8](2_feature_catalog_v8.md) · [v7](2_feature_catalog_v7.md) · [v6](2_feature_catalog_v6.md) · [v5](2_feature_catalog_v5.md) · [v4](2_feature_catalog_v4.md) · [v3](2_feature_catalog_v3.md) · [v2](2_feature_catalog_v2.md) · [v1](2_feature_catalog_v1.md)
+- Phần 3: [v5](3_business_workflows_v5.md) · [v4](3_business_workflows_v4.md) · [v3](3_business_workflows_v3.md) · [v2](3_business_workflows_v2.md) · [v1](3_business_workflows_v1.md)
+- Phần 4: [v4](4_module_boundaries_v4.md) · [v3](4_module_boundaries_v3.md) · [v2](4_module_boundaries_v2.md) · [v1](4_module_boundaries_v1.md)
+- Phần 5: [v3](5_ports_adapters_design_v3.md) · [v2](5_ports_adapters_design_v2.md) · [v1](5_ports_adapters_design_v1.md)
+- Phần 6: [v6](6_security_authorization_v6.md) · [v5](6_security_authorization_v5.md) · [v4](6_security_authorization_v4.md) · [v3](6_security_authorization_v3.md) · [v2](6_security_authorization_v2.md) · [v1](6_security_authorization_v1.md)
+- Phần 7: [v7](7_api_contracts_v7.md) · [v6](7_api_contracts_v6.md) · [v5](7_api_contracts_v5.md) · [v4](7_api_contracts_v4.md) · [v3](7_api_contracts_v3.md) · [v2](7_api_contracts_v2.md) · [v1](7_api_contracts_v1.md)
+- Phần 8: [v6](8_database_schema_v6.md) · [v5](8_database_schema_v5.md) · [v4](8_database_schema_v4.md) · [v3](8_database_schema_v3.md) · [v2](8_database_schema_v2.md) · [v1](8_database_schema_v1.md)
+- Phần 9: [v3](9_integrations_events_workers_v3.md) · [v2](9_integrations_events_workers_v2.md) · [v1](9_integrations_events_workers_v1.md)
+- Phần 10: [v6](10_runtime_operations_v6.md) · [v5](10_runtime_operations_v5.md) · [v4](10_runtime_operations_v4.md) · [v3](10_runtime_operations_v3.md) · [v2](10_runtime_operations_v2.md) · [v1](10_runtime_operations_v1.md)
+- Phần 11: [v3](11_migration_compatibility_v3.md) · [v2](11_migration_compatibility_v2.md) · [v1](11_migration_compatibility_v1.md)
+- Phần 12: [v7](12_processing_logic_ai_v7.md) · [v6](12_processing_logic_ai_v6.md) · [v5](12_processing_logic_ai_v5.md) · [v4](12_processing_logic_ai_v4.md) · [v3](12_processing_logic_ai_v3.md) · [v2](12_processing_logic_ai_v2.md) · [v1](12_processing_logic_ai_v1.md)
+- Phần 13: [v8](13_testing_acceptance_plan_v8.md) · [v7](13_testing_acceptance_plan_v7.md) · [v6](13_testing_acceptance_plan_v6.md) · [v5](13_testing_acceptance_plan_v5.md) · [v4](13_testing_acceptance_plan_v4.md) · [v3](13_testing_acceptance_plan_v3.md) · [v2](13_testing_acceptance_plan_v2.md) · [v1](13_testing_acceptance_plan_v1.md)
+- Phần 14: [v6](14_implementation_plan_v6.md) · [v5](14_implementation_plan_v5.md) · [v4](14_implementation_plan_v4.md) · [v3](14_implementation_plan_v3.md) · [v2](14_implementation_plan_v2.md) · [v1](14_implementation_plan_v1.md)
 
 ## Quyết định kiến trúc v2: 5 thay đổi — 2026-11-05
 
@@ -73,9 +94,9 @@ Sau quyết định *dữ liệu bất biến*, bộ tài liệu được nâng 
 | 4 | **Cursor pagination** | Keyset pagination thay offset: `{ items, nextCursor, hasMore }`, cursor base64url ký HMAC. Không còn `offset`/`page`/`total`. | 5 (v2), 7 (v3), 8 (v4), 13 (v4), 14 (v4) |
 | 5 | **Chỉ `.csv`** | Bỏ `.xlsx`/`.xls` và khái niệm sheet (`dataset_sheet` bị gỡ, gộp vào `dataset`). Tệp không phải CSV → HTTP 415 trước khi ghi vào R2. | 2 (v5), 3 (v4), 4 (v4), 6 (v5), 7 (v3), 8 (v4), 11 (v4), 13 (v4), 14 (v4) |
 
-**Số liệu chuẩn hiện hành:** **85 tính năng** · **66 use case** · **85 HTTP endpoint + 1 WS** · **21 collection** · **21 module** · **125 quy tắc kiểm thử** (9 tầng) · **48 tình huống phân quyền** · **7 đợt giao hàng** · **~189,5 ngày công**.
+**Số liệu chuẩn hiện hành (2026-11-16):** **85 tính năng** · **66 use case** · **86 route HTTP thực thi + 1 WS** · **21 collection** · **20 module** (13 nghiệp vụ + 7 shared) · **143 quy tắc kiểm thử** (135 tự động + 8 thủ công, 9 tầng) · **56 tình huống phân quyền** · **7 đợt giao hàng** · **~189,5 ngày công** · **262 ca test tự động đã PASS**.
 
-Tài liệu đồng bộ: Phần 2 (v7), 3 (v5), 4 (v4), 5 (v2), 6 (v5), 7 (v4), 8 (v4), 9 (v3), 10 (v5), 11 (v4), 12 (v6), 13 (v6), 14 (v6) + `_cong_nghe_ky_thuat.md` (v3) + `tech.md` (v3).
+Tài liệu đồng bộ: Phần 2 (v11), 3 (v6), 4 (v4), 5 (v3), 6 (v7), 7 (v8), 8 (v7), 9 (v4), 10 (v7), 11 (v4), 12 (v8), 13 (v9), 14 (v7) + `00_cong_nghe_ky_thuat_kien_truc_hien_tai.md`.
 
 ## Quyết định kiến trúc: dữ liệu bất biến (chỉ đọc) — 2026-11-05
 
@@ -93,6 +114,30 @@ Toàn bộ bộ tài liệu đã được đồng bộ theo một quyết địn
 | **Số liệu toàn bộ** | **77 tính năng** · **62 use case** · **80 endpoint** · **93 quy tắc kiểm thử** · **34 tình huống phân quyền** · **~146 ngày công**. |
 
 Tài liệu bị ảnh hưởng và đã được nâng phiên bản: Phần 2 (v4), 3 (v3), 4 (v3), 6 (v4), 7 (v2), 8 (v3), 9 (v2), 10 (v3), 11 (v2), 12 (v3), 13 (v2), 14 (v2).
+
+## Đồng bộ sau Bước 1–6 — 2026-11-16 (Nhóm I)
+
+Các tài liệu sau đã được **nâng phiên bản và đồng bộ với mã nguồn thực thi** sau khi hoàn thành Bước 1–6 của `edit/02_ke_hoach_thuc_thien.md`:
+
+| Tài liệu | Phiên bản mới | Nội dung đồng bộ |
+|---|---|---|
+| Phần 2 — Danh mục tính năng | **v11** | 11 tính năng hiện thực hoá; **85** tính năng; mục 3.36c |
+| Phần 5 — Ports and Adapters | **v3** | Bỏ monorepo `packages/core`/`packages/contracts`; thêm `GOOGLE_OAUTH_PORT`; **106 command/query handler** |
+| Phần 6 — Xác thực, phân quyền | **v7** | Mục 3.20 (Google OAuth 2.0 — cấm tự động liên kết email), mục 3.21 (quyền `needs_info`), chính sách remember-me; **56** tình huống |
+| Phần 7 — Hợp đồng API | **v8** | Bảng **86 route HTTP thực thi**; hợp đồng Google OAuth, Overview, Issue update, Member search |
+| Phần 8 — Database schema | **v7** | Mục 3.3b đối chiếu 21 schema Mongoose thực tế; `user.phone`/`bio`/`google_id`/`auth_provider`; `user_session.remember_me`/`last_used_at`; sửa TTL; `needs_info`; **S1–S24** |
+| Phần 10 — Vận hành | **v7** | Nhóm biến `GOOGLE_*`, `CLOUDFLARE_*`, `SSL_*`, `NTFY_*`; `JWT_REFRESH_REMEMBER_EXPIRATION`; mục 3.4.5 đối chiếu 43 biến `.env.example`; **O1–O39** |
+| Phần 13 — Chiến lược kiểm thử | **v9** | **143** quy tắc (135 tự động + 8 thủ công); 5 bộ test mới 83 ca; mapping **85 tính năng / 86 route HTTP**; **262 ca tự động PASS** |
+
+**Kết quả kiểm thử thực tế (2026-11-16):**
+
+| Lệnh | Suite | Ca test | Kết quả |
+|---|---|---|---|
+| `pnpm run test:unit` | 20 | **246** | ✅ PASS |
+| `pnpm run test:arch` | 4 | **16** | ✅ PASS |
+| **Tổng tự động** | **24** | **262** | **✅ 0 fail** |
+
+---
 
 ## Trạng thái hiện tại
 
@@ -299,3 +344,28 @@ Tiếp theo: **phần 15 — Đánh giá cuối và bàn giao**. Các câu hỏi
 
 
 **Cập nhật 2026-11-06 (lần 18 — DQ-05 có điều kiện + ma trận tương quan/VIF do AI đánh giá):** DQ-05 mặc định `unassessed`, kích hoạt khi có quy tắc được xác nhận (checklist 5 điểm, kiểm tra theo dòng); hệ thống tạo ma trận tương quan + bảng VIF (VIF>5 tham khảo, >10 cao); AI diễn giải trên số đã có, cấm suy quy tắc/kết luận nhân quả/yêu cầu xóa cột (Phần 2 v7, 12 v6, 3 v5, 7 v4, 13 v6, 14 v6). Quy tắc kiểm thử 120 → 125 (S24/C14/I22/I23/O36); tổng ~189,5 ngày công.
+
+
+**Cập nhật 2026-11-16 (lần 19 — Bước 8 / Nhóm I: vệ sinh và đồng bộ toàn bộ tài liệu):** toàn bộ tài liệu trong `docs/restructures/` đã được **đồng bộ với mã nguồn thực thi** sau khi hoàn thành Bước 1–7 của `edit/02_ke_hoach_thuc_thien.md`.
+
+| # | Hạng mục | Kết quả |
+|---|---|---|
+| I1 | `5_ports_adapters_design_v4.md` | Bỏ monorepo `packages/core`/`packages/contracts`; bổ sung `GOOGLE_OAUTH_PORT`; **106 command/query handler** |
+| I2 | `README.md` + `docs/generate_reports.py` | Bảng mapping `.docx` trỏ đúng phiên bản mới nhất; metadata cover cập nhật (86 route HTTP, 143 quy tắc) |
+| I3 | `7_api_contracts_v8.md` | Bảng **86 route HTTP thực thi**; contract Google OAuth, Overview, Issue update, Member search |
+| I4 | `2_feature_catalog_v11.md` | **85 tính năng**; cập nhật trạng thái hiện thực hoá của **11 tính năng** (mục 3.36c) |
+| I5 | `13_testing_acceptance_plan_v9.md` | **143 quy tắc** (135 tự động + 8 thủ công); 5 bộ test mới **83 ca**; mapping **85 tính năng / 86 route HTTP** |
+| I6 | `8_database_schema_v7.md` | Mục **3.3b** đối chiếu **21 schema Mongoose thực tế**; `user.phone`/`bio`/`google_id`/`auth_provider`; `user_session.remember_me`/`last_used_at`; sửa TTL session; trạng thái `needs_info`; **S1–S24** |
+| I7 | `10_runtime_operations_v7.md` | Nhóm biến `GOOGLE_*`/`CLOUDFLARE_*`/`SSL_*`/`NTFY_*`; `JWT_REFRESH_REMEMBER_EXPIRATION`; mục **3.4.5** đối chiếu **43 biến `.env.example`**; **O1–O39** |
+| I8 | `6_security_authorization_v7.md` | Mục **3.20** (Google OAuth 2.0 — cấm tự động liên kết email → `409`), mục **3.21** (quyền sửa báo cáo ở `needs_info`); chính sách remember-me; **56** tình huống |
+| I9 | `00_cong_nghe_ky_thuat_kien_truc_hien_tai.md` + `.slides.html` | Báo cáo hiện trạng thực thi: **370** file src, **22** port, **13** module, **15** controller, **86** route, **21** collection, **20** schema, **106** handler, **262 ca test PASS** |
+
+**Kết quả kiểm thử đo thật (16/11/2026):**
+
+| Lệnh | Suite | Ca test | Kết quả |
+|---|---|---|---|
+| `pnpm run test:unit` | 20 | **246** | ✅ PASS |
+| `pnpm run test:arch` | 4 | **16** | ✅ PASS |
+| `pnpm run lint` (`--max-warnings 0`) | — | — | ✅ **0 cảnh báo** |
+| `pnpm run type-check` (`tsc --noEmit`) | — | — | ✅ **0 lỗi** |
+| **Tổng tự động** | **24** | **262** | **✅ 0 fail** |

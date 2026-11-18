@@ -7,6 +7,7 @@ export const AUDIT_REPOSITORY_PORT = Symbol('AuditRepositoryPort');
 
 export type AuditAction =
   | 'ISSUE_STATUS_CHANGED'
+  | 'ISSUE_REPORT_UPDATED'
   | 'ISSUE_LIST_VIEWED'
   | 'USER_PROFILE_VIEWED'
   | 'USER_LIST_VIEWED'

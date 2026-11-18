@@ -7,5 +7,6 @@ export type AuthContextValue = {
   configurationError: Readonly<AppError> | null
   signIn(this: void, input: LoginRequestDto): Promise<void>
   signOut(this: void): Promise<SignOutResult>
+  deleteAccount?(this: void): Promise<void>
   confirmRenewal(this: void, accepted: boolean): Promise<void>
 }

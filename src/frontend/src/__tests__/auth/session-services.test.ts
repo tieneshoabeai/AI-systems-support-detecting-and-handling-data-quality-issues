@@ -50,7 +50,7 @@ describe('session service contracts', () => {
     const s = setup(health())
     expect(await s.health.check()).toEqual({ available: true })
     const config = requireDefined(s.adapter.mock.calls[0], 'session-services.test.ts:51')[0]
-    expect(config.url).toBe('http://localhost:3000/api/v1/health')
+    expect(config.url).toBe('http://localhost:3000/health')
     expect(config.timeout).toBe(5000)
     expect(config.headers.get('Authorization')).toBeUndefined()
     expect(s.readToken).not.toHaveBeenCalled()
