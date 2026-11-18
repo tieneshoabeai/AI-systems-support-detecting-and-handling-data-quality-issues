@@ -1,7 +1,7 @@
 import { Button, Input } from '../../../components/ui/controls'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types/preview/preview.types'
+import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types'
 import { NotificationCenter } from './notification-center'
 import { ReportCenter } from './report-center'
 import { PreviewIcon } from './preview-icons'

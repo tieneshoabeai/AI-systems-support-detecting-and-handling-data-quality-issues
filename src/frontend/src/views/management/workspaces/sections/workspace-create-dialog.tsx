@@ -1,13 +1,13 @@
-import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { Button, Input, Textarea } from '../../../../components/ui/controls'
+import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import type { Person } from '../../../../types/preview/preview.types'
-import { personFromEmail } from '../../../preview/preview-data'
+import type { Person } from '../../../../types'
+import { personFromEmail } from '../../../../hooks/preview/preview-presentation'
 import { PreviewIcon } from '../../../preview/components/preview-icons'
-import { Avatar } from '../../../preview/components/preview-shell'
-import { CoverArt } from '../../../preview/components/preview-primitives'
-import { usePreviewSession } from '../../../preview/preview-session-context'
+import { Avatar } from '../../../../components/resource'
+import { CoverArt } from '../../../../components/resource'
+import { usePreviewSession } from '../../../../hooks/preview/preview-session-context'
 
 // Khung 2 + 3 của ảnh "DataVerse Workspace Creation with Email Suggestions": form nhập
 // thông tin (tên · mô tả · thành viên ban đầu) rồi MÀN HÌNH THÀNH CÔNG.

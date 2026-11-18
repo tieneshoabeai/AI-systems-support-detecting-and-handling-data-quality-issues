@@ -124,7 +124,8 @@ const frontendLayers = {
 }
 
 export default defineConfig([
-  globalIgnores(['dist', '.agents/**']),
+  // OpenAPI outputs are generated; handwritten adapters remain fully linted.
+  globalIgnores(['dist', '.agents/**', 'src/lib/openapi.ts', 'src/types/services-type/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -166,7 +167,7 @@ export default defineConfig([
     plugins: { '@stylistic': stylistic },
   },
   {
-    files: ['vite.config.ts', 'vitest.config.ts'],
+    files: ['vite.config.ts', 'vite.e2e.config.ts', 'vitest.config.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: globals.node,
     },

@@ -47,7 +47,7 @@ function gapsOf(lines: string[], prefix: string): Array<{ id: string; swept: num
   }))
 }
 
-describe('orbit-vs-tower clearance vs the Phase 1 baseline', () => {
+describe('orbit-vs-tower clearance vs the accepted structural baseline', () => {
   it('measures the slope and full closures of the inverted lower roof', () => {
     const surface = coreSurfaces().find(entry => entry.name === 'lower-roof')!
     expect(coreSurfaceGap(new THREE.Vector3(0, 0.3, 0), surface)).toBeCloseTo(0.1, 6)

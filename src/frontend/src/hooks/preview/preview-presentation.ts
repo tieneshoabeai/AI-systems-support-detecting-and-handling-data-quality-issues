@@ -134,12 +134,24 @@ export const projectStatusBuckets = (state: PreviewStoreState, workspaceId: stri
 // đều total vào 5 tháng gần nhất, lệch theo mã workspace để hai workspace không cho cùng một
 // biểu đồ. Đây là khung hình khớp ảnh, KHÔNG phải số liệu thật — khi có API thay bằng truy vấn
 // theo createdAt. Không bịa ngày cụ thể cho từng project.
+const displayDateValue = (value: string): Date => {
+  const parts = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value)
+  return parts ? new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1])) : new Date(value)
+}
+
 export const monthlyProgressFor = (workspaceId: string, total: number, projects?: readonly Project[]): readonly { label: string; value: number }[] => {
   if (projects) {
     const now = new Date()
-    return Array.from({ length: 5 }, (_, i) => {
-      const month = new Date(now.getFullYear(), now.getMonth() - 4 + i, 1)
-      return { label: `${month.getMonth() + 1}/${month.getFullYear()}`, value: projects.filter(p => { const date = new Date(p.createdAt); return p.workspaceId === workspaceId && date.getMonth() === month.getMonth() && date.getFullYear() === month.getFullYear() }).length }
+    return Array.from({ length: 5 }, (_, index) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - 4 + index, 1)
+      return {
+        label: `${month.getMonth() + 1}/${month.getFullYear()}`,
+        value: projects.filter(project => {
+          const created = displayDateValue(project.createdAt)
+          return project.workspaceId === workspaceId && created.getMonth() === month.getMonth()
+            && created.getFullYear() === month.getFullYear()
+        }).length,
+      }
     })
   }
   const seed = [...workspaceId].reduce((sum, char) => sum + char.charCodeAt(0), 0)
@@ -229,7 +241,10 @@ const recencySeconds: Readonly<Record<string, number>> = {
 }
 
 const ageOf = (label: string): number => {
-  if (/^\d{4}-\d{2}-\d{2}T/.test(label)) return (Date.now() - Date.parse(label)) / 1000
+  if (/^\d{4}-\d{2}-\d{2}T/.test(label) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(label)) {
+    const timestamp = displayDateValue(label).getTime()
+    return Number.isFinite(timestamp) ? (Date.now() - timestamp) / 1000 : Number.MAX_SAFE_INTEGER
+  }
   const text = label.trim().toLowerCase()
   if (text === 'vừa xong' || text === 'hôm nay') return 0
   const match = /^(\d+(?:[.,]\d+)?) (giây|phút|giờ|ngày|tuần|tháng|năm) trước$/.exec(text)
@@ -294,7 +309,10 @@ const todayKey = (): number => {
   return now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate()
 }
 const createdKey = (label: string): number => {
-  if (/^\d{4}-\d{2}-\d{2}T/.test(label)) { const d = new Date(label); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() }
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(label) || /^\d{4}-\d{2}-\d{2}T/.test(label)) {
+    const date = displayDateValue(label)
+    return Number.isFinite(date.getTime()) ? date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate() : -1
+  }
   const match = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(label.trim())
   if (match) return Number(`${match[3]}${match[2]}${match[1]}`)
   return label.trim().toLowerCase() === 'hôm nay' ? todayKey() : -1

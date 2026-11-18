@@ -1,6 +1,6 @@
+import { Button, Input, Select, Table } from '../../ui/controls'
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
-import { Button, Input, Select, Table } from '../../ui/controls'
 import { useState } from 'react'
 import type { Person, PreviewProjectPanel, Project, Workspace } from '../../../types/preview/preview.types'
 import { defaultProjectRole, emailForPerson, previewNoteIds, previewReasons, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
@@ -47,14 +47,14 @@ function ProjectMemberRowCells({ person, isOwner, onChangeRole, onRemove }: {
   onChangeRole: (personId: string, role: string) => void
   onRemove: (personId: string) => void
 }) {
+  const live = usePreviewSession().state.source === 'api'
   if (isOwner) return <>
     <td><span className={roleClass(person.role)}>{person.role}</span></td>
     <td className="row-action"><span className="member-owner-dash" aria-label="Chủ sở hữu không có thao tác">—</span></td>
   </>
 
-  const options = projectRoleOptions.includes(person.role)
-    ? projectRoleOptions
-    : [person.role, ...projectRoleOptions]
+  const allowed = live ? projectRoleOptions.filter(role => role !== 'Admin') : projectRoleOptions
+  const options = allowed.includes(person.role) ? allowed : [person.role, ...allowed]
 
   return <>
     <td>
@@ -170,7 +170,7 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
         <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
           <Select value={role} onChange={event => setRole(event.target.value)}>
             <option value="all">Tất cả vai trò</option>
-            {projectRoleOptions.filter(role => role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
+            {projectRoleOptions.filter(role => session.state.source !== 'api' || role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
           </Select>
         </label>
       </div>

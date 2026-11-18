@@ -1,6 +1,6 @@
+import { Button, Input, Select, Textarea, Table } from '../../ui/controls'
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
-import { Button, Input, Select, Textarea, Table } from '../../ui/controls'
 import { useState } from 'react'
 import type { Person, PreviewWorkspacePanel, Project, Workspace, WorkspaceEdit } from '../../../types/preview/preview.types'
 import {
@@ -107,7 +107,7 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
       {error && <p className="dialog-error" id="ws-edit-error" role="alert">{error}</p>}
       <footer className="dialog-actions">
         <Button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Hủy</Button>
-        <Button type="submit" busy={busy} disabled={workspace.canManage === false} className="button-primary"><PreviewIcon name="check" /> Lưu thay đổi</Button>
+        <Button type="submit" disabled={busy || workspace.canManage === false} aria-disabled={busy} aria-busy={busy} className="button-primary"><PreviewIcon name="check" /> Lưu thay đổi</Button>
       </footer>
   </Dialog>
 }

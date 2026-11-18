@@ -179,7 +179,7 @@ function ProfileSection() {
             {/* Đặc tả dòng 9 nói rõ: "hủy thì về trang chính" → Hủy điều hướng về Home (không
                 phải chỉ xóa nháp tại chỗ). Ảnh 4.2 vẽ đúng hai nút Hủy / Lưu thay đổi. */}
             <Button type="button" className="button-secondary" onClick={() => session.openSection('home')}>Hủy</Button>
-            <Button type="button" className="button-primary" busy={saving} onClick={() => { void save() }}>Lưu thay đổi</Button>
+            <Button type="button" className="button-primary" disabled={saving} aria-busy={saving} onClick={() => { void save() }}>Lưu thay đổi</Button>
           </div>
         </div>
       </Panel>

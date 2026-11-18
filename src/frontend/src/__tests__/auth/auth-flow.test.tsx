@@ -20,7 +20,11 @@ import { validReturnTarget } from '../../app/router/return-target'
 vi.mock('../../views/application/application-frame', () => ({ ApplicationFrame: () => <Outlet /> }))
 vi.mock('../../views/processing/processing.view', () => ({ ProcessingView: () => <h1>AI Data Processing</h1> }))
 vi.mock('../../views/preview/project-workspace-2d.view', () => ({ ProjectWorkspaceView: () => <h1>Project</h1> }))
-vi.mock('../../views/preview/preview-entry', () => ({ ManagementArea: () => <h1>Quản lý</h1> }))
+// Keep the real session controls while isolating the fixture-heavy management UI.
+vi.mock('../../views/preview/preview-entry', async () => {
+  const { WorkspaceView } = await import('../../views/workspace/workspace.view')
+  return { ManagementArea: WorkspaceView }
+})
 
 const disposers: Array<() => Promise<void>> = []
 afterEach(async () => {
@@ -102,12 +106,13 @@ describe('login, routes and session cleanup', () => {
   })
 
   it('preserves a valid private return target then clears it and user/cache on logout', async () => {
-    const s = await mount({ path: '/workspaces?view=local#top' })
+    const s = await mount({ path: '/management?view=local#top' })
     expect(screen.getByTestId('location').textContent).toBe('/auth/login')
     await submitLogin()
-    expect(screen.getByTestId('location').textContent).toBe('/workspaces?view=local#top')
+    expect(screen.getByTestId('location').textContent).toBe('/management?view=local#top')
+    const logout = await screen.findByRole('button', { name: /Đăng xuất/ })
     s.queryClient.setQueryData(['users', 'a', 'me'], { private: true })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Đăng xuất/ }))
+    await act(async () => { fireEvent.click(logout)
       return Promise.resolve()
     })
     expect(screen.getByTestId('location').textContent).toBe('/auth/login')
@@ -157,7 +162,7 @@ describe('login, routes and session cleanup', () => {
   })
 
   it('renders a limited shell on outage without inventing profile or workspace list', async () => {
-    await mount({ path: '/workspaces', storedExp: Math.floor(Date.now() / 1000) + 60, meFailure: true })
+    await mount({ path: '/management', storedExp: Math.floor(Date.now() / 1000) + 60, meFailure: true })
     expect(screen.getByRole('heading', { name: 'Kết nối đang gián đoạn' })).toBeDefined()
     expect(screen.queryByText('test@example.com')).toBeNull()
     expect(screen.getByText(/thao tác trực tuyến đang bị khóa/)).toBeDefined()
@@ -175,7 +180,7 @@ describe('login, routes and session cleanup', () => {
 
 describe('provider timer/focus and consent dialog', () => {
   it('Hủy on an already expired restored session returns to a clean login', async () => {
-    const s = await mount({ path: '/workspaces?old=1', storedExp: Math.floor(Date.now() / 1000) - 1 })
+    const s = await mount({ path: '/management?old=1', storedExp: Math.floor(Date.now() / 1000) - 1 })
     expect(screen.getByRole('dialog')).toBeDefined()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Hủy' }))
       return Promise.resolve()
@@ -189,7 +194,7 @@ describe('provider timer/focus and consent dialog', () => {
   it('expires on timer, traps focus, ignores backdrop and Escape declines without refresh', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     vi.setSystemTime(new Date('2026-10-28T10:00:00Z'))
-    const s = await mount({ path: '/workspaces?old=1', storedExp: Date.now() / 1000 + 1 })
+    const s = await mount({ path: '/management?old=1', storedExp: Date.now() / 1000 + 1 })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     const dialog = screen.getByRole('dialog', { name: 'Bạn muốn tiếp tục?' })
     const cancel = within(dialog).getByRole('button', { name: 'Hủy' })
@@ -216,7 +221,7 @@ describe('provider timer/focus and consent dialog', () => {
     vi.setSystemTime(new Date('2026-10-28T10:00:00Z'))
     let resolve!: (value: unknown) => void
     const pendingRefresh = new Promise<unknown>(yes => { resolve = yes })
-    const s = await mount({ path: '/workspaces?view=current', storedExp: Date.now() / 1000 + 1, pendingRefresh })
+    const s = await mount({ path: '/management?view=current', storedExp: Date.now() / 1000 + 1, pendingRefresh })
     vi.setSystemTime(Date.now() + 2000)
     await act(async () => { fireEvent.focus(window); fireEvent(document, new Event('visibilitychange')); fireEvent(window, new Event('pageshow'))
       return Promise.resolve()
@@ -234,7 +239,7 @@ describe('provider timer/focus and consent dialog', () => {
       return Promise.resolve()
     })
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByTestId('location').textContent).toBe('/workspaces?view=current')
+    expect(screen.getByTestId('location').textContent).toBe('/management?view=current')
     expect(requests(s.adapter, '/users/me')).toHaveLength(2)
   })
 

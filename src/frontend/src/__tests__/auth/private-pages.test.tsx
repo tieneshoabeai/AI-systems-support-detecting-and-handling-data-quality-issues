@@ -7,6 +7,10 @@ import type { AuthContextValue } from '../../types/auth/auth-context.types'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
 
 const calls = vi.hoisted(() => ({ dataset: vi.fn() }))
+// This suite checks route admission; data loading is covered by management-data-provider.test.
+vi.mock('../../views/application/management-data-provider', () => ({
+  ManagementDataProvider: ({ children }: { children: import('react').ReactNode }) => children,
+}))
 vi.mock('../../views/auth/login.view', () => ({ LoginView: () => <h1>Login page</h1> }))
 vi.mock('../../views/dataset-3d/dataset-3d.view', () => {
   calls.dataset()
@@ -41,7 +45,7 @@ function mount(path: string, snapshot: SessionSnapshot) {
 
 afterEach(cleanup)
 
-it.each(['/management', '/processing', '/processing/projects/missing', '/workspaces/3d-dataset'])(
+it.each(['/management', '/processing', '/processing/projects/missing'])(
   'requires a session before rendering %s', async path => {
     mount(path, anonymous)
     expect(await screen.findByRole('heading', { name: 'Login page' })).toBeDefined()
@@ -54,16 +58,21 @@ it.each(['/management', '/processing', '/processing/projects/missing', '/workspa
 it.each([
   ['/management', 'Private Management'],
   ['/processing', 'Private Processing'],
-  ['/workspaces/3d-dataset', 'Private Dataset 3D'],
 ])('allows an authenticated session at %s', async (path, heading) => {
   mount(path, authenticated)
   expect(await screen.findByRole('heading', { name: heading })).toBeDefined()
 })
 
-it('keeps unknown URL 404 public', async () => {
-  mount('/unknown-url', anonymous)
+it.each([
+  ['/unknown-url', anonymous],
+  ['/workspaces', anonymous],
+  ['/workspaces', authenticated],
+  ['/workspaces/3d-dataset', anonymous],
+  ['/workspaces/3d-dataset', authenticated],
+])('shows public 404 at %s for session %j', async (path, snapshot) => {
+  mount(path, snapshot)
   expect(await screen.findByRole('heading', { name: 'Không tìm thấy trang' })).toBeDefined()
-  expect(screen.getByTestId('route').textContent).toBe('/unknown-url')
+  expect(screen.getByTestId('route').textContent).toBe(path)
 })
 
 it('shows missing project only after session validation', async () => {
@@ -72,12 +81,12 @@ it('shows missing project only after session validation', async () => {
 })
 
 it('preserves local-limited access and waits for an unresolved session', async () => {
-  const view = mount('/workspaces/3d-dataset', {
+  const view = mount('/processing', {
     ...base, phase: 'local-limited', accountId: 'account-1', expiresAtMs: 4_000_000_000_000, user: null,
   })
-  expect(await screen.findByRole('heading', { name: 'Private Dataset 3D' })).toBeDefined()
+  expect(await screen.findByRole('heading', { name: 'Private Processing' })).toBeDefined()
   view.unmount()
-  mount('/workspaces/3d-dataset', { ...anonymous, phase: 'bootstrapping' })
-  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Private Dataset 3D' })).toBeNull())
-  expect(screen.getByTestId('route').textContent).toBe('/workspaces/3d-dataset')
+  mount('/processing', { ...anonymous, phase: 'bootstrapping' })
+  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Private Processing' })).toBeNull())
+  expect(screen.getByTestId('route').textContent).toBe('/processing')
 })

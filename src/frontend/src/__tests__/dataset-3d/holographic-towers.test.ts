@@ -124,17 +124,21 @@ describe('holographic tower architecture', () => {
       expect(mesh.material).toBeInstanceOf(THREE.MeshPhysicalMaterial)
       glassMaterials.add(mesh.material as THREE.Material)
 
-      const frame = mesh.children.find(child => child.name === 'tower-floor-frame')
+      // Context towers now use one instanced ledger for corner uprights and floor edges.
+      const frame = mesh.children.find(child => child.name === 'tower-ledger-edges')
       expect(frame).toBeInstanceOf(THREE.InstancedMesh)
-      expect((frame as THREE.InstancedMesh).count).toBeGreaterThan(6)
+      const floors = THREE.MathUtils.clamp(Math.round(target / 0.22), 3, 16)
+      expect((frame as THREE.InstancedMesh).count).toBe(4 + 4 * (floors + 1))
+      expect(Array.from((frame as THREE.InstancedMesh).instanceMatrix.array).every(Number.isFinite)).toBe(true)
 
       const windows = mesh.children.find(child => child.name === 'tower-window-panel')
       expect(windows).toBeInstanceOf(THREE.InstancedMesh)
       expect((windows as THREE.InstancedMesh).count).toBeGreaterThan(0)
       expect((windows as THREE.InstancedMesh).instanceColor).not.toBeNull()
 
-      expect(mesh.children.some(child => child.name === 'tower-corner-post')).toBe(true)
-      expect(mesh.children.some(child => child.name === 'tower-roof-outline')).toBe(true)
+      expect(mesh.children.some(child => child.name === 'tower-floor-frame')).toBe(false)
+      expect(mesh.children.some(child => child.name === 'tower-corner-post')).toBe(false)
+      expect(mesh.children.some(child => child.name === 'tower-solid-core')).toBe(false)
       expect(mesh.children.some(child => child.name === 'technical-planar-grid')).toBe(false)
       expect(mesh.children.some(child => child.name === 'holographic-contour')).toBe(false)
     }

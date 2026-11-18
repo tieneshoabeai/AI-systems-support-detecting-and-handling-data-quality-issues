@@ -15,4 +15,6 @@ Thông báo dùng cursor và một cờ `notificationsEnabled`; xóa thông báo
 
 Auth/session và module 3D do phần tích hợp riêng quản lý. Provider đọc token hiện tại mỗi request, không giữ bản token cũ.
 
+Payload JSON của manager được kiểm tra bằng `satisfies` với type sinh tại `types/services-type` (workspace, project, thành viên, chuyển quyền, hồ sơ, thông báo và báo lỗi). Không sửa thủ công các file sinh. OpenAPI hiện chưa mô tả body của nhiều response (`content?: never`), vì vậy adapter vẫn khai báo DTO nhận về và hỗ trợ cả phân trang số/con trỏ, danh sách thành viên `members/items`. Type sinh sẵn không thay thế kiểm tra runtime hoặc kiểm thử với BE thật. Khi bổ sung response schema ở BE, sinh lại type rồi cập nhật adapter.
+
 Kiểm thử: `yarn test src/__tests__/management`; bộ này kiểm tra hợp đồng request, upload thất bại/retry, phân trang, phiên bị hủy và UI chờ xác nhận. Kiểm thử HTTP backend ở `test/management-http.spec.ts` dùng controller/guard/service thật với persistence thay thế, không phải nghiệm thu với MongoDB thật.

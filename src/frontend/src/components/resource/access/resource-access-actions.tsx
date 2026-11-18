@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { Button, Select } from '../../ui/controls'
+import { useState } from 'react'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
 import type { Workspace, Project } from '../../../types/preview/preview.types'
@@ -31,7 +31,7 @@ export function ResourceAccessActions({ resource, kind, onClose }: { resource: W
     {kind === 'workspace' && <><Button className="button-secondary" disabled={resource.canManage || busy} onClick={() => setConfirm('leave')}>Rời Workspace</Button>
       {resource.canManage && <p className="action-note">Chủ sở hữu cần nhượng quyền trước khi rời workspace.</p>}</>}
     {confirm && <div role="group" aria-label="Xác nhận thay đổi quyền"><p>{confirm === 'transfer' ? 'Xác nhận chuyển quyền chủ sở hữu? Quyền của bạn sẽ thay đổi ngay sau khi lưu.' : 'Xác nhận rời workspace? Bạn sẽ mất quyền truy cập các project trong đó.'}</p>
-      <Button className="button-secondary" disabled={busy} onClick={() => setConfirm(null)}>Hủy</Button><Button className="button-primary" busy={busy} onClick={() => { void execute() }}>Xác nhận</Button></div>}
+      <Button className="button-secondary" disabled={busy} onClick={() => setConfirm(null)}>Hủy</Button><Button className="button-primary" disabled={busy} aria-busy={busy} onClick={() => { void execute() }}>Xác nhận</Button></div>}
     {error && <p role="alert" className="form-error">{error}</p>}
   </details>
 }

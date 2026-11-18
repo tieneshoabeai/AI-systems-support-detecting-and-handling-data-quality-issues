@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PreviewSectionNavigator, PreviewSessionModel, PreviewUniverseNavigator } from '../../types/preview/preview-session.types'
+import type { PreviewSectionNavigator, PreviewSessionModel, PreviewUniverseNavigator } from '../../types'
 import type {
   NewReportInput, NotificationPrefKey, Person, PreviewActionId, PreviewDialogRequest, PreviewInfoRequest, PreviewMenuOrigin,
   PreviewMenuRequest, PreviewMutationResult, PreviewProjectPanel, PreviewProjectWizard, PreviewWorkspacePanel,
@@ -211,7 +211,11 @@ export const usePreviewSessionModel = (
         setDialog({
           mode: 'remove',
           target,
-          detail: target.kind === 'workspace'
+          detail: current.source !== 'api'
+            ? target.kind === 'workspace'
+              ? `Workspace là ranh giới truy cập: gỡ khỏi danh sách mẫu sẽ kéo theo ${current.projects.filter(item => item.workspaceId === target.id).length} project của nó. Thao tác chỉ sửa bộ nhớ tab và có Hoàn tác.`
+              : 'Xóa chỉ gỡ bản ghi khỏi danh sách mẫu trong bộ nhớ tab và có Hoàn tác.'
+            : target.kind === 'workspace'
             ? `Workspace là ranh giới truy cập: xóa workspace sẽ kéo theo ${current.projects.filter(item => item.workspaceId === target.id).length} project của nó. Thao tác xóa dữ liệu trên máy chủ không có hoàn tác trong giao diện.`
             : 'Project sẽ bị xóa. Bạn không thể hoàn tác trong giao diện.',
         })

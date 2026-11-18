@@ -226,7 +226,9 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
     </div>
 
     {visible.length === 0
-      ? <EmptyHint title="Không có kết quả" note="Đổi tab lọc ở trên để xem nhóm thông báo khác." />
+      ? <EmptyHint title="Không có kết quả" note={session.state.source === 'api'
+        ? 'Đổi tab lọc ở trên để xem nhóm thông báo khác.'
+        : 'Đổi tab lọc ở trên để xem nhóm thông báo khác; tải lại trang sẽ trả hộp thư về danh sách ban đầu.'} />
       : <Panel title={panelTitleFor(tab)}>
         <div className="table-scroll">
           <Table className="preview-table notice-table">

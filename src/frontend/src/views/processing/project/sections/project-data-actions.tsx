@@ -1,12 +1,12 @@
 import { Button, Input } from '../../../../components/ui/controls'
-import { useId, useState } from 'react'
-import type { ConfirmedProjectResult } from '../../../../types/processing/result-review.types'
-import { Panel } from '../../../preview/components/preview-primitives'
-import { ResultReviewDialog } from '../../../preview/components/result-review-dialog'
-import { Dialog } from '../../../../components/ui/dialog'
+import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
 import { usePreviewSession } from '../../../preview/preview-session-context'
 import { validateCsvFile } from '../../../../services/management/upload-validation'
+import { useId, useState } from 'react'
+import type { ConfirmedProjectResult } from '../../../../types'
+import { Panel } from '../../../preview/components/preview-primitives'
+import { ResultReviewDialog } from '../../../preview/components/result-review-dialog'
 import styles from './project-data-actions.module.css'
 import { PreviewIcon } from '../../../preview/components/preview-icons'
 
@@ -50,13 +50,15 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
     } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được tệp.') }
     finally { setBusy(false) }
   }
-  return <Dialog title="Upload data" onClose={onClose} busy={busy}>
+  const id = useId()
+  return <Dialog open onClose={onClose} busy={busy} className={styles['screen']} aria-labelledby={`${id}-title`}>
+    <h2 id={`${id}-title`}>Upload data</h2>
     <label className="dialog-field"><span>Chọn tệp dữ liệu</span><Input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => setFile(e.target.files?.[0] ?? null)} /></label>
     {file && <p>Đã chọn trên thiết bị: {file.name}</p>}
     <p className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
     {!store.uploadDataset && <p className="action-note">Chưa kết nối dịch vụ upload trong chế độ xem trước.</p>}
     {error && <p role="alert" className="form-error">{error}</p>}
-    <div className="dialog-actions"><Button className="button-secondary" disabled={busy} onClick={onClose}>Đóng</Button><Button className="button-primary" busy={busy} disabled={!file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</Button></div>
+    <div className="dialog-actions"><Button className="button-secondary" disabled={busy} onClick={onClose}>Đóng</Button><Button className="button-primary" aria-busy={busy} disabled={busy || !file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</Button></div>
   </Dialog>
 }
 

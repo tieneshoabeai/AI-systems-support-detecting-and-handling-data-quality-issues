@@ -1,7 +1,9 @@
+import { Button } from '../../../components/ui/primitives/button'
+import { Input } from '../../../components/ui/primitives/input'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import { Dialog } from '../../../components/ui/overlay/dialog'
-import { Button, Input } from '../../../components/ui/controls'
 import { useState } from 'react'
-import type { PreviewDialogRequest, PreviewResourceKind } from '../../../types/preview/preview.types'
+import type { PreviewDialogRequest, PreviewResourceKind } from '../../../types'
 import { PreviewIcon } from './preview-icons'
 
 // Hai dialog của thao tác mock: Đổi tên (form) và Xóa (xác nhận).
@@ -63,8 +65,8 @@ function RenameForm({ request, onSubmit, onCancel }: {
       </label>
       {error && <p className="dialog-error" id="rename-error" role="alert">{error}</p>}
       <footer className="dialog-actions">
-        <Button type="button" className="button-secondary" disabled={busy} onClick={onCancel}>Hủy</Button>
-        <Button type="submit" busy={busy} className="button-primary"><PreviewIcon name="check" /> Lưu tên</Button>
+        <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Hủy</Button>
+        <Button type="submit" loading={busy}><PreviewIcon name="check" /> Lưu tên</Button>
       </footer>
   </Dialog>
 }
@@ -83,15 +85,16 @@ function RemoveForm({ request, onConfirm, onCancel }: {
   onConfirm: () => void | Promise<void>
   onCancel: () => void
 }) {
+  const live = useManagementStore().getState().source === 'api'
   const [busy, setBusy] = useState(false)
   const confirm = async () => { if (busy) return; setBusy(true); try { await onConfirm() } finally { setBusy(false) } }
   return <Dialog open onClose={onCancel} busy={busy} className="" role="alertdialog" aria-labelledby="remove-title" aria-describedby="remove-detail">
       <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
-      <h2 id="remove-title">Gỡ “{request.target.name}” khỏi danh sách?</h2>
+      <h2 id="remove-title">Gỡ “{request.target.name}” khỏi {live ? 'danh sách' : 'danh sách mẫu'}?</h2>
       <p id="remove-detail" className="dialog-detail">{request.detail}</p>
       <footer className="dialog-actions">
-        <Button type="button" className="button-secondary" disabled={busy} onClick={onCancel}>Giữ lại</Button>
-        <Button type="button" className="button-danger" busy={busy} onClick={() => { void confirm() }}><PreviewIcon name="trash" /> Gỡ khỏi danh sách</Button>
+        <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Giữ lại</Button>
+        <Button type="button" variant="danger" loading={busy} onClick={() => { void confirm() }}><PreviewIcon name="trash" /> Gỡ khỏi danh sách</Button>
       </footer>
   </Dialog>
 }
