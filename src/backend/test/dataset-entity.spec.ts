@@ -150,30 +150,75 @@ describe('Dataset entity — assertIngestible()', () => {
 });
 
 /**
- * BẤT BIẾN DỮ LIỆU — sau khi nạp, nội dung dataset không được sửa.
+ * BẤT BIẾN DỮ LIỆU — sau khi nạp, **nội dung** dataset không được sửa.
  *
- * Các method `rename()` / `renameColumns()` / `resetColumnNames()` đã bị gỡ
- * khỏi entity `Dataset` (và route HTTP tương ứng đã bị gỡ khỏi controller).
- * Bộ test này khoá lại hành vi đó: không còn cách nào đổi tên dataset, đổi tên
- * cột hay khôi phục tên cột gốc.
+ * GĐ3 (3 endpoint metadata) đã bổ sung lại các method **metadata** trên entity:
+ *   - `rename()`          → `PATCH /datasets/{id}` (đổi tên hiển thị dataset)
+ *   - `renameColumns()`   → `PATCH /datasets/{id}/columns` (đổi tên hiển thị cột)
+ *   - `resetColumnNames()`→ `POST /datasets/{id}/columns/reset` (khôi phục tên gốc)
+ *
+ * Nhưng ranh giới vẫn giữ nguyên:
+ *   - key cột `c{i}` **bất biến**;
+ *   - `originalName` (tên gốc trong CSV) **không** đổi;
+ *   - không có method nào sửa *giá trị ô* / số dòng / số cột.
  */
-describe('Dataset entity — bất biến dữ liệu (không có method sửa nội dung)', () => {
-  it('không còn method rename() trên entity', () => {
+describe('Dataset entity — bất biến nội dung dữ liệu', () => {
+  it('rename() chỉ đổi tên hiển thị dataset', () => {
     const dataset = buildDataset();
-    expect((dataset as unknown as Record<string, unknown>)['rename']).toBeUndefined();
+    dataset.rename('ten moi');
+    expect(dataset.name).toBe('ten moi');
+    // Nội dung không đổi.
+    expect(dataset.rowCount).toBe(2);
+    expect(dataset.columnCount).toBe(2);
+    expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
   });
 
-  it('không còn method renameColumns() trên entity', () => {
+  it('rename() từ chối tên rỗng / quá dài', () => {
     const dataset = buildDataset();
-    expect((dataset as unknown as Record<string, unknown>)['renameColumns']).toBeUndefined();
+    expect(() => dataset.rename('   ')).toThrow(ValidationError);
+    expect(() => dataset.rename('x'.repeat(101))).toThrow(ValidationError);
+    expect(dataset.name).toBe('f');
   });
 
-  it('không còn method resetColumnNames() trên entity', () => {
+  it('renameColumns() đổi tên hiển thị, giữ key c{i} và originalName', () => {
     const dataset = buildDataset();
-    expect((dataset as unknown as Record<string, unknown>)['resetColumnNames']).toBeUndefined();
+    dataset.renameColumns([{ columnKey: 'c0', newName: 'Ho ten' }]);
+    expect(dataset.columnByKey('c0')?.name).toBe('Ho ten');
+    expect(dataset.columnByKey('c0')?.key).toBe('c0');
+    expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
   });
 
-  it('tên dataset giữ nguyên sau khi tạo (không đổi được)', () => {
+  it('renameColumns() từ chối key không tồn tại / tên rỗng / tên trùng', () => {
+    const dataset = buildDataset();
+    expect(() => dataset.renameColumns([{ columnKey: 'cX', newName: 'A' }])).toThrow(
+      ValidationError,
+    );
+    expect(() => dataset.renameColumns([{ columnKey: 'c0', newName: '  ' }])).toThrow(
+      ValidationError,
+    );
+    expect(() =>
+      dataset.renameColumns([
+        { columnKey: 'c0', newName: 'Trung' },
+        { columnKey: 'c1', newName: 'Trung' },
+      ]),
+    ).toThrow(ValidationError);
+    expect(dataset.columnByKey('c0')?.name).toBe('Ten');
+  });
+
+  it('resetColumnNames() khôi phục tên gốc, key c{i} bất biến', () => {
+    const dataset = buildDataset();
+    dataset.renameColumns([{ columnKey: 'c0', newName: 'Ho ten' }]);
+    dataset.resetColumnNames();
+    expect(dataset.columnByKey('c0')?.name).toBe('Ten');
+    expect(dataset.columnByKey('c0')?.key).toBe('c0');
+  });
+
+  it('resetColumnNames() ném lỗi khi không có cột nào khác tên gốc', () => {
+    const dataset = buildDataset();
+    expect(() => dataset.resetColumnNames()).toThrow(ValidationError);
+  });
+
+  it('tên dataset giữ nguyên sau khi tạo (không tự đổi)', () => {
     const dataset = buildDataset();
     expect(dataset.name).toBe('f');
   });
@@ -183,6 +228,14 @@ describe('Dataset entity — bất biến dữ liệu (không có method sửa n
     expect(dataset.columnByKey('c0')?.name).toBe('Ten');
     expect(dataset.columnByKey('c0')?.key).toBe('c0');
     expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
+  });
+
+  it('entity không có method sửa giá trị ô / số dòng', () => {
+    const dataset = buildDataset();
+    const proto = dataset as unknown as Record<string, unknown>;
+    for (const forbidden of ['updateCell', 'setCell', 'updateRow', 'setRows', 'deleteRow']) {
+      expect(proto[forbidden]).toBeUndefined();
+    }
   });
 });
 

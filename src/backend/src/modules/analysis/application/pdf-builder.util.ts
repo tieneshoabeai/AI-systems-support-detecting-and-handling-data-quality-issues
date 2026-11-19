@@ -30,9 +30,19 @@ const FONT_BOLD = path.join(FONT_DIR, 'DejaVuSans-Bold.ttf');
 /** Font hệ thống — dự phòng khi bản build không kèm assets. */
 const SYSTEM_FONT_DIR = '/usr/share/fonts/truetype/dejavu';
 
+/** Một bảng trong PDF (dùng cho ma trận tương quan, VIF, thống kê mô tả…). */
+export interface PdfTable {
+  headers: string[];
+  rows: string[][];
+  /** Tỉ lệ độ rộng từng cột (tổng ~1). Mặc định chia đều. */
+  widths?: number[];
+}
+
 export interface PdfSection {
   heading: string;
   lines: string[];
+  /** Bảng đi kèm phần nội dung (tuỳ chọn). */
+  table?: PdfTable;
 }
 
 export interface BuildReportPdfOptions {
@@ -46,6 +56,8 @@ export interface BuildReportPdfOptions {
 
 /** Cỡ chữ (pt). */
 const FONT_SIZE = { title: 16, heading: 12, body: 9 } as const;
+/** Cỡ chữ bảng (pt) — nhỏ hơn để nhiều cột vừa bề rộng trang. */
+const TABLE_FONT_SIZE = 8;
 /** Lề trang (pt). */
 const MARGIN = 48;
 /** Chiều rộng nội dung (pt) — A4 595pt trừ 2 lề. */
@@ -82,6 +94,68 @@ function sanitize(text: string): string {
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     .replace(/\r\n?/g, '\n')
     .trim();
+}
+
+/**
+ * Vẽ bảng: tiêu đề + các dòng dữ liệu, tự co giãn độ rộng cột theo `widths`.
+ *
+ * Dùng toạ độ tuyệt đối (`doc.text(str, x, y, { width })`) cho từng ô →
+ * các cột nằm cạnh nhau đúng ý. Ô dài hơn bề rộng cột sẽ bị cắt bằng dấu
+ * `…` (PDFKit `ellipsis`) thay vì tràn sang cột bên cạnh.
+ */
+function renderTable(
+  doc: PDFKit.PDFDocument,
+  table: PdfTable,
+  boldFont: string,
+  regularFont: string,
+): void {
+  const n = Math.max(1, table.headers.length);
+  const fr =
+    table.widths && table.widths.length === n ? table.widths : new Array<number>(n).fill(1 / n);
+  const total = fr.reduce((a, b) => a + b, 0) || 1;
+  const colW = fr.map((f) => (f / total) * CONTENT_WIDTH);
+  const xs: number[] = [];
+  let acc = MARGIN;
+  for (const w of colW) {
+    xs.push(acc);
+    acc += w;
+  }
+  const cellWidth = (i: number): number => Math.max(20, (colW[i] as number) - 4);
+
+  // Vị trí y hiện tại — `doc.y` bị PDFKit tự cập nhật sau mỗi lệnh text,
+  // nên ta tự theo dõi và cộng dồn chiều cao hàng.
+  let y = doc.y;
+
+  doc.font(boldFont).fontSize(TABLE_FONT_SIZE);
+  table.headers.forEach((h, i) => {
+    doc.text(sanitize(h), xs[i] as number, y, { width: cellWidth(i), align: 'left' });
+  });
+  y += TABLE_FONT_SIZE + 4;
+  doc.y = y;
+
+  doc.font(regularFont).fontSize(TABLE_FONT_SIZE);
+  if (table.rows.length === 0) {
+    doc.text(sanitize('(không có dữ liệu)'), MARGIN, y, { width: CONTENT_WIDTH, align: 'left' });
+    doc.y = y + TABLE_FONT_SIZE + 2;
+    return;
+  }
+  for (const row of table.rows) {
+    const cells = row.slice(0, n);
+    const heights = cells.map((c, i) =>
+      doc.heightOfString(sanitize(String(c ?? '')), { width: cellWidth(i), ellipsis: true }),
+    );
+    const rowHeight = Math.max(TABLE_FONT_SIZE + 2, ...heights);
+    cells.forEach((c, i) => {
+      doc.text(sanitize(String(c ?? '')), xs[i] as number, y, {
+        width: cellWidth(i),
+        align: 'left',
+        height: rowHeight,
+        ellipsis: true,
+      });
+    });
+    y += rowHeight;
+    doc.y = y;
+  }
 }
 
 /**
@@ -123,10 +197,16 @@ export async function buildReportPdfAsync(opts: BuildReportPdfOptions): Promise<
     doc.font(bold).fontSize(FONT_SIZE.heading).text(sanitize(sec.heading));
     doc.moveDown(0.2);
     doc.font(regular).fontSize(FONT_SIZE.body);
-    const lines = sec.lines.length > 0 ? sec.lines : ['(không có dữ liệu)'];
+    const lines = sec.lines.length > 0 ? sec.lines : [];
     for (const ln of lines) {
       // `width` của PDFKit tự ngắt dòng theo bề rộng khả dụng.
       doc.text(sanitize(ln), { width: CONTENT_WIDTH, align: 'left' });
+    }
+    if (sec.table) {
+      if (lines.length > 0) doc.moveDown(0.2);
+      renderTable(doc, sec.table, bold, regular);
+    } else if (lines.length === 0) {
+      doc.text(sanitize('(không có dữ liệu)'), { width: CONTENT_WIDTH, align: 'left' });
     }
     doc.moveDown(0.6);
   }

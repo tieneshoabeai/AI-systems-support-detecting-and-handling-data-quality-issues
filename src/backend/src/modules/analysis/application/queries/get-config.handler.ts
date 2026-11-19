@@ -38,6 +38,8 @@ export class GetConfigHandler {
         correlationMethod: 'pearson',
         outlierMethod: 'iqr',
         topN: 10,
+        // GĐ7 — chưa có cấu hình → không có ghi đè vai trò cột.
+        columnRoles: {},
       };
     }
     return {
@@ -50,6 +52,8 @@ export class GetConfigHandler {
       correlationMethod: saved.correlationMethod,
       outlierMethod: saved.outlierMethod,
       topN: saved.topN,
+      // GĐ7 — ghi đè vai trò cột do người dùng chỉ định.
+      columnRoles: saved.columnRoles ?? {},
     };
   }
 }

@@ -1,13 +1,12 @@
 # 7. Thiết kế hợp đồng API
 
-- **Version:** v8
+- **Version:** v8.3
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-18 (v8.1)
-- **Trạng thái:** Đã chốt quy ước hợp đồng (response, error, **cursor pagination**, URL, upload, bất đồng bộ, download) và **bảng đầy đủ 86 tính năng → 86 route HTTP thực thi**. **v4 bổ sung: DQ-05 kích hoạt có điều kiện trong kết quả phân tích + ma trận tương quan/VIF và nhận xét AI (theo Phần 2 v7, Phần 12 v6).** **v5 bổ sung: breakdown thiếu pairwise, cảnh báo mất mẫu VIF, excludedColumns/date, worker AI (theo Phần 2 v8, Phần 12 v7).** **v6 chốt nhóm B (2026-11-07): không ETag, list project theo workspace mẫu, /health + /health/ready ngoài /api/v1, version mọi resource, lọc server-side, đính kèm 10MB×3 png/jpg/pdf.** **v7 (2026-11-15) — Nhóm A đã hiện thực hoá cursor pagination cho `GET /workspaces` và `GET /workspaces/{workspaceId}/projects`: bỏ `page`, thêm `cursor` opaque, response `{ items, meta: { nextCursor, hasMore, limit } }`, bỏ `total`/`page`/`totalPages` (mục 3.5).** **v8 (2026-11-16) — Đối chiếu với mã nguồn thực tế sau Bước 2–6: bảng endpoint cập nhật từ 85 → **86 route HTTP thực thi** (mục 3.13), bổ sung hợp đồng Google OAuth 2.0 (mục 3.5c), endpoint tổng quan workspace (mục 3.5d), tìm kiếm thành viên project, sửa báo cáo của chính mình `PATCH /issues/{id}`, quản lý cột dataset, `DELETE /users/me`.** Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
+- **Cập nhật gần nhất:** 2026-11-19 (v8.3)
+- **Trạng thái:** Đã chốt quy ước hợp đồng (response, error, **cursor pagination**, URL, upload, bất đồng bộ, download) và **bảng đầy đủ 86 tính năng → 86 route HTTP thực thi**. **v4 bổ sung: DQ-05 kích hoạt có điều kiện trong kết quả phân tích + ma trận tương quan/VIF và nhận xét AI (theo Phần 2 v7, Phần 12 v6).** **v5 bổ sung: breakdown thiếu pairwise, cảnh báo mất mẫu VIF, excludedColumns/date, worker AI (theo Phần 2 v8, Phần 12 v7).** **v6 chốt nhóm B (2026-11-07): không ETag, list project theo workspace mẫu, /health + /health/ready ngoài /api/v1, version mọi resource, lọc server-side, đính kèm 10MB×3 png/jpg/pdf.** **v7 (2026-11-15) — Nhóm A đã hiện thực hoá cursor pagination cho `GET /workspaces` và `GET /workspaces/{workspaceId}/projects`: bỏ `page`, thêm `cursor` opaque, response `{ items, meta: { nextCursor, hasMore, limit } }`, bỏ `total`/`page`/`totalPages` (mục 3.5).** **v8 (2026-11-16) — Đối chiếu với mã nguồn thực tế sau Bước 2–6: bảng endpoint cập nhật từ 85 → **86 route HTTP thực thi** (mục 3.13), bổ sung hợp đồng Google OAuth 2.0 (mục 3.5c), endpoint tổng quan workspace (mục 3.5d), tìm kiếm thành viên project, sửa báo cáo của chính mình `PATCH /issues/{id}`, quản lý cột dataset, `DELETE /users/me`.** **v8.2 (2026-11-19) — bổ sung 2 route (`GET /datasets/{datasetId}/charts` GĐ6, `PATCH /datasets/{datasetId}/columns/pii` GĐ4) + ghi chú 429 rate-limit GĐ12; tổng 90 route.** **v8.3 (2026-11-19) — GĐ7: `column_roles` trong cấu hình phân tích + 4 field giải thích mới trong `dqSummary.columns` (`symbolMissingCount`, `skewness`, `outlierBreakdown`, `outlierSkippedReason`); **thêm field, không đổi/xoá field → không phá vỏ hợp đồng** (mục 3.15 quy tắc 3).** Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 7; sử dụng kết quả đã xác nhận của các phần trước.
 - **Quan hệ với các phần khác:** ánh xạ 1-1 với Phần 2 v11 (86 tính năng) và Phần 3 v6 (66 use case + DQ-05 có điều kiện). Quyền mỗi endpoint lấy từ ma trận quyền Phần 6 v7 mục 3.5.
-
 ## 1. Mục tiêu
 
 Làm rõ và thống nhất thiết kế hợp đồng API cho đợt tái cấu trúc backend.
@@ -621,6 +620,43 @@ GET  /api/v1/projects/{projectId}/report/{reportId}/file → 200 (tải PDF)
 
 **Điều chỉnh so với quyết định "202 cho mọi luồng bất đồng bộ":** giữ nguyên nguyên tắc 202 cho thao tác thực sự dài (sinh PDF), nhưng phân tích hệ thống trả đồng bộ vì tính toán cục bộ nhanh và làm UI phản hồi tốt hơn nhiều. Phần AI vẫn bất đồng bộ — người dùng vẫn nhận Tổng kết ngay, thiếu phần giải thích AI (không chặn Tổng kết — đã chốt ở Phần 12 mục 3.9).
 
+#### 3.10a. `POST /analysis` — giới hạn số phân tích đồng bộ (GĐ12)
+
+Phân tích hệ thống là **thuần JS, CPU-bound, chạy inline trong request**. Với
+dataset lớn (100.000 dòng), một lần chạy mất **~6,4 s** và **chặn event loop**
+của Node (đơn luồng). Nếu không giới hạn, các request phân tích **xếp hàng** →
+mọi endpoint khác của cùng instance chậm theo (đo được: p95
+`GET /datasets/{id}/records` nhảy từ 21 ms → 16,5 s khi 10 VU gọi phân tích
+đồng thời).
+
+Vì vậy server giới hạn **số phân tích đồng thời** (`ANALYSIS_MAX_CONCURRENCY`,
+mặc định 1, trần cứng 8) theo từng instance. Khi đã đủ slot:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 5
+```
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "LIMIT_EXCEEDED",
+    "message": "Hệ thống đang xử lý 1 phân tích đồng bộ. Vui lòng thử lại sau ít phút.",
+    "details": { "maxConcurrency": 1, "activeCount": 1, "retryAfterSeconds": 5 }
+  }
+}
+```
+
+| Quy tắc | Nội dung |
+|---|---|
+| 1 | `429` là **hành vi đúng**, không phải lỗi — client **phải** đọc `Retry-After` và thử lại |
+| 2 | Client nên có **backoff** theo `Retry-After`, không retry ngay lập tức |
+| 3 | Giới hạn áp dụng **trên mỗi instance** — chạy N replica → tổng = N × `ANALYSIS_MAX_CONCURRENCY` |
+| 4 | Độ trễ của **một** phân tích đơn lẻ **không đổi** (đo được: p95 6,38 s) — guard chỉ chặn phần thừa, không chặn phần đầu |
+
+> Chi tiết đo lường và thiết kế: [`22_analysis_concurrency_guard.md`](./22_analysis_concurrency_guard.md).
+
 ### 3.11. Optimistic locking — trường `expectedVersion`
 
 **Quyết định.** Đã chốt ở Phần 5 mục 3.9 — dùng trường `version`, truyền trong body.
@@ -736,12 +772,13 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 
 > **Vì sao `WS-11` dùng `/overview/workspaces` chứ không phải `/workspaces/overview`?** Vì `WorkspacesController` đã khai báo `@Get(':id')`. Nếu thêm `/workspaces/overview`, NestJS có thể phân giải chuỗi `overview` thành `:id` tuỳ thứ tự đăng ký route → trả sai 404/500. Tiền tố `/overview` tách khỏi namespace `workspaces` nên không xung đột.
 
-#### Nhóm PROJ — project (11 route / 12 tính năng)
+#### Nhóm PROJ — project (12 route / 13 tính năng)
 
 | # | Tính năng | Method | Path | Quyền |
 |---|---|---|---|---|
 | 32 | `PROJ-01` Tạo project (có `ownerId` tuỳ chọn) | POST | `/workspaces/{workspaceId}/projects` | WS-OWNER |
 | 33 | `PROJ-02` Danh sách project của workspace | GET | `/workspaces/{workspaceId}/projects` | thành viên |
+| 33b | **`PROJ-02b` Danh sách project toàn hệ thống** *(v8.2, mới)* | GET | `/projects` | có quyền đọc |
 | 34 | `PROJ-03` Thông tin project (kèm `workspaceName`) | GET | `/projects/{projectId}` | có quyền xem |
 | 35 | `PROJ-04` Cập nhật project | PATCH | `/projects/{projectId}` | PROJ-OWNER / WS-OWNER |
 | 36 | `PROJ-05` Xoá project | DELETE | `/projects/{projectId}` | WS-OWNER |
@@ -753,8 +790,10 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 | 42 | `PROJ-12` Lưu trạng thái project | PUT | `/projects/{projectId}/snapshot` | PROJ-OWNER / PROJ-MEMBER / WS-OWNER |
 
 > **v8 — sửa lệch so với v7:** v7 ghi `PROJ-09` là `GET /workspaces/{workspaceId}/members/search`. Mã nguồn thực tế dùng **một** endpoint `GET /projects/{projectId}/members` với query `search` / `role` / `cursor` / `limit` / `sort` — vừa tìm kiếm vừa phân trang keyset. Không có endpoint `/members/search` riêng.
+>
+> **v8.2 — bổ sung `GET /projects` (PROJ-02b):** route **không** gắn với workspace cụ thể — trả về mọi project mà người dùng có quyền đọc, gom từ mọi workspace (project thuộc workspace user làm chủ / thành viên, hoặc project user trực tiếp là thành viên / người tạo). Dùng cho màn hình "Danh sách dự án" — người dùng chọn project mà không cần biết nó nằm ở workspace nào. Phân trang keyset giống PROJ-02: `{ items, meta: { nextCursor, hasMore, limit } }`.
 
-#### Nhóm FILE / DATA / VIEW — dữ liệu (12 route / 12 tính năng)
+##### Nhóm FILE / DATA / VIEW — dữ liệu (14 route / 14 tính năng)
 
 | # | Tính năng | Method | Path | Quyền |
 |---|---|---|---|---|
@@ -770,8 +809,17 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 | 52 | `VIEW-01` Xem bảng dữ liệu | GET | `/datasets/{datasetId}/records` | có quyền xem |
 | 53 | `VIEW-01` Truy vấn có bộ lọc/sắp xếp/tìm kiếm | POST | `/datasets/{datasetId}/records/query` | có quyền xem |
 | 54 | `DATA-01` Thống kê cột | GET | `/datasets/{datasetId}/columns/{columnKey}/stats` | có quyền xem |
+| 54b | **`DATA-01` Số liệu biểu đồ (histogram, box plot, Top N)** *(v8.2, mới)* | GET | `/datasets/{datasetId}/charts` | có quyền xem |
+| 54c | **`VIEW-08` Bật/tắt cờ PII cho cột** *(v8.2, mới)* | PATCH | `/datasets/{datasetId}/columns/pii` | PROJ-MEMBER+ |
 
 > **v8 — sửa lệch so với v7:** v7 ghi `PATCH /datasets/:id` và `DELETE /datasets/:id` là **"Bỏ"**. Mã nguồn thực tế **vẫn có** cả hai route (đã hiện thực hoá ở Bước 1–3). Ngoài ra `PATCH /datasets/{id}/columns` nhận **mảng cột** trong body (đổi tên nhiều cột 1 lần) thay vì path param `{columnIndex}`; route `POST /datasets/{id}/columns/reset` là mới.
+>
+> **v8.2 — bổ sung 2 route (GĐ4 + GĐ6):**
+>
+> - `PATCH /datasets/{datasetId}/columns/pii` (**GĐ4**) — cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Đây là **metadata phân loại cột**, KHÔNG phải nội dung dữ liệu → **ngoại lệ** so với quy tắc "đổi tên cột khiến kết quả cũ stale". Cột được đánh dấu PII luôn được che trước khi đưa vào prompt AI. Body: `{ columns: [{ columnKey, isPii }] }`. Trả `200` với dataset đã cập nhật; `400` khi key cột không tồn tại hoặc không có cột nào thay đổi; `404` khi không tìm thấy dataset.
+> - `GET /datasets/{datasetId}/charts` (**GĐ6/E1**) — số liệu biểu đồ cho các cột. Query: `columns` (CSV, tùy chọn — mặc định tất cả), `top_n` (1–20, mặc định 5), `max_rows` (1–50000, mặc định 50000). Trả `200` với `{ charts: [...] }` — **một phần tử cho mỗi cột** (không phải 3 mảng tách biệt): trường chung `column_key`, `column_name`, `data_type`, `total_records`, `sampled_records`, `truncated`, `missing_count`, `missing_ratio`; cột **số** có thêm `histogram` (`method`, `bins`) và `box_plot` (`q1`, `median`, `q3`, `whisker_low`, `whisker_high`, `outside_count`, `n`); cột **chuỗi/boolean** có thêm `category` (`top_n`, `items`, `other`, `distinct_count`); cột **date** chỉ có trường chung. Tối đa 50 cột mỗi lần gọi.
+>
+> Chi tiết: [`20_overload_guard_gd0_gd4.md`](./20_overload_guard_gd0_gd4.md) (GĐ4), [`22_analysis_concurrency_guard.md`](./22_analysis_concurrency_guard.md) (bối cảnh GĐ6).
 
 #### Nhóm DQ / ANALYSIS / AI — phân tích (7 route / 15 tính năng)
 
@@ -786,6 +834,25 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 | 61 | `AI-01` Gắn kết quả AI đã grounding *(v8, mới)* | POST | `/analysis/jobs/{jobId}/result` | PROJ-MEMBER+ (AI nội bộ) |
 
 > **v8 — sửa lệch so với v7:** v7 ghi `PUT /projects/{projectId}/analysis/config`, mã nguồn dùng **`POST`** (`@HttpCode(200)`) và có thêm route `GET` xem cấu hình. Route `POST /analysis/jobs/{jobId}/result` là **kênh nội bộ** để worker AI đẩy kết quả đã grounding — không phải endpoint người dùng gọi tay.
+>
+> **v8.3 — GĐ7: ghi đè vai trò cột (`column_roles`).**
+>
+> `POST`/`GET /projects/{projectId}/analysis/config` nay có thêm trường `columnRoles` (response) và `column_roles` (request body).
+>
+> - **Ý nghĩa:** hệ thống tự suy vai trò cột (`identifier` / `category` / `measure` / `text` / `datetime`) từ **tên cột + phân bố giá trị**. Có những cột bị suy sai (VD cột mã toàn số `0/1` → bị coi là `measure`) và người dùng không có cách sửa. `column_roles` cho phép người dùng **ghi đè thủ công** để kiểm soát cột nào đi vào tương quan/VIF.
+> - **Body (POST):** `column_roles: { [columnKey]: 'identifier' | 'category' | 'measure' | 'text' | 'datetime' }`. Key là **key cột ổn định** (`c0`, `c1`, …) — KHÔNG phải tên hiển thị → đổi tên cột không làm mất ghi đè. `null` → xoá hết ghi đè; bỏ trường → giữ nguyên cấu hình cũ.
+> - **Response (GET/POST):** `columnRoles` là map đã lưu (mặc định `{}`).
+> - **Validation:** `400` khi (a) key cột không tồn tại, (b) vai trò không thuộc enum, (c) vai trò không khớp kiểu dữ liệu (`measure` chỉ với cột `number`; `datetime` chỉ với cột `date`; `identifier`/`category`/`text` không dùng cho cột `date`).
+> - **Tác động fingerprint:** ghi đè vai trò là **một phần của đầu vào phân tích** → đổi ghi đè làm fingerprint đổi → kết quả cũ được đánh dấu `stale` (`config_changed`), tránh tình trạng báo cáo in ra kết quả đã không còn đúng.
+>
+> **v8.3 — GĐ7: 4 trường giải thích mới trong `dqSummary.columns`** (thêm field, không phá vỏ hợp đồng):
+>
+> | Trường | Kiểu | Ý nghĩa |
+> |---|---|---|
+> | `symbolMissingCount` | `number` | Số ô chứa **ký hiệu trừ** (vd `"N/A"`, `"-"`, `"?"`) bị loại khỏi DQ-01. Ô này KHÔNG phải thiếu theo DQ-01 (chuỗi khác rỗng) nhưng cũng không phải giá trị hợp lệ → không được tính vào mẫu số. |
+> | `skewness` | `number \| null` | Độ lệch mẫu của cột `measure` (null nếu `< 4` giá trị hoặc độ lệch chuẩn = 0). Giúp phân biệt "ngoại lệ do lỗi nhập" với "ngoại lệ do phân phối lệch". |
+> | `outlierBreakdown` | `{ iqr, iqrExtreme, zscore, both } \| null` | Phân rã ngoại lệ theo phương pháp: `iqr` (ngưỡng 1.5×IQR), `iqrExtreme` (ngưỡng 3×IQR — ngoại lệ cực đoan), `zscore` (Modified-Z 3.5), `both` (giao IQR∩Z). `null` = cột không có ngoại lệ nào. |
+> | `outlierSkippedReason` | `string \| null` | Vì sao cột số không có ngoại lệ. Hiện chỉ có giá trị `not_measure_column` — cột số nhưng vai trò không phải `measure` (VD mã định danh toàn số) → cố ý bỏ qua DQ-04. `null` = cột đã được phân tích bình thường. |
 
 #### Nhóm SUMMARY / REPORT — tổng kết và xuất (4 route / 4 tính năng)
 
@@ -851,12 +918,25 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 
 **Kiểm tra bao phủ (v8):**
 
-| Chỉ số | v7 (thiết kế) | v8 (thực thi) | v8.1 (thực thi) |
-|---|---|---|---|
-| Route HTTP | 85 | **86** | **87** |
-| Kênh WebSocket | 1 | 1 | 1 |
-| Tính năng có endpoint riêng | 79 | **86** | **87** |
-| Tính năng không có endpoint riêng | 5 | 5 (`AUTH-04` client-side, `AUTH-13` hạ tầng, `DQ-01`→`DQ-05` và `ANALYSIS-04`→`ANALYSIS-07` nằm trong `ANALYSIS-03`) | 5 (không đổi) |
+| Chỉ số | v7 (thiết kế) | v8 (thực thi) | v8.1 (thực thi) | v8.2 (thực thi) |
+|---|---|---|---|---|
+| Route HTTP | 85 | **86** | **87** | **90** |
+| Kênh WebSocket | 1 | 1 | 1 | 1 |
+| Tính năng có endpoint riêng | 79 | **86** | **87** | **90** |
+| Tính năng không có endpoint riêng | 5 | 5 (`AUTH-04` client-side, `AUTH-13` hạ tầng, `DQ-01`→`DQ-05` và `ANALYSIS-04`→`ANALYSIS-07` nằm trong `ANALYSIS-03`) | 5 (không đổi) | 5 (không đổi) |
+
+> **v8.2 (2026-11-19) — bổ sung 3 route còn thiếu trong bảng §3.13.** Đối chiếu
+> tự động bằng `src/backend/scripts/check-api-coverage.cjs` cho thấy mã nguồn đã
+> có 3 route chưa được khai báo trong hợp đồng:
+>
+> | # | Mã | Method | Path | Nguồn |
+> |---|---|---|---|---|
+> | 33b | `PROJ-02b` | GET | `/projects` | Đã có từ trước — thiếu trong bảng |
+> | 54b | `DATA-01` | GET | `/datasets/{datasetId}/charts` | GĐ6 (2026-11-18) |
+> | 54c | `VIEW-08` | PATCH | `/datasets/{datasetId}/columns/pii` | GĐ4 (2026-11-18) |
+>
+> Ngoài ra `POST /projects/{projectId}/analysis` nay có thêm hành vi **429 +
+> `Retry-After`** khi vượt `ANALYSIS_MAX_CONCURRENCY` (GĐ12) — xem mục 3.10a.
 
 Bảng trên **không** còn đếm dòng "không có endpoint" vào tổng như v7 — v8 **tách bạch**: mỗi dòng là **một route thật đã hiện thực hoá** trong mã nguồn.
 

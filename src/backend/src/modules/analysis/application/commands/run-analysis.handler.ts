@@ -1,4 +1,3 @@
-import * as crypto from 'crypto';
 /**
  * RunAnalysisHandler — Use case: `runAnalysis()`
  * (thay đổi trạng thái) — theo §3.10 Command/Query pattern.
@@ -33,23 +32,43 @@ import { RagFewShotService } from '../services/rag-few-shot.service';
 import {
   computeDq0102,
   computeDq03,
+  dateOrderOf,
   detectOutliers,
   isMissingCell,
   isValidByType,
 } from '../../domain/dq.util';
-import { describeColumn, evaluateImbalance, analyzeTime } from '../../domain/stats.util';
+import { detectSuspicions, type SuspicionColumn } from '../../domain/suspicion.util';
+import { computeInputFingerprint } from '../../domain/input-fingerprint.util';
+import {
+  boxPlot,
+  categoryTopN,
+  clampChartTopN,
+  histogram,
+  type ChartData,
+} from '../../../../shared/domain/utils/chart-data.util';
+import { describeColumn, evaluateImbalance, analyzeTime, skewnessOf } from '../../domain/stats.util';
 import { toFiniteNumber } from '../../domain/correlation.util';
 import { RunAnalysisInput } from '../analysis.types';
 import { maskSampleValue } from '../analysis.utils';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import {
+  AnalysisConcurrencyGuard,
   assertAnalysisRowLimit,
+  resolveAnalysisMaxConcurrency,
   resolveAnalysisMaxRows,
 } from '../analysis-limit.util';
 
 @Injectable()
 export class RunAnalysisHandler {
   private readonly logger = new Logger(RunAnalysisHandler.name);
+  /**
+   * GĐ12 — semaphore giới hạn số phân tích đồng bộ chạy cùng lúc trong 1 tiến trình.
+   *
+   * Khởi tạo ở constructor vì `ANALYSIS_MAX_CONCURRENCY` là cấu hình ứng dụng
+   * (đọc 1 lần khi khởi động, không đổi theo request).
+   */
+  private readonly concurrencyGuard: AnalysisConcurrencyGuard;
+
   constructor(
     @Inject(PROJECT_ACCESS_PORT)
     private readonly projects: ProjectAccessPort,
@@ -65,10 +84,10 @@ export class RunAnalysisHandler {
     @Optional()
     @Inject(REALTIME_PORT)
     private readonly realtime: RealtimePort,
-  ) {}
-
-  private fingerprint(parts: Record<string, unknown>): string {
-    return crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex');
+  ) {
+    this.concurrencyGuard = new AnalysisConcurrencyGuard(
+      resolveAnalysisMaxConcurrency(this.configService.get('ANALYSIS_MAX_CONCURRENCY')),
+    );
   }
 
   private async toApiShape(
@@ -98,7 +117,26 @@ export class RunAnalysisHandler {
     };
   }
 
+  /**
+   * GĐ12 — cổng vào của phân tích đồng bộ.
+   *
+   * Bọc toàn bộ việc tính toán trong {@link AnalysisConcurrencyGuard} để:
+   *   1. Không cho quá N phân tích chạy đồng thời → **event loop không bị
+   *      chặn bởi hàng đợi** (đo được: p95 endpoint khác nhảy 21 ms → 3,23 s
+   *      khi 10 VU gọi phân tích đồng thời — xem `docs/test-reports/perf-2026-11-19.md`).
+   *   2. Không đổi hợp đồng API: vẫn trả `201` khi thành công.
+   *
+   * Khi đã đủ slot → `RateLimitExceededError` → HTTP **429** kèm `Retry-After`.
+   */
   async execute(
+    projectId: string,
+    dto: RunAnalysisInput,
+    userId?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.concurrencyGuard.run(() => this.executeAnalysis(projectId, dto, userId));
+  }
+
+  private async executeAnalysis(
     projectId: string,
     dto: RunAnalysisInput,
     userId?: string,
@@ -110,6 +148,34 @@ export class RunAnalysisHandler {
     const dataset = await this.datasetsRepository.findByProject(projectId);
     if (!dataset) {
       throw new NotFoundError('Project chưa có dataset để phân tích');
+    }
+
+    // GAP-003 — **gate lỗi tên cột**: dataset có cột rỗng / trùng / chỉ khoảng
+    // trắng thì **không được phân tích** (UC-08 / §3.25).
+    //
+    // Vì sao chặn:
+    // - Tên trùng → các bản đồ `key → tên` (label/time/value, role theo tên) sẽ
+    //   đè lên nhau → tương quan tính nhầm cột, kết quả sai mà không báo lỗi.
+    // - Tên rỗng → không hiển thị được trong báo cáo, người dùng không biết
+    //   cột nào là cột nào.
+    //
+    // Vì sao **không** tự sửa: yêu cầu đã chốt là người dùng phải tự sửa tên
+    // cột (hoặc reset về tên gốc) rồi mới chạy lại.
+    //
+    // Dùng `columnIssues.length` (không phải `hasColumnIssues()`) để tương thích
+    // cả entity `Dataset` lẫn bản phẳng (một số adapter/test trả bản phẳng).
+    const columnIssues = dataset.columnIssues ?? [];
+    if (columnIssues.length > 0) {
+      throw new ValidationError(
+        `Dataset còn ${columnIssues.length} lỗi tên cột (rỗng/trùng/chỉ khoảng trắng) — cần sửa tên cột trước khi phân tích.`,
+        {
+          columnIssues: columnIssues.map((i) => ({
+            columnKey: i.columnKey,
+            issue: i.issue,
+            message: i.message,
+          })),
+        },
+      );
     }
 
     // GĐ0 — chặn sớm theo số dòng, TRƯỚC khi đọc bất kỳ record nào từ MongoDB.
@@ -125,6 +191,8 @@ export class RunAnalysisHandler {
     const cfgTime = stored?.timeColumn ?? null;
     const cfgGranularity = stored?.timeGranularity ?? 'day';
     const cfgValue = stored?.valueColumn ?? null;
+    // GĐ7 — ghi đè vai trò cột do người dùng chỉ định (map key cột → vai trò).
+    const cfgColumnRoles = stored?.columnRoles ?? null;
     const allInferable = dataset.columns.filter((c) => classifyColumn(c.dataType) !== 'excluded');
     const byKey = new Map(dataset.columns.map((c) => [c.key, c.name] as const));
     const known = new Set(dataset.columns.map((c) => c.name));
@@ -163,17 +231,50 @@ export class RunAnalysisHandler {
       correlation_method: dto.correlation_method,
       outlier_method: dto.outlier_method,
       top_n: dto.top_n,
+      chart_top_n: clampChartTopN(dto.chart_top_n),
       label_column: labelColumn,
       time_column: timeColumn,
       time_granularity: cfgGranularity,
       value_column: valueColumn,
+      // GĐ7 — lưu ghi đè vai trò cột vào `analysis_run.config` để truy vết
+      // được "kết quả này được tính với vai trò nào" (audit + tái lập).
+      column_roles: cfgColumnRoles,
     };
-    const fp = this.fingerprint({
-      dataset_id: dataset.id,
-      file_checksum: dataset.fileChecksum,
-      row_count: dataset.rowCount,
-      config,
-    });
+    // AN-33 — fingerprint phải đổi khi **cờ PII** hoặc **vai trò cột** của
+    // người dùng đổi (nếu không, kết quả cũ vẫn "hiện hành" dù che PII đã
+    // đổi → báo cáo có thể in dữ liệu đã đánh dấu PII).
+    //
+    // `computeInputFingerprint()` (domain/input-fingerprint.util.ts) băm theo
+    // **key cột bất biến `c{i}`** + metadata cột (tên, kiểu, isPii) + cấu hình.
+    const keyByName = new Map(dataset.columns.map((c) => [c.name, c.key] as const));
+    const fp = computeInputFingerprint(
+      {
+        id: dataset.id,
+        fileChecksum: dataset.fileChecksum,
+        rowCount: dataset.rowCount,
+        columns: dataset.columns.map((c) => ({
+          key: c.key,
+          name: c.name,
+          originalName: c.originalName,
+          dataType: c.dataType,
+          isPii: c.isPii,
+        })),
+      },
+      {
+        selectedKeys: selectedKeys.map((n) => keyByName.get(n) ?? n),
+        labelKey: labelColumn ? (keyByName.get(labelColumn) ?? null) : null,
+        timeKey: timeColumn ? (keyByName.get(timeColumn) ?? null) : null,
+        valueKey: valueColumn ? (keyByName.get(valueColumn) ?? null) : null,
+        correlationMethod: dto.correlation_method,
+        outlierMethod: dto.outlier_method,
+        topN: dto.top_n,
+        timeGranularity: cfgGranularity,
+        // GĐ7 — ghi đè vai trò cột của người dùng là **một phần của đầu vào**
+        // → phải nằm trong hash. Đổi ghi đè (VD chuyển cột `ma_so` từ `measure`
+        // sang `identifier`) làm kết quả cũ không còn đúng → phải stale.
+        columnRoles: cfgColumnRoles,
+      },
+    );
 
     const startedAt = new Date();
     const run = await this.analysisRepository.create({
@@ -232,7 +333,8 @@ export class RunAnalysisHandler {
       const columnRoles = inferColumnRoles(
         dataset.columns.map((c) => ({ key: c.key, name: c.name, dataType: c.dataType })),
         rows,
-        null,
+        // GĐ7 — áp ghi đè vai trò của người dùng (nếu có).
+        cfgColumnRoles,
       );
       const roleByName = new Map<string, AnalysisRole>(
         columnRoles.map((r) => [r.name, r.role] as const),
@@ -263,6 +365,8 @@ export class RunAnalysisHandler {
           key,
           role: role === 'measure' ? ('numeric' as const) : ('categorical' as const),
           reason: null,
+          // GĐ2 — cột kiểu chữ: ký hiệu NA/None… là một lớp (chỉ ô trống là thiếu), đồng bộ DQ-01.
+          textColumn: col?.dataType === 'string',
         };
       });
 
@@ -299,6 +403,12 @@ export class RunAnalysisHandler {
       }
 
       const dqBase = computeDq0102(selectedKeys, rowWrappers);
+      // GĐ2 — thứ tự ngày/tháng (DD/MM hay MM/DD) của từng cột ngày; dùng chung cho DQ-03 / bằng chứng / mẫu AI.
+      const dateOrderByCol = new Map(
+        selectedKeys
+          .filter((c) => colTypeByName.get(c) === 'date')
+          .map((c) => [c, dateOrderOf(rowWrappers.map((w) => w.values[c]))] as const),
+      );
       const dq03Rows = computeDq03(
         selectedKeys.map((c) => ({ column: c, dataType: colTypeByName.get(c) ?? 'string' })),
         rowWrappers,
@@ -306,33 +416,78 @@ export class RunAnalysisHandler {
       const dq03ByCol = new Map(dq03Rows.map((r) => [r.column, r]));
       const outlierByCol = new Map<
         string,
-        { union: number[]; method: string; reason: string | null }
+        {
+          union: number[];
+          method: string;
+          reason: string | null;
+          /** GĐ7 — phân rã ngoại lệ theo từng phương pháp (IQR 1.5× / IQR 3× / Modified-Z / giao). */
+          breakdown: {
+            iqr: number;
+            iqrExtreme: number;
+            zscore: number;
+            both: number;
+          };
+        }
       >();
+      // GĐ7 — giá trị số hợp lệ theo cột (dùng cho skewness + giải thích DQ-04).
+      const numericValues = new Map<string, number[]>();
       for (const key of selectedKeys) {
         if (colTypeByName.get(key) !== 'number') continue;
         const vals: { rowIndex: number; value: number }[] = [];
+        const plain: number[] = [];
         for (const w of rowWrappers) {
           const v = w.values[key];
           if (isMissingCell(v)) continue;
           const chk = isValidByType(v, 'number');
           if (!chk.valid) continue;
           const n = toFiniteNumber(v);
-          if (n !== null) vals.push({ rowIndex: w.rowIndex, value: n });
+          if (n !== null) {
+            vals.push({ rowIndex: w.rowIndex, value: n });
+            plain.push(n);
+          }
         }
+        numericValues.set(key, plain);
         const out = detectOutliers(key, vals, dto.outlier_method);
-        outlierByCol.set(key, { union: out.union, method: dto.outlier_method, reason: out.reason });
+        outlierByCol.set(key, {
+          union: out.union,
+          method: dto.outlier_method,
+          reason: out.reason,
+          // GĐ7 — phân rã: `iqr` = ngưỡng 1.5×IQR, `iqrExtreme` = ngưỡng 3×IQR
+          // (ngoại lệ "cực đoan"), `zscore` = Modified-Z 3.5, `both` = giao của
+          // IQR 1.5× và Modified-Z (ngoại lệ mà **cả hai** phương pháp đều chỉ ra).
+          breakdown: {
+            iqr: out.iqrOutliers.length,
+            iqrExtreme: out.iqrExtremeOutliers.length,
+            zscore: out.zOutliers.length,
+            both: out.intersection.length,
+          },
+        });
       }
       const dqColumns = dqBase.columns.map((c) => {
         const inv = dq03ByCol.get(c.column);
         const out = outlierByCol.get(c.column);
         const outlierCount = out ? out.union.length : 0;
+        // GĐ7 — chỉ cột `measure` mới có skewness (phân phối lệch chỉ có nghĩa
+        // cho định lượng). Cột `identifier` toàn số 0/1 có skewness vô nghĩa.
+        const xs = roleByName.get(c.column) === 'measure' ? (numericValues.get(c.column) ?? []) : [];
+        const skewness = skewnessOf(xs);
         return {
           ...c,
           invalidCount: inv?.invalidCount ?? 0,
           invalidRate: inv?.invalidRate ?? null,
+          // GĐ7 — số ô chứa ký hiệu trừ (vd "N/A", "-") bị loại khỏi DQ-01.
+          // Quan trọng: ô này **không phải thiếu** theo DQ-01 (chuỗi khác rỗng),
+          // nhưng cũng không phải giá trị hợp lệ → không được đếm vào mẫu số.
+          symbolMissingCount: inv?.reasons['symbol_as_missing_excluded_from_dq01'] ?? 0,
+          skewness,
           outlierCount,
           outlierRate:
             rowWrappers.length > 0 ? Number((outlierCount / rowWrappers.length).toFixed(4)) : null,
+          // GĐ7 — phân rã ngoại lệ theo phương pháp (null = không có ngoại lệ nào).
+          outlierBreakdown: out ? out.breakdown : null,
+          // GĐ7 — vì sao cột số không có ngoại lệ: không phải cột định lượng.
+          outlierSkippedReason:
+            !out && colTypeByName.get(c.column) === 'number' ? 'not_measure_column' : null,
           method: out ? `dq01_dq03_${out.method}` : c.method,
           reason: out?.reason ?? c.reason,
         };
@@ -367,6 +522,61 @@ export class RunAnalysisHandler {
         rows,
         cfgGranularity as 'day' | 'week' | 'month' | 'year',
       );
+      // GĐ3 — dữ liệu biểu đồ cho phụ lục A của PDF báo cáo.
+      //
+      // Vẽ theo **vai trò cột** (GĐ9): cột đo (measure) → histogram/box plot;
+      // cột phân loại (category) → Top N. Cột định danh/văn bản **không vẽ**
+      // (không in tên người/mã định danh ra báo cáo) — cũng bỏ qua cột PII.
+      const chartTopN = clampChartTopN(config.chart_top_n);
+      const charts: ChartData = {
+        missingRate: dqColumns.map((c) => ({
+          column: c.column,
+          missingRate: c.missingRate ?? null,
+        })),
+        histograms: [],
+        boxPlots: [],
+        categories: [],
+        timeSeries: null,
+      };
+      // GĐ7 — `numericValues` đã được tính ở phần DQ-04 (phía trên) → dùng lại
+      // cho biểu đồ, tránh quét lại toàn bộ dữ liệu lần nữa.
+      for (const key of selectedKeys) {
+        const role = roleByName.get(key);
+        const dt = colTypeByName.get(key) ?? 'string';
+        if (role === 'measure') {
+          const xs = numericValues.get(key) ?? [];
+          const h = histogram(key, xs);
+          const b = boxPlot(key, xs);
+          if (h) charts.histograms.push(h);
+          if (b) charts.boxPlots.push(b);
+        } else if (role === 'category' && dt !== 'date' && !piiColumnKeys.has(key)) {
+          const vs: string[] = [];
+          for (const w of rowWrappers) {
+            const v = w.values[key];
+            if (!isMissingCell(v)) vs.push(String(v).trim());
+          }
+          const cat = categoryTopN(key, vs, chartTopN);
+          if (cat) charts.categories.push(cat);
+        }
+      }
+      charts.timeSeries =
+        timeAnalysis.status === 'evaluated'
+          ? timeAnalysis.buckets.map((b) => ({
+              period: b.period,
+              recordCount: b.recordCount,
+            }))
+          : null;
+      // GĐ2 — nhóm Nghi vấn: chỉ lưu nội bộ cho Tổng kết/PDF, KHÔNG trả trong API kết quả, KHÔNG gửi AI.
+      const suspicionColumns: SuspicionColumn[] = selectedKeys.map((c) => {
+        const col = dataset.columns.find((x) => x.name === c);
+        return {
+          name: c,
+          dataType: colTypeByName.get(c) ?? 'string',
+          role: roleByName.get(c) ?? null,
+          isPii: Boolean(col?.isPii),
+        };
+      });
+      const suspicions = detectSuspicions(suspicionColumns, rows);
       const evidenceDocs: {
         analysis_run_id: unknown;
         project_id: unknown;
@@ -427,7 +637,7 @@ export class RunAnalysisHandler {
           if (n >= 20) break;
           const v = w.values[c];
           if (isMissingCell(v)) continue;
-          const chk = isValidByType(v, colTypeByName.get(c) ?? 'string');
+          const chk = isValidByType(v, colTypeByName.get(c) ?? 'string', dateOrderByCol.get(c) ?? 'either');
           if (!chk.valid) {
             pushEv(c, w.rowIndex, 'invalid_type', chk.reason, v);
             n++;
@@ -526,6 +736,11 @@ export class RunAnalysisHandler {
         imbalance,
         timeAnalysis,
         evidenceSummary,
+        // GĐ2 — nhóm Nghi vấn (nội bộ: Tổng kết/PDF; không trả trong API kết quả, không gửi AI).
+        suspicions,
+        // GĐ3 — vai trò cột + dữ liệu biểu đồ (phụ lục A của PDF báo cáo).
+        columnRoles,
+        charts,
       } as Partial<Parameters<AnalysisRepositoryPort['saveResult']>[0]>);
 
       let previewFewShotBlock = '';

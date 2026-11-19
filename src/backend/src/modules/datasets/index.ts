@@ -31,6 +31,7 @@ export {
 export {
   RECORD_QUERY_PORT,
   type ColumnStatsResult,
+  type ColumnValuesResult,
   type DatasetColumnRef,
   type RecordFilter,
   type RecordFilterOperator,
@@ -73,3 +74,7 @@ export { GetDatasetSchemaHandler } from './application/queries/get-dataset-schem
 export { DeleteDatasetHandler } from './application/commands/delete-dataset.handler';
 export { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
 export { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
+export { ResetColumnNamesHandler } from './application/commands/reset-column-names.handler';
+export { UpdateColumnNamesHandler } from './application/commands/update-column-names.handler';
+export { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
+export { UpdateDatasetMetadataHandler } from './application/commands/update-dataset-metadata.handler';

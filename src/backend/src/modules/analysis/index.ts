@@ -26,6 +26,12 @@ export {
   type RagFewShotPort,
 } from './domain/ports/rag-few-shot.port';
 
+// ── GĐ10 — Guard theo cardinality ────────────────────────────────────────
+export {
+  MAX_CORRELATION_CELLS,
+  exceedsCardinalityGuard,
+} from './domain/correlation.util';
+
 export {
   DEFAULT_MAX_AGE_DAYS,
   DEFAULT_MIN_TRUST_SCORE,

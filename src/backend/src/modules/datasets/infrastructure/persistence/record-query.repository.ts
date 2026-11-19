@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import type { IDatasetRecord } from './dataset-record.schema';
 import type {
   ColumnStatsResult,
+  ColumnValuesResult,
   DatasetColumnRef,
   RecordQueryInput,
   RecordQueryPort,
@@ -275,6 +276,43 @@ export class RecordQueryRepository implements RecordQueryPort {
       if (index >= 0 && index < bucketCount && bucket) bucket.count++;
     }
     return { columnKey, columnName: columnKey, totalRecords, nullCount, missingRatio, min, max, average: Number(average.toFixed(2)), histogram };
+  }
+
+  async getColumnValues(
+    datasetId: string,
+    columnKey: string,
+    dataType: ColumnDataType,
+    limit: number,
+  ): Promise<ColumnValuesResult> {
+    const objectDatasetId = new Types.ObjectId(datasetId);
+    const fieldPath = `props.${columnKey}`;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100_000) : 10_000;
+
+    // Ép kiểu phía server: cột `number` lưu chuỗi (dữ liệu cũ) vẫn ra số.
+    const valueExpr =
+      dataType === 'number'
+        ? { $convert: { input: `$${fieldPath}`, to: 'double', onError: null, onNull: null } }
+        : dataType === 'date'
+          ? { $convert: { input: `$${fieldPath}`, to: 'date', onError: null, onNull: null } }
+          : `$${fieldPath}`;
+
+    const docs = await this.recordModel
+      .aggregate<{ v: unknown }>([
+        { $match: { dataset_id: objectDatasetId } },
+        { $project: { _id: 0, v: valueExpr } },
+        { $limit: safeLimit },
+      ])
+      .exec();
+
+    const totalRecords = await this.recordModel.countDocuments({ dataset_id: objectDatasetId }).exec();
+
+    return {
+      columnKey,
+      values: docs.map((d) => d.v ?? null),
+      totalRecords,
+      sampledRecords: docs.length,
+      truncated: totalRecords > docs.length,
+    };
   }
 
   private buildFilterConditions(

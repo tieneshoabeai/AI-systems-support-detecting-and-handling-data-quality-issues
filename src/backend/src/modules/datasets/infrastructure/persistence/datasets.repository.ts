@@ -8,7 +8,7 @@ import {
   type DatasetRepositoryPort,
   type RecordInsertDoc,
 } from '../../domain/ports/dataset.repository.port';
-import type { Dataset } from '../../domain/entities/dataset.entity';
+import type { Dataset, DatasetColumnIssue } from '../../domain/entities/dataset.entity';
 import {
   toDatasetEntity,
   toDatasetPersistence,
@@ -120,6 +120,117 @@ export class DatasetsRepository implements DatasetRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), deleted_at: null },
         { $set: { ...setOps, updated_at: new Date() } },
+        { new: true },
+      )
+      .exec();
+    return updated ? toDatasetEntity(updated) : null;
+  }
+
+  /**
+   * Đổi tên hiển thị của dataset — **metadata**, không phải nội dung dữ liệu.
+   *
+   * Chỉ ghi `name` → không đụng `columns`, `row_count`, `column_count` hay bản
+   * ghi nào. Vì vậy chạy được trên dataset đã `READY` (khác `updateById`).
+   */
+  async updateName(id: string, name: string): Promise<Dataset | null> {
+    if (!isObjectIdHex(id)) return null;
+    const doc = await this.datasetModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id), deleted_at: null },
+        { $set: { name, updated_at: new Date() } },
+        { new: true },
+      )
+      .exec();
+    return doc ? toDatasetEntity(doc) : null;
+  }
+
+  /**
+   * Đổi tên hiển thị của các cột — **metadata**, không phải nội dung dữ liệu.
+   *
+   * Dùng `$set` dot-notation (`columns.N.name`) → chỉ ghi đúng trường tên
+   * hiển thị, giữ nguyên `key`, `data_type`, `missing_count`, `is_pii`.
+   */
+  async updateColumnNames(
+    id: string,
+    updates: Array<{ columnKey: string; name: string }>,
+    columnIssues: DatasetColumnIssue[],
+  ): Promise<Dataset | null> {
+    if (!isObjectIdHex(id) || updates.length === 0) return null;
+    const doc = await this.datasetModel
+      .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
+      .exec();
+    if (!doc) return null;
+
+    const columns = doc.columns ?? [];
+    const setOps: Record<string, unknown> = {};
+    let changed = 0;
+    for (const u of updates) {
+      const idx = columns.findIndex((c) => c.key === u.columnKey);
+      if (idx < 0) continue;
+      const current = columns[idx];
+      if (!current || current.name === u.name) continue;
+      setOps[`columns.${idx}.name`] = u.name;
+      changed++;
+    }
+    if (changed === 0) return toDatasetEntity(doc);
+
+    const updated = await this.datasetModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id), deleted_at: null },
+        {
+          $set: {
+            ...setOps,
+            column_issues: columnIssues.map((i) => ({
+              column_key: i.columnKey,
+              issue: i.issue,
+              message: i.message,
+            })),
+            updated_at: new Date(),
+          },
+        },
+        { new: true },
+      )
+      .exec();
+    return updated ? toDatasetEntity(updated) : null;
+  }
+
+  /**
+   * Khôi phục tên hiển thị của các cột về **tên gốc** trong file CSV.
+   *
+   * `POST /datasets/{id}/columns/reset` — hành vi duy nhất còn lại của
+   * "Reset Dataset" sau khi thu hẹp (mục 3.12 / 3.40.5).
+   */
+  async resetColumnNames(id: string, columnIssues: DatasetColumnIssue[]): Promise<Dataset | null> {
+    if (!isObjectIdHex(id)) return null;
+    const doc = await this.datasetModel
+      .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
+      .exec();
+    if (!doc) return null;
+
+    const columns = doc.columns ?? [];
+    const setOps: Record<string, unknown> = {};
+    let changed = 0;
+    columns.forEach((c, idx) => {
+      if (c.name === c.original_name) return;
+      setOps[`columns.${idx}.name`] = c.original_name;
+      changed++;
+    });
+    if (changed === 0) return toDatasetEntity(doc);
+
+    const updated = await this.datasetModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id), deleted_at: null },
+        {
+          $set: {
+            ...setOps,
+            column_issues: columnIssues.map((i) => ({
+              column_key: i.columnKey,
+              issue: i.issue,
+              message: i.message,
+            })),
+            updated_at: new Date(),
+          },
+        },
         { new: true },
       )
       .exec();

@@ -69,6 +69,33 @@ function pairKey(a: string, b: string): string {
   return [a, b].sort().join('||');
 }
 
+/**
+ * AN-30 — chỉ giữ **tam giác trên**: mỗi cặp cột không thứ tự in một lần,
+ * bỏ đường chéo (`colA === colB`).
+ *
+ * Ma trận tương quan lưu cả `(A,B)` và `(B,A)` + đường chéo. Nếu gửi nguyên
+ * xiên vào prompt AI thì:
+ *   - tốn token gấp đôi;
+ *   - AI dễ "chọn" nhầm cặp bị trùng → bị grounding loại (mất thông tin).
+ *
+ * Vì vậy cả prompt (`buildCorrV1Prompt`) và PDF (`report-content.util.ts`) đều
+ * đi qua hàm này → **một nguồn sự thật duy nhất** cho quy tắc tam giác trên.
+ */
+export function upperTriangleCells<T extends { colA: string; colB: string }>(
+  cells: readonly T[],
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const c of cells) {
+    if (c.colA === c.colB) continue;
+    const k = pairKey(c.colA, c.colB);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(c);
+  }
+  return out;
+}
+
 export function buildCorrV1Prompt(ctx: CorrV1Context): string {
   const lines: string[] = [];
   lines.push('Bạn là trợ lý phân tích chất lượng dữ liệu. Chỉ diễn giải số liệu đã cho.');
@@ -76,7 +103,10 @@ export function buildCorrV1Prompt(ctx: CorrV1Context): string {
   lines.push(`Phương pháp số–số: ${ctx.method}. Cramér's V và eta_squared nằm trong [0,1], không có dấu âm.`);
   lines.push('Mọi nhận định phải trích đúng ô ma trận / dòng VIF kèm n.');
   lines.push(`Cột: ${JSON.stringify(ctx.columns)}`);
-  lines.push(`Ma trận (cells): ${JSON.stringify(ctx.cells)}`);
+  // AN-30/AN-31 — chỉ tam giác trên: mỗi cặp một lần, không đường chéo.
+  lines.push(
+    `Ma trận (cells, tam giác trên — mỗi cặp một lần, không có đường chéo): ${JSON.stringify(upperTriangleCells(ctx.cells))}`,
+  );
   lines.push(`VIF: ${JSON.stringify(ctx.vif)}`);
   if (ctx.vif?.lossWarning) {
     lines.push(`CANH BAO MAT MAU VIF: ${ctx.vif.lossWarning} (commonN=${ctx.vif.commonN}/${ctx.vif.totalScanned}).`);

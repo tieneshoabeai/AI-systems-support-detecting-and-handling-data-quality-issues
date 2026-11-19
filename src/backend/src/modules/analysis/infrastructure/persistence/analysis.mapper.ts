@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { ANALYSIS_ROLES } from '../../domain/column-role.util';
 import type { IAnalysisRun } from './analysis-run.schema';
 import type { IAnalysisResult } from './analysis-result.schema';
 import type { IAiJob } from './ai-job.schema';
@@ -86,6 +87,9 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     timeAnalysis: (raw.timeAnalysis ?? null) as unknown,
     evidenceSummary: (raw.evidenceSummary ?? null) as unknown,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
+    suspicions: (raw.suspicions ?? null) as unknown,
+    columnRoles: (raw.columnRoles ?? null) as unknown,
+    charts: (raw.charts ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,
     createdAt: doc.created_at,
@@ -129,7 +133,34 @@ export function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigReco
     correlationMethod: doc.correlation_method ?? 'pearson',
     outlierMethod: doc.outlier_method ?? 'iqr',
     topN: doc.top_n ?? 10,
+    // GĐ7 — ghi đè vai trò cột.
+    columnRoles: sanitizeColumnRoles(doc.column_roles),
   };
+}
+
+/**
+ * GĐ7 — Chuẩn hoá map ghi đè vai trò cột đọc từ Mongo.
+ *
+ * Lý do cần sanitize: `column_roles` lưu dạng `Mixed` → có thể chứa bất kỳ
+ * giá trị nào đã từng ghi vào DB (kể cả dữ liệu cũ, import tay, hoặc giá trị
+ * bị sửa ngoài API). Nếu trả thẳng ra, `inferColumnRoles()` sẽ gán role
+ * không hợp lệ cho cột → tương quan/VIF tính sai.
+ *
+ * Quy tắc: chỉ giữ entry có key khớp `/^c\d+$/` và value nằm trong
+ * {@link ANALYSIS_ROLES}. Entry không hợp lệ bị **bỏ qua** (không ném lỗi) —
+ * vì đây là dữ liệu đã lưu, không phải input của người dùng; input được
+ * validate chặt ở `SaveConfigHandler`.
+ */
+export function sanitizeColumnRoles(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^c\d+$/.test(key)) continue;
+    if (typeof value !== 'string') continue;
+    if (!(ANALYSIS_ROLES as readonly string[]).includes(value)) continue;
+    out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 export function toProjectSaveRecord(doc: IProjectSave): ProjectSaveRecord {
@@ -186,5 +217,7 @@ export function toCellEvidenceRecord(doc: ICellEvidence): CellEvidenceRecord {
     column: doc.column,
     rowIndex: doc.row_index,
     reason: doc.reason ?? null,
+    kind: doc.kind,
+    valueMasked: doc.value_masked ?? null,
   };
 }

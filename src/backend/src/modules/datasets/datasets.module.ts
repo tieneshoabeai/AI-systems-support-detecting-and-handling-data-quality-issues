@@ -19,6 +19,9 @@ import { GetDatasetByProjectIdHandler } from './application/queries/get-dataset-
 import { GetDatasetSchemaHandler } from './application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
 import { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
+import { UpdateDatasetMetadataHandler } from './application/commands/update-dataset-metadata.handler';
+import { UpdateColumnNamesHandler } from './application/commands/update-column-names.handler';
+import { ResetColumnNamesHandler } from './application/commands/reset-column-names.handler';
 import { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
 import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
 import { CascadeProjectDatasetsHandler } from './application/commands/cascade-project-datasets.handler';
@@ -50,6 +53,9 @@ import { CascadeDatasetEventSubscriber } from './application/commands/cascade-da
     DeleteDatasetHandler,
     IngestDatasetStreamHandler,
     UpdateColumnPiiHandler,
+    UpdateDatasetMetadataHandler,
+    UpdateColumnNamesHandler,
+    ResetColumnNamesHandler,
     MapPropsToOriginalNamesHandler,
     DownloadDatasetFileHandler,
     GetDatasetByIdHandler,

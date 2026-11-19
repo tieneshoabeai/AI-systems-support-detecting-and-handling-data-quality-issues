@@ -110,9 +110,26 @@ export const EnvironmentSchema = z.object({
    * (`ANALYSIS_TOO_LARGE`) TRƯỚC khi đọc bất kỳ record nào từ MongoDB.
    * Lý do: `listAllRecords()` nạp toàn bộ dataset vào RAM, BSON deserialization
    * + biến đổi in-memory tạo peak-memory vài GB → OOM / quá nhiệt CPU.
+   *
+   * GĐ11 — mặc định hạ 100.000 → 50.000 (đo được peak RSS 568 MB trên dataset
+   * 100.000 dòng thật). Vẫn cấu hình được qua biến môi trường này.
    * @see modules/analysis/application/commands/run-analysis.handler.ts
    */
-  ANALYSIS_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(100_000),
+  ANALYSIS_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(50_000),
+  /**
+   * GĐ12 — số phân tích **đồng bộ** tối đa chạy cùng lúc trong một tiến trình.
+   *
+   * `POST /projects/:id/analysis` chạy inline trong request → mỗi lần chặn
+   * event loop ~6 giây với dataset 100.000 dòng. Nếu nhiều request cùng lúc,
+   * chúng xếp hàng và **mọi endpoint khác** của cùng instance bị chậm theo.
+   *
+   * Giới hạn số phân tích đồng thời + trả `429` khi đã đủ slot → event loop
+   * không bị chặn bởi hàng đợi, **hợp đồng API không đổi**.
+   *
+   * Lưu ý: đây là giới hạn **trên mỗi instance**. Chạy N instance (replica)
+   * → tổng số phân tích đồng thời = N × giá trị này.
+   */
+  ANALYSIS_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(1),
   EMBEDDING_MODEL: z.string().default('qwen3-embedding-0.6b'),
   EMBEDDING_DIM: z.coerce.number().int().min(1).default(1024),
 

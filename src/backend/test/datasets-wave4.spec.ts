@@ -157,14 +157,18 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     ).toBeUndefined();
   });
 
-  it('BẤT BIẾN: khong con handler rename/reset — chi ghep props theo ten goc', async () => {
-    // Các handler sửa nội dung dataset đã bị gỡ (bất biến dữ liệu):
-    //   - renameColumns   (đổi tên cột)
-    //   - resetColumnNames(khôi phục tên cột gốc)
-    //   - updateDataset   (đổi tên dataset)
-    expect((service as unknown as Record<string, unknown>)['renameColumns']).toBeUndefined();
-    expect((service as unknown as Record<string, unknown>)['resetColumnNames']).toBeUndefined();
+  it('BẤT BIẾN: handler chỉ sửa METADATA, không sửa nội dung — chi ghep props theo ten goc', async () => {
+    // GĐ3 bổ sung 3 endpoint *metadata*:
+    //   - updateDatasetMetadata (đổi tên dataset)
+    //   - updateColumnNames     (đổi tên hiển thị cột)
+    //   - resetColumnNames      (khôi phục tên cột gốc)
+    // Tên method cũ (`updateDataset`) đã bị gỡ — thay bằng `updateDatasetMetadata`.
     expect((service as unknown as Record<string, unknown>)['updateDataset']).toBeUndefined();
+    expect((service as unknown as Record<string, unknown>)['updateColumnNames']).toBeDefined();
+    expect((service as unknown as Record<string, unknown>)['resetColumnNames']).toBeDefined();
+    expect(
+      (service as unknown as Record<string, unknown>)['updateDatasetMetadata'],
+    ).toBeDefined();
 
     // Gép props → tên gốc vẫn hoạt động (đây là phép đọc, không sửa dữ liệu).
     const dataset = await service.getDatasetById(mockDatasetId);

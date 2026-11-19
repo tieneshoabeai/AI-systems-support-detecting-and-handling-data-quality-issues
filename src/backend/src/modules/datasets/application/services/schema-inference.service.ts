@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  DatasetColumn,
-  DatasetColumnIssue,
+import {
+  detectColumnIssues,
+  type DatasetColumn,
+  type DatasetColumnIssue,
 } from '../../domain/entities/dataset.entity';
 
 export interface InferredSchema {
@@ -55,23 +56,17 @@ export class SchemaInferenceService {
 
   /** Phat hien ten cot rong / chi whitespace / trung (so sanh chinh xac, case-sensitive). */
   detectColumnIssues(headers: string[]): DatasetColumnIssue[] {
-    const issues: DatasetColumnIssue[] = [];
-    const seen = new Map<string, number>();
-    headers.forEach((h, i) => {
-      const key = `c${i}`;
-      if (h === '') {
-        issues.push({ columnKey: key, issue: 'empty_name', message: `Cot ${key} co ten rong` });
-      } else if (/^\s+$/.test(h)) {
-        issues.push({ columnKey: key, issue: 'whitespace_only', message: `Cot ${key} chi chua khoang trang` });
-      }
-      const first = seen.get(h);
-      if (first !== undefined && h !== '') {
-        issues.push({ columnKey: key, issue: 'duplicate_name', message: `Ten cot "${h}" bi trung (cot c${first} va ${key})` });
-      } else if (first === undefined) {
-        seen.set(h, i);
-      }
-    });
-    return issues;
+    return detectColumnIssues(
+      headers.map((h, i) => ({
+        key: `c${i}`,
+        index: i,
+        name: h,
+        originalName: h,
+        dataType: 'string' as const,
+        missingCount: 0,
+        isPii: false,
+      })),
+    );
   }
 
   private isNullOrEmpty(val: unknown): boolean {

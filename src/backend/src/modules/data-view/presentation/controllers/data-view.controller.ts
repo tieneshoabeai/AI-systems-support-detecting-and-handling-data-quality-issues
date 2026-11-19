@@ -20,12 +20,15 @@ import { Action } from '../../../../shared/domain/security/action';
 import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
 import { ApiZodBody, ApiZodQuery } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { GetColumnStatsHandler } from '../../application/queries/get-column-stats.handler';
+import { GetChartDataHandler } from '../../application/queries/get-chart-data.handler';
 import { GetRecordsHandler } from '../../application/queries/get-records.handler';
 import { QueryRecordsHandler } from '../../application/queries/query-records.handler';
 import { DatasetPolicyLoader } from '../../../datasets';
 import type { CursorPaginatedResponse } from '../../../../shared/domain/pagination/cursor-paginated.response';
 import type { RecordRow } from '../../../datasets';
 import type { ColumnStatsResult } from '../../application/data-view.types';
+import type { ChartDataResult } from '../../application/data-view.types';
+import { ChartDataSchema, ChartDataDto } from '../dtos/chart-data.dto';
 
 @ApiTags('Data View (Virtual Grid)')
 @ApiBearerAuth()
@@ -36,6 +39,7 @@ export class DataViewController {
     private readonly getRecordsHandler: GetRecordsHandler,
     private readonly queryRecordsHandler: QueryRecordsHandler,
     private readonly getColumnStatsHandler: GetColumnStatsHandler,
+    private readonly getChartDataHandler: GetChartDataHandler,
   ) {}
 
   @Get('records')
@@ -84,5 +88,28 @@ export class DataViewController {
   ): Promise<{ stats: ColumnStatsResult; }> {
     const stats = await this.getColumnStatsHandler.execute(datasetId, columnKey);
     return { stats };
+  }
+
+  @Get('charts')
+  @ApiOperation({
+    summary:
+      'GĐ6/E1: So lieu bieu do (histogram, box plot, Top N) cho cac cot cua dataset',
+  })
+  @ApiZodQuery(ChartDataSchema)
+  @PolicyResource('Dataset', DatasetPolicyLoader, 'datasetId')
+  @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
+  @ApiResponse({ status: 200, description: 'Thanh cong' })
+  async getChartData(
+    @Param('datasetId') datasetId: string,
+    @Query(new ZodValidationPipe(ChartDataSchema)) query: ChartDataDto,
+  ): Promise<{ charts: ChartDataResult[]; }> {
+    const charts = await this.getChartDataHandler.execute(datasetId, {
+      columns: query.columns
+        ? query.columns.split(',').map((c) => c.trim()).filter((c) => c.length > 0)
+        : undefined,
+      topN: query.top_n,
+      maxRows: query.max_rows,
+    });
+    return { charts };
   }
 }

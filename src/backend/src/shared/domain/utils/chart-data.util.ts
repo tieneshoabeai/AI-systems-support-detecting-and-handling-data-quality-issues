@@ -1,6 +1,20 @@
 /**
- * E1 — du lieu bieu do (Phan 2 v10 muc 3.21/3.42, Phan 12 v9 muc 3.18). Ham thuan, backend chi tra
- * so lieu; giao dien tu ve. Diem ngoai rau box plot chi la "co the bat thuong", khong mac dinh la loi.
+ * E1: dữ liệu biểu đồ (Phần 2 v10 mục 3.21/3.42, Phần 12 v9 mục 3.18).
+ *
+ * Hàm thuần, backend chỉ trả số liệu; giao diện tự vẽ. Điểm ngoài rào box plot chỉ
+ * là "có thể bất thường", không mặc định là lỗi.
+ *
+ * ## Vì sao nằm ở `shared/domain/utils/`?
+ *
+ * Biểu đồ được dùng bởi **hai** module:
+ *   - `data-view` → `GET /datasets/{id}/columns/{key}/stats` và API biểu đồ;
+ *   - `analysis`  → phụ lục A của báo cáo PDF (tần suất cột phân loại).
+ *
+ * Nếu để trong `data-view`, module `analysis` sẽ phải import chéo → vòng phụ
+ * thuộc (CA9). Đặt vào `shared/domain/utils/` (hàm thuần, không framework —
+ * theo allowlist CA11) giữ cho cả hai cùng dùng mà không phụ thuộc chéo.
+ *
+ * Module `data-view` re-export từ `index.ts` để giữ public contract cũ.
  */
 
 export const DEFAULT_CHART_TOP_N = 5;

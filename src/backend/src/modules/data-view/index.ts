@@ -27,6 +27,22 @@ export {
 
 export { GetRecordsHandler } from './application/queries/get-records.handler';
 export { GetColumnStatsHandler } from './application/queries/get-column-stats.handler';
+export { GetChartDataHandler } from './application/queries/get-chart-data.handler';
+
+// ── GĐ6 — Dữ liệu biểu đồ (E1) ─────────────────────────────────────────
+export {
+  DEFAULT_CHART_TOP_N,
+  MAX_HISTOGRAM_BINS,
+  boxPlot,
+  categoryTopN,
+  clampChartTopN,
+  histogram,
+  type CategoryChart,
+  type ChartData,
+  type Histogram,
+  type HistogramBin,
+  type BoxPlot,
+} from '../../shared/domain/utils/chart-data.util';
 
 // ── Handlers (Command/Query) ──────────────────────────
 // ── Queries (đọc) ──────────────────────────────────────────────

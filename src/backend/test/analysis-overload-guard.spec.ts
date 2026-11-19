@@ -6,7 +6,7 @@
  * vài GB → OOM / quá nhiệt CPU.
  *
  * Lớp phòng thủ mới: `assertAnalysisRowLimit()` chặn **trước khi** đọc bất kỳ
- * record nào từ MongoDB, dựa trên `ANALYSIS_MAX_ROWS` (mặc định 100.000).
+ * record nào từ MongoDB, dựa trên `ANALYSIS_MAX_ROWS` (mặc định 50.000 — GĐ11).
  */
 import {
   assertAnalysisRowLimit,
@@ -30,8 +30,8 @@ describe('GĐ0 — chống quá tải máy (ANALYSIS_MAX_ROWS)', () => {
       expect(resolveAnalysisMaxRows('abc')).toBe(DEFAULT_ANALYSIS_MAX_ROWS);
     });
 
-    it('mặc định là 100.000 dòng (quyết định của user)', () => {
-      expect(DEFAULT_ANALYSIS_MAX_ROWS).toBe(100_000);
+    it('mặc định là 50.000 dòng (GĐ11 — hạ từ 100.000 sau khi đo peak RSS)', () => {
+      expect(DEFAULT_ANALYSIS_MAX_ROWS).toBe(50_000);
     });
   });
 

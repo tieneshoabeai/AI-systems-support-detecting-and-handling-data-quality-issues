@@ -340,6 +340,12 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     return doc ? toProjectSaveRecord(doc) : null;
   }
 
+  async findSaveById(id: string): Promise<ProjectSaveRecord | null> {
+    if (!isObjectIdHex(id)) return null;
+    const doc = await this.saveModel.findOne({ _id: oid(id), deleted_at: null }).exec();
+    return doc ? toProjectSaveRecord(doc) : null;
+  }
+
   async markSavesStale(projectId: string, keepId: string): Promise<unknown> {
     if (!isObjectIdHex(projectId)) return { modifiedCount: 0 };
     const filter: Record<string, unknown> = { project_id: oid(projectId), deleted_at: null, is_stale: false };

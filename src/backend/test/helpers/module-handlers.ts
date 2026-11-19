@@ -72,11 +72,13 @@ export const authHandlers = {
 } as const;
 
 // -------------------- data-view --------------------
+import { GetChartDataHandler as DataViewGetChartDataHandler } from '../../src/modules/data-view/application/queries/get-chart-data.handler';
 import { GetColumnStatsHandler as DataViewGetColumnStatsHandler } from '../../src/modules/data-view/application/queries/get-column-stats.handler';
 import { GetRecordsHandler as DataViewGetRecordsHandler } from '../../src/modules/data-view/application/queries/get-records.handler';
 import { QueryRecordsHandler as DataViewQueryRecordsHandler } from '../../src/modules/data-view/application/queries/query-records.handler';
 
 export const dataviewHandlers = {
+  getChartData: DataViewGetChartDataHandler,
   getColumnStats: DataViewGetColumnStatsHandler,
   getRecords: DataViewGetRecordsHandler,
   queryRecords: DataViewQueryRecordsHandler,
@@ -90,7 +92,10 @@ import { GetDatasetByProjectIdHandler as DatasetsGetDatasetByProjectIdHandler } 
 import { GetDatasetSchemaHandler as DatasetsGetDatasetSchemaHandler } from '../../src/modules/datasets/application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler as DatasetsIngestDatasetStreamHandler } from '../../src/modules/datasets/application/commands/ingest-dataset-stream.handler';
 import { MapPropsToOriginalNamesHandler as DatasetsMapPropsToOriginalNamesHandler } from '../../src/modules/datasets/application/commands/map-props-to-original-names.handler';
+import { ResetColumnNamesHandler as DatasetsResetColumnNamesHandler } from '../../src/modules/datasets/application/commands/reset-column-names.handler';
+import { UpdateColumnNamesHandler as DatasetsUpdateColumnNamesHandler } from '../../src/modules/datasets/application/commands/update-column-names.handler';
 import { UpdateColumnPiiHandler as DatasetsUpdateColumnPiiHandler } from '../../src/modules/datasets/application/commands/update-column-pii.handler';
+import { UpdateDatasetMetadataHandler as DatasetsUpdateDatasetMetadataHandler } from '../../src/modules/datasets/application/commands/update-dataset-metadata.handler';
 
 export const datasetsHandlers = {
   deleteDataset: DatasetsDeleteDatasetHandler,
@@ -100,7 +105,10 @@ export const datasetsHandlers = {
   getDatasetSchema: DatasetsGetDatasetSchemaHandler,
   ingestDatasetStream: DatasetsIngestDatasetStreamHandler,
   mapPropsToOriginalNames: DatasetsMapPropsToOriginalNamesHandler,
+  resetColumnNames: DatasetsResetColumnNamesHandler,
+  updateColumnNames: DatasetsUpdateColumnNamesHandler,
   updateColumnPii: DatasetsUpdateColumnPiiHandler,
+  updateDatasetMetadata: DatasetsUpdateDatasetMetadataHandler,
 } as const;
 
 // -------------------- feedback --------------------

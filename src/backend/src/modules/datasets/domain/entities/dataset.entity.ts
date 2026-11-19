@@ -47,6 +47,47 @@ export type DatasetDelimiter = ',' | ';' | '\t' | '|';
 /** Loại lỗi tên cột phát hiện lúc suy luận schema. */
 export type DatasetColumnIssueType = 'empty_name' | 'duplicate_name' | 'whitespace_only';
 
+/** Độ dài tối đa của tên dataset (khớp `DatasetSchema.name.maxlength`). */
+export const MAX_DATASET_NAME_LENGTH = 100;
+
+/** Độ dài tối đa của tên hiển thị cột. */
+export const MAX_COLUMN_NAME_LENGTH = 100;
+
+/**
+ * Phát hiện lỗi tên cột — **thuần**, dùng chung cho lúc suy luận schema và sau
+ * khi đổi tên cột (mục 3.6.2 rule 2: `column_issues` phải được tính lại).
+ *
+ * So sánh trùng lặp **chính xác** (phân biệt hoa thường và khoảng trắng) —
+ * khớp với `SchemaInferenceService.detectColumnIssues()` và UC-10 bước 1
+ * ("không tự trim hay đổi hoa thường").
+ */
+export function detectColumnIssues(columns: ReadonlyArray<DatasetColumn>): DatasetColumnIssue[] {
+  const issues: DatasetColumnIssue[] = [];
+  const seen = new Map<string, number>();
+  columns.forEach((c, i) => {
+    if (c.name === '') {
+      issues.push({ columnKey: c.key, issue: 'empty_name', message: `Cot ${c.key} co ten rong` });
+    } else if (/^\s+$/.test(c.name)) {
+      issues.push({
+        columnKey: c.key,
+        issue: 'whitespace_only',
+        message: `Cot ${c.key} chi chua khoang trang`,
+      });
+    }
+    const first = seen.get(c.name);
+    if (first !== undefined && c.name !== '') {
+      issues.push({
+        columnKey: c.key,
+        issue: 'duplicate_name',
+        message: `Ten cot "${c.name}" bi trung (cot c${first} va ${c.key})`,
+      });
+    } else if (first === undefined) {
+      seen.set(c.name, i);
+    }
+  });
+  return issues;
+}
+
 /** Một cột của dataset — thuộc về aggregate. */
 export interface DatasetColumn {
   /** Khoá cột ổn định theo vị trí: `c0`, `c1`, … (S21) — bất biến khi đổi tên. */
@@ -408,6 +449,124 @@ export class Dataset extends BaseEntity<DatasetProps> {
       payload: { changes: changed },
       occurredAt: this.props.updatedAt,
     });
+  }
+
+  /**
+   * Đổi tên hiển thị của dataset — **metadata**, không phải nội dung dữ liệu.
+   *
+   * `PATCH /datasets/{id}` (contract §3.13 #46 `VIEW-08`).
+   *
+   * Invariant:
+   *   - Tên rỗng / chỉ khoảng trắng → `ValidationError`.
+   *   - Tên vượt 100 ký tự → `ValidationError`.
+   *
+   * Không đụng tới `props` của bản ghi, không đụng số dòng/số cột → **không**
+   * vi phạm nguyên tắc bất biến dữ liệu (mục 3.40).
+   */
+  rename(newName: string): void {
+    const trimmed = newName.trim();
+    if (trimmed.length === 0) {
+      throw new ValidationError('Ten tap du lieu khong duoc rong');
+    }
+    if (trimmed.length > MAX_DATASET_NAME_LENGTH) {
+      throw new ValidationError(
+        `Ten tap du lieu toi da ${MAX_DATASET_NAME_LENGTH} ky tu (nhan duoc ${trimmed.length})`,
+      );
+    }
+    this.props.name = trimmed;
+    this.props.updatedAt = new Date();
+  }
+
+  /**
+   * Đổi tên hiển thị của một hoặc nhiều cột — **metadata**, không phải nội
+   * dữ liệu (key `c{i}` và giá trị ô giữ nguyên).
+   *
+   * `PATCH /datasets/{id}/columns` (contract §3.13 #47 `VIEW-08`).
+   *
+   * Invariant (UC-10 — "Nhập hoặc chỉnh sửa tên cột rỗng/trùng"):
+   *   - Key cột không tồn tại → `ValidationError`.
+   *   - Tên mới rỗng / chỉ khoảng trắng → `ValidationError`.
+   *   - Tên mới trùng với tên của cột khác trong cùng dataset → `ValidationError`.
+   *   - Sau khi đổi → **tính lại** `columnIssues` (mục 3.6.2 rule 2 của schema).
+   *
+   * Lưu ý: tên **không** được trim/sanitize tự động (UC-10 bước 1) — so sánh
+   * trùng lặp phân biệt hoa/thường và khoảng trắng, giống hệt
+   * `SchemaInferenceService.detectColumnIssues()`.
+   */
+  renameColumns(updates: Array<{ columnKey: string; newName: string }>): void {
+    if (updates.length === 0) {
+      throw new ValidationError('Khong co cot nao duoc cap nhat');
+    }
+    for (const u of updates) {
+      if (!this.columnByKey(u.columnKey)) {
+        throw new ValidationError(`Cot khong ton tai: ${u.columnKey}`, {
+          reason: 'unknown_column_key',
+          key: u.columnKey,
+        });
+      }
+      if (u.newName.trim().length === 0) {
+        throw new ValidationError(`Ten cot moi khong duoc rong: ${u.columnKey}`, {
+          reason: 'empty_new_name',
+          key: u.columnKey,
+        });
+      }
+      if (u.newName.length > MAX_COLUMN_NAME_LENGTH) {
+        throw new ValidationError(
+          `Ten cot toi da ${MAX_COLUMN_NAME_LENGTH} ky tu (nhan duoc ${u.newName.length})`,
+          { reason: 'name_too_long', key: u.columnKey },
+        );
+      }
+    }
+    // Kiểm tra trùng lặp trên **tập tên sau khi đổi** (UC-10 bước 1).
+    const finalNames = this.props.columns.map((c) => {
+      const upd = updates.find((u) => u.columnKey === c.key);
+      return upd ? upd.newName : c.name;
+    });
+    for (let i = 0; i < finalNames.length; i++) {
+      const name = finalNames[i] as string;
+      for (let j = i + 1; j < finalNames.length; j++) {
+        if (name === finalNames[j]) {
+          throw new ValidationError(
+            `Ten cot bi trung: "${name}" (cot c${i} va cot c${j})`,
+            { reason: 'duplicate_name', columns: [this.props.columns[i]?.key, this.props.columns[j]?.key] },
+          );
+        }
+      }
+    }
+    for (const u of updates) {
+      const col = this.columnByKey(u.columnKey);
+      if (col) col.name = u.newName;
+    }
+    this.props.columnIssues = detectColumnIssues(this.props.columns);
+    this.props.updatedAt = new Date();
+  }
+
+  /**
+   * Khôi phục tên hiển thị của cột về **tên gốc** trong file CSV.
+   *
+   * `POST /datasets/{id}/columns/reset` (contract §3.13 #48 `VIEW-07`).
+   *
+   * Đây là hành vi duy nhất còn lại của "Reset Dataset" sau khi thu hẹp
+   * (mục 3.12 / 3.40.5): **khôi phục tên cột**, không khôi phục dữ liệu.
+   *
+   * Invariant:
+   *   - Không có cột nào khác tên gốc → `ValidationError` (yêu cầu thừa).
+   *
+   * Không làm mất hiệu lực kết quả phân tích: `input_fingerprint` không chứa
+   * tên cột (mục 3.28).
+   */
+  resetColumnNames(): void {
+    const changed = this.props.columns.filter((c) => c.name !== c.originalName);
+    if (changed.length === 0) {
+      throw new ValidationError('Khong co cot nao can khoi phuc ten goc', {
+        reason: 'no_column_changed',
+      });
+    }
+    for (const col of this.props.columns) {
+      col.name = col.originalName;
+    }
+    this.props.columnIssues = detectColumnIssues(this.props.columns);
+    this.props.updatedAt = new Date();
   }
 
   /** Bản chụp props — dùng cho mapper chuyển entity → persistence. */

@@ -1,6 +1,6 @@
 import * as ss from 'simple-statistics';
 import { toFiniteNumber, toCategory, round4 } from './correlation.util';
-import { isMissingCell, isValidByType } from './dq.util';
+import { dateOrderOf, isMissingCell, isValidByType } from './dq.util';
 
 export interface DescriptiveStat {
   column: string;
@@ -18,6 +18,28 @@ export interface DescriptiveStat {
   distinctCount: number | null;
   topValues: { value: string; count: number }[] | null;
   reason: string | null;
+}
+
+/**
+ * GĐ7 — Độ lệch mẫu (skewness) — chỉ để **giải thích** DQ-04.
+ *
+ * Vì sao cần: khi phát hiện ngoại lệ, người dùng cần biết phân phối lệch
+ * trái/phải để hiểu ngoại lệ là "do dữ liệu lệch" hay "do lỗi nhập".
+ * VD: `doanh_thu` lệch phải mạnh (skew ≈ 3) → các giá trị lớn có thể là hợp lệ.
+ *
+ * Trả `null` khi:
+ * - `< 4` giá trị — mẫu quá nhỏ, ước lượng không đáng tin.
+ * - độ lệch chuẩn = 0 — tất cả giá trị bằng nhau → không có phân tán để lệch.
+ *
+ * Dùng **sample skewness** (mẫu, chuẩn hoá theo n−1) để khớp với
+ * `simple-statistics` và với Vqd_BE.
+ */
+export function skewnessOf(values: number[]): number | null {
+  if (values.length < 4) return null;
+  const sd = ss.sampleStandardDeviation(values);
+  if (!(sd > 0)) return null;
+  const sk = ss.sampleSkewness(values);
+  return Number.isFinite(sk) ? round4(sk) : null;
 }
 
 function quantileSorted(sorted: number[], q: number): number | null {
@@ -39,12 +61,14 @@ export function describeColumn(
   let invalidCount = 0;
   const validNums: number[] = [];
   const validCats: string[] = [];
+  // GĐ2 — thứ tự ngày/tháng của cột ngày, dùng chung cho DQ-03.
+  const dateOrder = dataType === 'date' ? dateOrderOf(rawValues) : 'either';
   for (const v of rawValues) {
     if (isMissingCell(v)) {
       missingCount++;
       continue;
     }
-    const r = isValidByType(v, dataType);
+    const r = isValidByType(v, dataType, dateOrder);
     if (!r.valid) {
       invalidCount++;
       continue;
@@ -54,7 +78,8 @@ export function describeColumn(
       if (n === null) invalidCount++;
       else validNums.push(n);
     } else {
-      const c = toCategory(v);
+      // GĐ2 — ở cột chữ, ký hiệu NA/?… là chuỗi hợp lệ (đồng bộ DQ-03 / nhóm Nghi vấn).
+      const c = toCategory(v, dataType === 'string');
       if (c === null) invalidCount++;
       else validCats.push(c);
     }
@@ -133,13 +158,15 @@ export function evaluateImbalance(
   }
   const freq = new Map<string, number>();
   let missing = 0;
+  // GĐ2 — cột nhãn kiểu chữ: ký hiệu NA/?… là một lớp, không phải thiếu (đồng bộ DQ-01).
+  const textLabel = labelDataType === 'string';
   for (const r of rows) {
     const v = r[labelColumn];
     if (isMissingCell(v)) {
       missing++;
       continue;
     }
-    const c = toCategory(v);
+    const c = toCategory(v, textLabel);
     if (c === null) {
       missing++;
       continue;

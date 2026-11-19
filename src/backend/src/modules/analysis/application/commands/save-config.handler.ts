@@ -15,6 +15,11 @@ import { DATASET_REPOSITORY_PORT, type DatasetRepositoryPort } from '../../../da
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { AnalysisConfigInput } from '../analysis.types';
 import { ValidationError } from '../../../../shared/domain/errors';
+import {
+  ANALYSIS_ROLES,
+  isRoleAllowedForType,
+  type AnalysisRole,
+} from '../../domain/column-role.util';
 
 @Injectable()
 export class SaveConfigHandler {
@@ -63,6 +68,46 @@ export class SaveConfigHandler {
       const dt = dataset.columns.find((c) => c.name === value)?.dataType;
       if (dt !== 'number') throw new ValidationError('value_column phải là cột số');
     }
+
+    // ── GĐ7 — ghi đè vai trò cột ───────────────────────────────────────────
+    // Key là **key cột ổn định** (`c0`, `c1`, …), không phải tên hiển thị → đổi
+    // tên cột không làm mất ghi đè.
+    //
+    // Validate nghiêm ngặt ở đây (tầng application) vì đây là **input** của
+    // người dùng: sai thì phải báo rõ cột nào, role nào, không hợp lệ vì sao.
+    let columnRoles: Record<string, string> | null = null;
+    if (dto.column_roles !== undefined && dto.column_roles !== null) {
+      const byKey = new Map((dataset?.columns ?? []).map((c) => [c.key, c] as const));
+      columnRoles = {};
+      for (const [key, role] of Object.entries(dto.column_roles)) {
+        const col = byKey.get(key);
+        if (!col) {
+          throw new ValidationError(
+            `column_roles có key cột không tồn tại: ${key}`,
+            { key, availableKeys: [...byKey.keys()] },
+          );
+        }
+        if (!(ANALYSIS_ROLES as readonly string[]).includes(role)) {
+          throw new ValidationError(
+            `column_roles: vai trò không hợp lệ "${role}" cho cột ${col.name}. ` +
+              `Chỉ nhận: ${ANALYSIS_ROLES.join(', ')}.`,
+            { key, role, allowedRoles: [...ANALYSIS_ROLES] },
+          );
+        }
+        if (!isRoleAllowedForType(role as AnalysisRole, col.dataType)) {
+          throw new ValidationError(
+            `column_roles: vai trò "${role}" không hợp lệ cho cột ${col.name} (kiểu ${col.dataType}).`,
+            { key, role, dataType: col.dataType },
+          );
+        }
+        columnRoles[key] = role;
+      }
+    } else if (dto.column_roles === null) {
+      // `null` → xoá hết ghi đè.
+      columnRoles = null;
+    }
+    // `undefined` → giữ nguyên cấu hình cũ (không ghi đè `column_roles`).
+
     const saved = await this.analysisRepository.upsertConfig(
       projectId,
       project.workspaceId.toString(),
@@ -76,6 +121,7 @@ export class SaveConfigHandler {
         correlation_method: dto.correlation_method,
         outlier_method: dto.outlier_method,
         top_n: dto.top_n,
+        ...(columnRoles !== undefined ? { column_roles: columnRoles } : {}),
       },
     );
     await this.analysisRepository.markResultsStale(
@@ -93,6 +139,8 @@ export class SaveConfigHandler {
       correlationMethod: saved.correlationMethod,
       outlierMethod: saved.outlierMethod,
       topN: saved.topN,
+      // GĐ7 — trả về ghi đè vai trò cột để client hiển thị/kiểm chứng.
+      columnRoles: saved.columnRoles ?? {},
     };
   }
 }

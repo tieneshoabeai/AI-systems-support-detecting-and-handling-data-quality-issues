@@ -68,6 +68,35 @@ export interface DatasetRepositoryPort {
     id: string,
     updates: Array<{ columnKey: string; isPii: boolean }>,
   ): Promise<Dataset | null>;
+  /**
+   * Đổi **tên hiển thị** của dataset — metadata, không phải nội dung dữ liệu.
+   *
+   * Tách khỏi `updateById` vì `updateById` chỉ chạy được khi dataset còn
+   * `INGESTING`, còn tên dataset là *metadata nhãn* được phép sửa trên dataset
+   * đã `READY`.
+   */
+  updateName(id: string, name: string): Promise<Dataset | null>;
+  /**
+   * Đổi **tên hiển thị** của các cột — metadata, không phải nội dung dữ liệu.
+   *
+   * Chỉ ghi `columns.N.name` (dot-notation) → không đụng `key`, `data_type`,
+   * `missing_count`, `is_pii` hay bất kỳ bản ghi nào.
+   *
+   * `columnIssues` do **domain** tính (entity `renameColumns()`) và truyền vào —
+   * adapter không được tự suy luận lại (logic thuộc tầng domain).
+   */
+  updateColumnNames(
+    id: string,
+    updates: Array<{ columnKey: string; name: string }>,
+    columnIssues: DatasetColumnIssue[],
+  ): Promise<Dataset | null>;
+  /**
+   * Khôi phục tên hiển thị của các cột về **tên gốc** trong file CSV.
+   *
+   * `POST /datasets/{id}/columns/reset` — hành vi duy nhất còn lại của
+   * "Reset Dataset" sau khi thu hẹp (mục 3.12 / 3.40.5).
+   */
+  resetColumnNames(id: string, columnIssues: DatasetColumnIssue[]): Promise<Dataset | null>;
   bulkInsertRecords(records: RecordInsertDoc[]): Promise<number>;
   softDeleteDatasetWithRecords(datasetId: string): Promise<boolean>;
   /**

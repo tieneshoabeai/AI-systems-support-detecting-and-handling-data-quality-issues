@@ -10,6 +10,8 @@ export interface RunAnalysisInput {
   correlation_method: 'pearson' | 'spearman';
   outlier_method: 'iqr' | 'modified_zscore' | 'both';
   top_n: number;
+  /** Top N giá trị phổ biến của cột phân loại (biểu đồ + phụ lục A của PDF). */
+  chart_top_n?: number;
 }
 
 export interface AnalysisConfigInput {
@@ -21,4 +23,11 @@ export interface AnalysisConfigInput {
   correlation_method: 'pearson' | 'spearman';
   outlier_method: 'iqr' | 'modified_zscore' | 'both';
   top_n: number;
+  /**
+   * GĐ7 — Ghi đè vai trò cột: `{ [columnKey]: AnalysisRole }`.
+   *
+   * Key là **key cột ổn định** (`c0`, `c1`, …) — không phải tên hiển thị.
+   * `undefined` → giữ nguyên cấu hình cũ; `null` hoặc `{}` → xoá hết ghi đè.
+   */
+  column_roles?: Record<string, string> | null;
 }
