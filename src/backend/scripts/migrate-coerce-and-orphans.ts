@@ -1,5 +1,6 @@
 /**
- * MIGRATION - ep kieu du lieu `datasetrecords` theo schema, va don project mo coi.
+ * MIGRATION - ep kieu du lieu `datasetrecords` theo schema, don project mo coi,
+ * va don file R2 + dung luong workspace.
  *
  * Vi sao can:
  *  1. **Schema vs du lieu**: schema suy luan `dataType` tu CSV nhung du lieu nap
@@ -7,26 +8,30 @@
  *     sai (MongoDB so sanh theo BSON type).
  *  2. **Project mo coi**: truoc khi co cascade, xoa workspace khong xoa project
  *     -> project van `deleted_at: null` va van hien trong `GET /projects`.
+ *  3. **Ro ri dung luong R2**: dataset da xoa nhung file CSV van con tren R2
+ *     -> quota workspace cong don dung luong da dung.
  *
  * Cach dung:
- *   pnpm run db:migrate:coerce            # chay ca 2 phan
+ *   pnpm run db:migrate:coerce            # chay ca 3 phan
  *   pnpm run db:migrate:coerce -- --dry-run
- *   pnpm run db:migrate:coerce -- --only=coerce
- *   pnpm run db:migrate:coerce -- --only=orphan
+ *   pnpm run db:migrate:coerce -- --only=coerce    # chi ep kieu
+ *   pnpm run db:migrate:coerce -- --only=orphan    # chi don project mo coi
+ *   pnpm run db:migrate:coerce -- --only=storage   # chi don file R2 + storage
  *
  * `--dry-run` chi bao cao, KHONG ghi gi.
  *
- * Luu y: script nay **khong** xoa file tren R2 (khong co storage adapter);
- * viec xoa file R2 cua dataset mo coi can chay qua API xoa dataset hoac
- * bo sung buoc don storage thu cong.
+ * Luu y: Phan 3 se xoa file CSV tren R2 cua dataset da bi xoa (ke ca dataset
+ * da soft-delete truoc do) va dong bo lai `storage_used_bytes` cua workspace.
  */
 import './lib/load-env';
 import mongoose from 'mongoose';
+import { coerceValue } from '../src/modules/datasets/domain/value-objects/value-coercion.vo';
+import type { ColumnDataType } from '../src/modules/datasets/domain/value-objects/column-type.vo';
+import { storageKeyForDataset } from '../src/modules/datasets/domain/value-objects/dataset-limits.vo';
+import { createCliStorage } from './lib/cli-storage';
 
 /** `mongoose.Connection['db']` la `mongo.Db | undefined` -> NonNullable de loai undefined. */
 type MongoDb = NonNullable<mongoose.Connection['db']>;
-import { coerceValue } from '../src/modules/datasets/domain/value-objects/value-coercion.vo';
-import type { ColumnDataType } from '../src/modules/datasets/domain/value-objects/column-type.vo';
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -207,6 +212,114 @@ async function migrateOrphans(db: MongoDb): Promise<void> {
     .updateMany({ _id: { $in: orphanIds } }, { $set: { has_dataset: false } });
 }
 
+/**
+ * PHAN 3 — don file CSV tren R2 cho dataset da bi xoa + dong bo `storage_used_bytes`.
+ *
+ * Vì sao cần:
+ * Cascade (`CascadeProjectDatasetsHandler`) xoa file R2 khi xoa dataset qua API.
+ * Nhung du lieu cu (project/workspace bi xoa truoc khi co cascade) thi file CSV
+ * van con tren R2 -> **ro ri dung luong** (R2 + quota workspace).
+ *
+ * Idempotent: chi xoa file khi `fileExists()` tra ve true; chay lai nhieu lan
+ * cung an toàn.
+ */
+async function cleanupStorage(db: MongoDb): Promise<void> {
+  const storage = createCliStorage();
+  console.log(
+    `\n=== PHAN 3: don file R2 cho dataset da xoa (storage mode: ${storage.mode}) ===`,
+  );
+
+  const deletedDatasets = (await db
+    .collection('datasets')
+    .find({ deleted_at: { $ne: null } })
+    .toArray()) as unknown as Array<{
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    storage_key?: string;
+    file_size_bytes?: number;
+    workspace_id?: mongoose.Types.ObjectId;
+  }>;
+
+  if (deletedDatasets.length === 0) {
+    console.log('  Khong co dataset da xoa -> khong can don file.');
+    return;
+  }
+
+  let deletedFiles = 0;
+  let freedBytes = 0;
+  const missing: string[] = [];
+
+  for (const d of deletedDatasets) {
+    // Uu tien `storage_key` trong DB; fallback ve key chuan theo quy uoc.
+    const key = d.storage_key || storageKeyForDataset(String(d._id));
+    try {
+      const exists = await storage.fileExists(key);
+      if (!exists) {
+        missing.push(key);
+        continue;
+      }
+      if (!dryRun) {
+        await storage.deleteFile(key);
+      }
+      deletedFiles++;
+      freedBytes += d.file_size_bytes ?? 0;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`  [!] Khong xoa duoc file ${key}: ${msg}`);
+    }
+  }
+
+  console.log(
+    `  -> ${deletedFiles} file da bi xoa${dryRun ? ' (DRY RUN)' : ''}` +
+      ` (giai phong ${freedBytes} bytes)`,
+  );
+  if (missing.length > 0) {
+    console.log(`  -> ${missing.length} file da khong ton tai (bo qua)`);
+  }
+
+  // ── Dong bo `storage_used_bytes` cua workspace ────────────────────────────
+  // Tinh lai tu dataset con song thay vi tru so am -> tu chua, idempotent.
+  console.log('\n  -- Dong bo storage_used_bytes cua workspace --');
+  const workspaces = (await db
+    .collection('workspaces')
+    .find({})
+    .project<{ _id: mongoose.Types.ObjectId; storage_used_bytes?: number }>({
+      _id: 1,
+      storage_used_bytes: 1,
+    })
+    .toArray()) as unknown as Array<{
+    _id: mongoose.Types.ObjectId;
+    storage_used_bytes?: number;
+  }>;
+
+  let adjusted = 0;
+  for (const ws of workspaces) {
+    const agg = await db
+      .collection('datasets')
+      .aggregate<{ total: number }>([
+        { $match: { workspace_id: ws._id, deleted_at: null } },
+        { $group: { _id: null, total: { $sum: '$file_size_bytes' } } },
+      ])
+      .toArray();
+    const actual = agg[0]?.total ?? 0;
+    const current = ws.storage_used_bytes ?? 0;
+    if (current === actual) continue;
+
+    console.log(
+      `    ${String(ws._id)}: ${current} -> ${actual} bytes (chinh lech ${actual - current})`,
+    );
+    adjusted++;
+    if (!dryRun) {
+      await db
+        .collection('workspaces')
+        .updateOne({ _id: ws._id }, { $set: { storage_used_bytes: actual } });
+    }
+  }
+  console.log(
+    `  -> ${adjusted} workspace duoc chinh lai dung luong${dryRun ? ' (DRY RUN)' : ''}`,
+  );
+}
+
 async function main(): Promise<void> {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
@@ -220,6 +333,7 @@ async function main(): Promise<void> {
   try {
     if (only === 'all' || only === 'coerce') await migrateCoercion(db);
     if (only === 'all' || only === 'orphan') await migrateOrphans(db);
+    if (only === 'all' || only === 'storage') await cleanupStorage(db);
     console.log('\n✅ Hoan tat.');
   } finally {
     await mongoose.disconnect();

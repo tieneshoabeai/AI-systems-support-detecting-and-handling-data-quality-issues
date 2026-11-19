@@ -224,6 +224,21 @@ pnpm run db:reset:neo4j
 pnpm run db:reset:storage
 ```
 
+#### 5. Migration dữ liệu (ép kiểu theo Schema + dọn project mồ côi + dọn R2):
+```bash
+pnpm run db:migrate:coerce            # chạy cả 3 phần
+pnpm run db:migrate:coerce -- --dry-run           # chỉ báo cáo, KHÔNG ghi
+pnpm run db:migrate:coerce -- --only=coerce       # chỉ ép kiểu datasetrecords
+pnpm run db:migrate:coerce -- --only=orphan       # chỉ dọn project mồ côi
+pnpm run db:migrate:storage          # chỉ dọn file R2 + đồng bộ storage_used_bytes
+```
+- **Cơ chế:** Thực thi `scripts/migrate-coerce-and-orphans.ts` với 3 phần:
+  1. **Ép kiểu** — `datasetrecords.props` được ép theo `datasets.columns.data_type` (number/boolean/date) để lọc, sắp xếp và thống kê đúng kiểu BSON.
+  2. **Dọn project mồ côi** — project còn sống nhưng thuộc workspace đã xóa được soft-delete kèm dataset và bản ghi.
+  3. **Dọn R2** — xóa file CSV trên Cloudflare R2 của dataset đã xóa và đồng bộ lại `storage_used_bytes` của workspace (tính lại từ dataset còn sống).
+- **Tính chất:** **Idempotent** — chạy lại nhiều lần vẫn cho kết quả đúng, không xóa nhầm dữ liệu đang sống.
+- **Thời điểm sử dụng:** Sau khi nâng cấp hệ thống có thay đổi về kiểu dữ liệu hoặc luồng xóa (cascade).
+
 ---
 
 ### NHÓM 3: CÁC LỆNH KIỂM THỬ VÀ ĐẢM BẢO CHẤT LƯỢNG MÃ NGUỒN (TESTING & QA)
