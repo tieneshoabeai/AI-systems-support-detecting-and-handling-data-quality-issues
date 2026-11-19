@@ -42,6 +42,7 @@ export type ManagementStore = typeof previewMockStore & {
   getIssueDetail?: (id: string) => Promise<void>
   updateIssue?: (id: string, input: import('../../types/services-type/issues').patchIssuesByIdMineRequestBody) => Promise<void>
   datasetService?: import('../processing/dataset.service').DatasetService
+  analysisService?: import('../processing/analysis.service').AnalysisService
   changePassword?: (input: import('../../types/services-type/auth').postAuthChangePasswordRequestBody) => Promise<void>
   loadSessions?: () => Promise<void>
   downloadAttachment?: (reportId: string, attachmentId: string) => Promise<Blob>

@@ -10,6 +10,7 @@ import { createAdminService } from './admin.service'
 import { createDatasetService } from '../processing/dataset.service'
 import { ApiError } from '../../lib/api-error'
 import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
+import { createAnalysisService } from '../processing/analysis.service'
 
 type Member = { userId: string; role: string; email?: string; name?: string; firstName?: string; lastName?: string; joinedAt?: string }
 // Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
@@ -260,6 +261,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const store: ManagementStore = {
     ...(account.role.toLowerCase() === 'admin' ? { adminService: createAdminService(api) } : {}),
     datasetService: createDatasetService(api),
+    analysisService: createAnalysisService(api),
     completeProject: id => mutate(`/projects/${encodeURIComponent(id)}/snapshot`, 'PUT', { expectedVersion: version(id) }),
     getWorkspaceOverview: async () => {
       const overview = await request<unknown>('/overview/workspaces')

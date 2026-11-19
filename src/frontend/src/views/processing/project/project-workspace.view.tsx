@@ -23,6 +23,7 @@ import { ShoppingContent } from '../../preview/components/shopping-demo-content'
 import { ResultReviewDialog } from '../../preview/components/result-review-dialog'
 import { downloadShopping } from '../../../mocks/shopping-trends/data'
 import { LiveDatasetPanel } from './sections/live-dataset-panel'
+import { LiveAnalysisPanel } from './sections/live-analysis-panel'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 
 // Project chrome and actions stay in this view; Dataset3DView owns scene interactions.
@@ -182,7 +183,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
         onFocusChange={next => selectFocus(next)} onDetachedChange={value => { setDetached(value); if (!demo) setCompletedFocus(null) }}
         onFocusComplete={completeFocus} />}
       {PROJECT_PANEL_ENABLED && panelFocus && <aside ref={setGlassPanel} className="project-module-panel" aria-labelledby="project-module-title"
-        data-has-content={demo || panelFocus.theme === 'orange' || panelFocus.theme === 'blue' || panelFocus.theme === 'violet'}
+        data-has-content={demo || panelFocus.theme === 'orange' || panelFocus.theme === 'blue' || panelFocus.theme === 'violet' || panelFocus.theme === 'cyan'}
         data-open={panelOpen} data-instant={instant} data-module={projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.id}
         aria-hidden={!panelOpen} inert={!panelOpen}>
         <div className="project-module-content">
@@ -195,6 +196,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
             flow={flow} onReview={() => { pendingFocus.current = null; setReviewing(true) }} />
             : panelFocus.theme === 'blue' || panelFocus.theme === 'violet'
               ? <LiveDatasetPanel key={`${project.id}:${dataset?.id ?? ''}:${panelFocus.theme}`} project={project} overview={panelFocus.theme === 'violet'} />
+              : panelFocus.theme === 'cyan' ? <LiveAnalysisPanel key={project.id} project={project} />
               : panelFocus.theme === 'orange' && <div className="project-module-review"><ProjectResultActions result={result} reviewOnly /></div>}
         </div>
       </aside>}

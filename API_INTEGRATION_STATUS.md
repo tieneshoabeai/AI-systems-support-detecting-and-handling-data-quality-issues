@@ -21,7 +21,7 @@ Backend được kiểm tra: `https://temporarily-xml-sys-healthcare.trycloudfla
 | `GET /api/v1/admin/users`, `GET /api/v1/admin/users/{id}`, `GET /api/v1/admin/issues` | `200` | Mở trang Quản lý và hồ sơ QA Diag với admin |
 | `GET /api/v1/auth/sessions`, `GET /api/v1/auth/sessions/me` | `200` | Mở Settings → Đăng nhập & phiên → Chi tiết phiên hiện tại |
 
-Không phát request thuộc `analysis`, `summary`, PDF report, feedback hoặc AI-quality metrics. Không chạy mutation trên dữ liệu thật trong lượt này. `DELETE /api/v1/datasets/{id}` đã có caller UI kèm xác nhận và unit test contract; chưa bấm xác nhận xóa trên tunnel. Các thao tác ghi hồ sơ, issue, notification preferences/read, tạo tài nguyên, upload, đổi PII, chuyển owner, thu hồi session và xóa account cũng chưa được live-test. Google OAuth, OTP/password reset cần luồng/đích nhận riêng nên chưa xác nhận thành công.
+Không phát request thuộc `analysis`, `summary`, PDF report, feedback hoặc AI-quality metrics trong lượt kiểm tra live này. Các API analysis, summary/report và feedback đã được nối vào frontend sau lượt kiểm tra, nhưng chưa phát request; status live là `__`. Không chạy mutation trên dữ liệu thật trong lượt này. `DELETE /api/v1/datasets/{id}` đã có caller UI kèm xác nhận và unit test contract; chưa bấm xác nhận xóa trên tunnel. Các thao tác ghi hồ sơ, issue, notification preferences/read, tạo tài nguyên, upload, đổi PII, chuyển owner, thu hồi session và xóa account cũng chưa được live-test. Google OAuth, OTP/password reset cần luồng/đích nhận riêng nên chưa xác nhận thành công.
 
 Kết quả Network ở phần này là lần kiểm tra mới nhất; các bảng bên dưới lưu lại lịch sử từ tunnel/phiên trước. Nơi nào ghi “chưa capture” trong lịch sử nhưng đã có bằng chứng phía trên thì ưu tiên bằng chứng ngày 19/11/2026.
 
@@ -67,53 +67,53 @@ Tài liệu này chỉ ghi API đã được phát request qua UI hoặc đã đ
 | `GET /api/v1/overview/workspaces` | Tổng: 4 workspace, 4 project | `200` | Thành công trong Activity Overview |
 | `GET /api/v1/projects/{projectId}/members` | Project `Ai data quality testing`: `6afd2df2e6d6b365e0d622d4` | `200` | Thành công |
 | `GET /api/v1/projects/{projectId}/datasets` | Dataset `olist_order_reviews_dataset.csv` | `200` | Thành công |
-| `GET /api/v1/datasets/{datasetId}/records` | 100 dòng đầu | Chưa capture status riêng | Data View đã render bản ghi, nhưng lần capture gần nhất chưa ghi lại status response của request này; chưa ghi là `200` |
-| `POST /api/v1/datasets/{datasetId}/records/query` | Bộ lọc/sắp xếp Data View | Chưa capture riêng | Data View đã render; cần capture Network riêng khi lọc/sắp xếp lần tiếp theo trước khi ghi status |
-| `GET /api/v1/datasets/{datasetId}/schema` | 7 cột | Chưa capture riêng | 7 cột đã render, nhưng response schema chưa được listener xác nhận; cần capture Network riêng |
-| `GET /api/v1/datasets/{datasetId}/columns/{columnKey}/stats` | Thống kê cột Data View | Chưa xác nhận request/status | Chưa có bằng chứng UI phát request cụ thể trong lượt kiểm tra |
-| `GET /api/v1/datasets/{datasetId}/file` | Tải CSV gốc | Chưa kích hoạt | Chưa có bằng chứng status từ Network |
+| `GET /api/v1/datasets/{datasetId}/records` | 100.000 dòng, 7 cột | `200` | Xác nhận qua UI ngày 19/11/2026; Data View hiển thị dữ liệu thật |
+| `POST /api/v1/datasets/{datasetId}/records/query` | Tìm kiếm trong Data View | `200` | Xác nhận qua thao tác tìm kiếm và áp dụng ngày 19/11/2026 |
+| `GET /api/v1/datasets/{datasetId}/schema` | 7 cột | `200` | Xác nhận khi mở Project có CSV thật ngày 19/11/2026 |
+| `GET /api/v1/datasets/{datasetId}/columns/{columnKey}/stats` | Thống kê cột Data View | `200` | Xác nhận khi bấm “Thống kê cột đã chọn” ngày 19/11/2026 |
+| `GET /api/v1/datasets/{datasetId}/file` | Tải CSV gốc | `200` | Xác nhận khi bấm “Tải CSV gốc”; response `text/csv; charset=utf-8` ngày 19/11/2026 |
 | `GET /api/v1/notifications/unread-count` | Tài khoản admin | `200` | Thành công |
 | `GET /api/v1/notifications?limit=100` | Danh sách thông báo | `200` | Thành công; tài khoản hiện không còn thông báo chưa đọc |
-| `GET /api/v1/notifications/{id}` | ID thông báo cụ thể | Chưa phát request | Có caller/UI, nhưng tài khoản test không có notification để mở |
-| `PATCH /api/v1/notifications/{id}/read` | ID thông báo cụ thể | Chưa phát request | Có caller/UI, nhưng tài khoản test không có notification để đánh dấu |
+| `GET /api/v1/notifications/{id}` | ID thông báo cụ thể | `__` | Chưa phát request; tài khoản test không có notification để mở |
+| `PATCH /api/v1/notifications/{id}/read` | ID thông báo cụ thể | `__` | Chưa phát request; tài khoản test không có notification để đánh dấu |
 | `GET /api/v1/issues?limit=100` | Danh sách issue của tài khoản | `200` | Thành công, danh sách rỗng |
-| `GET /api/v1/issues/{id}` | ID issue cụ thể | Chưa phát request | Có caller/UI, nhưng không có issue để mở |
-| `PATCH /api/v1/issues/{id}` | Cập nhật issue của mình | Chưa phát request | Không có issue để thử mutation |
-| `POST /api/v1/issues/{id}/attachments` | Đính kèm issue | Chưa phát request | Không có issue và không thử tạo dữ liệu |
-| `GET /api/v1/issues/{id}/attachments/{attachmentId}` | Tệp đính kèm | Chưa phát request | Không có attachment dữ liệu test |
+| `GET /api/v1/issues/{id}` | ID issue cụ thể | `__` | Chưa phát request; tài khoản test không có issue để mở |
+| `PATCH /api/v1/issues/{id}` | Cập nhật issue của mình | `__` | Chưa phát request; không có issue để thử mutation |
+| `POST /api/v1/issues/{id}/attachments` | Đính kèm issue | `__` | Chưa phát request; không có issue và không thử tạo dữ liệu |
+| `GET /api/v1/issues/{id}/attachments/{attachmentId}` | Tệp đính kèm | `__` | Chưa phát request; không có attachment dữ liệu test |
 | `GET /api/v1/admin/users` | 7 tài khoản | `200` | Thành công trong panel Quản trị |
 | `GET /api/v1/admin/users/{id}` | QA Diag: `6afc2ba5c37b4d662e5537b3` | `200` | Thành công khi mở chi tiết tài khoản |
 | `GET /api/v1/admin/issues?limit=10&sortBy=createdAt&sortOrder=desc` | Danh sách báo cáo issue | `200` | Thành công; danh sách rỗng |
-| `GET /api/v1/admin/issues/{id}` | ID issue cụ thể | Chưa phát request | Không có issue để mở |
-| `PATCH /api/v1/admin/issues/{id}/status` | Cập nhật trạng thái issue | Chưa phát request | Không có issue và không thử ghi dữ liệu |
+| `GET /api/v1/admin/issues/{id}` | ID issue cụ thể | `__` | Chưa phát request; không có issue để mở |
+| `PATCH /api/v1/admin/issues/{id}/status` | Cập nhật trạng thái issue | `__` | Chưa phát request; không có issue và không thử ghi dữ liệu |
 | `GET /api/v1/auth/sessions` | 31 phiên | `200` | Thành công trong Settings → Đăng nhập & phiên |
-| `GET /api/v1/auth/sessions/{id}` | ID phiên cụ thể | Chưa capture UI | Route đã có caller, chưa bấm chi tiết một phiên |
-| `DELETE /api/v1/auth/sessions/{id}` | Thu hồi một phiên | Chưa phát mutation | Không thu hồi phiên đang dùng/phiên thật trong bài kiểm tra |
-| `POST /api/v1/auth/change-password` | Đổi mật khẩu | Caller đã có | Không thao tác đổi mật khẩu tài khoản test trong lượt kiểm tra |
+| `GET /api/v1/auth/sessions/{id}` | ID phiên cụ thể | `__` | Route đã có caller; chưa mở chi tiết một phiên trong UI |
+| `DELETE /api/v1/auth/sessions/{id}` | Thu hồi một phiên | `__` | Chưa phát mutation; không thu hồi phiên đang dùng/phiên thật trong bài kiểm tra |
+| `POST /api/v1/auth/change-password` | Đổi mật khẩu | `__` | Caller đã có; không thao tác đổi mật khẩu tài khoản test trong lượt kiểm tra |
 
-## Các API chưa được coi là nối thành công
+## Các API chưa có status live xác nhận
 
-| Nhóm/API | Lý do | Bằng chứng hiện có |
-|---|---|---|
-| `/api/v1/projects/{projectId}/summary` và `/api/v1/projects/{projectId}/report...` | Thuộc nhóm `analysis`/summary/report; phạm vi kiểm tra yêu cầu không đụng vào API `analysis` | Không có request UI trong các lượt kiểm tra; API không được thêm vào bước xác nhận Network |
-| Các route `/api/v1/analysis/...`, `/api/v1/analyses/.../feedback`, `/api/v1/feedback/...` | Cố ý loại khỏi phạm vi tích hợp và kiểm thử | Không phát mutation/read request thuộc nhóm này |
-| `/api/v1/auth/google` và `/api/v1/auth/google/callback` | Provider Google trong UI bị disable và backend đánh dấu provider chưa khả dụng | UI hiển thị “Đăng nhập qua nhà cung cấp chưa khả dụng”; không test callback OAuth |
-| `POST /api/v1/auth/register` | Nút đăng ký có UI nhưng không phải tài khoản test đang chạy; chưa xác nhận live status | Không đăng ký tài khoản mới để tránh làm thay đổi dữ liệu backend |
-| `POST /api/v1/auth/forgot-password`, `/api/v1/auth/reset-password` | Có caller/UI, nhưng không gửi email hoặc thay mật khẩu thật trong dữ liệu test | Không kích hoạt reset OTP để tránh làm thay đổi trạng thái tài khoản |
-| `DELETE /api/v1/users/me` | Xóa tài khoản là thao tác phá hủy | Không thực thi để bảo toàn tài khoản test |
-| `PATCH /api/v1/users/me/notification-preferences` | Có UI/caller có thể tồn tại nhưng không capture live response trong lượt test | Không thay preference của tài khoản test |
-| `POST /api/v1/workspaces` | Tạo workspace | Không tạo tài nguyên mới trong lượt Network vừa test |
-| `PATCH/DELETE /api/v1/workspaces/{id}` | Cập nhật/xóa workspace | Không sửa hoặc xóa workspace thật |
-| `POST/DELETE /api/v1/workspaces/{id}/members` | Thêm/xóa thành viên | Có backend/UI, nhưng chưa có dữ liệu thành viên test được cấp để mutate |
-| Đổi role thành viên workspace | Swagger không có endpoint đổi role workspace | Không thể nối caller chỉ bằng frontend; cần backend bổ sung contract/route |
-| `DELETE /api/v1/notifications/{id}` | Không có route Swagger/backend tương ứng | Không thể nối; cần backend bổ sung endpoint |
-| `POST /api/v1/workspaces/{workspaceId}/projects`, `PATCH/DELETE /api/v1/projects/{id}` | Tạo/sửa/xóa project | Không tạo, sửa hoặc xóa project thật trong lượt kiểm tra |
-| Upload, rename, reset/delete dataset | Mutation dữ liệu dataset | Không ghi vào project/dataset test để tránh làm thay đổi dữ liệu |
-| `PUT /api/v1/projects/{id}/snapshot` | Mutation snapshot hoàn thành project | Không đánh dấu project hoàn thành trong lượt test |
-| Project member add/update/remove/transfer | Mutation thành viên project | Không thay đổi membership project thật |
-| `PATCH /api/v1/datasets/{id}/columns`, reset columns, delete dataset | Mutation schema/dataset | Không thử ghi dữ liệu trong lượt kiểm tra |
-| `GET /api/v1/datasets/{id}/file` | Tải file | Chưa bấm nút tải để capture response; request không phát sinh do chỉ mở Data View |
-| `GET/POST /api/v1/datasets/{datasetId}/...` Data View | Một số request schema/query/stats chưa capture status riêng | Data View đã render 100 dòng/7 cột; listener chưa bắt status schema/query, nên không ghi thành `200` cho các request đó |
+| Nhóm/API | Status live | Lý do | Bằng chứng hiện có |
+|---|---:|---|---|
+| `/api/v1/projects/{projectId}/summary` và `/api/v1/projects/{projectId}/report...` | `__` | Chưa test live | Đã nối frontend sau lượt kiểm tra live; chưa phát request |
+| Các route `/api/v1/analysis/...`, `/api/v1/analyses/{analysisId}/.../feedback`, `/api/v1/feedback/{id}` | `__` | Chưa test live | Đã nối frontend sau lượt kiểm tra live; chưa phát request |
+| `/api/v1/auth/google` và `/api/v1/auth/google/callback` | `302` (lượt 18/11) | Chưa xác minh đăng nhập OAuth thành công | Endpoint bắt đầu trả `302` sang Google; callback `access_denied` trả `302` về origin cấu hình |
+| `POST /api/v1/auth/register` | `__` | Chưa test live | Không đăng ký tài khoản mới để tránh làm thay đổi dữ liệu backend |
+| `POST /api/v1/auth/forgot-password`, `/api/v1/auth/reset-password` | `__` | Chưa test live | Không kích hoạt reset OTP để tránh làm thay đổi trạng thái tài khoản |
+| `DELETE /api/v1/users/me` | `__` | Chưa test live | Không thực thi thao tác phá hủy để bảo toàn tài khoản test |
+| `PATCH /api/v1/users/me/notification-preferences` | `__` | Chưa test live | Không thay preference của tài khoản test |
+| `POST /api/v1/workspaces` | `__` | Chưa test live | Không tạo tài nguyên mới trong lượt Network vừa test |
+| `PATCH/DELETE /api/v1/workspaces/{id}` | `__` | Chưa test live | Không sửa hoặc xóa workspace thật |
+| `POST/DELETE /api/v1/workspaces/{id}/members` | `__` | Chưa test live | Chưa có dữ liệu thành viên test được cấp để mutate |
+| Đổi role thành viên workspace | `__` | Không có endpoint backend | Swagger không khai báo endpoint đổi role workspace; cần backend bổ sung contract/route |
+| `DELETE /api/v1/notifications/{id}` | `__` | Không có endpoint backend | Swagger/backend không khai báo route xóa notification |
+| `POST /api/v1/workspaces/{workspaceId}/projects` | `201` | UI wizard chưa test live | Gọi trực tiếp với dữ liệu mẫu ngày 18/11; tài nguyên QA đã được dọn bằng API `204` |
+| `POST /api/v1/projects/{id}/datasets/upload` | `201` | UI wizard chưa test live | Gọi trực tiếp với dữ liệu mẫu ngày 18/11; dataset QA đã được dọn bằng API `204` |
+| `PATCH/DELETE /api/v1/projects/{id}` | `__` | Chưa test live | Không sửa hoặc xóa project thật trong lượt kiểm tra |
+| Rename, reset/delete dataset | `__` | Chưa test live | Không ghi vào project/dataset test để tránh làm thay đổi dữ liệu |
+| `PUT /api/v1/projects/{id}/snapshot` | `__` | Chưa test live | Không đánh dấu project hoàn thành trong lượt test |
+| Project member add/update/remove/transfer | `__` | Chưa test live | Không thay đổi membership project thật |
+| `PATCH /api/v1/datasets/{id}/columns`, reset columns, delete dataset | `__` | Chưa test live | Không thử ghi dữ liệu trong lượt kiểm tra |
 
 ## Giới hạn chứng cứ
 
