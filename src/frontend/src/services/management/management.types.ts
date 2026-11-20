@@ -1,4 +1,5 @@
 import type { previewMockStore } from '../preview/preview-mock.service'
+import type { AnalysisService } from '../processing/analysis.service'
 
 export type WorkspaceOverview = {
   totalWorkspaces: number
@@ -40,8 +41,15 @@ export type ManagementStore = typeof previewMockStore & {
   getSessionDetail?: (sessionId: string) => Promise<SessionDetail>
   getNotificationDetail?: (id: string) => Promise<void>
   getIssueDetail?: (id: string) => Promise<void>
+  updateIssue?: (id: string, input: import('../../types/services-type/issues').patchIssuesByIdMineRequestBody) => Promise<void>
+  refreshProject?: (id: string, signal: AbortSignal) => Promise<void>
+  completeProject?: (id: string) => Promise<import('../../types/preview/preview.types').PreviewMutationResult>
   datasetService?: import('../processing/dataset.service').DatasetService
+  listRecentProjects?: (cursor: string | null, signal: AbortSignal) => Promise<import('../processing/recent-projects.service').RecentProjectsPage>
+  getRecentWorkspaceName?: (id: string) => Promise<string | undefined>
+  loadProcessingPanels?: () => Promise<void>
   readAnalysisResult?: (projectId: string, signal: AbortSignal) => Promise<SavedAnalysisResult | null>
+  analysisService?: AnalysisService
   runAnalysis?: (projectId: string) => Promise<SavedAnalysisResult>
   changePassword?: (input: import('../../types/services-type/auth').postAuthChangePasswordRequestBody) => Promise<void>
   loadSessions?: () => Promise<void>

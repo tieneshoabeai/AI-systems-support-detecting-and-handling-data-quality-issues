@@ -1,21 +1,25 @@
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { projectHref } from '../../../services/navigation/application-route'
 import { PreviewShell } from '../../preview/components/preview-shell'
 import { usePreviewStore } from '../../../hooks/preview/use-preview-store'
+import { ManagementLoadingContext } from '../../../hooks/preview/management-loading-context'
+import { DataRegionStatus } from '../../../components/loading/data-region-status'
+import { ProjectWizard } from '../../../components/project/create'
 import { UniverseHero } from '../../preview/components/universe-hero'
 import { RecentProjects } from '../../preview/components/recent-projects'
 import { PreviewIcon } from '../../preview/components/preview-icons'
 import styles from './processing.module.css'
 
-// Landing and project-creation UI only. All dataset work belongs to the project page.
-// Creation remains unavailable until its API/workspace contract is integrated.
 export function ProcessingView() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const source = usePreviewStore().source
+  const loading = useContext(ManagementLoadingContext)
   const creating = pathname.replace(/\/$/, '') === '/processing/new'
-  useEffect(() => { document.getElementById('page-heading')?.focus() }, [pathname])
+  useEffect(() => {
+    if (!creating) document.getElementById('page-heading')?.focus()
+  }, [creating])
   return <PreviewShell active="home" area="processing" contentClassName={styles['screen'] ?? ''} context={<>
     <Link className="text-link" to="/management">Quản lý</Link>
     <span aria-hidden="true"> / </span>
@@ -23,16 +27,14 @@ export function ProcessingView() {
   </>}>
     {creating ? <main className="processing-content">
       <h1 id="page-heading" tabIndex={-1}>Tạo Project mới</h1>
-      <section className="panel processing-panel">
-        <h2>Thông tin Project</h2>
-        <fieldset disabled className="processing-fields">
-          <label>Tên Project<input name="name" type="text" /></label>
-          <label>Mô tả<textarea name="description" rows={3} /></label>
-        </fieldset>
-        <p id="create-project-unavailable">Chưa kết nối dịch vụ tạo Project. Khi được lưu, Project sẽ mở tại trang Tổng quan; upload dữ liệu thực hiện trong trang Project.</p>
-        <button type="button" className="button-primary" disabled aria-describedby="create-project-unavailable">Tạo Project và tiếp tục</button>
+      {loading ? <section className="panel processing-panel">
+        <DataRegionStatus status={loading} label="Đang tải danh sách Workspace">
+          <p>Đang tải danh sách Workspace…</p>
+        </DataRegionStatus>
         <Link className="text-link" to="/processing">Quay lại</Link>
-      </section>
+      </section> : <ProjectWizard initialWorkspaceId={null} onClose={() => {
+        void Promise.resolve(navigate('/processing', { replace: true })).catch(error => { reportError(error) })
+      }} />}
     </main> : <main className="processing-landing">
       <UniverseHero headingId="page-heading" />
       <RecentProjects onOpenProject={id => { void Promise.resolve(navigate(projectHref(id))).catch(error => { reportError(error) }) }}

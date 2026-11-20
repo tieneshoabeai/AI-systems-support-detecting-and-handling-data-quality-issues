@@ -4,7 +4,7 @@
 
 export type PreviewSectionId =
   | 'home' | 'workspaces' | 'projects' | 'notifications' | 'datasets' | 'data-views'
-  | 'clean-rules' | 'lineage' | 'versions' | 'exports' | 'users' | 'settings'
+  | 'clean-rules' | 'lineage' | 'versions' | 'exports' | 'users' | 'settings' | 'members'
 
 export type WorkspaceStatus = 'active' | 'paused' | 'archived'
 export type ProjectStatus = 'active' | 'paused' | 'processing' | 'completed' | 'archived'
@@ -107,6 +107,8 @@ export type NewWorkspaceInput = { name: string; description: string; members: Pe
 export type NewWorkspaceMemberInput = { workspaceId: string; person: Person }
 
 export type Project = {
+  canUpdateDatasetMetadata?: boolean
+  canComplete?: boolean
   canManage?: boolean
   canDelete?: boolean
   canUpload?: boolean
@@ -352,6 +354,7 @@ export type ReportFilterTab = 'all' | 'processing' | 'needs-info' | 'resolved'
 export type ReportAttachment = { name: string; sizeLabel: string; file?: File; id?: string }
 
 export type PreviewReport = {
+  version?: number
   id: string
   /** Mã công khai kiểu DV-250120-001 (Design Board 3.2–3.3), không phải id nội bộ. */
   code: string

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useInRouterContext } from 'react-router'
 import type { PreviewSectionId } from '../../../types'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import { navItems, sectionLabels } from '../preview-data'
 import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
@@ -24,7 +25,7 @@ type PreviewShellProps = {
 // dựng thật; bấm vào điều hướng sang '/management/settings'.
 // 'notifications' có trong danh sách này dù không nằm ở nav: màn Thông báo mở từ chuông
 // topbar (Design Board 1.1 → 1.2), không phải một module điều hướng.
-const builtSections: readonly PreviewSectionId[] = ['home', 'workspaces', 'projects', 'notifications', 'settings']
+const builtSections: readonly PreviewSectionId[] = ['home', 'workspaces', 'projects', 'notifications', 'members', 'settings']
 
 const collapsedKey = 'data-quality.preview.sidebar.v1'
 
@@ -50,6 +51,7 @@ export function PreviewShell({
   active, children, area = 'management', context, contentClassName = '', headerAction,
 }: PreviewShellProps) {
   const session = usePreviewSession()
+  const { adminService } = useManagementStore()
   const { state } = session
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [narrow, setNarrow] = useState(readNarrow)
@@ -119,7 +121,10 @@ export function PreviewShell({
   // shell), nên vào đó thì sidebar vẫn sáng Home — người dùng báo lại đúng điểm này. Dải
   // ngữ cảnh dưới nav trả lời "đang ở đâu" và cho luôn một lối về Home mà không thêm mục nav.
   const processing = area === 'processing'
-  const isContextual = !processing && !navItems.some(item => item.id === active)
+  const visibleNavItems = adminService
+    ? navItems.flatMap(item => item.id === 'settings' ? [{ id: 'members' as const, label: 'Quản trị' }, item] : [item])
+    : navItems
+  const isContextual = !processing && !visibleNavItems.some(item => item.id === active)
   const inRouter = useInRouterContext()
   const processingLink = <>
     <span className="nav-icon" aria-hidden="true"><PreviewIcon name="processing" /></span>
@@ -136,14 +141,14 @@ export function PreviewShell({
         {inRouter
           ? <Link className="nav-item" to="/processing" title="AI Data Processing">{processingLink}</Link>
           : <a className="nav-item" href="/processing" title="AI Data Processing">{processingLink}</a>}
-        {navItems.map(item => {
+        {visibleNavItems.map(item => {
           const selected = item.id === active
           return <button type="button" key={item.id}
             className={`nav-item${selected ? ' is-active' : ''}`}
             data-nav={item.id}
             aria-current={selected ? 'page' : undefined} title={item.label}
             onClick={() => navigate(item.id, item.label)}>
-            <span className="nav-icon" aria-hidden="true"><PreviewIcon name={item.id} /></span>
+            <span className="nav-icon" aria-hidden="true"><PreviewIcon name={item.id === 'members' ? 'users' : item.id} /></span>
             <span className="nav-label">{item.label}</span>
           </button>
         })}

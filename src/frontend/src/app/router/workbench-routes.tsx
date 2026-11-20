@@ -46,7 +46,7 @@ export function WorkbenchRoutes() {
       <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
         <Route element={<ApplicationFrame />}>
           {['/management', '/management/workspaces', '/management/workspaces/:workspaceId',
-            '/management/projects', '/management/notifications',
+            '/management/projects', '/management/members', '/management/notifications',
             '/management/notifications/:notificationId', '/management/settings', '/management/settings/:settingsSection']
             .map(path => <Route key={path} path={path} element={<ManagementPage />} />)}
           {['/processing', '/processing/new']

@@ -85,7 +85,11 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           throw new ApiError({ kind: 'config', message: 'Request chưa khai báo chế độ xác thực.' })
         }
 
-        const url = resolveApiPath(request.path, config.baseUrl)
+        const method = request.method ?? 'GET'
+        // The backend registers the public health check outside the API prefix.
+        const url = request.auth === 'public' && method === 'GET' && request.path === '/health'
+          ? new URL('/health', config.baseUrl).href
+          : resolveApiPath(request.path, config.baseUrl)
         const timeout = request.timeoutMs ?? config.timeoutMs
 
         if (!Number.isFinite(timeout) || timeout <= 0) {
@@ -113,7 +117,7 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
 
         const response = await instance.request<unknown>({
           url,
-          method: request.method ?? 'GET',
+          method,
           data: request.data,
           ...(request.params === undefined ? {} : { params: request.params }),
           ...(request.signal === undefined ? {} : { signal: request.signal }),
@@ -122,7 +126,13 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           headers,
         })
 
-        if (response.status === 204) return undefined as T
+        if (request.includeStatus) return { status: response.status, data: response.data } as T
+        if (response.status === 204) {
+          if (request.requireBody) {
+            throw new ApiError({ kind: 'invalid-response', status: 204, message: 'API trả về 204 nhưng thao tác này cần dữ liệu phản hồi.' })
+          }
+          return undefined as T
+        }
         if (request.responseType === 'blob') return response.data as T
         return unwrapEnvelope<T>(response.data)
       } catch (error) {

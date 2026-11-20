@@ -1,6 +1,90 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/datasets/{id}/columns/pii": {
+      "patch": {
+        "description": "Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.",
+        "operationId": "DatasetsController_updateColumnPii",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "columnKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "isPii": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "columnKey",
+                        "isPii"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "columns"
+                ],
+                "additionalProperties": false,
+                "example": {
+                  "columns": [
+                    {
+                      "columnKey": "c0",
+                      "isPii": true
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công"
+          },
+          "400": {
+            "description": "Key cột không tồn tại hoặc không có cột nào thay đổi"
+          },
+          "404": {
+            "description": "Không tìm thấy dataset"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)",
+        "tags": [
+          "Datasets"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "AppController_getHealth",
@@ -134,7 +218,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Danh sách hồ sơ — `{ items, meta: { nextCursor, hasMore, limit } }` (keyset cursor, không có `total`/`page`)"
           }
         },
         "security": [
@@ -163,7 +247,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -349,7 +433,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "summary": "AUTH-05: Quên mật khẩu — gửi OTP 6 số (TTL 10 phút)",
@@ -396,7 +480,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "summary": "AUTH-06: Đặt lại mật khẩu bằng OTP",
@@ -443,7 +527,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -482,6 +566,9 @@
         "responses": {
           "200": {
             "description": "Đăng nhập thành công, trả về JWT Access Token và Refresh Token"
+          },
+          "302": {
+            "description": "Đăng nhập thành công — chuyển hướng về frontend kèm token (che do `?format=redirect`)"
           },
           "401": {
             "description": "Mã ủy quyền không hợp lệ hoặc email chưa được xác minh"
@@ -531,6 +618,29 @@
           }
         ],
         "summary": "Xem danh sách các phiên đăng nhập đang hoạt động (F1.8)",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/me": {
+      "get": {
+        "operationId": "AuthController_getCurrentSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Chi tiết phiên hiện tại"
+          },
+          "404": {
+            "description": "Không tìm thấy phiên hiện tại (đã thu hồi hoặc hết hạn)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Chi tiết phiên đăng nhập hiện tại (tài nguyên của chính mình)",
         "tags": [
           "Auth"
         ]
@@ -734,7 +844,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -787,7 +897,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -814,7 +924,7 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "Thành công, không có nội dung phản hồi"
           }
         },
         "security": [
@@ -894,7 +1004,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -950,7 +1060,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -987,7 +1097,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1041,7 +1151,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -1070,7 +1180,7 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -1128,7 +1238,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -1208,7 +1318,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1217,6 +1327,80 @@
           }
         ],
         "summary": "PROJ-02: Danh sách project (phân trang cursor/tìm kiếm/lọc status/sắp xếp)",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "description": "Trả về mọi project người dùng có quyền đọc, gom từ tất cả workspace. Phân trang keyset: dùng `meta.nextCursor` làm tham số `cursor` của request kế tiếp. Response: `{ items, meta: { nextCursor, hasMore, limit } }`.",
+        "operationId": "ProjectsController_listAllProjects",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "not_started",
+                "in_progress",
+                "completed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "last_accessed",
+                "updated",
+                "name_asc",
+                "name_desc",
+                "joined"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách project + cursor phân trang"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "PROJ-02b: Danh sách project toàn hệ thống (không theo workspace)",
         "tags": [
           "Projects"
         ]
@@ -1237,7 +1421,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1290,7 +1474,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1317,7 +1501,7 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "Thành công, không có nội dung phản hồi"
           }
         },
         "security": [
@@ -1366,7 +1550,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1447,7 +1631,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1502,7 +1686,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -1567,7 +1751,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1602,7 +1786,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1656,7 +1840,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -1705,7 +1889,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -1734,7 +1918,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1763,7 +1947,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -1772,51 +1956,6 @@
           }
         ],
         "summary": "F4.3: Xem chi tiet thong tin tap du lieu (khong bao gom storage_key)",
-        "tags": [
-          "Datasets"
-        ]
-      },
-      "patch": {
-        "operationId": "DatasetsController_updateDataset",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "F4.4: Cap nhat ten tap du lieu",
         "tags": [
           "Datasets"
         ]
@@ -1835,7 +1974,7 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "Thành công, không có nội dung phản hồi"
           }
         },
         "security": [
@@ -1844,104 +1983,6 @@
           }
         ],
         "summary": "F4.5: Xoa mem tap du lieu va giai phong du an",
-        "tags": [
-          "Datasets"
-        ]
-      }
-    },
-    "/api/v1/datasets/{id}/columns": {
-      "patch": {
-        "operationId": "DatasetsController_renameColumns",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "columns": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "key": {
-                          "type": "string",
-                          "pattern": "^c\\d+$"
-                        },
-                        "name": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 120
-                        }
-                      },
-                      "required": [
-                        "key",
-                        "name"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "minItems": 1,
-                    "maxItems": 1000
-                  }
-                },
-                "required": [
-                  "columns"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Wave 4: Doi ten cot hien thi - key c{i} bat bien",
-        "tags": [
-          "Datasets"
-        ]
-      }
-    },
-    "/api/v1/datasets/{id}/columns/reset": {
-      "post": {
-        "operationId": "DatasetsController_resetColumnNames",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Wave 4 (M15): Khoi phuc ten cot ve ten goc tu file CSV",
         "tags": [
           "Datasets"
         ]
@@ -1962,7 +2003,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "File CSV gốc (stream) — tải trực tiếp từ storage"
           }
         },
         "security": [
@@ -1991,7 +2032,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2056,7 +2097,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2198,7 +2239,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2235,7 +2276,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2337,7 +2378,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2364,7 +2405,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2437,7 +2478,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -2466,7 +2507,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2495,7 +2536,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2524,7 +2565,7 @@
         ],
         "responses": {
           "202": {
-            "description": ""
+            "description": "Đã tiếp nhận yêu cầu (xử lý bất đồng bộ)"
           }
         },
         "security": [
@@ -2553,7 +2594,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2582,7 +2623,7 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -2609,7 +2650,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2638,7 +2679,7 @@
         ],
         "responses": {
           "202": {
-            "description": ""
+            "description": "Đã tiếp nhận yêu cầu (xử lý bất đồng bộ)"
           }
         },
         "security": [
@@ -2675,7 +2716,10 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "File PDF (stream) — tải về khi report đã sinh xong"
+          },
+          "202": {
+            "description": "Report chưa sẵn sàng — trả metadata trạng thái để client thử lại"
           }
         },
         "security": [
@@ -2748,7 +2792,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2768,7 +2812,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2797,7 +2841,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2826,7 +2870,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2865,7 +2909,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -2940,7 +2984,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -3015,7 +3059,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3044,7 +3088,7 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -3081,7 +3125,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "File đính kèm (stream) — tải trực tiếp từ storage"
           }
         },
         "security": [
@@ -3110,7 +3154,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3176,7 +3220,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3254,7 +3298,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3283,7 +3327,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3343,7 +3387,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3421,7 +3465,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -3499,7 +3543,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3569,7 +3613,7 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Tạo mới thành công"
           }
         },
         "security": [
@@ -3639,7 +3683,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3706,7 +3750,7 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3733,7 +3777,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [
@@ -3762,7 +3806,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Thành công"
           }
         },
         "security": [

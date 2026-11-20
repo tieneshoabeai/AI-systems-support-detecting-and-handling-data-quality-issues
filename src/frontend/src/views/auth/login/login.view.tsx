@@ -181,7 +181,7 @@ export const LoginView = () => {
               </button>
               <p className="form-status" role="status">{form.pending ? 'Đang xác nhận thông tin đăng nhập.' : ''}</p>
             </form>
-            <AuthProviderButtons action="Đăng nhập" />
+            <AuthProviderButtons action="Đăng nhập" disabled={disabled} />
             <p className="auth-glass-sign-in-register">
               Chưa có tài khoản?{' '}
               <button type="button" disabled={disabled || isShoppingDemo()} onClick={() => changePanel('register')}>Đăng ký</button>
@@ -227,7 +227,7 @@ export const LoginView = () => {
               <button className="button-primary login-submit" type="submit" disabled={disabled || isShoppingDemo()}>Tạo tài khoản</button>
               <p className="form-status" role="status">{registerPending ? 'Đang tạo tài khoản.' : ''}</p>
             </form>
-            <AuthProviderButtons action="Đăng ký" />
+            <AuthProviderButtons action="Đăng ký" disabled={disabled} />
             <p className="auth-glass-sign-in-register">
               Đã có tài khoản?{' '}
               <button type="button" disabled={registerPending} onClick={() => changePanel('login')}>Đăng nhập</button>

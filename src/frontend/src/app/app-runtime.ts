@@ -34,7 +34,7 @@ export const createAppRuntime = (options: RuntimeOptions) => {
       const api = createAxiosClient({ ...options.client, readToken: () => accessToken })
       const users = createUsersService(api)
       const auth = createAuthService(api)
-      return { getMe: (options) => users.getMe(options), logout: (options) => auth.logout(options) }
+      return { getMe: options => users.getMe(options), logout: options => auth.logout(options), deleteMe: options => users.deleteMe(options) }
     },
   })
   const drafts = createUploadDraftRepository({ db: database, access: coordinator.draftAccess, ...(options.now === undefined ? {} : { now: options.now }) })

@@ -3,6 +3,9 @@ import type { ApiClient } from '../../types'
 import type { CurrentUser } from '../../types'
 
 export const createUsersService = (api: ApiClient) => ({
+  async deleteMe(options: { signal?: AbortSignal } = {}): Promise<void> {
+    await api.request({ path: '/users/me', method: 'DELETE', auth: 'session', ...options })
+  },
   async getMe(options: { signal?: AbortSignal } = {}): Promise<CurrentUser> {
     const response = await api.request<unknown>({ path: '/users/me', auth: 'session', ...(options.signal === undefined ? {} : { signal: options.signal }) })
     // /users/me trả domain record camelCase, không phải document MongoDB.

@@ -4,27 +4,49 @@ import type { postIssuesReportRequestBody as CreateReportBody } from '../../type
 import type { patchUsersProfileRequestBody as ProfileBody } from '../../types/services-type/users'
 import type { patchUsersPreferencesRequestBody as PreferencesBody } from '../../types/services-type/notifications'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
-import type { ManagementStore, SavedAnalysisResult, SessionDetail, WorkspaceDetailOverview, WorkspaceOverview } from './management.types'
+import type { ManagementStore, WorkspaceDetailOverview, WorkspaceOverview } from './management.types'
 import { validateCsvFile } from './upload-validation'
 import { createAdminService } from './admin.service'
 import { createDatasetService } from '../processing/dataset.service'
-import { normalizeApiError } from '../../lib/api-error'
+import { createAnalysisService } from '../processing/analysis.service'
+import { listRecentProjects } from '../processing/recent-projects.service'
+import { ApiError, isRecord, normalizeApiError } from '../../lib/api-error'
+import { mapSessionDetail } from './session.mapper'
 import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
 
-type Member = { userId: string; role: string; email?: string; name?: string; firstName?: string; lastName?: string; joinedAt?: string }
+type Member = { userId: string; role: string; email?: string | null; name?: string; firstName?: string | null; lastName?: string | null; joinedAt?: string }
 // Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
 // ({ items, meta: { hasMore, nextCursor } }). Đọc được cả hai để một bản frontend chạy với cả hai.
 type PageResult<T> = { items?: T[]; total?: number; meta?: { hasMore?: boolean; nextCursor?: string | null } }
 // Danh sách thành viên cũng có hai hình dạng: { members, total } và { items, meta }.
-type MembersResult = { members?: Member[]; items?: Member[] }
+type MembersResult = { members?: Member[]; items?: Member[]; meta?: { hasMore: boolean; nextCursor: string | null } }
 const memberRows = (result: MembersResult): Member[] => {
   const rows = result.members ?? result.items
-  if (!Array.isArray(rows)) throw new Error('Danh sách thành viên từ máy chủ không hợp lệ.')
+  if (!Array.isArray(rows) || rows.some(row => !isRecord(row) || typeof row['userId'] !== 'string'
+    || !row['userId'] || !['owner', 'member', 'viewer'].includes(String(row['role'])))) {
+    throw new ApiError({ kind: 'invalid-response', message: 'Danh sách thành viên từ máy chủ không hợp lệ.' })
+  }
   return rows
 }
 type WorkspaceDto = { id: string; name: string; description: string; ownerId: string; members: Member[]; storageUsedBytes: number; createdAt: string; updatedAt: string; lastAccessedAt: string | null; version: number }
 type ProjectDto = { id: string; workspaceId: string; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
 type DatasetDto = { id: string; originalFileName: string; rowCount: number; columnCount: number; fileSizeBytes: number; createdAt: string; status: string }
+function validateWorkspace(value: unknown): asserts value is WorkspaceDto {
+  if (!isRecord(value) || !['id', 'name', 'description', 'ownerId', 'createdAt', 'updatedAt'].every(key => typeof value[key] === 'string')
+    || !Array.isArray(value['members']) || !Number.isInteger(value['version']) || (value['version'] as number) < 1
+    || typeof value['storageUsedBytes'] !== 'number' || !Number.isFinite(value['storageUsedBytes']) || value['storageUsedBytes'] < 0
+    || (value['lastAccessedAt'] !== null && typeof value['lastAccessedAt'] !== 'string')) {
+    throw new ApiError({ kind: 'invalid-response', message: 'Thông tin workspace từ máy chủ không hợp lệ.' })
+  }
+}
+function validateProject(value: unknown): asserts value is ProjectDto {
+  if (!isRecord(value) || !['id', 'workspaceId', 'name', 'description', 'createdBy', 'createdAt', 'updatedAt'].every(key => typeof value[key] === 'string')
+    || !Array.isArray(value['members']) || !Number.isInteger(value['version']) || (value['version'] as number) < 1
+    || typeof value['hasDataset'] !== 'boolean' || !['not_started', 'in_progress', 'completed'].includes(String(value['status']))) {
+    throw new ApiError({ kind: 'invalid-response', message: 'Thông tin project từ máy chủ không hợp lệ.' })
+  }
+}
+const WORKSPACE_CONCURRENCY = 3
 const isWorkspaceOverview = (value: unknown): value is WorkspaceOverview => {
   if (typeof value !== 'object' || value === null) return false
   return ['totalWorkspaces', 'totalProjects', 'ownedWorkspaces', 'sharedWorkspaces', 'myProjects']
@@ -53,7 +75,7 @@ const displayDate = (value: string): string => {
 const unsupported = (): Promise<PreviewMutationResult> => Promise.reject(new Error('Chức năng này chưa được kết nối với máy chủ.'))
 const saved = (message: string): PreviewMutationResult => ({ message, persisted: true, undo: () => { throw new Error('Thao tác đã được lưu trên máy chủ.') } })
 
-export function createManagementStore(api: ApiClient, account: Person, options: { readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal } = {}) {
+export function createManagementStore(api: ApiClient, account: Person, options: { readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal; recent?: boolean } = {}) {
   let state: PreviewStoreState = {
     source: 'api', workspaces: [], projects: [], notifications: [], reports: [], sessions: [],
     profile: { name: account.name, email: account.email ?? '', role: account.role, organization: '', phone: '', bio: '' },
@@ -68,9 +90,42 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const inFlight = new Map<string, Promise<PreviewMutationResult>>()
   let revision = 0
   let disposed = false
+  let workspaceLoad: AbortController | undefined
+  const lifecycle = new AbortController()
+  const ensureActive = () => {
+    if (disposed || options.signal?.aborted) throw new ApiError({ kind: 'cancelled', message: 'Phiên dữ liệu đã kết thúc. Thao tác cũ không được tiếp tục.' })
+  }
+  const sessionApi: ApiClient = {
+    async request<T>(requestOptions: ApiRequestOptions): Promise<T> {
+      ensureActive()
+      const signals = [lifecycle.signal, ...(options.signal ? [options.signal] : []), ...(requestOptions.signal ? [requestOptions.signal] : [])]
+      const value = await api.request<T>({ ...requestOptions, signal: AbortSignal.any(signals) })
+      ensureActive()
+      return value
+    },
+  }
   const publish = (next: PreviewStoreState) => { if (!disposed) { state = next; listeners.forEach(fn => fn()) } }
-  const request = <T>(path: string, requestOptions: Omit<ApiRequestOptions, 'path' | 'auth'> = {}) =>
-    api.request<T>({ path, auth: 'session', ...(options.signal && (!requestOptions.method || requestOptions.method === 'GET') ? { signal: options.signal } : {}), ...requestOptions })
+  const request = <T>(path: string, requestOptions: Omit<Exclude<ApiRequestOptions, { includeStatus: true }>, 'path' | 'auth'> = {}) =>
+    sessionApi.request<T>({ path, auth: 'session', ...requestOptions })
+  async function loadMembers(path: string, signal: AbortSignal): Promise<Member[]> {
+    const all: Member[] = []
+    const visited = new Set<string>()
+    let cursor: string | undefined
+    for (;;) {
+      const result = await request<MembersResult>(path, { signal, params: { limit: 100, ...(cursor ? { cursor } : {}) } })
+      if (!isRecord(result)) throw new ApiError({ kind: 'invalid-response', message: 'Danh sách thành viên từ máy chủ không hợp lệ.' })
+      all.push(...memberRows(result))
+      if (result.meta === undefined) return all // Earlier backend responses used { members, total }.
+      const meta = result.meta
+      if (!isRecord(meta) || typeof meta.hasMore !== 'boolean' || (meta.nextCursor !== null && typeof meta.nextCursor !== 'string')) {
+        throw new ApiError({ kind: 'invalid-response', message: 'Phân trang thành viên không hợp lệ.' })
+      }
+      if (!meta.hasMore) return all
+      if (!meta.nextCursor || visited.has(meta.nextCursor)) throw new ApiError({ kind: 'invalid-response', message: 'Con trỏ thành viên bị thiếu hoặc lặp lại.' })
+      cursor = meta.nextCursor
+      visited.add(cursor)
+    }
+  }
   // Bản backend mới trả firstName/lastName thay vì name đã ghép sẵn.
   const memberName = (m: Member): string =>
     (m.name ?? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim()) || people.get(m.userId)?.name || m.userId
@@ -79,25 +134,38 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     initials: memberName(m).slice(0, 2).toUpperCase(),
     ...(m.joinedAt === undefined ? {} : { joinedAt: m.joinedAt }), email: m.email ?? people.get(m.userId)?.email ?? '', role: label(m.role) })
   const email = (p: Person) => { if (!p.email) throw new Error('Máy chủ chưa cung cấp email thành viên này. Vui lòng tải lại danh sách.'); return p.email }
-  const projectModel = (p: ProjectDto, w: WorkspaceDto, members: Member[], dataset: DatasetSummary | null): Project => {
+  const projectModel = (p: ProjectDto, w: WorkspaceDto | undefined, members: Member[], dataset: DatasetSummary | null): Project => {
     const roster = members.map(person)
-    const canManage = w.ownerId === account.id || roster.some(m => m.id === account.id && m.role === 'Owner')
-    return { canManage, canDelete: w.ownerId === account.id, canUpload: canManage, id: p.id, code: p.id.slice(-6).toUpperCase(), name: p.name,
-      description: p.description, workspaceId: w.id, workspaceName: w.name,
+    const ownsWorkspace = w?.ownerId === account.id
+    const canManage = ownsWorkspace || roster.some(m => m.id === account.id && m.role === 'Owner')
+    const canWorkOnProject = canManage || roster.some(m => m.id === account.id && m.role === 'Member') || account.role.toLowerCase() === 'admin'
+    return { canManage, canDelete: ownsWorkspace, canUpload: canManage,
+      canUpdateDatasetMetadata: canWorkOnProject, canComplete: canWorkOnProject, id: p.id, code: p.id.slice(-6).toUpperCase(), name: p.name,
+      description: p.description, workspaceId: p.workspaceId, workspaceName: w?.name ?? p.workspaceId,
       status: p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'processing' : 'active',
       cover: 'blue', dataset, members: roster, owner: roster.find(m => m.role === 'Owner') ?? person({ userId: p.createdBy, role: 'owner' }),
       createdAt: displayDate(p.createdAt), updatedAt: displayDate(p.updatedAt) }
   }
-  async function loadDataset(project: ProjectDto): Promise<DatasetSummary | null> {
+  async function loadDataset(project: ProjectDto, signal?: AbortSignal): Promise<DatasetSummary | null> {
     if (!project.hasDataset) return null
-    const { dataset } = await request<{ dataset: DatasetDto }>(`/projects/${encodeURIComponent(project.id)}/datasets`)
-    return { id: dataset.id, fileName: dataset.originalFileName, format: 'CSV', rows: dataset.rowCount, columns: dataset.columnCount,
-      sizeMb: dataset.fileSizeBytes / 1048576, importedAt: dataset.createdAt,
-      status: dataset.status === 'READY' ? 'processed' : dataset.status === 'FAILED' ? 'failed' : 'processing' }
+    const response = await request<unknown>(`/projects/${encodeURIComponent(project.id)}/datasets`, signal ? { signal } : {})
+    if (!isRecord(response)) throw new ApiError({ kind: 'invalid-response', message: 'Thông tin dataset từ máy chủ không hợp lệ.' })
+    if (response['dataset'] === null) return null
+    const dataset = response['dataset']
+    if (!isRecord(dataset) || !['id', 'originalFileName', 'createdAt'].every(key => typeof dataset[key] === 'string')
+      || !['rowCount', 'columnCount', 'fileSizeBytes'].every(key => typeof dataset[key] === 'number' && Number.isFinite(dataset[key]) && dataset[key] >= 0)
+      || !['INGESTING', 'READY', 'FAILED'].includes(String(dataset['status']))) {
+      throw new ApiError({ kind: 'invalid-response', message: 'Thông tin dataset từ máy chủ không hợp lệ.' })
+    }
+    const checked = dataset as DatasetDto
+    return { id: checked.id, fileName: checked.originalFileName, format: 'CSV', rows: checked.rowCount, columns: checked.columnCount,
+      sizeMb: checked.fileSizeBytes / 1048576, importedAt: checked.createdAt,
+      status: checked.status === 'READY' ? 'processed' : checked.status === 'FAILED' ? 'failed' : 'processing' }
   }
   async function loadProject(id: string) {
     const current = ++revision
     const { project } = await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(id)}`)
+    validateProject(project)
     if (project?.id !== id || !project.workspaceId || !Array.isArray(project.members)) {
       throw new Error('Thông tin project từ máy chủ không hợp lệ.')
     }
@@ -109,19 +177,22 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       throw error
     })
     if (disposed || current !== revision) return
+    validateWorkspace(workspace)
     if (workspace?.id !== project.workspaceId) throw new Error('Thông tin workspace của project không hợp lệ.')
     versions.set(project.id, project.version)
     publish({ ...state, projects: [projectModel(project, workspace, project.members, dataset)],
       selection: { workspaceId: project.workspaceId, projectId: project.id } })
   }
-  async function pages<T>(path: string): Promise<T[]> {
+  async function pages<T>(path: string, signal: AbortSignal): Promise<T[]> {
     const items: T[] = []
     const seen = new Set<string>()
     let cursor: string | null = null
     for (let page = 1; ; page++) {
-      const params: Record<string, string | number> = cursor === null ? { page, limit: 100 } : { cursor, limit: 100 }
-      const result = await request<PageResult<T>>(path, { params })
-      if (!Array.isArray(result.items)) throw new Error('Danh sách từ máy chủ không hợp lệ.')
+      signal.throwIfAborted()
+      const params: Record<string, string | number> = cursor !== null ? { cursor, limit: 100 }
+        : path === '/projects' && page === 1 ? { limit: 100 } : { page, limit: 100 }
+      const result = await request<PageResult<T>>(path, { params, signal })
+      if (!isRecord(result) || !Array.isArray(result.items)) throw new ApiError({ kind: 'invalid-response', message: 'Danh sách từ máy chủ không hợp lệ.' })
       items.push(...result.items)
       // Con trỏ: chỉ dừng khi máy chủ nói hết trang.
       if (typeof result.meta?.hasMore === 'boolean') {
@@ -140,23 +211,86 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   async function load() {
     if (options.projectId) return loadProject(options.projectId)
+    if (disposed) return
     const current = ++revision
-    const rows = await pages<WorkspaceDto>('/workspaces')
+    workspaceLoad?.abort()
+    const controller = new AbortController()
+    workspaceLoad = controller
+    try {
+      return await loadWorkspaces(current, controller.signal)
+    } catch (error) {
+      if (controller.signal.aborted) return
+      controller.abort()
+      throw error
+    } finally {
+      if (workspaceLoad === controller) workspaceLoad = undefined
+    }
+  }
+  async function loadProjectResources(project: ProjectDto, signal: AbortSignal) {
+    validateProject(project)
+    signal.throwIfAborted()
+    const [members, dataset] = await Promise.all([
+      loadMembers(`/projects/${project.id}/members`, signal),
+      loadDataset(project, signal),
+    ])
+    return { project, members, dataset }
+  }
+  async function loadWorkspace(w: WorkspaceDto, signal: AbortSignal, indexedProjects?: ProjectDto[]) {
+    validateWorkspace(w)
+    const workspacePath = `/workspaces/${w.id}`
+    const [members, projectRows] = await Promise.all([
+      loadMembers(`${workspacePath}/members`, signal),
+      indexedProjects ?? pages<ProjectDto>(`${workspacePath}/projects`, signal),
+    ])
+    const projects = []
+    for (const project of projectRows) {
+      projects.push(await loadProjectResources(project, signal))
+    }
+    return { workspace: w, members, projects }
+  }
+  async function loadWorkspaces(current: number, signal: AbortSignal) {
+    const rows = await pages<WorkspaceDto>('/workspaces', signal)
+    const projectIndex = await pages<ProjectDto>('/projects', signal).catch((error: unknown) => {
+      if (normalizeApiError(error).status === 404) return null
+      throw error
+    })
+    const projectsByWorkspace = new Map<string, ProjectDto[]>()
+    for (const project of projectIndex ?? []) {
+      validateProject(project)
+      const group = projectsByWorkspace.get(project.workspaceId) ?? []
+      group.push(project)
+      projectsByWorkspace.set(project.workspaceId, group)
+    }
+    const loaded: Awaited<ReturnType<typeof loadWorkspace>>[] = []
+    const queue = rows.entries()
+    const worker = async () => {
+      for (const [index, workspace] of queue) {
+        signal.throwIfAborted()
+        loaded[index] = await loadWorkspace(workspace, signal,
+          projectIndex === null ? undefined : projectsByWorkspace.get(workspace.id) ?? [])
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(WORKSPACE_CONCURRENCY, rows.length) }, worker))
+    const workspaceIds = new Set(rows.map(workspace => workspace.id))
+    const projectsOutsideWorkspaces = []
+    for (const project of projectIndex ?? []) {
+      if (!workspaceIds.has(project.workspaceId)) projectsOutsideWorkspaces.push(await loadProjectResources(project, signal))
+    }
+    if (signal.aborted || disposed || current !== revision) return
+
     const workspaces: Workspace[] = []
     const projects: Project[] = []
     const nextVersions = new Map<string, number>()
-    for (const w of rows) {
-      const memberResult = await request<MembersResult>(`/workspaces/${w.id}/members`)
-      const members = memberRows(memberResult).map(person)
+    // Dựng model theo thứ tự gốc để cache tên thành viên và thứ tự UI ổn định.
+    for (const { workspace: w, members: workspaceMembers, projects: projectRows } of loaded) {
+      const members = workspaceMembers.map(person)
       members.forEach(p => people.set(p.id, p))
-      const projectRows = await pages<ProjectDto>(`/workspaces/${w.id}/projects`)
-      for (const p of projectRows) {
-        const memberResult = await request<MembersResult>(`/projects/${p.id}/members`)
-        projects.push(projectModel(p, w, memberRows(memberResult), await loadDataset(p)))
-        nextVersions.set(p.id, p.version)
+      for (const { project, members: projectMembers, dataset } of projectRows) {
+        projects.push(projectModel(project, w, projectMembers, dataset))
+        nextVersions.set(project.id, project.version)
       }
       workspaces.push({ canManage: w.ownerId === account.id, id: w.id, name: w.name, description: w.description, status: 'active', currentUserId: account.id,
-        projects: projectRows.length, datasets: projectRows.filter(p => p.hasDataset).length, members: members.length,
+        projects: projectRows.length, datasets: projectRows.filter(({ project }) => project.hasDataset).length, members: members.length,
         storageGb: w.storageUsedBytes / 1073741824, favorite: state.workspaces.find(item => item.id === w.id)?.favorite ?? false, cover: 'blue',
         createdAt: displayDate(w.createdAt), updatedAt: displayDate(w.updatedAt),
         ...(w.lastAccessedAt === null ? {} : { accessedAt: displayDate(w.lastAccessedAt) }),
@@ -164,20 +298,48 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
         memberRoles: Object.fromEntries(members.map(m => [m.id, m.role])) })
       nextVersions.set(w.id, w.version)
     }
-    if (disposed || current !== revision) return
+    for (const { project, members, dataset } of projectsOutsideWorkspaces) {
+      projects.push(projectModel(project, undefined, members, dataset))
+      nextVersions.set(project.id, project.version)
+    }
+    if (projectIndex !== null) {
+      const order = new Map(projectIndex.map((project, index) => [project.id, index]))
+      projects.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    }
     versions.clear(); nextVersions.forEach((v, k) => versions.set(k, v))
     const workspaceId = workspaces.some(w => w.id === state.selection.workspaceId) ? state.selection.workspaceId : ''
     const projectId = projects.some(p => p.id === state.selection.projectId) ? state.selection.projectId : ''
     publish({ ...state, workspaces, projects, selection: { workspaceId, projectId } })
+    return current
   }
   async function mutate(path: string, method: NonNullable<ApiRequestOptions['method']>, data?: unknown) {
-    await request(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+    await request<void>(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
     try { await load() } catch { throw new Error('Đã lưu trên máy chủ nhưng chưa tải lại được danh sách. Hãy tải lại trang, không gửi lại thao tác.') }
     return saved('Đã lưu thay đổi trên máy chủ.')
   }
   const issueTypes = { system: 'display_error', feature: 'function_error', data: 'data_error', suggestion: 'feature_feedback', other: 'other' } as const
   type NotificationDto = { id: string; title: string; summary: string | null; type: string; readAt: string | null; createdAt: string; payload?: { targetType?: string; targetId?: string } }
-  type IssueDto = { id: string; issueType: string; title: string; description: string; status: string; createdAt: string; updatedAt: string; attachments?: { id: string; filename: string; sizeBytes: number }[] }
+  type IssueDto = { id: string; issueType: string; title: string; description: string; status: string; createdAt: string; updatedAt: string; version?: number; attachments?: { id: string; filename: string; sizeBytes: number }[] }
+  function publishIssue(id: string, value: unknown) {
+    if (!isRecord(value) || value['id'] !== id
+      || !['issueType', 'title', 'description', 'status', 'createdAt', 'updatedAt'].every(key => typeof value[key] === 'string')) {
+      throw new ApiError({ kind: 'invalid-response', message: 'Máy chủ trả về báo cáo không hợp lệ. Hãy mở lại chi tiết để kiểm tra.' })
+    }
+    const issue = value as IssueDto
+    const report: PreviewReport = {
+      id, code: id, title: issue.title, description: issue.description,
+      ...(Number.isInteger(issue.version) && (issue.version ?? 0) > 0 ? { version: issue.version } : {}),
+      issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(key => issueTypes[key] === issue.issueType) ?? 'other',
+      status: issue.status === 'needs_info' ? 'needs-info'
+        : issue.status === 'new' || issue.status === 'closed' || issue.status === 'resolved' ? issue.status : 'processing',
+      createdAt: new Date(issue.createdAt).toLocaleString('vi-VN'), updatedAt: issue.updatedAt,
+      attachment: issue.attachments?.[0] ? {
+        id: issue.attachments[0].id, name: issue.attachments[0].filename,
+        sizeLabel: `${Math.ceil(issue.attachments[0].sizeBytes / 1024)} KB`,
+      } : null,
+    }
+    publish({ ...state, reports: state.reports.map(row => row.id === id ? report : row) })
+  }
   async function cursorPages<T>(path: string): Promise<T[]> {
     const items: T[] = []; let cursor: string | undefined
     const visited = new Set<string>()
@@ -189,22 +351,29 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       cursor = page.meta.nextCursor; visited.add(cursor)
     }
   }
-  async function loadPersonal() {
+  async function loadPersonal(expectedRevision?: number) {
     const [profile, notifications, reports, unread] = await Promise.all([
-      request<{ firstName: string; lastName: string; email: string; role: string; notificationsEnabled: boolean }>('/users/me'),
+      request<{ firstName: string; lastName: string; email: string; role: string; notificationsEnabled: boolean; phone?: string | null; bio?: string | null }>('/users/me'),
       cursorPages<NotificationDto>('/notifications'), cursorPages<IssueDto>('/issues'),
       request<{ unreadCount: number }>('/notifications/unread-count'),
     ])
+    if (disposed || (expectedRevision !== undefined && expectedRevision !== revision)) return
+    if (!isRecord(profile) || !(['firstName', 'lastName', 'email'] as const).every(key => typeof profile[key] === 'string')
+      || !['admin', 'analyst'].includes(String(profile.role)) || typeof profile.notificationsEnabled !== 'boolean') {
+      throw new ApiError({ kind: 'invalid-response', message: 'Hồ sơ từ máy chủ không hợp lệ.' })
+    }
     if (!Number.isInteger(unread.unreadCount) || unread.unreadCount < 0) throw new Error('Số thông báo chưa đọc từ máy chủ không hợp lệ.')
     const enabled = profile.notificationsEnabled
     publish({ ...state,
       unreadNotificationCount: unread.unreadCount,
-      profile: { ...state.profile, name: `${profile.firstName} ${profile.lastName}`.trim(), email: profile.email, role: profile.role },
+      profile: { ...state.profile, name: `${profile.firstName} ${profile.lastName}`.trim(), email: profile.email, role: profile.role,
+        phone: profile.phone ?? '', bio: profile.bio ?? '' },
       notificationPrefs: { system: enabled, projects: enabled, quality: enabled, workspace: enabled },
       notifications: notifications.map(n => ({ id: n.id, title: n.title, context: n.summary ?? '', description: n.summary ?? '', tone: 'info', kind: 'system', unread: !n.readAt, at: n.createdAt, atFull: new Date(n.createdAt).toLocaleString('vi-VN'), projectId: n.payload?.targetType === 'project' ? n.payload.targetId ?? null : null })),
       reports: reports.map(r => ({ id: r.id, code: r.id, title: r.title, description: r.description,
+        ...(Number.isInteger(r.version) && (r.version ?? 0) > 0 ? { version: r.version } : {}),
         issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(k => issueTypes[k] === r.issueType) ?? 'other',
-        status: r.status === 'new' ? 'new' : r.status === 'closed' ? 'closed' : r.status === 'resolved' ? 'resolved' : 'processing',
+        status: r.status === 'needs_info' ? 'needs-info' : r.status === 'new' ? 'new' : r.status === 'closed' ? 'closed' : r.status === 'resolved' ? 'resolved' : 'processing',
         createdAt: new Date(r.createdAt).toLocaleString('vi-VN'), updatedAt: r.updatedAt,
         attachment: r.attachments?.[0] ? { id: r.attachments[0].id, name: r.attachments[0].filename, sizeLabel: `${Math.ceil(r.attachments[0].sizeBytes / 1024)} KB` } : null })),
     })
@@ -215,10 +384,9 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     return value
   }
   async function loadSessions() {
-    const rows = await request<{ id: string; deviceName?: string | null; userAgent?: string | null; ipAddress?: string | null; createdAt?: string | null }[]>('/auth/sessions')
-    if (!Array.isArray(rows) || rows.some(row => !row || typeof row.id !== 'string')) {
-      throw new Error('Danh sách phiên đăng nhập từ máy chủ không hợp lệ.')
-    }
+    const response = await request<unknown>('/auth/sessions')
+    if (!Array.isArray(response)) throw new ApiError({ kind: 'invalid-response', message: 'Danh sách phiên đăng nhập từ máy chủ không hợp lệ.' })
+    const rows = response.map(mapSessionDetail)
     const currentId = options.readSessionId?.()
     publish({ ...state, sessions: rows.map(row => ({
       id: row.id, platform: row.deviceName || 'Thiết bị không xác định',
@@ -234,18 +402,65 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     return id
   }
   const version = (id: string): number => { const value = versions.get(id); if (value === undefined) throw new Error('Hãy tải lại tài nguyên trước khi lưu thay đổi.'); return value }
+  let processingPanels: Promise<void> | undefined
+  const recentWorkspaceNames = new Map<string, Promise<string | undefined>>()
+  const getRecentWorkspaceName = (id: string) => {
+    const cached = recentWorkspaceNames.get(id)
+    if (cached) return cached
+    const lookup = request<{ workspace: { name: string } }>(`/workspaces/${encodeURIComponent(id)}`)
+      .then(result => {
+        const name = result.workspace?.name
+        if (typeof name === 'string' && name.trim()) return name
+        recentWorkspaceNames.delete(id)
+        return undefined
+      }).catch(() => {
+        recentWorkspaceNames.delete(id)
+        return undefined
+      })
+    recentWorkspaceNames.set(id, lookup)
+    return lookup
+  }
+  const analysisService = createAnalysisService(sessionApi)
   const store: ManagementStore = {
-    ...(account.role.toLowerCase() === 'admin' ? { adminService: createAdminService(api) } : {}),
-    datasetService: createDatasetService(api),
+    refreshProject: async (id, signal) => {
+      const current = revision
+      const { project } = await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(id)}`, { signal })
+      validateProject(project)
+      if (project.id !== id) throw new ApiError({ kind: 'invalid-response', message: 'Chi tiết project không khớp yêu cầu.' })
+      const [{ workspace }, dataset] = await Promise.all([
+        request<{ workspace: WorkspaceDto }>(`/workspaces/${encodeURIComponent(project.workspaceId)}`, { signal }),
+        loadDataset(project, signal),
+      ])
+      validateWorkspace(workspace)
+      signal.throwIfAborted()
+      if (disposed || revision !== current) return
+      if (workspace.id !== project.workspaceId) throw new ApiError({ kind: 'invalid-response', message: 'Workspace không khớp project.' })
+      versions.set(id, project.version)
+      const item = projectModel(project, workspace, project.members, dataset)
+      publish({ ...state, projects: state.projects.some(row => row.id === id)
+        ? state.projects.map(row => row.id === id ? item : row) : [...state.projects, item] })
+    },
+    completeProject: id => mutate(`/projects/${encodeURIComponent(id)}/snapshot`, 'PUT', { expectedVersion: version(id) }),
+    listRecentProjects: (cursor, signal) => listRecentProjects(sessionApi, cursor, signal),
+    ...(options.recent ? {
+      getRecentWorkspaceName,
+      loadProcessingPanels: () => processingPanels ??= loadPersonal().catch((error: unknown) => {
+        processingPanels = undefined
+        throw error
+      }),
+    } : {}),
+    ...(account.role.toLowerCase() === 'admin' ? { adminService: createAdminService(sessionApi) } : {}),
+    datasetService: createDatasetService(sessionApi),
+    analysisService,
     readAnalysisResult: async (id, signal) => {
       try {
-        return await request<SavedAnalysisResult>(`/projects/${encodeURIComponent(id)}/analysis/result`, { signal })
+        return await analysisService.getResult(id, signal)
       } catch (error) {
         if (normalizeApiError(error).status === 404) return null
         throw error
       }
     },
-    runAnalysis: id => request(`/projects/${encodeURIComponent(id)}/analysis`, { method: 'POST', data: {} }),
+    runAnalysis: id => analysisService.run(id, {}),
     getWorkspaceOverview: async () => {
       const overview = await request<unknown>('/overview/workspaces')
       if (!isWorkspaceOverview(overview)) throw new Error('Tổng quan workspace từ máy chủ không hợp lệ.')
@@ -259,20 +474,10 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       return overview
     },
     getSessionDetail: async sessionId => {
-      const detail = await request<Record<string, unknown>>(`/auth/sessions/${encodeURIComponent(sessionId)}`)
-      if (typeof detail['id'] !== 'string' || detail['id'] !== sessionId
-        || typeof detail['is_revoked'] !== 'boolean' || typeof detail['remember_me'] !== 'boolean') {
-        throw new Error('Chi tiết phiên từ máy chủ không hợp lệ.')
-      }
-      const optionalString = (value: unknown): string | null => typeof value === 'string' ? value : null
-      const result: SessionDetail = {
-        id: detail['id'], deviceName: optionalString(detail['device_name']),
-        ipAddress: optionalString(detail['ip_address']), userAgent: optionalString(detail['user_agent']),
-        lastUsedAt: optionalString(detail['last_used_at']), expiresAt: optionalString(detail['expires_at']),
-        createdAt: optionalString(detail['created_at']), isRevoked: detail['is_revoked'],
-        rememberMe: detail['remember_me'],
-      }
-      return result
+      const resource = sessionId === options.readSessionId?.() ? 'me' : encodeURIComponent(sessionId)
+      const detail = mapSessionDetail(await request<unknown>(`/auth/sessions/${resource}`))
+      if (detail.id !== sessionId) throw new ApiError({ kind: 'invalid-response', message: 'Chi tiết phiên không khớp yêu cầu.' })
+      return detail
     },
     getNotificationDetail: async id => {
       const notification = await request<NotificationDto>(`/notifications/${encodeURIComponent(id)}`)
@@ -292,21 +497,17 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       })
     },
     getIssueDetail: async id => {
-      const issue = await request<IssueDto>(`/issues/${encodeURIComponent(id)}`)
-      const report: PreviewReport = {
-        id: issue.id, code: issue.id, title: issue.title, description: issue.description,
-        issueType: (Object.keys(issueTypes) as (keyof typeof issueTypes)[]).find(key => issueTypes[key] === issue.issueType) ?? 'other',
-        status: issue.status === 'needs_info' ? 'needs-info'
-          : issue.status === 'new' ? 'new'
-            : issue.status === 'closed' ? 'closed'
-              : issue.status === 'resolved' ? 'resolved' : 'processing',
-        createdAt: new Date(issue.createdAt).toLocaleString('vi-VN'), updatedAt: issue.updatedAt,
-        attachment: issue.attachments?.[0] ? {
-          id: issue.attachments[0].id, name: issue.attachments[0].filename,
-          sizeLabel: `${Math.ceil(issue.attachments[0].sizeBytes / 1024)} KB`,
-        } : null,
+      publishIssue(id, await request<unknown>(`/issues/${encodeURIComponent(id)}`))
+    },
+    updateIssue: async (id, input) => {
+      const updated = await request<unknown>(`/issues/${encodeURIComponent(id)}`, { method: 'PATCH', data: input })
+      if (updated !== undefined && updated !== null && updated !== '') {
+        publishIssue(id, updated)
+        return
       }
-      publish({ ...state, reports: state.reports.map(row => row.id === id ? report : row) })
+      try { await store.getIssueDetail?.(id) } catch {
+        throw new Error('Đã gửi bổ sung trên máy chủ nhưng chưa tải lại được báo cáo. Hãy mở lại báo cáo, không gửi lại thao tác.')
+      }
     },
     subscribe: fn => { listeners.add(fn); return () => { listeners.delete(fn) } }, getState: () => state,
     selectWorkspace: workspaceId => { if (workspaceId && !state.workspaces.some(w => w.id === workspaceId)) return; publish({ ...state, selection: { workspaceId, projectId: '' } }) },
@@ -333,7 +534,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     removeProjectMember: (id, userId) => mutate(`/projects/${id}/members/${userId}`, 'DELETE'),
     createWorkspace: async input => {
       input.members.forEach(email)
-      const { workspace } = await request<{ workspace: WorkspaceDto }>('/workspaces', { method: 'POST', data: { name: input.name, description: input.description } satisfies CreateWorkspaceBody })
+      const { workspace } = await request<{ workspace: WorkspaceDto }>('/workspaces', { method: 'POST', requireBody: true, data: { name: input.name, description: input.description } satisfies CreateWorkspaceBody })
       try {
         for (const p of input.members) await request(`/workspaces/${workspace.id}/members`, { method: 'POST', data: { email: email(p), role: 'member' } satisfies WorkspaceMemberBody })
         await load()
@@ -347,17 +548,26 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       const key = `${input.workspaceId}:${input.name.trim().toLowerCase()}`
       let draft = drafts.get(key)
       if (!draft) {
-        const { project } = await request<{ project: ProjectDto }>(`/workspaces/${input.workspaceId}/projects`, { method: 'POST', data: { name: input.name, description: input.description } satisfies CreateProjectBody })
+        const { project } = await request<{ project: ProjectDto }>(`/workspaces/${input.workspaceId}/projects`, { method: 'POST', requireBody: true, data: { name: input.name, description: input.description } satisfies CreateProjectBody })
         draft = { project, uploaded: false, members: new Set() }; drafts.set(key, draft)
       }
       const { project } = draft
+      let failedStep = 'tải CSV'
       try {
         const form = new FormData(); form.append('file', input.dataset.file)
         if (!draft.uploaded) { await request(`/projects/${project.id}/datasets/upload`, { method: 'POST', data: form, timeoutMs: 120000 }); draft.uploaded = true }
+        failedStep = 'thêm thành viên'
         for (const p of input.members) { if (draft.members.has(email(p))) continue; await request(`/projects/${project.id}/members`, { method: 'POST', data: { email: email(p), role: projectRole(p.role) } satisfies ProjectMemberBody }); draft.members.add(email(p)) }
-        await load()
-      } catch { await load().catch(() => {}); throw new Error(`Project “${input.name}” đã được tạo, nhưng tải CSV/thêm thành viên chưa hoàn tất. Mở project để kiểm tra, không tạo lại.`) }
+      } catch {
+        await load().catch(() => {})
+        throw new Error(`Project “${input.name}” đã được tạo, nhưng bước ${failedStep} chưa hoàn tất. Mở project để kiểm tra trước khi thử lại.`)
+      }
       drafts.delete(key)
+      try {
+        await load()
+      } catch {
+        return saved('Project đã được lưu, nhưng chưa tải lại được danh sách. Hãy tải lại trang để xem project.')
+      }
       return saved('Đã tạo Project và tải CSV.')
     },
     markNotificationsRead: async ids => {
@@ -371,7 +581,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       if (file && (file.size > 10 * 1024 * 1024 || !['image/png', 'image/jpeg', 'application/pdf'].includes(file.type))) throw new Error('Tệp đính kèm phải là PNG, JPG hoặc PDF, tối đa 10 MB.')
       const key = JSON.stringify([input.issueType, input.title.trim(), input.description.trim()])
       let draft = issueDrafts.get(key)
-      if (!draft) { const report = await request<{ id: string }>('/issues', { method: 'POST', data: { issueType: issueTypes[input.issueType], title: input.title.trim(), description: input.description.trim() } satisfies CreateReportBody }); draft = { id: report.id, attachmentUploaded: false }; issueDrafts.set(key, draft) }
+      if (!draft) { const report = await request<{ id: string }>('/issues', { method: 'POST', requireBody: true, data: { issueType: issueTypes[input.issueType], title: input.title.trim(), description: input.description.trim() } satisfies CreateReportBody }); draft = { id: report.id, attachmentUploaded: false }; issueDrafts.set(key, draft) }
       if (file && !draft.attachmentUploaded) {
         const form = new FormData(); form.append('file', file)
         try { await request(`/issues/${draft.id}/attachments`, { method: 'POST', data: form }); draft.attachmentUploaded = true }
@@ -382,8 +592,9 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     updateProfile: async edit => {
       const parts = edit.name.trim().split(/\s+/)
       if (parts.length < 2) throw new Error('Vui lòng nhập đầy đủ họ và tên.')
-      await request('/users/me', { method: 'PATCH', data: { first_name: parts.slice(0, -1).join(' '), last_name: parts.at(-1) ?? '' } satisfies ProfileBody })
-      await loadPersonal(); return saved('Đã cập nhật họ tên.')
+      await request('/users/me', { method: 'PATCH', data: { first_name: parts.slice(0, -1).join(' '), last_name: parts.at(-1) ?? '',
+        phone: edit.phone.trim() || null, bio: edit.bio.trim() || null } satisfies ProfileBody })
+      await loadPersonal(); return saved('Đã cập nhật hồ sơ.')
     },
     loadSessions,
     changePassword: async input => {
@@ -421,5 +632,14 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     const operation = createProject(input).finally(() => inFlight.delete(key))
     inFlight.set(key, operation); return operation
   }
-  return { store, load: async () => { await load(); if (!options.projectId) await loadPersonal() }, dispose: () => { disposed = true; revision++; listeners.clear() } }
+  return {
+    store,
+    loadCore: async () => { await load() },
+    loadPersonal: () => loadPersonal(),
+    load: async () => {
+      const loadedRevision = await load()
+      if (loadedRevision !== undefined && loadedRevision === revision && !disposed) await loadPersonal(loadedRevision)
+    },
+    dispose: () => { disposed = true; revision++; lifecycle.abort(); workspaceLoad?.abort(); listeners.clear() },
+  }
 }

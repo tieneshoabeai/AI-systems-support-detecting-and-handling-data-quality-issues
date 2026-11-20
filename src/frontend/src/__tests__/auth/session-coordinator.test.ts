@@ -41,16 +41,69 @@ const setup = (stored?: StoredSession) => {
   if (stored) storage.write(stored)
   const getMe = vi.fn(async () => Promise.resolve(profile()))
   const logout = vi.fn(async () => {})
+  const deleteMe = vi.fn(async () => {})
   const login = vi.fn<(input: LoginRequestDto) => Promise<LoginResult>>(async () => Promise.resolve(loginResult()))
   const refresh = vi.fn<(input: { refresh_token: string }) => Promise<RefreshResult>>(async () => Promise.resolve(({ accessToken: token('a', 40), refreshToken: 'rotated-refresh', accountId: 'a', expiresAtMs: 40000 })))
   const health = vi.fn(async () => Promise.resolve(({ available: true })))
-  const bindSession = vi.fn<(accessToken: string) => { getMe: typeof getMe; logout: typeof logout }>(() => ({ getMe, logout }))
+  const bindSession = vi.fn<(accessToken: string) => { getMe: typeof getMe; logout: typeof logout; deleteMe: typeof deleteMe }>(() => ({ getMe, logout, deleteMe }))
   const clearSessionCache = vi.fn()
   const coordinator = createSessionCoordinator({ storage, auth: { login, refresh }, health: { check: health }, bindSession, clearSessionCache, now: () => time })
-  return { coordinator, storage, records, getMe, logout, login, refresh, health, bindSession, clearSessionCache, setTime: (next: number) => { time = next } }
+  return { coordinator, storage, records, getMe, logout, deleteMe, login, refresh, health, bindSession, clearSessionCache, setTime: (next: number) => { time = next } }
 }
 
 describe('session coordinator', () => {
+  it('clears the session after account deletion succeeds', async () => {
+    const s = setup(session())
+    await s.coordinator.restore()
+    await s.coordinator.deleteAccount()
+    expect(s.deleteMe).toHaveBeenCalledOnce()
+    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+    expect(s.storage.read()).toEqual({ status: 'empty' })
+  })
+
+  it('preserves the session when account deletion is rejected', async () => {
+    const s = setup(session())
+    await s.coordinator.restore()
+    s.deleteMe.mockRejectedValueOnce(failure('http', 403))
+    await expect(s.coordinator.deleteAccount()).rejects.toMatchObject({ status: 403 })
+    expect(s.coordinator.getSnapshot().phase).toBe('authenticated')
+    expect(s.storage.read().status).toBe('valid')
+    expect(s.deleteMe).toHaveBeenCalledOnce()
+  })
+
+  it('does not clear a replacement session when an old account deletion finishes', async () => {
+    const s = setup(session())
+    await s.coordinator.restore()
+    const pending = deferred<void>()
+    s.deleteMe.mockReturnValueOnce(pending.promise)
+    const deleting = s.coordinator.deleteAccount()
+    await s.coordinator.signOut()
+    s.login.mockResolvedValueOnce(loginResult('b'))
+    await s.coordinator.signIn({ email: 'b@example.test', password: 'test-only' })
+    pending.resolve()
+    await deleting
+    expect(s.coordinator.getSnapshot()).toMatchObject({ phase: 'authenticated', accountId: 'b' })
+  })
+
+  it('accepts a Google session only after checking its active profile', async () => {
+    const s = setup()
+    await s.coordinator.restore()
+    await s.coordinator.signInWithGoogle({ accessToken: token(), refreshToken: 'google-refresh' })
+    expect(s.getMe).toHaveBeenCalledOnce()
+    expect(s.login).not.toHaveBeenCalled()
+    expect(s.coordinator.getSnapshot()).toMatchObject({ phase: 'authenticated', accountId: 'a', user: { source: 'profile' } })
+    expect(s.storage.read()).toMatchObject({ status: 'valid', session: { refreshToken: 'google-refresh' } })
+  })
+
+  it('does not save Google credentials for a mismatched profile', async () => {
+    const s = setup()
+    await s.coordinator.restore()
+    s.getMe.mockResolvedValueOnce(profile('other'))
+    await expect(s.coordinator.signInWithGoogle({ accessToken: token(), refreshToken: 'google-refresh' })).rejects.toThrow('không khớp')
+    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+    expect(s.storage.read()).toEqual({ status: 'empty' })
+  })
+
   it('restores empty storage without private API and keeps a stable snapshot', async () => {
     const s = setup()
     await s.coordinator.restore()

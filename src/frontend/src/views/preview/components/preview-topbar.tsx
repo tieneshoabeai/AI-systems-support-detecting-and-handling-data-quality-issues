@@ -1,4 +1,4 @@
-import { useContext, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types'
 import { NotificationCenter } from './notification-center'
@@ -8,6 +8,10 @@ import { PreviewPopover } from './preview-popover'
 import { usePreviewSession } from '../preview-session-context'
 import { TopbarColorMode } from './topbar-color-mode'
 import { AuthContext } from '../../../hooks/auth/auth-context'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { ManagementLoadingContext, ManagementPersonalLoadingContext } from '../../../hooks/preview/management-loading-context'
+import { DataRegionStatus } from '../../../components/loading/data-region-status'
+import { Skeleton } from '../../../components/ui/feedback/skeleton'
 
 // Topbar theo "UI-UX/Global Application Shell" (Design Board + đặc tả.txt dòng 11), thứ tự trái
 // sang phải đúng như DOM — (1) toggle sidebar, (2) combobox Workspace, (3) combobox Projects,
@@ -103,6 +107,30 @@ function PreviewScopeSelect({ label, value, options, onSelect }: {
 // Dropdown chuông là NỘI DUNG, không phải lối vào trang (đặc tả Shell dòng 5). Toàn bộ
 // nhóm 01 của Design Board — dropdown nhanh · danh sách có tab/tìm/phân trang · chi tiết —
 // chạy trong chính ô popover (xem notification-center.tsx). Bấm chuông không ghi hash nữa.
+function ProcessingPanelData({ open, children }: { open: boolean; children: ReactNode }) {
+  const load = useManagementStore().loadProcessingPanels
+  const providerStatus = useContext(ManagementLoadingContext)
+  const personalStatus = useContext(ManagementPersonalLoadingContext)
+  const [attempt, setAttempt] = useState(0)
+  const [result, setResult] = useState<{ load: typeof load; attempt: number; error?: string } | null>(null)
+  useEffect(() => {
+    if (!open || !load) return
+    let active = true
+    void load().then(() => {
+      if (active) setResult({ load, attempt })
+    }).catch((error: unknown) => {
+      if (active) setResult({ load, attempt, error: error instanceof Error ? error.message : 'Không tải được dữ liệu.' })
+    })
+    return () => { active = false }
+  }, [open, load, attempt])
+  const current = result && result.load === load && result.attempt === attempt ? result : null
+  const status = providerStatus ?? personalStatus ?? (current?.error
+    ? { phase: 'error' as const, message: current.error, retry: () => setAttempt(value => value + 1) }
+    : load && !current ? { phase: 'loading' as const } : null)
+  return status ? <DataRegionStatus status={status} label="Đang tải dữ liệu"><Skeleton style={{ height: '4rem' }} /></DataRegionStatus>
+    : children
+}
+
 function TopbarBell({ notifications }: { notifications: PreviewNotification[] }) {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [trigger, setTrigger] = useState<HTMLElement | null>(null)
@@ -118,7 +146,7 @@ function TopbarBell({ notifications }: { notifications: PreviewNotification[] })
     </button>
     <PreviewPopover open={open} label="Thông báo" trigger={trigger} align="end" size="inbox"
       onClose={() => setOpen(false)}>
-      <NotificationCenter />
+      <ProcessingPanelData open={open}><NotificationCenter /></ProcessingPanelData>
     </PreviewPopover>
   </>
 }
@@ -139,7 +167,7 @@ function TopbarReport() {
     </button>
     <PreviewPopover open={open} label="Báo cáo vấn đề" trigger={trigger} align="end" size="inbox"
       onClose={() => setOpen(false)}>
-      <ReportCenter />
+      <ProcessingPanelData open={open}><ReportCenter /></ProcessingPanelData>
     </PreviewPopover>
   </>
 }

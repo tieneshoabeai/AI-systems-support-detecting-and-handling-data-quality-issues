@@ -21,6 +21,8 @@ import { ShoppingContent } from '../../preview/components/shopping-demo-content'
 import { ResultReviewDialog } from '../../preview/components/result-review-dialog'
 import { downloadShopping } from '../../../mocks/shopping-trends/data'
 import { LiveDatasetPanel } from './sections/live-dataset-panel'
+import { LiveAnalysisPanel } from './sections/live-analysis-panel'
+import { Dialog } from '../../../components/ui/overlay/dialog'
 import { firstRecordQuery, type DatasetPreview } from '../../../services/processing/dataset.service'
 import { ProcessingDataContext } from '../../application/processing-data-context'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
@@ -211,6 +213,11 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
             : 'Project chưa có tập dữ liệu.'}</span>
         </div>
         {!dataset && project.canUpload !== false && <button type="button" className="button-primary" onClick={() => setUploading(true)}>Upload data</button>}
+        {project.status === 'processing' && project.canComplete && store.completeProject &&
+          <CompleteProjectAction key={project.id} onComplete={async () => {
+            const response = await store.completeProject!(project.id)
+            session.notify(response.message, 'success')
+          }} />}
         <button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
           aria-haspopup="menu" onClick={event => menuButton(event.currentTarget)}>
           <PreviewIcon name="more" />
@@ -241,12 +248,14 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
                 : <LiveDatasetPanel key={`${project.id}:${dataset?.id ?? ''}:${panelFocus.theme}`} project={project}
                     overview={panelFocus.theme === 'violet'} initialPreview={currentPreview?.value ?? null}
                     onInvalidatePreview={invalidatePreview} />
+              : panelFocus.theme === 'cyan' ? <LiveAnalysisPanel key={`${project.id}:${datasetId ?? ''}`}
+                  project={project} canExecute={project.canComplete === true} onAnalysisRun={retryAnalysis} />
               : panelFocus.theme === 'orange' && <div className="project-module-review">
                   {processing && !result ? !datasetId ? <p>Project chưa có tập dữ liệu.</p>
                     : <SavedDetectionStatus response={currentAnalysis} onRetry={retryAnalysis} />
                     : <ProjectResultActions result={result} reviewOnly />}
                   {processing && !result && dataset?.status === 'processed' &&
-                    (project.canDelete || session.state.profile.role === 'admin') && store.runAnalysis &&
+                    project.canComplete && store.runAnalysis &&
                     <button type="button" disabled={!currentAnalysis || Boolean(currentAnalysis.error) || runningAnalysis}
                       onClick={() => { void runAnalysis() }}>{runningAnalysis ? 'Đang chạy…' : 'Chạy Detection'}</button>}
                 </div>}
@@ -282,4 +291,28 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
         mục đó đã BẬT THẬT và chính modal của nó mang ghi chú ở chân (id `projectMembersPage`).
         Để note trùng id ở đây là hai phần tử cùng một id trong DOM khi modal mở. */}
   </PreviewShell>
+}
+
+function CompleteProjectAction({ onComplete }: { onComplete: () => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+  const close = () => { setOpen(false); setError('') }
+  return <>
+    <button type="button" className="button-secondary" onClick={() => setOpen(true)}>Hoàn thành Project</button>
+    <Dialog open={open} onClose={close} busy={pending} aria-labelledby="complete-project-title">
+      <h2 id="complete-project-title">Hoàn thành Project</h2>
+      <p>Lưu trạng thái hiện tại và đánh dấu Project là đã hoàn thành.</p>
+      {error && <p role="alert">{error}</p>}
+      <div className="form-actions">
+        <button type="button" className="button-secondary" onClick={close} disabled={pending}>Hủy</button>
+        <button type="button" className="button-primary" disabled={pending} onClick={() => {
+          setPending(true); setError('')
+          void onComplete().then(close).catch((cause: unknown) => {
+            setError(cause instanceof Error ? cause.message : 'Không lưu được trạng thái Project.')
+          }).finally(() => setPending(false))
+        }}>Xác nhận hoàn thành</button>
+      </div>
+    </Dialog>
+  </>
 }

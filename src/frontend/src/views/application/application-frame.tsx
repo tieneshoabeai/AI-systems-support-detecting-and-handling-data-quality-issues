@@ -22,6 +22,9 @@ export function ApplicationFrame() {
     <Outlet />
   </PreviewSessionProvider>
   const detailId = parseProjectRoute(location.pathname)
+  if (/^\/processing\/?$/.test(location.pathname)) {
+    return <ProcessingDataProvider>{frame}</ProcessingDataProvider>
+  }
   return detailId
     ? <ProcessingDataProvider projectId={detailId}>{frame}</ProcessingDataProvider>
     : <ManagementDataProvider>{frame}</ManagementDataProvider>

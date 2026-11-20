@@ -65,6 +65,7 @@ export function ReportCenter() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const [editVersion, setEditVersion] = useState<number | null>(null)
 
   // Trường của form tạo (3.1). issueType rỗng = chưa chọn → bắt buộc trước khi gửi.
   const [issueType, setIssueType] = useState<'' | ReportIssueType>('')
@@ -89,7 +90,7 @@ export function ReportCenter() {
   const goList = (): void => { setView('list') }
   const backToLanding = (): void => { setView('landing'); setQuery(''); setPage(1) }
   const openDetail = (id: string): void => {
-    setDetailId(id); setView('detail'); setDetailError('')
+    setDetailId(id); setView('detail'); setDetailError(''); setEditVersion(null)
     if (state.source !== 'api' || !store.getIssueDetail) return
     setDetailLoading(true)
     void store.getIssueDetail(id).catch((error: unknown) => {
@@ -127,6 +128,26 @@ export function ReportCenter() {
     resetForm()
     // Sau khi gửi, nhảy sang danh sách để người dùng thấy ngay bản ghi vừa thêm ở đầu.
     setTab('all'); setPage(1); setView('list')
+  }
+
+  const submitEdit = async (): Promise<void> => {
+    if (!detail || !store.updateIssue || editVersion === null || sending) return
+    const nextTitle = title.trim()
+    const nextDescription = description.trim()
+    if (!nextTitle || !nextDescription) {
+      setDetailError('Hãy nhập tiêu đề và mô tả trước khi gửi.')
+      return
+    }
+    setSending(true)
+    setDetailError('')
+    try {
+      await store.updateIssue(detail.id, { title: nextTitle, description: nextDescription, expectedVersion: editVersion })
+      setEditVersion(null)
+    } catch (cause) {
+      setDetailError(cause instanceof Error ? cause.message : 'Không gửi được nội dung bổ sung.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return <div className="notice-center report-center">
@@ -271,6 +292,21 @@ export function ReportCenter() {
               })() }}>Tải tệp</button>}
             </div>
             : <p className="notice-empty">Báo cáo này không kèm tệp.</p>}
+          {editVersion !== null ? <form className="report-form" onSubmit={event => { event.preventDefault(); void submitEdit() }}>
+            <label>Tiêu đề bổ sung
+              <input required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} />
+            </label>
+            <label>Mô tả bổ sung
+              <textarea required maxLength={5000} value={description} onChange={event => setDescription(event.target.value)} />
+            </label>
+            <div className="form-actions">
+              <button type="button" className="button-secondary" disabled={sending} onClick={() => { setEditVersion(null); setDetailError('') }}>Hủy</button>
+              <button type="submit" className="button-primary" disabled={sending}>Gửi bổ sung</button>
+            </div>
+          </form> : !detailLoading && !detailError && store.updateIssue && detail.status === 'needs-info' && detail.version !== undefined &&
+            <button type="button" className="button-primary" onClick={() => {
+              setTitle(detail.title); setDescription(detail.description); setEditVersion(detail.version ?? null)
+            }}>Bổ sung báo cáo</button>}
         </div>}
     </>}
   </div>

@@ -52,6 +52,7 @@ export type SessionCoordinatorOptions = {
   bindSession(accessToken: string): {
     getMe(options?: CallOptions): Promise<CurrentUser>
     logout(options?: CallOptions): Promise<void>
+    deleteMe?(options?: CallOptions): Promise<void>
   }
   // Synchronously invalidate old cache; async query completion vẫn phải check generation.
   clearSessionCache(): void

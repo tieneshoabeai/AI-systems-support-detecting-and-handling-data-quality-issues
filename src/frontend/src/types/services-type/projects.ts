@@ -15,6 +15,12 @@ export type postWorkspacesByWorkspaceIdProjectRequestBody = NonNullable<postWork
 export type postWorkspacesByWorkspaceIdProjectResponses = postWorkspacesByWorkspaceIdProjectRequest["responses"]
 export type postWorkspacesByWorkspaceIdProjectResponse201 = NonNullable<postWorkspacesByWorkspaceIdProjectResponses["201"]>
 
+export type getProjectsAllRequest = paths["/api/v1/projects"]["get"]
+export type getProjectsAllParams = getProjectsAllRequest["parameters"]
+export type getProjectsAllParamsQuery = getProjectsAllParams["query"]
+export type getProjectsAllResponses = getProjectsAllRequest["responses"]
+export type getProjectsAllResponse200 = NonNullable<getProjectsAllResponses["200"]>
+
 export type getProjectsByIdRequest = paths["/api/v1/projects/{id}"]["get"]
 export type getProjectsByIdParams = getProjectsByIdRequest["parameters"]
 export type getProjectsByIdParamsPath = getProjectsByIdParams["path"]

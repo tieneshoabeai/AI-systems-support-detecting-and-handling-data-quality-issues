@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AuthContext } from '../../hooks/auth/auth-context'
 import { ManagementStoreContext, type ManagementStore } from '../../hooks/preview/use-preview-store'
+import { ManagementLoadingContext, ManagementPersonalLoadingContext, type ManagementLoading } from '../../hooks/preview/management-loading-context'
 import { createAxiosClient } from '../../lib/axios-client'
 import { createSessionStorage } from '../../lib/session-storage'
 import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
@@ -17,6 +18,7 @@ type LoadResult = {
   store?: ManagementStore
   error?: string
   missing?: boolean
+  personalStatus?: ManagementLoading | null
 }
 
 const sessionAccount = (snapshot: SessionSnapshot | undefined): Person => {
@@ -25,15 +27,15 @@ const sessionAccount = (snapshot: SessionSnapshot | undefined): Person => {
   return { id: snapshot?.accountId ?? '', name, email: user?.email ?? '', role: user?.role ?? '', initials: name.slice(0, 2).toUpperCase() }
 }
 
-function SessionDataProvider({ children, projectId }: { children: ReactNode; projectId?: string }) {
+function SessionDataProvider({ children, projectId, recent = false }: { children: ReactNode; projectId?: string; recent?: boolean }) {
   const auth = useContext(AuthContext)
   const snapshot = auth?.snapshot
   const fixture = isShoppingDemo()
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<LoadResult | null>(null)
-  const pendingStore = useMemo(() => projectId === undefined ? null : createManagementStore({
-    request: () => Promise.reject(new Error('Dữ liệu project chưa sẵn sàng.')),
-  }, sessionAccount(snapshot)).store, [projectId, snapshot])
+  const pendingStore = useMemo(() => createManagementStore({
+    request: () => Promise.reject(new Error('Dữ liệu chưa sẵn sàng.')),
+  }, sessionAccount(snapshot)).store, [snapshot])
 
   useEffect(() => {
     if (fixture || snapshot?.phase !== 'authenticated') return
@@ -48,21 +50,42 @@ function SessionDataProvider({ children, projectId }: { children: ReactNode; pro
       }
       const api = createAxiosClient({
         readToken: () => {
+          if (!active || controller.signal.aborted) return null
           const current = storage.read()
           return current.status === 'valid' && current.session.accountId === snapshot.accountId
             ? current.session.accessToken : null
         },
       })
       const data = createManagementStore(api, sessionAccount(snapshot), {
-        ...(projectId === undefined ? {} : { projectId, signal: controller.signal }), readSessionId: () => {
+        ...(projectId === undefined ? {} : { projectId }),
+        ...(recent ? { recent } : {}),
+        signal: controller.signal,
+        readSessionId: () => {
         const current = storage.read()
         return current.status === 'valid' && current.session.accountId === snapshot.accountId
           ? readAccessToken(current.session.accessToken)?.sessionId ?? null : null
       } })
       dispose = data.dispose
       const scope = projectId === undefined ? {} : { projectId }
-      void data.load().then(() => {
-        if (active) setResult({ snapshot, ...scope, store: data.store })
+      const loaded = { snapshot, ...scope, store: data.store }
+      void (recent ? Promise.resolve() : data.loadCore()).then(() => {
+        if (!active) return
+        if (recent || projectId !== undefined) {
+          setResult(loaded)
+          return
+        }
+        const loadPersonal = () => {
+          if (!active) return
+          setResult({ ...loaded, personalStatus: { phase: 'loading' } })
+          void data.loadPersonal().then(() => {
+            if (active) setResult(loaded)
+          }).catch((error: unknown) => {
+            if (!active) return
+            const message = error instanceof Error ? error.message : 'Không tải được dữ liệu cá nhân.'
+            setResult({ ...loaded, personalStatus: { phase: 'error', message, retry: loadPersonal } })
+          })
+        }
+        loadPersonal()
       }).catch((error: unknown) => {
         if (!active) return
         const failure = normalizeApiError(error)
@@ -73,39 +96,39 @@ function SessionDataProvider({ children, projectId }: { children: ReactNode; pro
       queueMicrotask(() => { if (active) setResult({ snapshot, ...(projectId === undefined ? {} : { projectId }), error: message }) })
     }
     return () => { active = false; controller.abort(); dispose?.() }
-  }, [snapshot, attempt, fixture, projectId])
+  }, [snapshot, attempt, fixture, projectId, recent])
 
   // Isolated previews and the existing authenticated Shopping demo retain their fixture store.
   // The route guard remains responsible for admission; API failures never select fixtures.
   if (!auth || fixture) return children
-  if (pendingStore) {
-    const current = result?.snapshot === snapshot && result?.projectId === projectId ? result : null
+  const current = result?.snapshot === snapshot && result?.projectId === projectId ? result : null
+  const retry = () => { setResult(null); setAttempt(value => value + 1) }
+  if (projectId !== undefined) {
     const error = snapshot?.phase === 'authenticated' ? current?.error : 'Cần phiên đăng nhập trực tuyến để mở project.'
     const status = { loading: !current?.store && !error, ...(error ? { error } : {}),
-      ...(current?.missing ? { missing: true } : {}), retry: () => { setResult(null); setAttempt(value => value + 1) } }
+      ...(current?.missing ? { missing: true } : {}), retry }
     return <ProcessingDataContext.Provider value={status}>
       <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
     </ProcessingDataContext.Provider>
   }
-  if (snapshot?.phase !== 'authenticated') {
-    return <p role="status">Cần phiên đăng nhập trực tuyến để quản lý dữ liệu.</p>
-  }
-  if (result?.snapshot !== snapshot || (!result.store && !result.error)) {
-    return <p role="status">Đang tải workspace và project…</p>
-  }
-  if (result.error) {
-    return <div role="alert"><p>{result.error}</p><button type="button" onClick={() => {
-      setResult(null)
-      setAttempt(value => value + 1)
-    }}>Thử lại</button></div>
-  }
-  return <ManagementStoreContext.Provider value={result.store!}>{children}</ManagementStoreContext.Provider>
+  let status: ManagementLoading | null = null
+  if (snapshot?.phase !== 'authenticated') status = { phase: 'error', message: 'Cần phiên đăng nhập trực tuyến để quản lý dữ liệu.' }
+  else if (current?.error) status = { phase: 'error', message: current.error, retry }
+  else if (!current?.store) status = { phase: 'loading' }
+
+  return <ManagementLoadingContext.Provider value={status}>
+    <ManagementPersonalLoadingContext.Provider value={current?.personalStatus ?? null}>
+      <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
+    </ManagementPersonalLoadingContext.Provider>
+  </ManagementLoadingContext.Provider>
 }
 
 export function ManagementDataProvider({ children }: { children: ReactNode }) {
   return <SessionDataProvider>{children}</SessionDataProvider>
 }
 
-export function ProcessingDataProvider({ children, projectId }: { children: ReactNode; projectId: string }) {
-  return <SessionDataProvider projectId={projectId}>{children}</SessionDataProvider>
+export function ProcessingDataProvider({ children, projectId }: { children: ReactNode; projectId?: string }) {
+  return projectId === undefined
+    ? <SessionDataProvider recent>{children}</SessionDataProvider>
+    : <SessionDataProvider projectId={projectId}>{children}</SessionDataProvider>
 }

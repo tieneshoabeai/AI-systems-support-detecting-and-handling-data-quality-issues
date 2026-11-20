@@ -1,20 +1,60 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { ManagementStoreContext } from '../../hooks/preview/use-preview-store'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
 import type { ManagementStore } from '../../services/management/management.types'
 import { createAdminService } from '../../services/management/admin.service'
 import { createDatasetService } from '../../services/processing/dataset.service'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
-import { AdminApiPanel } from '../../views/management/home/admin-api-panel'
+import { AdminApiPanel } from '../../views/management/members/admin-api-panel'
 import { LiveDatasetPanel } from '../../views/processing/project/sections/live-dataset-panel'
+import { AuthenticatedWorkbenchEntry } from '../support/authenticated-workbench-entry'
 
-afterEach(cleanup)
+beforeAll(async () => {
+  await Promise.all([import('../../views/application/application-frame'), import('../../app/pages/private/management-page')])
+})
+
+afterEach(() => {
+  cleanup()
+  window.history.replaceState({}, '', '/')
+})
+
+it('loads admin data only after opening Quản trị from Management Home', async () => {
+  const request = vi.fn< (options: ApiRequestOptions) => Promise<{ items: [] }> >(() => Promise.resolve({ items: [] }))
+  const store: ManagementStore = { ...previewMockStore, adminService: createAdminService({ request } as ApiClient) }
+  window.history.replaceState({}, '', '/management')
+  const entry = <ManagementStoreContext.Provider value={store}><AuthenticatedWorkbenchEntry /></ManagementStoreContext.Provider>
+  const mounted = render(entry)
+
+  const administration = await screen.findByRole('button', { name: 'Quản trị' }, { timeout: 5000 })
+  expect(screen.queryByRole('tab', { name: 'Tài khoản' })).toBeNull()
+  expect(request).not.toHaveBeenCalled()
+
+  fireEvent.click(administration)
+  expect(await screen.findByText('Chưa có tài khoản để hiển thị.')).toBeDefined()
+  expect(window.location.pathname).toBe('/management/members')
+  expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: '/admin/users' }))
+  expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: '/admin/issues' }))
+  expect(screen.getByRole('tab', { name: 'Tài khoản', selected: true })).toBeDefined()
+  expect(screen.getByRole('tab', { name: 'Báo cáo vấn đề' })).toBeDefined()
+
+  mounted.unmount()
+  render(entry)
+  expect(await screen.findByText('Chưa có tài khoản để hiển thị.')).toBeDefined()
+})
+
+it('denies direct access to the members route without admin access', async () => {
+  window.history.replaceState({}, '', '/management/members')
+  render(<AuthenticatedWorkbenchEntry />)
+
+  expect(await screen.findByRole('heading', { name: 'Bạn không có quyền truy cập trang quản trị' })).toBeDefined()
+  expect(screen.queryByRole('tab', { name: 'Tài khoản' })).toBeNull()
+})
 
 it('shows server records and submits the chosen numeric filter', async () => {
   const request = vi.fn((options: ApiRequestOptions) => Promise.resolve().then(() => {
     if (options.path.endsWith('/schema')) return { columns: [{ key: 'c0', name: 'Age', dataType: 'number' }] }
-    if (options.path.endsWith('/records/query')) return {
+    if (options.path.endsWith('/records/query') || options.path.endsWith('/records')) return {
       items: [{ rowIndex: 1, props: { c0: 21 } }], meta: { hasMore: false, nextCursor: null },
     }
     throw new Error('Unexpected dataset request')
@@ -26,6 +66,9 @@ it('shows server records and submits the chosen numeric filter', async () => {
   } }
   render(<ManagementStoreContext.Provider value={store}><LiveDatasetPanel project={project} /></ManagementStoreContext.Provider>)
   expect(await screen.findByRole('cell', { name: '21' })).toBeDefined()
+  expect(screen.queryByLabelText('Tên hiển thị mới')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Đổi tên cột' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Khôi phục tên cột gốc' })).toBeNull()
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Trang tiếp' }).disabled).toBe(true)
 
   fireEvent.change(screen.getByLabelText('Điều kiện lọc'), { target: { value: 'greaterThan' } })

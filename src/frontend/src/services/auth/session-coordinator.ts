@@ -168,7 +168,7 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     return task
   }
 
-  const signIn = async (input: LoginRequestDto): Promise<void> => {
+  const startSignIn = async (readSession: (signal: AbortSignal) => Promise<{ session: StoredSession; user: SessionUser }>): Promise<void> => {
     assertUsable()
     if (cleanupBlocked || snapshot.phase !== 'anonymous') {
       throw sessionError('Cần kết thúc phiên cũ và dọn phiên thành công trước khi đăng nhập.')
@@ -178,10 +178,10 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     publish(emptySnapshot('signing-in'))
     try {
       options.clearSessionCache()
-      const result = await options.auth.login(input, { signal })
+      const result = await readSession(signal)
       if (!isCurrent(captured)) return
-      if (result.user.id !== result.session.accountId) throw sessionError('Người dùng đăng nhập không khớp phiên.')
-      commit(result.session, { source: 'login', value: result.user }, captured, true)
+      if (result.user.value.id !== result.session.accountId) throw sessionError('Người dùng đăng nhập không khớp phiên.')
+      commit(result.session, result.user, captured, true)
     } catch (error) {
       if (!isCurrent(captured)) return
       const normalized = safeError(error)
@@ -189,6 +189,21 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
       throw new ApiError(normalized)
     }
   }
+
+  const signIn = (input: LoginRequestDto) => startSignIn(async signal => {
+    const result = await options.auth.login(input, { signal })
+    return { session: result.session, user: { source: 'login', value: result.user } }
+  })
+
+  const signInWithGoogle = ({ accessToken, refreshToken }: { accessToken: string; refreshToken: string }) => startSignIn(async signal => {
+    const info = readAccessToken(accessToken)
+    if (!info || !refreshToken) throw sessionError('Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.')
+    const candidate: StoredSession = { schemaVersion: 1, accessToken, refreshToken, accountId: info.accountId }
+    requireActiveToken(candidate)
+    const user = await options.bindSession(accessToken).getMe({ signal })
+    validateProfile(user, candidate)
+    return { session: candidate, user: { source: 'profile', value: user } }
+  })
 
   const confirmRenewal = (accepted: boolean): Promise<void> => {
     assertUsable()
@@ -255,6 +270,18 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     return { serverRevoked, revokeError, cleanupError }
   }
 
+  const deleteAccount = async (): Promise<void> => {
+    assertUsable()
+    if (!session || snapshot.phase !== 'authenticated') throw sessionError('Cần đăng nhập để xóa tài khoản.')
+    requireActiveToken(session)
+    const bound = options.bindSession(session.accessToken)
+    if (!bound.deleteMe) throw sessionError('Dịch vụ xóa tài khoản chưa khả dụng.')
+    const captured = generation
+    await bound.deleteMe({ signal: controller.signal })
+    // Backend revokes all sessions when deleting the account.
+    if (isCurrent(captured)) endSession()
+  }
+
   const subscribe = (listener: () => void) => {
     if (disposed) return () => {}
     listeners.add(listener)
@@ -280,5 +307,5 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     // Đóng instance không phải logout: giữ credential/draft cho instance mới restore.
   }
 
-  return { getSnapshot: () => snapshot, subscribe, restore, signIn, signOut, confirmRenewal, checkSession, draftAccess, dispose }
+  return { getSnapshot: () => snapshot, subscribe, restore, signIn, signInWithGoogle, signOut, deleteAccount, confirmRenewal, checkSession, draftAccess, dispose }
 }

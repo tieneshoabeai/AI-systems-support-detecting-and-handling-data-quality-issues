@@ -1,4 +1,6 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useContext, useEffect, useState } from 'react'
+import { Dialog } from '../../../components/ui/overlay/dialog'
+import { AuthContext } from '../../../hooks/auth/auth-context'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { ReactNode } from 'react'
 import type { DeviceSession, SettingsNavLeaf, SettingsNavItem, SettingsSectionId } from '../../../types'
@@ -120,7 +122,6 @@ function ProfileSection() {
       </div>
 
       <Panel title="Thông tin cá nhân">
-        {session.state.source === 'api' && <p className="action-note">Hiện có thể cập nhật họ tên. Đơn vị, số điện thoại và giới thiệu chưa được máy chủ hỗ trợ.</p>}
         <div className="settings-form">
           <label className="field">
             <span className="field-label">Họ và tên <span className="req" aria-hidden="true">*</span></span>
@@ -159,7 +160,7 @@ function ProfileSection() {
           <label className="field">
             <span className="field-label">Số điện thoại</span>
             <span className="field-control">
-              <input disabled={session.state.source === 'api'} type="tel" value={phone} maxLength={20} aria-label="Số điện thoại"
+              <input type="tel" value={phone} maxLength={20} aria-label="Số điện thoại"
                 onChange={event => setPhone(event.target.value)} />
               <span className="field-affordance" aria-hidden="true"><PreviewIcon name="pencil" /></span>
             </span>
@@ -168,7 +169,7 @@ function ProfileSection() {
           <label className="field">
             <span className="field-label">Giới thiệu</span>
             <span className="field-control">
-              <textarea disabled={session.state.source === 'api'} rows={3} value={bio} maxLength={240} aria-label="Giới thiệu"
+              <textarea rows={3} value={bio} maxLength={session.state.source === 'api' ? 500 : 240} aria-label="Giới thiệu"
                 onChange={event => setBio(event.target.value)} />
               <span className="field-affordance" aria-hidden="true"><PreviewIcon name="pencil" /></span>
             </span>
@@ -184,7 +185,42 @@ function ProfileSection() {
         </div>
       </Panel>
     </div>
+    {session.state.source === 'api' && <DeleteAccountSection email={profile.email} />}
   </div>
+}
+
+function DeleteAccountSection({ email }: { email: string }) {
+  const auth = useContext(AuthContext)
+  const [open, setOpen] = useState(false)
+  const [confirmation, setConfirmation] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+  if (!auth?.deleteAccount || !email) return null
+  const remove = auth.deleteAccount
+  const close = () => { setOpen(false); setConfirmation(''); setError('') }
+  return <Panel title="Tài khoản">
+    <button type="button" className="button-secondary" onClick={() => setOpen(true)}>Xóa tài khoản</button>
+    <Dialog open={open} onClose={close} busy={pending} aria-labelledby="delete-account-title">
+      <h2 id="delete-account-title">Xóa tài khoản</h2>
+      <p>Tài khoản sẽ bị vô hiệu hóa và tất cả phiên đăng nhập sẽ kết thúc.</p>
+      <form onSubmit={event => {
+        event.preventDefault()
+        if (pending || confirmation.trim() !== email) return
+        setPending(true); setError('')
+        void remove().catch((cause: unknown) => {
+          setError(cause instanceof Error ? cause.message : 'Không xóa được tài khoản.')
+        }).finally(() => setPending(false))
+      }}>
+        <label>Nhập email để xác nhận <input value={confirmation} autoComplete="off" disabled={pending}
+          onChange={event => setConfirmation(event.target.value)} /></label>
+        {error && <p role="alert">{error}</p>}
+        <div className="form-actions">
+          <button type="button" className="button-secondary" onClick={close} disabled={pending}>Hủy</button>
+          <button type="submit" className="button-primary" disabled={pending || confirmation.trim() !== email}>Xác nhận xóa tài khoản</button>
+        </div>
+      </form>
+    </Dialog>
+  </Panel>
 }
 
 // ---------- 4.3 Bảo mật ----------
@@ -290,6 +326,8 @@ function SessionRow({ item }: { item: DeviceSession }) {
         <small>{item.location}{item.current && <> · <span className="session-current">Phiên hiện tại</span></>}</small>
       </span>
       {!item.current && <span className="session-side"><small className="session-at">Đăng nhập: {item.startedAt}</small></span>}
+      {item.current && session.state.source === 'api' && store.getSessionDetail && <button type="button" className="button-secondary"
+        aria-expanded={detailOpen} onClick={toggleDetail}>Chi tiết phiên hiện tại</button>}
       {!item.current && <button type="button" className="icon-button sm row-menu" aria-label={`Tùy chọn phiên ${item.platform} · ${item.browser}`}
         aria-expanded={menuOpen} onClick={() => setMenuOpen(value => !value)}>
         <PreviewIcon name="more" />

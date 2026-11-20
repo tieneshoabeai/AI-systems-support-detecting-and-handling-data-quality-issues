@@ -58,18 +58,26 @@ it.each(['/management/unknown', '/management/settings/unknown', '/management/pro
   expect(await screen.findByText('404')).toBeDefined()
 })
 
-it('opens the processing entry, creation form, and cross-area navigation', async () => {
+it('opens the shared project wizard from Processing and returns on close', async () => {
   openUrl('/processing')
   render(<WorkbenchEntry />)
   expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
   expect(screen.getByRole('heading', { name: 'Projects gần đây' })).toBeDefined()
   expect(screen.queryByRole('list', { name: 'Các bước xử lý dữ liệu' })).toBeNull()
   fireEvent.click(await screen.findByRole('link', { name: 'Tạo Project' }))
-  expect(await screen.findByRole('heading', { name: 'Tạo Project mới' })).toBeDefined()
-  expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tạo Project và tiếp tục' })).disabled).toBe(true)
-  fireEvent.click(screen.getByRole('link', { name: 'Trang chủ Processing' }))
+  expect(await screen.findByRole('dialog', { name: 'Tạo Project' })).toBeDefined()
+  expect(window.location.pathname).toBe('/processing/new')
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng hộp thoại' }))
   expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
   expect(window.location.pathname).toBe('/processing')
+})
+
+it('offers a workspace selector when opening the creation URL directly', async () => {
+  openUrl('/processing/new')
+  render(<WorkbenchEntry />)
+
+  expect(await screen.findByRole('combobox', { name: 'Workspace' })).toBeDefined()
+  expect(screen.getByRole('option', { name: /Chọn Workspace/ })).toBeDefined()
 })
 
 it.each(['upload', 'analysis', 'review', 'results'])('redirects old step %s to the existing project page', async step => {
