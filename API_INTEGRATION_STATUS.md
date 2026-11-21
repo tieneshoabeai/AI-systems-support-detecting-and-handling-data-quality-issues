@@ -1,5 +1,12 @@
 # Trạng thái nối API Backend - Frontend/UI
 
+## Đối chiếu nhánh backend và Swagger ngày 21/11/2026
+
+- `origin/backend` đã tiến từ `a7af214` lên `10aea5a` (`fix(analysis): chong OOM do ma tran Cramer V day`). Đã merge vào `TaiFE` bằng merge commit `04a8915`; thay đổi chỉ nằm trong `analysis` và tài liệu/test đi kèm. Theo phạm vi yêu cầu, không chạy test hoặc gọi API `analysis`.
+- Đã đối chiếu danh sách endpoint trên [Swagger tunnel mới](https://templates-giant-revenues-positions.trycloudflare.com/api/v1/docs) với `api-specification.md`, source nhánh backend và frontend. Trong source nhánh, các route nghiệp vụ ngoài `analysis` đều có service và UI caller tương ứng; `/health` và `/health/ready` là endpoint vận hành, không thuộc UI. Tuy nhiên Swagger tunnel có route charts chỉ xuất hiện ở môi trường deploy, được ghi riêng bên dưới. Status Network UI `200` trong báo cáo vẫn là bằng chứng đã ghi nhận ngày 19/11/2026, không phải kết quả kiểm tra mới hôm nay.
+- Swagger tunnel hiện khai báo thêm `GET /api/v1/datasets/{datasetId}/charts` (histogram/box plot/Top N), nhưng endpoint này không có trong source backend tại `10aea5a`, không có trong `api-specification.md`/OpenAPI types của frontend và không có frontend service/caller. Đây là lệch giữa Swagger đang triển khai và nhánh backend; chưa thể xác nhận API dùng được hoặc response contract.
+- Không có browser Network page được chia sẻ trong lượt này. Theo yêu cầu không phát request/chạy thao tác để tránh ảnh hưởng server, không có status Network mới được thu thập; route `charts` giữ trạng thái chưa xác minh. Các status cũ được giữ nguyên, không suy diễn thành bằng chứng mới.
+
 ## Cập nhật kiểm thử live ngày 19/11/2026
 
 Backend được kiểm tra: `https://temporarily-xml-sys-healthcare.trycloudflare.com/api/v1`. Swagger JSON trả `200`, xác nhận có `GET /api/v1/projects` (PROJ-02b), hai route overview và `DELETE /api/v1/datasets/{id}`. UI được chạy riêng tại `http://127.0.0.1:5202` bằng biến môi trường runtime; không sửa `.env`.
