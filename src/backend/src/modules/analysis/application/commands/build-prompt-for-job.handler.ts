@@ -106,15 +106,13 @@ export class BuildPromptForJobHandler {
         excludedRows: rows.length - used,
       };
     });
-    const excludedColumns = (dataset?.columns ?? [])
-      .filter((c) => classifyColumn(c.dataType) === 'excluded')
-      .map((c) => ({
-        column: c.name,
-        reason:
-          c.dataType === 'date'
-            ? 'date_column_excluded_from_correlation_vif'
-            : `unsupported_data_type_${c.dataType}`,
-      }));
+    // GĐ9 — `excludedColumns` phải khớp với những gì `run-analysis.handler.ts`
+    // đã loại (theo **vai trò**: identifier/text/datetime), nếu không AI sẽ bị
+    // báo "loại cột X" trong khi ma trận tương quan lại không có X → mâu thuẫn.
+    const excludedColumns = (result.correlationMatrix.excludedColumns ?? []).map((e) => ({
+      column: e.column,
+      reason: e.reason ?? 'unsupported_data_type',
+    }));
     let fewShotBlock = '';
     try {
       const run = await this.analysisRepository.findById((job.analysisRunId as string).toString());

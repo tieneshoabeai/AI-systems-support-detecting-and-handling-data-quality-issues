@@ -107,6 +107,27 @@ function spearman(xs: number[], ys: number[]): number | null {
   return Number.isFinite(c) ? c : null;
 }
 
+/**
+ * GĐ8 — Cramér V trên **bảng contingency thưa** (sparse), không dùng ma trận dense.
+ *
+ * Bối cảnh: bản dense (`number[][]` kích thước `r × c`) đã khiến V8 OOM
+ * (heap 4 GB) khi phân tích dataset chỉ 100.000 dòng — vì cột định danh
+ * (`review_id`, `order_id`) có ~99.000 giá trị khác nhau, nên `r × c ≈ 9,8 tỷ ô`
+ * ≈ 73 GB. Bảng thưa chỉ giữ các ô **thực sự có dữ liệu** (tối đa `n` ô),
+ * nên bộ nhớ là O(n) thay vì O(r × c).
+ *
+ * Công thức χ² **không đổi**:
+ *   χ² = Σ (O_ij − E_ij)² / E_ij,  E_ij = (rowSum_i × colSum_j) / n
+ * Trong bảng thưa, các ô bằng 0 không đóng góp vào χ² — vì E_ij > 0 khi
+ * rowSum_i > 0 và colSum_j > 0, và khi đó (0 − E)²/E = E > 0. Vì vậy phải cộng
+ * thêm `E_ij` cho **mọi** cặp (i, j) có rowSum_i > 0 và colSum_j > 0, kể cả cặp
+ * không có quan sát nào. Ta tính phần này bằng tổng tích phân:
+ *   Σ_{i,j: E>0} E_ij = (Σ_i rowSum_i) × (Σ_j colSum_j) / n = n × n / n = n
+ * nên phần "ô rỗng" đóng góp đúng `n − Σ_{ô có dữ liệu} E_ij`.
+ *
+ * Lưu ý về `r`, `c`: giữ nguyên **số giá trị khác nhau** để hợp đồng API
+ * (`CorrelationCell`) không đổi; chỉ thay đổi cách lưu bảng.
+ */
 function cramersV(aCats: string[], bCats: string[]): { v: number | null; r: number; c: number } {
   const aLevels = [...new Set(aCats)];
   const bLevels = [...new Set(bCats)];
@@ -114,30 +135,44 @@ function cramersV(aCats: string[], bCats: string[]): { v: number | null; r: numb
   const c = bLevels.length;
   const n = aCats.length;
   if (r < 2 || c < 2 || n < 4) return { v: null, r, c };
-  const aIdx = new Map(aLevels.map((v, i) => [v, i]));
-  const bIdx = new Map(bLevels.map((v, i) => [v, i]));
-  const obs: number[][] = Array.from({ length: r }, () => new Array<number>(c).fill(0));
+
+  const aIdx = new Map(aLevels.map((v, i) => [v, i] as const));
+  const bIdx = new Map(bLevels.map((v, i) => [v, i] as const));
+
+  // Bảng thưa: key = `i * c + j` (đóng gói 2 chỉ số vào 1 số) → tần suất quan sát.
+  const obs = new Map<number, number>();
+  const rowSum = new Map<number, number>();
+  const colSum = new Map<number, number>();
+  let counted = 0;
   for (let k = 0; k < n; k++) {
-    const i = aIdx.get(aCats[k] ?? '') ?? -1;
-    const j = bIdx.get(bCats[k] ?? '') ?? -1;
-    if (i >= 0 && j >= 0) {
-      const row = obs[i];
-      const cell = row?.[j];
-      if (row && cell !== undefined) row[j] = cell + 1;
-    }
+    const i = aIdx.get(aCats[k] ?? '');
+    const j = bIdx.get(bCats[k] ?? '');
+    if (i === undefined || j === undefined) continue;
+    const key = i * c + j;
+    obs.set(key, (obs.get(key) ?? 0) + 1);
+    rowSum.set(i, (rowSum.get(i) ?? 0) + 1);
+    colSum.set(j, (colSum.get(j) ?? 0) + 1);
+    counted++;
   }
-  const rowSum = obs.map((row) => row.reduce((s, v) => s + v, 0));
-  const colSum = bLevels.map((_, j) => obs.reduce((s, row) => s + (row[j] ?? 0), 0));
+  if (counted < 4) return { v: null, r, c };
+
+  // χ² = Σ_{ô có dữ liệu} (O − E)²/E  +  Σ_{ô rỗng, E>0} E
+  // Phần thứ hai rút gọn = n − Σ_{ô có dữ liệu} E (vì Σ_{tất cả ô} E = n).
   let chi2 = 0;
-  for (let i = 0; i < r; i++) {
-    for (let j = 0; j < c; j++) {
-      const expected = ((rowSum[i] ?? 0) * (colSum[j] ?? 0)) / n;
-      if (expected <= 0) continue;
-      const d = (obs[i]?.[j] ?? 0) - expected;
-      chi2 += (d * d) / expected;
-    }
+  let expectedSum = 0;
+  for (const [key, observed] of obs) {
+    const i = Math.floor(key / c);
+    const j = key % c;
+    const expected = ((rowSum.get(i) ?? 0) * (colSum.get(j) ?? 0)) / counted;
+    if (!(expected > 0)) continue;
+    expectedSum += expected;
+    const d = observed - expected;
+    chi2 += (d * d) / expected;
   }
-  const denom = n * (Math.min(r, c) - 1);
+  const emptyCellsExpected = counted - expectedSum;
+  if (emptyCellsExpected > 0) chi2 += emptyCellsExpected;
+
+  const denom = counted * (Math.min(r, c) - 1);
   if (!(denom > 0) || !Number.isFinite(chi2)) return { v: null, r, c };
   const v = Math.sqrt(chi2 / denom);
   return { v: Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null, r, c };

@@ -21,6 +21,11 @@ import {
   buildCorrelationMatrix,
   classifyColumn,
 } from '../../domain/correlation.util';
+import {
+  correlationExclusionReason,
+  inferColumnRoles,
+  type AnalysisRole,
+} from '../../domain/column-role.util';
 import { computeVif } from '../../domain/vif.util';
 import { buildCorrV1Prompt, type CorrV1Context } from '../../domain/ai-grounding.util';
 import { ConfigService } from '@nestjs/config';
@@ -215,18 +220,49 @@ export class RunAnalysisHandler {
       /** Mảng dữ liệu phẳng — chỉ chứa tham chiếu tới `values`, không sao chép. */
       const rows: Record<string, unknown>[] = rowWrappers.map((w) => w.values);
 
+      // GĐ9 — Lọc cột theo **vai trò** (đã port từ `Vqd_BE`: `column-role.util.ts`).
+      //
+      // Vì sao cần: trước đây mọi cột kiểu `string` đều được coi là `categorical`
+      // và đưa vào tương quan. Với dataset thực tế (100k dòng, cột `review_id`
+      // có ~99.000 giá trị khác nhau), Cramér V dựng ma trận `r × c` ≈ 9,8 tỷ ô
+      // → V8 OOM (heap 4 GB) → sập server.
+      //
+      // Cột `identifier` / `text` / `datetime` **không có ý nghĩa thống kê** khi
+      // tính tương quan, nên loại kèm lý do (đúng như `Vqd_BE` đang làm).
+      const columnRoles = inferColumnRoles(
+        dataset.columns.map((c) => ({ key: c.key, name: c.name, dataType: c.dataType })),
+        rows,
+        null,
+      );
+      const roleByName = new Map<string, AnalysisRole>(
+        columnRoles.map((r) => [r.name, r.role] as const),
+      );
+
       const analyzable: AnalyzableColumn[] = selectedKeys.map((key) => {
         const col = dataset.columns.find((c) => c.name === key);
-        const role = classifyColumn(col?.dataType ?? 'string');
+        const typeRole = classifyColumn(col?.dataType ?? 'string');
+        // Kiểu dữ liệu không hỗ trợ (date, unknown) → loại, trừ khi vai trò là datetime
+        // (vẫn loại vì chưa chốt định nghĩa tương quan theo thời gian).
+        if (typeRole === 'excluded') {
+          return {
+            key,
+            role: 'excluded' as const,
+            reason:
+              col?.dataType === 'date'
+                ? 'date_column_excluded_from_correlation_vif'
+                : `unsupported_data_type_${col?.dataType ?? 'unknown'}`,
+          };
+        }
+        // GĐ9 — loại theo vai trò suy ra được.
+        const role = roleByName.get(key);
+        const exclusion = role ? correlationExclusionReason(role) : null;
+        if (exclusion) {
+          return { key, role: 'excluded' as const, reason: exclusion };
+        }
         return {
           key,
-          role,
-          reason:
-            role === 'excluded'
-              ? col?.dataType === 'date'
-                ? 'date_column_excluded_from_correlation_vif'
-                : `unsupported_data_type_${col?.dataType ?? 'unknown'}`
-              : null,
+          role: role === 'measure' ? ('numeric' as const) : ('categorical' as const),
+          reason: null,
         };
       });
 
