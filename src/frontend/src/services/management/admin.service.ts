@@ -23,7 +23,7 @@ export type AdminIssue = {
   updatedAt: string
 }
 
-type CursorPage<T> = { items: T[]; meta?: { hasMore?: boolean; nextCursor?: string | null } }
+type CursorPage<T> = { items: T[]; meta: { hasMore: boolean; nextCursor: string | null } }
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -56,24 +56,49 @@ const mapAdminIssue = (value: unknown): AdminIssue => {
   }
 }
 
-const pageItems = <T>(value: unknown, map: (item: unknown) => T): T[] => {
-  if (!isRecord(value) || !Array.isArray(value['items'])) throw new Error('Danh sách quản trị từ máy chủ không hợp lệ.')
-  return (value as CursorPage<unknown>).items.map(map)
+const cursorPage = (value: unknown): CursorPage<unknown> => {
+  if (!isRecord(value) || !Array.isArray(value['items']) || !isRecord(value['meta'])
+    || typeof value['meta']['hasMore'] !== 'boolean'
+    || (value['meta']['nextCursor'] !== null && typeof value['meta']['nextCursor'] !== 'string')) {
+    throw new Error('Danh sách quản trị từ máy chủ không hợp lệ.')
+  }
+  return value as CursorPage<unknown>
 }
 
 export function createAdminService(api: ApiClient) {
   const request = <T>(path: string, method: 'GET' | 'PATCH' = 'GET', data?: unknown, params?: Record<string, string | number>) =>
     api.request<T>({ path, method, auth: 'session', ...(data === undefined ? {} : { data }), ...(params === undefined ? {} : { params }) })
+  const listPages = async <T>(
+    path: string,
+    map: (item: unknown) => T,
+    params: Record<string, string | number>,
+  ): Promise<T[]> => {
+    const items: T[] = []
+    const seen = new Set<string>()
+    let cursor: string | undefined
+    for (;;) {
+      const page = cursorPage(await request<unknown>(path, 'GET', undefined, {
+        ...params,
+        ...(cursor === undefined ? {} : { cursor }),
+      }))
+      items.push(...page.items.map(map))
+      if (!page.meta.hasMore) return items
+      const nextCursor = page.meta.nextCursor
+      if (!nextCursor || seen.has(nextCursor)) throw new Error('Phân trang quản trị từ máy chủ không hợp lệ.')
+      seen.add(nextCursor)
+      cursor = nextCursor
+    }
+  }
 
   return {
     async listUsers(): Promise<AdminUser[]> {
-      return pageItems(await request<unknown>('/admin/users'), mapAdminUser)
+      return listPages('/admin/users', mapAdminUser, { limit: 100 })
     },
     async getUser(id: string): Promise<AdminUser> {
       return mapAdminUser(await request<unknown>(`/admin/users/${encodeURIComponent(id)}`))
     },
     async listIssues(limit = 10): Promise<AdminIssue[]> {
-      return pageItems(await request<unknown>('/admin/issues', 'GET', undefined, { limit, sortBy: 'createdAt', sortOrder: 'desc' }), mapAdminIssue)
+      return listPages('/admin/issues', mapAdminIssue, { limit, sortBy: 'createdAt', sortOrder: 'desc' })
     },
     async getIssue(id: string): Promise<AdminIssue> {
       return mapAdminIssue(await request<unknown>(`/admin/issues/${encodeURIComponent(id)}`))
