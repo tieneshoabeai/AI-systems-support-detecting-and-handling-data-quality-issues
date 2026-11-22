@@ -215,42 +215,11 @@ tinh lai o frontend).
 
 ## Analysis — `@Controller()`
 
-### POST `/projects/:projectId/analysis/config`
-```json
-{
-  "selected_columns": ["c0", "c1"],
-  "label_column": "c2",
-  "time_column": "c3",
-  "time_granularity": "day",
-  "value_column": "c4",
-  "correlation_method": "pearson",
-  "outlier_method": "iqr",
-  "top_n": 10,
-  "column_roles": { "c5": "identifier" }
-}
-```
-- `time_granularity`: `day | week | month | year` (default `day`).
-- `correlation_method`: `pearson | spearman` (default `pearson`).
-- `outlier_method`: `iqr | modified_zscore | both` (default `iqr`).
-- `top_n`: 1-100 (default 10).
-
-> **GĐ7 — ghi đè vai trò cột (2026-11-19).** Server tự suy vai trò cột (`identifier` / `category` / `measure` / `text` / `datetime`) từ **ten cot + phan bo gia tri**. Mot so cot bi suy sai (VD cot ma toan so `0/1` → bi coi la `measure`) va nguoi dung khong co cach sua → `column_roles` cho phep **ghi de thu cong**.
->
-> - **Key la key cot on dinh** (`c0`, `c1`, …) — **KHONG** phai ten hien thi → doi ten cot khong lam mat ghi de.
-> - Gia tri: `identifier | category | measure | text | datetime`.
-> - Bo truong → giu nguyen cau hinh cu. `null` → xoa het ghi de.
-> - `400` khi: key cot khong ton tai / vai tro ngoai enum / vai tro khong khop kieu du lieu (`measure` chi voi cot `number`; `datetime` chi voi cot `date`; `identifier`/`category`/`text` khong dung cho cot `date`).
-> - Doi ghi de → fingerprint dau vao doi → ket qua cu danh dau `stale` (`config_changed`). Frontend nen hien thi canh bao "ket qua cu khong con dung" neu vua doi cau hinh.
->
-> **Response (GET/POST)** them truong `columnRoles` (map da luu, mac dinh `{}`).
-
-### GET `/projects/:projectId/analysis/config`
-
 ### POST `/projects/:projectId/analysis`
 ```json
-{ "selected_columns": ["c0"], "correlation_method": "pearson", "outlier_method": "iqr", "top_n": 10 }
+{ "correlation_method": "pearson", "outlier_method": "iqr", "top_n": 10, "chart_top_n": 5 }
 ```
-Chay dong bo phan thong ke + tao AI job `corr-v1` bat dong bo. Frontend: goi xong thi poll job ben duoi hoac nghe socket.
+Chay dong bo phan thong ke + tao AI job `corr-v1` bat dong bo. Body co the `{}` (OPEN-06: cot tu suy luan, chi tham so phuong phap; `chart_top_n` 1-20, default 5). Frontend: goi xong thi poll job ben duoi hoac nghe socket.
 
 > **GĐ12 — rate limit phan tich dong bo (2026-11-19).** Server chi cho phep **1 lan phan tich dong bo** chay cung luc tren moi instance (`ANALYSIS_MAX_CONCURRENCY`, mac dinh 1). Neu dang co mot lan chay, request nay tra:
 >

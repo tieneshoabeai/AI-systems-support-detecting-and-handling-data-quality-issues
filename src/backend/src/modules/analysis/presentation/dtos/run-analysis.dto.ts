@@ -13,6 +13,7 @@ export const RunAnalysisSchema = z.object({
   correlation_method: z.enum(['pearson', 'spearman']).default('pearson'),
   outlier_method: z.enum(['iqr', 'modified_zscore', 'both']).default('iqr'),
   top_n: z.coerce.number().int().min(1).max(100).default(10),
+  chart_top_n: z.coerce.number().int().min(1).max(20).default(5),
 });
 
 export type RunAnalysisDto = z.infer<typeof RunAnalysisSchema>;
