@@ -68,7 +68,7 @@ export class OutboxService implements OutboxPort {
         .findOneAndUpdate(
           { _id: d._id, $or: [{ status: 'PENDING' }, { status: 'PUBLISHING', lease_expires_at: { $lte: now } }] },
           { $set: { status: 'PUBLISHING', lease_expires_at: new Date(now.getTime() + 60000) } },
-          { new: true, session: resolveMongoSession(undefined) },
+          { returnDocument: 'after', session: resolveMongoSession(undefined) },
         )
         .exec();
       if (r) claimed.push(r);

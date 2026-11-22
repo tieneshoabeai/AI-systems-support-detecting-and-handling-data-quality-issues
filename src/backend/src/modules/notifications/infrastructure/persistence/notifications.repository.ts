@@ -80,7 +80,7 @@ export class NotificationsRepository implements NotificationRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
         { $set: { read_at: new Date() } },
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toNotificationEntity(doc) : null;

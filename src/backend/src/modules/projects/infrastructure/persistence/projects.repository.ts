@@ -267,7 +267,7 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     if (expectedVersion !== undefined) filter.version = expectedVersion;
     const s = resolveMongoSession(undefined);
     const doc = await this.model
-      .findOneAndUpdate(filter, { $set: set, $inc: { version: 1 } }, { new: true, session: s })
+      .findOneAndUpdate(filter, { $set: set, $inc: { version: 1 } }, { returnDocument: 'after', session: s })
       .exec();
     return doc ? toProjectEntity(doc) : null;
   }

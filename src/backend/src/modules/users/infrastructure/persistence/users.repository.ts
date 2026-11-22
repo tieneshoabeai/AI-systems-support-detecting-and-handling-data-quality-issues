@@ -144,7 +144,7 @@ export class UsersRepository implements UserRepositoryPort {
 
   async incrementResetAttempts(email: string): Promise<number> {
     const s = resolveMongoSession(undefined);
-    const doc = await this.userModel.findOneAndUpdate({ email, deleted_at: null }, { $inc: { password_reset_attempts: 1 } }, { new: true, session: s }).select('+password_reset_attempts').exec();
+    const doc = await this.userModel.findOneAndUpdate({ email, deleted_at: null }, { $inc: { password_reset_attempts: 1 } }, { returnDocument: 'after', session: s }).select('+password_reset_attempts').exec();
     return doc?.password_reset_attempts ?? 0;
   }
 
@@ -258,7 +258,7 @@ export class UsersRepository implements UserRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(userId), deleted_at: null },
         { $set: { google_id: gid, auth_provider: 'google' } },
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toUserEntity(doc) : null;
@@ -277,7 +277,7 @@ export class UsersRepository implements UserRepositoryPort {
             ...(data.bio !== undefined ? { bio: data.bio } : {}),
           },
         },
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toUserEntity(doc) : null;
@@ -288,7 +288,7 @@ export class UsersRepository implements UserRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(userId), deleted_at: null },
         { $set: { notifications_enabled: enabled } },
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc !== null;

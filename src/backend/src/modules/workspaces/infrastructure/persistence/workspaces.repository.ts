@@ -74,7 +74,7 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
         : { _id: new Types.ObjectId(id), deleted_at: null };
     const s = resolveMongoSession(undefined);
     const doc = await this.workspaceModel
-      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { new: true, session: s })
+      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { returnDocument: 'after', session: s })
       .exec();
     return doc ? this.toEntity(doc) : null;
   }

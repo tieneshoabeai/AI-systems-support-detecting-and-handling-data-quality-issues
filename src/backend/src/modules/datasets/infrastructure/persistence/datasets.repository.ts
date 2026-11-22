@@ -87,7 +87,7 @@ export class DatasetsRepository implements DatasetRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), deleted_at: null, status: 'INGESTING' },
         { $set: set },
-        { new: true, session: s },
+        { returnDocument: 'after', session: s },
       )
       .exec();
     return doc ? toDatasetEntity(doc) : null;

@@ -106,7 +106,7 @@ export abstract class BaseMongoRepository<T extends Document & BaseEntity> {
       .findOneAndUpdate(
         this.applySoftDeleteFilter({ _id: new Types.ObjectId(id) }),
         update,
-        { new: true, session: s }
+        { returnDocument: 'after', session: s }
       )
       .exec();
   }

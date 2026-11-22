@@ -130,7 +130,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
   async updateById(id: string, update: Partial<AnalysisRunRecord> & Record<string, unknown>): Promise<AnalysisRunRecord | null> {
     if (!isObjectIdHex(id)) return null;
     const set = toRunSet(update);
-    const doc = await this.runModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true, session: resolveMongoSession(undefined) }).exec();
+    const doc = await this.runModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toAnalysisRunRecord(doc) : null;
   }
 
@@ -172,7 +172,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const set = (update as Record<string, unknown>).$set && typeof (update as Record<string, unknown>).$set === 'object'
       ? (update as Record<string, unknown>).$set as Record<string, unknown>
       : update;
-    const doc = await this.resultModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true, session: resolveMongoSession(undefined) }).exec();
+    const doc = await this.resultModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toAnalysisResultRecord(doc) : null;
   }
 
@@ -212,7 +212,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const set = (update as Record<string, unknown>).$set && typeof (update as Record<string, unknown>).$set === 'object'
       ? (update as Record<string, unknown>).$set as Record<string, unknown>
       : update;
-    const doc = await this.jobModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true, session: resolveMongoSession(undefined) }).exec();
+    const doc = await this.jobModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toAiJobRecord(doc) : null;
   }
 
@@ -221,7 +221,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.jobModel.findOneAndUpdate(
       { deleted_at: null, $or: [{ status: 'pending' }, { status: 'running', lease_expires_at: { $lt: now } }] },
       { $set: { status: 'running', started_at: now, heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
-      { new: true, sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
+      { returnDocument: 'after', sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toAiJobRecord(doc) : null;
   }
@@ -249,7 +249,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.jobModel.findOneAndUpdate(
       { _id: oid(id), status: 'running', deleted_at: null },
       { $set: { heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
-      { new: true, session: resolveMongoSession(undefined) },
+      { returnDocument: 'after', session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toAiJobRecord(doc) : null;
   }
@@ -357,7 +357,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const set: Record<string, unknown> = { ...raw };
     if (typeof set.storageKey === 'string' && set.storage_key === undefined) { set.storage_key = set.storageKey; delete set.storageKey; }
     if (typeof set.fileSizeBytes === 'number' && set.file_size_bytes === undefined) { set.file_size_bytes = set.fileSizeBytes; delete set.fileSizeBytes; }
-    const doc = await this.reportModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true, session: resolveMongoSession(undefined) }).exec();
+    const doc = await this.reportModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toReportJobRecord(doc) : null;
   }
 
@@ -365,7 +365,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.reportModel.findOneAndUpdate(
       { status: 'pending', deleted_at: null },
       { $set: { status: 'running' } },
-      { new: true, sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
+      { returnDocument: 'after', sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toReportJobRecord(doc) : null;
   }
@@ -436,7 +436,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.fewShotModel.findOneAndUpdate(
       { _id: oid(id), deleted_at: null },
       { $set: { agreement_count: update.agreementCount, trust_score: update.trustScore, embedding: update.embedding } },
-      { new: true, session: resolveMongoSession(undefined) },
+      { returnDocument: 'after', session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toFewShotRecord(doc as unknown as IFewShotExample) : null;
   }

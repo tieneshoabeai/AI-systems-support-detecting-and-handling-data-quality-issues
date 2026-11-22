@@ -84,7 +84,7 @@ export class IssuesRepository implements IssueReportRepositoryPort {
             },
           },
         },
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toIssueEntity(doc) : null;
@@ -96,7 +96,7 @@ export class IssuesRepository implements IssueReportRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), version: expectedVersion, deleted_at: null },
         { $set: { status }, $inc: { version: 1 } },
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toIssueEntity(doc) : null;
@@ -127,7 +127,7 @@ export class IssuesRepository implements IssueReportRepositoryPort {
           deleted_at: null,
         },
         update,
-        { new: true, session: resolveMongoSession(undefined) },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toIssueEntity(doc) : null;

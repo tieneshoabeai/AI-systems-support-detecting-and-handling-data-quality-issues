@@ -119,7 +119,7 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     if (raw.reason !== undefined) set.reason = raw.reason;
     if (raw.suggestedSeverity !== undefined) { set.suggested_severity = raw.suggestedSeverity; delete set.suggestedSeverity; }
     if (raw.suggested_severity !== undefined) set.suggested_severity = raw.suggested_severity;
-    const doc = await this.model.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true, session: resolveMongoSession(undefined) }).exec();
+    const doc = await this.model.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toFeedbackEntity(doc) : null;
   }
 
