@@ -2,6 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { MongooseTransactionService } from './mongoose-transaction.service';
+import { TRANSACTION_PORT } from '../../application/ports/transaction.port';
 
 @Global()
 @Module({
@@ -19,7 +20,10 @@ import { MongooseTransactionService } from './mongoose-transaction.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [MongooseTransactionService],
-  exports: [MongooseModule, MongooseTransactionService],
+  providers: [
+    MongooseTransactionService,
+    { provide: TRANSACTION_PORT, useExisting: MongooseTransactionService },
+  ],
+  exports: [MongooseModule, MongooseTransactionService, TRANSACTION_PORT],
 })
 export class DatabaseModule {}

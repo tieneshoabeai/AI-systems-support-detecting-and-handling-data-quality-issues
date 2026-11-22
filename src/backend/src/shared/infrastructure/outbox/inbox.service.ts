@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { randomUUID } from 'crypto';
 import { IProcessedEvent } from './processed-event.schema';
+import { resolveMongoSession } from '../database/mongo-session-context';
 
 @Injectable()
 export class InboxService {
@@ -13,14 +14,19 @@ export class InboxService {
     const now = new Date();
     const leaseId = randomUUID();
     try {
-      await this.model.create({
-        consumer_name: consumer,
-        event_id: eventId,
-        status: 'processing',
-        lease_id: leaseId,
-        lease_expires_at: new Date(now.getTime() + leaseMs),
-        attempts: 1,
-      });
+      await this.model.create(
+        [
+          {
+            consumer_name: consumer,
+            event_id: eventId,
+            status: 'processing',
+            lease_id: leaseId,
+            lease_expires_at: new Date(now.getTime() + leaseMs),
+            attempts: 1,
+          },
+        ],
+        { session: resolveMongoSession(undefined) },
+      );
       return 'claimed';
     } catch (e: unknown) {
       const code = (e as Record<string, unknown>)?.code;
@@ -34,15 +40,24 @@ export class InboxService {
     await this.model.updateOne(
       { _id: doc._id },
       { $set: { status: 'processing', lease_id: leaseId, lease_expires_at: new Date(now.getTime() + leaseMs) }, $inc: { attempts: 1 } },
+      { session: resolveMongoSession(undefined) },
     );
     return 'claimed';
   }
 
   async complete(consumer: string, eventId: string): Promise<void> {
-    await this.model.updateOne({ consumer_name: consumer, event_id: eventId }, { $set: { status: 'completed', lease_id: null, lease_expires_at: null } });
+    await this.model.updateOne(
+      { consumer_name: consumer, event_id: eventId },
+      { $set: { status: 'completed', lease_id: null, lease_expires_at: null } },
+      { session: resolveMongoSession(undefined) },
+    );
   }
 
   async fail(consumer: string, eventId: string): Promise<void> {
-    await this.model.updateOne({ consumer_name: consumer, event_id: eventId }, { $set: { status: 'failed', lease_id: null, lease_expires_at: null } });
+    await this.model.updateOne(
+      { consumer_name: consumer, event_id: eventId },
+      { $set: { status: 'failed', lease_id: null, lease_expires_at: null } },
+      { session: resolveMongoSession(undefined) },
+    );
   }
 }

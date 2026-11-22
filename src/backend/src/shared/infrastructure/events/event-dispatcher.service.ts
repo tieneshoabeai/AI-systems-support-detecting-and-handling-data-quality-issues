@@ -7,6 +7,7 @@ import type { InboxService } from '../outbox/inbox.service';
 import { InboxService as InboxServiceToken } from '../outbox/inbox.service';
 import type { DomainEventHandlerRegistry } from '../../application/ports/domain-event-handler.port';
 import { DOMAIN_EVENT_HANDLER_REGISTRY } from '../../application/ports/domain-event-handler.port';
+import { RealtimeRevocationEvents } from '../../domain/utils/realtime-events';
 
 /**
  * Nhom 4 - Event dispatcher (consumer in-process).
@@ -111,6 +112,13 @@ export class EventDispatcherService implements OnModuleInit {
         case 'ISSUE_CREATED':
         case 'ISSUE_UPDATED':
           if (projectId) this.realtime.emitToProject(projectId, 'ai.quality.updated', { projectId, status: 'issue_changed' });
+          break;
+        // OPEN-08 — Thu hồi realtime (khoá / xoá tài khoản).
+        // Việc đóng socket do `RealtimeRevocationSubscriber` (module realtime) xử lý
+        // qua DomainEventHandlerRegistry — dispatcher không tự ngắt socket để
+        // tránh hai nơi cùng làm một việc.
+        case RealtimeRevocationEvents.USER_BLOCKED:
+        case RealtimeRevocationEvents.USER_REMOVED:
           break;
         default:
           if (projectId) this.realtime.emitToProject(projectId, 'ai.quality.updated', { projectId, status: 'updated' });
