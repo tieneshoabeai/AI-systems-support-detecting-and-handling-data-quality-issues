@@ -12,7 +12,6 @@
 import { BuildPromptForJobHandler as AnalysisBuildPromptForJobHandler } from '../../src/modules/analysis/application/commands/build-prompt-for-job.handler';
 import { CreateSummaryHandler as AnalysisCreateSummaryHandler } from '../../src/modules/analysis/application/commands/create-summary.handler';
 import { DownloadReportFileHandler as AnalysisDownloadReportFileHandler } from '../../src/modules/analysis/application/queries/download-report-file.handler';
-import { GetConfigHandler as AnalysisGetConfigHandler } from '../../src/modules/analysis/application/queries/get-config.handler';
 import { GetJobHandler as AnalysisGetJobHandler } from '../../src/modules/analysis/application/queries/get-job.handler';
 import { GetReportFileMetaHandler as AnalysisGetReportFileMetaHandler } from '../../src/modules/analysis/application/queries/get-report-file-meta.handler';
 import { GetResultHandler as AnalysisGetResultHandler } from '../../src/modules/analysis/application/queries/get-result.handler';
@@ -21,13 +20,11 @@ import { IngestAiResultHandler as AnalysisIngestAiResultHandler } from '../../sr
 import { RequestReportHandler as AnalysisRequestReportHandler } from '../../src/modules/analysis/application/commands/request-report.handler';
 import { RetryJobHandler as AnalysisRetryJobHandler } from '../../src/modules/analysis/application/commands/retry-job.handler';
 import { RunAnalysisHandler as AnalysisRunAnalysisHandler } from '../../src/modules/analysis/application/commands/run-analysis.handler';
-import { SaveConfigHandler as AnalysisSaveConfigHandler } from '../../src/modules/analysis/application/commands/save-config.handler';
 
 export const analysisHandlers = {
   buildPromptForJob: AnalysisBuildPromptForJobHandler,
   createSummary: AnalysisCreateSummaryHandler,
   downloadReportFile: AnalysisDownloadReportFileHandler,
-  getConfig: AnalysisGetConfigHandler,
   getJob: AnalysisGetJobHandler,
   getReportFileMeta: AnalysisGetReportFileMetaHandler,
   getResult: AnalysisGetResultHandler,
@@ -36,7 +33,6 @@ export const analysisHandlers = {
   requestReport: AnalysisRequestReportHandler,
   retryJob: AnalysisRetryJobHandler,
   runAnalysis: AnalysisRunAnalysisHandler,
-  saveConfig: AnalysisSaveConfigHandler,
 } as const;
 
 // -------------------- audit --------------------
@@ -92,10 +88,6 @@ import { GetDatasetByProjectIdHandler as DatasetsGetDatasetByProjectIdHandler } 
 import { GetDatasetSchemaHandler as DatasetsGetDatasetSchemaHandler } from '../../src/modules/datasets/application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler as DatasetsIngestDatasetStreamHandler } from '../../src/modules/datasets/application/commands/ingest-dataset-stream.handler';
 import { MapPropsToOriginalNamesHandler as DatasetsMapPropsToOriginalNamesHandler } from '../../src/modules/datasets/application/commands/map-props-to-original-names.handler';
-import { ResetColumnNamesHandler as DatasetsResetColumnNamesHandler } from '../../src/modules/datasets/application/commands/reset-column-names.handler';
-import { UpdateColumnNamesHandler as DatasetsUpdateColumnNamesHandler } from '../../src/modules/datasets/application/commands/update-column-names.handler';
-import { UpdateColumnPiiHandler as DatasetsUpdateColumnPiiHandler } from '../../src/modules/datasets/application/commands/update-column-pii.handler';
-import { UpdateDatasetMetadataHandler as DatasetsUpdateDatasetMetadataHandler } from '../../src/modules/datasets/application/commands/update-dataset-metadata.handler';
 
 export const datasetsHandlers = {
   deleteDataset: DatasetsDeleteDatasetHandler,
@@ -105,10 +97,6 @@ export const datasetsHandlers = {
   getDatasetSchema: DatasetsGetDatasetSchemaHandler,
   ingestDatasetStream: DatasetsIngestDatasetStreamHandler,
   mapPropsToOriginalNames: DatasetsMapPropsToOriginalNamesHandler,
-  resetColumnNames: DatasetsResetColumnNamesHandler,
-  updateColumnNames: DatasetsUpdateColumnNamesHandler,
-  updateColumnPii: DatasetsUpdateColumnPiiHandler,
-  updateDatasetMetadata: DatasetsUpdateDatasetMetadataHandler,
 } as const;
 
 // -------------------- feedback --------------------

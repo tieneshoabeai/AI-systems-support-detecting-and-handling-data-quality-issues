@@ -3,6 +3,8 @@ import { Types } from 'mongoose';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
+import { TRANSACTION_PORT } from '../src/shared/application/ports/transaction.port';
+import { fakeTransaction } from './helpers/transaction';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { Project } from '../src/modules/projects/domain/entities/project.entity';
 import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
@@ -86,6 +88,7 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: workspacesPort },
         { provide: USER_REPOSITORY_PORT, useValue: { findByEmail: jest.fn(), findById: jest.fn() } },
         { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
       ],
     }).compile();
 

@@ -5,7 +5,19 @@
  * Không import HTTP, không import infrastructure.
  */
 
-export interface RegisterInput { email: string; password: string; first_name: string; last_name: string; role?: 'admin' | 'analyst' }
+/**
+ * Đầu vào đăng ký tài khoản.
+ *
+ * OPEN-01 — **không có trường `role`**: mọi tài khoản tự đăng ký qua API công khai
+ * đều là `analyst`. Tài khoản `admin` chỉ được tạo bởi **admin bootstrap** khi
+ * khởi động ứng dụng (`ADMIN_EMAIL` + `ADMIN_PASSWORD`).
+ */
+export interface RegisterInput {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}
 
 export interface LoginInput { email: string; password: string; remember_me?: boolean }
 

@@ -213,16 +213,32 @@ export class PoliciesGuard implements CanActivate {
         if (prop === 'can') {
           return (action: Action, subjectInput: AppSubjects, field?: string): boolean => {
             let targetSubject = subjectInput;
+            // Subject dạng object `{ __type: 'Workspace' }` → chuẩn hoá về tên
+            // subject để tầng động xử lý **giống hệt** tầng tĩnh (vốn đã
+            // đọc `__type`). Nếu không, một policy viết bằng object sẽ qua
+            // static check (vì `__type` khớp) nhưng lại fail ở dynamic check
+            // (vì CASL không hiểu object thô) ⇒ 403 oan dù policy hợp lệ.
+            const subjectName =
+              typeof subjectInput === 'string'
+                ? subjectInput
+                : subjectInput && typeof subjectInput === 'object' && '__type' in subjectInput
+                  ? ((subjectInput as Record<string, unknown>).__type as string)
+                  : null;
+
             if (
-              typeof subjectInput === 'string' &&
+              subjectName &&
               resource &&
               resourceMeta &&
-              resourceMeta.subject === subjectInput
+              resourceMeta.subject === subjectName
             ) {
               targetSubject = buildSubject(
-                subjectInput as SubjectName,
+                subjectName as SubjectName,
                 resource as Record<string, unknown>,
               );
+            } else if (subjectName) {
+              // Không có resource thuộc subject này → dùng tên subject dạng
+              // chuỗi (giống tầng tĩnh) để CASL hiểu đúng rule.
+              targetSubject = subjectName as SubjectName;
             }
             return target.can(action, targetSubject, field);
           };
