@@ -144,6 +144,20 @@ export class DatasetsController {
   // VẪN GIỮ:
   //   - `POST /projects/:projectId/datasets/upload` — nạp dataset
   //   - `DELETE /datasets/:id` — huỷ bỏ toàn bộ dataset để nạp lại từ đầu
+  //
+  // ── Vì sao route XOÁ nằm ở root chứ không nested dưới `/projects/...` ──────
+  //
+  // Xoá dataset không chỉ xoá bản ghi mà còn **gỡ cờ `hasDataset` của project**
+  // và **trừ dung lượng đã dùng của workspace** (cả 2 việc nằm trong cùng một
+  // transaction — OPEN-09). Vì nó tác động tới resource của *hai* module khác
+  // (project, workspace), đặt route ở root là chính xác hơn.
+  //
+  // Đây là **route xoá dataset DUY NHẤT** — không tồn tại
+  // `DELETE /projects/:projectId/datasets`.
+  //
+  // Luồng gọi phía frontend:
+  //   1. `GET /projects/:projectId/datasets`  → lấy `dataset.id`
+  //   2. `DELETE /datasets/:id`               → xoá
   // ─────────────────────────────────────────────────────────────────────────
 
   @Delete('datasets/:id')

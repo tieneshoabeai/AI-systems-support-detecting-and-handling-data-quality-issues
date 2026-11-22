@@ -118,6 +118,15 @@ datasets/
 > hay `PATCH /datasets/:id/columns/pii`. Cờ PII duoc **tu suy** tu ten cot boi
 > `pii-heuristic.util.ts` (khong bat/tat tay).
 
+> **Xoa dataset — route duy nhat la `DELETE /datasets/:id`.**
+> Khong ton tai `DELETE /projects/:projectId/datasets`. Ly do: xoa dataset se
+> **go co `hasDataset` cua project** va **tru dung luong da dung cua workspace**
+> (ca hai trong cung mot transaction — OPEN-09), nen route dat o root hop hon.
+>
+> Luong goi phia frontend:
+> 1. `GET /api/v1/projects/:projectId/datasets` → lay `dataset.id`
+> 2. `DELETE /api/v1/datasets/:id` → xoa mem dataset + giai phong dung luong
+
 ### 4.2. Interfaces / Providers duoc export ra ngoai
 
 `src/backend/src/modules/datasets/index.ts` export public contract:
