@@ -29,14 +29,17 @@ function withRate(commonN: number, totalScanned: number): { commonNRate: number 
 
 function isConstant(values: number[]): boolean {
   if (values.length === 0) return true;
-  const sd = ss.standardDeviation(values);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", **không** xuất ra API
+  // ⇒ dùng phân kỳ mẫu cho nhất quán với toàn hệ thống.
+  const sd = values.length >= 2 ? ss.sampleStandardDeviation(values) : 0;
   return !(sd > 0);
 }
 
 function pearsonOnCommon(xs: number[], ys: number[]): number | null {
   if (xs.length < 2) return null;
-  const sx = ss.standardDeviation(xs);
-  const sy = ss.standardDeviation(ys);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(xs);
+  const sy = ss.sampleStandardDeviation(ys);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(xs, ys);
   if (!Number.isFinite(c)) return null;

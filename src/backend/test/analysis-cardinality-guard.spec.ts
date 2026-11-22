@@ -166,7 +166,6 @@ describe('GĐ9 — lọc cột theo vai trò trước khi tính tương quan', (
         { key: 'c5', name: 'created_at', dataType: 'date' },
       ],
       rows,
-      null,
     );
     const byName = new Map(roles.map((r) => [r.name, r.role] as const));
     expect(byName.get('review_id')).toBe('identifier');

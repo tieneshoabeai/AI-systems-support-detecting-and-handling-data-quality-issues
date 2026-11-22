@@ -94,7 +94,11 @@ export function describeColumn(
       };
     }
     const sorted = [...validNums].sort((a, b) => a - b);
-    const sd = validNums.length >= 2 ? ss.standardDeviation(validNums) : 0;
+    // OPEN-10 — độ lệch chuẩn dùng **mẫu** (n−1), khớp `ss.sampleStandardDeviation`.
+    // (Trước đây dùng `ss.standardDeviation` — phân kỳ *toàn bộ* (n) ⇒ nhỏ hơn
+    //  ≈ √(n/(n−1)) lần, dẫn tới giá trị trong `dqSummary.columns[].stdev` lệch
+    //  khỏi chuẩn khoa học dữ liệu.)
+    const sd = validNums.length >= 2 ? ss.sampleStandardDeviation(validNums) : 0;
     return {
       column, dataType, count: validNums.length, missingCount, invalidCount,
       mean: round4(ss.mean(validNums)),

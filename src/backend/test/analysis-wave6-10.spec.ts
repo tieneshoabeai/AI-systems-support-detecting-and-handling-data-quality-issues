@@ -187,7 +187,7 @@ describe('AN-14 / AN-15 / AN-33 — fingerprint theo key cột bất biến', ()
     expect(after).not.toBe(before);
   });
 
-  it('AN-33: đổi ghi đè vai trò cột → fingerprint ĐỔI', () => {
+  it('AN-33 (OPEN-06): không còn ghi đè vai trò cột → fingerprint chỉ phụ thuộc cấu hình thuần', () => {
     const base = {
       selectedKeys: ['c0'],
       labelKey: null,
@@ -199,29 +199,8 @@ describe('AN-14 / AN-15 / AN-33 — fingerprint theo key cột bất biến', ()
       timeGranularity: 'day',
     };
     const ds = { id: DS, fileChecksum: 'sum', rowCount: 3, columns: cols };
-    const fpNoRoles = computeInputFingerprint(ds, { ...base, columnRoles: null });
-    const fpWithRoles = computeInputFingerprint(ds, {
-      ...base,
-      columnRoles: { c0: 'measure' },
-    });
-    expect(fpWithRoles).not.toBe(fpNoRoles);
-  });
-
-  it('AN-33: ghi đè vai trò RỖNG → không đổi fingerprint (giữ fingerprint cũ)', () => {
-    const base = {
-      selectedKeys: ['c0'],
-      labelKey: null,
-      timeKey: null,
-      valueKey: null,
-      correlationMethod: 'pearson',
-      outlierMethod: 'iqr',
-      topN: 50,
-      timeGranularity: 'day',
-    };
-    const ds = { id: DS, fileChecksum: 'sum', rowCount: 3, columns: cols };
-    expect(computeInputFingerprint(ds, { ...base, columnRoles: {} })).toBe(
-      computeInputFingerprint(ds, { ...base, columnRoles: null }),
-    );
+    // Cùng đầu vào → cùng fingerprint (không còn tham số ghi đè vai trò).
+    expect(computeInputFingerprint(ds, { ...base })).toBe(computeInputFingerprint(ds, { ...base }));
   });
 
   it('fingerprint_version = 2 và đọc lại được cấu hình từ run.config', () => {

@@ -7,7 +7,6 @@ import { FewShotExampleSchema } from './infrastructure/persistence/few-shot-exam
 import { CellEvidenceSchema } from './infrastructure/persistence/cell-evidence.schema';
 import { ProjectSaveSchema } from './infrastructure/persistence/project-save.schema';
 import { ReportJobSchema } from './infrastructure/persistence/report-job.schema';
-import { AnalysisConfigSchema } from './infrastructure/persistence/analysis-config.schema';
 import { ReportWorkerService } from './application/report-worker.service';
 import { SummaryController } from './presentation/controllers/summary.controller';
 import { ReportController } from './presentation/controllers/report.controller';
@@ -27,13 +26,11 @@ import { ProjectsModule } from '../projects/projects.module';
 import { StorageModule } from '../../shared/infrastructure/storage/storage.module';
 import { DatasetsModule } from '../datasets/datasets.module';
 import { BuildPromptForJobHandler } from './application/commands/build-prompt-for-job.handler';
-import { GetConfigHandler } from './application/queries/get-config.handler';
 import { GetJobHandler } from './application/queries/get-job.handler';
 import { GetResultHandler } from './application/queries/get-result.handler';
 import { IngestAiResultHandler } from './application/commands/ingest-ai-result.handler';
 import { RetryJobHandler } from './application/commands/retry-job.handler';
 import { RunAnalysisHandler } from './application/commands/run-analysis.handler';
-import { SaveConfigHandler } from './application/commands/save-config.handler';
 import { CreateSummaryHandler } from './application/commands/create-summary.handler';
 import { GetSummaryHandler } from './application/queries/get-summary.handler';
 import { DownloadReportFileHandler } from './application/queries/download-report-file.handler';
@@ -56,7 +53,6 @@ import { RequestReportHandler } from './application/commands/request-report.hand
       { name: 'CellEvidence', schema: CellEvidenceSchema },
       { name: 'ProjectSave', schema: ProjectSaveSchema },
       { name: 'ReportJob', schema: ReportJobSchema },
-      { name: 'AnalysisConfig', schema: AnalysisConfigSchema },
     ]),
     ProjectsModule,
     DatasetsModule,
@@ -70,8 +66,6 @@ import { RequestReportHandler } from './application/commands/request-report.hand
     IngestAiResultHandler,
     RetryJobHandler,
     RunAnalysisHandler,
-    SaveConfigHandler,
-    GetConfigHandler,
     GetJobHandler,
     GetResultHandler,
     CreateSummaryHandler,

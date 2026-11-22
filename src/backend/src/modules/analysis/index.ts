@@ -9,7 +9,6 @@
 export {
   ANALYSIS_REPOSITORY_PORT,
   type AiJobRecord,
-  type AnalysisConfigRecord,
   type AnalysisRepositoryPort,
   type AnalysisResultRecord,
   type AnalysisRunRecord,
@@ -54,7 +53,6 @@ export {
 // ── Handlers (Command/Query) ──────────────────────────
 // ── Queries (đọc) ──────────────────────────────────────────────
 export { DownloadReportFileHandler } from './application/queries/download-report-file.handler';
-export { GetConfigHandler } from './application/queries/get-config.handler';
 export { GetJobHandler } from './application/queries/get-job.handler';
 export { GetReportFileMetaHandler } from './application/queries/get-report-file-meta.handler';
 export { GetResultHandler } from './application/queries/get-result.handler';
@@ -67,7 +65,6 @@ export { IngestAiResultHandler } from './application/commands/ingest-ai-result.h
 export { RequestReportHandler } from './application/commands/request-report.handler';
 export { RetryJobHandler } from './application/commands/retry-job.handler';
 export { RunAnalysisHandler } from './application/commands/run-analysis.handler';
-export { SaveConfigHandler } from './application/commands/save-config.handler';
 
 // ── Policy loaders (dùng cho `@PolicyResource` — tầng động chống IDOR) ────
 export { AnalysisJobPolicyLoader } from './application/policy-loaders/analysis-job-policy.loader';

@@ -14,11 +14,10 @@ import {
   inferColumnRoles,
   isRoleAllowedForType,
 } from '../src/modules/analysis/domain/column-role.util';
-import { sanitizeColumnRoles } from '../src/modules/analysis/infrastructure/persistence/analysis.mapper';
 import { skewnessOf } from '../src/modules/analysis/domain/stats.util';
 import { detectOutliers } from '../src/modules/analysis/domain/dq.util';
 
-describe('GĐ7.1 — inferColumnRoles: ghi đè vai trò của người dùng', () => {
+describe('GĐ7.1 — inferColumnRoles: vai trò do hệ thống suy (OPEN-06 — không còn ghi đè thủ công)', () => {
   const cols = [
     { key: 'c0', name: 'ma_so', dataType: 'number' },
     { key: 'c1', name: 'ten_san_pham', dataType: 'string' },
@@ -26,7 +25,7 @@ describe('GĐ7.1 — inferColumnRoles: ghi đè vai trò của người dùng', 
   ];
 
   it('không có ghi đè → vai trò do hệ thống suy, source = "system"', () => {
-    const roles = inferColumnRoles(cols, [], null);
+    const roles = inferColumnRoles(cols, []);
     expect(roles).toHaveLength(3);
     for (const r of roles) {
       expect(r.source).toBe('system');
@@ -34,37 +33,28 @@ describe('GĐ7.1 — inferColumnRoles: ghi đè vai trò của người dùng', 
     }
   });
 
-  it('có ghi đè → source = "user", reason = "user_override"', () => {
-    const roles = inferColumnRoles(cols, [], { c0: 'identifier' });
-    const c0 = roles.find((r) => r.key === 'c0');
-    expect(c0?.role).toBe('identifier');
-    expect(c0?.source).toBe('user');
-    expect(c0?.reason).toBe('user_override');
-    expect(c0?.uncertain).toBe(false);
-  });
-
-  it('ghi đè CHỈ áp cho cột tương ứng, cột khác giữ vai trò hệ thống', () => {
-    const roles = inferColumnRoles(cols, [], { c2: 'category' });
-    expect(roles.find((r) => r.key === 'c2')?.role).toBe('category');
-    expect(roles.find((r) => r.key === 'c0')?.source).toBe('system');
-    expect(roles.find((r) => r.key === 'c1')?.source).toBe('system');
-  });
-
-  it('ghi đè sai kiểu vai trò (không nằm trong enum) → bỏ qua, không ném lỗi', () => {
-    const roles = inferColumnRoles(cols, [], { c0: 'not_a_role' } as Record<string, string>);
-    // Không hợp lệ → hệ thống suy bình thường.
-    expect(roles.find((r) => r.key === 'c0')?.source).toBe('system');
-  });
-
-  it('ghi đè với key không tồn tại → không ảnh hưởng cột nào', () => {
-    const roles = inferColumnRoles(cols, [], { c999: 'measure' });
-    expect(roles).toHaveLength(3);
-    for (const r of roles) expect(r.source).toBe('system');
-  });
-
-  it('ghi đè identifier → cột đó không được coi là định lượng', () => {
-    const roles = inferColumnRoles(cols, [], { c0: 'identifier' });
+  it('cột tên gợi ý định danh + dữ liệu duy nhất → identifier', () => {
+    const cols = [
+      { key: 'c0', name: 'review_id', dataType: 'string' },
+      { key: 'c1', name: 'so_luong', dataType: 'number' },
+    ];
+    const rows = [
+      { review_id: 'r1', so_luong: 5 },
+      { review_id: 'r2', so_luong: 6 },
+    ];
+    const roles = inferColumnRoles(cols, rows);
     expect(roles.find((r) => r.key === 'c0')?.role).toBe('identifier');
+    expect(roles.find((r) => r.key === 'c1')?.role).toBe('measure');
+  });
+
+  it('cột số nguyên lặp lại ít → category (uncertain)', () => {
+    const rows = Array.from({ length: 10 }, () => ({
+      ma_so: 1,
+      ten_san_pham: 'A',
+      so_luong: 3,
+    }));
+    const roles = inferColumnRoles(cols, rows);
+    expect(roles.find((r) => r.key === 'c2')?.role).toBe('category');
   });
 });
 
@@ -97,42 +87,6 @@ describe('GĐ7.2 — isRoleAllowedForType: vai trò phải khớp kiểu dữ li
       'measure',
       'text',
     ]);
-  });
-});
-
-describe('GĐ7.3 — sanitizeColumnRoles: chuẩn hoá map đọc từ Mongo', () => {
-  it('map hợp lệ → giữ nguyên', () => {
-    expect(sanitizeColumnRoles({ c0: 'identifier', c1: 'measure' })).toEqual({
-      c0: 'identifier',
-      c1: 'measure',
-    });
-  });
-
-  it('map rỗng / null / undefined → null', () => {
-    expect(sanitizeColumnRoles({})).toBeNull();
-    expect(sanitizeColumnRoles(null)).toBeNull();
-    expect(sanitizeColumnRoles(undefined)).toBeNull();
-  });
-
-  it('key không phải dạng c{i} → bỏ qua', () => {
-    expect(sanitizeColumnRoles({ ten_san_pham: 'identifier' })).toBeNull();
-    expect(sanitizeColumnRoles({ c0: 'identifier', x1: 'measure' })).toEqual({
-      c0: 'identifier',
-    });
-  });
-
-  it('giá trị không thuộc enum → bỏ qua entry đó', () => {
-    expect(sanitizeColumnRoles({ c0: 'bogus', c1: 'measure' })).toEqual({ c1: 'measure' });
-  });
-
-  it('giá trị không phải chuỗi → bỏ qua', () => {
-    expect(sanitizeColumnRoles({ c0: 123 })).toBeNull();
-  });
-
-  it('mảng / giá trị nguyên thuỷ → null (không phải object map)', () => {
-    expect(sanitizeColumnRoles(['c0'])).toBeNull();
-    expect(sanitizeColumnRoles('c0')).toBeNull();
-    expect(sanitizeColumnRoles(42)).toBeNull();
   });
 });
 

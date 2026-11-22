@@ -185,47 +185,90 @@ export class RunAnalysisHandler {
       resolveAnalysisMaxRows(this.configService.get('ANALYSIS_MAX_ROWS')),
     );
 
-    const stored = await this.analysisRepository.findConfigByProject(projectId).catch(() => null);
-    const cfgSelected = stored?.selectedColumns ?? null;
-    const cfgLabel = stored?.labelColumn ?? null;
-    const cfgTime = stored?.timeColumn ?? null;
-    const cfgGranularity = stored?.timeGranularity ?? 'day';
-    const cfgValue = stored?.valueColumn ?? null;
-    // GĐ7 — ghi đè vai trò cột do người dùng chỉ định (map key cột → vai trò).
-    const cfgColumnRoles = stored?.columnRoles ?? null;
     const allInferable = dataset.columns.filter((c) => classifyColumn(c.dataType) !== 'excluded');
-    const byKey = new Map(dataset.columns.map((c) => [c.key, c.name] as const));
-    const known = new Set(dataset.columns.map((c) => c.name));
-    const knownOriginal = new Map(dataset.columns.map((c) => [c.originalName, c.name] as const));
-    let selectedKeys: string[];
-    const requestedCols =
-      dto.selected_columns && dto.selected_columns.length > 0 ? dto.selected_columns : cfgSelected;
-    if (requestedCols && requestedCols.length > 0) {
-      selectedKeys = (requestedCols as string[])
-        .map((k) => (known.has(k) ? k : (byKey.get(k) ?? knownOriginal.get(k) ?? k)))
-        .filter((k) => known.has(k));
-      if (selectedKeys.length === 0) {
-        throw new ValidationError('selected_columns không khớp cột nào của dataset');
-      }
-    } else {
-      selectedKeys = allInferable.map((c) => c.name);
-    }
+
+    // OPEN-06 — cấu hình cột **tự suy luận**, không còn đọc từ DB.
+    // Chọn toàn bộ cột suy luận được (loại cột kiểu không hỗ trợ tương quan).
+    const selectedKeys = allInferable.map((c) => c.name);
     if (selectedKeys.length === 0) {
       throw new ValidationError('Không có cột suy luận được để phân tích (toàn bộ là date/không hỗ trợ)',);
     }
 
     const colTypeByName = new Map(dataset.columns.map((c) => [c.name, c.dataType] as const));
-    const labelColumn = cfgLabel && known.has(cfgLabel) ? cfgLabel : null;
-    const labelDataType = labelColumn ? (colTypeByName.get(labelColumn) ?? null) : null;
-    let timeColumn: string | null = null;
-    if (cfgTime && known.has(cfgTime) && colTypeByName.get(cfgTime) === 'date')
-      timeColumn = cfgTime;
-    else {
-      const dateCols = dataset.columns.filter((c) => c.dataType === 'date').map((c) => c.name);
-      if (dateCols.length === 1) timeColumn = dateCols[0] as string;
+
+    // GĐ0b — Dọn bản sao trung gian để giảm peak-RAM.
+    //
+    // Trước đây chuỗi biến đổi tạo **3 bản sao** dữ liệu cho mỗi dòng:
+    //   recordRows → records (mảng mới) → rows (object `named` mới)
+    //                                    → rowWrappers (object `named` mới LẦN NỮA)
+    // Với 100k dòng × N cột, phần `named` bị nhân đôi là nguồn peak-RAM lớn nhất.
+    //
+    // Nay: tạo `values` (object đã đổi tên key) **đúng một lần** rồi chia sẻ
+    // giữa `rows` và `rowWrappers` — hai mảng này chỉ chứa *tham chiếu*.
+    const recordRows = await this.records.listAllRecords(dataset.id);
+    const keyToName = new Map((dataset?.columns ?? []).map((c) => [c.key, c.name] as const));
+
+    /** Bọc dòng chuẩn hoá — `values` là object đã đổi tên key (dùng chung). */
+    const rowWrappers: { rowIndex: number; values: Record<string, unknown> }[] = [];
+    for (let i = 0; i < recordRows.length; i++) {
+      const r = recordRows[i] as unknown as {
+        row_index?: number;
+        rowIndex?: number;
+        props?: Record<string, unknown>;
+        data?: Record<string, unknown>;
+      };
+      const props = (r.props ?? r.data ?? {}) as Record<string, unknown>;
+      const named: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
+      rowWrappers.push({
+        rowIndex: typeof r.row_index === 'number' ? r.row_index : (r.rowIndex ?? i),
+        values: named,
+      });
     }
+    /** Mảng dữ liệu phẳng — chỉ chứa tham chiếu tới `values`, không sao chép. */
+    const rows: Record<string, unknown>[] = rowWrappers.map((w) => w.values);
+
+    // GĐ9 — Suy vai trò cột (đã port từ `Vqd_BE`: `column-role.util.ts`).
+    //
+    // Vì sao cần: trước đây mọi cột kiểu `string` đều được coi là `categorical`
+    // và đưa vào tương quan. Với dataset thực tế (100k dòng, cột `review_id`
+    // có ~99.000 giá trị khác nhau), Cramér V dựng ma trận `r × c` ≈ 9,8 tỷ ô
+    // → V8 OOM (heap 4 GB) → sập server.
+    //
+    // Cột `identifier` / `text` / `datetime` **không có ý nghĩa thống kê** khi
+    // tính tương quan, nên loại kèm lý do (đúng như `Vqd_BE` đang làm).
+    //
+    // OPEN-06: **không còn ghi đè vai trò thủ công** → `overrides = null`.
+    const columnRoles = inferColumnRoles(
+      dataset.columns.map((c) => ({ key: c.key, name: c.name, dataType: c.dataType })),
+      rows,
+    );
+    const roleByName = new Map<string, AnalysisRole>(
+      columnRoles.map((r) => [r.name, r.role] as const),
+    );
+
+    // ── Tự suy luận cột thời gian ─────────────────────────────────────────
+    // Cột date duy nhất → chọn; nhiều hơn một → không tự chọn (tránh đoán bừa).
+    const dateCols = dataset.columns.filter((c) => c.dataType === 'date').map((c) => c.name);
+    const timeColumn = dateCols.length === 1 ? (dateCols[0] as string) : null;
+
+    // ── Tự suy luận cột nhãn (phân loại) ─────────────────────────────────
+    // Cột vai trò `category`, không phải cột thời gian. Chỉ chọn khi **đúng
+    // một** cột phù hợp — nhiều hơn thì không đoán (để phân tích mất cân
+    // bằng, vốn đã được báo ở `imbalance`).
+    const labelCandidates = selectedKeys.filter(
+      (name) => roleByName.get(name) === 'category' && name !== timeColumn,
+    );
+    const labelColumn = labelCandidates.length === 1 ? (labelCandidates[0] as string) : null;
+    const labelDataType = labelColumn ? (colTypeByName.get(labelColumn) ?? null) : null;
+
+    // ── Tự suy luận cột đo ────────────────────────────────────────────────
+    // Cột vai trò `measure` (định lượng). Chỉ chọn khi **đúng một** cột.
+    const measureCandidates = selectedKeys.filter((name) => roleByName.get(name) === 'measure');
     const valueColumn =
-      cfgValue && known.has(cfgValue) && colTypeByName.get(cfgValue) === 'number' ? cfgValue : null;
+      measureCandidates.length === 1 ? (measureCandidates[0] as string) : null;
+
+    const cfgGranularity = 'day' as const;
     const config = {
       selected_column_keys: selectedKeys,
       correlation_method: dto.correlation_method,
@@ -236,9 +279,6 @@ export class RunAnalysisHandler {
       time_column: timeColumn,
       time_granularity: cfgGranularity,
       value_column: valueColumn,
-      // GĐ7 — lưu ghi đè vai trò cột vào `analysis_run.config` để truy vết
-      // được "kết quả này được tính với vai trò nào" (audit + tái lập).
-      column_roles: cfgColumnRoles,
     };
     // AN-33 — fingerprint phải đổi khi **cờ PII** hoặc **vai trò cột** của
     // người dùng đổi (nếu không, kết quả cũ vẫn "hiện hành" dù che PII đã
@@ -269,10 +309,6 @@ export class RunAnalysisHandler {
         outlierMethod: dto.outlier_method,
         topN: dto.top_n,
         timeGranularity: cfgGranularity,
-        // GĐ7 — ghi đè vai trò cột của người dùng là **một phần của đầu vào**
-        // → phải nằm trong hash. Đổi ghi đè (VD chuyển cột `ma_so` từ `measure`
-        // sang `identifier`) làm kết quả cũ không còn đúng → phải stale.
-        columnRoles: cfgColumnRoles,
       },
     );
 
@@ -289,57 +325,7 @@ export class RunAnalysisHandler {
     });
 
     try {
-      // GĐ0b — Dọn bản sao trung gian để giảm peak-RAM.
-      //
-      // Trước đây chuỗi biến đổi tạo **3 bản sao** dữ liệu cho mỗi dòng:
-      //   recordRows → records (mảng mới) → rows (object `named` mới)
-      //                                    → rowWrappers (object `named` mới LẦN NỮA)
-      // Với 100k dòng × N cột, phần `named` bị nhân đôi là nguồn peak-RAM lớn nhất.
-      //
-      // Nay: tạo `values` (object đã đổi tên key) **đúng một lần** rồi chia sẻ
-      // giữa `rows` và `rowWrappers` — hai mảng này chỉ chứa *tham chiếu*.
-      const recordRows = await this.records.listAllRecords(dataset.id);
-      const keyToName = new Map((dataset?.columns ?? []).map((c) => [c.key, c.name] as const));
-
-      /** Bọc dòng chuẩn hoá — `values` là object đã đổi tên key (dùng chung). */
-      const rowWrappers: { rowIndex: number; values: Record<string, unknown> }[] = [];
-      for (let i = 0; i < recordRows.length; i++) {
-        const r = recordRows[i] as unknown as {
-          row_index?: number;
-          rowIndex?: number;
-          props?: Record<string, unknown>;
-          data?: Record<string, unknown>;
-        };
-        const props = (r.props ?? r.data ?? {}) as Record<string, unknown>;
-        const named: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(props)) named[keyToName.get(k) ?? k] = v;
-        rowWrappers.push({
-          rowIndex: typeof r.row_index === 'number' ? r.row_index : (r.rowIndex ?? i),
-          values: named,
-        });
-      }
-      /** Mảng dữ liệu phẳng — chỉ chứa tham chiếu tới `values`, không sao chép. */
-      const rows: Record<string, unknown>[] = rowWrappers.map((w) => w.values);
-
-      // GĐ9 — Lọc cột theo **vai trò** (đã port từ `Vqd_BE`: `column-role.util.ts`).
-      //
-      // Vì sao cần: trước đây mọi cột kiểu `string` đều được coi là `categorical`
-      // và đưa vào tương quan. Với dataset thực tế (100k dòng, cột `review_id`
-      // có ~99.000 giá trị khác nhau), Cramér V dựng ma trận `r × c` ≈ 9,8 tỷ ô
-      // → V8 OOM (heap 4 GB) → sập server.
-      //
-      // Cột `identifier` / `text` / `datetime` **không có ý nghĩa thống kê** khi
-      // tính tương quan, nên loại kèm lý do (đúng như `Vqd_BE` đang làm).
-      const columnRoles = inferColumnRoles(
-        dataset.columns.map((c) => ({ key: c.key, name: c.name, dataType: c.dataType })),
-        rows,
-        // GĐ7 — áp ghi đè vai trò của người dùng (nếu có).
-        cfgColumnRoles,
-      );
-      const roleByName = new Map<string, AnalysisRole>(
-        columnRoles.map((r) => [r.name, r.role] as const),
-      );
-
+      // GĐ9 — Lọc cột theo **vai trò** đã suy ở trên (`columnRoles`, `roleByName`).
       const analyzable: AnalyzableColumn[] = selectedKeys.map((key) => {
         const col = dataset.columns.find((c) => c.name === key);
         const typeRole = classifyColumn(col?.dataType ?? 'string');

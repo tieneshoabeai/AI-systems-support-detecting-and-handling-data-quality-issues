@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RunAnalysisSchema, RunAnalysisDto } from '../dtos/run-analysis.dto';
-import { AnalysisConfigSchema } from '../dtos/analysis-config.dto';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../../../shared/interfaces/casl/policies.guard';
 import { CheckPolicies } from '../../../../shared/interfaces/casl/check-policies.decorator';
@@ -24,13 +23,11 @@ import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-valid
 import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { ProjectScopePolicyLoader } from '../../../projects';
 import { AnalysisJobPolicyLoader } from '../../application/policy-loaders/analysis-job-policy.loader';
-import { GetConfigHandler } from '../../application/queries/get-config.handler';
 import { GetJobHandler } from '../../application/queries/get-job.handler';
 import { GetResultHandler } from '../../application/queries/get-result.handler';
 import { IngestAiResultHandler } from '../../application/commands/ingest-ai-result.handler';
 import { RetryJobHandler } from '../../application/commands/retry-job.handler';
 import { RunAnalysisHandler } from '../../application/commands/run-analysis.handler';
-import { SaveConfigHandler } from '../../application/commands/save-config.handler';
 
 @ApiTags('Analysis')
 @ApiBearerAuth()
@@ -41,41 +38,9 @@ export class AnalysisController {
     private readonly ingestAiResultHandler: IngestAiResultHandler,
     private readonly retryJobHandler: RetryJobHandler,
     private readonly runAnalysisHandler: RunAnalysisHandler,
-    private readonly saveConfigHandler: SaveConfigHandler,
-    private readonly getConfigHandler: GetConfigHandler,
     private readonly getJobHandler: GetJobHandler,
     private readonly getResultHandler: GetResultHandler,
   ) {}
-
-  @Post('projects/:projectId/analysis/config')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'ANALYSIS-01: Lưu cấu hình cột phân tích (selected/label/time/value + phương pháp)',
-    operationId: 'saveAnalysisConfig',
-  })
-  @ApiZodBody(AnalysisConfigSchema)
-  // UC-19 (cấu hình cột phân tích): PROJ-MEMBER trở lên.
-  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
-  @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  async saveConfig(
-    @Param('projectId') projectId: string,
-    @Body(new ZodValidationPipe(AnalysisConfigSchema)) dto: unknown,
-  ): Promise<Record<string, unknown>> {
-    return this.saveConfigHandler.execute(projectId, dto as never);
-  }
-
-  @Get('projects/:projectId/analysis/config')
-  @ApiOperation({
-    summary: 'ANALYSIS-01: Xem cấu hình cột phân tích',
-    operationId: 'getAnalysisConfig',
-  })
-  @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
-  @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  async getConfig(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
-    return this.getConfigHandler.execute(projectId);
-  }
 
   @Post('projects/:projectId/analysis')
   @ApiOperation({

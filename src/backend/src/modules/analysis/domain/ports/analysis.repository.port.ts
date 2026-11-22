@@ -104,37 +104,6 @@ export interface AiJobRecord {
   updatedAt: Date;
 }
 
-export interface AnalysisConfigRecord {
-  projectId: string;
-  workspaceId: string;
-  selectedColumns: string[] | null;
-  labelColumn: string | null;
-  timeColumn: string | null;
-  timeGranularity: string;
-  valueColumn: string | null;
-  correlationMethod?: string;
-  outlierMethod?: string;
-  topN?: number;
-  /**
-   * GĐ7 — ghi đè vai trò cột: `{ [columnKey]: AnalysisRole }`.
-   *
-   * Key là **key cột ổn định** (`c0`, `c1`, …), không phải tên hiển thị → việc
-   * đổi tên cột không làm mất ghi đè.
-   */
-  columnRoles?: Record<string, string> | null;
-  // snake aliases cu
-  selected_columns?: string[] | null;
-  label_column?: string | null;
-  time_column?: string | null;
-  time_granularity?: string;
-  value_column?: string | null;
-  correlation_method?: string;
-  outlier_method?: string;
-  top_n?: number;
-  /** snake alias của {@link AnalysisConfigRecord.columnRoles}. */
-  column_roles?: Record<string, string> | null;
-}
-
 export interface ProjectSaveRecord {
   id: string;
   projectId: string;
@@ -207,8 +176,6 @@ export interface AnalysisRepositoryPort {
   insertEvidences(docs: Partial<CellEvidenceRecord>[]): Promise<number>;
   countEvidencesByRun(runId: string): Promise<number>;
   findEvidencesByRun(runId: string, limit?: number): Promise<CellEvidenceRecord[]>;
-  upsertConfig(projectId: string, workspaceId: string, doc: Record<string, unknown>): Promise<AnalysisConfigRecord>;
-  findConfigByProject(projectId: string): Promise<AnalysisConfigRecord | null>;
   createSave(doc: Partial<ProjectSaveRecord> & Record<string, unknown> & { projectId: string }): Promise<ProjectSaveRecord>;
   findLatestSaveByProject(projectId: string): Promise<ProjectSaveRecord | null>;
   /** Tìm đúng bản Tổng kết theo id (worker PDF phải dùng bản đã yêu cầu). */

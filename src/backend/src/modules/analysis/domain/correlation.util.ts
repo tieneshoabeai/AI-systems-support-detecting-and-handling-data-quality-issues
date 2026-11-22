@@ -99,8 +99,9 @@ function rank(values: number[]): number[] {
 
 function pearson(xs: number[], ys: number[]): number | null {
   if (xs.length < 3 || ys.length < 3 || xs.length !== ys.length) return null;
-  const sx = ss.standardDeviation(xs);
-  const sy = ss.standardDeviation(ys);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(xs);
+  const sy = ss.sampleStandardDeviation(ys);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(xs, ys);
   return Number.isFinite(c) ? c : null;
@@ -110,8 +111,9 @@ function spearman(xs: number[], ys: number[]): number | null {
   if (xs.length < 3 || xs.length !== ys.length) return null;
   const rx = rank(xs);
   const ry = rank(ys);
-  const sx = ss.standardDeviation(rx);
-  const sy = ss.standardDeviation(ry);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(rx);
+  const sy = ss.sampleStandardDeviation(ry);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(rx, ry);
   return Number.isFinite(c) ? c : null;
