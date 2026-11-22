@@ -25,6 +25,19 @@ export interface IColumnIssue {
   message: string;
 }
 
+/**
+ * Mục "Phát hiện" (OPEN-03/04/05) — vấn đề dữ liệu kèm vị trí lỗi cụ thể.
+ */
+export interface IFinding {
+  type: string;
+  severity: string;
+  column_key: string | null;
+  column_name: string | null;
+  row_index: number | null;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 export interface IDataset extends Document, BaseEntity {
   _id: Types.ObjectId;
   project_id: Types.ObjectId;
@@ -40,8 +53,10 @@ export interface IDataset extends Document, BaseEntity {
   column_count: number;
   columns: IColumnDefinition[];
   column_issues: IColumnIssue[];
+  /** Mục "Phát hiện" (OPEN-03/04/05). */
+  findings: IFinding[];
   has_header: boolean;
-  delimiter: ',' | ';' | '\t' | '|';
+  delimiter: ',';
   current_version: number;
   status: 'INGESTING' | 'READY' | 'FAILED';
   deleted_at: Date | null;
@@ -80,6 +95,19 @@ export const ColumnIssueSchema = new Schema<IColumnIssue>(
   { _id: false }
 );
 
+export const FindingSchema = new Schema<IFinding>(
+  {
+    type: { type: String, required: true },
+    severity: { type: String, required: true },
+    column_key: { type: String, default: null },
+    column_name: { type: String, default: null },
+    row_index: { type: Number, default: null },
+    message: { type: String, required: true },
+    details: { type: Schema.Types.Mixed, default: undefined },
+  },
+  { _id: false }
+);
+
 export const DatasetSchema = new Schema<IDataset>(
   {
     project_id: { type: Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
@@ -94,8 +122,9 @@ export const DatasetSchema = new Schema<IDataset>(
     column_count: { type: Number, required: true, default: 0 },
     columns: { type: [ColumnDefinitionSchema], default: [] },
     column_issues: { type: [ColumnIssueSchema], default: [] },
+    findings: { type: [FindingSchema], default: [] },
     has_header: { type: Boolean, default: true },
-    delimiter: { type: String, enum: [',', ';', '\t', '|'], default: ',' },
+    delimiter: { type: String, enum: [','], default: ',' },
     current_version: { type: Number, required: true, default: 1 },
     status: {
       type: String,

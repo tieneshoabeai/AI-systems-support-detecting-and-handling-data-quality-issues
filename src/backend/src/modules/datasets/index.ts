@@ -17,9 +17,17 @@ export {
   type DatasetColumnIssue,
   type DatasetColumnIssueType,
   type DatasetDelimiter,
+  type DatasetFinding,
   type DatasetProps,
   type DatasetStatus,
 } from './domain/entities/dataset.entity';
+
+// ── Mục "Phát hiện" (OPEN-03/04/05) ─────────────────────────────────────
+export {
+  makeFinding,
+  type DatasetFindingSeverity,
+  type DatasetFindingType,
+} from './domain/services/finding.util';
 
 export {
   DATASET_REPOSITORY_PORT,
@@ -74,7 +82,3 @@ export { GetDatasetSchemaHandler } from './application/queries/get-dataset-schem
 export { DeleteDatasetHandler } from './application/commands/delete-dataset.handler';
 export { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
 export { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
-export { ResetColumnNamesHandler } from './application/commands/reset-column-names.handler';
-export { UpdateColumnNamesHandler } from './application/commands/update-column-names.handler';
-export { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
-export { UpdateDatasetMetadataHandler } from './application/commands/update-dataset-metadata.handler';

@@ -4,6 +4,7 @@ import {
   type DatasetColumn,
   type DatasetColumnIssue,
 } from '../../domain/entities/dataset.entity';
+import { inferPiiFlags } from '../../domain/services/pii-heuristic.util';
 
 export interface InferredSchema {
   columns: DatasetColumn[];
@@ -25,7 +26,7 @@ export class SchemaInferenceService {
   }
 
   inferSchemaWithIssues(headers: string[], sampleRows: Record<string, unknown>[]): InferredSchema {
-    const columns: DatasetColumn[] = headers.map((header, i) => {
+    const rawColumns: DatasetColumn[] = headers.map((header, i) => {
       const values = sampleRows
         .map((row) => row[header])
         .filter((val) => val !== undefined);
@@ -51,6 +52,11 @@ export class SchemaInferenceService {
         isPii: false,
       };
     });
+
+    // OPEN-04: cờ PII **tự động** theo heuristic tên cột (không có route bật/tắt
+    // thủ công — hệ thống chỉ nhận dataset và phân tích).
+    const columns = inferPiiFlags(rawColumns);
+
     return { columns, issues: this.detectColumnIssues(headers) };
   }
 

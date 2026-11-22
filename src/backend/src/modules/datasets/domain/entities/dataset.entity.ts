@@ -37,12 +37,19 @@ import {
   type ColumnDataType,
 } from '../value-objects/column-type.vo';
 import { DATASET_EVENTS } from '../events/dataset-events';
+import type { DatasetFinding } from '../services/finding.util';
 
 /** Trạng thái vòng đời dataset. */
 export type DatasetStatus = 'INGESTING' | 'READY' | 'FAILED';
 
-/** Dấu phân cách cột được hỗ trợ. */
-export type DatasetDelimiter = ',' | ';' | '\t' | '|';
+/**
+ * Dấu phân cách cột được hỗ trợ.
+ *
+ * OPEN-05 (chốt 2026-11-19): **chỉ** phẩy cách. Hỗ trợ `;`/tab/`|` sẽ bắt buộc
+ * phải **đoán** dấu phân cách (sniff) → mâu thuẫn với nguyên tắc "không tự
+ * chuẩn hoá dữ liệu theo suy đoán".
+ */
+export type DatasetDelimiter = ',';
 
 /** Loại lỗi tên cột phát hiện lúc suy luận schema. */
 export type DatasetColumnIssueType = 'empty_name' | 'duplicate_name' | 'whitespace_only';
@@ -111,6 +118,14 @@ export interface DatasetColumnIssue {
   message: string;
 }
 
+/**
+ * Phát hiện (finding) — mục **"Phát hiện"** trong metadata dataset.
+ *
+ * OPEN-03/04/05: vì dataset **bất biến** sau khi nạp, mọi vấn đề trong dữ liệu
+ * đều được **báo cáo kèm vị trí lỗi cụ thể** thay vì cho phép sửa trực tiếp.
+ */
+export type { DatasetFinding } from '../services/finding.util';
+
 /** Props đầy đủ của aggregate dataset. */
 export interface DatasetProps extends BaseEntityProps {
   projectId: string;
@@ -125,6 +140,8 @@ export interface DatasetProps extends BaseEntityProps {
   columnCount: number;
   columns: DatasetColumn[];
   columnIssues: DatasetColumnIssue[];
+  /** Mục "Phát hiện" — vấn đề dữ liệu kèm vị trí lỗi cụ thể (OPEN-03/04/05). */
+  findings?: DatasetFinding[];
   hasHeader: boolean;
   delimiter: DatasetDelimiter;
   currentVersion: number;
@@ -196,6 +213,16 @@ export class Dataset extends BaseEntity<DatasetProps> {
     return this.props.columnIssues;
   }
 
+  /**
+   * Mục "Phát hiện" — vấn đề dữ liệu kèm **vị trí lỗi cụ thể**.
+   *
+   * Dataset **bất biến** sau khi nạp (OPEN-03) ⇒ không sửa được ⇒ mọi vấn đề
+   * đều phải được báo cáo ở đây để người dùng tự sửa file rồi nạp lại.
+   */
+  get findings(): ReadonlyArray<DatasetFinding> {
+    return this.props.findings ?? [];
+  }
+
   get hasHeader(): boolean {
     return this.props.hasHeader;
   }
@@ -249,6 +276,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
       columnCount: 0,
       columns: [],
       columnIssues: [],
+      findings: [],
       hasHeader: props.hasHeader ?? true,
       delimiter: props.delimiter ?? ',',
       currentVersion: 1,
@@ -268,6 +296,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
       ...props,
       columns: props.columns.map((c) => ({ ...c })),
       columnIssues: props.columnIssues.map((i) => ({ ...i })),
+      findings: (props.findings ?? []).map((f) => ({ ...f })),
     });
   }
 
@@ -340,6 +369,8 @@ export class Dataset extends BaseEntity<DatasetProps> {
     rowCount: number;
     columns: DatasetColumn[];
     columnIssues: DatasetColumnIssue[];
+    /** Mục "Phát hiện" (OPEN-03/04/05) — mặc định rỗng. */
+    findings?: DatasetFinding[];
   }): void {
     if (this.props.status !== 'INGESTING') {
       throw new ConflictError(
@@ -367,7 +398,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
     this.props.columns = params.columns.map((c) => ({ ...c }));
     this.props.columnCount = params.columns.length;
     this.props.columnIssues = params.columnIssues.map((i) => ({ ...i }));
-    this.props.status = 'READY';
+    this.props.findings = (params.findings ?? []).map((f) => ({ ...f }));    this.props.status = 'READY';
     this.props.updatedAt = new Date();
     this.addDomainEvent({
       eventType: DATASET_EVENTS.INGESTED,
@@ -451,124 +482,6 @@ export class Dataset extends BaseEntity<DatasetProps> {
     });
   }
 
-  /**
-   * Đổi tên hiển thị của dataset — **metadata**, không phải nội dung dữ liệu.
-   *
-   * `PATCH /datasets/{id}` (contract §3.13 #46 `VIEW-08`).
-   *
-   * Invariant:
-   *   - Tên rỗng / chỉ khoảng trắng → `ValidationError`.
-   *   - Tên vượt 100 ký tự → `ValidationError`.
-   *
-   * Không đụng tới `props` của bản ghi, không đụng số dòng/số cột → **không**
-   * vi phạm nguyên tắc bất biến dữ liệu (mục 3.40).
-   */
-  rename(newName: string): void {
-    const trimmed = newName.trim();
-    if (trimmed.length === 0) {
-      throw new ValidationError('Ten tap du lieu khong duoc rong');
-    }
-    if (trimmed.length > MAX_DATASET_NAME_LENGTH) {
-      throw new ValidationError(
-        `Ten tap du lieu toi da ${MAX_DATASET_NAME_LENGTH} ky tu (nhan duoc ${trimmed.length})`,
-      );
-    }
-    this.props.name = trimmed;
-    this.props.updatedAt = new Date();
-  }
-
-  /**
-   * Đổi tên hiển thị của một hoặc nhiều cột — **metadata**, không phải nội
-   * dữ liệu (key `c{i}` và giá trị ô giữ nguyên).
-   *
-   * `PATCH /datasets/{id}/columns` (contract §3.13 #47 `VIEW-08`).
-   *
-   * Invariant (UC-10 — "Nhập hoặc chỉnh sửa tên cột rỗng/trùng"):
-   *   - Key cột không tồn tại → `ValidationError`.
-   *   - Tên mới rỗng / chỉ khoảng trắng → `ValidationError`.
-   *   - Tên mới trùng với tên của cột khác trong cùng dataset → `ValidationError`.
-   *   - Sau khi đổi → **tính lại** `columnIssues` (mục 3.6.2 rule 2 của schema).
-   *
-   * Lưu ý: tên **không** được trim/sanitize tự động (UC-10 bước 1) — so sánh
-   * trùng lặp phân biệt hoa/thường và khoảng trắng, giống hệt
-   * `SchemaInferenceService.detectColumnIssues()`.
-   */
-  renameColumns(updates: Array<{ columnKey: string; newName: string }>): void {
-    if (updates.length === 0) {
-      throw new ValidationError('Khong co cot nao duoc cap nhat');
-    }
-    for (const u of updates) {
-      if (!this.columnByKey(u.columnKey)) {
-        throw new ValidationError(`Cot khong ton tai: ${u.columnKey}`, {
-          reason: 'unknown_column_key',
-          key: u.columnKey,
-        });
-      }
-      if (u.newName.trim().length === 0) {
-        throw new ValidationError(`Ten cot moi khong duoc rong: ${u.columnKey}`, {
-          reason: 'empty_new_name',
-          key: u.columnKey,
-        });
-      }
-      if (u.newName.length > MAX_COLUMN_NAME_LENGTH) {
-        throw new ValidationError(
-          `Ten cot toi da ${MAX_COLUMN_NAME_LENGTH} ky tu (nhan duoc ${u.newName.length})`,
-          { reason: 'name_too_long', key: u.columnKey },
-        );
-      }
-    }
-    // Kiểm tra trùng lặp trên **tập tên sau khi đổi** (UC-10 bước 1).
-    const finalNames = this.props.columns.map((c) => {
-      const upd = updates.find((u) => u.columnKey === c.key);
-      return upd ? upd.newName : c.name;
-    });
-    for (let i = 0; i < finalNames.length; i++) {
-      const name = finalNames[i] as string;
-      for (let j = i + 1; j < finalNames.length; j++) {
-        if (name === finalNames[j]) {
-          throw new ValidationError(
-            `Ten cot bi trung: "${name}" (cot c${i} va cot c${j})`,
-            { reason: 'duplicate_name', columns: [this.props.columns[i]?.key, this.props.columns[j]?.key] },
-          );
-        }
-      }
-    }
-    for (const u of updates) {
-      const col = this.columnByKey(u.columnKey);
-      if (col) col.name = u.newName;
-    }
-    this.props.columnIssues = detectColumnIssues(this.props.columns);
-    this.props.updatedAt = new Date();
-  }
-
-  /**
-   * Khôi phục tên hiển thị của cột về **tên gốc** trong file CSV.
-   *
-   * `POST /datasets/{id}/columns/reset` (contract §3.13 #48 `VIEW-07`).
-   *
-   * Đây là hành vi duy nhất còn lại của "Reset Dataset" sau khi thu hẹp
-   * (mục 3.12 / 3.40.5): **khôi phục tên cột**, không khôi phục dữ liệu.
-   *
-   * Invariant:
-   *   - Không có cột nào khác tên gốc → `ValidationError` (yêu cầu thừa).
-   *
-   * Không làm mất hiệu lực kết quả phân tích: `input_fingerprint` không chứa
-   * tên cột (mục 3.28).
-   */
-  resetColumnNames(): void {
-    const changed = this.props.columns.filter((c) => c.name !== c.originalName);
-    if (changed.length === 0) {
-      throw new ValidationError('Khong co cot nao can khoi phuc ten goc', {
-        reason: 'no_column_changed',
-      });
-    }
-    for (const col of this.props.columns) {
-      col.name = col.originalName;
-    }
-    this.props.columnIssues = detectColumnIssues(this.props.columns);
-    this.props.updatedAt = new Date();
-  }
-
   /** Bản chụp props — dùng cho mapper chuyển entity → persistence. */
   toProps(): DatasetProps {
     return {
@@ -585,6 +498,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
       columnCount: this.props.columnCount,
       columns: this.props.columns.map((c) => ({ ...c })),
       columnIssues: this.props.columnIssues.map((i) => ({ ...i })),
+      findings: (this.props.findings ?? []).map((f) => ({ ...f })),
       hasHeader: this.props.hasHeader,
       delimiter: this.props.delimiter,
       currentVersion: this.props.currentVersion,

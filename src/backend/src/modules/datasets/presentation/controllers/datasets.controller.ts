@@ -1,4 +1,4 @@
-import { Inject, Controller, Get, Post, Patch, Delete, Param, Body, Req, Res, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Inject, Controller, Get, Post, Delete, Param, Req, Res, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import busboy from 'busboy';
@@ -18,28 +18,10 @@ import { GetDatasetByIdHandler } from '../../application/queries/get-dataset-by-
 import { GetDatasetByProjectIdHandler } from '../../application/queries/get-dataset-by-project-id.handler';
 import { GetDatasetSchemaHandler } from '../../application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler } from '../../application/commands/ingest-dataset-stream.handler';
-import { UpdateColumnPiiHandler } from '../../application/commands/update-column-pii.handler';
-import { UpdateDatasetMetadataHandler } from '../../application/commands/update-dataset-metadata.handler';
-import { UpdateColumnNamesHandler } from '../../application/commands/update-column-names.handler';
-import { ResetColumnNamesHandler } from '../../application/commands/reset-column-names.handler';
 import { DatasetPolicyLoader } from '../../application/policy-loaders/dataset-policy.loader';
 import { ProjectScopePolicyLoader } from '../../../projects';
 import { toDatasetResponse, type DatasetResponse } from '../responses/dataset.response';
 import { ValidationError } from '../../../../shared/domain/errors';
-import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
-import {
-  UpdateColumnPiiSchema,
-  type UpdateColumnPiiDto,
-} from '../dtos/update-column-pii.dto';
-import {
-  UpdateDatasetMetadataSchema,
-  type UpdateDatasetMetadataDto,
-} from '../dtos/update-dataset-metadata.dto';
-import {
-  UpdateColumnNamesSchema,
-  type UpdateColumnNamesDto,
-} from '../dtos/update-column-names.dto';
 
 @ApiTags('Datasets')
 @ApiBearerAuth()
@@ -58,14 +40,6 @@ export class DatasetsController {
     private readonly getDatasetByProjectIdHandler: GetDatasetByProjectIdHandler,
 
     private readonly getDatasetSchemaHandler: GetDatasetSchemaHandler,
-
-    private readonly updateColumnPiiHandler: UpdateColumnPiiHandler,
-
-    private readonly updateDatasetMetadataHandler: UpdateDatasetMetadataHandler,
-
-    private readonly updateColumnNamesHandler: UpdateColumnNamesHandler,
-
-    private readonly resetColumnNamesHandler: ResetColumnNamesHandler,
 
     @Inject(AUDIT_LOGGER_PORT)
     private readonly audit: AuditLoggerPort,
@@ -156,121 +130,21 @@ export class DatasetsController {
   // ─────────────────────────────────────────────────────────────────────────
   // BẤT BIẾN DỮ LIỆU (Data Immutability)
   //
-  // Nguyên tắc: "dữ liệu nạp vào như nào thì giữ nguyên như vậy" — sau khi nạp,
-  // **nội dung** dataset (giá trị ô, số dòng, số cột, kiểu dữ liệu cột, file gốc)
-  // là bản chụp bất biến. Không route nào sửa được chúng.
+  // Nguyên tắc (OPEN-03, chốt 2026-11-19): hệ thống **chỉ nhận dataset và
+  // phân tích** — người dùng KHÔNG được thao tác lên dataset sau khi nạp.
   //
-  // Ba route dưới đây chỉ sửa **metadata** (nhãn), nằm NGOÀI bản chụp dữ liệu:
-  //   - `PATCH /datasets/:id`              → đổi tên dataset
-  //   - `PATCH /datasets/:id/columns`      → đổi tên hiển thị của cột
-  //   - `POST  /datasets/:id/columns/reset` → khôi phục tên cột về tên gốc
+  // Nội dung dataset (giá trị ô, số dòng, số cột, kiểu dữ liệu cột, file gốc,
+  // **tên hiển thị của cột**, **tên dataset**, **cờ PII**) là bản chụp bất biến
+  // ngay sau khi nạp. Không route nào sửa được chúng.
   //
-  // Khoá cột `c{i}` là **bất biến** → đổi tên KHÔNG phải viết lại bản ghi nào
-  // (schema v7 §3.6.3).
+  // Thay vì sửa, hệ thống **phát hiện** vấn đề (tên cột rỗng/trùng, ô nghi ngờ
+  // ngày/số…) và trả về trong mục **Phát hiện** (`findings`) — kèm vị trí lỗi
+  // cụ thể. Người dùng sửa file rồi **xoá dataset và nạp lại**.
   //
-  // VẪN GIỮ: nạp dataset (POST /projects/:projectId/datasets/upload) và
-  // xoá dataset (DELETE /datasets/:id) — xoá là huỷ bỏ toàn bộ dataset để nạp
-  // lại từ đầu, không phải sửa nội dung đã có.
-  //
-  // NGOẠI LỆ (GĐ4): `PATCH /datasets/:id/columns/pii` — cờ PII là *metadata
-  // phân loại cột*, nằm NGOÀI bản chụp dữ liệu nên vẫn cho phép sửa. Xem
-  // route bên dưới.
+  // VẪN GIỮ:
+  //   - `POST /projects/:projectId/datasets/upload` — nạp dataset
+  //   - `DELETE /datasets/:id` — huỷ bỏ toàn bộ dataset để nạp lại từ đầu
   // ─────────────────────────────────────────────────────────────────────────
-
-  @Patch('datasets/:id')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'VIEW-08: Cập nhật thông tin dataset (tên) — metadata, KHÔNG sửa nội dung dữ liệu',
-    description:
-      'Đổi **tên hiển thị** của dataset. Giá trị ô, số dòng, số cột và file gốc ' +
-      'giữ nguyên — đây là metadata nhãn, không phải nội dung dữ liệu.',
-  })
-  @ApiZodBody(UpdateDatasetMetadataSchema, 'Thông tin dataset mới', { name: 'sales_2024' })
-  @PolicyResource('Dataset', DatasetPolicyLoader)
-  @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy dataset' })
-  async updateDatasetMetadata(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateDatasetMetadataSchema)) dto: UpdateDatasetMetadataDto,
-  ): Promise<{ dataset: DatasetResponse }> {
-    const dataset = await this.updateDatasetMetadataHandler.execute(id, dto);
-    return { dataset: toDatasetResponse(dataset) };
-  }
-
-  @Patch('datasets/:id/columns')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'VIEW-08: Đổi tên hiển thị của nhiều cột trong một lần — metadata',
-    description:
-      'Cập nhật `columns[].name` theo key cột ổn định (`c0`, `c1`, …). ' +
-      'Key cột, kiểu dữ liệu, số giá trị thiếu, cờ PII và **mọi bản ghi** giữ nguyên. ' +
-      'Lỗi tên cột (rỗng/trùng) được tính lại sau khi đổi.',
-  })
-  @ApiZodBody(
-    UpdateColumnNamesSchema,
-    'Danh sách cột đổi tên (key cột ổn định `c0`, `c1`, …)',
-    { columns: [{ columnKey: 'c0', name: 'Doanh thu' }] },
-  )
-  @PolicyResource('Dataset', DatasetPolicyLoader)
-  @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  @ApiResponse({ status: 400, description: 'Key cột không tồn tại, tên rỗng hoặc trùng' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy dataset' })
-  async updateColumnNames(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateColumnNamesSchema)) dto: UpdateColumnNamesDto,
-  ): Promise<{ dataset: DatasetResponse }> {
-    const dataset = await this.updateColumnNamesHandler.execute(id, dto);
-    return { dataset: toDatasetResponse(dataset) };
-  }
-
-  @Post('datasets/:id/columns/reset')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'VIEW-07: Khôi phục tên cột về tên gốc trong file CSV — metadata',
-    description:
-      'Reset Dataset sau khi thu hẹp: **chỉ** khôi phục tên hiển thị của cột về ' +
-      'tên gốc trong file CSV. Không khôi phục dữ liệu (không có dữ liệu nào bị xoá/sửa). ' +
-      'Không làm mất hiệu lực kết quả phân tích.',
-  })
-  @PolicyResource('Dataset', DatasetPolicyLoader)
-  @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  @ApiResponse({ status: 400, description: 'Không có cột nào cần khôi phục' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy dataset' })
-  async resetColumnNames(@Param('id') id: string): Promise<{ dataset: DatasetResponse }> {
-    const dataset = await this.resetColumnNamesHandler.execute(id);
-    return { dataset: toDatasetResponse(dataset) };
-  }
-
-  @Patch('datasets/:id/columns/pii')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary:
-      'GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)',
-    description:
-      'Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). ' +
-      'Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. ' +
-      'Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.',
-  })
-  @ApiZodBody(
-    UpdateColumnPiiSchema,
-    'Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …)',
-    { columns: [{ columnKey: 'c0', isPii: true }] },
-  )
-  @PolicyResource('Dataset', DatasetPolicyLoader)
-  @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  @ApiResponse({ status: 400, description: 'Key cột không tồn tại hoặc không có cột nào thay đổi' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy dataset' })
-  async updateColumnPii(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateColumnPiiSchema)) dto: UpdateColumnPiiDto,
-  ): Promise<{ dataset: DatasetResponse }> {
-    const dataset = await this.updateColumnPiiHandler.execute(id, dto);
-    return { dataset: toDatasetResponse(dataset) };
-  }
 
   @Delete('datasets/:id')
   @HttpCode(HttpStatus.NO_CONTENT)

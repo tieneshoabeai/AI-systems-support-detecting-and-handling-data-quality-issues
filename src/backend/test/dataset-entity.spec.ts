@@ -5,6 +5,7 @@
  */
 import {
   Dataset,
+  detectColumnIssues,
   type DatasetColumn,
 } from '../src/modules/datasets/domain/entities/dataset.entity';
 import {
@@ -150,72 +151,33 @@ describe('Dataset entity — assertIngestible()', () => {
 });
 
 /**
- * BẤT BIẾN DỮ LIỆU — sau khi nạp, **nội dung** dataset không được sửa.
+ * BẤT BIẾN DỮ LIỆU — sau khi nạp, **không có** method nào sửa được dataset.
  *
- * GĐ3 (3 endpoint metadata) đã bổ sung lại các method **metadata** trên entity:
- *   - `rename()`          → `PATCH /datasets/{id}` (đổi tên hiển thị dataset)
- *   - `renameColumns()`   → `PATCH /datasets/{id}/columns` (đổi tên hiển thị cột)
- *   - `resetColumnNames()`→ `POST /datasets/{id}/columns/reset` (khôi phục tên gốc)
+ * OPEN-03 (chốt 2026-11-19): hệ thống **chỉ nhận dataset và phân tích**.
+ * Các method `rename()`, `renameColumns()`, `resetColumnNames()` đã bị **xoá**
+ * khỏi entity cùng với các endpoint tương ứng:
+ *   - `PATCH /datasets/{id}`              (đổi tên dataset)
+ *   - `PATCH /datasets/{id}/columns`      (đổi tên hiển thị cột)
+ *   - `POST  /datasets/{id}/columns/reset` (khôi phục tên gốc)
  *
- * Nhưng ranh giới vẫn giữ nguyên:
- *   - key cột `c{i}` **bất biến**;
- *   - `originalName` (tên gốc trong CSV) **không** đổi;
- *   - không có method nào sửa *giá trị ô* / số dòng / số cột.
+ * Muốn sửa ⇒ **xoá dataset và nạp lại** file đã chỉnh sửa.
  */
 describe('Dataset entity — bất biến nội dung dữ liệu', () => {
-  it('rename() chỉ đổi tên hiển thị dataset', () => {
+  it('entity KHÔNG có method đổi tên dataset / tên cột / reset tên cột', () => {
     const dataset = buildDataset();
-    dataset.rename('ten moi');
-    expect(dataset.name).toBe('ten moi');
-    // Nội dung không đổi.
-    expect(dataset.rowCount).toBe(2);
-    expect(dataset.columnCount).toBe(2);
-    expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
-  });
-
-  it('rename() từ chối tên rỗng / quá dài', () => {
-    const dataset = buildDataset();
-    expect(() => dataset.rename('   ')).toThrow(ValidationError);
-    expect(() => dataset.rename('x'.repeat(101))).toThrow(ValidationError);
-    expect(dataset.name).toBe('f');
-  });
-
-  it('renameColumns() đổi tên hiển thị, giữ key c{i} và originalName', () => {
-    const dataset = buildDataset();
-    dataset.renameColumns([{ columnKey: 'c0', newName: 'Ho ten' }]);
-    expect(dataset.columnByKey('c0')?.name).toBe('Ho ten');
-    expect(dataset.columnByKey('c0')?.key).toBe('c0');
-    expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
-  });
-
-  it('renameColumns() từ chối key không tồn tại / tên rỗng / tên trùng', () => {
-    const dataset = buildDataset();
-    expect(() => dataset.renameColumns([{ columnKey: 'cX', newName: 'A' }])).toThrow(
-      ValidationError,
-    );
-    expect(() => dataset.renameColumns([{ columnKey: 'c0', newName: '  ' }])).toThrow(
-      ValidationError,
-    );
-    expect(() =>
-      dataset.renameColumns([
-        { columnKey: 'c0', newName: 'Trung' },
-        { columnKey: 'c1', newName: 'Trung' },
-      ]),
-    ).toThrow(ValidationError);
-    expect(dataset.columnByKey('c0')?.name).toBe('Ten');
-  });
-
-  it('resetColumnNames() khôi phục tên gốc, key c{i} bất biến', () => {
-    const dataset = buildDataset();
-    dataset.renameColumns([{ columnKey: 'c0', newName: 'Ho ten' }]);
-    dataset.resetColumnNames();
-    expect(dataset.columnByKey('c0')?.name).toBe('Ten');
-    expect(dataset.columnByKey('c0')?.key).toBe('c0');
-  });
-
-  it('resetColumnNames() ném lỗi khi không có cột nào khác tên gốc', () => {
-    const dataset = buildDataset();
-    expect(() => dataset.resetColumnNames()).toThrow(ValidationError);
+    const proto = dataset as unknown as Record<string, unknown>;
+    for (const forbidden of [
+      'rename',
+      'renameColumns',
+      'resetColumnNames',
+      'updateCell',
+      'setCell',
+      'updateRow',
+      'setRows',
+      'deleteRow',
+    ]) {
+      expect(proto[forbidden]).toBeUndefined();
+    }
   });
 
   it('tên dataset giữ nguyên sau khi tạo (không tự đổi)', () => {
@@ -230,12 +192,15 @@ describe('Dataset entity — bất biến nội dung dữ liệu', () => {
     expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
   });
 
-  it('entity không có method sửa giá trị ô / số dòng', () => {
-    const dataset = buildDataset();
-    const proto = dataset as unknown as Record<string, unknown>;
-    for (const forbidden of ['updateCell', 'setCell', 'updateRow', 'setRows', 'deleteRow']) {
-      expect(proto[forbidden]).toBeUndefined();
-    }
+  it('columnIssues được tính tự động và chặn phân tích', () => {
+    const columns = [
+      { ...buildColumn(), key: 'c0', index: 0, name: 'Ten', originalName: 'Ten' },
+      { ...buildColumn(), key: 'c1', index: 1, name: 'Ten', originalName: 'Ten' },
+    ];
+    const dataset = buildDataset({ columns, columnIssues: detectColumnIssues(columns) });
+    expect(dataset.hasColumnIssues()).toBe(true);
+    expect(dataset.columnIssues[0]?.issue).toBe('duplicate_name');
+    expect(dataset.columnIssues[0]?.columnKey).toBe('c1');
   });
 });
 

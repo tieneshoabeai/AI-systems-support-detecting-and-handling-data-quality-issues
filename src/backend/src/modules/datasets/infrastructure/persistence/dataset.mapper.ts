@@ -5,6 +5,7 @@ import type {
   DatasetColumn,
 } from '../../domain/ports/dataset.repository.port';
 import { Dataset } from '../../domain/entities/dataset.entity';
+import type { DatasetFinding } from '../../domain/entities/dataset.entity';
 import type { IColumnDefinition } from './dataset.schema';
 
 /**
@@ -39,6 +40,38 @@ function toColumnPersistence(c: DatasetColumn): IColumnDefinition {
   };
 }
 
+function toFindingPersistence(f: DatasetFinding): Record<string, unknown> {
+  return {
+    type: f.type,
+    severity: f.severity,
+    column_key: f.columnKey,
+    column_name: f.columnName,
+    row_index: f.rowIndex,
+    message: f.message,
+    ...(f.details ? { details: f.details } : {}),
+  };
+}
+
+function toFindingEntity(f: {
+  type: string;
+  severity: string;
+  column_key?: string | null;
+  column_name?: string | null;
+  row_index?: number | null;
+  message: string;
+  details?: Record<string, unknown>;
+}): DatasetFinding {
+  return {
+    type: f.type as DatasetFinding['type'],
+    severity: f.severity as DatasetFinding['severity'],
+    columnKey: f.column_key ?? null,
+    columnName: f.column_name ?? null,
+    rowIndex: f.row_index ?? null,
+    message: f.message,
+    ...(f.details ? { details: f.details } : {}),
+  };
+}
+
 /** Document Mongoose → entity domain. */
 export function toDatasetEntity(doc: IDataset): Dataset {
   return Dataset.reconstitute({
@@ -59,6 +92,7 @@ export function toDatasetEntity(doc: IDataset): Dataset {
       issue: i.issue,
       message: i.message,
     })),
+    findings: (doc.findings ?? []).map(toFindingEntity),
     hasHeader: doc.has_header ?? true,
     delimiter: doc.delimiter ?? ',',
     currentVersion: doc.current_version ?? 1,
@@ -89,6 +123,7 @@ export function toDatasetPersistence(data: CreateDatasetInput & { id?: string })
       issue: i.issue,
       message: i.message,
     })),
+    findings: (data.findings ?? []).map(toFindingPersistence),
     has_header: data.hasHeader,
     delimiter: data.delimiter,
     status: data.status,
@@ -113,6 +148,7 @@ export function toDatasetUpdate(
     columnCount: 'column_count',
     columns: 'columns',
     columnIssues: 'column_issues',
+    findings: 'findings',
     hasHeader: 'has_header',
     delimiter: 'delimiter',
     currentVersion: 'current_version',
@@ -126,11 +162,13 @@ export function toDatasetUpdate(
         const mapped = map[ik] ?? ik;
         if (ik === 'columns' && Array.isArray(iv)) conv[mapped] = (iv as DatasetColumn[]).map(toColumnPersistence);
         else if (ik === 'columnIssues' && Array.isArray(iv)) conv[mapped] = iv;
+        else if (ik === 'findings' && Array.isArray(iv)) conv[mapped] = (iv as DatasetFinding[]).map(toFindingPersistence);
         else conv[mapped] = iv;
       }
       Object.assign(set, conv);
     } else if (map[k]) {
       if (k === 'columns' && Array.isArray(v)) set[map[k]] = (v as DatasetColumn[]).map(toColumnPersistence);
+      else if (k === 'findings' && Array.isArray(v)) set[map[k]] = (v as DatasetFinding[]).map(toFindingPersistence);
       else set[map[k]] = v;
     } else if (!k.startsWith('$')) {
       set[k] = v;

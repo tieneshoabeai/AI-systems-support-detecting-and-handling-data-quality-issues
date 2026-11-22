@@ -12,12 +12,14 @@ import type {
   DatasetColumn,
   DatasetColumnIssue,
 } from '../entities/dataset.entity';
+import type { DatasetFinding } from '../services/finding.util';
 
 export const DATASET_REPOSITORY_PORT = Symbol('DatasetRepositoryPort');
 
 /** Loại lỗi tên cột — re-export từ entity để tầng ngoài không import sâu. */
 export type { DatasetColumnIssue, DatasetColumnIssueType } from '../entities/dataset.entity';
 export type { DatasetColumn, DatasetStatus, DatasetDelimiter } from '../entities/dataset.entity';
+export type { DatasetFinding } from '../services/finding.util';
 
 /** Dữ liệu tạo dataset mới — repository map sang document. */
 export interface CreateDatasetInput {
@@ -34,8 +36,10 @@ export interface CreateDatasetInput {
   columnCount: number;
   columns: DatasetColumn[];
   columnIssues: DatasetColumnIssue[];
+  /** Mục "Phát hiện" (OPEN-03/04/05). */
+  findings?: DatasetFinding[];
   hasHeader: boolean;
-  delimiter: ',' | ';' | '\t' | '|';
+  delimiter: ',';
   currentVersion: number;
   status: 'INGESTING' | 'READY' | 'FAILED';
 }
@@ -54,50 +58,15 @@ export interface DatasetRepositoryPort {
     id: string,
     update: Partial<CreateDatasetInput> & Record<string, unknown>,
   ): Promise<Dataset | null>;
-  /**
-   * GĐ4 — cập nhật **chỉ cờ PII** của các cột.
-   *
-   * Tách khỏi `updateById` vì `updateById` chỉ chạy được khi dataset còn
-   * `INGESTING` (bất biến nội dung), còn cờ PII là *metadata phân loại cột* —
-   * được phép cập nhật trên dataset đã `READY`.
-   *
-   * Method này **không** chạm vào tên cột, số dòng, số cột hay bất kì thuộc
-   * tính nội dung nào — chỉ `columns[].is_pii`.
-   */
-  updateColumnPii(
-    id: string,
-    updates: Array<{ columnKey: string; isPii: boolean }>,
-  ): Promise<Dataset | null>;
-  /**
-   * Đổi **tên hiển thị** của dataset — metadata, không phải nội dung dữ liệu.
-   *
-   * Tách khỏi `updateById` vì `updateById` chỉ chạy được khi dataset còn
-   * `INGESTING`, còn tên dataset là *metadata nhãn* được phép sửa trên dataset
-   * đã `READY`.
-   */
-  updateName(id: string, name: string): Promise<Dataset | null>;
-  /**
-   * Đổi **tên hiển thị** của các cột — metadata, không phải nội dung dữ liệu.
-   *
-   * Chỉ ghi `columns.N.name` (dot-notation) → không đụng `key`, `data_type`,
-   * `missing_count`, `is_pii` hay bất kỳ bản ghi nào.
-   *
-   * `columnIssues` do **domain** tính (entity `renameColumns()`) và truyền vào —
-   * adapter không được tự suy luận lại (logic thuộc tầng domain).
-   */
-  updateColumnNames(
-    id: string,
-    updates: Array<{ columnKey: string; name: string }>,
-    columnIssues: DatasetColumnIssue[],
-  ): Promise<Dataset | null>;
-  /**
-   * Khôi phục tên hiển thị của các cột về **tên gốc** trong file CSV.
-   *
-   * `POST /datasets/{id}/columns/reset` — hành vi duy nhất còn lại của
-   * "Reset Dataset" sau khi thu hẹp (mục 3.12 / 3.40.5).
-   */
-  resetColumnNames(id: string, columnIssues: DatasetColumnIssue[]): Promise<Dataset | null>;
   bulkInsertRecords(records: RecordInsertDoc[]): Promise<number>;
+  /**
+   * Xóa **cứng** toàn bộ bản ghi của một dataset (không đánh dấu dataset).
+   *
+   * Dùng trong luồng cleanup khi ingestion thất bại: bản ghi đã ghi ngoài
+   * transaction (vượt trần 16 MB) nên phải xóa tay, còn dataset được giữ lại
+   * ở trạng thái `FAILED` để tra cứu.
+   */
+  deleteRecordsByDataset(datasetId: string): Promise<number>;
   softDeleteDatasetWithRecords(datasetId: string): Promise<boolean>;
   /**
    * Cascade — soft-delete dataset **thuộc project** đã xóa, kèm xóa bản ghi.

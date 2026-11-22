@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, type PipelineStage } from 'mongoose';
 import type { IDatasetRecord } from './dataset-record.schema';
 import type {
   ColumnStatsResult,
@@ -63,6 +63,16 @@ function numericCondition(path: string, op: string, value: unknown): Record<stri
     : null;
   if (!cmp) return null;
   return { $expr: { [cmp]: [converted, num] } };
+}
+
+/** Biểu thức ép giá trị cột ngày về `Date` phía server (khớp cả chuỗi legacy). */
+function dateExpr(path: string): Record<string, unknown> {
+  return { $convert: { input: `$${path}`, to: 'date', onError: null, onNull: null } };
+}
+
+/** Điều kiện so sánh ngày đã ép kiểu — dùng cho `gt/gte/lt/lte`. */
+function dateCondition(path: string, cmp: string, value: Date): Record<string, unknown> {
+  return { $expr: { [cmp]: [dateExpr(path), value] } };
 }
 
 /** Điều kiện cho cột `number` với toán tử so sánh bằng (`equals`/`notEquals`). */
@@ -177,10 +187,12 @@ export class RecordQueryRepository implements RecordQueryPort {
 
     if (numericSorts.length > 0) {
       const addFields: Record<string, unknown> = {};
+      const nullFlags: Record<string, unknown> = {};
       const sortStage: Record<string, 1 | -1> = {};
       numericSorts.forEach((s, i) => {
         const key = resolveKey(s.column);
         const alias = `__sort_${i}`;
+        const nullAlias = `__sortnull_${i}`;
         addFields[alias] = {
           $convert: {
             input: `$props.${key}`,
@@ -189,18 +201,30 @@ export class RecordQueryRepository implements RecordQueryPort {
             onNull: null,
           },
         };
+        // Giá trị **không ép được** (null / "abc" / "") ⇒ `null` sau `$convert`.
+        // Trong BSON, `null` xếp TRƯỚC số ⇒ nếu không xử lý, dòng thiếu dữ
+        // liệu sẽ đứng đầu bảng khi sort ⇒ gây hiểu nhầm cho người dùng.
+        // ⇒ Dùng 1 trường phụ đánh dấu "null" và sort nó TRƯỚC
+        // (cờ null = 1 xếp sau ⇒ đẩy dòng thiếu dữ liệu xuống cuối).
+        //
+        // ⚠️ Phải ở stage `$addFields` **thứ hai**: MongoDB không cho phép
+        // tham chiếu trường vừa được tạo trong cùng một stage.
+        nullFlags[nullAlias] = { $cond: [{ $eq: [`$${alias}`, null] }, 1, 0] };
+        sortStage[nullAlias] = 1;
         sortStage[alias] = s.order === 'desc' ? -1 : 1;
       });
       for (const s of plainSorts) sortStage[`props.${resolveKey(s.column)}`] = s.order === 'desc' ? -1 : 1;
       sortStage.row_index = 1;
 
+      const stages: PipelineStage[] = [
+        { $match: filter },
+        { $addFields: addFields },
+        { $addFields: nullFlags },
+        { $sort: sortStage },
+        { $limit: safeLimit + 1 },
+      ];
       const docs = await this.recordModel
-        .aggregate<{ row_index: number; props: Record<string, unknown> }>([
-          { $match: filter },
-          { $addFields: addFields },
-          { $sort: sortStage },
-          { $limit: safeLimit + 1 },
-        ])
+        .aggregate<{ row_index: number; props: Record<string, unknown> }>(stages)
         .exec();
       const hasMore = docs.length > safeLimit;
       const page = hasMore ? docs.slice(0, safeLimit) : docs;
@@ -223,8 +247,22 @@ export class RecordQueryRepository implements RecordQueryPort {
     // số**, còn dữ liệu nạp trước khi sửa lỗi lưu chuỗi → thống kê ra rỗng.
     // `$convert` ép chuỗi số → số ở phía server, `onError/onNull = null` để bỏ qua
     // giá trị không chuyển được mà không làm hỏng cả aggregation.
+    //
+    // ⚠️ CHỈ ép khi kiểu BSON là số hoặc chuỗi. Nếu ép cả boolean thì `true`→1,
+    // `false`→0 ⇒ cột boolean sinh ra histogram 0/1 vô nghĩa (thống kê kiểu
+    // dữ liệu của cột boolean không phải thống kê phân phối số).
+    const isNumericLike = {
+      $in: [
+        { $type: `$${fieldPath}` },
+        ['double', 'int', 'long', 'decimal', 'string'],
+      ],
+    };
     const numericExpr = {
-      $convert: { input: `$${fieldPath}`, to: 'double', onError: null, onNull: null },
+      $cond: [
+        isNumericLike,
+        { $convert: { input: `$${fieldPath}`, to: 'double', onError: null, onNull: null } },
+        null,
+      ],
     };
     const res = await this.recordModel.aggregate<{
       total: number;
@@ -238,7 +276,9 @@ export class RecordQueryRepository implements RecordQueryPort {
           total: { $sum: 1 },
           null_count: {
             $sum: {
-              $cond: [{ $or: [{ $eq: [`$${fieldPath}`, null] }, { $not: [`$${fieldPath}`] }] }, 1, 0],
+              // `$not` trên giá trị boolean trả `true` cho `false` ⇒ tính sai
+              // missing. Dùng `$ifNull` để chỉ bắt giá trị thiếu / null.
+              $cond: [{ $eq: [{ $ifNull: [`$${fieldPath}`, null] }, null] }, 1, 0],
             },
           },
           numeric_values: {
@@ -411,12 +451,10 @@ export class RecordQueryRepository implements RecordQueryPort {
     if (dataType === 'boolean' && (operator === 'equals' || operator === 'notEquals')) {
       const coerced = coerceValue(value, 'boolean');
       if (typeof coerced === 'boolean') {
-        const candidates =
-          typeof value === 'string'
-            ? coerced === (value.trim().toLowerCase() === 'false' || value.trim().toLowerCase() === 'no' || value.trim() === '0')
-              ? [false, 'false', 'no', '0']
-              : [true, 'true', 'yes', '1']
-            : [coerced];
+        // Khớp cả dạng boolean native lẫn chuỗi legacy đã lưu trong DB.
+        const candidates = coerced
+          ? [true, 'true', 'yes', '1', 1]
+          : [false, 'false', 'no', '0', 0];
         return operator === 'notEquals'
           ? { [path]: { $nin: candidates } }
           : { [path]: { $in: candidates } };
@@ -427,18 +465,29 @@ export class RecordQueryRepository implements RecordQueryPort {
     if (dataType === 'date') {
       const asDate = coerceDate(value);
       if (asDate instanceof Date && !Number.isNaN(asDate.getTime())) {
-        if (operator === 'equals') return { [path]: asDate };
-        if (operator === 'notEquals') return { [path]: { $ne: asDate } };
-        if (operator === 'greaterThan') return { [path]: { $gt: asDate } };
-        if (operator === 'greaterThanOrEqual') return { [path]: { $gte: asDate } };
-        if (operator === 'lessThan') return { [path]: { $lt: asDate } };
-        if (operator === 'lessThanOrEqual') return { [path]: { $lte: asDate } };
+        const cmp =
+          operator === 'greaterThan' ? '$gt'
+          : operator === 'greaterThanOrEqual' ? '$gte'
+          : operator === 'lessThan' ? '$lt'
+          : operator === 'lessThanOrEqual' ? '$lte'
+          : null;
+        // `$expr` + `$convert` để khớp **cả** Date native lẫn chuỗi ngày
+        // legacy đã lưu trong DB (MongoDB so sánh theo BSON type).
+        if (cmp) return dateCondition(path, cmp, asDate);
+        if (operator === 'equals') {
+          return { $expr: { $eq: [dateExpr(path), asDate] } };
+        }
+        if (operator === 'notEquals') {
+          return { $expr: { $ne: [dateExpr(path), asDate] } };
+        }
         if (operator === 'between') {
           const arr = Array.isArray(value) ? (value as unknown[]) : [];
           const lo = coerceDate(arr[0]);
           const hi = coerceDate(arr[1]);
           if (lo instanceof Date && hi instanceof Date) {
-            return { [path]: { $gte: lo, $lte: hi } };
+            return {
+              $and: [dateCondition(path, '$gte', lo), dateCondition(path, '$lte', hi)],
+            };
           }
         }
       }
