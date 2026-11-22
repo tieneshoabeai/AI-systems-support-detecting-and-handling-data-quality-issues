@@ -375,7 +375,7 @@
 [data-preview='2d'] .storage-text { display: flex; flex-direction: column; }
 
 /* ---------- Topbar ---------- */
-[data-preview='2d'] .preview-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+[data-preview='2d'] .preview-main { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 [data-preview='2d'] .preview-topbar {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 18px;
@@ -1512,7 +1512,6 @@
      Bản đầy đủ nằm trong trang Project, không phải đây. */
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
 }
-[data-preview='2d'] .info-card-hint { margin: 8px 0 0; font-size: 11px; color: var(--pv-faint); }
 [data-preview='2d'] .notice-center { display: flex; flex-direction: column; gap: 6px; }
 [data-preview='2d'] .center-head-actions { display: flex; align-items: center; gap: 10px; }
 [data-preview='2d'] .center-chip {
@@ -2166,7 +2165,6 @@
 /* .pv-radio-cards / .pv-radio-card (thẻ radio "nguồn dữ liệu": trống · import) ĐÃ XÓA: wizard
    không còn lựa chọn đó nữa — mỗi project sinh ra kèm một tệp nên bước 2 chỉ còn một đường đi. */
 
-[data-preview='2d'] .pv-step-hint { font-size: 12px; line-height: 1.5; color: var(--pv-muted); }
 [data-preview='2d'] .pv-selected-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 [data-preview='2d'] .pv-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px 5px 5px;
   border: 1px solid var(--pv-line-strong); border-radius: 999px; background: var(--pv-bg-2); color: var(--pv-ink);

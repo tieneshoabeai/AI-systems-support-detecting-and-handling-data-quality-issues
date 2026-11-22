@@ -119,8 +119,7 @@ export function ProjectsPreviewView() {
       <div className="page-head-text">
         <span className="page-eyebrow">Cấp 2 · Dự án trong {workspaceLabel}</span>
         <h1 id="page-heading" tabIndex={-1}>Dự án</h1>
-        <p>Mỗi project gắn với đúng một tập dữ liệu chính và một nhóm thành viên. Bấm một thẻ để mở trang Project,
-          bấm hai lần để mở Dataset Universe 3D, chuột phải để mở menu thao tác.</p>
+        <p>Mỗi project gắn với đúng một tập dữ liệu chính và một nhóm thành viên.</p>
       </div>
       {/* Nút mở chính wizard 4 bước — wizard là surface cấp phiên nên trang chỉ việc truyền
           phạm vi đang xem (id rỗng → wizard tự hiện ô chọn Workspace bắt buộc). */}

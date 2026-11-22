@@ -76,10 +76,5 @@ function InfoSurface({ project, origin, side, onClose }: {
     {/* Mô tả dài nhất 500 ký tự (descMax trong project-wizard.tsx). Thẻ xem nhanh không được
         cao hơn màn hình nên kẹp ba dòng; bản đầy đủ nằm trong trang Project. */}
     {project.description !== '' && <p className="info-card-desc">{project.description}</p>}
-    {/* Hint không được gọi tên một mục menu hay một nút: thẻ này mở ra từ hai menu có NHÃN khác
-        nhau ("Xem thông tin" ở danh sách project · "Thông tin Project" ở ⋯ của dataset trong
-        trang Project), và trang Project thì không có mục "Mở Project" — người dùng đang đứng ở
-        đó rồi. Cách đóng viết theo tín hiệu thật (bấm ra ngoài · Esc), không theo con trỏ. */}
-    <p className="info-card-hint">Bản xem nhanh — bấm ra ngoài hoặc Esc để đóng thẻ · Trang Project là bản đầy đủ</p>
   </div>
 }

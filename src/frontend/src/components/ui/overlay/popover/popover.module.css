@@ -1,1 +1,19 @@
-:where(.root) { position: fixed; }
+:where(.root) {
+  position: fixed;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--glass-bg-raised);
+  background-image: linear-gradient(158deg, var(--glass-sheen), transparent 44%);
+  box-shadow: var(--glass-shadow), var(--glass-inner);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  animation: popover-in var(--duration-base) var(--ease-out) both;
+}
+@keyframes popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.99); } to { opacity: 1; transform: none; } }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :where(.root) { background-color: var(--color-surface); background-image: none; }
+}
+@media (prefers-reduced-motion: reduce) { :where(.root) { animation: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  :where(.root) { background-color: var(--color-surface); background-image: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

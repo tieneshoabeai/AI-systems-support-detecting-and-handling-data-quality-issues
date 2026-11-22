@@ -55,6 +55,7 @@ export function PreviewShell({
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [narrow, setNarrow] = useState(readNarrow)
   const contentRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
   const compact = collapsed || narrow
 
   useEffect(() => {
@@ -156,7 +157,7 @@ export function PreviewShell({
       </div>}
     </aside>}
 
-    <div className="preview-main">
+    <div className="preview-main" ref={mainRef}>
       {/* Màn hẹp thì sidebar đã buộc thu nên nút toggle ẩn đi — để lại nút
           "thu gọn" khi đang ở 64px sẽ nói dối người dùng (aria-expanded sai). */}
       <PreviewTopbar
@@ -174,7 +175,8 @@ export function PreviewShell({
           onClick={() => setCollapsed(value => !value)}>
           <PreviewIcon name={compact ? 'expand' : 'collapse'} />
         </Button>}
-        state={state} />
+        state={state}
+      />
       <div className={`preview-content ${contentClassName}`} ref={contentRef}>
         {/* Chỉ nói "dữ liệu mẫu" khi đúng là fixture; khi store đã là API thì dòng này nói sai. */}
         {!processing && state.source !== 'api' && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}

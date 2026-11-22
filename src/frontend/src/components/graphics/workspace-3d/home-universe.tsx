@@ -6,8 +6,9 @@ import { AdditiveBlending, Color, DoubleSide, NormalBlending } from 'three'
 import type { Group, Mesh } from 'three'
 import { easeSpin, useDragSpin, useSceneMotion } from '../../../hooks/workspace-3d/use-scene-motion'
 import type { SpinHandle } from '../../../hooks/workspace-3d/use-scene-motion'
-import { setNumberUniform, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
+import { bindShaderUniforms, setNumberUniform, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
 import { HeroSpaceHole } from './hero-space-hole'
+import { createThickDisk } from './thick-disk'
 
 class UniverseBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   override state = { failed: false }
@@ -173,11 +174,15 @@ const PLANET_FRAGMENT = `
     vec3 p = normalize(vPos);
     vec3 lightDir = normalize(vec3(-0.42, 0.5, 0.76));
     float lit = smoothstep(-0.28, 0.85, dot(n, lightDir));
+    // Nền sáng cần tương phản mạnh hơn: hạ ánh sáng môi trường và tăng chênh sáng-tối, nếu
+    // không khối cầu bị "rửa" thành pastel và gần như chìm vào nền trắng.
+    float ambient = mix(0.44, 0.24, uMix);
+    float gain = mix(0.68, 0.96, uMix);
     float band = sin((p.y * uBandScale + sin(p.x * 2.6 + uSeed) * 0.18 + sin(p.z * 2.1 + uSeed * 1.7) * 0.14) * 6.2831853);
     float grain = sin(p.x * 21.0 + uSeed * 4.0) * sin(p.y * 17.0 - uSeed * 2.0) * sin(p.z * 19.0 + uSeed);
     float tone = clamp(0.5 + band * 0.5 * uBands + grain * 0.05, 0.0, 1.0);
     vec3 surface = mix(baseA, baseB, tone);
-    vec3 color = surface * (0.44 + 0.68 * lit);
+    vec3 color = surface * (ambient + gain * lit);
     color = mix(color * vec3(0.8, 0.87, 1.2), color, lit);
     vec3 halfV = normalize(lightDir + normalize(vView));
     color += vec3(1.0, 0.99, 0.95) * pow(max(dot(n, halfV), 0.0), 40.0) * 0.3;
@@ -204,13 +209,26 @@ const HALO_FRAGMENT = `
   varying vec3 vView;
   void main() {
     float fres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0), 3.0);
-    gl_FragColor = vec4(mix(uDark, uLight, uMix), fres * uAlpha);
+    gl_FragColor = vec4(mix(uDark, uLight, uMix), fres * uAlpha * mix(1.0, 1.4, uMix));
   }`
 
 const LOCAL_VERTEX = `
   varying vec2 vLocal;
   void main() {
     vLocal = position.xy;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }`
+
+// Đĩa/vành là khối dày (createThickDisk), nên shader nhận thêm vEdge: 0 ở mặt phẳng,
+// 1 ở thành đĩa. Thành được làm sáng như vật chất mỏng ở rìa — đó là tín hiệu duy nhất
+// cho mắt biết vật thể có bề dày chứ không phải một hình ellipse dán phẳng.
+const THICK_VERTEX = `
+  attribute float aEdge;
+  varying vec2 vLocal;
+  varying float vEdge;
+  void main() {
+    vLocal = position.xy;
+    vEdge = aEdge;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }`
 
@@ -222,7 +240,7 @@ const ORBIT_FRAGMENT = `
   void main() {
     float angle = atan(vLocal.y, vLocal.x);
     float trail = 0.5 + 0.5 * sin(angle + uPhase);
-    float baseAlpha = mix(0.5, 0.62, uMix);
+    float baseAlpha = mix(0.5, 0.82, uMix);
     float alpha = (0.2 + 0.75 * pow(trail, 2.6)) * baseAlpha;
     gl_FragColor = vec4(mix(uDark, uLight, uMix), alpha);
   }`
@@ -284,7 +302,7 @@ const GLOBE_FRAGMENT = `
     // Hướng sáng cố định trong không gian màn hình: kéo xoay cảnh thì vùng sáng không trượt theo.
     vec3 lightDir = normalize(vec3(-0.46, 0.42, 0.78));
     float lit = smoothstep(-0.35, 0.85, dot(n, lightDir));
-    vec3 color = surface * (0.34 + 0.9 * lit);
+    vec3 color = surface * (mix(0.34, 0.22, uMix) + mix(0.9, 1.08, uMix) * lit);
     // Nửa tối ngả xanh lạnh, nửa sáng ấm lên — giúp khối cầu tròn thay vì một mảng phẳng.
     color *= mix(vec3(0.72, 0.82, 1.18), vec3(1.04, 1.0, 0.96), lit);
 
@@ -329,12 +347,13 @@ const RING_FRAGMENT = `
   uniform float uMix, uSeed, uInner, uOuter;
   uniform vec3 uDarkA, uDarkB, uLightA, uLightB;
   varying vec2 vLocal;
+  varying float vEdge;
   void main() {
     float r = length(vLocal);
     float edge = smoothstep(uInner, uInner + 0.012, r) * (1.0 - smoothstep(uOuter - 0.014, uOuter, r));
     float strata = 0.6 + 0.4 * sin(r * 190.0 + uSeed);
     float lightFall = 0.55 + 0.45 * sin(atan(vLocal.y, vLocal.x) + 1.1);
-    float alpha = edge * strata * lightFall * 0.82;
+    float alpha = edge * strata * lightFall * (0.82 + 0.5 * vEdge);
     vec3 color = mix(mix(uDarkA, uDarkB, strata), mix(uLightA, uLightB, strata), uMix);
     gl_FragColor = vec4(color, alpha);
   }`
@@ -355,7 +374,7 @@ const BACKLIGHT_FRAGMENT = `
     vec2 p = (vUv - 0.5) * 2.0;
     float d = length(p);
     float glow = exp(-d * d * 5.0) * 0.75 + exp(-pow((d - 0.52) * 5.4, 2.0)) * 0.3;
-    float alpha = glow * mix(0.62, 0.3, uMix);
+    float alpha = glow * mix(0.62, 0.48, uMix);
     vec3 color = mix(mix(uDarkA, uDarkB, smoothstep(0.1, 0.9, d)), mix(uLightA, uLightB, smoothstep(0.1, 0.9, d)), uMix);
     gl_FragColor = vec4(color, alpha);
   }`
@@ -382,6 +401,7 @@ const DISK_FRAGMENT = `
   uniform float uMix, uTime, uInner, uOuter, uAlpha;
   uniform vec3 uDarkHot, uDarkCool, uLightHot, uLightCool;
   varying vec2 vLocal;
+  varying float vEdge;
   void main() {
     float r = length(vLocal);
     float angle = atan(vLocal.y, vLocal.x);
@@ -392,7 +412,10 @@ const DISK_FRAGMENT = `
     float beam = 0.26 + 0.74 * smoothstep(-0.9, 0.9, -vLocal.x / uOuter);
     float heat = clamp((uOuter - r) / (uOuter - uInner), 0.0, 1.0);
     vec3 color = mix(mix(uDarkCool, uDarkHot, heat), mix(uLightCool, uLightHot, heat), uMix);
-    float alpha = clamp(density * beam * uAlpha, 0.0, 1.0);
+    // Thành đĩa: vật chất nhìn ngang dày hơn nên sáng hơn, và mép đĩa đọc ra như một
+    // đường sáng mảnh — bỏ tín hiệu này là đĩa quay lại thành miếng dán phẳng.
+    color *= 1.0 + 0.85 * vEdge;
+    float alpha = clamp(density * beam * uAlpha * (1.0 + 0.7 * vEdge), 0.0, 1.0);
     if (alpha < 0.008) discard;
     gl_FragColor = vec4(color, alpha);
   }`
@@ -446,7 +469,7 @@ const STAR_FRAGMENT = `
     float halo = exp(-d * d * 18.0) * 0.4;
     float rays = (exp(-abs(p.x) * 90.0) + exp(-abs(p.y) * 90.0)) * max(0.0, 1.0 - d * 2.0) * 0.2;
     float alpha = (core + halo + rays) * (0.7 + 0.3 * sin(time * 0.8 + phase));
-    alpha *= mix(1.0, 0.72, uMix);
+    alpha *= mix(1.0, 0.95, uMix);
     if (alpha < 0.015) discard;
     gl_FragColor = vec4(mix(uDark, uLight, uMix), min(alpha, 1.0));
   }`
@@ -498,7 +521,7 @@ function OrbitPath({ radius, tilt, dark, light, phase, mix }: {
   }), [mix, dark, light, phase])
   return <mesh rotation={tilt ?? [0, 0, 0]}>
     <ringGeometry args={[radius - 0.006, radius + 0.006, 180]} />
-    <shaderMaterial uniforms={uniforms} vertexShader={LOCAL_VERTEX} fragmentShader={ORBIT_FRAGMENT}
+    <shaderMaterial ref={material => bindShaderUniforms(material, uniforms)} uniforms={uniforms} vertexShader={LOCAL_VERTEX} fragmentShader={ORBIT_FRAGMENT}
       transparent depthWrite={false} side={DoubleSide} />
   </mesh>
 }
@@ -535,19 +558,26 @@ function PlanetMesh({ planet, mix }: { planet: PlanetSpec; mix: Mix }) {
     uOuter: { value: planet.size * 2.05 },
   } : null, [mix, planet])
 
+  // Vành hành tinh cũng phải dày: bản cũ dùng ringGeometry nên nhìn nghiêng là một nét
+  // ellipse phẳng, không có mép.
+  const ringGeometry = useMemo(
+    () => (planet.ring ? createThickDisk(planet.size * 1.5, planet.size * 2.05, planet.size * 0.11, 128) : null),
+    [planet],
+  )
+  useEffect(() => () => ringGeometry?.dispose(), [ringGeometry])
+
   return <>
     <mesh>
       <sphereGeometry args={[planet.size, 32, 22]} />
-      <shaderMaterial uniforms={surface} vertexShader={SURFACE_VERTEX} fragmentShader={PLANET_FRAGMENT} />
+      <shaderMaterial ref={material => bindShaderUniforms(material, surface)} uniforms={surface} vertexShader={SURFACE_VERTEX} fragmentShader={PLANET_FRAGMENT} />
     </mesh>
     <mesh scale={1.25}>
       <sphereGeometry args={[planet.size, 20, 14]} />
-      <shaderMaterial uniforms={halo} vertexShader={HALO_VERTEX} fragmentShader={HALO_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, halo)} uniforms={halo} vertexShader={HALO_VERTEX} fragmentShader={HALO_FRAGMENT}
         transparent depthWrite={false} blending={AdditiveBlending} />
     </mesh>
-    {planet.ring && ring && <mesh rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[planet.size * 1.5, planet.size * 2.05, 96]} />
-      <shaderMaterial uniforms={ring} vertexShader={LOCAL_VERTEX} fragmentShader={RING_FRAGMENT}
+    {ring && ringGeometry && <mesh geometry={ringGeometry} rotation={[-Math.PI / 2, 0, 0]}>
+      <shaderMaterial ref={material => bindShaderUniforms(material, ring)} uniforms={ring} vertexShader={THICK_VERTEX} fragmentShader={RING_FRAGMENT}
         transparent depthWrite={false} side={DoubleSide} />
     </mesh>}
   </>
@@ -633,7 +663,7 @@ function DataGlobe({ moving, light, mix }: { moving: boolean; light: boolean; mi
   return <group>
     <mesh position={[0, 0, -1.6]} scale={[3.6, 3.6, 1]}>
       <planeGeometry args={[1, 1]} />
-      <shaderMaterial uniforms={backlight} vertexShader={SCREEN_VERTEX} fragmentShader={BACKLIGHT_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, backlight)} uniforms={backlight} vertexShader={SCREEN_VERTEX} fragmentShader={BACKLIGHT_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     <OrbitPath radius={1.34} tilt={[1.2, 0.24, 0.24]} dark="#7fdcff" light="#3b82f6" phase={0.7} mix={mix} />
@@ -641,7 +671,7 @@ function DataGlobe({ moving, light, mix }: { moving: boolean; light: boolean; mi
     <group ref={shell}>
       <mesh>
         <sphereGeometry args={[1.05, 64, 48]} />
-        <shaderMaterial uniforms={surface} vertexShader={SURFACE_VERTEX} fragmentShader={GLOBE_FRAGMENT} />
+        <shaderMaterial ref={material => bindShaderUniforms(material, surface)} uniforms={surface} vertexShader={SURFACE_VERTEX} fragmentShader={GLOBE_FRAGMENT} />
       </mesh>
       <mesh scale={1.04}>
         <icosahedronGeometry args={[1.05, 2]} />
@@ -655,7 +685,7 @@ function DataGlobe({ moving, light, mix }: { moving: boolean; light: boolean; mi
     </group>
     <mesh scale={1.24}>
       <sphereGeometry args={[1.05, 40, 28]} />
-      <shaderMaterial uniforms={halo} vertexShader={HALO_VERTEX} fragmentShader={HALO_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, halo)} uniforms={halo} vertexShader={HALO_VERTEX} fragmentShader={HALO_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
   </group>
@@ -704,6 +734,9 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
     uDark: { value: new Color('#fff4d1') },
     uLight: { value: new Color('#f59e0b') },
   }), [mix])
+
+  const diskGeometry = useMemo(() => createThickDisk(0.40, 0.94, 0.052, 200), [])
+  useEffect(() => () => diskGeometry.dispose(), [diskGeometry])
 
   // Một lớp đĩa thay cho năm vành tròn đồng tâm: nóng ở vành trong, nguội dần ra ngoài.
   const disk = useMemo(() => ({
@@ -754,40 +787,39 @@ function HaloPlanet({ moving, light, mix }: { moving: boolean; light: boolean; m
   return <group>
     <mesh position={[0, 0, -0.3]} scale={[2.9, 2.9, 1]}>
       <planeGeometry args={[1, 1]} />
-      <shaderMaterial uniforms={aura} vertexShader={SCREEN_VERTEX} fragmentShader={BACKLIGHT_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, aura)} uniforms={aura} vertexShader={SCREEN_VERTEX} fragmentShader={BACKLIGHT_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     <mesh scale={1.55} ref={coreHalo}>
       <sphereGeometry args={[0.3, 32, 24]} />
-      <shaderMaterial uniforms={coreGlow} vertexShader={HALO_VERTEX} fragmentShader={HALO_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, coreGlow)} uniforms={coreGlow} vertexShader={HALO_VERTEX} fragmentShader={HALO_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     <mesh>
       <sphereGeometry args={[0.3, 40, 30]} />
-      <shaderMaterial uniforms={core} vertexShader={SURFACE_VERTEX} fragmentShader={CORE_FRAGMENT} />
+      <shaderMaterial ref={material => bindShaderUniforms(material, core)} uniforms={core} vertexShader={SURFACE_VERTEX} fragmentShader={CORE_FRAGMENT} />
     </mesh>
     <mesh>
       <torusGeometry args={[0.322, 0.0085, 8, 160]} />
-      <shaderMaterial uniforms={photon} vertexShader={LOCAL_VERTEX} fragmentShader={PHOTON_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, photon)} uniforms={photon} vertexShader={LOCAL_VERTEX} fragmentShader={PHOTON_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     {/* Ảnh bị uốn cong của nửa xa đĩa: cung vắt qua đỉnh chân trời, dẹt theo trục dọc. */}
     <mesh position={[0, 0.035, 0.02]} scale={[1, 0.66, 1]}>
       <ringGeometry args={[0.345, 0.475, 140]} />
-      <shaderMaterial uniforms={lens} vertexShader={LOCAL_VERTEX} fragmentShader={LENS_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, lens)} uniforms={lens} vertexShader={LOCAL_VERTEX} fragmentShader={LENS_FRAGMENT}
         transparent depthWrite={false} side={DoubleSide} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     <group rotation={[1.12, 0.16, -0.22]}>
-      <mesh>
-        <ringGeometry args={[0.40, 0.94, 180]} />
-        <shaderMaterial uniforms={disk} vertexShader={LOCAL_VERTEX} fragmentShader={DISK_FRAGMENT}
+      <mesh geometry={diskGeometry}>
+        <shaderMaterial ref={material => bindShaderUniforms(material, disk)} uniforms={disk} vertexShader={THICK_VERTEX} fragmentShader={DISK_FRAGMENT}
           transparent depthWrite={false} side={DoubleSide} blending={light ? NormalBlending : AdditiveBlending} />
       </mesh>
       <group ref={sparks}>
         {singularitySparks.map((spark, index) => <mesh key={index}
           position={[Math.cos(spark.angle) * spark.radius, Math.sin(spark.angle) * spark.radius, spark.z]}>
           <sphereGeometry args={[spark.size, 6, 5]} />
-          <shaderMaterial uniforms={sparkTint} vertexShader={FLAT_VERTEX} fragmentShader={FLAT_FRAGMENT}
+          <shaderMaterial ref={material => bindShaderUniforms(material, sparkTint)} uniforms={sparkTint} vertexShader={FLAT_VERTEX} fragmentShader={FLAT_FRAGMENT}
             transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
         </mesh>)}
       </group>
@@ -802,7 +834,7 @@ function Starfield({ width, height, mix, moving }: { width: number; height: numb
     ratio: { value: 1 },
     uMix: mix,
     uDark: { value: new Color('#dcf3ff') },
-    uLight: { value: new Color('#2f4f7a') },
+    uLight: { value: new Color('#1d3557') },
   }), [mix])
 
   const stars = useMemo(() => {
@@ -828,7 +860,7 @@ function Starfield({ width, height, mix, moving }: { width: number; height: numb
       <bufferAttribute attach="attributes-position" args={[stars.positions, 3]} />
       <bufferAttribute attach="attributes-size" args={[stars.sizes, 1]} />
     </bufferGeometry>
-    <shaderMaterial uniforms={uniforms} vertexShader={STAR_VERTEX} fragmentShader={STAR_FRAGMENT}
+    <shaderMaterial ref={material => bindShaderUniforms(material, uniforms)} uniforms={uniforms} vertexShader={STAR_VERTEX} fragmentShader={STAR_FRAGMENT}
       transparent depthWrite={false} />
   </points>
 }
@@ -841,7 +873,7 @@ function Nebula({ mix, light, position, scale }: {
 }) {
   const uniforms = useMemo(() => ({
     uMix: mix,
-    uAlpha: { value: light ? 0.3 : 0.45 },
+    uAlpha: { value: light ? 0.42 : 0.45 },
     uDarkA: { value: new Color('#8b5cf6') },
     uDarkB: { value: new Color('#0891b2') },
     uLightA: { value: new Color('#c4b5fd') },
@@ -849,7 +881,7 @@ function Nebula({ mix, light, position, scale }: {
   }), [mix, light])
   return <mesh position={position} scale={[scale[0], scale[1], 1]}>
     <planeGeometry args={[1, 1]} />
-    <shaderMaterial uniforms={uniforms} vertexShader={SCREEN_VERTEX} fragmentShader={NEBULA_FRAGMENT}
+    <shaderMaterial ref={material => bindShaderUniforms(material, uniforms)} uniforms={uniforms} vertexShader={SCREEN_VERTEX} fragmentShader={NEBULA_FRAGMENT}
       transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
   </mesh>
 }
@@ -902,7 +934,7 @@ function Universe({ moving, light }: { moving: boolean; light: boolean }) {
       <HaloPlanet moving={moving} light={light} mix={mix} />
     </SpinGroup>
     <SpinGroup spin={spin} position={[viewport.width * (compact ? 0.05 : -0.025), viewport.height * -0.19, 0.8]} scale={compact ? 0.62 : 0.95}>
-      <HeroSpaceHole moving={moving} mix={mix} />
+      <HeroSpaceHole moving={moving} light={light} mix={mix} />
     </SpinGroup>
     {[
       { index: 2, x: -.30, y: .34, scale: 1.45 },

@@ -36,6 +36,7 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
   const [filter, setFilter] = useState<FilterOperator | ''>('')
   const [filterValue, setFilterValue] = useState('')
   const [stats, setStats] = useState<ColumnStats | null>(null)
+  const [piiUpdateAvailable, setPiiUpdateAvailable] = useState(true)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -172,12 +173,23 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
         {stats.average !== undefined && <div><dt>Trung bình</dt><dd>{stats.average}</dd></div>}
       </dl>}
       {activeColumn && <p>{activeColumn.isPii ? 'Cột được đánh dấu là PII.' : 'Cột chưa được đánh dấu là PII.'}</p>}
-      {project.canUpdateDatasetMetadata && activeColumn && <Button disabled={busy || loading || Boolean(error)} onClick={() => {
+      {project.canUpdateDatasetMetadata && activeColumn && piiUpdateAvailable && <Button disabled={busy || loading || Boolean(error)} onClick={() => {
         void action(async () => {
-          await service.updateColumnPii(id, activeColumn.key, !activeColumn.isPii)
+          try {
+            await service.updateColumnPii(id, activeColumn.key, !activeColumn.isPii)
+          } catch (cause) {
+            const status = typeof cause === 'object' && cause !== null && 'status' in cause ? cause.status : undefined
+            if (status === 404) {
+              setPiiUpdateAvailable(false)
+              setActionError('Backend hiện tại không hỗ trợ cập nhật cờ PII.')
+              return
+            }
+            throw cause
+          }
           reload()
         })
       }}>{activeColumn.isPii ? 'Bỏ đánh dấu PII' : 'Đánh dấu là PII'}</Button>}
+      {project.canUpdateDatasetMetadata && activeColumn && !piiUpdateAvailable && <p role="status">Backend hiện tại không hỗ trợ cập nhật cờ PII.</p>}
     </>}
   </section>
 }

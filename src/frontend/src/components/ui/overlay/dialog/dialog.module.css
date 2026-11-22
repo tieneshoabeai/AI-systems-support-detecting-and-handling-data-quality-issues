@@ -1,2 +1,34 @@
-:where(.scrim) { position: fixed; inset: 0; display: grid; place-items: center; }
-:where(.panel) { min-width: 0; }
+:where(.scrim) {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--color-scrim);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  animation: scrim-in var(--duration-base) var(--ease-ui) both;
+}
+:where(.panel) {
+  min-width: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  background-color: var(--glass-bg-raised);
+  background-image: linear-gradient(158deg, var(--glass-sheen), transparent 44%);
+  box-shadow: var(--glass-shadow), var(--glass-inner);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  animation: panel-in var(--duration-slow) var(--ease-out) both;
+}
+@keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes panel-in { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :where(.panel) { background-color: var(--color-surface); background-image: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.scrim), :where(.panel) { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :where(.scrim) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :where(.panel) { background-color: var(--color-surface); background-image: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

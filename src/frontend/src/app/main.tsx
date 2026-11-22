@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { PageSkeleton } from '../components/loading'
 import '../styles/tokens.css'
 import '../styles/global.css'
+import '../styles/glass.css'
 import './style.css'
 import '../views/auth/login-glass.css'
 

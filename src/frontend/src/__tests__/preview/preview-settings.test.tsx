@@ -25,7 +25,6 @@ it('Settings chỉ hiện Accounts và System, chưa mở các mục con', () =>
   open(null)
   expect(screen.getByRole('heading', { level: 1, name: 'Cài đặt' })).toBeDefined()
   expect(screen.getByRole('heading', { level: 2, name: 'Chuyên mục' })).toBeDefined()
-  expect(screen.getByText('Chọn một mục ở thanh bên để bắt đầu.')).toBeDefined()
   // Không màn nào được vẽ "hộ": ba mục thật đều phải im lặng cho tới khi người dùng chọn.
   expect(screen.queryByRole('heading', { level: 2, name: 'Bảo mật tài khoản' })).toBeNull()
   expect(screen.queryByRole('heading', { level: 2, name: 'Thông tin cá nhân' })).toBeNull()

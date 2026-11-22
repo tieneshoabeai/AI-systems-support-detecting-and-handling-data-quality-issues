@@ -203,3 +203,7 @@ it('does not upload an attachment twice when refreshing after a saved report fai
   expect(request.mock.calls.filter(([r]) => r.path === '/issues' && r.method === 'POST')).toHaveLength(1)
   expect(request.mock.calls.filter(([r]) => r.path === '/issues/issue1/attachments')).toHaveLength(1)
 })
+it('exposes the live analysis service in API mode', () => {
+    const { store } = harness()
+    expect(store.analysisService).toBeDefined()
+  })

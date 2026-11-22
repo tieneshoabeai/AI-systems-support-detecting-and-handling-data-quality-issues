@@ -93,7 +93,6 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
         <Link className="dataset-3d-back" to="/management/projects">Danh sách project</Link>
         <h1 id="page-heading" tabIndex={-1}>Dataset 3D</h1>
       </div>
-      <p>{reducedMotion ? 'Chuyển động tự động đã tắt theo cài đặt thiết bị.' : 'Kéo để xoay, cuộn để phóng to hoặc thu nhỏ.'}</p>
       <div ref={setCameraToolbar} />
     </header>}
     <section className="dataset-3d-stage" aria-label="Không gian trực quan Dataset 3D">

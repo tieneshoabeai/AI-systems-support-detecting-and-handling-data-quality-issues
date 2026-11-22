@@ -42,16 +42,16 @@ export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, lo
         : <div className="resource-map-layout">
           <section className="resource-scene-panel" aria-labelledby="scene-heading">
             <header className="resource-scene-toolbar"><div><span className="eyebrow">RESOURCE MAP</span><h2 id="scene-heading">{trail.at(-1)?.name ?? 'Không gian tài nguyên'}</h2></div>
-              <button type="button" className="button-secondary" onClick={() => setResetKey(value => value + 1)}>Đặt lại góc nhìn</button></header>
+              <div className="resource-scene-toolbar-actions">
+                <button type="button" className="button-secondary" onClick={() => setResetKey(value => value + 1)}>Đặt lại góc nhìn</button>
+              </div></header>
             <ResourceScene layout={layout} selectedId={selected?.id ?? null} focusedId={focusedId} onSelect={selectAndFocus} moving={moving} tabHidden={tabHidden} resetKey={resetKey} {...(cameraCommand === undefined ? {} : { command: cameraCommand })} reducedMotion={reducedMotion} />
             <div className="resource-camera-actions" role="group" aria-label="Điều khiển camera">
               {([['left', '←', 'Di chuyển trái'], ['forward', '↑', 'Di chuyển tới trước'], ['back', '↓', 'Di chuyển ra sau'], ['right', '→', 'Di chuyển phải'], ['near', '+', 'Nhìn gần hơn'], ['far', '−', 'Nhìn xa hơn']] as const).map(([type, mark, label]) =>
                 <button type="button" key={type} aria-label={label} title={label} onClick={() => issueCamera(type)}>{mark}</button>)}
               <button type="button" disabled={!selected} onClick={() => selected && issueCamera('focus', selected.id)}>Tới khối đã chọn</button>
             </div>
-            <div className="resource-scene-caption"><span>Kéo trái: xoay · Kéo phải / Shift+kéo: di chuyển · Cuộn: gần/xa</span><span>{reducedMotion ? 'Chuyển động đã giảm' : 'Dòng màu chỉ minh họa liên kết'}</span></div>
-            <p className="resource-label-hint">Cảm ứng: một ngón xoay · hai ngón di chuyển hoặc chụm để zoom. Chọn khối để nhìn gần.</p>
-            <p className="resource-label-hint">Nhãn tự động: ưu tiên Workspace/Project khi đông tài nguyên. Rê chuột hoặc chọn Dataset để xem tên.</p>
+            <div className="resource-scene-caption"><span>{reducedMotion ? 'Chuyển động đã giảm' : 'Dòng màu chỉ minh họa liên kết'}</span></div>
           </section>
           <aside className="resource-details" aria-labelledby="details-heading">
             <span className="eyebrow">THÔNG TIN TÀI NGUYÊN</span>

@@ -7,7 +7,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import type { Group, Mesh } from 'three'
 import { easeSpin, useDragSpin, useSceneMotion } from '../../../hooks/workspace-3d/use-scene-motion'
-import { setNumberUniform, setPreviewEnvironment, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
+import { bindShaderUniforms, setNumberUniform, setPreviewCameraOffset, setPreviewEnvironment, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
 
 class Boundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   override state = { failed: false }
@@ -94,9 +94,9 @@ function Cube({ position, size, from, to, light, moving, floating = false }: {
   return <group ref={ref} position={position}>
     <mesh geometry={box}>
       {/* Nền sáng: bớt phản chiếu + bớt tự phát sáng để khối hộp không bị "rửa" thành trắng. */}
-      <meshPhysicalMaterial vertexColors roughness={light ? .26 : .19} metalness={light ? .2 : .38}
-        clearcoat={1} clearcoatRoughness={light ? .2 : .12} envMapIntensity={light ? .7 : 1.15}
-        emissive={to} emissiveIntensity={light ? .015 : .05} />
+      <meshPhysicalMaterial vertexColors roughness={light ? .3 : .19} metalness={light ? .28 : .38}
+        clearcoat={1} clearcoatRoughness={light ? .18 : .12} envMapIntensity={light ? .42 : 1.15}
+        emissive={to} emissiveIntensity={light ? .03 : .05} />
     </mesh>
   </group>
 }
@@ -118,9 +118,9 @@ function Shard({ position, size, color, light, moving, speed, seed }: {
   })
   return <mesh ref={ref} position={position}>
     <octahedronGeometry args={[size, 0]} />
-    <meshPhysicalMaterial color={color} roughness={.08} metalness={.16} clearcoat={1} flatShading
-      transparent opacity={light ? .78 : .66} envMapIntensity={light ? .8 : 1.25}
-      emissive={color} emissiveIntensity={light ? .05 : .22} />
+    <meshPhysicalMaterial color={color} roughness={.08} metalness={light ? .3 : .16} clearcoat={1} flatShading
+      transparent opacity={light ? .92 : .66} envMapIntensity={light ? .5 : 1.25}
+      emissive={color} emissiveIntensity={light ? .16 : .22} />
   </mesh>
 }
 
@@ -166,10 +166,10 @@ function OrbitRing({ radius, tilt, color, light, moving, speed, arc = Math.PI * 
     uAlpha: { value: alpha },
     uDir: { value: speed < 0 ? -1 : 1 },
   }), [color, trail, speed])
-  const uniforms = useMemo(() => makeUniforms(light ? .8 : 1, base, ticks), [makeUniforms, light, ticks, base])
+  const uniforms = useMemo(() => makeUniforms(light ? .95 : 1, base, ticks), [makeUniforms, light, ticks, base])
   // Lớp quầng: cùng shader nhưng ống to hơn, alpha thấp — tạo cảm giác phát sáng dọc vành
   // thay vì một nét kẻ mảnh gần như vô hình trên nền navy.
-  const aura = useMemo(() => makeUniforms(light ? .16 : .38, base * 2.2, 0), [makeUniforms, light, base])
+  const aura = useMemo(() => makeUniforms(light ? .34 : .38, base * 2.2, 0), [makeUniforms, light, base])
   useFrame((_, delta) => {
     if (!moving) return
     angle.current += Math.min(delta, .05) * speed * 1.6
@@ -180,12 +180,12 @@ function OrbitRing({ radius, tilt, color, light, moving, speed, arc = Math.PI * 
   return <group rotation={tilt}>
     <mesh>
       <torusGeometry args={[radius, .085, 6, 150, arc]} />
-      <shaderMaterial uniforms={aura} vertexShader={RING_VERTEX} fragmentShader={RING_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, aura)} uniforms={aura} vertexShader={RING_VERTEX} fragmentShader={RING_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     <mesh>
       <torusGeometry args={[radius, .026, 8, 150, arc]} />
-      <shaderMaterial uniforms={uniforms} vertexShader={RING_VERTEX} fragmentShader={RING_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, uniforms)} uniforms={uniforms} vertexShader={RING_VERTEX} fragmentShader={RING_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
     <group ref={bead} position={[radius, 0, 0]}>
@@ -193,7 +193,7 @@ function OrbitRing({ radius, tilt, color, light, moving, speed, arc = Math.PI * 
       {/* Quầng quanh đầu sáng: additive ở nền tối, normal ở nền sáng để không thành chấm loé. */}
       <mesh scale={2.6}>
         <sphereGeometry args={[.05, 10, 8]} />
-        <meshBasicMaterial color={color} transparent opacity={light ? .14 : .3} depthWrite={false}
+        <meshBasicMaterial color={color} transparent opacity={light ? .26 : .3} depthWrite={false}
           blending={light ? NormalBlending : AdditiveBlending} />
       </mesh>
     </group>
@@ -241,7 +241,18 @@ function Scene({ light, moving }: { light: boolean; moving: boolean }) {
     }
   }, [gl, scene, invalidate])
   useLayoutEffect(() => {
-    if (updatePreviewCameraZoom(camera, Math.min(size.width / 7.2, size.height / 4.7))) invalidate()
+    const zoom = Math.min(size.width / 7.2, size.height / 4.7)
+    if (!updatePreviewCameraZoom(camera, zoom)) return
+    // Khối chữ của hero chiếm 51% bề ngang bên trái. Giữ cụm ở tâm khung thì nửa trái của
+    // nó nằm dưới chữ — đó chính là cảm giác "cảnh bị lệch". Dịch camera sang trái để nội
+    // dung trượt sang phải, vào đúng vùng còn nhìn thấy; kẹp offset theo bán kính vành lớn
+    // nhất (3.85) để không cắt mất vành ngoài cùng. Màn hẹp thì không dịch (chữ chiếm cả khung).
+    const visibleWidth = size.width / zoom
+    const halfCluster = 3.85 / visibleWidth
+    const offset = size.width / Math.max(size.height, 1) > 1.35
+      ? Math.max(0, Math.min(0.2, 0.47 - halfCluster))
+      : 0
+    if (setPreviewCameraOffset(camera, -offset * visibleWidth, 0)) invalidate()
   }, [camera, size, invalidate])
   useFrame((_, delta) => {
     const step = Math.min(delta, .05)
@@ -254,7 +265,12 @@ function Scene({ light, moving }: { light: boolean; moving: boolean }) {
     }
     if (!moving) return
     elapsed.current += step
-    if (particles.current) particles.current.rotation.z -= step * .14
+    if (particles.current) {
+      particles.current.rotation.z -= step * .14
+      // Bụi là khối 3D thật: nghiêng theo cả hai trục kéo, không trượt phẳng trên màn hình.
+      particles.current.rotation.y = spin.current.x * .5
+      particles.current.rotation.x = spin.current.y * .5
+    }
     if (cluster.current) cluster.current.position.y = -.05 + Math.sin(elapsed.current * .8) * .1
   })
 
@@ -262,7 +278,7 @@ function Scene({ light, moving }: { light: boolean; moving: boolean }) {
   // xanh nhạt với NormalBlending để không thành một mảng bẩn trên giấy trắng.
   const glow = useMemo(() => ({
     uColor: { value: new Color(light ? palette.blue : palette.violet) },
-    uAlpha: { value: light ? .28 : .7 },
+    uAlpha: { value: light ? .44 : .7 },
   }), [light, palette])
 
   const cubeTones: { position: [number, number, number]; size: number; from: string; to: string; floating?: boolean }[] = [
@@ -309,13 +325,15 @@ function Scene({ light, moving }: { light: boolean; moving: boolean }) {
   return <>
     <mesh position={[0, 0, -2.4]} scale={[7.4, 5, 1]}>
       <planeGeometry args={[1, 1]} />
-      <shaderMaterial uniforms={glow} vertexShader={SCREEN_VERTEX} fragmentShader={GLOW_FRAGMENT}
+      <shaderMaterial ref={material => bindShaderUniforms(material, glow)} uniforms={glow} vertexShader={SCREEN_VERTEX} fragmentShader={GLOW_FRAGMENT}
         transparent depthWrite={false} blending={light ? NormalBlending : AdditiveBlending} />
     </mesh>
-    <ambientLight intensity={light ? .45 : .22} />
-    <directionalLight position={[-3, 6, 4]} intensity={light ? 2.2 : 2.8} color={light ? '#ffffff' : '#e3f2ff'} />
-    <directionalLight position={[2, 1, -3]} intensity={light ? 1.4 : 2} color={palette.cyan} />
-    <pointLight position={[3, 1, 2]} intensity={light ? 8 : 12} color={palette.violet} />
+    {/* Nền sáng không được "đốt" khối hộp: tổng cường độ thấp hơn hẳn nền tối, nếu không bề mặt
+        clearcoat bị cháy trắng và mọi sắc màu trong palette đều bạc đi. */}
+    <ambientLight intensity={light ? .3 : .22} />
+    <directionalLight position={[-3, 6, 4]} intensity={light ? 1.55 : 2.8} color={light ? '#ffffff' : '#e3f2ff'} />
+    <directionalLight position={[2, 1, -3]} intensity={light ? .95 : 2} color={palette.cyan} />
+    <pointLight position={[3, 1, 2]} intensity={light ? 5.5 : 12} color={palette.violet} />
     <group ref={particles}>
       {Array.from({ length: 84 }, (_, i) => {
         const angle = i * 2.39996
@@ -324,10 +342,10 @@ function Scene({ light, moving }: { light: boolean; moving: boolean }) {
         // Vài hạt là vệt dài, phần còn lại là điểm — trường hạt không còn đều tăm tắp.
         const streak = i % 4 === 0
         const color = [palette.cyan, palette.violet, palette.pink, palette.blue][i % 4]
-        return <mesh key={i} position={[Math.cos(angle) * radius * 1.2, Math.sin(angle) * radius * .65, -1.8 + (i % 5) * .16]}
+        return <mesh key={i} position={[Math.cos(angle) * radius * 1.2, Math.sin(angle) * radius * .65, -2.6 + (i % 7) * .38]}
           rotation={[0, 0, angle]}>
           <boxGeometry args={[streak ? .09 : .025, .025, .025]} />
-          <meshBasicMaterial color={color ?? '#ffffff'} transparent opacity={light ? .45 : .65} />
+          <meshBasicMaterial color={color ?? '#ffffff'} transparent opacity={light ? .62 : .65} />
         </mesh>
       })}
     </group>

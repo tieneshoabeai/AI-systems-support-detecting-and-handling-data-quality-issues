@@ -1,11 +1,217 @@
-# Trạng thái nối API Backend - Frontend/UI
+# Trạng thái tích hợp API Backend - Frontend
 
-## Đối chiếu nhánh backend và Swagger ngày 21/11/2026
+## Hiện trạng ngày 22/11/2026
 
-- `origin/backend` đã tiến từ `a7af214` lên `10aea5a` (`fix(analysis): chong OOM do ma tran Cramer V day`). Đã merge vào `TaiFE` bằng merge commit `04a8915`; thay đổi chỉ nằm trong `analysis` và tài liệu/test đi kèm. Theo phạm vi yêu cầu, không chạy test hoặc gọi API `analysis`.
-- Đã đối chiếu danh sách endpoint trên [Swagger tunnel mới](https://templates-giant-revenues-positions.trycloudflare.com/api/v1/docs) với `api-specification.md`, source nhánh backend và frontend. Trong source nhánh, các route nghiệp vụ ngoài `analysis` đều có service và UI caller tương ứng; `/health` và `/health/ready` là endpoint vận hành, không thuộc UI. Tuy nhiên Swagger tunnel có route charts chỉ xuất hiện ở môi trường deploy, được ghi riêng bên dưới. Status Network UI `200` trong báo cáo vẫn là bằng chứng đã ghi nhận ngày 19/11/2026, không phải kết quả kiểm tra mới hôm nay.
-- Swagger tunnel hiện khai báo thêm `GET /api/v1/datasets/{datasetId}/charts` (histogram/box plot/Top N), nhưng endpoint này không có trong source backend tại `10aea5a`, không có trong `api-specification.md`/OpenAPI types của frontend và không có frontend service/caller. Đây là lệch giữa Swagger đang triển khai và nhánh backend; chưa thể xác nhận API dùng được hoặc response contract.
-- Không có browser Network page được chia sẻ trong lượt này. Theo yêu cầu không phát request/chạy thao tác để tránh ảnh hưởng server, không có status Network mới được thu thập; route `charts` giữ trạng thái chưa xác minh. Các status cũ được giữ nguyên, không suy diễn thành bằng chứng mới.
+- Backend Swagger: `https://devoted-suites-jefferson-closest.trycloudflare.com/api/v1/docs`.
+- Swagger UI và `/api/v1/docs-json`: `200`; OpenAPI công bố **84 operations**. `GET /health` và `GET /health/ready` nằm ngoài `/api/v1`.
+- Frontend browser test: `http://127.0.0.1:5210`, cấu hình API truyền qua process environment; không sửa `.env`.
+- Tài khoản kiểm thử: admin `admin@school.local`. Không ghi token hoặc mật khẩu vào báo cáo.
+- Dataset có sẵn trong Project QA: `shopping_trends_corrupted_10pct.csv`, 3.900 dòng, 18 cột. Không tạo dataset mới.
+- Nhánh: `origin/backend` ở `10aea5a` là tổ tiên của `TaiFE` `2a7f839`; fetch không thấy commit backend mới cần merge.
+
+## Cách đọc
+
+- **Swagger** là các response code được khai báo trong OpenAPI, không phải bằng chứng server đã trả code đó.
+- **Frontend** cho biết có service/client caller trong source; “Không” nghĩa là không tìm thấy caller hiện tại. Caller không tự chứng minh endpoint chạy được.
+- **Live 22/11** chỉ ghi HTTP status thật đã nhận trong lượt kiểm tra này. `—` nghĩa là chưa phát request hợp lệ trong lượt này, không suy đoán từ Swagger. Status `404` với ID giả được ghi rõ vì đó là phản hồi thật của route, không phải success.
+- Các API ghi có thể làm thay đổi dữ liệu được để `—` nếu chưa được chạy. Response code trong cột Swagger chỉ là contract khai báo.
+
+## Inventory đầy đủ từ Swagger mới
+
+### Health, Users và Admin
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| GET | `/health` | 200 | Có, health service | **200** |
+| GET | `/health/ready` | 200, 503 | Không | **200** |
+| GET | `/api/v1/users/me` | 200 | Có | **200** |
+| PATCH | `/api/v1/users/me` | 200 | Có | — |
+| DELETE | `/api/v1/users/me` | 200 | Có service; không chạy vì xóa account | — |
+| GET | `/api/v1/admin/users` | 200 | Có | **200** |
+| GET | `/api/v1/admin/users/{id}` | 200 | Có | **200** |
+
+### Auth và Sessions
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| POST | `/api/v1/auth/register` | 201 | Có | — |
+| POST | `/api/v1/auth/login` | 200 | Có | **200** |
+| POST | `/api/v1/auth/refresh` | 200 | Có | — |
+| POST | `/api/v1/auth/forgot-password` | 200 | Có | — |
+| POST | `/api/v1/auth/reset-password` | 200 | Có | — |
+| POST | `/api/v1/auth/change-password` | 200 | Có | — |
+| GET | `/api/v1/auth/google` | 302, 501 | Có | — |
+| GET | `/api/v1/auth/google/callback` | 200, 302, 401, 409 | Có callback flow | — |
+| POST | `/api/v1/auth/logout` | 200 | Có | **200** |
+| GET | `/api/v1/auth/sessions` | 200 | Có | **200** |
+| GET | `/api/v1/auth/sessions/me` | 200, 404 | Có | **200** |
+| GET | `/api/v1/auth/sessions/{id}` | 200, 404 | Có | **200** với session ID thật |
+| DELETE | `/api/v1/auth/sessions/{id}` | 200 | Có; không thu hồi session khác | — |
+
+### Workspaces
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| POST | `/api/v1/workspaces` | 201 | Có | — |
+| GET | `/api/v1/workspaces` | 200 | Có | **200** |
+| GET | `/api/v1/workspaces/{id}` | 200 | Có | **200** |
+| PATCH | `/api/v1/workspaces/{id}` | 200 | Có | — |
+| DELETE | `/api/v1/workspaces/{id}` | 204 | Có; chưa xóa workspace thật | — |
+| GET | `/api/v1/workspaces/{id}/members` | 200 | Có | **200** |
+| POST | `/api/v1/workspaces/{id}/members` | 201 | Có | — |
+| DELETE | `/api/v1/workspaces/{id}/members/{userId}` | 200 | Có | — |
+| POST | `/api/v1/workspaces/{id}/transfer-owner` | 201 | Có | — |
+| POST | `/api/v1/workspaces/{id}/leave` | 201 | Có | — |
+
+### Projects
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| POST | `/api/v1/workspaces/{workspaceId}/projects` | 201 | Có | — |
+| GET | `/api/v1/workspaces/{workspaceId}/projects` | 200 | Có, fallback khi cần | — |
+| GET | `/api/v1/projects` | 200 | Có | **200** |
+| GET | `/api/v1/projects/{id}` | 200 | Có | **200** |
+| PATCH | `/api/v1/projects/{id}` | 200 | Có | — |
+| DELETE | `/api/v1/projects/{id}` | 204 | Có; chưa xóa Project QA | — |
+| PUT | `/api/v1/projects/{id}/snapshot` | 200 | Có | — |
+| GET | `/api/v1/projects/{id}/members` | 200 | Có | **200** |
+| POST | `/api/v1/projects/{id}/members` | 201 | Có | — |
+| PATCH | `/api/v1/projects/{id}/members/{userId}` | 200 | Có | — |
+| DELETE | `/api/v1/projects/{id}/members/{userId}` | 200 | Có | — |
+| POST | `/api/v1/projects/{id}/transfer-owner` | 201 | Có | — |
+
+### Datasets và Data View
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| POST | `/api/v1/projects/{projectId}/datasets/upload` | 201 | Có | — |
+| GET | `/api/v1/projects/{projectId}/datasets` | 200 | Có | **200** |
+| GET | `/api/v1/datasets/{id}` | 200 | Có | **200** |
+| DELETE | `/api/v1/datasets/{id}` | 204 | Có; chưa xóa dataset QA | — |
+| GET | `/api/v1/datasets/{id}/file` | 200 | Có | **200** |
+| GET | `/api/v1/datasets/{id}/schema` | 200 | Có | **200** |
+| GET | `/api/v1/datasets/{datasetId}/records` | 200 | Có | **200** |
+| POST | `/api/v1/datasets/{datasetId}/records/query` | 200 | Có | **200**; truy vấn theo `Customer ID` với `Ohio` trả rỗng đúng phạm vi cột đã chọn |
+| GET | `/api/v1/datasets/{datasetId}/columns/{columnKey}/stats` | 200 | Có | **200** |
+| GET | `/api/v1/datasets/{datasetId}/charts` | 200 | **Không có caller** | **200** khi gọi trực tiếp read-only; chưa nối vào UI |
+
+### Analysis, Summary và Report
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| POST | `/api/v1/projects/{projectId}/analysis` | 201 | Có | **201** trên Project QA; tạo analysis run và AI job |
+| GET | `/api/v1/projects/{projectId}/analysis/result` | 200 | Có | **200** |
+| GET | `/api/v1/analysis/jobs/{jobId}` | 200 | Có | **200**, job `pending` lúc kiểm tra |
+| POST | `/api/v1/analysis/jobs/{jobId}/retry` | 202 | Có service; chưa chạy retry | — |
+| POST | `/api/v1/analysis/jobs/{jobId}/result` | 200 | **Không có runtime caller**; chỉ có generated types | — |
+| POST | `/api/v1/projects/{projectId}/summary` | 201 | Có | **201** trên Project QA |
+| GET | `/api/v1/projects/{projectId}/summary` | 200 | Có | **404** trước khi có summary; **200** sau khi tạo |
+| POST | `/api/v1/projects/{projectId}/report` | 202 | Có | **202**, worker nhận yêu cầu |
+| GET | `/api/v1/projects/{projectId}/report/{reportId}/file` | 200, 202 | Có | **202**, PDF chưa sẵn sàng |
+
+### Notifications và Issues
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| GET | `/api/v1/notifications` | 200 | Có | **200** |
+| GET | `/api/v1/notifications/unread-count` | 200 | Có | **200** |
+| GET | `/api/v1/notifications/{id}` | 200 | Có | **404** với ID không tồn tại |
+| PATCH | `/api/v1/notifications/{id}/read` | 200 | Có | — |
+| PATCH | `/api/v1/users/me/notification-preferences` | 200 | Có | — |
+| POST | `/api/v1/issues` | 201 | Có | — |
+| GET | `/api/v1/issues` | 200 | Có | **200** |
+| POST | `/api/v1/issues/{id}/attachments` | 201 | Có | — |
+| GET | `/api/v1/issues/{id}/attachments/{attachmentId}` | 200 | Có | — |
+| GET | `/api/v1/issues/{id}` | 200 | Có | **404** với ID không tồn tại |
+| PATCH | `/api/v1/issues/{id}` | 200 | Có | — |
+| GET | `/api/v1/admin/issues` | 200 | Có | **200** |
+| GET | `/api/v1/admin/issues/{id}` | 200 | Có | **404** với ID không tồn tại |
+| PATCH | `/api/v1/admin/issues/{id}/status` | 200 | Có | — |
+
+### Feedback và Overview
+
+| Method | Endpoint | Swagger | Frontend | Live 22/11 |
+|---|---|---:|---|---:|
+| POST | `/api/v1/analyses/{analysisId}/findings/{findingId}/feedback` | 201 | Có | **403**; role System Admin không có quyền feedback |
+| GET | `/api/v1/analyses/{analysisId}/findings/{findingId}/feedback` | 200 | Có | **403**; role System Admin không có quyền feedback |
+| POST | `/api/v1/analyses/{analysisId}/feedback` | 201 | Có | **403**; role System Admin không có quyền feedback |
+| GET | `/api/v1/analyses/{analysisId}/feedback` | 200 | Có | **403**; role System Admin không có quyền feedback |
+| PATCH | `/api/v1/feedback/{id}` | 200 | Có | **404** với feedback ID QA không tồn tại |
+| DELETE | `/api/v1/feedback/{id}` | 200 | Có | **404** với feedback ID QA không tồn tại |
+| GET | `/api/v1/projects/{projectId}/ai-quality-metrics` | 200 | Có | **403**; role System Admin không có quyền feedback |
+| GET | `/api/v1/overview/workspaces` | 200 | Có | **200** |
+| GET | `/api/v1/workspaces/{id}/overview` | 200, 404 | Có | **200** |
+
+## API có caller trong source nhưng deployment không cung cấp
+
+| Method | Endpoint | Frontend | Live 22/11 | Kết luận |
+|---|---|---|---:|---|
+| GET | `/api/v1/projects/{projectId}/analysis/config` | Có | **404** | Có trong source backend và `api-specification.md`, không có trong Swagger deployment |
+| POST | `/api/v1/projects/{projectId}/analysis/config` | Có | **404** | Có trong source backend và `api-specification.md`, không có trong Swagger deployment |
+| PATCH | `/api/v1/datasets/{id}/columns/pii` | Có | **404** | Có trong source backend, không có trong Swagger deployment |
+
+Frontend hiện xử lý hai loại lệch trên: analysis vẫn tải schema, khóa phần lưu cấu hình không được deployment hỗ trợ, và chỉ gửi các field được schema live cho phép khi chạy. PII action bị ẩn sau `404`, không lặp request. `GET /datasets/{datasetId}/charts` ngược lại chỉ có trong Swagger deployment; chưa có source route ở branch, API spec hay client caller.
+
+## Tổng kết trạng thái
+
+- **Đã nối và có status live thành công:** login/logout, profile read, workspaces/projects/datasets read, members, overview, Data View, stats/file, notifications/issues list, admin reads, sessions, analysis run/result/job, summary và report request/poll. Status cụ thể nằm trong inventory trên.
+- **Có caller nhưng chưa xác nhận live trong lượt này:** các mutation tài khoản/workspace/project/member/dataset/notification/issue/session, auth refresh/register/password reset, Google OAuth callback, AI retry/ingest. `—` không có nghĩa là API hỏng; chưa phát request.
+- **Có caller nhưng thất bại với quyền test hiện tại:** nhóm feedback và AI-quality metrics trả `403` cho System Admin.
+- **Lệch contract deployment:** hai analysis-config route và PII patch trả `404`; frontend đã giảm lỗi dây chuyền cho các luồng này.
+- **Có trên deployment nhưng chưa nối frontend:** charts endpoint trả `200` khi gọi trực tiếp, nhưng chưa có client caller.
+- **Không thuộc 84 live operations:** các route đổi tên dataset/cột/reset cột đã bị gỡ khỏi source/live Swagger; không ghi như API hiện hành.
+
+## Dữ liệu kiểm thử và giới hạn
+
+Đã dùng dataset QA sẵn có, không tạo dataset mới. Lượt test có tạo một analysis run, một summary và một yêu cầu report trên Project QA; report còn `pending`. Deployment không có endpoint xóa tương ứng cho các tài nguyên này, nên chúng vẫn là dữ liệu QA. Không xóa account/workspace/project/dataset, không sửa profile/password, không thay đổi preference, không thu hồi session thật, không gửi email/OTP, không chuyển owner và không retry job.
+
+`GET /health` và `GET /health/ready` hiện trả `200`; Swagger JSON hiện trả `200`. Điều đó xác nhận tunnel phản hồi tại lần kiểm tra cuối, không chứng minh tình trạng ở thời điểm khác. `api-specification.md` là tài liệu source/contract cũ hơn; inventory hiện hành trong báo cáo này lấy từ Swagger deployment ngày 22/11/2026.# Trạng thái nối API Backend - Frontend/UI
+
+## Kiểm thử tunnel mới ngày 22/11/2026
+
+Backend được kiểm tra: `https://devoted-suites-jefferson-closest.trycloudflare.com/api/v1`; Swagger UI và `/api/v1/docs-json` trả `200`, OpenAPI công bố 84 operations. UI chạy tạm tại `http://127.0.0.1:5210` với API origin truyền qua environment của terminal, không sửa `.env`. Đăng nhập bằng tài khoản admin test qua form trả `200`; đăng xuất phiên QA trả `200` và phiên local đã được dọn.
+
+### Nhánh backend
+
+Sau `git fetch origin backend`, `origin/backend` ở `10aea5a` là tổ tiên của `HEAD` (`2a7f839`). `git log HEAD..FETCH_HEAD` rỗng, không có commit backend mới cần merge; thay đổi backend hiện có đã nằm trong lịch sử `TaiFE`. Không sửa hoặc commit thư mục yêu cầu riêng tư.
+
+### Status Network/UI mới
+
+Các status dưới đây là HTTP response thật từ browser; các nhóm nhiều ID lặp lại đã được gom. Dataset kiểm thử có sẵn `shopping_trends_corrupted_10pct.csv` trong Project QA, 3.900 dòng/18 cột; không tạo dataset mới.
+
+| API hoặc nhóm | Status | Bằng chứng |
+| --- | ---: | --- |
+| Swagger JSON, `GET /health`, `GET /health/ready` | `200` | Tải OpenAPI và gọi health qua browser |
+| `POST /api/v1/auth/login`, `POST /api/v1/auth/logout` | `200` | Form login UI; logout phiên test trên browser |
+| `GET /api/v1/users/me`, `GET /api/v1/workspaces`, `GET /api/v1/projects` | `200` | Bootstrap UI sau đăng nhập |
+| `GET /api/v1/workspaces/{id}`, `/members`, `/overview`, `GET /api/v1/overview/workspaces` | `200` | Workspace QA và overview dùng dữ liệu backend |
+| `GET /api/v1/projects/{id}`, `/members`, `/datasets` | `200` | Mở Project QA và tải dữ liệu liên quan |
+| `GET /api/v1/datasets/{id}`, `/schema`, `/records?limit=50` | `200` | Data View hiển thị schema 18 cột và 50 dòng/trang |
+| `POST /api/v1/datasets/{id}/records/query` | `200` | Thao tác tìm kiếm và áp dụng phát request thật; lần tìm `Ohio` khi `Customer ID` được chọn trả danh sách rỗng. Kết quả sau khi đổi sang `Location` chưa được xác nhận trong browser |
+| `GET /api/v1/datasets/{id}/columns/c0/stats`, `GET /api/v1/datasets/{id}/file` | `200` | Thống kê cột và tải CSV gốc từ UI |
+| `GET /api/v1/notifications`, `/unread-count`, `GET /api/v1/issues` | `200` | Bootstrap UI |
+| `GET /api/v1/admin/users`, `/admin/users/{id}`, `/admin/issues` | `200` | Đọc danh sách admin và hồ sơ QA |
+| `GET /api/v1/auth/sessions`, `/sessions/me`, `/sessions/{id}` | `200` | Settings → Đăng nhập & phiên và kiểm tra session hiện tại |
+| `POST /api/v1/projects/{id}/analysis` | `201` | Chạy phân tích trên dataset QA; xử lý xong 3.900 dòng, tạo analysis run và AI job |
+| `GET /api/v1/projects/{id}/analysis/result`, `GET /api/v1/analysis/jobs/{jobId}` | `200` | Đọc kết quả và job vừa tạo; job ở trạng thái `pending` |
+| `GET /api/v1/projects/{id}/summary` trước khi có summary | `404` | Chưa có summary trước lần tạo đầu |
+| `POST /api/v1/projects/{id}/summary`, sau đó `GET` cùng route | `201`, `200` | Tạo và đọc summary trên Project QA |
+| `POST /api/v1/projects/{id}/report`, `GET /report/{reportId}/file` | `202`, `202` | Worker nhận yêu cầu; PDF chưa sẵn sàng tại thời điểm poll |
+| `GET /api/v1/analyses/{analysisId}/feedback`, feedback finding, hai lệnh tạo feedback, `GET .../ai-quality-metrics` | `403` | Account System Admin không có quyền nhóm feedback theo lỗi trả về backend |
+| `PATCH /api/v1/feedback/{id}`, `DELETE /api/v1/feedback/{id}` với ID QA không tồn tại | `404` | Không tìm thấy feedback; không tạo hoặc sửa dữ liệu |
+| `GET /api/v1/datasets/{datasetId}/charts` | `200` | Route có trong Swagger deployment; gọi read-only với giới hạn rows/top N |
+| `GET` detail notification/issue/session với ID giả | `404` | Kiểm tra phản hồi khi tài nguyên không tồn tại |
+
+### Lệch Swagger, source và client
+
+1. Swagger deployment **không công bố** `GET/POST /api/v1/projects/{projectId}/analysis/config`; cả hai request trên Project QA trả `404`. Ngược lại, source backend hiện tại và `api-specification.md` khai báo hai route này. Live run-analysis chỉ công bố `correlation_method`, `outlier_method`, `top_n` và `additionalProperties: false`, không có `selected_columns`. Frontend đã được sửa để nếu config GET trả `404` thì vẫn nạp schema, khóa chức năng lưu/chọn cấu hình không có trên deployment, và không gửi `selected_columns`; chạy phân tích với các field Swagger hỗ trợ vẫn trả `201`.
+2. `PATCH /api/v1/datasets/{id}/columns/pii` có trong source backend nhưng không có trong Swagger mới; UI gọi thử trên dataset QA nhận `404` và dữ liệu không đổi. Frontend hiện ẩn thao tác sau `404` để tránh lặp request.
+3. Swagger deployment có `GET /api/v1/datasets/{datasetId}/charts` và trả `200`, nhưng route này không có trong source backend đang merge, `api-specification.md` hay service/caller frontend. Ghi nhận đây là endpoint riêng của deployment; chưa thêm client caller khi chưa có contract trong branch/spec.
+4. `api-specification.md` mô tả 82 operations, trong khi Swagger mới công bố 84. Cần đồng bộ tài liệu/source với backend deployment; không thể khắc phục sai khác route server bằng đổi URL phía client.
+
+### Giới hạn và dữ liệu
+
+Đã tạo một analysis run, một summary và một yêu cầu PDF trên Project QA; report còn `pending`. Các thao tác này không có route xóa riêng và được giữ như dữ liệu kiểm thử trong project QA. Không xóa dataset/project/workspace, không đổi hồ sơ hoặc mật khẩu, không thu hồi session thật, không đăng ký/xóa account, không kích hoạt OTP/email, không chuyển/rời owner và không retry AI job đang pending. Các endpoint mutation không có tài nguyên test phù hợp và hành động nội bộ AI chưa được chạy. Vì vậy status của chúng không được suy đoán từ OpenAPI; các `200` ở phần lịch sử bên dưới vẫn là chứng cứ từ những lần kiểm thử trước, không phải lần chạy ngày 22/11.
 
 ## Cập nhật kiểm thử live ngày 19/11/2026
 

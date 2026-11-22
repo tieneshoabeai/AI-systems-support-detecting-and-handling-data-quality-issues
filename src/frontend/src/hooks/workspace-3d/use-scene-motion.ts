@@ -40,7 +40,8 @@ export function useDragSpin(element: HTMLElement | null, invalidate?: () => void
       state.vx = 0
       state.vy = 0
       last = { x: event.clientX, y: event.clientY, time: performance.now() }
-      element.style.cursor = 'grabbing'
+      // Con trỏ grabbing do CSS token quyết định, không ghi đè inline để còn đổi theo theme.
+      element.dataset['dragging'] = 'true'
       // Pointer id có thể không còn hợp lệ (sự kiện tổng hợp, đã nhả tay trước đó): không để nó làm hỏng lượt kéo.
       try { element.setPointerCapture(event.pointerId) } catch { /* không bắt được con trỏ thì vẫn xoay theo sự kiện */ }
     }
@@ -61,7 +62,7 @@ export function useDragSpin(element: HTMLElement | null, invalidate?: () => void
     }
     const onUp = (event: PointerEvent) => {
       spin.current.dragging = false
-      element.style.cursor = ''
+      delete element.dataset['dragging']
       try { if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId) } catch { /* con trỏ đã được nhả */ }
     }
     element.addEventListener('pointerdown', onDown)

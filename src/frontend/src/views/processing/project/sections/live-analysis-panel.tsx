@@ -3,7 +3,7 @@ import { Button, Input, Select } from '../../../../components/ui/controls'
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
 import type { DatasetColumn } from '../../../../services/processing/dataset.service'
 import type { Project } from '../../../../types/preview/preview.types'
-import type { AnalysisConfigInput, CreateFeedbackInput } from '../../../../services/processing/analysis.service'
+import type { AnalysisConfigInput, CreateFeedbackInput, RunAnalysisInput } from '../../../../services/processing/analysis.service'
 import styles from '../project-workspace.module.css'
 
 type RecordValue = Record<string, unknown>
@@ -44,6 +44,8 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
   const [response, setResponse] = useState<unknown>(null)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
+  const [configurationAvailable, setConfigurationAvailable] = useState(true)
+  const [configurationNotice, setConfigurationNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -51,10 +53,22 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
     if (!service || !datasetId || !store.datasetService) { setLoading(false); return }
     const controller = new AbortController()
     const schemaRequest = store.datasetService.schema(datasetId, controller.signal)
-    void Promise.all([service.getConfig(project.id, controller.signal), schemaRequest]).then(([saved, schema]) => {
+    void Promise.allSettled([service.getConfig(project.id, controller.signal), schemaRequest]).then(([savedResult, schemaResult]) => {
       if (controller.signal.aborted) return
-      const config = asRecord(saved)
+      if (schemaResult.status === 'rejected') throw schemaResult.reason
+      const schema = schemaResult.value
       setColumns(schema)
+      if (savedResult.status === 'rejected') {
+        if (asRecord(savedResult.reason)?.['status'] !== 404) throw savedResult.reason
+        setConfigurationAvailable(false)
+        setConfigurationNotice('Backend hiện tại chưa hỗ trợ lưu cấu hình phân tích; có thể chạy với tham số được hỗ trợ.')
+        setError('')
+        return
+      }
+      setConfigurationAvailable(true)
+      setConfigurationNotice('')
+      const saved = savedResult.value
+      const config = asRecord(saved)
       if (config) {
         const keyFor = (value: string) => schema.find(column => column.key === value || column.name === value)?.key ?? value
         setSelectedColumns(Array.isArray(config['selectedColumns'])
@@ -94,12 +108,13 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
     setResponse(saved); setStatus('Đã lưu cấu hình phân tích.')
   })
   const runAnalysis = () => action(async () => {
-    const result = await service!.run(project.id, {
-      selected_columns: configPayload().selected_columns ?? [],
+    const input: RunAnalysisInput = {
       correlation_method: correlationMethod,
       outlier_method: outlierMethod,
       top_n: topN,
-    })
+    }
+    if (configurationAvailable) input.selected_columns = configPayload().selected_columns ?? []
+    const result = await service!.run(project.id, input)
     const record = asRecord(result)
     const id = readString(record?.['analysisId'])
     const pollUrl = readString(record?.['pollUrl'])
@@ -131,10 +146,11 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
     {loading && <p role="status">Đang tải cấu hình phân tích.</p>}
     {error && <p role="alert">{error}</p>}
     {status && <p role="status">{status}</p>}
+    {configurationNotice && <p role="status">{configurationNotice}</p>}
 
     <section className={styles['analysisSection']}>
       <h3>Cấu hình phân tích</h3>
-      <fieldset className={styles['analysisColumns']}>
+      <fieldset className={styles['analysisColumns']} disabled={!configurationAvailable}>
         <legend>Cột cần phân tích</legend>
         {columns.map(column => <label key={column.key}>
           <input type="checkbox" checked={selectedColumns.includes(column.key)} onChange={event => {
@@ -146,22 +162,22 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
         {!columns.length && <span>Không có schema cột để chọn.</span>}
       </fieldset>
       <label>Cột nhãn
-        <Select value={labelColumn} onChange={event => setLabelColumn(event.target.value)}>
+        <Select value={labelColumn} disabled={!configurationAvailable} onChange={event => setLabelColumn(event.target.value)}>
           <option value="">Không chọn</option>{columns.map(column => <option key={column.key} value={column.key}>{column.name}</option>)}
         </Select>
       </label>
       <label>Cột thời gian
-        <Select value={timeColumn} onChange={event => setTimeColumn(event.target.value)}>
+        <Select value={timeColumn} disabled={!configurationAvailable} onChange={event => setTimeColumn(event.target.value)}>
           <option value="">Tự nhận diện</option>{columns.filter(column => column.dataType === 'date').map(column => <option key={column.key} value={column.key}>{column.name}</option>)}
         </Select>
       </label>
       <label>Độ hạt thời gian
-        <Select value={timeGranularity} onChange={event => setTimeGranularity(event.target.value as typeof timeGranularity)}>
+        <Select value={timeGranularity} disabled={!configurationAvailable} onChange={event => setTimeGranularity(event.target.value as typeof timeGranularity)}>
           <option value="day">Ngày</option><option value="week">Tuần</option><option value="month">Tháng</option><option value="year">Năm</option>
         </Select>
       </label>
       <label>Cột giá trị
-        <Select value={valueColumn} onChange={event => setValueColumn(event.target.value)}>
+        <Select value={valueColumn} disabled={!configurationAvailable} onChange={event => setValueColumn(event.target.value)}>
           <option value="">Không chọn</option>{columns.filter(column => column.dataType === 'number').map(column => <option key={column.key} value={column.key}>{column.name}</option>)}
         </Select>
       </label>
@@ -177,7 +193,7 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
       </label>
       <label>Top N<Input type="number" min={1} max={100} value={topN} onChange={event => setTopN(Number(event.target.value))} /></label>
       <div className={styles['analysisActions']}>
-        <Button disabled={busy || loading || !columns.length} onClick={() => { void saveConfig() }}>Lưu cấu hình</Button>
+        <Button disabled={busy || loading || !columns.length || !configurationAvailable} onClick={() => { void saveConfig() }}>Lưu cấu hình</Button>
         <Button disabled={busy || loading || !columns.length} onClick={() => { void runAnalysis() }}>Chạy phân tích</Button>
         <Button disabled={busy} onClick={() => { void action(async () => { const result = await service.getResult(project.id); const id = readString(asRecord(result)?.['analysisId']); if (id) setAnalysisId(id); setResponse(result) }) }}>Tải kết quả</Button>
       </div>

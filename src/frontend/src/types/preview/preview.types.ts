@@ -108,10 +108,11 @@ export type NewWorkspaceMemberInput = { workspaceId: string; person: Person }
 
 export type Project = {
   canManage?: boolean
-  canUpdateDatasetMetadata?: boolean
-  canComplete?: boolean
   canDelete?: boolean
   canUpload?: boolean
+  canUpdateDatasetMetadata?: boolean
+  canWorkOnProject?: boolean
+  canComplete?: boolean
 
   id: string
   code: string

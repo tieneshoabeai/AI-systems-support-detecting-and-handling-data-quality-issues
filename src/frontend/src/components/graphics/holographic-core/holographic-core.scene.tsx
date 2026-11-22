@@ -499,6 +499,7 @@ export function HolographicCoreCanvas({ colorMode = 'dark', reducedMotion, detac
   if (failed) return <div className="dataset-3d-fallback" role="status"><strong>Không thể hiển thị mô hình 3D</strong><p>WebGL không khả dụng hoặc renderer đã mất context. Hãy tải lại trang để thử lại.</p></div>
   return <div className="dataset-3d-canvas-shell"><SceneBoundary onFailure={() => setFailed(true)}>
     <Canvas className="dataset-3d-canvas" dpr={[1, 1.5]} camera={{ fov: 34, near: 0.1, far: 100 }}
+      gl={{ preserveDrawingBuffer: true, antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onPointerMissed={() => { if (detached) onSelectPart(null) }}
       fallback={<div className="dataset-3d-fallback" role="status"><strong>Trình duyệt không hỗ trợ WebGL</strong><p>Không thể mở không gian Dataset 3D trên trình duyệt này.</p></div>}>
       <HolographicScene colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId}
