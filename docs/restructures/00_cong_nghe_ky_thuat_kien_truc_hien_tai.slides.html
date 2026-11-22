@@ -37,12 +37,12 @@ button{background:linear-gradient(90deg,#0ea5e9,#8b5cf6);border:0;color:#fff;fon
 <section class="slide active"><div class="kicker">Báo cáo hiện trạng • Rà soát 370 file backend + 25 file test</div>
 <div class="cover"><div>
 <h1 class="big">Công nghệ • Kỹ thuật • AI • Kiến trúc • Module • Kiểm thử</h1>
-<p>Nền tảng AI hỗ trợ phát hiện và xử lý vấn đề chất lượng dữ liệu. Hexagonal + Ports &amp; Adapters với <b>106 Command/Query Handler</b>, suy luận AI cục bộ corr-v1 chống ảo giác, Google OAuth 2.0 thật, remember-me 30 ngày, keyset pagination toàn hệ thống.</p>
+<p>Nền tảng AI hỗ trợ phát hiện và xử lý vấn đề chất lượng dữ liệu. Hexagonal + Ports &amp; Adapters với <b>107 Command/Query Handler</b>, suy luận AI cục bộ corr-v1 chống ảo giác, Google OAuth 2.0 thật, remember-me 30 ngày, keyset pagination toàn hệ thống.</p>
 <div><span class="tag">NestJS 11</span><span class="tag g">MongoDB Atlas</span><span class="tag v">Cloudflare R2</span><span class="tag">Qwen3-14B</span><span class="tag g">CASL</span><span class="tag v">Socket.IO</span><span class="tag y">Zod</span><span class="tag g">Google OAuth 2.0</span></div>
-<div class="stat"><div><b>370</b>file src</div><div><b>22</b>ports</div><div><b>13</b>modules</div><div><b>262</b>tests PASS</div></div>
+<div class="stat"><div><b>370</b>file src</div><div><b>22</b>ports</div><div><b>13</b>modules</div><div><b>1 277</b>tests PASS</div></div>
 </div>
 <div class="card"><h3>6 phần trình bày</h3><ul>
-<li><b>1.</b> Công nghệ sử dụng</li><li><b>2.</b> Kỹ thuật &amp; mẫu thiết kế</li><li><b>3.</b> AI corr-v1 + RAG</li><li><b>4.</b> Kiến trúc hệ thống</li><li><b>5.</b> 13 modules nghiệp vụ</li><li><b>6.</b> 24 file test • 262 ca</li></ul>
+<li><b>1.</b> Công nghệ sử dụng</li><li><b>2.</b> Kỹ thuật &amp; mẫu thiết kế</li><li><b>3.</b> AI corr-v1 + RAG</li><li><b>4.</b> Kiến trúc hệ thống</li><li><b>5.</b> 13 modules nghiệp vụ</li><li><b>6.</b> 74 file test • 1 277 ca</li></ul>
 <p style="font-size:13px">Nguồn: 00_cong_nghe_ky_thuat_kien_truc_hien_tai.md • main.ts • app.module.ts • env.validation.ts • test/*.spec.ts • Đối chiếu đo thật 16/11/2026</p></div></div></section>
 
 <!-- 2 TECH 1 -->
@@ -67,7 +67,7 @@ button{background:linear-gradient(90deg,#0ea5e9,#8b5cf6);border:0;color:#fff;fon
 <!-- 4 TECHNIQUE 1 -->
 <section class="slide"><div class="kicker">2 • Kỹ thuật</div><h2>Hexagonal 3 tầng + Command/Query Handler</h2>
 <div class="grid"><div class="card"><h3>Luật tách tầng</h3><ul>
-<li><b>Domain:</b> entity, VO, event, util, port Symbol — thuần TS</li><li><b>Application:</b> <b>61 command</b> + <b>45 query</b> = <b>106 handler</b>, không biết HTTP</li><li><b>Infrastructure:</b> controller gọi <code>handler.execute()</code>, Zod DTO, schema, repo, mapper, adapter</li><li>Wiring: { provide: PORT, useExisting: Repo }</li></ul></div>
+<li><b>Domain:</b> entity, VO, event, util, port Symbol — thuần TS</li><li><b>Application:</b> <b>61 command</b> + <b>46 query</b> = <b>107 handler</b>, không biết HTTP</li><li><b>Infrastructure:</b> controller gọi <code>handler.execute()</code>, Zod DTO, schema, repo, mapper, adapter</li><li>Wiring: { provide: PORT, useExisting: Repo }</li></ul></div>
 <div class="card"><h3>Chất lượng mã</h3><ul>
 <li>Cấm as any / : any toàn src/scripts/test</li><li>Mapper gõ chặt Parameters&lt;typeof find&gt;</li><li><b>ESLint --max-warnings 0</b> → 0 cảnh báo</li><li>22 port Symbol + AiInferencePort, 15 controllers, 1 gateway</li></ul></div></div>
 <div class="flow">Domain (entity/VO/event/util/port Symbol)
@@ -158,7 +158,7 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
 <li>Authorization Code flow, CSRF <code>state</code> kiểm lại khi callback</li><li>Verify RS256 qua JWKS của Google</li><li>Email đã tồn tại → <b>liên kết tự động</b> (email đã được Google xác minh)</li><li>Thiếu credential → <b>501 DEPENDENCY_UNAVAILABLE</b></li></ul></div></div></section>
 
 <!-- 14 TEST -->
-<section class="slide"><div class="kicker">6 • Kiểm thử</div><h2>24 file test • 262 ca PASS • lint 0 cảnh báo</h2>
+<section class="slide"><div class="kicker">6 • Kiểm thử</div><h2>74 file test • 1 277 ca PASS • lint 0 cảnh báo</h2>
 <div class="grid"><div class="card"><h3>Lệnh &amp; cách viết</h3><ul>
 <li><code>test:unit</code> 20 suite / 246 ca PASS</li><li><code>test:arch</code> 4 suite / 16 ca PASS</li><li>TestingModule + {provide: PORT, useValue: mock}</li><li>Không Mongo/S3 thật trong unit — mock qua port</li></ul></div>
 <div class="card"><h3>5 nhóm test</h3><ul>
@@ -168,8 +168,8 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
 <!-- 15 CLOSE -->
 <section class="slide"><div class="kicker">Kết luận</div><h2>Điểm mạnh &amp; Hướng mở rộng</h2>
 <div class="grid"><div class="card"><h3><span class="num">✓</span> Đã đạt</h3><ul>
-<li>Hexagonal nghiêm ngặt với <b>106 Command/Query Handler</b>, quy tắc tầng cưỡng chế bằng ESLint + test</li>
-<li><b>262 ca test PASS</b> (246 unit + 16 arch), tsc 0 lỗi, <b>eslint --max-warnings 0</b></li>
+<li>Hexagonal nghiêm ngặt với <b>107 Command/Query Handler</b>, quy tắc tầng cưỡng chế bằng ESLint + test</li>
+<li><b>1 277 ca test PASS</b> (1 069 unit/arch + 138 integration + 70 e2e), tsc 0 lỗi, <b>eslint --max-warnings 0</b></li>
 <li>Google OAuth 2.0 thật, remember-me 30 ngày, keyset pagination toàn hệ thống, trạng thái <code>needs_info</code></li>
 <li>AI cục bộ có căn cứ (grounded), không rò PII, không gọi API công cộng</li>
 <li>Streaming 50MB không nạp RAM, quota 2 lớp, outbox retry 5, worker lease + heartbeat</li></ul></div>
@@ -179,7 +179,7 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
 <li>Vector DB riêng khi few-shot &gt; 50k</li>
 <li>E2E tunnel + k6 tải ingestion/analysis</li>
 <li>Tách worker ra tiến trình riêng khi tải cao</li></ul></div></div>
-<p style="margin-top:14px;font-size:13px">Nguồn: docs/restructures/00_cong_nghe_ky_thuat_kien_truc_hien_tai.md • main.ts • app.module.ts • env.validation.ts • 22 ports • 106 handlers • 15 controllers • 86 route HTTP • test/*.spec.ts • scripts/* • deploy/*</p></section>
+<p style="margin-top:14px;font-size:13px">Nguồn: docs/restructures/00_cong_nghe_ky_thuat_kien_truc_hien_tai.md • main.ts • app.module.ts • env.validation.ts • 22 ports • 107 handlers • 15 controllers • 84 route HTTP • test/*.spec.ts • scripts/* • deploy/*</p></section>
 
 </div>
 <div class="nav"><button class="ghost" onclick="go(-1)">← Trước</button><span class="count" id="count2"></span><button onclick="go(1)">Tiếp →</button></div>

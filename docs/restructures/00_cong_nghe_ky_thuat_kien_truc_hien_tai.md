@@ -1,7 +1,7 @@
 # BÁO CÁO CÔNG NGHỆ – KỸ THUẬT – AI – KIẾN TRÚC – MODULE – KIỂM THỬ
 ## Nền tảng AI hỗ trợ phát hiện và xử lý vấn đề chất lượng dữ liệu
 
-> **Phạm vi rà soát:** toàn bộ `src/backend/src/**/*.ts` (**370 file**), `src/backend/test/**/*.spec.ts` + `src/backend/src/**/*.spec.ts` (**25 file test**, **262 ca**), `src/backend/package.json`, `src/backend/eslint.config.mjs`, `src/backend/.env.example`, `src/backend/src/main.ts`, `src/backend/src/app.module.ts`, toàn bộ `*.module.ts`, `*.port.ts`, `*.handler.ts`, `*.schema.ts`.
+> **Phạm vi rà soát:** toàn bộ `src/backend/src/**/*.ts` (**370 file**), `src/backend/test/**/*.spec.ts` + `src/backend/src/**/*.spec.ts` (**74 file test**, **1 277 ca**), `src/backend/package.json`, `src/backend/eslint.config.mjs`, `src/backend/.env.example`, `src/backend/src/main.ts`, `src/backend/src/app.module.ts`, toàn bộ `*.module.ts`, `*.port.ts`, `*.handler.ts`, `*.schema.ts`.
 > **Phiên bản backend:** `ai-data-quality-backend@1.1.0` • **Ngày cập nhật:** 16/11/2026
 > **File này thay thế hoàn toàn** 3 file cũ đã xóa: `_cong_nghe_ky_thuat.md`, `_cong_nghe_ky_thuat_v1.md`, `_cong_nghe_ky_thuat_du_an.md`.
 > **Số liệu trong báo cáo này đã đo trực tiếp** từ mã nguồn hiện tại (đếm file, đếm route, chạy `test:unit` / `test:arch` / `lint` / `type-check` ngày 16/11/2026).
@@ -56,7 +56,7 @@
 
 - `DatabaseModule` là `@Global`, `MongooseModule.forRootAsync` với `MONGODB_URI`, `autoIndex:true`, `serverSelectionTimeoutMS:10000`, `connectTimeoutMS:10000`, `socketTimeoutMS:45000`, `maxPoolSize:20`, `minPoolSize:5`.
 - `deploy/docker-compose.dev.yml` + `deploy/mongo/init-replica-set.js` dựng replica-set để dùng transaction.
-- **21 model Mongoose** đăng ký qua `MongooseModule.forFeature` (20 file `*.schema.ts` — `AuditLog` + `AuditChange` dùng chung 1 file): `User`, `UserSession`, `Workspace`, `Project`, `Dataset`, `DatasetRecord`, `AnalysisRun`, `AnalysisResult`, `AnalysisConfig`, `AiJob`, `FewShotExample`, `CellEvidence`, `ProjectSave`, `ReportJob`, `Notification`, `IssueReport`, `FindingFeedback`, `AuditLog`, `AuditChange`, `OutboxEvent`, `ProcessedEvent`.
+- **20 model Mongoose** đăng ký qua `MongooseModule.forFeature` (19 file `*.schema.ts` — `AuditLog` + `AuditChange` dùng chung 1 file): `User`, `UserSession`, `Workspace`, `Project`, `Dataset`, `DatasetRecord`, `AnalysisRun`, `AnalysisResult`, `AiJob`, `FewShotExample`, `CellEvidence`, `ProjectSave`, `ReportJob`, `Notification`, `IssueReport`, `FindingFeedback`, `AuditLog`, `AuditChange`, `OutboxEvent`, `ProcessedEvent`. (`AnalysisConfig` đã bị gỡ khi bỏ endpoint `/analysis/config`.)
 - Quy tắc ID: domain/application chỉ dùng **chuỗi hex 24 ký tự**, kiểm tra bằng `isObjectIdHex()` (`shared/utils/object-id.util.ts`), chỉ infrastructure mới dùng `Types.ObjectId`.
 - TTL index thực tế: `user_session` → `{ expires_at: 1 }, { expireAfterSeconds: 0 }`; `notification` → tương tự; `finding_feedback` → `{ created_at: 1 }, { expireAfterSeconds: 365*24*3600 }`.
 - Index keyset cursor phổ biến: `{ created_at: -1, _id: -1 }` (users) và `{ <owner>: 1, created_at: -1 }` cho các collection theo chủ sở hữu.
@@ -104,7 +104,7 @@ NestJS Module ({ provide: PORT, useExisting: Concrete })
 ```
 
 - **Domain**: `entities/`, `value-objects/*.vo.ts`, `events/*`, `*.util.ts`, `ports/*.port.ts`. Không import Nest/Mongoose/infrastructure.
-- **Application**: **Command/Query Handler** — `application/commands/*.handler.ts` (**61 command**) + `application/queries/*.handler.ts` (**45 query**) = **106 handler**, tổng cộng **106 file `.handler.ts`**. Handler **không biết HTTP**: trả kết quả hoặc ném lỗi nghiệp vụ; dependency chỉ qua port token.
+- **Application**: **Command/Query Handler** — `application/commands/*.handler.ts` (**61 command**) + `application/queries/*.handler.ts` (**46 query**) = **107 handler**, tổng cộng **107 file `.handler.ts`**. Handler **không biết HTTP**: trả kết quả hoặc ném lỗi nghiệp vụ; dependency chỉ qua port token.
 - **Infrastructure**: controller chỉ gọi 1 handler qua `handler.execute(...)`; repository implement port + mapper `snake_case (Mongo) ↔ camelCase (domain)`; truy vấn gõ chặt `Parameters<typeof model.find>[0]`, **cấm `as any`**.
 - **Zero-any**: cấm `as any`, `: any`, `Record<string,any>`, `Array<any>` trên toàn `src/scripts/test`, có test kiến trúc `zero-any.spec.ts` quét từng dòng, vi phạm là fail CI.
 - **Quy tắc phụ thuộc tầng** được cưỡng chế bằng ESLint type-aware rules + test `clean-architecture.spec.ts` (**13 ca**):
@@ -235,7 +235,7 @@ Browser / Swagger (tunnel hoặc localhost)
 ```text
 Domain: entity, value-object, event, util, port (Symbol)
   ↑ phụ thuộc ngược qua port
-Application: 61 command handler + 45 query handler (chỉ phụ thuộc Port)
+Application: 61 command handler + 46 query handler (chỉ phụ thuộc Port)
   ↑ gọi qua port
 Infrastructure: controller, DTO-Zod, schema, repository, mapper, adapter, gateway
   ↑ wiring
@@ -343,9 +343,9 @@ src/backend/test/*.spec.ts (24) | test/e2e/** | test/k6 | test/benchmark | scrip
 
 ### 5.5. Datasets — cổng ingestion CSV
 
-- **Application** `datasets/application/commands/`: `ingest-dataset-stream`, `update-dataset`, `rename-columns`, `reset-column-names`, `map-props-to-original-names`, `delete-dataset`; `queries/`: `get-dataset-by-id`, `get-dataset-by-project-id`, `get-dataset-schema`, `download-dataset-file`.
+- **Application** `datasets/application/commands/`: `ingest-dataset-stream`, `map-props-to-original-names`, `delete-dataset`, `cascade-project-datasets`; `queries/`: `get-dataset-by-id`, `get-dataset-by-project-id`, `get-dataset-schema`, `download-dataset-file`.
 - **Domain**: `dataset.entity.ts` (`assertIngestible`), `column-type.vo.ts` (`string/number/boolean/date`, `stableColumnKey c{i}`), `dataset-limits.vo.ts` (50MB, 1000 cột, batch 5000, mẫu 500), `DATASET_REPOSITORY_PORT`.
-- **Infrastructure**: `datasets.controller.ts` (`POST projects/:projectId/datasets/upload` multipart, `GET` theo project/id, `PATCH :id`, `PATCH :id/columns`, `POST :id/columns/reset`, `DELETE :id`, `GET :id/schema`); `dataset.schema.ts`, `dataset-record.schema.ts` (`dataset_id+row_index`), `datasets.repository.ts`, `dataset.mapper.ts`.
+- **Infrastructure**: `datasets.controller.ts` (`POST projects/:projectId/datasets/upload` multipart, `GET` theo project/id, `PATCH :id`, `PATCH :id/columns/pii`, `GET :id/schema`, `GET :id/file`, `DELETE :id`); `dataset.schema.ts`, `dataset-record.schema.ts` (`dataset_id+row_index`), `datasets.repository.ts`, `dataset.mapper.ts`.
 
 ### 5.6. Data-View — lưới ảo đọc nhanh
 
@@ -356,7 +356,7 @@ src/backend/test/*.spec.ts (24) | test/e2e/** | test/k6 | test/benchmark | scrip
 
 ### 5.7. Analysis — trung tâm DQ + AI (module lớn nhất, 8 schemas)
 
-- **Application**: `analysis/application/commands/`: `run-analysis`, `save-config`, `ingest-ai-result`, `retry-job`, `build-prompt-for-job`, `create-summary`, `request-report`; `queries/`: `get-config`, `get-result`, `get-job`, `get-summary`, `get-report-file-meta`, `download-report-file`. Cộng `summary.service.ts`, `report.service.ts`, `report-worker.service.ts`, `services/ai-worker.service.ts`, `services/rag-few-shot.service.ts`.
+- **Application**: `analysis/application/commands/`: `run-analysis`, `ingest-ai-result`, `retry-job`, `build-prompt-for-job`, `create-summary`, `request-report`; `queries/`: `get-result`, `get-job`, `get-summary`, `get-report-file-meta`, `download-report-file`. Cộng `summary.service.ts`, `report.service.ts`, `report-worker.service.ts`, `services/ai-worker.service.ts`, `services/rag-few-shot.service.ts`.
 - **Domain**: `dq/correlation/vif/stats/ai-grounding/rag-few-shot/pii-mask.util.ts`, `ANALYSIS_REPOSITORY_PORT` (run/result/job/config/save/report/few-shot/evidence, ~25 phương thức), `RAG_FEW_SHOT_PORT`.
 - **Infrastructure**: 3 controllers (analysis/summary/report), 2 DTOs, `local-inference.adapter.ts`, 8 schemas (`analysis-run/result/config`, `ai-job`, `few-shot-example`, `cell-evidence`, `project-save`, `report-job`), `analysis.mapper.ts`, `analysis.repository.ts`.
 - **API**: `POST/GET .../analysis/config`, `POST .../analysis`, `GET .../analysis/result`, `GET /analysis/jobs/:jobId`, `POST .../retry`, `POST .../result`, `POST/GET .../summary`, `POST .../report`, `GET .../report/:reportId/file`.
@@ -417,10 +417,12 @@ src/backend/test/*.spec.ts (24) | test/e2e/** | test/k6 | test/benchmark | scrip
 ### 6.1. Tổng quan
 
 - **Công cụ**: `jest@^30.4.2`, `ts-jest@^29.4.9`, `supertest@^7.0.2`, `@nestjs/testing`, `@types/jest@^30.0.0`.
-- **Quy mô đã kiểm chứng (16/11/2026):** **25 file test · 262 ca · 0 fail**; `tsc --noEmit` **0 lỗi**; `eslint --max-warnings 0` **0 cảnh báo**.
-  - `pnpm run test:unit` → **20 suites / 246 ca PASS**.
-  - `pnpm run test:arch` → **4 suites / 16 ca PASS** (`zero-any`, `guard-coverage`, `zod-openapi`, `clean-architecture`).
-  - Tổng tự động: **262 ca PASS**. Thêm 3 file E2E (`health`, `authorization`, `google-oauth`).
+- **Quy mô đã kiểm chứng (21/11/2026):** **74 file test · 1 277 ca · 0 fail**; `tsc --noEmit` **0 lỗi**; `eslint --max-warnings 0` **0 cảnh báo**.
+  - `pnpm test` (unit + arch) → **67 suites / 1 069 ca PASS**.
+  - `pnpm run test:arch` → **5 suites / 23 ca PASS** (`zero-any`, `guard-coverage`, `zod-openapi`, `clean-architecture`, `api-contract-coverage`).
+  - `pnpm run test:integration` → **7 suites / 138 ca PASS** (cần `pnpm test:infra:up`).
+  - `pnpm run test:e2e` → **5 suites / 70 ca PASS** (cần hạ tầng).
+  - Tổng: **79 suites / 1 277 ca PASS**.
 - **Lệnh phân loại** (`package.json`):
   - `test` / `test:watch` / `test:cov`: chạy mặc định.
   - `test:e2e`: theo `test/jest-e2e.json`.
@@ -488,14 +490,14 @@ src/backend/test/*.spec.ts (24) | test/e2e/** | test/k6 | test/benchmark | scrip
 | Hạng mục | Trước (12/11/2026) | Hiện tại (16/11/2026) | Nguồn |
 |---|---|---|---|
 | File mã nguồn `src/` | 203 | **370** | `find src -name "*.ts"` |
-| Handler Command/Query | 0 | **106** (61 command + 45 query) | `find src -name "*.handler.ts"` |
+| Handler Command/Query | 0 | **107** (61 command + 46 query) | `find src -name "*.handler.ts"` |
 | Module nghiệp vụ | 11 | **13** (+ Audit, + Overview) | `src/modules/*` |
 | Port Symbol | 17 | **22** (+ `GOOGLE_OAUTH_PORT`, `AUDIT_*`, `*_ACCESS_PORT`, `RAG_FEW_SHOT_PORT`, `EVENT_PUBLISHER_PORT`, `REALTIME_TRANSPORT_PORT`) | `find src -name "*.port.ts"` |
 | Controller HTTP | 12 | **15** | `find src -name "*.controller.ts"` |
-| Route HTTP thực thi | — | **86** | đếm decorator `@Get/@Post/@Patch/@Delete` |
-| Collection / schema | 19 | **20 file schema / 21 model Mongoose** | `find src -name "*.schema.ts"`, `MongooseModule.forFeature` |
-| File test | 17 | **25** | `find test src -name "*.spec.ts"` |
-| Ca test tự động | 145 | **262** (246 unit + 16 arch) | `test:unit` + `test:arch` |
+| Route HTTP thực thi | — | **84** (khớp 1-1 hợp đồng §3.13) | `pnpm arch:api-coverage` |
+| Collection / schema | 19 | **19 file schema Mongoose** | `find src -name "*.schema.ts"` |
+| File test | 17 | **74** | `find . -name "*.spec.ts" -not -path "*/node_modules/*"` |
+| Ca test tự động | 145 | **1 277** (1 069 unit/arch + 138 integration + 70 e2e) | `pnpm test` + `test:integration` + `test:e2e` |
 | Quy tắc kiểm thử | 122 | **143** (135 tự động + 8 thủ công) | `13_testing_acceptance_plan_v9.md` |
 | Lint | có warning | **`--max-warnings 0`, 0 cảnh báo** | `pnpm run lint` |
 | Type-check | 0 lỗi | **0 lỗi** | `pnpm run type-check` |
@@ -510,8 +512,8 @@ src/backend/test/*.spec.ts (24) | test/e2e/** | test/k6 | test/benchmark | scrip
 ## 8. KẾT LUẬN
 
 **Đã đạt:**
-- Hexagonal 3 tầng nghiêm ngặt với **106 Command/Query Handler**, quy tắc phụ thuộc tầng cưỡng chế bằng ESLint type-aware rules **và** test kiến trúc.
-- **262 ca test tự động PASS** (246 unit + 16 arch), `tsc --noEmit` 0 lỗi, `eslint --max-warnings 0` 0 cảnh báo.
+- Hexagonal 3 tầng nghiêm ngặt với **107 Command/Query Handler**, quy tắc phụ thuộc tầng cưỡng chế bằng ESLint type-aware rules **và** test kiến trúc.
+- **1 277 ca test PASS** (1 069 unit/arch + 138 integration + 70 e2e), `tsc --noEmit` 0 lỗi, `eslint --max-warnings 0` 0 cảnh báo.
 - Google OAuth 2.0 thật (Authorization Code + CSRF `state` + RS256/JWKS), remember-me 30 ngày, keyset pagination toàn hệ thống, trạng thái `needs_info` cho issue report.
 - AI cục bộ có căn cứ (grounded), không rò PII, không gọi API công cộng.
 - Streaming 50MB không nạp RAM, quota 2 lớp, outbox retry 5, worker lease + heartbeat.

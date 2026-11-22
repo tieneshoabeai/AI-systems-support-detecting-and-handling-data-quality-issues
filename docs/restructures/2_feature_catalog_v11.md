@@ -1233,7 +1233,7 @@ Yêu cầu #48 và #51 cần lọc project theo trạng thái "chưa xử lý / 
 | FILE | `FILE-03` | Quản lý metadata dataset | ✅ Thực thi | 1 |
 | FB | `FB-07` | Xoá nhận xét của chính mình | ✅ Thực thi | 1 |
 
-**Số liệu v11:** **85 tính năng** (79 ở v10 + 6 mã mới) · **86 route HTTP thực thi** (Phần 7 v8) · **66 use case** (Phần 3 v6).
+**Số liệu v11:** **85 tính năng** (79 ở v10 + 6 mã mới) · **84 route HTTP thực thi** (Phần 7 v8.4) · **66 use case** (Phần 3 v6).
 
 ### 3.37. Nhóm thông báo — `NOTIF-*`
 
@@ -1642,7 +1642,7 @@ Nếu phát hiện mâu thuẫn với phần trước, cần xác nhận lại v
 
 ## 7. Prompting log và lịch sử thay đổi
 
-- **Xác nhận v11 / 2026-11-16 (Nhóm B/D/E/F/G/H — cập nhật trạng thái thực thi):** thêm mục **3.36c** ghi nhận 11 tính năng đã hiện thực hoá trong Bước 1–6, cấp mã tính năng mới (`AUTH-14` remember-me, `USER-03` xoá tài khoản, `USER-04` phone+bio, `WS-11` tổng quan người dùng, `PROJ-13` tổng quan workspace, `PROJ-14` tìm kiếm thành viên, `PROJ-15` chỉ định Project Owner, `ISSUE-05` sửa báo cáo, `FILE-03` quản lý metadata dataset, `FB-07` xoá nhận xét); danh mục 79 → **85 tính năng** / **86 route HTTP** / Cập nhật mục 3.36c, mục 5.
+- **Xác nhận v11 / 2026-11-16 (Nhóm B/D/E/F/G/H — cập nhật trạng thái thực thi):** thêm mục **3.36c** ghi nhận 11 tính năng đã hiện thực hoá trong Bước 1–6, cấp mã tính năng mới (`AUTH-14` remember-me, `USER-03` xoá tài khoản, `USER-04` phone+bio, `WS-11` tổng quan người dùng, `PROJ-13` tổng quan workspace, `PROJ-14` tìm kiếm thành viên, `PROJ-15` chỉ định Project Owner, `ISSUE-05` sửa báo cáo, `FILE-03` quản lý metadata dataset, `FB-07` xoá nhận xét); danh mục 79 → **85 tính năng** / **84 route HTTP** / Cập nhật mục 3.36c, mục 5.
 - **Xác nhận v10 / 2026-11-15 (Nhóm A — keyset cursor):** `WS-02` và `PROJ-02` chuyển từ **phân trang offset** sang **keyset cursor** — tham số `cursor`/`limit` (bỏ `page`), response `{ items, meta: { nextCursor, hasMore, limit } }` (bỏ `total`/`totalPages`/`offset`); cursor ràng buộc theo `sort` → `VALIDATION_ERROR` / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Bổ sung mục 3.36b, cập nhật `WS-02` và `PROJ-02`.
 
 - **Xác nhận v5 / 2026-11-05:** Chỉ hỗ trợ file `.csv`; gỡ toàn bộ khái niệm sheet, gỡ `FILE-01`/`FILE-02`, gỡ collection `dataset_sheet` / Theo yêu cầu người dùng / Viết lại mục 3.2, 3.8, 3.25, 3.26, cập nhật mục 3.12, 3.19 và bảng đối chiếu 3.32.

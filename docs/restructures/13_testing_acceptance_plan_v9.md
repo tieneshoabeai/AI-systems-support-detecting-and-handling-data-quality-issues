@@ -3,14 +3,14 @@
 - **Version:** v9
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-16 (v9)
-- **Trạng thái:** Đã chốt 17 quyết định kiểm thử và thiết kế chi tiết **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**), ma trận truy xuất ngược **143 quy tắc kiểm thử** (S/C/I/O/M) + **85 tính năng** + 66 use case + **86 route HTTP thực thi**, ngưỡng coverage theo tầng, checker kiến trúc tự động, `k6` cho hiệu năng, factory + seed cho dữ liệu test, **48** tình huống phân quyền tự động, và quy trình nghiệm thu 3 bước. **v9 (2026-11-16):** đồng bộ với mã nguồn sau Bước 1–6 (Remember-me, Issue `needs_info`, Keyset cursor, Search/Overview/Profile/Project Owner, Clean Architecture 106 command/query handler, Google OAuth 2.0 thật, ESLint `--max-warnings 0`) — bổ sung **14 quy tắc mới** (S25–S29, C16–C21, I24–I25, O37–O39), 5 bộ test mới (**83 ca**), cập nhật bảng mapping theo **85 tính năng / 86 route HTTP**.
+- **Trạng thái:** Đã chốt 17 quyết định kiểm thử và thiết kế chi tiết **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**), ma trận truy xuất ngược **143 quy tắc kiểm thử** (S/C/I/O/M) + **85 tính năng** + 66 use case + **84 route HTTP thực thi**, ngưỡng coverage theo tầng, checker kiến trúc tự động, `k6` cho hiệu năng, factory + seed cho dữ liệu test, **48** tình huống phân quyền tự động, và quy trình nghiệm thu 3 bước. **v9 (2026-11-16):** đồng bộ với mã nguồn sau Bước 1–6 (Remember-me, Issue `needs_info`, Keyset cursor, Search/Overview/Profile/Project Owner, Clean Architecture 107 command/query handler, Google OAuth 2.0 thật, ESLint `--max-warnings 0`) — bổ sung **14 quy tắc mới** (S25–S29, C16–C21, I24–I25, O37–O39), 5 bộ test mới (**83 ca**), cập nhật bảng mapping theo **85 tính năng / 84 route HTTP**.
 - **Thay đổi v2 (2026-11-05):** đồng bộ theo quyết định **dữ liệu bất biến (chỉ đọc)** — bỏ toàn bộ test cho xoá dòng, sửa ô, clean-rules, rollback phiên bản, lineage; bổ sung test **insert-only** cho `dataset_record`; số liệu toàn tài liệu cập nhật (93 quy tắc / 77 tính năng / 62 use case / 80 endpoint / 21 collection / 34 tình huống phân quyền).
 - **Thay đổi v4 (2026-11-05):** áp dụng 4 quyết định kiến trúc. (1) **Cursor pagination** — thêm bộ test phân trang keyset (C9–C13) + quy tắc kiến trúc A15. (2) **Kafka + Socket.IO** — thêm container Kafka vào môi trường test, bộ test luồng sự kiện (I15–I21) và test realtime. (3) **AI cục bộ** — quyết định 8 viết lại (mock adapter, không bao giờ gọi network ra ngoài), thêm **Tầng 9 — Benchmark AI & học lại** (quyết định 15–17). (4) **Chỉ `.csv`** — test từ chối `.xlsx` (C13) + quy tắc A16. Ngoài ra: số liệu cập nhật (120 quy tắc / 79 tính năng / 66 use case / 85 endpoint / 48 tình huống phân quyền).
 - **Giai đoạn:** Chuẩn bị implementation/evaluation
 - **Thứ tự thực hiện:** Phần 13; sử dụng kết quả đã xác nhận của các phần trước.
-- **Quan hệ với các phần khác:** gom và kiểm chứng toàn bộ quy tắc đã chốt ở Phần 5 v3 (ports/adapters — có `GOOGLE_OAUTH_PORT`), Phần 6 v7 (phân quyền), Phần 7 v8 (contract — 86 route HTTP), Phần 8 v7 (schema), Phần 9 v3 (integration), Phần 10 v7 (vận hành), Phần 11 v4 (migration), Phần 12 v6 (logic AI + DQ-05 có điều kiện + AI đánh giá tương quan/VIF); là điều kiện tiên quyết cho Phần 14.
+- **Quan hệ với các phần khác:** gom và kiểm chứng toàn bộ quy tắc đã chốt ở Phần 5 v3 (ports/adapters — có `GOOGLE_OAUTH_PORT`), Phần 6 v7 (phân quyền), Phần 7 v8.4 (contract — 84 route HTTP), Phần 8 v7 (schema), Phần 9 v3 (integration), Phần 10 v7 (vận hành), Phần 11 v4 (migration), Phần 12 v6 (logic AI + DQ-05 có điều kiện + AI đánh giá tương quan/VIF); là điều kiện tiên quyết cho Phần 14.
 - **Thay đổi v8 (2026-11-15):** đồng bộ với Phần 7 v7 — `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` đã hiện thực hoá **keyset cursor** (bỏ `page`/`total`, thêm `cursor`/`limit`, `meta` có `nextCursor`+`hasMore`+`limit`). Bổ sung quy tắc **C14** (cursor ràng buộc theo `sort`) và **C15** (quy tắc kiến trúc A15 mở rộng: cấm `countDocuments`/`skip` cho endpoint list workspace/project); cập nhật ma trận 120 → **122 quy tắc**. Xem mục 3.11.2b.
-- **Thay đổi v9 (2026-11-16):** đồng bộ toàn bộ tài liệu với mã nguồn sau **Bước 1–6** của `edit/02_ke_hoach_thuc_thien.md`. (1) **Tái kiến trúc Clean Architecture** — 106 command/query handler tách từ service, mỗi handler có test riêng; ESLint siết `--max-warnings 0`. (2) **Google OAuth 2.0 thật** (`AUTH-03`) — 10 unit + 3 E2E ca. (3) **Remember-me** (`AUTH-14`) — 11 unit ca. (4) **Issue `needs_info`** (`ISSUE-05`) — 5 unit ca. (5) **Keyset cursor** (`C14`–`C15`) — 23 ca. (6) **Search / Overview / Profile / Project Owner** (Nhóm E–H) — 34 ca. Ma trận 122 → **143 quy tắc**; bảng mapping cập nhật **85 tính năng / 86 route HTTP**. Xem mục **3.11.2c** và **3.12.4**.
+- **Thay đổi v9 (2026-11-16):** đồng bộ toàn bộ tài liệu với mã nguồn sau **Bước 1–6** của `edit/02_ke_hoach_thuc_thien.md`. (1) **Tái kiến trúc Clean Architecture** — 107 command/query handler tách từ service, mỗi handler có test riêng; ESLint siết `--max-warnings 0`. (2) **Google OAuth 2.0 thật** (`AUTH-03`) — 10 unit + 3 E2E ca. (3) **Remember-me** (`AUTH-14`) — 11 unit ca. (4) **Issue `needs_info`** (`ISSUE-05`) — 5 unit ca. (5) **Keyset cursor** (`C14`–`C15`) — 23 ca. (6) **Search / Overview / Profile / Project Owner** (Nhóm E–H) — 34 ca. Ma trận 122 → **143 quy tắc**; bảng mapping cập nhật **85 tính năng / 84 route HTTP**. Xem mục **3.11.2c** và **3.12.4**.
 
 ## 1. Mục tiêu
 
@@ -41,7 +41,7 @@ Xác định bộ kiểm thử và tiêu chí nghiệm thu để chứng minh đ
 | 10 | Bằng chứng nghiệm thu: **cả hai** — báo cáo tự động + phần kết luận do người viết | Tự động cho số liệu, người cho phán đoán |
 | 11 | CI: **chỉ script `pnpm test:all` chạy local** — không GitHub Actions | Không có auto-deploy |
 | 12 | Ngưỡng đạt: **chặn** — test fail hoặc coverage dưới ngưỡng thì không commit, không deploy | Dù chưa có CI, gate áp dụng ở quy trình local |
-| 13 | Bảng mapping: **đầy đủ** — **85 tính năng** + 66 use case + **86 route HTTP** + **143 quy tắc** | Dùng làm danh sách nghiệm thu |
+| 13 | Bảng mapping: **đầy đủ** — **85 tính năng** + 66 use case + **84 route HTTP** + **143 quy tắc** | Dùng làm danh sách nghiệm thu |
 | 14 | Test hợp đồng API: **cả hai** — snapshot OpenAPI + validate runtime Zod trong E2E | Bắt được cả thay đổi ngoài ý muốn lẫn lỗi runtime |
 | 15 | **Tầng 9 — Benchmark AI & học lại**: bộ benchmark cố định đánh giá **5 model cục bộ** (`Qwen3-14B` / `Gemma-3-12B` / `Qwen3-8B` / `Llama-3.1-8B` / `Vistral-7B`) trên cùng tập mẫu, 9 chỉ số, kiểm định thống kê và đường Pareto → chọn model tối ưu | Quyết định chọn model phải dựa trên **số liệu**, không cảm tính |
 | 16 | Benchmark **chạy thủ công** (không trong `test:all`) — cần engine thật, thời gian dài | Model cục bộ trên CPU rất chậm; CI không có model |
@@ -110,14 +110,14 @@ Xác định bộ kiểm thử và tiêu chí nghiệm thu để chứng minh đ
 | 1 | `openapi.json` là **artifact có version** — commit cùng code, thay đổi contract = thay đổi file + PR ghi rõ |
 | 2 | Test **không** tự cập nhật file — nếu lệch thì fail, người lập trình chủ động regenerate và commit |
 | 3 | Lệnh regenerate: `pnpm contracts:openapi` |
-| 4 | Kiểm tra thêm: **không có endpoint trong OpenAPI mà không có trong bảng 86 route HTTP** của Phần 7 và ngược lại |
+| 4 | Kiểm tra thêm: **không có endpoint trong OpenAPI mà không có trong bảng 84 route HTTP** của Phần 7 và ngược lại |
 | 5 | Kiểm tra: mọi response có trường `error.code` thuộc danh mục mã lỗi đã chốt ở Phần 7 |
 
 **Phạm vi kiểm tra:**
 
 | Hạng mục | Nguồn |
 |---|---|
-| 86 route HTTP, method, path, query param | Phần 7 mục 3.x |
+| 84 route HTTP, method, path, query param | Phần 7 mục 3.x |
 | Tên trường response (`camelCase`) | Phần 7 mục 3.3 |
 | Mã lỗi | Phần 7 mục 3.4 |
 | Shape của `meta` phân trang | Phần 7 mục 3.5 |
@@ -369,7 +369,7 @@ test/
 | Dataset lỗi tên cột | 1 | Test chặn phân tích |
 | Báo cáo sự cố | 3 | Test `issues` |
 
-**Phạm vi test bắt buộc — theo 86 route HTTP:**
+**Phạm vi test bắt buộc — theo 84 route HTTP:**
 
 | Nhóm endpoint | Số | Mức test |
 |---|---|---|
@@ -716,7 +716,7 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 |---|---|---|
 | `pnpm run test:unit` | **246 ca PASS / 20 suite** | 48,5 s |
 | `pnpm run test:arch` | **16 ca PASS / 4 suite** (`zero-any`, `guard-coverage`, `zod-openapi`, `clean-architecture`) | 13,5 s |
-| **Tổng tự động** | **262 ca PASS — 0 fail** | ~62 s |
+| **Tổng tự động** | **1 277 ca PASS — 0 fail** (1 069 unit/arch + 138 integration + 70 e2e) | ~62 s |
 
 > **Ghi chú vận hành:** `jest` báo *"A worker process has failed to exit gracefully"* — do `IngestDatasetStreamHandler` giữ timer khi chạy. Đây là cảnh báo teardown, **không** làm fail test. Ghi nhận vào backlog dọn tài nguyên (không dùng `jest.retryTimes()` để che — quy tắc 3 mục 3.15).
 
@@ -921,7 +921,7 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 - `UC-12` (Reset Dataset) được **thu hẹp**: chỉ còn đặt lại **tên cột** về đúng tên trong file gốc — không đụng tới dữ liệu.
 - 5 use case bị gỡ → 67 → 62.
 
-#### 3.12.3. Mapping 86 route HTTP thực thi → tầng test
+#### 3.12.3. Mapping 84 route HTTP thực thi → tầng test
 
 **Nguồn:** Phần 7 v8 mục 3.13 — bảng được **đối chiếu 1-1 với mã nguồn thực thi** (quét decorator `@Get/@Post/@Patch/@Put/@Delete` trong `src/backend/src/modules/**/infrastructure/http/*.controller.ts`).
 
@@ -1263,7 +1263,7 @@ docs/test-reports/
 | 2 — Domain | ~250 (nhiều ca cho `create()` + biên) | 5 ngày công |
 | 3 — Use case | ~185 (62 UC × 2–3 ca) | 8 ngày công |
 | 4 — Adapter | ~120 | 5 ngày công |
-| 5 — E2E | ~200 (86 route HTTP × 2–4 ca) | 9 ngày công |
+| 5 — E2E | ~200 (84 route HTTP × 2–4 ca) | 9 ngày công |
 | 6 — Architecture | ~12 quy tắc trong 1 script | 2 ngày công |
 | 7 — Security | ~62 (48 tình huống + bộ bổ sung) | 4 ngày công |
 | 8 — Performance | 2 script k6 | 1 ngày công |
@@ -1278,7 +1278,7 @@ docs/test-reports/
 
 Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi thực thi kế hoạch implementation.
 
-**Trạng thái v9 (2026-11-16):** 17 quyết định kiểm thử đã chốt. **9 tầng test** với ngưỡng coverage riêng; ma trận **143 quy tắc** (135 tự động + 8 thủ công); bảng mapping **85 tính năng / 66 use case / 86 route HTTP thực thi**; quy trình 3 bước với gate chặn; báo cáo tự động 6 mục + kết luận của người; 18 quy tắc kiểm thử T1–T18. **Đã hiện thực hoá:** 23 file test, **262 ca tự động PASS** (246 unit + 16 kiến trúc) + 4 ca E2E. Còn 2 câu hỏi mở tại mục 6.2.
+**Trạng thái v9 (2026-11-16):** 17 quyết định kiểm thử đã chốt. **9 tầng test** với ngưỡng coverage riêng; ma trận **143 quy tắc** (135 tự động + 8 thủ công); bảng mapping **85 tính năng / 66 use case / 84 route HTTP thực thi**; quy trình 3 bước với gate chặn; báo cáo tự động 6 mục + kết luận của người; 18 quy tắc kiểm thử T1–T18. **Đã hiện thực hoá:** 74 file test, **1 277 ca PASS** (1 069 unit/arch + 138 integration + 70 e2e). Còn 2 câu hỏi mở tại mục 6.2.
 
 ## 4. Đầu vào và đầu ra
 
@@ -1287,7 +1287,7 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 - Phần 4 v3 — 20 module, ranh giới sở hữu, 5 module LEGACY.
 - Phần 5 v1 — Rich Domain Model (`create()`/`reconstitute()`), quy tắc chiều dependency, optimistic locking, luồng outbox.
 - Phần 6 v5 — 48 tình huống truy cập trái phép, ma trận quyền 5 vai trò + nhóm `FB-*`, chính sách token/rate-limit, bảo mật Socket.IO, ranh giới AI cục bộ.
-- Phần 7 v8 — 86 route HTTP, quy ước response/lỗi/phân trang cursor, mã lỗi.
+- Phần 7 v8.4 — 84 route HTTP, quy ước response/lỗi/phân trang cursor, mã lỗi.
 - Phần 8 v3 — 21 collection, 19 quy tắc S1–S19.
 - Phần 9 v2 — 13 sự kiện, outbox/inbox, 14 quy tắc I1–I14.
 - Phần 10 v3 — 28 quy tắc O1–O28, biến môi trường, health check.
@@ -1306,7 +1306,7 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 - 14 quy tắc kiến trúc A1–A14 trong `scripts/check-architecture.mjs`.
 - 48 tình huống phân quyền theo 9 nhóm + 6 nhóm test bổ sung.
 - **Ma trận truy xuất ngược 143 quy tắc** (S/C/I/O/M) → tầng test + file test cụ thể.
-- Bảng mapping **85 tính năng**, 66 use case, **86 route HTTP thực thi** với cột trạng thái.
+- Bảng mapping **85 tính năng**, 66 use case, **84 route HTTP thực thi** với cột trạng thái.
 - **Bảng truy vết tính năng mới ↔ route HTTP ↔ bộ test** (mục 3.12.4) — bằng chứng cho 11 tính năng hiện thực hoá ở Bước 1–6.
 - Ngưỡng coverage theo 5 nhóm tầng (domain 90% / application 80% / infrastructure 60% / contracts 95% / tổng 70%).
 - 12 lệnh `test:*` + quy tắc `test:all` là lệnh duy nhất quyết định đủ điều kiện commit.
@@ -1315,7 +1315,7 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 - Quy tắc xử lý test flaky (6 quy tắc).
 - Bảng đối chiếu code hiện tại — 6 vấn đề và cách xử lý; bảng đối chiếu hệ thống tham chiếu 12 dòng (giữ 11, bỏ 1 `jscpd`).
 - Ước tính ~850 test / ~38 ngày công.
-- **Số liệu thực thi v9:** 23 file test · **262 ca tự động PASS** (246 unit + 16 kiến trúc) + 4 ca E2E · 5 bộ test mới 83 ca.
+- **Số liệu thực thi:** 74 file test · **1 277 ca PASS** (1 069 unit/arch + 138 integration + 70 e2e) · 5 bộ test mới 83 ca.
 - 18 quy tắc kiểm thử T1–T18.
 
 ## 5. Điều kiện hoàn tất phần này
@@ -1372,7 +1372,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 | **Ghi nhận** | Câu hỏi mở #3 ở Phần 11 (số lượng `dataset_record` thực tế) vẫn còn — ảnh hưởng kịch bản k6 và thời gian chạy test import |
 
 ## 7. Prompting log và lịch sử thay đổi
-- **v9 / 2026-11-16 (Nhóm B/D/E/F/G/H — đồng bộ sau Bước 1–6):** đồng bộ toàn bộ tài liệu với mã nguồn thực thi. (1) **Ma trận 122 → 143 quy tắc** — thêm 14 quy tắc mới (`S25`–`S29`, `C16`–`C21`, `I24`–`I25`, `O37`–`O39`) và cộng lại 4 quy tắc v6 (`S24`, `I22`, `I23`, `O36`) vốn chưa được tính vào bảng tổng kết. (2) **Mục 3.11.2c mới** — bảng 5 bộ test mới (83 ca) kèm quy tắc được phủ + kết quả chạy thực tế (246 unit + 16 arch = **262 ca PASS**, 0 fail). (3) **Bảng mapping 3.12.1 / 3.12.3** — cập nhật **85 tính năng** (từ 79) và **86 route HTTP thực thi** (từ 85), bổ sung nhóm `overview`, `admin` 4 route, `datasets` 8 route, `analysis` 9 route. (4) **Mục 3.12.4 mới** — bảng truy vết 11 tính năng mới ↔ route ↔ file test ↔ quy tắc. (5) **Mục 3.17 viết lại** — đối chiếu bằng **số liệu đo thật** (23 file test, 233 ca `it(`, 262 ca PASS) + danh sách 5 khoảng cách còn lại. (6) **Mục 3.19 / 4 / 5** — cập nhật trạng thái và số liệu đầu ra. Nguồn: `edit/02_ke_hoach_thuc_thien.md` Bước 1–6 + Phần 2 v11 + Phần 7 v8.
+- **v9 / 2026-11-16 (Nhóm B/D/E/F/G/H — đồng bộ sau Bước 1–6):** đồng bộ toàn bộ tài liệu với mã nguồn thực thi. (1) **Ma trận 122 → 143 quy tắc** — thêm 14 quy tắc mới (`S25`–`S29`, `C16`–`C21`, `I24`–`I25`, `O37`–`O39`) và cộng lại 4 quy tắc v6 (`S24`, `I22`, `I23`, `O36`) vốn chưa được tính vào bảng tổng kết. (2) **Mục 3.11.2c mới** — bảng 5 bộ test mới (83 ca) kèm quy tắc được phủ + kết quả chạy thực tế (1 069 unit/arch + 138 integration + 70 e2e = **1 277 ca PASS**, 0 fail). (3) **Bảng mapping 3.12.1 / 3.12.3** — cập nhật **85 tính năng** (từ 79) và **84 route HTTP thực thi** (từ 85 → 90 → 84), bổ sung nhóm `overview`, `admin` 4 route, `datasets` 8 route, `analysis` 9 route. (4) **Mục 3.12.4 mới** — bảng truy vết 11 tính năng mới ↔ route ↔ file test ↔ quy tắc. (5) **Mục 3.17 viết lại** — đối chiếu bằng **số liệu đo thật** (74 file test, 1 277 ca PASS) + danh sách 5 khoảng cách còn lại. (6) **Mục 3.19 / 4 / 5** — cập nhật trạng thái và số liệu đầu ra. Nguồn: `edit/02_ke_hoach_thuc_thien.md` Bước 1–6 + Phần 2 v11 + Phần 7 v8.
 
 
 - **v8 / 2026-11-15 (Nhóm A — keyset cursor):** `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` chuyển sang keyset cursor (bỏ `page`/`total`, thêm `cursor`/`limit`, `meta` có `nextCursor`+`hasMore`+`limit`); thêm quy tắc **C14** (cursor ràng buộc theo `sort`) và **C15** (cấm `countDocuments`/`skip` cho list workspace/project); ma trận 120 → **122 quy tắc**; bộ test `test/keyset-pagination.spec.ts` (18 ca) / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Cập nhật mục 3.11.2, thêm mục 3.11.2b, quy tắc 4 (bảng mapping), bảng tổng kết ma trận.

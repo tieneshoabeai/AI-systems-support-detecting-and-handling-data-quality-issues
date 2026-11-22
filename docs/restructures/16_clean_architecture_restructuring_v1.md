@@ -2,7 +2,7 @@
 
 - **Version:** v1
 - **Ngày tạo:** 2026-11-17
-- **Cập nhật gần nhất:** 2026-11-18 — **Bước 3 (Rich Domain Model): HOÀN THÀNH** (lát cắt 0/1/2/3/4/5/6/7 ✅ — 546/546 test pass) **+ Đợt rà soát API: 86/86 route khớp hợp đồng, P1 (Google OAuth cookie) đã sửa** — xem mục 7.14 và 7.16
+- **Cập nhật gần nhất:** 2026-11-18 — **Bước 3 (Rich Domain Model): HOÀN THÀNH** (lát cắt 0/1/2/3/4/5/6/7 ✅ — 546/546 test pass) **+ Đợt rà soát API: 84/84 route khớp hợp đồng, P1 (Google OAuth cookie) đã sửa** — xem mục 7.14 và 7.16
 - **Trạng thái:** Đã được người dùng phê duyệt nguyên tắc ở phiên 2026-11-17 (đồng ý với lộ trình 4 bước). Tài liệu này ghi lại **thiết kế chi tiết Bước 1** và **nguyên tắc chiều phụ thuộc** áp dụng cho toàn bộ lộ trình.
 - **Giai đoạn:** Tech solution → Implementation (Bước 3 — đang thực hiện theo lát cắt dọc từng aggregate)
 - **Quan hệ với các phần khác:** Phần 5 (Ports & Adapters) mô tả cấu trúc tầng hiện hành — sẽ được nâng lên **v4** sau khi Bước 1 hoàn tất. Phần 4 (Module Boundaries) mô tả ranh giới module — sẽ được nâng lên **v5** cùng đợt. Bộ quy tắc kiến trúc CA1–CA11 trong `src/backend/test/clean-architecture.spec.ts` sẽ được mở rộng.
@@ -919,7 +919,7 @@ triển khai phần lớn ở Bước 5 trước đó — cần đánh giá lạ
 **Động cơ.** Rà soát toàn bộ API theo yêu cầu "hoàn thiện các API" — đối chiếu mã nguồn
 với `2_feature_catalog_v11.md` và `7_api_contracts_v8.md`.
 
-**Kết quả đối chiếu route: 100%.** 86 route trong hợp đồng §3.13 ↔ 86 route trong mã nguồn,
+**Kết quả đối chiếu route: 100%.** 84 route trong hợp đồng §3.13 ↔ 84 route trong mã nguồn,
 khớp 1-1 về method + path. Không có endpoint chết (`NotImplementedException`) và không có
 `TODO`/`FIXME` trong `src/`.
 
@@ -963,6 +963,6 @@ khớp 1-1 về method + path. Không có endpoint chết (`NotImplementedExcept
 | E2E test | `pnpm run test:e2e` | ✅ **64/64 pass** (5 suite) — *trước: 58/58 (4 suite)* |
 | Architecture test | `pnpm run test:arch` | ✅ **17/17 pass** (CA1–CA20) |
 | DI graph | `pnpm run arch:verify-di` | ✅ AppModule resolve thành công |
-| Route coverage | `node scripts/check-api-coverage.cjs` | ✅ **86/86 — thiếu 0, thừa 0** |
+| Route coverage | `node scripts/check-api-coverage.cjs` | ✅ **84/84 — thiếu 0, thừa 0** |
 
 **Báo cáo đầy đủ:** `docs/restructures/17_api_gap_analysis_v1.md`.

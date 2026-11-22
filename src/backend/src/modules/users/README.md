@@ -1,84 +1,164 @@
-# USERS MODULE SPECIFICATION & OVERVIEW
+# MODULE `users` - Users - Tai khoan & Phien dang nhap
 
-## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
-Module `users` chịu trách nhiệm quản lý thông tin tài khoản người dùng, hồ sơ cá nhân và vòng đời trạng thái hoạt động trong hệ thống. Module này cung cấp thực thể định danh cốt lõi cho mọi hành vi trong nền tảng: từ việc gán quyền trong Không gian làm việc (`workspaces`), ghi nhận tác giả tạo dự án (`projects`), cho đến truy vết ai đã áp dụng quy tắc làm sạch dữ liệu.
+> **Module Specification & Documentation**
 
-- **Vị trí trong hệ thống:**
-  - **Cung cấp Danh tính:** Cung cấp thông tin xác thực cho `AuthModule` và thông tin thành viên cho `WorkspacesModule`.
-  - **Hạ tầng lưu trữ:** Collection `users` trên **MongoDB Atlas** với cơ chế bảo vệ trường nhạy cảm và chỉ mục một phần (Partial Unique Index).
-  - **Ràng buộc Toàn vẹn:** Tự động đồng bộ trạng thái tài khoản với bảng quản lý phiên `user_sessions`.
+## 1. Thong tin Phien ban (Version Information)
 
----
+- **Current Version:** v1.1.0
+- **Last Updated:** 2026-11-21
+- **Module Path:** `src/backend/src/modules/users` (34 file TypeScript)
+- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
+- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
 
-## 2. Kiến trúc & Vòng đời Tài khoản Trực quan (Architecture & User Lifecycle)
-Sơ đồ trạng thái vòng đời của một tài khoản và cơ chế thu hồi phiên khi xóa mềm:
+## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
 
-```mermaid
-stateDiagram-v2
-    [*] --> Active: Đăng ký thành công qua AuthModule
-    note right of Active: status = 'active'<br/>deleted_at = null
+Module nay so huu **danh tinh nguoi dung** va **vong doi phien dang nhap**. Day la aggregate root mang tinh bao mat cao nhat trong he thong.
 
-    Active --> Updated: PATCH /users/me (Đổi họ tên, avatar)
-    Updated --> Active: Cập nhật thành công
+Module `auth` se **goi vao** module nay qua port de tao phien va kiem tra user; module nay **khong** lo xac thuc mat khau hay token (thuoc ve `auth`).
 
-    Active --> Blocked: Quản trị viên khóa tài khoản
-    note right of Blocked: status = 'blocked'<br/>(Từ chối JWT ngay lập tức)
+### 2.1. Tinh nang thuoc pham vi
 
-    Blocked --> Active: Quản trị viên mở khóa
+| Chuc nang | Noi dung |
+|---|---|
+| Ho so nguoi dung | Tao, cap nhat, xoa mem, chan / bo chan |
+| Phien dang nhap | Tao phien, cham (touch), thu hoi theo id / toan bo / theo token hash |
+| Truy van | Tim theo email, id, phan trang, tim phien theo token hash |
+| Thong bao | Cap nhat preferences cua nguoi dung |
+| Su kien | Phat `user.created`, `user.blocked`, `user.unblocked`, `user.removed` |
 
-    Active --> SoftDeleted: DELETE /users/me (Người dùng hủy tài khoản)
-    Blocked --> SoftDeleted: Xóa tài khoản
+### 2.2. Cau truc thu muc
 
-    note right of SoftDeleted: deleted_at = new Date()<br/>Thu hồi toàn bộ user_sessions<br/>Giải phóng email trong Partial Unique Index
-    SoftDeleted --> [*]
+```text
+users/
+|-- domain/
+|   |-- entities/
+|   |   |-- user.entity.ts            # Aggregate root User
+|   |   `-- user-session.entity.ts    # Aggregate root UserSession
+|   |-- value-objects/
+|   |   |-- user-role.vo.ts           # UserRole, UserStatus, normalizeEmail, canUserLogin
+|   |   `-- session-policy.vo.ts      # Chinh sach het han phien
+|   |-- events/user-events.ts         # USER_EVENTS, USER_OUTBOX_EVENTS
+|   `-- ports/user.repository.port.ts
+|-- application/
+|   |-- commands/                     # 11 command handler
+|   |-- queries/                      # 6 query handler
+|   `-- services/user-access-revocation.service.ts
+|-- infrastructure/persistence/        # user.schema, user-session.schema, repository, mapper
+`-- presentation/
+    |-- controllers/users.controller.ts
+    |-- controllers/admin-users.controller.ts
+    |-- dtos/update-user.dto.ts
+    `-- responses/user.response.ts
 ```
 
----
+## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
 
-## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
+- **User Prompt / Business Intent:** Lam `users` la nguon su that duy nhat ve danh tinh nguoi dung va phien dang nhap, de moi module khac deu co the trich xuat `userId` mot cach nhat quan, dong thoi dam bao moi luon co mot `User` hop le.
 
-### 3.1. Bảo vệ Trường Nhạy cảm (Field-level Security)
-- **Ẩn Mật khẩu Mặc định (`select: false`):** Trường `password_hash` được cấu hình ẩn ở mức Schema của Mongoose. Mọi truy vấn lấy thông tin người dùng (`find`, `findById`) đều không bao gồm trường mật khẩu trừ khi hàm xác thực nội bộ gọi tường minh `.select('+password_hash')`.
-- **Phân tách Vai trò Hệ thống vs Vai trò Workspace:** Trường `role` trong User đại diện cho vai trò toàn hệ thống (`user`, `superadmin`), hoàn toàn độc lập với vai trò cục bộ trong từng Workspace (`owner`, `editor`, `viewer`).
+- **Technical Reasoning & Decisions:**
 
-### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
-- **Chuẩn hóa Xóa mềm (`deleted_at`):** Tuyệt đối không sử dụng cờ boolean `is_deleted`. Bắt buộc dùng `deleted_at: Date | null`. Mọi truy vấn nghiệp vụ thông thường mặc định bắt buộc lọc `{ deleted_at: null }`.
-- **Tái Đăng ký Email nhờ Chỉ mục Một phần (Partial Unique Index):** Nếu một tài khoản bị xóa mềm, địa chỉ email đó có thể được sử dụng lại để đăng ký tài khoản mới. Chỉ mục MongoDB Atlas:
-  `{ email: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }`.
-- **Đồng bộ Thu hồi Phiên (Cascade Session Revocation):** Khi tài khoản bị xóa mềm hoặc khóa, toàn bộ các phiên làm việc đang mở trong bảng `user_sessions` đều bị đánh dấu vô hiệu lực (`is_revoked = true`) để chặn đứng phiên truy cập ngay tức khắc.
+1. **Tach danh tinh ra khoi xac thuc.** `auth` lo bang chung (mat khau, token, OAuth); `users` lo danh tinh (tai khoan, phien). Hai muc do khac nhau, tach ra de mo rong duong dang OAuth ma khong phai sua lai model nguoi dung.
 
----
+2. **Bam sat invariant trong entity.** `canUserLogin` chan tai khoan bi chan / da xoa **ngay trong domain**, thay vi de controller phai tu kiem tra. `normalizeEmail` chuan hoa email mot lan duy nhat, o domain, nen moi noi deu dung chung.
 
-## 4. Ma trận Phân quyền (Access Control Matrix)
+3. **Chi luu hash refresh token.** Session luu SHA-256 hash, khong luu token tho. Neu database bi lo, attacker khong the gia lap phien.
 
-| Hành động | Quyền tối thiểu | Cơ chế bảo vệ |
-| :--- | :---: | :--- |
-| **Xem hồ sơ của tôi (`/users/me`)** | Người dùng đã đăng nhập | `JwtAuthGuard` (Lấy thông tin từ `req.user.sub`) |
-| **Cập nhật hồ sơ (`PATCH /users/me`)** | Người dùng đã đăng nhập | `JwtAuthGuard` + `ZodValidationPipe` |
-| **Xóa mềm tài khoản (`DELETE /users/me`)** | Người dùng đã đăng nhập | `JwtAuthGuard` (Đánh dấu xóa mềm và hủy session) |
+4. **Thu hoi realtime ngay lap tuc (OPEN-08).** Khoa tai khoan nhung socket van song la lo hong IDOR qua WebSocket. `UserAccessRevocationService` ghi outbox event, module `realtime` bat va dong socket - tach module de tranh phu thuoc vong tron.
 
----
+5. **Xoa mem + partial unique index.** Cho phep dang ky lai email da xoa ma van khong trung ten voi tai khoan dang hoat dong.
 
-## 5. Đặc tả Giao tiếp API (API Specifications)
+- **Generated / Modified Artifacts:**
 
-| Method | Endpoint | Quyền hạn | Input DTO | Phản hồi Chính | Mô tả Nghiệp vụ |
-| :---: | :--- | :---: | :--- | :--- | :--- |
-| `GET` | `/api/v1/users/me` | Bearer JWT | N/A | `IUser` (Không gồm password) | Lấy thông tin hồ sơ của tài khoản hiện tại |
-| `PATCH` | `/api/v1/users/me` | Bearer JWT | `UpdateUserDto` | `IUser` | Cập nhật họ, tên, thông tin hiển thị |
-| `DELETE` | `/api/v1/users/me` | Bearer JWT | N/A | `{ message }` | Xóa mềm tài khoản và thu hồi các phiên active |
+- `domain/entities/user.entity.ts` - aggregate root `User` voi 3 phuong thuc `create` / `reconstitute` / `restore`.
+- `domain/value-objects/user-role.vo.ts` - `UserRole`, `UserStatus`, `normalizeEmail`, `canUserLogin`.
+- `domain/events/user-events.ts` - `USER_EVENTS` (dot.case) va `USER_OUTBOX_EVENTS` (UPPER_SNAKE).
+- `application/services/user-access-revocation.service.ts` - phat `USER_BLOCKED` / `USER_REMOVED` khi khoa / xoa.
+- `application/commands/block-user.handler.ts`, `unblock-user.handler.ts`, `soft-delete-user.handler.ts`.
+- `presentation/controllers/admin-users.controller.ts` - cac route quan tri co `@Roles('admin')`.
 
----
+## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
 
-## 6. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+### 4.1. Endpoints
 
-### 6.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
-- **Xóa mềm kết hợp Partial Index:** Việc giữ lại bản ghi sau khi xóa giúp duy trì tính toàn vẹn khóa ngoại (Foreign Key Integrity) cho các bảng lịch sử audit log, nhưng yêu cầu mọi câu lệnh tìm kiếm đều phải có điều kiện lọc `{ deleted_at: null }`.
+| Method | Path | Chinh sach | Mo ta |
+|---|---|---|---|
+| `GET` | `/api/v1/users/me` | Chu user | Ho so cua toi |
+| `PATCH` | `/api/v1/users/me` | Chu user | Cap nhat ho so |
+| `DELETE` | `/api/v1/users/me` | Chu user | Xoa mem tai khoan cua toi |
+| `GET` | `/api/v1/admin/users` | `admin` | Danh sach tai khoan |
+| `GET` | `/api/v1/admin/users/:id` | `admin` | Chi tiet tai khoan |
 
-### 6.2. Lịch sử Thay đổi (Change Log)
-- `v1.2.0` (2026-10-24):
-  - *Thay đổi gì:* Nâng cấp tài liệu sang chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid mô tả vòng đời tài khoản và giải thích cơ chế Partial Index.
-  - *Lý do:* Giúp người xem nắm bắt mô hình quản lý người dùng mà không cần đọc code.
-- `v1.1.0` (2026-10-20):
-  - *Thay đổi gì:* Chuyển đổi `UpdateUserDto` sang Zod schema, kết nối `ZodValidationPipe`.
-- `v1.0.0` (2026-10-20):
-  - *Thay đổi gì:* Khởi tạo schema User, UserSession và các endpoints hồ sơ cá nhân.
+> Cac command handler **khong mo route REST** (goi tu `auth`): `block-user`, `unblock-user`, `revoke-all-user-sessions`, `revoke-session-by-id`, `revoke-session`.
+
+### 4.2. Interfaces / Providers duoc export ra ngoai
+
+`src/backend/src/modules/users/index.ts` export public contract:
+
+| Export | Vai tro |
+|---|---|
+| `UsersModule` | Nest module |
+| `User` entity + `UserRole` / `UserStatus` | Doc contract cua module khac |
+| `USER_REPOSITORY_PORT` | Port truy van tai khoan / phien |
+| `UserAccessRevocationService` | Phat su kien thu hoi quyen |
+
+### 4.3. Su kien domain phat ra
+
+| Event | Khi nao | Dinh dang |
+|---|---|---|
+| `user.created` | Dang ky moi | `dot.case` - domain event cua entity |
+| `user.blocked` | Admin khoa tai khoan | `dot.case` |
+| `user.unblocked` | Admin bo khoa | `dot.case` |
+| `user.removed` | Xoa mem | `dot.case` |
+| `USER_BLOCKED` | Khoa - kich hoat thu hoi realtime | `UPPER_SNAKE` - outbox event |
+| `USER_REMOVED` | Xoa mem - kich hoat thu hoi realtime | `UPPER_SNAKE` - outbox event |
+
+Hai nhom ten cung ton tai co chu dich: `dot.case` la **domain event** cua entity; `UPPER_SNAKE` la **outbox event** ma `EventDispatcherService` va `DomainEventHandlerRegistry` khop theo ten.
+
+## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+
+### 5.1. Bat bien nghiep vu
+
+- Email chuan hoa (`lowercase` + `trim`) va **duy nhất** trong tai khoan chua xoa mem.
+- So dien thoai **duy nhat** neu co gia tri.
+- `firstName` / `lastName` <= 50 ky tu; `bio` <= 500 ky tu.
+- Chi tai khoan `active` + chua xoa moi dang nhap duoc (`canUserLogin`).
+- Xoa mem **phai** thu hoi toan bo phien.
+- `passwordHash` la private + `select: false` - khong bao gio duoc loi ra ngoai.
+
+### 5.2. Xoa mem (Soft Delete)
+
+- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
+- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
+- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+
+### 5.3. Bao mat
+
+| Van de | Cach xu ly |
+|---|---|
+| Ro mat khau | `passwordHash` private + `select: false`; mapper khong bao gio map ra response |
+| Email trung | Chuan hoa truoc khi ghi + partial unique index |
+| Dang nhap tai khoan bi khoa | `canUserLogin` chan o entity, khong phai o controller |
+| Dang nhap tai khoan da xoa | `canUserLogin` + query loc `deleted_at: null` |
+| Token phien bi lo | Chi luu SHA-256 hash |
+| Dat lai mat khau bi lam dung | Bo dem cua so thoi gian + gioi han so lan gui |
+| Phien con song sau khi khoa | `USER_BLOCKED` / `USER_REMOVED` dong socket tuc thoi |
+
+### 5.4. Phan quyen
+
+| Route | Chinh sach |
+|---|---|
+| `GET/PATCH/DELETE /users/me` | Chu user dang dang nhap |
+| `GET /admin/users`, `GET /admin/users/:id` | `@Roles('admin')` |
+
+**Moi hinh vai tro 3 tang:** he thong (`admin`, `analyst`) -> workspace (`owner`, `member`) -> project (`owner`, `member`, `viewer`). Module nay so huu tang he thong.
+
+## 6. Lich su Thay doi (Change Log & Version History)
+
+### 2026-11-21
+- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.0.0** / 2026-11-XX / Bo sung `UserAccessRevocationService` va `USER_BLOCKED` / `USER_REMOVED` de thu hoi realtime khi khoa / xoa tai khoan (OPEN-08) / Lo hong IDOR qua WebSocket / `modules/users`, `modules/realtime`
+- **v0.9.0** / 2026-11-XX / Bo sung `block-user` / `unblock-user` va thu hoi phien toan bo / Chuan bi mat khau / `modules/users`
+- **v0.8.0** / 2026-11-XX / Bo sung admin bootstrap (`admin-bootstrap.service.ts`) — tao tai khoan admin **tu dong** khi he thong chua co admin nao / Yeu cau quyet dinh OPEN-01 / `modules/users`, `modules/auth`
+- **v0.1.0** / 2026-11-XX / Tao module, tach danh tinh khoi xac thuc / Kien truc Clean Architecture / `modules/users`
+
+- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`

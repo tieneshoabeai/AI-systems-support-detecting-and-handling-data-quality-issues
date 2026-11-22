@@ -1627,7 +1627,7 @@ Cấu hình, quy trình vận hành và quan sát đã rõ ràng; các rủi ro 
 | **Cloudflare Tunnel + SSL** | `src/backend/src/shared/config/env.validation.ts`, `src/backend/src/main.ts` | 7 biến `CLOUDFLARE_*`/`SSL_*`; `CLOUDFLARE_PROXY_TRUST` ảnh hưởng rate-limit theo IP |
 | **Push notification ntfy.sh** | `src/backend/src/shared/config/env.validation.ts` | 5 biến `NTFY_*` |
 | **ESLint siết `--max-warnings 0`** | `src/backend/package.json` | `lint` và `lint:ci` đều fail khi có warning — ràng buộc cho mọi biến môi trường mới |
-| **Clean Architecture 106 handler** | `src/backend/src/modules/*/application/{commands,queries}/*.handler.ts` | Mỗi handler là 1 đơn vị kiểm thử; adapter đọc biến môi trường qua `ConfigService` |
+| **Clean Architecture 107 handler** | `src/backend/src/modules/*/application/{commands,queries}/*.handler.ts` | Mỗi handler là 1 đơn vị kiểm thử; adapter đọc biến môi trường qua `ConfigService` |
 
 ---
 

@@ -229,7 +229,7 @@ Hợp đồng `7_api_contracts_v8.md` **chưa** được cập nhật cho thay �
 
 ## 8. Tài liệu liên quan
 
-- [`docs/test-reports/perf-2026-11-19.md`](../../test-reports/perf-2026-11-19.md) — số liệu gốc
+- [`docs/test-reports/perf-2026-11-19.md`](../test-reports/perf-2026-11-19.md) — số liệu gốc
 - [`20_overload_guard_gd0_gd4.md`](./20_overload_guard_gd0_gd4.md) — GĐ0 (guard số dòng)
 - [`21_cardinality_guard_gd8_gd9.md`](./21_cardinality_guard_gd8_gd9.md) — GĐ8/GĐ9 (guard cardinality)
 - `src/backend/src/modules/analysis/application/analysis-limit.util.ts` — `AnalysisConcurrencyGuard`

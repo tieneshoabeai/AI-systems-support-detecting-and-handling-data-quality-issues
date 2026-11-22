@@ -15,16 +15,16 @@
 
 | ID | Chủ đề | Quyết định | Khớp code hiện tại? |
 |---|---|---|---|
-| OPEN-01 | Role khi đăng ký | API chỉ cấp `analyst`; admin được **bootstrap qua biến môi trường** (`ADMIN_EMAIL`/`ADMIN_PASSWORD`) lúc khởi động nếu chưa có | ⚠️ Cần thêm bootstrap |
-| OPEN-02 | Hạn refresh token | **Gia hạn trượt** — `expiresAt = now + TTL` mỗi lần refresh | ✅ Đúng |
-| OPEN-03 | Đổi tên cột | **Không có tính năng đổi tên cột.** Chỉ phát hiện lỗi tên cột → đưa vào mục **Phát hiện** kèm vị trí lỗi cụ thể | ❌ Cần xoá endpoint |
-| OPEN-04 | Cột trùng tên trong output | Các phát hiện đưa vào **mục Phát hiện**; endpoint `GET /records` **giữ nguyên shape** hiện tại | ✅ (kèm OPEN-03) |
-| OPEN-05 | Ngày/CSV | **Không tự chuẩn hoá** — giữ nguyên giá trị thô, ô nghi ngờ → mục Phát hiện kèm vị trí. **Chỉ CSV phẩy cách** (thu hẹp từ `,` `;` tab `|`) | ❌ Cần thu hẹp |
-| OPEN-06 | Cấu hình cột | **Không có khái niệm chọn cột.** Hệ thống luôn phân tích toàn bộ cột; label/time/value **tự suy**; không có cấu hình thủ công | ❌ Cần thu hẹp API |
-| OPEN-07 | Retry AI job | **Không giới hạn** số lần retry (giới hạn bằng quota) | ❌ Cần thu hẹp |
-| OPEN-08 | Thu hồi realtime | **Event-driven** — ngắt socket **tức thì** khi có event user blocked/removed | ❌ Cần thêm event |
-| OPEN-09 | Lỗi hạ tầng | **Strict** — ghi event/outbox thất bại ⇒ nghiệp vụ chính **cũngng thất bại**. Ghi event trong **cùng Mongo transaction** | ⚠️ Cần chuyển sang transaction |
-| OPEN-10 | Quy ước số học | Chuẩn khoa học dữ liệu: variance/độ lệch chuẩn dùng **mẫu** (n−1), quartile nội suy (type 7), skewness mẫu. **Giữ nguyên** bộ ngưỡng cảnh báo hiện có | ✅ Đúng |
+| OPEN-01 | Role khi đăng ký | API chỉ cấp `analyst`; admin được **bootstrap qua biến môi trường** (`ADMIN_EMAIL`/`ADMIN_PASSWORD`) lúc khởi động nếu chưa có | ✅ Đã triển khai (`admin-bootstrap.service.ts`) |
+| OPEN-02 | Hạn refresh token | **Gia hạn trượt** — `expiresAt = now + TTL` mỗi lần refresh | ✅ Đã sửa comment + test |
+| OPEN-03 | Đổi tên cột | **Không có tính năng đổi tên cột.** Chỉ phát hiện lỗi tên cột → đưa vào mục **Phát hiện** kèm vị trí lỗi cụ thể | ✅ Đã gỡ 4 route |
+| OPEN-04 | Cột trùng tên trong output | Các phát hiện đưa vào **mục Phát hiện**; endpoint `GET /records` **giữ nguyên shape** hiện tại | ✅ Đã triển khai (`findings`) |
+| OPEN-05 | Ngày/CSV | **Không tự chuẩn hoá** — giữ nguyên giá trị thô, ô nghi ngờ → mục Phát hiện kèm vị trí. **Chỉ CSV phẩy cách** (thu hẹp từ `,` `;` tab `|`) | ✅ Đã thu hẹp + BOM |
+| OPEN-06 | Cấu hình cột | **Không có khái niệm chọn cột.** Hệ thống luôn phân tích toàn bộ cột; label/time/value **tự suy**; không có cấu hình thủ công | ✅ Đã gỡ 2 route + tự suy |
+| OPEN-07 | Retry AI job | **Không giới hạn** số lần retry (giới hạn bằng quota) | ✅ Đã triển khai + chống job cũ ghi đè |
+| OPEN-08 | Thu hồi realtime | **Event-driven** — ngắt socket **tức thì** khi có event user blocked/removed | ✅ Đã triển khai (server đóng hẳn socket) |
+| OPEN-09 | Lỗi hạ tầng | **Strict** — ghi event/outbox thất bại ⇒ nghiệp vụ chính **cũngng thất bại**. Ghi event trong **cùng Mongo transaction** | ✅ Đã triển khai (`TRANSACTION_PORT`) |
+| OPEN-10 | Quy ước số học | Chuẩn khoa học dữ liệu: variance/độ lệch chuẩn dùng **mẫu** (n−1), quartile nội suy (type 7), skewness mẫu. **Giữ nguyên** bộ ngưỡng cảnh báo hiện có | ✅ Đã sửa `stdev` + khoá bằng test |
 
 ---
 

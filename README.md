@@ -1,281 +1,449 @@
 # NỀN TẢNG FULL-STACK QUẢN LÝ & GIÁM SÁT CHẤT LƯỢNG DỮ LIỆU CÓ AI HỖ TRỢ
 ### (AI Systems Support Detecting and Handling Data Quality Issues)
 
-[![TypeScript Strict](https://img.shields.io/badge/TypeScript-7.0.2_%7C_6.0_Strict-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0.2_Strict-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/Backend-NestJS_11-red.svg)](https://nestjs.com/)
-[![Security](https://img.shields.io/badge/Security-Cloudflare_TLS_1.3_Port_443-blue.svg)](#4-công-nghệ--hạ-tầng-đám-mây-tech-stack)
-[![Database](https://img.shields.io/badge/Database-MongoDB_Atlas_%7C_Kafka_%7C_Redis_%7C_R2-green.svg)](#4-công-nghệ--hạ-tầng-đám-mây-tech-stack)
-[![Zero Any](https://img.shields.io/badge/Type_Safety-Zero_Any_Policy-success.svg)](#5-ràng-buộc-chất-lượng--tiêu-chuẩn-bất-biến-quality--safety-invariants)
-[![License](https://img.shields.io/badge/License-Academic_Project_UTH-orange.svg)](#)
+[![Node](https://img.shields.io/badge/Node-22.22.3_LTS-green.svg)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-11.3.0-orange.svg)](https://pnpm.io/)
 
 ---
 
-## 1. Định vị & Tuyên ngôn Giá trị của Hệ thống (Problem & Vision)
+## 1. Định vị & Tuyên ngôn Giá trị
 
-Trong kỷ nguyên Trí tuệ Nhân tạo và Ra quyết định dựa trên Dữ liệu (Data-Driven Decision Making), vấn đề **"Dữ liệu rác vào $\rightarrow$ Kết quả rác ra" (Garbage In, Garbage Out)** là rào cản lớn nhất của các kỹ sư và chuyên viên phân tích dữ liệu. Các vấn đề chất lượng dữ liệu phổ biến bao gồm:
-- Dữ liệu bị khuyết thiếu (Missing values), dị biệt ngoài ngưỡng (Outliers), định dạng không đồng nhất.
-- Thiếu công cụ truy vết nguồn gốc (Data Lineage), không biết dữ liệu lỗi bắt nguồn từ đâu và ảnh hưởng đến những hệ thống nào.
-- Việc sửa đổi dữ liệu thủ công tiềm ẩn rủi ro phá hủy dữ liệu gốc, không có cơ chế khôi phục phiên bản (Data Versioning & Rollback) và không thể đối soát tính toàn vẹn (Integrity Verification).
+Trong kỷ nguyên Trí tuệ Nhân tạo và Ra quyết định dựa trên Dữ liệu, vấn đề **Dữ liệu rác vào - Kết quả rác ra** (Garbage In, Garbage Out) là rào cản lớn nhất của mọi kỹ sư và chuyên viên phân tích dữ liệu.
 
-**Hệ thống AI Hỗ trợ Phát hiện & Xử lý Vấn đề Chất lượng Dữ liệu** được xây dựng như một nền tảng tập trung (Enterprise Full-Stack Data Quality Platform) giải quyết toàn diện các thách thức trên:
-1. **Tiếp nhận Dữ liệu Chỉ-Đọc:** Streaming Ingestion **`.csv` duy nhất** dung lượng lớn với mức tiêu thụ RAM $\le 20\text{ MB}$; dữ liệu bất biến — hệ thống **không sửa, xoá hay thay đổi** dòng/ô.
-2. **Khám phá & Thống kê Tốc độ cao:** Lưới dữ liệu ảo (Virtual Grid) phân trang **con trỏ Keyset (cursor)** $\le 50\text{ ms}$ cho hàng triệu dòng dữ liệu — không `offset`, không `countDocuments`.
-3. **AI Cục bộ — Dữ liệu Không Rời Hệ thống:** Mô hình ngôn ngữ lớn chạy **nội bộ** qua `vLLM`/`Ollama`, **không** gọi API bên ngoài. **Năm ứng viên được benchmark** (`Qwen3-14B` · `Gemma-3-12B` · `Qwen3-8B` · `Llama-3.1-8B` · `Vistral-7B`) trên **9 chỉ số** + kiểm định thống kê + đường Pareto; model chốt theo số liệu, không chốt trước.
-4. **Vòng lặp Người dùng → AI (Human-in-the-Loop):** Mỗi kết quả có khối đánh giá để người dùng nhận xét; phản hồi lưu bất biến và được dùng để **AI học lại** qua RAG few-shot động.
-5. **Sự kiện & Realtime:** **Kafka** làm event bus + hàng đợi nền (có dead-letter queue); **Socket.IO** đẩy thông báo và tiến độ tới client.
+Hệ thống này giải quyết bài toán đó bằng 5 nguyên tắc thiết kế cốt lõi:
 
----
+1. **Tiếp nhận Dữ liệu Chỉ-Đọc** - Streaming Ingestion `.csv` duy nhất, mức tiêu thụ RAM ≤ 20 MB; dữ liệu bất biến. Hệ thống **không sửa, xoá hay thay đổi** bất kỳ dòng/ô nào của dataset gốc.
+2. **Khám phá & Thống kê Tốc độ cao** - Lưới dữ liệu ảo (Virtual Grid) phân trang con trỏ Keyset ≤ 50 ms cho hàng triệu dòng. Không `offset`, không `countDocuments`.
+3. **AI Cục bộ** - Mô hình ngôn ngữ lớn chạy **nội bộ** qua `vLLM`/`Ollama`, **không** gọi API bên ngoài. 5 ứng viên đã benchmark trên 9 chỉ số chất lượng.
+4. **Vòng lặp Người dùng - AI (Human-in-the-Loop)** - Mỗi kết quả AI có khối đánh giá để người dùng nhận xét; phản hồi lưu bất biến và được dùng để **AI học lại** qua RAG few-shot động.
+5. **Sự kiện & Realtime** - **Kafka** làm event bus + hàng đợi nền (có dead-letter queue); **Socket.IO** đẩy thông báo và tiến độ tới client.
 
-## 2. Bức tranh Tổng quan Kiến trúc Toàn diện (System Architecture)
-
-Hệ thống được thiết kế theo mô hình **Modular Monolith** phân tầng rõ ràng, kết hợp cơ chế lưu trữ đa đám mây (Polyglot Persistence) và phân tách giao dịch bất đồng bộ qua **Transactional Outbox Pattern**:
-
-```mermaid
-graph TD
-    subgraph ClientLayer ["1. Tầng Giao diện Người dùng (Presentation Layer)"]
-        UI["🖥️ Web App (Vite + React / React Flow)"]
-        Grid["📊 Virtual Data Grid (Keyset Cursor)"]
-        DAG["🕸️ Interactive Lineage Graph (React Flow)"]
-        UI --> Grid & DAG
-    end
-
-    subgraph GatewayLayer ["2. Tầng Bảo vệ & Điều phối API (API Gateway / NestJS)"]
-        JWT["🛡️ JwtAuthGuard (Xác thực Phiên / Bỏ qua @Public)"]
-        CASL["🔒 PoliciesGuard (Phân quyền CASL ABAC theo Workspace)"]
-        ZOD["📋 ZodValidationPipe (Kiểm thực Schema & Zero Any)"]
-        CTRL["🎛️ RESTful Controllers (32+ Endpoints)"]
-        
-        UI -->|"HTTPS (TLS 1.3 - Cổng 443) / Cloudflare Zero Trust Tunnel"| JWT
-        JWT --> CASL --> ZOD --> CTRL
-    end
-
-    subgraph ServiceLayer ["3. Tầng Nghiệp vụ Cốt lõi (Core Business Modules)"]
-        CTRL --> M_Auth["Auth & Users"]
-        CTRL --> M_WS["Workspaces & Projects"]
-        CTRL --> M_DS["Datasets (Streaming CSV Ingestion)"]
-        CTRL --> M_DV["Data View (Virtual Grid & Stats)"]
-        CTRL --> M_AN["Analysis & AI (Local Inference)"]
-        CTRL --> M_FB["Feedback (Đánh giá & Học lại)"]
-    end
-
-    subgraph StorageLayer ["4. Hạ tầng Lưu trữ Đa mô hình (Polyglot Storage & Cloud)"]
-        Mongo[("🍃 MongoDB Atlas M0/M10<br/><i>Metadata, Records, Sessions, Outbox, Feedback</i>")]
-        R2[("☁️ Cloudflare R2 Storage<br/><i>Raw CSV Files, Reports</i>")]
-        Kafka[("📨 Kafka (KRaft)<br/><i>domain.events · ai.jobs · realtime.push · DLQ</i>")]
-        AISvc[("🧠 ai-engine (vLLM)<br/><i>5 model ứng viên + Embedding-0.6B</i>")]
-    end
-
-    subgraph AsyncWorker ["5. Phân hệ Đồng bộ Bất đồng bộ (Kafka Workers)"]
-        OutboxQueue["📦 outbox_events (Transactional Outbox)"]
-        Worker["⚙️ Kafka Consumers (idempotent, 6 consumer groups)"]
-        Realtime["📡 Socket.IO Gateway (/api/v1/realtime)"]
-    end
-
-        M_DS & M_AN -.->|"Ghi sự kiện Domain"| OutboxQueue
-        OutboxQueue --> Kafka
-        Kafka --> Worker
-        Kafka --> Realtime
-        Worker -->|"HTTP nội bộ"| AISvc
-    end
-
-    M_Auth & M_WS & M_DV & M_FB --> Mongo
-    M_DS -->|"Stream PutObject (CSV)"| R2
-    M_DS -->|"bulkWrite 1.000 records"| Mongo
-    M_FB -.->|"few-shot động top-5"| AISvc
-```
-
-> ❌ **Không có mũi tên dữ liệu ra Internet.** `ai-engine` chạy trong cùng Docker network và không có egress; dự án không cài bất kỳ SDK AI bên ngoài nào.
+> **Lưu ý phạm vi dự án:** đây là **đồ án môn học** (đại học UTH), không phải hệ thống production. Thông tin trong README phản ánh đúng trạng thái mã nguồn hiện tại, không phải cam kết SLA vận hành.
 
 ---
 
-## 3. Bản đồ Tính năng & Phân hệ Nghiệp vụ (Feature Modules)
+## 2. Bức tranh Tổng quan Kiến trúc Toàn diện
 
-Hệ thống backend được phân rã thành các phân hệ nghiệp vụ độc lập, mỗi module chịu trách nhiệm duy nhất (Single Responsibility) và có tài liệu chi tiết riêng:
+Hệ thống được thiết kế theo mô hình **Modular Monolith** phân tầng rõ ràng, kết hợp lưu trữ đa mô hình (Polyglot Persistence) và phân tách giao dịch bất đồng bộ qua **Transactional Outbox Pattern**.
+## 3. Cấu trúc Thư mục & Bản đồ Kiến trúc
 
-| Module | Vị trí Thư mục | Trách nhiệm Nghiệp vụ Cốt lõi | Tài liệu Module |
-| :--- | :--- | :--- | :---: |
-| **Auth** | `src/backend/src/modules/auth/` | Đăng ký, đăng nhập, cấp phát Access Token (JWT 15m) & Refresh Token (7d), băm một chiều SHA-256 cho phiên làm việc `user_sessions`, thu hồi phiên từ xa. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/modules/auth/README.md) |
-| **Users** | `src/backend/src/modules/users/` | Quản lý hồ sơ người dùng, phân tách vai trò hệ thống, chuẩn hóa xóa mềm `deleted_at: Date`, chỉ mục một phần cho phép tái sử dụng email. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/modules/users/README.md) |
-| **Workspaces** | `src/backend/src/modules/workspaces/` | Ranh giới cô lập dữ liệu cấp cao nhất (Multi-tenancy Boundary), quản lý nhóm thành viên và phân quyền theo mô hình CASL: `Owner`, `Editor`, `Viewer`. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/modules/workspaces/README.md) |
-| **Projects** | `src/backend/src/modules/projects/` | Quản lý dự án trực thuộc Workspace, thực thi ràng buộc Single Dataset (`has_dataset`) nhằm đơn giản hóa cây phả hệ dữ liệu. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/modules/projects/README.md) |
-| **Datasets** | `src/backend/src/modules/datasets/` | Cổng Ingestion Gateway đa luồng song song: **chỉ nhận `.csv`**, tính SHA-512 on-the-fly, stream upload Cloudflare R2, suy luận schema 100 dòng đầu, nạp MongoDB theo mẻ 1.000 dòng. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/modules/datasets/README.md) |
-| **Data View** | `src/backend/src/modules/data-view/` | Động cơ phân trang **Keyset Cursor** $O(1)$ $\le 50\text{ ms}$ (cursor ký HMAC, trả `nextCursor`/`hasMore`) và tính toán biểu đồ Histogram 10 khoảng qua MongoDB Aggregation `$bucket`. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/modules/data-view/README.md) |
-| **AI & Feedback** | `apps/api/src/modules/ai/`, `apps/api/src/modules/feedback/` | Suy luận **cục bộ** (5 model ứng viên qua vLLM/Ollama, chốt theo benchmark) và vòng lặp Human-in-the-Loop: thu nhận nhận xét người dùng, lưu bất biến, sinh mẫu few-shot động cho vòng lặp học lại. | [Đặc tả](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/restructures/12_processing_logic_ai_v6.md) |
-| **Shared** | `src/backend/src/shared/` | Khung hạ tầng dùng chung: CASL ABAC Factory, Ambient Mongo Transaction (`AsyncLocalStorage`), S3 Quota Guard, PII Data Masking, Zod OpenAPI Bridge, BaseMongoRepository. | [Chi tiết](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/src/shared/README.md) |
-
----
-
-## 4. Công nghệ & Hạ tầng Đám mây (Tech Stack)
-
-### Backend & Công nghệ Lập trình
-- **Ngôn ngữ:** TypeScript 5.6+ (`^5.6.3` trong `package.json`, chế độ `strict: true`, kích hoạt bắt buộc **Zero Any Policy**).
-- **Khung ứng dụng (Framework):** NestJS 11 (`^11.1.21`, Kiến trúc Modular Monolith, Dependency Injection, Pipes, Interceptors, Guards).
-- **Kiểm thực Dữ liệu (Validation):** Zod 3 + `zod-to-json-schema` (Tự động sinh đặc tả Swagger OpenAPI 3.0).
-- **Bảo mật & Phân quyền:** Passport JWT, `@casl/ability` (Attribute-based Access Control), Bcrypt (Salt 12).
-- **Mật mã học & Xử lý Luồng:** Node.js Native Crypto (AES-256-GCM, PBKDF2 100.000 vòng, **SHA-512**), `busboy`, `fast-csv` (**không dùng thư viện Excel**).
-- **AI cục bộ:** `vLLM` (production) / `Ollama` (dev) — model **5 model ứng viên** `Qwen3-14B` / `Gemma-3-12B` / `Qwen3-8B` / `Llama-3.1-8B` / `Vistral-7B` (Q4_K_M / QAT), `Qwen3-Embedding-0.6B` (vector kho học lại); model chốt theo benchmark 9 chỉ số. Timeout 180s, đồng thời 1 job, RAM guard khi RSS > 85% RAM host.
-- **Sự kiện & Hàng đợi:** `kafkajs` (Kafka KRaft — 5 topic, 6 consumer group, DLQ), `socket.io` + Redis adapter (realtime tại `/api/v1/realtime?token=…`).
-
-### Hệ thống Lưu trữ Đa tầng (Multi-Database Infrastructure)
-- **MongoDB Atlas (Database `test-ai-system-jsts-db`):** Lưu trữ tài liệu phi cấu trúc, metadata, bản ghi dữ liệu thô (`dataset_records`, **insert-only**), phiên làm việc, Outbox và phản hồi người dùng (`finding_feedback`, `feedback_example`).
-- **Cloudflare R2 (Tương thích Amazon S3 API):** Lưu trữ tệp `.csv` gốc và các báo cáo sinh ra.
-- **Kafka (KRaft single-node) + Redis 7:** Kafka làm event bus + hàng đợi nền (có dead-letter queue); Redis làm cache, rate-limit và Socket.IO adapter.
-- **AI cục bộ (container `ai-engine`):** Suy luận nội bộ, **không có egress ra Internet**.
-- **Hệ thống Cảnh báo SRE:** `https://ntfy.sh/AI-SYSTEM-DATA-QUALITY` (Thông báo đẩy sự cố khẩn cấp P0 tới thiết bị di động).
-
-### Bảo mật Kênh truyền & Mạng (Transport Layer Security - TLS 1.3 & Cổng 443)
-- **Cloudflare Zero Trust Tunnel (`cloudflared`):** Tạo đường hầm outbound bảo mật qua giao thức QUIC/HTTP2 nối NestJS tới mạng lưới Cloudflare Edge; xuất bản địa chỉ **HTTPS Cổng 443 thực tế** có chứng chỉ CA quốc tế hợp lệ 100% (Google Trust Services / DigiCert), hiển thị ổ khóa xanh bảo mật trên mọi trình duyệt.
-- **Nhận diện Proxy Cloudflare (`trust proxy`):** Kích hoạt `app.set('trust proxy', 1)` trong NestJS, ưu tiên trích xuất IP thực từ tiêu đề `CF-Connecting-IP` và mã định danh luồng `CF-Ray` phục vụ Rate Limiting, Audit Logging và chống giả mạo IP.
-- **Bảo mật Cưỡng bức (HSTS via Helmet):** Kích hoạt tiêu đề `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, ngăn chặn hoàn toàn tấn công hạ cấp kết nối (SSL Stripping).
-- **Dynamic OpenAPI Gateway:** Swagger UI tự động nhận diện URL tunnel `https://*.trycloudflare.com` trên Cổng 443 để cho phép người dùng/người chấm kiểm thử trực tiếp API qua HTTPS.
-
----
-
-## 5. Ràng buộc Chất lượng & Tiêu chuẩn Bất biến (Quality & Safety Invariants)
-
-Hệ thống được phát triển tuân thủ nghiêm ngặt các nguyên tắc kỹ thuật trong tài liệu nội bộ:
-
-1. **Nguyên tắc Zero Any (Mục 13 WORKING RULE):**
-   - Cấm tuyệt đối kiểu dữ liệu `any` trong toàn bộ mã nguồn ứng dụng, scripts và test suites (`: any`, `as any`, `<any>`, `Record<string, any>`).
-   - Mọi dữ liệu không chắc chắn phải được bọc trong `unknown`, kiểm tra bằng Type Guards (`instanceof`, `typeof`) hoặc kiểm thực an toàn qua Zod (`schema.safeParse()`).
-   - Tệp kiểm thử tự động [`test/zero-any.spec.ts`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/src/backend/test/zero-any.spec.ts) quét toàn bộ cây thư mục mã nguồn để đảm bảo không một vi phạm nào bị lọt.
-
-2. **An toàn Truy vấn CSDL & Chống Injection (Mục 6 WORKING RULE):**
-   - **MongoDB:** Bắt buộc dùng Parameterized Query / Mongoose Query Builder, tuyệt đối không nối chuỗi dữ liệu đầu vào từ người dùng.
-   - **MongoDB Aggregation:** mọi bộ lọc động dùng Query Builder có tham số hóa, nghiêm cấm nối chuỗi giá trị người dùng vào pipeline.
-   - **AI cục bộ:** `ai-engine` không có egress ra Internet; dữ liệu đưa vào prompt luôn được che PII trước.
-
-3. **Bảo mật Dữ liệu Nhạy cảm (PII Masking):**
-   - Tiện ích `mask-pii.ts` tự động che giấu Email (`us***@gmail.com`), Số điện thoại (`090*****67`) và Căn cước công dân trong toàn bộ log hệ thống.
-   - Mật khẩu người dùng (`password_hash`) được bảo vệ bằng `select: false` ở cấp độ Schema Mongoose.
-
-4. **Bất biến dữ liệu (Data Immutability Invariant):**
-   - `dataset_record` là **insert-only**: đường ghi duy nhất là Import. Không `updateOne`, `deleteMany`, `findOneAndUpdate`, không soft-delete.
-   - Giá trị thiếu / không hợp lệ chỉ bị **loại khỏi phép tính thống kê cụ thể**, không bị xoá khỏi dataset.
-   - Mọi thao tác can thiệp dữ liệu trực tiếp trong database đều bị chặn bởi checker kiến trúc và quy tắc kiểm thử.
-
-5. **Chuẩn hóa Xóa mềm (Soft Delete Invariant):**
-   - Bắt buộc sử dụng `deleted_at: Date | null`. Nghiêm cấm dùng cờ boolean `is_deleted`.
-   - Sử dụng MongoDB Partial Unique Index `{ partialFilterExpression: { deleted_at: null } }` để hỗ trợ tái đăng ký hoặc tái sử dụng tên tài nguyên khi bản ghi cũ đã bị xóa mềm.
-
-6. **Bảo mật Kênh truyền An toàn (Data in Transit TLS 1.3 Invariant):**
-   - 100% dữ liệu truyền qua mạng công cộng (gồm Access Token, mật khẩu, dữ liệu bảng chứa PII) bắt buộc phải được mã hóa bằng giao thức **TLS 1.3 trên Cổng 443** qua Cloudflare Edge. Cấm tuyệt đối truyền tải văn bản thô (Plaintext HTTP) trong môi trường sản phẩm.
-
-## 6. Cấu trúc Thư mục Dự án (Project Directory Structure)
-
-```
+```text
 .
-├── .agent/                      # Quy tắc và hướng dẫn cấu hình AI Agent
-├── docs/                        # Tài liệu đặc tả kỹ thuật, kế hoạch Sprint và phân tích kiến trúc
-│   ├── build_env.md             # Hướng dẫn thiết lập môi trường CSDL & biến .env
-│   ├── feature_spec_v4.md       # Đặc tả chi tiết 9 nhóm tính năng
-│   ├── report_overview_v5.md    # Báo cáo tổng quan dự án
-│   └── sprint_b1..b3_plan.md    # Kế hoạch chi tiết các Sprint Backend
-├── remember/                    # Quy chuẩn bắt buộc nội bộ (Module Documentation Rule, Zero Any)
-│   └── module_documentation_rule.md # Quy định cấu trúc 6 phần cho README module
 ├── src/
-│   ├── frontend/                # Thư mục mã nguồn Giao diện Người dùng (React / Vite)
-│   └── backend/                 # Khung ứng dụng NestJS Backend
-│       ├── package.json         # Danh mục dependencies, build scripts và test commands
-│       ├── tsconfig.json        # Cấu hình TypeScript Strict Mode
-│       ├── src/
-│       │   ├── app.module.ts    # Root Module liên kết các phân hệ
-│       │   ├── main.ts          # Điểm khởi chạy ứng dụng, cấu hình Swagger và Global Pipes
-│       │   ├── modules/         # Các Module Nghiệp vụ (Auth, Users, Workspaces, Datasets, AI, Feedback...)
-│       │   │   ├── auth/        # Xác thực JWT, Refresh Token & Quản lý Session
-│       │   │   ├── data-view/   # Cursor Pagination (Keyset) & Histogram Aggregation
-│       │   │   ├── datasets/    # Streaming CSV Upload, Ingestion Pipeline & Checksum
-│       │   │   ├── projects/    # Quản lý Dự án & Ràng buộc has_dataset
-│       │   │   ├── users/       # Hồ sơ Người dùng & Vòng đời tài khoản
-│       │   │   └── workspaces/  # Multi-tenancy Workspace & Phân quyền CASL
-│       │   └── shared/          # Khung hạ tầng dùng chung (Crypto, Storage, CASL, Swagger, DB)
-│       ├── scripts/             # Scripts hỗ trợ vận hành (Bootstrap DB, Reset CSDL, Seed Data)
-│       └── test/                # Bộ kiểm thử Unit Test & End-to-End Test (Jest)
-└── README.md                    # Tài liệu tổng quan toàn bộ dự án (Tệp hiện tại)
+│   ├── backend/                  # NestJS API
+│   │   ├── src/
+│   │   │   ├── main.ts            # Bootstrap HTTP server + Swagger + helmet + CORS
+│   │   │   ├── worker.ts         # Bootstrap tiến trình worker (outbox + AI + report)
+│   │   │   ├── app.module.ts      # Root module: 13 module nghiệp vụ + hạ tầng
+│   │   │   ├── modules/           # 13 module nghiệp vụ (Clean Architecture)
+│   │   │   │   ├── users/         # Tai khoan, phien dang nhap, quan tri
+│   │   │   │   ├── auth/          # JWT, refresh, Google OAuth 2.0, reset mat khau
+│   │   │   │   ├── workspaces/    # Khong gian lam viec + vai tro thanh vien
+│   │   │   │   ├── projects/      # Du an + thanh vien + snapshot + chuyen owner
+│   │   │   │   ├── datasets/      # Upload CSV, schema, dong du lieu, xoa cascade
+│   │   │   │   ├── data-view/     # Luoi ao: records, query, stats, charts
+│   │   │   │   ├── analysis/      # Phan tich DQ, AI job, bao cao PDF, tong ket
+│   │   │   │   ├── feedback/      # Phan hoi nguoi dung + chi so chat luong AI
+│   │   │   │   ├── issues/        # Bao cao loi + tep dinh kem + quan tri
+│   │   │   │   ├── notifications/ # Thong bao + tuy chon nguoi dung
+│   │   │   │   ├── overview/      # Tong quan workspace
+│   │   │   │   ├── realtime/      # Socket.IO gateway + transport port
+│   │   │   │   └── audit/         # Nhat ky kiem toan (append-only)
+│   │   │   ├── shared/            # Lop cross-cutting: domain / application / infrastructure / interfaces
+│   │   │   └── test/              # 74 file spec (unit + arch + integration + e2e)
+│   │   ├── deploy/                # docker-compose.dev.yml, docker-compose.test.yml
+│   │   ├── scripts/               # Script van hanh, kiem thu, benchmark
+│   │   └── package.json
+│   ├── plan/                      # Tai lieu ke hoach
+│   ├── edit/                      # Tai lieu bien tap
+│   └── reports/                   # Bao cao sinh tu dong (.docx)
+├── docs/
+│   ├── restructures/              # 12 tai lieu kien truc + hop dong API v8
+│   ├── frontend-handover/         # Handoff API cho team frontend
+│   ├── modules/                   # Dac ta theo module
+│   ├── plan/                      # Dac ta & ke hoach trien khai
+│   ├── report/                    # Bao cao cong nghe ky thuat
+│   └── test-reports/              # Ket qua benchmark & hieu nang
+└── remember/                      # Ghi chu lam viec cho AI agent
+```
+## 4. Công nghệ & Thư viện Sử Dụng
+
+| Lớp | Công nghệ | Phiên bản | Vai trò |
+|---|---|---|---|
+| Ngôn ngữ | TypeScript | 6.0.2 | Strict mode, Zero-Any policy |
+| Framework | NestJS | 11.x | DI, module, guard, interceptor, pipe |
+| Runtime | Node.js | 22.22.3 LTS | API server + worker process |
+| Quản lý gói | pnpm | 11.3.0 | Workspace, cài đặt nhanh |
+| Validation | Zod | 3.23.x | Validate DTO tại biên, sinh lỗi 400 có cấu trúc |
+| Phân quyền | CASL (@casl/ability) | 7.x | ABAC 2 tầng: static + dynamic instance check |
+| NoSQL | Mongoose | 9.x | MongoDB driver + schema mapping |
+| Object Storage | AWS SDK v3 (S3) | - | Cloudflare R2, fallback local `storage/` |
+| Realtime | Socket.IO | 4.8.x | WebSocket gateway, phòng theo user/project/analysis |
+| Event Bus | KafkaJS | 2.2.x | Kafka broker + consumer (tuỳ chọn) |
+| Cache / Lease | ioredis | 6.x | Redis cho lease hàng đợi AI job, rate limit |
+| Auth | Passport JWT + bcrypt | - | Access/refresh token, hash mật khẩu |
+| Báo cáo | PDFKit | 0.20.x | Sinh báo cáo PDF kết quả phân tích |
+| Test | Jest | 30.x | Unit, arch, integration, e2e |
+| Lint | ESLint | 10.x | Flat config, `--max-warnings 0` |
+| Docs | Swagger (@nestjs/swagger) | 11.x | OpenAPI tại `/api/v1/docs` |
+## 5. Ràng buộc Chất lượng & Tiêu chuẩn Bất biến
+
+### 5.1 Clean Architecture 4 tầng
+
+Mỗi module nghiệp vụ tuân thủ cùng một bố cục:
+
+```text
+modules/<ten>/
+├── domain/           # Lõi nghiệp vụ thuần: entity, value-object, port, event
+│   ├── entities/     # Rich domain model - chứa luôn luật (invariant)
+│   ├── value-objects/# VO bất biến: validate + chuẩn hoá
+│   ├── ports/        # Interface (hexagonal port) - hợp đồng ra ngoài
+│   ├── events/       # Domain event định nghĩa sự kiện nghiệp vụ
+│   └── services/     # Hàm thuần dùng chung trong domain
+├── application/      # Use case: command/query handler (CQRS), policy loader
+│   ├── commands/     # Handler ghi (Create, Update, Delete...)
+│   ├── queries/      # Handler đọc (Get, List...)
+│   ├── services/     # Dịch vụ ứng dụng (cross-use-case)
+│   └── policy-loaders/# Nạp resource cho @PolicyResource (chống IDOR)
+├── infrastructure/   # Adapter kỹ thuật: MongoDB schema, repository, storage
+└── presentation/     # Controller REST, DTO, response mapper
 ```
 
----
+**Quy tắc phụ thuộc (bắt buộc nghiêm):**
 
-## 7. Hướng dẫn Cài đặt & Vận hành (Getting Started & Operations)
+| Mã | Quy tắc |
+|---|---|
+| CA1 | `domain` không import từ `application`, `infrastructure`, `presentation` |
+| CA2 | `domain` không import framework (Mongoose, NestJS) |
+| CA3 | `domain` không import module khác |
+| CA4 | `application` chỉ import `domain` |
+| CA5 | `shared` không import từ `modules` |
+| CA6 | `infrastructure` được phép import `domain` |
+| CA7 | `presentation` được phép import `application` |
+| CA8 | Import chéo module phải qua file `index.ts` (public contract) |
+| CA9 | `presentation` không chứa logic nghiệp vụ |
+| CA10 | Repository chỉ được gọi từ `application`/`infrastructure` |
+| CA11 | Không dùng `any` trong `domain` |
+| CA12 | Không logic nghiệp vụ trong controller |
+| CA13 | `shared/domain` không import framework |
+| CA14 | `shared/domain` không import `shared/interfaces` |
 
-### 7.1. Yêu cầu Tiên quyết (Prerequisites)
-- **Node.js:** Phiên bản $\ge 20.10.0$ LTS
-- **Trình quản lý gói:** `pnpm` phiên bản $\ge 9.0.0$ (Khuyến nghị sử dụng `pnpm` để tối ưu hóa bộ nhớ)
-- **Tài khoản Đám mây (Đã cấu hình sẵn sàng):**
-  - Cụm MongoDB Atlas (Database `test-ai-system-jsts-db`)
-  - Cloudflare R2 Bucket (`test-ai-system-storage`)
-  - Model AI cục bộ (Ollama ở dev: `qwen3:14b`, `qwen3:8b`, `qwen3-embedding:0.6b`)
+Các quy tắc này được **kiểm chứng tự động** bằng `test/clean-architecture.spec.ts` và `scripts/check-cross-imports.cjs`.
 
-### 7.2. Thiết lập Biến Môi trường (.env)
-Sao chép tệp cấu hình mẫu và cập nhật các thông tin kết nối thực tế:
+### 5.2 Zero-Any Policy
+
+- Bật `strict`, `noImplicitAny`, `noImplicitOverride`, `useUnknownInCatchVariables`, `noUnusedLocals`, `noUnusedParameters`, `noUncheckedIndexedAccess`.
+- Mọi giá trị `unknown` từ framework đều được **thu hẹp kiểu** qua type guard tường minh trước khi dùng.
+- `any` bị cấm trong `domain`; ESLint config chặn theo rule `@typescript-eslint/no-explicit-any`.
+### 5.3 Phân quyền CASL ABAC 2 tầng
+
+Hệ thống phân quyền theo **Attribute-Based Access Control** với hai tầng kiểm tra, cả hai đều do `PoliciesGuard` thực thi:
+
+**Tầng 1 - Static check:** so khớp tên subject (`Workspace`, `Project`, `Dataset`...) với hành động (`read`, `create`, `update`, `delete`, `execute`, `export`).
+
+**Tầng 2 - Dynamic check:** nạp resource thật qua `@PolicyResource(...)` + policy loader, sau đó kiểm tra **instance attribute** (`workspace_id`, `owner_id`...). Lớp này chính là lá chắn **IDOR** - người dùng không thể đổi `:id` trong URL để truy cập tài nguyên của người khác.
+
+**Mô hình 3 tầng vai trò:**
+
+| Tầng | Vai trò | Quyền |
+|---|---|---|
+| Hệ thống | `admin` / `analyst` | `admin` toàn quyền quản trị |
+| Workspace | `owner` / `member` | WS-OWNER toàn quyền trên mọi project của workspace |
+| Project | `owner` / `member` / `viewer` | PROJ-MEMBER ghi được; PROJ-VIEWER chỉ đọc |
+
+Quy tắc suy ra vai trò project: WS-OWNER → PROJ-OWNER; có mặt trong `project.members` → lấy đúng vai trò ghi trong DB; WS-MEMBER mặc định → PROJ-VIEWER.
+
+Hai **Context Port** giải quyết phần còn thiếu của mô hình này:
+
+- `WORKSPACE_CONTEXT_PORT` - resolve vai trò workspace của user theo request.
+- `PROJECT_CONTEXT_PORT` - resolve vai trò project của user theo request.
+
+Cả hai adapter đều **fail-safe**: lỗi truy vấn trả về tập rỗng thay vì ném, để sự cố hạ tầng không chặn oan người dùng hợp lệ.
+
+### 5.4 Giao dịch & Bất biến dữ liệu
+
+- Dữ liệu dataset là **append-only**: chỉ ghi 1 lần lúc import, không có `deleted_at` / `version_number` trên `dataset_record`.
+- Các thao tác xoá dùng **cascade** qua domain event (`cascade-project-datasets`, `cascade-dataset-event`), có bọc transaction MongoDB.
+- Mọi entity có `deleted_at` cho **soft delete**; truy vấn mặc định luôn lọc `deleted_at: null`.
+- Chỉ số unique là **partial index** (`deleted_at: null`) nên email đã xoá mềm vẫn có thể đăng ký lại.
+## 6. Kiến trúc Sự kiện & Xử lý Bất đồng bộ
+
+### 6.1 Transactional Outbox
+
+Ghi dữ liệu nghiệp vụ và ghi event phải là **một giao dịch duy nhất**:
+
+```text
+Handler -> ghi entity + ghi outbox_events (cùng session) -> COMMIT
+                                                        |
+                                        OutboxRelayService (30s)
+                                                        |
+                                              EventPublisherPort
+                                          /                  \
+                              InProcessEventPublisher    KafkaEventPublisher
+                              (mặc định, dev)            (khi có KAFKA_BROKERS)
+```
+
+`HybridEventPublisher` tự chọn theo biến môi trường: có `KAFKA_BROKERS` → Kafka, không có → in-process. Nhờ vậy hệ thống chạy được ở máy dev chỉ với MongoDB, nhưng vẫn dùng được Kafka ở môi trường đầy đủ mà không sửa code.
+
+### 6.2 Inbox - Idempotency at-least-once
+
+`InboxService` theo dõi cặp `(consumer_name, event_id)` kèm lease. Mỗi lần nhận event:
+
+1. Thử **claim** lease cho cặp khoá đó.
+2. Nếu đã xử lý → **bỏ qua** (idempotent).
+3. Nếu lease còn hiệu lực của consumer khác → **bỏ qua** (đang xử lý).
+4. Nếu mới → xử lý, sau đó đánh dấu `processed`.
+
+### 6.3 Worker tách riêng
+
+| Tiến trình | Lệnh | Vai trò |
+|---|---|---|
+| API | `pnpm start:prod` | Chỉ phục vụ HTTP, **không** chạy outbox relay |
+| Worker | `pnpm start:worker` | Outbox relay + AI worker + report worker |
+
+Biến `WORKER_MODE` điều khiển: `api` (chỉ HTTP) hoặc `all` (mặc định, chạy cả hai trong một tiến trình).
+
+### 6.4 Guard tài nguyên máy (chống OOM)
+
+`SystemResourceGuardAdapter` đọc `/proc/meminfo` và RSS của tiến trình. Khi RAM hệ thống thấp hơn `AI_MIN_RAM_GB` (mặc định 4 GB) hoặc vượt quá `AI_RAM_GUARD_PERCENT` (mặc định 90%), worker **từ chối nhận** job AI mới cho tới khi tài nguyên ổn định.
+
+Song song, `ANALYSIS_MAX_ROWS` (mặc định 100 000) giới hạn số dòng đưa vào prompt, và `run-analysis.handler.ts` **đơn giản hoá bản sao trung gian** để giảm đỉnh RAM.
+
+### 6.5 RAG few-shot động
+
+Mỗi phản hồi người dùng về một finding được lưu bất biến. `rag-few-shot.util.ts` lọc theo `trust_score` và `max_age_days`, chuẩn hoá, loại bỏ định danh (`stripIdentifiers`), rồi chọn `top_k` ví dụ để chèn vào prompt của lần chạy sau. Đây là cơ chế **AI học lại từ người dùng** mà không cần huấn luyện lại mô hình.
+## 7. Bảng API Tổng quan
+
+Base URL: `/api/v1`. Toàn bộ **84 route** khớp 1-1 với hợp đồng `docs/restructures/7_api_contracts_v8.md` (kiểm chứng bằng `pnpm arch:api-coverage`).
+
+| Nhóm | Route | Mô tả |
+|---|---|---|
+| Health | `GET /health`, `GET /health/ready` | Kiểm tra sống & sẵn sàng |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout` | Vòng đời phiên đăng nhập |
+| Auth | `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/change-password` | Quản lý mật khẩu |
+| Auth | `GET /auth/google`, `GET /auth/google/callback` | Đăng nhập Google OAuth 2.0 |
+| Auth | `GET /auth/sessions`, `GET /auth/sessions/me`, `GET /auth/sessions/:id`, `DELETE /auth/sessions/:id` | Quản lý phiên |
+| Users | `GET /users/me`, `PATCH /users/me`, `DELETE /users/me` | Hồ sơ cá nhân, xoá mềm |
+| Users | `GET /admin/users`, `GET /admin/users/:id` | Quản trị tài khoản (admin) |
+| Workspaces | `POST/GET /workspaces`, `GET/PATCH/DELETE /workspaces/:id` | CRUD không gian làm việc |
+| Workspaces | `GET/POST /workspaces/:id/members`, `DELETE /workspaces/:id/members/:userId` | Thành viên workspace |
+| Workspaces | `POST /workspaces/:id/transfer-owner`, `POST /workspaces/:id/leave` | Chuyển quyền sở hữu, rời workspace |
+| Projects | `POST/GET /workspaces/:workspaceId/projects` | Tạo & liệt kê project |
+| Projects | `GET/PATCH/DELETE /projects/:id` | CRUD project |
+| Projects | `GET/POST /projects/:id/members`, `PATCH/DELETE /projects/:id/members/:userId` | Thành viên project |
+| Projects | `PUT /projects/:id/snapshot`, `POST /projects/:id/transfer-owner` | Snapshot & chuyển owner |
+| Projects | `GET /projects` | Liệt kê project theo vai trò |
+| Datasets | `POST /projects/:projectId/datasets/upload` | Upload CSV (multipart) |
+| Datasets | `GET /projects/:projectId/datasets`, `GET /datasets/:id`, `DELETE /datasets/:id` | Quản lý dataset |
+| Datasets | `GET /datasets/:id/file`, `GET /datasets/:id/schema` | Tải file gốc & schema |
+| Data View | `GET /datasets/:datasetId/records` | Lưới ảo, phân trang keyset |
+| Data View | `POST /datasets/:datasetId/records/query` | Truy vấn lọc/sắp xếp |
+| Data View | `GET /datasets/:datasetId/columns/:columnKey/stats` | Thống kê cột |
+| Data View | `GET /datasets/:datasetId/charts` | Dữ liệu biểu đồ (histogram/boxPlot/categoryTopN) |
+| Analysis | `POST /projects/:projectId/analysis` | Chạy phân tích chất lượng dữ liệu |
+| Analysis | `GET /projects/:projectId/analysis/result`, `GET /analysis/jobs/:jobId` | Đọc kết quả / trạng thái job |
+| Analysis | `POST /analysis/jobs/:jobId/retry`, `POST /analysis/jobs/:jobId/result` | Thử lại & nạp kết quả AI |
+| Report | `POST /projects/:projectId/report`, `GET /projects/:projectId/report/:reportId/file` | Yêu cầu & tải báo cáo PDF |
+| Summary | `POST /projects/:projectId/summary`, `GET /projects/:projectId/summary` | Tổng kết kết quả |
+| Feedback | `POST /analyses/:analysisId/findings/:findingId/feedback` | Phản hồi cho một finding |
+| Feedback | `POST /analyses/:analysisId/feedback`, `GET /analyses/:analysisId/feedback` | Phản hồi cho cả lần chạy |
+| Feedback | `GET /analyses/:analysisId/findings/:findingId/feedback` | Đọc phản hồi của finding |
+| Feedback | `PATCH /feedback/:id`, `DELETE /feedback/:id` | Sửa / xoá phản hồi của tôi |
+| Feedback | `GET /projects/:projectId/ai-quality-metrics` | Chỉ số chất lượng AI |
+| Issues | `POST /issues`, `GET /issues`, `GET /issues/:id`, `PATCH /issues/:id` | Báo cáo lỗi của tôi |
+| Issues | `POST /issues/:id/attachments`, `GET /issues/:id/attachments/:attachmentId` | Tệp đính kèm |
+| Issues | `GET /admin/issues`, `GET /admin/issues/:id`, `PATCH /admin/issues/:id/status` | Quản trị issue (admin) |
+| Notifications | `GET /notifications`, `GET /notifications/:id`, `GET /notifications/unread-count` | Hộp thư |
+| Notifications | `PATCH /notifications/:id/read`, `PATCH /users/me/notification-preferences` | Đánh dấu đã đọc, tuỳ chọn |
+| Overview | `GET /overview/workspaces`, `GET /workspaces/:id/overview` | Tổng quan |
+
+Chi tiết request/response: `docs/frontend-handover/01-api-contract.md` và `docs/frontend-handover/README.md`.
+## 8. Hướng dẫn Cài đặt & Chạy
+
+### 8.1 Yêu cầu môi trường
+
+| Thành phần | Phiên bản | Bắt buộc |
+|---|---|---|
+| Node.js | 22.x LTS | Co |
+| pnpm | 11.x | Co |
+| MongoDB | 7.x / Atlas | Co |
+| Redis | 7.x | Khuyến nghị (lease AI job) |
+| Kafka | 3.x | Tuỳ chọn (mặc định dùng in-process) |
+| Cloudflare R2 | - | Tuỳ chọn (mặc định lưu local `storage/`) |
+
+### 8.2 Cài đặt
+
 ```bash
 cd src/backend
-cp .env.example .env
-```
-*(Chi tiết cấu hình từng biến môi trường được trình bày đầy đủ tại [`docs/build_env.md`](file:///home/hoa/Documents/UTH/L%E1%BA%ADp%20tr%C3%ACnh%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/build_env.md)).*
-
-### 7.3. Cài đặt Phụ thuộc & Khởi tạo CSDL
-```bash
-# 1. Cài đặt các gói thư viện
 pnpm install
-
-# 2. Khởi tạo Schema, Indexes và nạp dữ liệu mẫu ban đầu
-pnpm run db:bootstrap
-
-# 3. (Tùy chọn) Reset từng dịch vụ CSDL độc lập khi cần làm sạch môi trường:
-# Reset chỉ MongoDB:
-CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:mongo
-# Reset chỉ Cloudflare R2:
-CONFIRM_RESET=DROP_ALL_DATA pnpm run db:reset:storage
+cp .env.example .env
+# Chỉnh .env: MONGODB_URI, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, DATA_ENCRYPTION_KEY
 ```
 
-### 7.4. Khởi chạy Ứng dụng
+`DATA_ENCRYPTION_KEY` phải là chuỗi hex 64 ký tự (32 byte cho AES-256-GCM). Hai secret JWT phải dài ≥ 32 ký tự.
+
+### 8.3 Chạy hạ tầng phụ trợ
+
 ```bash
-# Chạy ứng dụng ở chế độ Phát triển (Watch Mode):
-pnpm run start:dev
+# Docker Compose cho dev
+docker compose -f deploy/docker-compose.dev.yml up -d
 
-# Kiểm tra an toàn kiểu dữ liệu TypeScript (Zero Any Check):
-pnpm run type-check
-
-# Chạy toàn bộ bộ kiểm thử tự động (Unit Tests & Guard Coverage):
-pnpm test
+# MongoDB + Redis cho test
+pnpm test:infra:up
 ```
 
-Sau khi khởi chạy thành công, truy cập tài liệu API trực quan tại:
-- **Swagger OpenAPI 3.0 UI:** `http://localhost:3000/api/v1/docs`
+### 8.4 Chạy ứng dụng
+
+```bash
+pnpm start:dev      # API ở chế độ watch, port 3000
+pnpm start:worker   # Tiến trình worker (outbox + AI + report)
+pnpm start:prod     # API production
+```
+
+Swagger: `http://localhost:3000/api/v1/docs`
+Health: `http://localhost:3000/api/v1/health`
+
+### 8.5 Biến môi trường quan trọng
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `PORT` | `3000` | Cổng HTTP |
+| `API_PREFIX` | `api/v1` | Tiền tố route |
+| `MONGODB_URI` | - | Chuỗi kết nối MongoDB |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | - | Khóa ký token |
+| `JWT_ACCESS_EXPIRATION` | `15m` | Hạn access token |
+| `JWT_REFRESH_EXPIRATION` | `7d` | Hạn refresh token |
+| `JWT_REFRESH_REMEMBER_EXPIRATION` | `30d` | Hạn khi chọn ghi nhớ đăng nhập |
+| `DATA_ENCRYPTION_KEY` | - | Khoá AES-256-GCM |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | rỗng | Tạo admin 1 lần lúc khởi động (OPEN-01) |
+| `WORKER_MODE` | `all` | `api` hoặc `all` |
+| `OUTBOX_RELAY_ENABLED` | `true` | Bật/tắt outbox relay |
+| `KAFKA_BROKERS` | rỗng | Rỗng → in-process; có giá trị → Kafka |
+| `AI_MIN_RAM_GB` | `4` | Ngưỡng RAM tối thiểu để nhận job AI |
+| `AI_RAM_GUARD_PERCENT` | `90` | Ngưỡng % RAM để dừng nhận job AI |
+| `ANALYSIS_MAX_ROWS` | `100000` | Số dòng tối đa đưa vào prompt |
+| `S3_ENDPOINT` / `S3_BUCKET_NAME` | - | R2; để trống → lưu local |
+| `CORS_ORIGIN` | `http://localhost:5173` | Danh sách origin cho phép |
+
+Chi tiết đầy đủ: `src/backend/.env.example`.
+## 9. Hướng dẫn Kiểm thử
+
+### 9.1 Các lệnh
+
+```bash
+# Kiểm thử mặc định (unit + arch, bỏ qua integration)
+pnpm test
+
+# Unit test thuần
+pnpm test:unit
+
+# Kiểm thử kiến trúc (Clean Architecture, cross-imports, API coverage)
+pnpm test:arch
+
+# Tích hợp (cần MongoDB replica set + Redis + MinIO)
+pnpm test:infra:up
+pnpm test:integration
+
+# E2E
+pnpm test:e2e
+
+# Toàn bộ
+pnpm test:all
+
+# Báo cáo độ phủ
+pnpm test:cov
+```
+
+### 9.2 Kết quả hiện tại
+
+| Chỉ số | Giá trị |
+|---|---|
+| Tổng test | **1 277** (tất cả pass) |
+| Số suite | 79 (67 unit/arch + 7 integration + 5 e2e) |
+| File spec | 74 (72 trong `test/` + 1 trong `src/` + 1 trong `scripts/benchmark/`) |
+| Phủ câu lệnh | **71.03%** (8 796 / 12 383) |
+| Phủ dòng | **72.05%** (7 708 / 10 697) |
+| Phủ nhánh | **58.33%** (4 091 / 7 013) |
+| Phủ hàm | **62.06%** (1 361 / 2 193) |
+
+Phân bố theo tầng (mỗi tầng chạy bằng một lệnh riêng):
+
+| Lệnh | Tầng | Suite | Test |
+|---|---|---|---|
+| `pnpm test` | unit + arch | 67 | 1 069 |
+| `pnpm test:integration` | integration (cần hạ tầng) | 7 | 138 |
+| `pnpm test:e2e` | e2e (cần hạ tầng) | 5 | 70 |
+| **Tổng** | | **79** | **1 277** |
+
+### 9.3 Vì sao tách integration riêng?
+
+`pnpm test` **cố ý loại** thư mục `test/integration/` qua `testPathIgnorePatterns`. Lý do: các test integration dùng chung một database MongoDB test; nếu chạy song song nhiều worker sẽ tranh chấp khi xoá collection. `pnpm test:integration` chạy riêng với `--runInBand` và timeout riêng.
+
+### 9.4 Kiểm thử kiến trúc tự động
+
+| Lệnh | Kiểm tra |
+|---|---|
+| `pnpm test:arch` | 14 quy tắc CA1-CA14, session MongoDB, API coverage 1-1 |
+| `pnpm arch:cross-imports` | Không import chéo module ngoài public contract |
+| `pnpm arch:api-coverage` | Hợp đồng §3.13 khớp mã nguồn (84/84) |
+| `pnpm arch:baseline` | So sánh với baseline đã lưu |
+| `pnpm lint:ci` | ESLint `--max-warnings 0` |
+| `pnpm type-check` | TypeScript không lỗi |
+## 10. Benchmark & Hiệu năng
+
+Kết quả đầy đủ nằm ở `docs/test-reports/`.
+
+### 10.1 Benchmark mô hình AI
+
+5 mô hình được đánh giá trên 9 chỉ số chất lượng:
+
+| Mô hình | Ghi chú |
+|---|---|
+| `Qwen3-14B` | Ứng viên chính |
+| `Gemma-3-12B` | Ứng viên chính |
+| `Qwen3-8B` | Nhẹ hơn, chạy khi tài nguyên hạn chế |
+| `Llama-3.1-8B` | Baseline phổ biến |
+| `Vistral-7B` | Nhẹ nhất |
+
+### 10.2 Lệnh benchmark
+
+```bash
+pnpm bench:models      # Chạy benchmark mô hình
+pnpm bench:gold       # Benchmark trên bộ dữ liệu vàng
+pnpm bench:stats      # Thống kê kết quả
+pnpm bench:pareto     # Phân tích đường Pareto hiệu năng/chi phí
+pnpm test:perf        # Đo độ trễ API
+pnpm test:benchmark   # Benchmark tổng
+```
+
+### 10.3 Cam kết hiệu năng
+
+| Hạng mục | Mục tiêu | Ghi chú |
+|---|---|---|
+| Phân trang lưới ảo | ≤ 50 ms | Keyset cursor, không offset |
+| Tiêu thụ RAM khi import | ≤ 20 MB | Streaming, không nạp toàn bộ file |
+| Lưu trữ bản ghi | Insert-only | Không cập nhật/xoá dòng |
 
 ---
 
-## 8. Lộ trình Phát triển & Trạng thái Dự án (Project Roadmap)
+## 11. Tài liệu Tham khảo
 
-Dự án được phân kỳ thành 2 giai đoạn lớn với các Sprint phát triển rõ ràng:
-
-### Giai đoạn 1: Nền tảng Cốt lõi Full-Stack (Core Platform MVP)
-- [x] **Sprint B1 (Hạ tầng Nền tảng & Định danh):**
-  - Mật mã học AES-256-GCM / SHA-512, Cloudflare R2 S3 Client với Quota Guard.
-  - Phân quyền CASL ABAC đa tầng, Ambient Transaction qua `AsyncLocalStorage`.
-  - Module `auth` (JWT, Refresh Token, Session Hash) và Module `users` (Soft delete, Partial Index).
-- [x] **Sprint B2 (Tổ chức Không gian & Tiếp nhận Dữ liệu Thô):**
-  - Module `workspaces` (Owner/Member) & Module `projects` (Ràng buộc Single Dataset).
-  - Module `datasets`: Streaming Ingestion **CSV** đa luồng song song, Schema Inference 100 dòng đầu.
-  - Module `data-view`: **Cursor Pagination (Keyset)** $\le 50\text{ ms}$, Histogram Aggregation.
-- [ ] **Sprint B3 (Tái cấu trúc Backend — *đang thực hiện*):**
-  - Viết lại toàn bộ backend theo **Ports & Adapters** trong monorepo pnpm (`apps/api`, `apps/worker`, `packages/core`, `packages/contracts`, `packages/config`).
-  - Thay BullMQ bằng **Kafka** (5 topic, 6 consumer group, DLQ) và thêm **Socket.IO** realtime.
-  - Bỏ các module `versions`, `cell-edit`, `clean-rules`, `lineage`, `exports` theo quyết định **dữ liệu bất biến**.
-- [ ] **Sprint F1 - F4 (Giao diện Web Frontend):**
-  - Phát triển giao diện React + Tailwind CSS, Virtual Data Grid, Dashboard phân tích chất lượng và cửa sổ nhận xét kết quả.
-
-### Giai đoạn 2: Tích hợp Động cơ AI Trợ lý Thông minh (AI Copilot Integration)
-- [ ] **Tier 1 — AI cục bộ + Học lại (Human-in-the-Loop):** Triển khai `ai-engine` (vLLM/Ollama) + **benchmark 5 model / 9 chỉ số** để chốt cặp model định tuyến hai tầng, module `feedback` thu nhận nhận xét người dùng, kho `feedback_example` và cơ chế RAG few-shot động.
-- [ ] **Tier 2 Anomaly Detection:** Tích hợp học máy không giám sát phát hiện ngoại lai phân phối (chạy cục bộ, không dùng dịch vụ ngoài).
-- [ ] **Tier 3 Benchmark & Tinh chỉnh:** Bộ benchmark **5 model × 9 chỉ số** (F1 micro/macro, JSON, ảo giác, chất lượng giải thích, p95, throughput, RSS, độ ổn định) với McNemar/Wilcoxon + đường Pareto; đánh giá A/B hiệu quả few-shot; định kỳ chạy lại để chống hồi quy chất lượng.
+| Tài liệu | Nội dung |
+|---|---|
+| `src/backend/README.md` | Hướng dẫn vận hành backend chi tiết |
+| `src/backend/src/shared/README.md` | Kiến trúc tầng shared, event bus, outbox/inbox |
+| `src/backend/src/modules/*/README.md` | Đặc tả từng module nghiệp vụ |
+| `docs/restructures/7_api_contracts_v8.md` | Hợp đồng API đầy đủ (84 route) |
+| `docs/restructures/24_open_decisions_resolved.md` | 24 quyết định thiết kế đã chốt |
+| `docs/frontend-handover/README.md` | Handoff API cho team frontend |
+| `docs/frontend-handover/02-realtime-and-env.md` | Giao thức realtime & biến môi trường |
+| `docs/test-reports/index.md` | Tổng hợp kết quả kiểm thử |
+| `docs/report/` | Báo cáo công nghệ kỹ thuật (8 chương) |
 
 ---
 
-## 9. Đội ngũ Phát triển & Giảng viên Hướng dẫn
+## 12. Giấy phép & Tác giả
 
-- **Đơn vị Đào tạo:** Trường Đại học Giao thông Vận tải TP.HCM (UTH) - Khoa Công nghệ Thông tin.
-- **Học phần:** Lập trình JavaScript & TypeScript Nâng cao.
-- **Đề tài:** Hệ thống AI Hỗ trợ Phát hiện và Xử lý Vấn đề về Chất lượng Dữ liệu.
-- **Nhóm Sinh viên Thực hiện:** Tienes Hoa & Đội ngũ Phát triển.
+Dự án học phần, trường Đại học Bách Khoa Hồ Chí Minh (UTH) - Khoa Công nghệ Thông tin.

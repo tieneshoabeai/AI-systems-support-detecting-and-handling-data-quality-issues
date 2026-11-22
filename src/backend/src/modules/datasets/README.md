@@ -1,101 +1,195 @@
-# DATASETS INGESTION MODULE SPECIFICATION & OVERVIEW
+# MODULE `datasets` - Tiep nhan & Luu tru du lieu
 
-## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
-Module `datasets` là cổng tiếp nhận dữ liệu đầu vào (Ingestion Gateway) của toàn bộ nền tảng Data Quality. Module này chịu trách nhiệm tiếp nhận các tệp dữ liệu bảng thô (CSV/Excel) với kích thước từ vài chục đến hàng trăm megabytes, xác thực tính hợp lệ, tính toán tính toàn vẹn và phân phối dữ liệu an toàn vào hạ tầng lưu trữ mà không làm suy giảm hiệu năng hay tràn bộ nhớ máy chủ.
+> **Module Specification & Documentation**
 
-- **Vị trí trong hệ thống:**
-  - **Đầu vào (Input):** Người dùng (`Editor` hoặc `Owner`) tải lên tệp CSV/Excel qua REST API Multipart Form.
-  - **Hạ tầng lưu trữ:** Tệp thô nguyên bản được lưu trữ trên **Cloudflare R2**; Từng dòng dữ liệu sau phân tách được lưu vào **MongoDB Atlas** (`dataset_records`).
-  - **Đầu ra (Output):** Phát sự kiện `DATASET_INGESTED` vào bảng `outbox_events` để ghi nhận nội bộ và phục vụ hiển thị trên **DataViewModule** (dữ liệu bất biến — không dựng đồ thị phả hệ).
+## 1. Thong tin Phien ban (Version Information)
 
----
+- **Current Version:** v1.1.0
+- **Last Updated:** 2026-11-21
+- **Module Path:** `src/backend/src/modules/datasets` (33 file TypeScript)
+- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
+- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
 
-## 2. Kiến trúc & Luồng Dữ liệu Trực quan (Architecture & Data Flow)
-Hệ thống sử dụng cơ chế **Truyền phát đa nhánh song song (Multiplexing Stream)**: tệp tải lên được đọc theo từng phân đoạn (chunk-by-chunk) qua `busboy`, nhân bản thành 3 nhánh xử lý độc lập đồng thời trong RAM (duy trì mức tiêu thụ RAM $\le 20\text{ MB}$):
+## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client as Người dùng (Editor/Owner)
-    participant Ctrl as DatasetsController
-    participant Svc as DatasetsService
-    participant R2 as Cloudflare R2
-    participant Mongo as MongoDB Atlas
-    participant Outbox as Outbox Queue
+Module chiu trách nhiệm **nhap du lieu CSV** va luu tru bat bien. Day la noi quyet dinh chat luong du lieu dau vao cho toan he thong.
 
-    Client->>Ctrl: POST /projects/:id/datasets/upload (Multipart Stream)
-    Ctrl->>Svc: Điều phối luồng dữ liệu (Multiplexing Stream)
-    
-    par Nhánh 1: Tính toán Checksum
-        Svc->>Svc: SHA-256 on-the-fly (file_checksum)
-    and Nhánh 2: Lưu trữ tệp thô
-        Svc->>R2: Stream Upload raw_files/{id}_{name} (Kiểm tra Quota 10GB)
-    and Nhánh 3: Phân tích & Nạp CSDL
-        Svc->>Svc: Suy luận Schema (100 dòng đầu: type, null_count)
-        Svc->>Mongo: bulkWrite theo mẻ 1.000 dòng vào dataset_records
-    end
+> **Nguyen tac bat di bat die:** du lieu dataset la **INSERT-ONLY**. Chi ghi 1 lan luc import. Khong co `deleted_at`, khong co `version_number`, khong update, khong delete tung dong.
 
-    Svc->>Mongo: Ghi Metadata vào collection datasets
-    Svc->>Outbox: Ghi sự kiện DATASET_INGESTED (ghi nhận nội bộ)
-    Svc-->>Client: Trả về Metadata Dataset & Cấu trúc Schema
+### 2.1. Tinh nang thuoc pham vi
+
+| Chuc nang | Noi dung |
+|---|---|
+| Import CSV | Streaming, phat hien delimiter, suy luan schema, ghi record theo lo |
+| Schema & cot | Suy luan kieu du lieu, dem gia tri thieu, danh dau cot PII |
+| Findings | Phat hien van de o muc dataset (cot) va muc dong |
+| Truy van | Doc record, schema, tai file goc |
+| Xoa | Xoa mem dataset + xoa file tren R2 |
+| Cascade | Xoa dataset khi project bi xoa |
+
+### 2.2. Cau truc thu muc
+
+```text
+datasets/
+|-- domain/
+|   |-- entities/dataset.entity.ts
+|   |-- value-objects/
+|   |   |-- column-type.vo.ts        # string | number | boolean | date
+|   |   |-- dataset-limits.vo.ts     # gioi han & luat import
+|   |   `-- value-coercion.vo.ts     # chuan hoa gia tri theo kieu cot
+|   |-- events/dataset-events.ts
+|   |-- ports/
+|   |   |-- dataset.repository.port.ts
+|   |   `-- record-query.port.ts
+|   `-- services/
+|       |-- csv-delimiter.util.ts    # nhan dien dau phan cach
+|       |-- finding.util.ts          # chuan hoa finding
+|       `-- pii-heuristic.util.ts    # suy luan cot PII
+|-- application/
+|   |-- commands/
+|   |   |-- ingest-dataset-stream.handler.ts   # handler nhap CSV
+|   |   |-- delete-dataset.handler.ts
+|   |   |-- cascade-project-datasets.handler.ts
+|   |   |-- cascade-dataset-event.subscriber.ts
+|   |   `-- map-props-to-original-names.handler.ts
+|   |-- queries/                     # 4 query handler
+|   |-- services/
+|   |   |-- schema-inference.service.ts
+|   |   `-- dataset-finding.service.ts
+|   `-- policy-loaders/dataset-policy.loader.ts
+|-- infrastructure/persistence/
+|   |-- dataset.schema.ts            # metadata + columns + findings
+|   |-- dataset-record.schema.ts     # dong du lieu (INSERT-ONLY)
+|   |-- datasets.repository.ts
+|   |-- record-query.repository.ts   # keyset pagination + aggregation
+|   `-- dataset.mapper.ts
+`-- presentation/
+    |-- controllers/datasets.controller.ts
+    `-- responses/dataset.response.ts
 ```
 
----
+## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
 
-## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
+- **User Prompt / Business Intent:** Nhap du lieu CSV **mot lan, khong sua, khong xoa** va lam cho moi thu muc dich sau deu co the tin tuyen du lieu goc. Dong thoi tu dong phat hien van de chat luong du lieu ngay khi nhap, thay vi cho nguoi dung phai doi chieu thu cong.
 
-### 3.1. Phân tách Thực thể Dữ liệu (Separation of Concerns)
-Nhằm tối ưu hóa hiệu năng đọc/ghi, cấu trúc dữ liệu được phân rã thành hai collection độc lập:
-- **`datasets` (Metadata):** Lưu thông tin mô tả, kích thước byte, số dòng, trạng thái kiểm tra tính toàn vẹn (`file_checksum`), cấu trúc lược đồ các cột (`columns`: tên cột, kiểu dữ liệu, số lượng null) và liên kết với Project.
-- **`dataset_records` (Data Rows):** Lưu từng dòng dữ liệu thô dạng JSON (`raw_data`) kèm chỉ số thứ tự `row_index` để phục vụ phân trang con trỏ (Keyset Pagination) tốc độ cao ở các module sau.
+- **Technical Reasoning & Decisions:**
 
-### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
-- **Zero In-Memory Storage:** Không bao giờ nạp toàn bộ tệp vào RAM hoặc ghi tệp tạm vào ổ đĩa cục bộ của máy chủ (ngăn ngừa nguy cơ cạn kiệt tài nguyên hệ thống).
-- **Hạn mức Lưu trữ (Storage Quota):** Bắt buộc gọi `StorageService.checkUploadQuota()` trước và trong khi stream. Từ chối yêu cầu ngay lập tức với HTTP 413 nếu chạm ngưỡng 10GB của Cloudflare R2.
-- **Toàn vẹn Dữ liệu (Checksum Integrity):** `file_checksum` phải khớp chính xác với chuỗi băm SHA-256 tính trực tiếp từ luồng byte thô.
-- **Tính Bền vững & Dọn dẹp (Fault Tolerance Rollback):** Nếu việc upload lên R2 gặp sự cố hoặc tệp CSV hỏng cấu trúc giữa chừng, hệ thống tự động xóa sạch toàn bộ các bản ghi đã nạp dở dang trong `dataset_records` để tránh dữ liệu rác.
+1. **Streaming, khong nap toan bo file vao RAM.** File 500 MB nap vao RAM se gay OOM. Streaming giu muc tieu thu on dinh ~20 MB bat ke file lon bao nhieu. Day la cam ket hieu nang co bang chung.
 
----
+2. **Bulk insert theo lo (`IMPORT_BATCH_SIZE = 5000`).** Mot lenh insert cho 5000 dong nhanh hon 5000 lenh insert mot. Batch size can bang giua hieu nang va ap luc bo nho.
 
-## 4. Ma trận Phân quyền & Bảo mật (Access Control & Security)
+3. **Key cot bat bien `c0`, `c1`, ... `cN`.** Key nay **khong bao gio doi**, ke ca khi nguoi dung doi ten cot. Gia tri trong `dataset_record.props` luu theo key nay. `map-props-to-original-names.handler.ts` chuyen doi props theo ten goc khi xuat bao cao, de nguoi doc thay dung ten cot trong file CSV goc.
 
-| Hành động | Quyền tối thiểu | Cơ chế kiểm tra bảo mật |
-| :--- | :---: | :--- |
-| **Upload Dataset** | `Editor` | `JwtAuthGuard` + `PoliciesGuard` (Quyền sửa trên Workspace sở hữu Project) |
-| **Xem Chi tiết & Metadata** | `Viewer` | `JwtAuthGuard` + `PoliciesGuard` (Quyền đọc dữ liệu trong Workspace) |
-| **Đổi tên / Cập nhật mô tả** | `Editor` | `JwtAuthGuard` + `PoliciesGuard` (Chỉ cập nhật thông tin mô tả, không sửa file gốc) |
-| **Xóa Dataset (Soft Delete)** | `Editor` | `JwtAuthGuard` + `PoliciesGuard` (Cập nhật `deleted_at`, giải phóng cờ `has_dataset`) |
+4. **Nhan dien delimiter thay vi gia dinh `,`.** File CSV thuc te hay dung `;` (chau Au) hoac `\t` (TSV). `csv-delimiter.util.ts` dem so lan xuat hien cua moi dau ung vien **ngoai** dau nhay kep, chon dau nhat quan nhat giua cac dong. Delimiter luu vao `dataset.delimiter` va dung lai khi tai file goc.
 
----
+5. **Suy luan PII tu ten cot + mau gia tri.** Cột chứa PII duoc danh dau `is_pii: true` - frontend che gia tri mac dinh, va `pii-mask.util.ts` cua module `analysis` che PII truoc khi gui cho AI.
 
-## 5. Đặc tả Giao tiếp & Sự kiện (API & Event Contracts)
+6. **Chi lay `SAMPLE_ROWS_CAP = 500` dong de suy luan schema.** Doc ca file de suy luan kieu du lieu la du thua; 500 dong du la du chinh xac va nhanh.
 
-### 5.1. REST API Endpoints
-| Method | Endpoint | Input | Output Chính | Mô tả Nghiệp vụ |
-| :---: | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/projects/:projectId/datasets/upload` | `multipart/form-data` | `IDataset` (JSON) | Tiếp nhận file stream, phân nhánh lưu trữ và nạp dữ liệu |
-| `GET` | `/api/v1/datasets/:id` | Route Param `id` | `IDataset` (JSON) | Trả về thông tin tệp, tổng số dòng và schema các cột |
-| `PATCH` | `/api/v1/datasets/:id` | `UpdateDatasetDto` | `IDataset` (JSON) | Chỉnh sửa tên hiển thị và mô tả nghiệp vụ |
-| `DELETE` | `/api/v1/datasets/:id` | Route Param `id` | `{ message: string }` | Đánh dấu xóa mềm, ẩn khỏi danh sách truy vấn |
+7. **Finding chuan hoa qua `finding.util.ts`.** Cung mot loai finding luon cung hinh dang - quan trong cho UI va cho AI doc.
 
-### 5.2. Sự kiện Bất đồng bộ (Asynchronous Events)
-- **`DATASET_INGESTED`**: Phát sinh ngay sau khi nạp thành công.
-  - *Payload tóm tắt:* `{ dataset_id, project_id, file_checksum, row_count, storage_key }`.
-  - *Mục đích:* Báo hiệu cho `OutboxProcessorWorker` ghi nhận sự kiện nạp dataset (dữ liệu bất biến — không dựng đồ thị nguồn gốc, các module đồ thị cũ đã loại bỏ).
+8. **Ghi dataset metadata trong transaction truoc, ghi record sau.** Neu ghi record that bai, metadata co the con lai - xoa mem dataset la du de don dep, ton tai mot ban ghi rac thoi gian.
 
----
+- **Generated / Modified Artifacts:**
 
-## 6. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+- `domain/value-objects/dataset-limits.vo.ts` - `MAX_FILE_BYTES` (50 MB), `MAX_COLUMNS` (1000), `IMPORT_BATCH_SIZE` (5000), `SAMPLE_ROWS_CAP` (500), `assertCsvFile`, `assertFileSize`, `assertColumnLimit`, `storageKeyForDataset`.
+- `domain/services/csv-delimiter.util.ts` - nhan dien dau phan cach.
+- `domain/services/pii-heuristic.util.ts` - suy luan cot PII tu ten + mau gia tri.
+- `domain/value-objects/value-coercion.vo.ts` - chuan hoa gia tri theo kieu cot.
+- `application/services/schema-inference.service.ts` - suy luan kieu cot, dem thieu, suy luan PII.
+- `application/commands/ingest-dataset-stream.handler.ts` - luong nhap chinh.
+- `infrastructure/persistence/record-query.repository.ts` - keyset pagination + aggregation (2 giai doan, null sorting).
 
-### 6.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
-- **Suy luận Schema trên 100 dòng đầu:** Thay vì quét toàn bộ hàng triệu dòng (gây nghẽn CPU và tăng độ trễ lên hàng chục giây), hệ thống chỉ lấy mẫu 100 dòng đầu tiên để suy luận kiểu dữ liệu (`number`, `string`, `date`, `boolean`). Đánh đổi: Có xác suất nhỏ suy luận sai nếu 100 dòng đầu toàn giá trị rỗng.
-- **BulkWrite 1.000 bản ghi/mẻ:** Cân bằng tối ưu giữa kích thước gói tin gửi qua mạng tới MongoDB Atlas và mức tiêu thụ bộ nhớ đệm Node.js.
+## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
 
-### 6.2. Lịch sử Thay đổi (Change Log)
-- `v1.1.0` (2026-10-24):
-  - *Thay đổi gì:* Tái cấu trúc tài liệu theo chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid và ma trận bảo mật.
-  - *Lý do:* Nâng cao chất lượng tài liệu giúp người xem hiểu toàn diện luồng hoạt động mà không cần đọc code.
-  - *Ảnh hưởng:* Cập nhật tài liệu kỹ thuật, không ảnh hưởng đến mã nguồn thực thi.
-- `v1.0.0` (2026-10-23):
-  - *Thay đổi gì:* Hoàn thành triển khai Ingestion Multiplexing Stream, Schema Inference và kiểm thử.
-  - *Lý do:* Hiện thực hóa Sprint B2 theo yêu cầu kỹ thuật.
+### 4.1. Endpoints
+
+| Method | Path | Chinh sach | Mo ta |
+|---|---|---|---|
+| `POST` | `/api/v1/projects/:projectId/datasets/upload` | `Action.Create` | Upload CSV (multipart) |
+| `GET` | `/api/v1/projects/:projectId/datasets` | `Action.Read` | Danh sach dataset cua project |
+| `GET` | `/api/v1/datasets/:id` | `Action.Read` | Chi tiet dataset |
+| `DELETE` | `/api/v1/datasets/:id` | `Action.Delete` | Xoa mem dataset + file |
+| `GET` | `/api/v1/datasets/:id/file` | `Action.Read` | Tai file CSV goc |
+| `GET` | `/api/v1/datasets/:id/schema` | `Action.Read` | Schema & thong ke cot |
+
+> **Khong co route cap nhat cot.** Dataset la **bat bien** sau khi nap: khong co
+> `PATCH /datasets/:id`, `PATCH /datasets/:id/columns`, `POST /datasets/:id/columns/reset`
+> hay `PATCH /datasets/:id/columns/pii`. Cờ PII duoc **tu suy** tu ten cot boi
+> `pii-heuristic.util.ts` (khong bat/tat tay).
+
+### 4.2. Interfaces / Providers duoc export ra ngoai
+
+`src/backend/src/modules/datasets/index.ts` export public contract:
+
+| Export | Vai tro |
+|---|---|
+| `DatasetsModule` | Nest module |
+| `Dataset` entity, `ColumnDefinition` | Domain contract |
+| `DATASET_REPOSITORY_PORT` | Port truy van metadata dataset |
+| `RECORD_QUERY_PORT` | Port truy van record (keyset + aggregation) |
+
+### 4.3. Su kien domain phat ra
+
+| Event | Khi nao | Muc dich |
+|---|---|---|
+| `dataset.created` | Nhap thanh cong | Thong bao + audit log |
+| `dataset.imported` | Hoan tat ghi record | Thong bao + audit log |
+| `DATASET_DELETED` | Xoa dataset | Kich hoat xoa file va cascade |
+
+## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+
+### 5.1. Bat bien nghiep vu
+
+- Chi chap nhan duoi `.csv` (`assertCsvFile`).
+- File vuot `MAX_FILE_BYTES` (50 MB) bi tu choi **truoc** khi doc bat ky byte nao.
+- So cot vuot `MAX_COLUMNS` (1000) bi tu choi.
+- **Khong bao gio** `update` hoac `delete` mot `dataset_record` - collection nay la INSERT-ONLY.
+- Moi dong goc co **dung mot** record: unique index `{ dataset_id: 1, row_index: 1 }`.
+- Key cot bat bien `c{i}` khong doi theo thoi gian, ke ca khi doi ten cot.
+- `row_count` va `column_count` phai khop voi so dong / so cot thuc te sau import.
+- Storage key luon theo mau `raw_files/{datasetId}.csv`.
+
+### 5.2. Xoa mem (Soft Delete)
+
+- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
+- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
+- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+
+### 5.3. Bao mat
+
+| Van de | Cach xu ly |
+|---|---|
+| File khong phai CSV | `assertCsvFile` - chi chap nhan `.csv` |
+| File qua lon gay OOM | `assertFileSize` + streaming + `ANALYSIS_MAX_ROWS` |
+| Doc file cua dataset nguoi khac | Policy loader nap instance + kiem tra `projectId` |
+| PII lo | Danh dau `is_pii`, che gia tri mac dinh, che truoc khi gui AI |
+| Truy cap truc tiep file goc | Chi qua route co policy, khong lo file truc tiep ra public bucket |
+| Xoa file goc con sot | Cascade xoa file trong transaction |
+
+### 5.4. Phan quyen
+
+| Route | Chinh sach |
+|---|---|
+| `POST /projects/:projectId/datasets/upload` | `Action.Create` tren `Dataset` |
+| `GET /projects/:projectId/datasets` | `Action.Read` |
+| `GET /datasets/:id`, `/file`, `/schema` | `Action.Read` + policy loader kiem tra instance |
+| `DELETE /datasets/:id` | `Action.Delete` |
+
+> Dataset **khong** co vai tro rieng. Quyen tren dataset suy ra tu quyen tren project chua no (qua `projectId`).
+> Dataset bat bien sau khi nap → khong co route cap nhat metadata cot (chi doc + xoa mem + tai file).
+
+## 6. Lich su Thay doi (Change Log & Version History)
+
+### 2026-11-21
+- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+
+### 2026-11-XX
+- **v1.0.0** / 2026-11-XX / Bo sung `csv-delimiter.util.ts` nhan dien `;` va `\t` / CSV thuc te khong phai luon dung dau phay / `modules/datasets`
+- **v0.9.5** / 2026-11-XX / Bo sung `pii-heuristic.util.ts` tu suy cot PII tu ten cot / Route `PATCH /datasets/:id/columns/pii` bi gỡ (OPEN-03/04) / `modules/datasets`
+- **v0.9.0** / 2026-11-XX / Bo sung `dataset-finding.service.ts` sinh finding muc cot va muc dong / Tu dong phat hien van de ngay khi nhap / `modules/datasets`
+- **v0.8.0** / 2026-11-XX / Chuyen sang streaming import + bulk insert theo lo 5000 dong / Giu muc tieu thu RAM ~20 MB / `modules/datasets`
+- **v0.7.0** / 2026-11-XX / Bo sung cascade xoa dataset khi project bi xoa, boc transaction / Dam bao nhat quan / `modules/datasets`, `modules/projects`
+- **v0.1.0** / 2026-11-XX / Tao module, bo cac command sua ten cot / Lam dataset hoan toan chi doc / `modules/datasets`
+
+- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`

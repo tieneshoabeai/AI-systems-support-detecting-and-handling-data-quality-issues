@@ -233,7 +233,7 @@ Chi tiết: [`23_gd7_column_roles_dq_explain.md`](./23_gd7_column_roles_dq_expla
 
 ### GAP-003 — Gate lỗi tên cột chặn phân tích — ✅ **ĐÃ SỬA 2026-11-19**
 
-Nguồn: [`test/unit_test/18_requirement_gaps.md`](../test/unit_test/18_requirement_gaps.md) GAP-003.
+Nguồn: [`test/unit_test/18_requirement_gaps.md`](../../src/backend/test/unit_test/18_requirement_gaps.md) GAP-003.
 
 **Nguyên nhân.** `detectColumnIssues()` (domain entity `Dataset`) phát hiện 3 loại lỗi
 tên cột (`empty_name`, `whitespace_only`, `duplicate_name`) nhưng **không tầng nào thực

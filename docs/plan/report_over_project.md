@@ -208,8 +208,8 @@ Hệ thống áp dụng kiến trúc **Cloudflare Zero Trust Tunnel (`cloudflare
 5. **Giải pháp Dự phòng (Native HTTPS với Cloudflare Origin CA):**
    - Khi chạy độc lập không qua tunnel, máy chủ hỗ trợ nạp trực tiếp cặp chứng chỉ Cloudflare Origin CA (`certs/cloudflare_origin.key`, `certs/cloudflare_origin.pem`) hoặc chứng chỉ X.509 tự ký sinh bởi script `scripts/generate-ssl-certs.sh` để lắng nghe trên cổng 443/8443.
 6. **Tài liệu Hướng dẫn & Kế hoạch Chi tiết:**
-   - Xem tài liệu hướng dẫn vận hành Quick Tunnel & Named Tunnel tại: [`docs/cloudflare_tunnel_setup.md`](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/cloudflare_tunnel_setup.md).
-   - Xem kế hoạch kỹ thuật tại: [`docs/plan_ssl_tls_port_443.md`](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/plan_ssl_tls_port_443.md).
+   - Xem tài liệu hướng dẫn vận hành Quick Tunnel & Named Tunnel tại: [`docs/cloudflare_tunnel_setup.md`](./cloudflare_tunnel_setup.md).
+   - Xem kế hoạch kỹ thuật tại: [`docs/plan_ssl_tls_port_443.md`](./plan_ssl_tls_port_443.md).
 
 ---
 
