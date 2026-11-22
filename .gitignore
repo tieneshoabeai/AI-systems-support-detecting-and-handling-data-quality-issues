@@ -75,3 +75,5 @@ remember/
 
 /docs/*
 !/docs/restructures/
+!/docs/refactor/
+!/docs/frontend-handover/
