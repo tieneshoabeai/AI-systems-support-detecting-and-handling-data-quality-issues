@@ -34,13 +34,12 @@
     "db:reset:all": "TARGET=all ts-node scripts/bootstrap-database.ts",
     "db:reset:mongo": "TARGET=mongo ts-node scripts/bootstrap-database.ts",
     "db:reset:storage": "TARGET=storage ts-node scripts/bootstrap-database.ts",
-    "test:unit": "jest --testPathIgnorePatterns '/node_modules/' '(zero-any|guard-coverage|zod-openapi|clean-architecture|api-contract-coverage)\\.spec\\.ts$'",
+    "test:unit": "jest --testPathIgnorePatterns '/node_modules/' 'test/integration/' '(zero-any|guard-coverage|zod-openapi|clean-architecture|api-contract-coverage)\\.spec\\.ts$'",
     "test:arch": "jest --testPathPatterns '(zero-any|guard-coverage|zod-openapi|clean-architecture|api-contract-coverage)\\.spec\\.ts$'",
     "arch:baseline": "ts-node scripts/generate-arch-baseline.ts",
     "arch:verify-di": "ts-node scripts/verify-di-graph.ts",
     "arch:cross-imports": "ts-node scripts/list-cross-module-imports.ts",
     "arch:api-coverage": "node scripts/check-api-coverage.cjs",
-    "test:all": "pnpm run test:unit && pnpm run test:arch && pnpm run test:e2e",
     "prepare": "husky || true",
     "start:worker": "nest start --entryFile worker",
     "start:worker:dev": "nest start --watch --entryFile worker",
@@ -56,8 +55,12 @@
     "db:backup:storage": "bash scripts/backup-storage.sh",
     "test:infra:up": "bash scripts/test-infra-up.sh",
     "test:infra:down": "bash scripts/test-infra-down.sh",
+    "test:integration": "jest --config ./test/jest-integration.json --runInBand",
     "test:perf:staging": "bash scripts/perf-report.sh",
-    "test:e2e:full": "pnpm run test:infra:up && (pnpm run test:e2e; CODE=$?; pnpm run test:infra:down; exit $CODE)"
+    "test:e2e:full": "pnpm run test:infra:up && (pnpm run test:e2e; CODE=$?; pnpm run test:infra:down; exit $CODE)",
+    "test:all": "pnpm run test:unit && pnpm run test:arch && pnpm run test:integration && pnpm run test:e2e",
+    "test:all:infra": "pnpm run test:infra:up && (pnpm run test:all; CODE=$?; pnpm run test:infra:down; exit $CODE)",
+    "test:cov:all": "jest --coverage --runInBand --testPathIgnorePatterns \"/node_modules/\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.670.0",
@@ -145,6 +148,10 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
-    }
+    },
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/test/integration/"
+    ]
   }
 }
