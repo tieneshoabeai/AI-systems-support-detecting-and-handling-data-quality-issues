@@ -743,6 +743,22 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 > thứ tự đăng ký, nếu không chuỗi `me` sẽ bị `:sessionId` nuốt mất.
 > Có test guard thứ tự khai báo trong `test/gap-analysis-p2-p3.spec.ts`.
 
+> **Tên field `remember_me` trong `POST /auth/login` (chuẩn hoá 2026-11-23):**
+>
+> | Field | Vai trò | Ghi chú |
+> |---|---|---|
+> | `remember_me` | **Chuẩn duy nhất** | snake_case, đồng bộ toàn bộ input của module Auth (`first_name`, `last_name`, `refresh_token`) |
+> | `rememberMe` | **Alias deprecated** | camelCase, giữ lại để không phá client cũ; sẽ gỡ ở phiên bản sau |
+>
+> - Gửi một trong hai → hợp lệ, tương đương nhau.
+> - Gửi **cả hai với giá trị khác nhau** → `400 VALIDATION_ERROR` (lỗi ở field `rememberMe`).
+> - Gửi cả hai với giá trị **giống nhau** → hợp lệ.
+> - Mặc định (thiếu cả hai) → `false` → phiên 7 ngày; `true` → phiên 30 ngày.
+> - **Response** chỉ dùng `remember_me` (không bao giờ `rememberMe`).
+>
+> Lý do chuẩn hoá: trước đó hệ thống **âm thầm ưu tiên `remember_me`**, khiến client
+> gửi `rememberMe` bị bỏ qua mà không nhận được lỗi. Nay xung đột được báo rõ ràng.
+
 #### Nhóm USER / ADMIN — hồ sơ (5 route / 6 tính năng)
 
 | # | Tính năng | Method | Path | Quyền |
@@ -809,6 +825,25 @@ Cột "Quyền" dùng ký hiệu từ ma trận Phần 6 v7 mục 3.5. `SELF` = 
 | 54b | **`DATA-01` Số liệu biểu đồ (histogram, box plot, Top N)** *(v8.2, mới)* | GET | `/datasets/{datasetId}/charts` | có quyền xem |
 
 > **v8 — sửa lệch so với v7:** v7 ghi `PATCH /datasets/:id` và `DELETE /datasets/:id` là **"Bỏ"**. Mã nguồn thực tế **vẫn có** cả hai route (đã hiện thực hoá ở Bước 1–3). Ngoài ra `PATCH /datasets/{id}/columns` nhận **mảng cột** trong body (đổi tên nhiều cột 1 lần) thay vì path param `{columnIndex}`; route `POST /datasets/{id}/columns/reset` là mới.
+>
+> **v8.3 (2026-11-23) — `OPEN-03` dataset insert-only (ghi đè v8):**
+>
+> | Route | Trạng thái hiện tại | Ghi chú |
+> |---|---|---|
+> | `POST /projects/{projectId}/datasets/upload` | **Giữ** | Nạp dataset mới |
+> | `GET /projects/{projectId}/datasets` | **Giữ** | Xem dataset của project |
+> | `GET /datasets/{datasetId}` | **Giữ** | Chi tiết dataset |
+> | `GET /datasets/{datasetId}/schema` | **Giữ** | Schema cột `c0..cN` |
+> | `DELETE /datasets/{datasetId}` | **Giữ** | Xoá dataset để nạp lại |
+> | `PATCH /datasets/{datasetId}` | **ĐÃ GỠ** | Không còn route sửa dataset |
+> | `PATCH /datasets/{datasetId}/columns` | **ĐÃ GỠ** | Không còn đổi tên cột |
+> | `POST /datasets/{datasetId}/columns/reset` | **ĐÃ GỠ** | Không còn reset tên cột |
+> | `PATCH /datasets/{datasetId}/columns/pii` | **ĐÃ GỠ** *(GĐ4 đã bị gỡ theo OPEN-03)* | Cờ PII nay **tự suy luận** bằng heuristic khi nạp, không sửa tay được |
+>
+> **Hệ quả:** người dùng muốn sửa dữ liệu → **xoá dataset và nạp lại**. Hệ thống chỉ *phát hiện* vấn đề (tên cột rỗng/trùng, ô nghi ngờ ngày/số…) và trả về trong `findings`.
+>
+> **Vì sao `DELETE /datasets/{datasetId}` nằm ở root chứ không nested dưới `/projects/...`:** xoá dataset **gỡ cờ `hasDataset` của project** và **trừ dung lượng workspace** — cả hai là thuộc tính của resource khác (project/workspace), nên route ở root đúng hơn. Đây là **route duy nhất để xoá dataset**; không tồn tại route `DELETE /projects/{projectId}/datasets`.
+> Luồng gọi: `GET /projects/{projectId}/datasets` → lấy `dataset.id` → `DELETE /datasets/{datasetId}`.
 >
 > **v8.2 — bổ sung 2 route (GĐ4 + GĐ6):**
 >
@@ -1175,7 +1210,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 | `POST /projects/:projectId/datasets/upload` | Đổi tên + sửa lỗi extension | `POST /workspaces/{workspaceId}/projects/{projectId}/datasets` |
 | `GET /projects/:projectId/datasets` | — | Gộp vào `GET /datasets/{datasetId}` + `GET /projects/{projectId}` |
 | `GET /datasets/:id` | Giữ | `GET /datasets/{datasetId}` |
-| `PATCH /datasets/:id` | **Đã hiện thực hoá** *(v8 — v7 ghi "Bỏ")* | `PATCH /datasets/{datasetId}` |
+| `PATCH /datasets/:id` | **Đã gỡ theo OPEN-03** *(2026-11-19 — dataset insert-only)* | — |
 | `DELETE /datasets/:id` | **Đã hiện thực hoá** *(v8 — v7 ghi "Bỏ")* | `DELETE /datasets/{datasetId}` |
 | `GET /datasets/:id/schema` | Gộp (CSV 1 bảng) | `GET /datasets/{datasetId}/schema` |
 | `GET /datasets/:datasetId/records` | Bổ sung bộ lọc | `GET /datasets/{datasetId}/records` + `POST .../records/query` |
@@ -1230,7 +1265,8 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 | Lỗi: `{ message }` → `{ error: { code, message, details? } }` | Chuẩn hoá |
 | Danh sách: `{ workspaces: [...] }` → `{ items: [...], meta: {...} }` | Chuẩn hoá |
 | `DELETE /users/me` bị bỏ | ~~Không có trong danh mục tính năng~~ **(v8: đã hiện thực hoá lại — xem bảng endpoint mới)** |
-| `DELETE /datasets/:id` bị bỏ | ~~Mỗi project chỉ có 1 dataset~~ **(v8: đã hiện thực hoá lại — xem bảng endpoint mới)** |
+| `DELETE /datasets/:id` bị bỏ | ~~Mỗi project chỉ có 1 dataset~~ **(v8: đã hiện thực hoá lại — xem bảng endpoint mới)** *(v8.3: vẫn giữ sau OPEN-03 — đây là route xoá dataset duy nhất)* |
+| `PATCH /datasets/:id` đã hiện thực hoá | ~~v8~~ **(v8.3: đã gỡ theo OPEN-03 — dataset insert-only)** |
 | 12 endpoint thuộc module LEGACY bị bỏ | Module bị xoá (Phần 4 mục 3.9) |
 
 ### 3.16. Kiểm thử hợp đồng
