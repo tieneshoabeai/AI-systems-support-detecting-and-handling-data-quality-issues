@@ -11,6 +11,7 @@ import {
 } from '../../domain/ports/feedback.repository.port';
 import { toFeedbackPersistence, toFeedbackEntity } from './feedback.mapper';
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
@@ -59,7 +60,8 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     if (raw.modelId !== undefined && raw.model_id === undefined) extra.model_id = raw.modelId;
     if (raw.promptVersion !== undefined && raw.prompt_version === undefined) extra.prompt_version = raw.promptVersion;
     for (const [k, v] of Object.entries(extra)) (inst as unknown as Record<string, unknown>)[k] = v;
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toFeedbackEntity(saved);
   }
 
@@ -117,13 +119,13 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     if (raw.reason !== undefined) set.reason = raw.reason;
     if (raw.suggestedSeverity !== undefined) { set.suggested_severity = raw.suggestedSeverity; delete set.suggestedSeverity; }
     if (raw.suggested_severity !== undefined) set.suggested_severity = raw.suggested_severity;
-    const doc = await this.model.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true }).exec();
+    const doc = await this.model.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true, session: resolveMongoSession(undefined) }).exec();
     return doc ? toFeedbackEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
     if (!isObjectIdHex(id)) return false;
-    const res = await this.model.updateOne({ _id: oid(id), deleted_at: null }, { $set: { deleted_at: new Date() } }).exec();
+    const res = await this.model.updateOne({ _id: oid(id), deleted_at: null }, { $set: { deleted_at: new Date() } }, { session: resolveMongoSession(undefined) }).exec();
     return res.modifiedCount > 0;
   }
 

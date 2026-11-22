@@ -31,7 +31,10 @@ export class RealtimeService implements RealtimePort {
     @Optional() private readonly config?: ConfigService,
     @Optional()
     @Inject(REALTIME_TRANSPORT_PORT)
-    private readonly transport?: { emitToRoom(room: string, envelope: RealtimeEnvelope): boolean },
+    private readonly transport?: {
+      emitToRoom(room: string, envelope: RealtimeEnvelope): boolean;
+      disconnectUser?(userId: string): boolean;
+    },
   ) {}
 
   private isEnabled(): boolean {
@@ -89,8 +92,7 @@ export class RealtimeService implements RealtimePort {
     this.safeEmit(RealtimeRooms.analysis(analysisId), envelope);
   }
 
-  /** Tiện ích: đẩy đồng thời tới room project + analysis của cùng một lần chạy. */
-  emitAnalysisLifecycle(
+  /** Tiện ích: đẩy đồng thời tới room project + analysis của cùng một lần chạy. */  emitAnalysisLifecycle(
     projectId: string,
     analysisId: string,
     event: Extract<
@@ -105,5 +107,36 @@ export class RealtimeService implements RealtimePort {
     const forAnalysis = buildEnvelope(event, { ...fields, projectId, analysisId });
     this.safeEmit(RealtimeRooms.project(projectId), forProject);
     this.safeEmit(RealtimeRooms.analysis(analysisId), forAnalysis);
+  }
+
+  /**
+   * OPEN-08 — Thu hồi realtime **tức thì** khi tài khoản bị khoá / bị xoá.
+   *
+   * Thứ tự:
+   * 1. Gửi `user.force_disconnect` cho client (client biết nguyên nhân, có thể
+   *    chuyển về màn hình đăng nhập).
+   * 2. **Server đóng hẳn socket** (`disconnectSockets(true)`) — không phó thác
+   *    việc đóng cho client, vì client có thể bỏ qua và tiếp tục giữ socket.
+   *
+   * Không ném lỗi: đây là tác vụ phụ trợ, không được làm hỏng luồng nghiệp vụ chính.
+   */
+  disconnectUser(userId: string, status: 'blocked' | 'removed'): void {
+    if (!this.isEnabled()) return;
+    if (!this.transport) return;
+    try {
+      this.safeEmit(
+        RealtimeRooms.user(userId),
+        buildEnvelope('user.force_disconnect', { status }),
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Realtime force_disconnect emit lỗi (user=${userId}): ${message}`);
+    }
+    try {
+      this.transport.disconnectUser?.(userId);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Realtime disconnect lỗi (user=${userId}): ${message}`);
+    }
   }
 }

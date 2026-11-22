@@ -10,6 +10,7 @@ import {
   type AuditChangeInput,
 } from '../../domain/ports/audit.repository.port';
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
 function toOid(v: string | null | undefined): Types.ObjectId | null {
   if (!v || !isObjectIdHex(v)) return null;
@@ -42,7 +43,8 @@ export class AuditRepository implements AuditRepositoryPort {
       metadata: input.metadata ?? {},
       expires_at: expires,
     });
-    const saved = await doc.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await doc.save({ session: s });
     if (changes && changes.length > 0) {
       const docs = changes.slice(0, 50).map((c) => ({
         audit_log_id: saved._id,
@@ -51,7 +53,7 @@ export class AuditRepository implements AuditRepositoryPort {
         after_value: c.afterValue ?? null,
         expires_at: expires,
       }));
-      await this.changeModel.insertMany(docs).catch(() => undefined);
+      await this.changeModel.insertMany(docs, { session: s }).catch(() => undefined);
     }
     void AUDIT_REPOSITORY_PORT;
     return {

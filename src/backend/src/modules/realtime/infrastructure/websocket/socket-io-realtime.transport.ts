@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
 import type { RealtimeEnvelope } from '../../../../shared/domain/utils/realtime-events';
+import { RealtimeRooms } from '../../../../shared/domain/utils/realtime-events';
 import type { RealtimeTransportPort } from '../../domain/ports/realtime-transport.port';
 
 /**
@@ -27,6 +28,24 @@ export class SocketIoRealtimeTransport implements RealtimeTransportPort {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Realtime emit thất bại (room=${room}): ${message}`);
+      return false;
+    }
+  }
+
+  /**
+   * OPEN-08 — Ngắt **hẳn** mọi socket của user.
+   *
+   * `disconnectSockets(true)` đóng kết nối ở phía server (client không tự quyết
+   * định giữ socket) — an toàn hơn `emit` rồi để client tự đóng.
+   */
+  disconnectUser(userId: string): boolean {
+    if (!this.server) return false;
+    try {
+      this.server.in(RealtimeRooms.user(userId)).disconnectSockets(true);
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Realtime disconnect thất bại (user=${userId}): ${message}`);
       return false;
     }
   }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IProject } from './project.schema';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 import {
   type AddProjectMemberRecord,
   type CreateProjectRecord,
@@ -48,7 +49,8 @@ export class ProjectsRepository implements ProjectRepositoryPort {
       created_by: new Types.ObjectId(data.createdBy),
       deleted_at: null,
     });
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toProjectEntity(saved);
   }
 
@@ -263,16 +265,18 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     if (update.description !== undefined) set.description = update.description;
     const filter: Record<string, unknown> = { _id: new Types.ObjectId(id), deleted_at: null };
     if (expectedVersion !== undefined) filter.version = expectedVersion;
+    const s = resolveMongoSession(undefined);
     const doc = await this.model
-      .findOneAndUpdate(filter, { $set: set, $inc: { version: 1 } }, { new: true })
+      .findOneAndUpdate(filter, { $set: set, $inc: { version: 1 } }, { new: true, session: s })
       .exec();
     return doc ? toProjectEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
     if (!/^[0-9a-fA-F]{24}$/.test(id)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
-      .updateOne({ _id: new Types.ObjectId(id), deleted_at: null }, { $set: { deleted_at: new Date() } })
+      .updateOne({ _id: new Types.ObjectId(id), deleted_at: null }, { $set: { deleted_at: new Date() } }, { session: s })
       .exec();
     return r.modifiedCount > 0;
   }
@@ -285,10 +289,12 @@ export class ProjectsRepository implements ProjectRepositoryPort {
    */
   async softDeleteByWorkspace(workspaceId: string): Promise<number> {
     if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return 0;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
       .updateMany(
         { workspace_id: new Types.ObjectId(workspaceId), deleted_at: null },
         { $set: { deleted_at: new Date() } },
+        { session: s },
       )
       .exec();
     return r.modifiedCount ?? 0;
@@ -307,18 +313,25 @@ export class ProjectsRepository implements ProjectRepositoryPort {
 
   async setHasDataset(projectId: string, hasDataset: boolean): Promise<boolean> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
-      .updateOne({ _id: new Types.ObjectId(projectId), deleted_at: null }, { $set: { has_dataset: hasDataset } })
+      .updateOne(
+        { _id: new Types.ObjectId(projectId), deleted_at: null },
+        { $set: { has_dataset: hasDataset } },
+        { session: s },
+      )
       .exec();
     return r.modifiedCount > 0;
   }
 
   async markCompleted(projectId: string, expectedVersion: number): Promise<boolean | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
       .updateOne(
         { _id: new Types.ObjectId(projectId), deleted_at: null, status: 'in_progress', version: expectedVersion },
         { $set: { status: 'completed' }, $inc: { version: 1 } },
+        { session: s },
       )
       .exec();
     if (r.modifiedCount > 0) return true;
@@ -329,25 +342,37 @@ export class ProjectsRepository implements ProjectRepositoryPort {
 
   async setStatus(projectId: string, status: ProjectStatus): Promise<boolean> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
-      .updateOne({ _id: new Types.ObjectId(projectId), deleted_at: null }, { $set: { status } })
+      .updateOne(
+        { _id: new Types.ObjectId(projectId), deleted_at: null },
+        { $set: { status } },
+        { session: s },
+      )
       .exec();
     return r.modifiedCount > 0;
   }
 
   async touchLastAccessed(projectId: string): Promise<void> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId)) return;
+    const s = resolveMongoSession(undefined);
     await this.model
-      .updateOne({ _id: new Types.ObjectId(projectId), deleted_at: null }, { $set: { last_accessed_at: new Date() } })
+      .updateOne(
+        { _id: new Types.ObjectId(projectId), deleted_at: null },
+        { $set: { last_accessed_at: new Date() } },
+        { session: s },
+      )
       .exec();
   }
 
   async addMember(projectId: string, member: AddProjectMemberRecord): Promise<boolean> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(member.userId)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
       .updateOne(
         { _id: new Types.ObjectId(projectId), deleted_at: null },
         { $push: { members: toMemberPersistence({ ...member, joinedAt: new Date() }) } },
+        { session: s },
       )
       .exec();
     return r.modifiedCount > 0;
@@ -355,10 +380,12 @@ export class ProjectsRepository implements ProjectRepositoryPort {
 
   async removeMember(projectId: string, userId: string): Promise<boolean> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(userId)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
       .updateOne(
         { _id: new Types.ObjectId(projectId), deleted_at: null },
         { $pull: { members: { user_id: new Types.ObjectId(userId) } } },
+        { session: s },
       )
       .exec();
     return r.modifiedCount > 0;
@@ -377,8 +404,9 @@ export class ProjectsRepository implements ProjectRepositoryPort {
       'members.user_id': new Types.ObjectId(userId),
     };
     if (expectedVersion !== undefined) filter.version = expectedVersion;
+    const s = resolveMongoSession(undefined);
     const r = await this.model
-      .updateOne(filter, { $set: { 'members.$.role': role }, $inc: { version: 1 } })
+      .updateOne(filter, { $set: { 'members.$.role': role }, $inc: { version: 1 } }, { session: s })
       .exec();
     if (r.modifiedCount > 0) return true;
     if (expectedVersion !== undefined) {
@@ -399,11 +427,12 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     const newId = new Types.ObjectId(newOwnerId);
     const scoped: Record<string, unknown> = { _id: prjId, deleted_at: null };
     if (expectedVersion !== undefined) scoped.version = expectedVersion;
+    const s = resolveMongoSession(undefined);
     const demote = await this.model
       .updateOne(
         scoped,
         { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } },
-        { arrayFilters: [{ 'o.role': 'owner' }] } as never,
+        { arrayFilters: [{ 'o.role': 'owner' }], session: s } as never,
       )
       .exec();
     if (demote.matchedCount === 0) {
@@ -415,7 +444,11 @@ export class ProjectsRepository implements ProjectRepositoryPort {
       return false;
     }
     const r = await this.model
-      .updateOne({ _id: prjId, deleted_at: null, 'members.user_id': newId }, { $set: { 'members.$.role': 'owner' } })
+      .updateOne(
+        { _id: prjId, deleted_at: null, 'members.user_id': newId },
+        { $set: { 'members.$.role': 'owner' } },
+        { session: s },
+      )
       .exec();
     return r.modifiedCount > 0;
   }

@@ -51,7 +51,8 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
       last_accessed_at: new Date(),
       deleted_at: null,
     });
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return this.toEntity(saved);
   }
 
@@ -71,17 +72,20 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
       expectedVersion !== undefined
         ? { _id: new Types.ObjectId(id), deleted_at: null, version: expectedVersion }
         : { _id: new Types.ObjectId(id), deleted_at: null };
+    const s = resolveMongoSession(undefined);
     const doc = await this.workspaceModel
-      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { new: true })
+      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { new: true, session: s })
       .exec();
     return doc ? this.toEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.workspaceModel.updateOne(
       { _id: new Types.ObjectId(id), deleted_at: null },
       { $set: { deleted_at: new Date() } },
+      { session: s },
     );
     return r.modifiedCount > 0;
   }

@@ -9,6 +9,15 @@
  * (xoá 2 lần → `ConflictError`; xoá mềm đồng thời chặn đăng nhập).
  * Việc **thu hồi toàn bộ phiên** vẫn ở repository (thao tác hàng loạt trên
  * collection `user_sessions` — không thuộc aggregate `User`).
+ *
+ * **OPEN-08 — thu hồi realtime tức thì.** Tài khoản bị xoá ⇒ mọi socket
+ * realtime đang mở của user phải bị đóng ngay lập tức (không đợi access token
+ * hết hạn).
+ *
+ * **OPEN-09 (Conflict #4) — nguyên tử.** Xoá mềm tài khoản + ghi event thu hồi
+ * nằm trong **cùng một transaction**: nếu ghi event thất bại ⇒ rollback xoá mềm
+ * ⇒ không rơi vào trạng thái "tài khoản đã xoá nhưng socket cũ vẫn sống".
+ * Đóng socket tức thì chỉ chạy **sau khi** transaction commit.
  */
 import { Inject, Injectable } from '@nestjs/common';
 import {
@@ -16,12 +25,20 @@ import {
   type UserRepositoryPort,
 } from '../../domain/ports/user.repository.port';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import {
+  TRANSACTION_PORT,
+  type TransactionPort,
+} from '../../../../shared/application/ports/transaction.port';
+import { UserAccessRevocationService } from '../services/user-access-revocation.service';
 
 @Injectable()
 export class SoftDeleteUserHandler {
   constructor(
     @Inject(USER_REPOSITORY_PORT)
     private readonly users: UserRepositoryPort,
+    @Inject(TRANSACTION_PORT)
+    private readonly tx: TransactionPort,
+    private readonly revocation: UserAccessRevocationService,
   ) {}
 
   async execute(userId: string): Promise<boolean> {
@@ -30,10 +47,19 @@ export class SoftDeleteUserHandler {
       throw new NotFoundError('Không tìm thấy tài khoản hoặc tài khoản đã bị xóa');
     }
     current.softDelete();
-    const ok = await this.users.softDeleteUser(userId);
-    if (!ok) {
-      throw new NotFoundError('Không tìm thấy tài khoản hoặc tài khoản đã bị xóa');
-    }
+
+    // ── Xoá mềm + ghi event thu hồi trong CÙNG một transaction ──────────
+    await this.tx.runInTransaction(async () => {
+      const ok = await this.users.softDeleteUser(userId);
+      if (!ok) {
+        throw new NotFoundError('Không tìm thấy tài khoản hoặc tài khoản đã bị xóa');
+      }
+      // Nghiêm (strict): lỗi ghi outbox ⇒ ném ra ⇒ rollback cả `softDeleteUser`.
+      await this.revocation.revokeStrict(userId, 'removed');
+    });
+
+    // Chỉ sau khi commit mới đóng socket (OPEN-08).
+    await this.revocation.publishImmediateNow(userId, 'removed');
     return true;
   }
 }

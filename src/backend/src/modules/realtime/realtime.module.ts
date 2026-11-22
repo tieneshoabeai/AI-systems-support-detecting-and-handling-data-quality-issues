@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { RealtimeService } from './application/realtime.service';
 import { RealtimeAuthService } from './application/realtime-auth.service';
 import { RealtimeGateway } from './presentation/gateways/realtime.gateway';
+import { RealtimeRevocationSubscriber } from './application/realtime-revocation.subscriber';
 import { SocketIoRealtimeTransport } from './infrastructure/websocket/socket-io-realtime.transport';
 import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
@@ -27,6 +28,7 @@ import { REALTIME_TRANSPORT_PORT } from './domain/ports/realtime-transport.port'
     { provide: REALTIME_PORT, useExisting: RealtimeService },
     RealtimeAuthService,
     RealtimeGateway,
+    RealtimeRevocationSubscriber,
   ],
   exports: [
     RealtimeService,

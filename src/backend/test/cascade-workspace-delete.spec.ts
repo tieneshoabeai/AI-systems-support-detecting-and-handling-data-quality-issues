@@ -19,6 +19,7 @@ import { CascadeWorkspaceProjectsHandler } from '../src/modules/projects/applica
 import { CascadeProjectDatasetsHandler } from '../src/modules/datasets/application/commands/cascade-project-datasets.handler';
 import { DeleteWorkspaceHandler } from '../src/modules/workspaces/application/commands/delete-workspace.handler';
 import { DeleteProjectHandler } from '../src/modules/projects/application/commands/delete-project.handler';
+import { fakeTransaction, fakeTransactionWithRollback } from './helpers/transaction';
 
 const WS_ID = '6afc2c17c37b4d662e5537bb';
 const PROJECT_ID = '6af543f5556da4cf87ad6196';
@@ -154,6 +155,7 @@ describe('Phat event cascade', () => {
     const handler = new DeleteWorkspaceHandler(
       { softDelete } as never,
       { recordEvent } as never,
+      fakeTransaction() as never,
       getWorkspaceByIdHandler as never,
     );
 
@@ -170,20 +172,25 @@ describe('Phat event cascade', () => {
     );
   });
 
-  it('loi ghi outbox khong lam hong viec xoa workspace', async () => {
+  it('OPEN-09 — loi ghi outbox ⇒ rollback viec xoa workspace (strict)', async () => {
     const softDelete = jest.fn().mockResolvedValue(true);
     const recordEvent = jest.fn().mockRejectedValue(new Error('outbox down'));
     const getWorkspaceByIdHandler = {
       execute: jest.fn().mockResolvedValue({ id: WS_ID, name: 'WS' }),
     };
+    const committed = { value: true };
 
     const handler = new DeleteWorkspaceHandler(
       { softDelete } as never,
       { recordEvent } as never,
+      fakeTransactionWithRollback(committed) as never,
       getWorkspaceByIdHandler as never,
     );
 
-    await expect(handler.execute(WS_ID)).resolves.toBe(true);
+    // Loi phai lan ra — khong duoc nuot.
+    await expect(handler.execute(WS_ID)).rejects.toThrow('outbox down');
+    // Transaction da rollback ⇒ thao tac chinh khong duoc commit.
+    expect(committed.value).toBe(false);
   });
 
   it('DeleteProjectHandler phat event PROJECT_DELETED kem project_id + workspace_id', async () => {
@@ -196,6 +203,7 @@ describe('Phat event cascade', () => {
     const handler = new DeleteProjectHandler(
       { softDelete } as never,
       { recordEvent } as never,
+      fakeTransaction() as never,
       getProjectByIdHandler as never,
     );
 
@@ -222,6 +230,7 @@ describe('Phat event cascade', () => {
     const handler = new DeleteWorkspaceHandler(
       { softDelete } as never,
       { recordEvent } as never,
+      fakeTransaction() as never,
       getWorkspaceByIdHandler as never,
     );
 

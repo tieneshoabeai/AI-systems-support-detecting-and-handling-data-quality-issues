@@ -23,6 +23,16 @@ export interface RealtimeTransportPort {
   emitToRoom(room: string, envelope: RealtimeEnvelope): boolean;
 
   /**
+   * OPEN-08 — Đóng **hẳn** mọi socket của user (socket.io `disconnectSockets(true)`).
+   *
+   * Dùng khi tài khoản bị khoá / bị xoá ⇒ socket phải bị thu hồi ngay lập tức,
+   * không chỉ "emit rồi để client tự đóng" (client có thể bỏ qua).
+   *
+   * @returns `true` nếu transport đã sẵn sàng và đã thực thi ngắt kết nối.
+   */
+  disconnectUser(userId: string): boolean;
+
+  /**
    * Gắn driver (Socket.IO server) vào transport.
    *
    * Hợp đồng dùng `unknown` vì tầng Domain không được biết tới kiểu `Server`

@@ -13,6 +13,7 @@ import {
   toNotificationPersistence,
 } from './notification.mapper';
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
 /**
  * NOTIFICATIONS — Infrastructure adapter (driven).
@@ -24,9 +25,18 @@ import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 export class NotificationsRepository implements NotificationRepositoryPort {
   constructor(@InjectModel('Notification') private readonly model: Model<INotification>) {}
 
+  /**
+   * Ghi thông báo vào DB.
+   *
+   * **OPEN-09:** tự gia nhập session từ `MongoSessionContext` ⇒ khi được gọi
+   * bên trong transaction, thông báo nằm chung transaction với thao tác chính
+   * ⇒ không bao giờ có trạng thái "thao tác chính thất bại nhưng thông báo đã
+   * gửi tới người dùng".
+   */
   async create(doc: CreateNotificationRecord): Promise<Notification> {
+    const s = resolveMongoSession(undefined);
     const inst = new this.model(toNotificationPersistence(doc));
-    const saved = await inst.save();
+    const saved = await inst.save({ session: s });
     return toNotificationEntity(saved);
   }
 
@@ -70,7 +80,7 @@ export class NotificationsRepository implements NotificationRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
         { $set: { read_at: new Date() } },
-        { new: true },
+        { new: true, session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toNotificationEntity(doc) : null;
@@ -79,8 +89,9 @@ export class NotificationsRepository implements NotificationRepositoryPort {
   async createIfEventNotExists(doc: CreateNotificationRecord): Promise<Notification | null> {
     if (!doc.sourceEventId) return this.create(doc);
     try {
+      const s = resolveMongoSession(undefined);
       const inst = new this.model(toNotificationPersistence(doc));
-      const saved = await inst.save();
+      const saved = await inst.save({ session: s });
       return toNotificationEntity(saved);
     } catch (err: unknown) {
       const code = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).code : null;

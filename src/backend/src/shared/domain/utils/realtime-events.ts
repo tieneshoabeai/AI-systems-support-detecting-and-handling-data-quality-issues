@@ -25,6 +25,31 @@ export const RealtimeRooms = {
   analysis: (analysisId: string): string => `analysis:${analysisId}`,
 } as const;
 
+/**
+ * OPEN-08 — Tên event **thu hồi realtime**.
+ *
+ * Đặt ở `shared/domain/utils/` (thuần, không framework) vì:
+ * - `shared/infrastructure/events/event-dispatcher.service.ts` cần khớp tên
+ *   event mà **không** được import từ `modules/` (quy tắc CA5).
+ * - Module `users` (phát event) cũng cần dùng — và `domain/` của module được
+ *   phép import `shared/domain/utils/` (quy tắc CA11).
+ *
+ * Khớp với quy ước event outbox của hệ thống (`WORKSPACE_DELETED`,
+ * `PROJECT_DELETED`, `DATASET_INGESTED`).
+ */
+export const RealtimeRevocationEvents = {
+  /** Tài khoản bị khoá → đóng mọi socket của user ngay lập tức. */
+  USER_BLOCKED: 'USER_BLOCKED',
+  /** Tài khoản bị xoá mềm → đóng mọi socket của user ngay lập tức. */
+  USER_REMOVED: 'USER_REMOVED',
+} as const;
+
+export type RealtimeRevocationEventName =
+  (typeof RealtimeRevocationEvents)[keyof typeof RealtimeRevocationEvents];
+
+/** Map event thu hồi → lý do gửi cho client. */
+export type RealtimeRevocationStatus = 'blocked' | 'removed';
+
 export type RealtimeEventName =
   | 'notification.created'
   | 'ai.quality.updated'
@@ -32,7 +57,14 @@ export type RealtimeEventName =
   | 'analysis.completed'
   | 'analysis.failed'
   | 'ai.job.status'
-  | 'feedback.created';
+  | 'feedback.created'
+  /**
+   * OPEN-08 — Tài khoản bị khoá / bị xoá ⇒ server đóng socket tức thì.
+   *
+   * Client nhận event này **trước** khi socket bị đóng để biết nguyên nhân
+   * (đăng xuất chủ động vs. bị thu hồi phiên).
+   */
+  | 'user.force_disconnect';
 
 export interface RealtimeEnvelope {
   event: RealtimeEventName;

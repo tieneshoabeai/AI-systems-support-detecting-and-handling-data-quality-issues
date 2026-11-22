@@ -21,6 +21,20 @@ export class LogHandler {
     private readonly repo: AuditRepositoryPort,
   ) {}
 
+  /**
+   * Ghi audit log.
+   *
+   * **OPEN-09 — audit log là BEST-EFFORT (khác outbox).** Lý do:
+   * 1. Audit log được ghi ở **tầng controller**, *sau khi* mutation đã commit
+   *    ⇒ không thể rollback thao tác chính (nó đã xảy ra).
+   * 2. Nếu ghi audit thất bại ⇒ báo lỗi cho người dùng sẽ gây hiểu nhầm
+   *    ("thao tác thất bại" trong khi thực tế đã thành công).
+   *
+   * Đây là quyết định **cố ý**, khác với outbox: outbox là *điều kiện cần* cho
+   * tính đúng của nghiệp vụ (cascade xoá), còn audit log chỉ là *hậu kiểm*.
+   *
+   * Lỗi vẫn được log lại để cảnh báo vận hành.
+   */
   async execute(input: CreateAuditLogInput, changes?: AuditChangeInput[]): Promise<void> {
     try {
       await this.repo.createLog(input, changes);

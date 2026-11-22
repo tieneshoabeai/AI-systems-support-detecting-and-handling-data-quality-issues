@@ -18,6 +18,9 @@ import { RevokeAllUserSessionsHandler } from './application/commands/revoke-all-
 import { RevokeSessionByIdHandler } from './application/commands/revoke-session-by-id.handler';
 import { RevokeSessionHandler } from './application/commands/revoke-session.handler';
 import { SoftDeleteUserHandler } from './application/commands/soft-delete-user.handler';
+import { BlockUserHandler } from './application/commands/block-user.handler';
+import { UnblockUserHandler } from './application/commands/unblock-user.handler';
+import { UserAccessRevocationService } from './application/services/user-access-revocation.service';
 import { TouchSessionHandler } from './application/commands/touch-session.handler';
 import { UpdateNotificationPreferencesHandler } from './application/commands/update-notification-preferences.handler';
 import { UpdateProfileHandler } from './application/commands/update-profile.handler';
@@ -37,6 +40,9 @@ import { UpdateProfileHandler } from './application/commands/update-profile.hand
     RevokeSessionByIdHandler,
     RevokeSessionHandler,
     SoftDeleteUserHandler,
+    BlockUserHandler,
+    UnblockUserHandler,
+    UserAccessRevocationService,
     TouchSessionHandler,
     UpdateNotificationPreferencesHandler,
     UpdateProfileHandler,

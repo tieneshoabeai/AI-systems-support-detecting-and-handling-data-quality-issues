@@ -15,8 +15,13 @@
  * `projects` **tiêu thụ** và tự xóa project của mình (mô hình sagá).
  *
  * Ngoài ra vẫn có **lớp phòng thủ ở tầng query**: `findAllPaged` loại project
- * có workspace cha đã xóa, nên người dùng không thấy project mồ côi dù event
+ * có workspace cha đã xoá, nên người dùng không thấy project mồ côi dù event
  * chưa được xử lý.
+ *
+ * ── OPEN-09 (Conflict #4): nguyên tử + nghiêm ──────────────────────────────
+ * Ghi event `WORKSPACE_DELETED` **không còn là best-effort**. Nếu ghi event
+ * thất bại ⇒ **rollback** luôn việc xoá mềm workspace ⇒ không bao giờ rơi vào
+ * trạng thái "workspace đã xoá nhưng project bên trong không được dọn".
  */
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
@@ -25,6 +30,7 @@ import {
 } from '../../domain/ports/workspace.repository.port';
 import { GetWorkspaceByIdHandler } from '../queries/get-workspace-by-id.handler';
 import { OUTBOX_PORT, type OutboxPort } from '../../../../shared/application/ports/outbox.port';
+import { TRANSACTION_PORT, type TransactionPort } from '../../../../shared/application/ports/transaction.port';
 import { WORKSPACE_EVENTS } from '../../domain/events/workspace-events';
 
 @Injectable()
@@ -35,36 +41,40 @@ export class DeleteWorkspaceHandler {
     private readonly workspaces: WorkspaceRepositoryPort,
     @Inject(OUTBOX_PORT)
     private readonly outbox: OutboxPort,
+    @Inject(TRANSACTION_PORT)
+    private readonly tx: TransactionPort,
     private readonly getWorkspaceByIdHandler: GetWorkspaceByIdHandler,
   ) {}
 
   async execute(id: string): Promise<boolean> {
     const workspace = await this.getWorkspaceByIdHandler.execute(id);
-    const deleted = await this.workspaces.softDelete(id);
-    if (!deleted) {
-      this.logger.log(`Workspace ID: ${id} đã bị xóa trước đó — bỏ qua`);
-      return false;
-    }
 
-    // Phát event để cascade xóa project (và dataset) của workspace này.
-    // Lỗi ghi outbox không được làm hỏng việc xóa workspace.
-    try {
+    // ── Ghi event + xoá mềm trong CÙNG một transaction ──────────────────
+    const deleted = await this.tx.runInTransaction(async () => {
+      const ok = await this.workspaces.softDelete(id);
+      if (!ok) {
+        this.logger.log(`Workspace ID: ${id} đã bị xóa trước đó — bỏ qua`);
+        return false;
+      }
+
+      // Nghiêm (strict): lỗi ghi outbox ⇒ ném ra ⇒ rollback cả `softDelete`.
       await this.outbox.recordEvent({
         aggregate_type: 'WORKSPACE',
         aggregate_id: id,
-        event_type: 'WORKSPACE_DELETED',
+        event_type: WORKSPACE_EVENTS.DELETED,
         payload: {
           workspace_id: id,
           workspace_name: workspace.name,
         },
         workspace_id: id,
       });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Không ghi được event ${WORKSPACE_EVENTS.DELETED}: ${msg}`);
-    }
 
-    this.logger.log(`Đã xóa mềm Workspace ID: ${id} (đã phát event cascade)`);
-    return true;
+      return true;
+    });
+
+    if (deleted) {
+      this.logger.log(`Đã xóa mềm Workspace ID: ${id} (đã phát event cascade)`);
+    }
+    return deleted;
   }
 }
