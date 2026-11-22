@@ -31,6 +31,7 @@ import { RegisterHandler } from './application/commands/register.handler';
 import { ResetPasswordHandler } from './application/commands/reset-password.handler';
 import { RevokeSessionHandler } from './application/commands/revoke-session.handler';
 import { SecurityAlertService } from './application/security-alert.service';
+import { AdminBootstrapService } from './application/admin-bootstrap.service';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { SecurityAlertService } from './application/security-alert.service';
     ChangePasswordHandler,
     ForgotPasswordHandler,
     SecurityAlertService,
+    AdminBootstrapService,
     LoginHandler,
     LoginWithGoogleHandler,
     LogoutHandler,

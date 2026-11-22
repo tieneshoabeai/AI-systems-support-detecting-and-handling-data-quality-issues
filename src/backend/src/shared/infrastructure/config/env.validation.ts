@@ -39,8 +39,19 @@ export const EnvironmentSchema = z.object({
   STORAGE_WARN_THRESHOLD_RATIO: z.coerce.number().min(0).max(1).default(0.9), // Cảnh báo khi đạt 90%
 
   // JWT & Cryptography
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET phải có tối thiểu 16 ký tự'),
-  JWT_ACCESS_EXPIRATION: z.string().default('15m'),
+  /**
+   * OPEN-01 — **Admin bootstrap**.
+   *
+   * Không có endpoint công khai để tự phong admin. Tài khoản `admin` được tạo
+   * **một lần** khi ứng dụng khởi động, từ `ADMIN_EMAIL` + `ADMIN_PASSWORD`.
+   *
+   * - Bỏ trống cả hai → không tạo admin (hợp lệ ở môi trường dev).
+   * - Có một mà thiếu cái kia → bị cảnh báo lúc khởi động, không tạo admin.
+   */
+  ADMIN_EMAIL: z.string().email('ADMIN_EMAIL phải là email hợp lệ').optional(),
+  ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD phải có tối thiểu 8 ký tự').optional(),
+
+  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET phải có tối thiểu 16 ký tự'),  JWT_ACCESS_EXPIRATION: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET phải có tối thiểu 16 ký tự'),
   JWT_REFRESH_EXPIRATION: z.string().default('7d'),
   /** Hạn phiên khi người dùng chọn "ghi nhớ đăng nhập" (remember me). */
