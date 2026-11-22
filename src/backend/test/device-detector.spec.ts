@@ -1,4 +1,4 @@
-import { detectDeviceName } from '../src/shared/utils/device-detector.util';
+import { detectDeviceName } from '../src/shared/domain/utils/device-detector.util';
 
 describe('Device Detector Utility (Unit Test)', () => {
   it('should detect Chrome on Linux (môi trường máy phát triển)', () => {

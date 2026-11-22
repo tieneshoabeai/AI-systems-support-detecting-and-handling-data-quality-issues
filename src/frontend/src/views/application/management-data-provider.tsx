@@ -4,7 +4,6 @@ import { ManagementStoreContext, type ManagementStore } from '../../hooks/previe
 import { ManagementLoadingContext, ManagementPersonalLoadingContext, type ManagementLoading } from '../../hooks/preview/management-loading-context'
 import { createAxiosClient } from '../../lib/axios-client'
 import { createSessionStorage } from '../../lib/session-storage'
-import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
 import { createManagementStore } from '../../services/management/management.store'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
 import { readAccessToken } from '../../utils/auth/access-token'
@@ -14,6 +13,7 @@ import type { Person } from '../../types/preview/preview.types'
 
 type LoadResult = {
   snapshot: SessionSnapshot
+  progressiveProjects?: boolean
   projectId?: string
   store?: ManagementStore
   error?: string
@@ -27,10 +27,11 @@ const sessionAccount = (snapshot: SessionSnapshot | undefined): Person => {
   return { id: snapshot?.accountId ?? '', name, email: user?.email ?? '', role: user?.role ?? '', initials: name.slice(0, 2).toUpperCase() }
 }
 
-function SessionDataProvider({ children, projectId, recent = false }: { children: ReactNode; projectId?: string; recent?: boolean }) {
+function SessionDataProvider({ children, projectId, recent = false, progressiveProjects = false }: {
+  children: ReactNode; projectId?: string; recent?: boolean; progressiveProjects?: boolean
+}) {
   const auth = useContext(AuthContext)
   const snapshot = auth?.snapshot
-  const fixture = isShoppingDemo()
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<LoadResult | null>(null)
   const pendingStore = useMemo(() => createManagementStore({
@@ -38,7 +39,7 @@ function SessionDataProvider({ children, projectId, recent = false }: { children
   }, sessionAccount(snapshot)).store, [snapshot])
 
   useEffect(() => {
-    if (fixture || snapshot?.phase !== 'authenticated') return
+    if (snapshot?.phase !== 'authenticated') return
     let active = true
     let dispose: (() => void) | undefined
     const controller = new AbortController()
@@ -57,6 +58,7 @@ function SessionDataProvider({ children, projectId, recent = false }: { children
         },
       })
       const data = createManagementStore(api, sessionAccount(snapshot), {
+        progressiveProjects,
         ...(projectId === undefined ? {} : { projectId }),
         ...(recent ? { recent } : {}),
         signal: controller.signal,
@@ -66,7 +68,7 @@ function SessionDataProvider({ children, projectId, recent = false }: { children
           ? readAccessToken(current.session.accessToken)?.sessionId ?? null : null
       } })
       dispose = data.dispose
-      const scope = projectId === undefined ? {} : { projectId }
+      const scope = { ...(projectId === undefined ? {} : { projectId }), progressiveProjects }
       const loaded = { snapshot, ...scope, store: data.store }
       void (recent ? Promise.resolve() : data.loadCore()).then(() => {
         if (!active) return
@@ -93,15 +95,15 @@ function SessionDataProvider({ children, projectId, recent = false }: { children
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không kết nối được máy chủ.'
-      queueMicrotask(() => { if (active) setResult({ snapshot, ...(projectId === undefined ? {} : { projectId }), error: message }) })
+      queueMicrotask(() => { if (active) setResult({ snapshot, progressiveProjects, ...(projectId === undefined ? {} : { projectId }), error: message }) })
     }
     return () => { active = false; controller.abort(); dispose?.() }
-  }, [snapshot, attempt, fixture, projectId, recent])
+  }, [snapshot, attempt, projectId, recent, progressiveProjects])
 
-  // Isolated previews and the existing authenticated Shopping demo retain their fixture store.
+  // Isolated previews retain their fixture store.
   // The route guard remains responsible for admission; API failures never select fixtures.
-  if (!auth || fixture) return children
-  const current = result?.snapshot === snapshot && result?.projectId === projectId ? result : null
+  if (!auth) return children
+  const current = result?.snapshot === snapshot && result?.projectId === projectId && result?.progressiveProjects === progressiveProjects ? result : null
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
   if (projectId !== undefined) {
     const error = snapshot?.phase === 'authenticated' ? current?.error : 'Cần phiên đăng nhập trực tuyến để mở project.'
@@ -123,8 +125,8 @@ function SessionDataProvider({ children, projectId, recent = false }: { children
   </ManagementLoadingContext.Provider>
 }
 
-export function ManagementDataProvider({ children }: { children: ReactNode }) {
-  return <SessionDataProvider>{children}</SessionDataProvider>
+export function ManagementDataProvider({ children, progressiveProjects = false }: { children: ReactNode; progressiveProjects?: boolean }) {
+  return <SessionDataProvider progressiveProjects={progressiveProjects}>{children}</SessionDataProvider>
 }
 
 export function ProcessingDataProvider({ children, projectId }: { children: ReactNode; projectId?: string }) {

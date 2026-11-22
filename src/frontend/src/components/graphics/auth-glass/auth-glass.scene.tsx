@@ -75,7 +75,9 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
   const reportedReady = useRef(false)
   const resources = useMemo(() => {
     const geometry = createAuthGlassGeometry()
-    const resolution = low ? 512 : 1024
+    // The interactive panels use HTML for the active form. Their artwork can
+    // use a smaller texture to reduce the initial WebGL upload.
+    const resolution = low ? 512 : formElement ? 768 : 1024
     const layout = panels.map(({ name, yaw, seamSide }) => ({
       name,
       yaw,
@@ -97,7 +99,7 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
       registerFront: createAuthArtwork('register', false, resolution),
       registerBack: createAuthArtwork('register', true, resolution / 2),
     }
-  }, [low])
+  }, [low, formElement])
 
   useEffect(() => () => {
     resources.geometry.dispose()

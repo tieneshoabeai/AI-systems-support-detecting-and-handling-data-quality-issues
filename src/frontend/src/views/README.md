@@ -3,7 +3,7 @@
 ## Phase 5 screen ownership
 
 - `management/{home,workspaces,projects,notifications,settings}`: Management screens.
-- `processing/home`: landing and unavailable creation form.
+- `processing/home`: landing, danh sách project gần đây và form tạo project.
 - `processing/project`: project workspace; its actions live in `sections/`.
 - `processing/records`: shopping demo records.
 - `auth/login`: login view; provider buttons and scene error boundary live in `sections/`.
@@ -140,7 +140,7 @@ Processing và Home Management dùng chung `preview/components/universe-hero.tsx
 
 ## 6. Luồng hoạt động
 
-Login nhập dữ liệu → hook submit → snapshot cập nhật → guard chuyển trang. Preview đọc URL → chọn view và scope → cập nhật mock store qua hook. Dataset 3D nhận thao tác legend/canvas → lưu theme focus hoặc part → truyền state về scene. Workspace 3D kiểm tra cây, tính layout, truyền lệnh camera và mở bảng CSV theo dataset cục bộ.
+Login nhập dữ liệu → hook submit → coordinator cập nhật snapshot → guard chuyển trang. Workbench đọc URL để chọn view và phạm vi dữ liệu, rồi thao tác qua store do provider cấp. Dataset 3D nhận thao tác legend/canvas → cập nhật focus hoặc part → truyền state về scene. Workspace 3D kiểm tra cây, tính layout, truyền lệnh camera và mở bảng CSV theo dataset cục bộ.
 
 ## 7. Cấu hình
 
@@ -163,7 +163,7 @@ Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview sr
 
 ## 10. Giới hạn & lưu ý
 
-Management dùng các màn 2D hiện có tại `/management`; `/processing` là trang mở đầu và danh sách project. URL 2D cũ chuyển hướng tới Management; URL Processing từng bước cũ về trang Project tương ứng. Management, Processing và Dataset 3D yêu cầu phiên cả dev lẫn production; dữ liệu quản lý vẫn là fixture. Upload, lưu đánh giá/kết quả và tải file thật chưa được tích hợp. Workspace 3D preview riêng chỉ chạy dev, form đăng ký vẫn là UI thử. Test DOM dùng mock scene và không chứng minh render WebGL. Xem [bảng route và hosting](../../README.md#route-management-và-ai-data-processing).
+Management và Processing yêu cầu phiên trong dev lẫn production. `/processing` dùng nguồn project gần đây theo trang. [ManagementDataProvider](application/management-data-provider.tsx) cấp trạng thái tải và lỗi cho màn hình. [AdminApiPanel](management/members/admin-api-panel.tsx) hiển thị chức năng quản trị trong khu vực Members. [LiveDatasetPanel](processing/project/sections/live-dataset-panel.tsx) dùng dữ liệu server cho bảng records, schema, thống kê cột, cờ PII và tải CSV gốc. Upload CSV và lưu kết quả Detection là hai luồng riêng. Lưu đánh giá và xuất kết quả Detection vẫn cần kết nối backend. Xem [bảng route và hosting](../../README.md#route-management-và-ai-data-processing).
 
 ## 11. Hướng cải tiến
 

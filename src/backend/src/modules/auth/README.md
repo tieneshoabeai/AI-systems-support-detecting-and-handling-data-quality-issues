@@ -71,9 +71,16 @@ Nhằm cân bằng giữa tính bảo mật cao và trải nghiệm người dù
 | `POST /api/v1/auth/register` | Công khai | `@Public()` + `ZodValidationPipe` | Đăng ký tài khoản người dùng mới |
 | `POST /api/v1/auth/login` | Công khai | `@Public()` + `ZodValidationPipe` | Đăng nhập hệ thống, cấp cặp token |
 | `POST /api/v1/auth/refresh` | Công khai | `@Public()` + `ZodValidationPipe` | Cấp mới Access Token bằng Refresh Token |
+| `GET /api/v1/auth/google` | Công khai | `@Public()` + `cookie-parser` (đọc cookie state) | Redirect tới Google; set cookie HttpOnly `google_oauth_state` (CSRF) |
+| `GET /api/v1/auth/google/callback` | Công khai | `@Public()` + `cookie-parser` (đọc & xoá cookie state) | Đổi mã lấy token, đối chiếu `state`, đăng nhập/đăng ký liền mạch |
 | `POST /api/v1/auth/logout` | Người dùng đã đăng nhập | `JwtAuthGuard` | Đăng xuất, hủy phiên làm việc hiện tại |
 | `GET /api/v1/auth/sessions` | Người dùng đã đăng nhập | `JwtAuthGuard` | Lấy danh sách các phiên thiết bị đang hoạt động |
 | `DELETE /api/v1/auth/sessions/:id` | Người dùng đã đăng nhập | `JwtAuthGuard` | Thu hồi từ xa một phiên làm việc chỉ định |
+
+> **Bắt buộc (2026-11-18):** `main.ts` phải có `app.use(cookieParser())` — Express 5 chỉ có
+> `res.cookie()` native, thiếu middleware ⇒ `req.cookies` là `undefined` ⇒ callback Google hợp lệ
+> bị từ chối 401. Có test guard trong
+> `test/e2e/security/cookie-parser-regression.e2e-spec.ts`.
 
 ---
 

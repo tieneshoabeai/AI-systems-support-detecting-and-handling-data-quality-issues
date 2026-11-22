@@ -1,59 +1,51 @@
-# utils
+# Utils
 
-## 1. Mục đích
+`src/utils` chứa helper dùng chung để đọc thông tin access token và kiểm tra giá trị bắt buộc. Import các helper qua [`utils/index.ts`](index.ts).
 
-Đọc thông tin thời hạn và định danh từ access token để frontend điều phối phiên. Xác minh chữ ký và quyền thuộc backend.
+## Bản đồ file
 
-## 2. Vị trí & phụ thuộc
+| File | Trách nhiệm |
+| --- | --- |
+| [`auth/access-token.ts`](auth/access-token.ts) | Đọc claim cần cho frontend và kiểm tra thời điểm hết hạn. |
+| [`auth/index.ts`](auth/index.ts) | Điểm import của nhóm helper token. |
+| [`required-value.ts`](required-value.ts) | Buộc giá trị tồn tại và ném lỗi có nhãn nếu giá trị là `undefined`. |
+| [`index.ts`](index.ts) | Export ba helper `readAccessToken`, `isAccessTokenExpired` và `requireDefined`. |
 
-`lib/session-storage.ts`, `services/auth/auth.service.ts` và `services/auth/session-coordinator.ts` dùng tiện ích này. Đầu ra được định kiểu bằng `AccessTokenInfo`.
+## Đọc và kiểm tra hạn token
 
-## 3. Public API
+`readAccessToken(token)` đọc payload JWT và chuyển `sub` thành `accountId`, `exp` từ giây sang `expiresAtMs`. Nếu `sessionId` là chuỗi có giá trị, kết quả cũng chứa claim này. Token sai cấu trúc hoặc thiếu claim bắt buộc hợp lệ trả `null`. Backend chịu trách nhiệm xác minh chữ ký và quyền truy cập.
 
-- `readAccessToken(token: string): AccessTokenInfo | null` đọc claim `sub`, `exp` và trả `{ accountId, expiresAtMs }`. Trả `null` với chuỗi hoặc payload sai.
-- `isAccessTokenExpired(info: AccessTokenInfo, nowMs: number): boolean` trả `true` khi thời điểm bằng/vượt hạn hoặc thời điểm hiện tại không hữu hạn.
-- `requireDefined<T>(value: T | undefined, label: string): T` đọc giá trị bắt buộc tồn tại trong model/fixture. Ném lỗi có nhãn nếu giá trị là `undefined`; giữ nguyên `0`, `false`, chuỗi rỗng và `null`. Không dùng cho dữ liệu optional hợp lệ; caller phải xử lý nhánh thiếu theo contract.
+`isAccessTokenExpired(info, nowMs)` trả `true` khi `nowMs >= info.expiresAtMs` hoặc `nowMs` không hữu hạn. Caller đưa thời gian vào để có thể kiểm tra chính xác các giá trị ngay trước và đúng thời điểm hết hạn.
 
-## 4. Cách dùng (ví dụ)
+Ví dụ từ module đặt ngay dưới `src/`:
 
 ```ts
-import { isAccessTokenExpired, readAccessToken } from './utils/auth/access-token'
+import { isAccessTokenExpired, readAccessToken } from './utils'
 
-console.log(readAccessToken('invalid')) // null
-console.log(isAccessTokenExpired({ accountId: 'demo', expiresAtMs: 1000 }, 1000)) // true
+export function hasUnexpiredAccessToken(token: string, nowMs: number) {
+  const info = readAccessToken(token)
+  return info !== null && !isAccessTokenExpired(info, nowMs)
+}
 ```
 
-Ví dụ chạy trong TypeScript với runtime có `atob` và `TextDecoder`.
+Xem [session storage](../lib/session-storage.ts) để thấy cách helper này tham gia kiểm tra bản ghi phiên.
 
-## 5. Cấu trúc thư mục
+## Đọc giá trị bắt buộc
 
-**Khi thêm code.** Đặt helper thuần dùng chung theo nhóm, như xử lý claim trong `auth/`. Quyết định chuyển pha phiên thuộc coordinator và phép tính hình học thuộc [math](../math/README.md).
+`requireDefined(value, label)` trả nguyên giá trị đầu vào nếu giá trị tồn tại. `0`, `false`, chuỗi rỗng và `null` đều được giữ. Với `undefined`, hàm ném `Error` có nội dung `Missing required value: <label>`. Dùng nhãn nêu rõ trường hoặc vị trí lỗi. Nếu thiếu dữ liệu là trạng thái hợp lệ, xử lý nhánh đó tại caller.
 
-- [auth/access-token.ts](auth/access-token.ts) — giải mã payload và so sánh thời hạn.
-- [required-value.ts](required-value.ts) — kiểm tra invariant của giá trị bắt buộc; không tạo fallback hoặc ép kiểu.
+## Cấu trúc thư mục hiện tại
 
-## 6. Luồng hoạt động
+```text
+src/utils/
+├── auth/
+│   ├── access-token.ts
+│   └── index.ts
+├── README.md
+├── index.ts
+└── required-value.ts
+```
 
-Tách token thành ba phần → giải mã payload base64url thành UTF-8 → đọc JSON → kiểm tra `sub` và `exp` → đổi `exp` từ giây sang mili giây.
+## Kiểm thử
 
-## 7. Cấu hình
-
-| Tham số | Mặc định | Tác dụng |
-| --- | --- | --- |
-| `nowMs` | Caller truyền | Mốc thời gian để so với `expiresAtMs` |
-
-## 8. Quy ước & bất biến
-
-Dùng mili giây cho đồng hồ phía frontend. Xem `null` là token không đọc được. Không dùng claim đã giải mã làm bằng chứng phân quyền.
-
-## 9. Test & debug
-
-Chạy `yarn test src/__tests__/foundation/session.test.ts src/__tests__/auth/auth.service.test.ts`. Debug bằng token giả hoặc object thời hạn mẫu.
-
-## 10. Giới hạn & lưu ý
-
-Chỉ hỗ trợ định dạng token ba phần với claim hợp lệ. Việc payload đọc được không chứng minh chữ ký hợp lệ.
-
-## 11. Hướng cải tiến
-
-Chưa có công việc triển khai riêng cho tầng này. Đề xuất giữ các ca biên của `exp` trong suite phiên khi contract auth thay đổi.
+Từ `src/frontend`, chạy `yarn test src/__tests__/foundation/session.test.ts src/__tests__/auth/auth.service.test.ts` để kiểm tra helper token qua các luồng lưu phiên và xác thực. Dùng token mẫu khi debug.

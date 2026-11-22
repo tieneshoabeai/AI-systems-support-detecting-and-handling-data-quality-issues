@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { PASSWORD_HASHER_PORT, type PasswordHasherPort } from '../../domain/ports/auth-session.port';
+import { type PasswordHasherPort } from '../../domain/ports/auth-session.port';
 
 /** Bcrypt adapter (driven) — nơi duy nhất chạm bcrypt. */
 @Injectable()

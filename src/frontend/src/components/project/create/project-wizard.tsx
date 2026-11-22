@@ -1,11 +1,12 @@
 import { Dialog } from '../../ui/overlay/dialog'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DatasetSummary, Person } from '../../../types'
 import { defaultProjectRole, emailForPerson, formatDataSize, formatRows, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
 import { useProjectCsvParser } from '../../../hooks/project/use-project-csv-parser'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Avatar } from '../../resource'
 import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 
 // Four-step 2D import flow. The selected CSV is previewed locally, then uploaded by the
 // manager store. Only members of the selected workspace can be added to the project.
@@ -49,6 +50,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   onClose: () => void
 }) {
   const session = usePreviewSession()
+  const { loadProjectWizardRoster } = useManagementStore()
   const parseLocalCsv = useProjectCsvParser()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState(0)
@@ -61,6 +63,19 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   const [error, setError] = useState<string | null>(null)
   const [createdName, setCreatedName] = useState('')
   const [pending, setPending] = useState(false)
+  const [rosterAttempt, setRosterAttempt] = useState(0)
+  const [rosterResult, setRosterResult] = useState<{ workspaceId: string; attempt: number; members?: Person[] }>()
+  const needsRoster = step === 2
+  useEffect(() => {
+    if (!needsRoster || !loadProjectWizardRoster || !workspaceId) return
+    const controller = new AbortController()
+    void loadProjectWizardRoster(workspaceId, controller.signal).then(members => {
+      if (!controller.signal.aborted) setRosterResult({ workspaceId, attempt: rosterAttempt, members })
+    }).catch(() => {
+      if (!controller.signal.aborted) setRosterResult({ workspaceId, attempt: rosterAttempt })
+    })
+    return () => controller.abort()
+  }, [needsRoster, loadProjectWizardRoster, workspaceId, rosterAttempt])
 
   // Wizard mở từ trang Projects khi chưa chọn không gian nào thì người dùng PHẢI chỉ định nơi
   // chứa project ở bước 1; các bước sau luôn có workspace thật để đọc roster.
@@ -69,7 +84,9 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   // Roster của workspace = chủ sở hữu + memberPreview. Chủ sở hữu KHÔNG nằm trong danh sách chọn:
   // ảnh ghi "Chủ sở hữu luôn thuộc project" nên để họ tự tick là một dòng bỏ đi, và project đã
   // mang owner là người dùng hiện tại trong store.
-  const roster = workspace?.memberPreview.filter(person => person.id !== workspace.owner.id) ?? []
+  const currentRoster = rosterResult?.workspaceId === workspaceId && rosterResult.attempt === rosterAttempt ? rosterResult : undefined
+  const roster = (loadProjectWizardRoster ? currentRoster?.members : workspace?.memberPreview)
+    ?.filter(person => person.id !== workspace?.owner.id) ?? []
   const isSelected = (person: Person): boolean => selected.some(item => item.person.id === person.id)
   const isDone = step >= steps.length
   const needle = search.trim().toLowerCase()
@@ -307,7 +324,11 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
                   </li>
                 })}
               </ul>}
-              {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
+              {loadProjectWizardRoster && !currentRoster?.members
+                ? currentRoster
+                  ? <p role="alert">Không tải được thành viên Workspace. <button type="button" onClick={() => setRosterAttempt(value => value + 1)}>Thử lại</button></p>
+                  : <p role="status">Đang tải thành viên Workspace…</p>
+                : candidates.length === 0 && <p className="panel-sub">{roster.length === 0
                 ? 'Workspace này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” rồi quay lại bước này.'
                 : `Không có thành viên nào của Workspace khớp “${search.trim()}”.`}</p>}
             </div>

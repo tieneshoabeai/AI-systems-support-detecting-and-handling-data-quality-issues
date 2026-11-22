@@ -10,8 +10,9 @@ import { requireDefined } from '../../utils/required-value'
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
+import { describe, expect, it, vi } from 'vitest'
+import { isDrawable } from '../../graphics/common/typed-objects'
+import { buildHolographicCoreProductModel, createHolographicCoreProductModel } from '../../graphics/holographic-core/holographic-core.model'
 import { buildFingerprint, type Moment } from './support/model-fingerprint'
 
 const BASELINE = resolve(process.cwd(), '.agents/dataset-3d-core/fingerprint/p0-baseline.ndjson')
@@ -44,6 +45,30 @@ describe('holographic core fingerprint vs the accepted structural baseline', () 
 
   it('has a baseline section for every captured moment', () => {
     expect([...expected.keys()].sort()).toEqual([...MOMENTS].sort())
+  })
+
+  it('publishes a drawable core before the towers and releases a cancelled partial build once', () => {
+    let dispose: (() => void) | undefined
+    const build = buildHolographicCoreProductModel(release => { dispose = release })
+    const core = build.next()
+    if (core.done) throw new Error('Expected first build batch')
+    expect(core.value.phase).toBe('core')
+    const onDispose = vi.fn()
+    let tracked = false
+    core.value.model.traverseVisible(object => {
+      if (!tracked && isDrawable(object)) {
+        object.geometry.addEventListener('dispose', onDispose)
+        tracked = true
+      }
+    })
+    expect(tracked).toBe(true)
+    const towers = build.next()
+    if (towers.done) throw new Error('Expected tower build batch')
+    expect(towers.value.phase).toBe('towers')
+    expect(towers.value.model).toBe(core.value.model)
+    dispose?.()
+    dispose?.()
+    expect(onDispose).toHaveBeenCalledTimes(1)
   })
 
   // selected-18 rebuilds one model per tower, so it needs far more than the 5s default.

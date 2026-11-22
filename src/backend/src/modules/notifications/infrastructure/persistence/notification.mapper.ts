@@ -1,23 +1,36 @@
 import { Types } from 'mongoose';
 import type { INotification } from './notification.schema';
-import type { CreateNotificationRecord, NotificationRecord } from '../../domain/ports/notification.repository.port';
+import type { CreateNotificationRecord } from '../../domain/ports/notification.repository.port';
+import { Notification } from '../../domain/entities/notification.entity';
 
-export function toNotificationRecord(doc: INotification): NotificationRecord {
-  return {
+/**
+ * NOTIFICATIONS — Mapper infrastructure ↔ domain entity.
+ *
+ * **Bước 3 — Rich Domain Model:** chiều document → entity dùng
+ * `reconstitute()` (không phát domain event).
+ */
+
+/** Document Mongoose → entity `Notification`. */
+export function toNotificationEntity(doc: INotification): Notification {
+  return Notification.reconstitute({
     id: doc._id.toString(),
     userId: doc.user_id.toString(),
     type: doc.type,
     title: doc.title,
     summary: doc.summary ?? null,
-    payload: (doc.payload as unknown as Record<string, unknown> | undefined) ?? null,
+    payload: (doc.payload as Notification['payload'] | undefined) ?? null,
     sourceEventId: doc.source_event_id ?? null,
     isMandatory: doc.is_mandatory ?? false,
     readAt: doc.read_at ?? null,
+    expiresAt: doc.expires_at ?? null,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
-  };
+    deletedAt: null,
+    version: 1,
+  });
 }
 
+/** Dữ liệu tạo mới → shape lưu trữ (Mongoose). */
 export function toNotificationPersistence(data: CreateNotificationRecord): Record<string, unknown> {
   return {
     user_id: new Types.ObjectId(data.userId),
@@ -28,5 +41,6 @@ export function toNotificationPersistence(data: CreateNotificationRecord): Recor
     source_event_id: data.sourceEventId ?? null,
     is_mandatory: data.isMandatory,
     read_at: null,
+    expires_at: data.expiresAt ?? null,
   };
 }

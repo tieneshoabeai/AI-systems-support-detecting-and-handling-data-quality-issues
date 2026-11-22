@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import type { ComponentProps } from 'react'
+import { useEffect } from 'react'
 import type { HolographicCoreCanvas } from '../../components/graphics/holographic-core/holographic-core.scene'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { HolographicPartInfo } from '../../types'
@@ -10,6 +11,7 @@ type CanvasProps = ComponentProps<typeof HolographicCoreCanvas>
 const canvasProbe = vi.hoisted(() => vi.fn<(props: CanvasProps) => void>())
 vi.mock('../../components/graphics/holographic-core/holographic-core.scene', () => ({ HolographicCoreCanvas: (props: CanvasProps) => {
   canvasProbe(props)
+  useEffect(() => props.onReadyChange?.(true), [props.onReadyChange])
   return <div role="img" aria-label="Holographic core fixture" />
 } }))
 

@@ -63,7 +63,9 @@ function InfoSurface({ project, origin, side, onClose }: {
       {/* 'chưa có' là trạng thái thật của project mới tạo; xóa dòng này đi thì người đọc
           không phân biệt được "chưa nạp" với "số liệu bằng 0". */}
       <dt>Tập dữ liệu</dt>
-      <dd>{dataset === null
+      <dd>{dataset === undefined
+        ? 'Thông tin tập dữ liệu chưa sẵn sàng'
+        : dataset === null
         ? 'chưa có tập dữ liệu'
         : <>
           <span className="info-card-file">{dataset.fileName}</span>

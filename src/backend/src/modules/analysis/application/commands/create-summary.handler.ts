@@ -1,0 +1,108 @@
+/**
+ * CreateSummaryHandler — Use case: `createSummary()`
+ * (thay đổi trạng thái) — theo §3.10 Command/Query pattern.
+ *
+ * Handler không biết HTTP: trả về kết quả hoặc ném lỗi nghiệp vụ.
+ * Dependency chỉ qua port token — không inject adapter cụ thể.
+ */
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  ANALYSIS_REPOSITORY_PORT,
+  type AnalysisRepositoryPort,
+} from '../../domain/ports/analysis.repository.port';
+import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
+
+@Injectable()
+export class CreateSummaryHandler {
+  constructor(
+    @Inject(PROJECT_ACCESS_PORT)
+    private readonly projects: ProjectAccessPort,
+    @Inject(ANALYSIS_REPOSITORY_PORT)
+    private readonly analysisRepository: AnalysisRepositoryPort,
+  ) {}
+
+  async execute(projectId: string): Promise<Record<string, unknown>> {
+    if (!isObjectIdHex(projectId)) throw new ValidationError('ID Dự án không hợp lệ');
+    const project = await this.projects.getProjectById(projectId);
+    const run = await this.analysisRepository.findLatestRunByProject(projectId);
+    if (!run)
+      throw new NotFoundError('Chưa chạy phân tích — hãy chạy Data Analysis & Detection trước');
+    if (run.status !== 'succeeded')
+      throw new ValidationError('Phân tích hệ thống chưa thành công — hãy chạy lại phân tích');
+    const result = await this.analysisRepository.findResultByRun(run.id);
+    if (!result) throw new NotFoundError('Chưa có kết quả phân tích cho lần chạy mới nhất');
+    const dq = (result.dqSummary ?? result.dq_summary ?? null) as unknown as {
+      totalScanned: number;
+      columns: {
+        column: string;
+        missingCount: number;
+        missingRate: number | null;
+        invalidCount: number;
+        invalidRate: number | null;
+        outlierCount: number;
+        outlierRate: number | null;
+      }[];
+      duplicateRowCount: number;
+      notes: string[];
+    } | null;
+    const issues: { dq: string; column: string | null; count: number; rate: number | null }[] = [];
+    if (dq) {
+      for (const c of dq.columns) {
+        if (c.missingCount > 0)
+          issues.push({
+            dq: 'DQ-01',
+            column: c.column,
+            count: c.missingCount,
+            rate: c.missingRate,
+          });
+        if (c.invalidCount > 0)
+          issues.push({
+            dq: 'DQ-03',
+            column: c.column,
+            count: c.invalidCount,
+            rate: c.invalidRate,
+          });
+        if (c.outlierCount > 0)
+          issues.push({
+            dq: 'DQ-04',
+            column: c.column,
+            count: c.outlierCount,
+            rate: c.outlierRate,
+          });
+      }
+      if (dq.duplicateRowCount > 0)
+        issues.push({ dq: 'DQ-02', column: null, count: dq.duplicateRowCount, rate: null });
+    }
+    issues.sort((a, b) => b.count - a.count);
+    const ai = result.aiCorrelationAssessment as unknown as { status?: string } | null;
+    const summary = {
+      overview: `Dataset ${dq?.totalScanned ?? 0} dòng, ${issues.length} nhóm vấn đề.`,
+      issues: issues.slice(0, 50),
+      evidence_refs: await this.analysisRepository.countEvidencesByRun(run.id),
+      recommendations: [
+        'Kiểm tra định nghĩa cột tại nguồn trước khi mô hình hóa',
+        'Không tự xóa/sửa dòng — xử lý tại nguồn',
+      ],
+      ai_section: ai && (ai as { status?: string }).status === 'succeeded' ? ai : null,
+    };
+    const saved = await this.analysisRepository.createSave({
+      projectId: project.id,
+      workspaceId: project.workspaceId,
+      analysisRunId: run.id,
+      analysisResultId: result.id,
+      inputFingerprint: result.inputFingerprint,
+      summary,
+    });
+    await this.analysisRepository.markSavesStale(projectId, saved.id);
+    return {
+      saveId: saved.id,
+      projectId,
+      analysisRunId: run.id,
+      inputFingerprint: result.inputFingerprint,
+      summary,
+      isStale: false,
+    };
+  }
+}

@@ -2,7 +2,6 @@ import type { StoredSession, SessionReadResult, SessionStoragePort } from '../ty
 import type { TokenReader } from '../types'
 import { isAccessTokenExpired, readAccessToken } from '../utils'
 import { ApiError, isRecord } from './api-error'
-import { isShoppingDemo } from '../mocks/shopping-trends/demo-mode'
 
 export const SESSION_STORAGE_KEY = 'data-quality.auth.v1'
 
@@ -28,7 +27,7 @@ type SessionStorageOptions = {
 }
 
 export const createSessionStorage = (options: SessionStorageOptions = {}) => {
-  const storageKey = !options.getStorage && isShoppingDemo() ? 'shopping-demo.session' : SESSION_STORAGE_KEY
+  const storageKey = SESSION_STORAGE_KEY
   const getStorage = options.getStorage ?? (() => window.sessionStorage)
   const now = options.now ?? Date.now
 

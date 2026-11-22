@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 640" width="100%" height="100%" style="background: transparent; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;">
+  <defs>
+    <!-- Arrowhead markers -->
+    <marker id="seq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1 L9 5 L0 9 z" fill="#2563eb" />
+    </marker>
+    <marker id="seq-arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1 L9 5 L0 9 z" fill="#00a878" />
+    </marker>
+    <marker id="seq-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1 L9 5 L0 9 z" fill="#dc2626" />
+    </marker>
+    <marker id="seq-arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1 L9 5 L0 9 z" fill="#d97706" />
+    </marker>
+
+    <!-- Gradients -->
+    <linearGradient id="grad-client" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="grad-coord" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+    <linearGradient id="grad-server" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#d1fae5"/>
+    </linearGradient>
+  </defs>
+
+  <style>
+    .actor-box { rx: 14px; stroke-width: 1.5; }
+    .actor-text { font-size: 15px; font-weight: 700; text-anchor: middle; }
+    .lifeline { stroke: #cbd5e1; stroke-width: 2; stroke-dasharray: 6,6; }
+    .exec-bar { rx: 6px; fill: #2563eb; opacity: 0.12; stroke: #2563eb; stroke-width: 1.5; }
+    .msg-line { stroke-width: 1.8; fill: none; }
+    .msg-label-box { rx: 8px; stroke-width: 1; }
+    .msg-label-text { font-size: 12px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+    .status-badge { rx: 6px; }
+  </style>
+
+  <!-- Background Card -->
+  <rect x="10" y="10" width="1140" height="620" rx="20" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Actor 1: Client UI -->
+  <g transform="translate(70, 30)">
+    <rect class="actor-box" x="0" y="0" width="220" height="48" fill="url(#grad-client)" stroke="#93c5fd"/>
+    <text class="actor-text" x="110" y="30" fill="#1e3a8a">Client (UI / Views)</text>
+  </g>
+  <line class="lifeline" x1="180" y1="78" x2="180" y2="580" />
+
+  <!-- Actor 2: Session Coordinator -->
+  <g transform="translate(470, 30)">
+    <rect class="actor-box" x="0" y="0" width="220" height="48" fill="url(#grad-coord)" stroke="#fcd34d"/>
+    <text class="actor-text" x="110" y="30" fill="#78350f">Session Coordinator</text>
+  </g>
+  <line class="lifeline" x1="580" y1="78" x2="580" y2="580" />
+
+  <!-- Actor 3: Backend API Server -->
+  <g transform="translate(870, 30)">
+    <rect class="actor-box" x="0" y="0" width="220" height="48" fill="url(#grad-server)" stroke="#6ee7b7"/>
+    <text class="actor-text" x="110" y="30" fill="#064e3b">Backend Server (NestJS)</text>
+  </g>
+  <line class="lifeline" x1="980" y1="78" x2="980" y2="580" />
+
+  <!-- STEP 1: Gửi Request nghiệp vụ -->
+  <path class="msg-line" d="M 180 110 L 580 110" stroke="#2563eb" marker-end="url(#seq-arrow)" />
+  <rect class="msg-label-box" x="250" y="96" width="260" height="26" fill="#eff6ff" stroke="#bfdbfe" />
+  <text class="msg-label-text" x="380" y="109" fill="#1e40af">1: API Request (Đính kèm Bearer Token)</text>
+
+  <!-- STEP 2: Forward tới Backend -->
+  <path class="msg-line" d="M 580 135 L 980 135" stroke="#2563eb" marker-end="url(#seq-arrow)" />
+  <rect class="msg-label-box" x="670" y="121" width="220" height="26" fill="#eff6ff" stroke="#bfdbfe" />
+  <text class="msg-label-text" x="780" y="134" fill="#1e40af">2: HTTP GET /workspaces</text>
+
+  <!-- STEP 3: Lỗi 401 Unauthorized -->
+  <path class="msg-line" d="M 980 175 L 580 175" stroke="#dc2626" stroke-dasharray="5,5" marker-end="url(#seq-arrow-red)" />
+  <rect class="msg-label-box" x="660" y="161" width="240" height="26" fill="#fef2f2" stroke="#fecaca" />
+  <text class="msg-label-text" x="780" y="174" fill="#991b1b">3: HTTP 401 Unauthorized (Token expired)</text>
+
+  <!-- STEP 4: Coordinator ping Health -->
+  <path class="msg-line" d="M 580 220 L 980 220" stroke="#d97706" marker-end="url(#seq-arrow-amber)" />
+  <rect class="msg-label-box" x="670" y="206" width="220" height="26" fill="#fffbeb" stroke="#fde68a" />
+  <text class="msg-label-text" x="780" y="219" fill="#92400e">4: GET /health (Public check)</text>
+
+  <!-- STEP 5: Health OK -->
+  <path class="msg-line" d="M 980 255 L 580 255" stroke="#00a878" stroke-dasharray="5,5" marker-end="url(#seq-arrow-teal)" />
+  <rect class="msg-label-box" x="660" y="241" width="240" height="26" fill="#ecfdf5" stroke="#a7f3d0" />
+  <text class="msg-label-text" x="780" y="254" fill="#065f46">5: MongoDB Atlas: connected (OK)</text>
+
+  <!-- STEP 6: Chuyển phase awaiting-consent & mở dialog -->
+  <path class="msg-line" d="M 580 300 L 180 300" stroke="#d97706" marker-end="url(#seq-arrow-amber)" />
+  <rect class="msg-label-box" x="250" y="286" width="260" height="26" fill="#fffbeb" stroke="#fde68a" />
+  <text class="msg-label-text" x="380" y="299" fill="#92400e">6: Phase 'awaiting-consent' -> Mở Renewal Dialog</text>
+
+  <!-- STEP 7: Người dùng chấp nhận gia hạn -->
+  <path class="msg-line" d="M 180 345 L 580 345" stroke="#00a878" marker-end="url(#seq-arrow-teal)" />
+  <rect class="msg-label-box" x="250" y="331" width="260" height="26" fill="#ecfdf5" stroke="#a7f3d0" />
+  <text class="msg-label-text" x="380" y="344" fill="#065f46">7: User click 'Tiếp tục phiên' (confirmRenewal: true)</text>
+
+  <!-- STEP 8: Gọi API POST /auth/refresh -->
+  <path class="msg-line" d="M 580 390 L 980 390" stroke="#2563eb" marker-end="url(#seq-arrow)" />
+  <rect class="msg-label-box" x="660" y="376" width="240" height="26" fill="#eff6ff" stroke="#bfdbfe" />
+  <text class="msg-label-text" x="780" y="389" fill="#1e40af">8: POST /auth/refresh { refresh_token }</text>
+
+  <!-- STEP 9: Server cấp cặp token mới -->
+  <path class="msg-line" d="M 980 430 L 580 430" stroke="#00a878" stroke-dasharray="5,5" marker-end="url(#seq-arrow-teal)" />
+  <rect class="msg-label-box" x="640" y="416" width="280" height="26" fill="#ecfdf5" stroke="#a7f3d0" />
+  <text class="msg-label-text" x="780" y="429" fill="#065f46">9: 200 OK: Trả về Access + Refresh Token mới</text>
+
+  <!-- STEP 10: Coordinator xác minh và lưu sessionStorage -->
+  <path class="msg-line" d="M 580 475 L 180 475" stroke="#00a878" marker-end="url(#seq-arrow-teal)" />
+  <rect class="msg-label-box" x="240" y="461" width="280" height="26" fill="#ecfdf5" stroke="#a7f3d0" />
+  <text class="msg-label-text" x="380" y="474" fill="#065f46">10: Update sessionStorage & khôi phục UI tự động</text>
+
+  <!-- Ghi chú nhánh rẽ Logout nếu thất bại -->
+  <g transform="translate(180, 520)">
+    <rect class="status-badge" x="0" y="0" width="800" height="40" fill="#fef2f2" stroke="#fecaca"/>
+    <text x="400" y="24" fill="#991b1b" font-size="12" font-weight="600" text-anchor="middle">
+      * Rẽ nhánh: Nếu User từ chối hoặc Refresh Token không hợp lệ -> Coordinator kích hoạt signOut(), gọi POST /auth/logout và đưa về /auth/login
+    </text>
+  </g>
+</svg>

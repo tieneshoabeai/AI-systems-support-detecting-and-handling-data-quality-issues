@@ -4,14 +4,30 @@ import { DatasetSchema } from './infrastructure/persistence/dataset.schema';
 import { DatasetRecordSchema } from './infrastructure/persistence/dataset-record.schema';
 import { DatasetsRepository } from './infrastructure/persistence/datasets.repository';
 import { DATASET_REPOSITORY_PORT } from './domain/ports/dataset.repository.port';
-import { DatasetsService } from './application/datasets.service';
-import { DatasetsController } from './infrastructure/http/datasets.controller';
+import { RECORD_QUERY_PORT } from './domain/ports/record-query.port';
+import { RecordQueryRepository } from './infrastructure/persistence/record-query.repository';
+import { DatasetsController } from './presentation/controllers/datasets.controller';
 import { SchemaInferenceService } from './application/services/schema-inference.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
-import { StorageModule } from '../../shared/storage/storage.module';
-import { OutboxModule } from '../../shared/application/outbox/outbox.module';
+import { StorageModule } from '../../shared/infrastructure/storage/storage.module';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
+import { DeleteDatasetHandler } from './application/commands/delete-dataset.handler';
+import { DownloadDatasetFileHandler } from './application/queries/download-dataset-file.handler';
+import { GetDatasetByIdHandler } from './application/queries/get-dataset-by-id.handler';
+import { GetDatasetByProjectIdHandler } from './application/queries/get-dataset-by-project-id.handler';
+import { GetDatasetSchemaHandler } from './application/queries/get-dataset-schema.handler';
+import { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
+import { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
+import { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
+import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
 
+/**
+ * DATASETS — Module sở hữu collection `datasets` + `dataset_records`.
+ *
+ * L2 (R3/CA6): schema Mongoose `DatasetRecordSchema` chỉ được khai báo ở đây.
+ * Module khác (data-view, analysis) đọc bản ghi qua `RECORD_QUERY_PORT`.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -27,9 +43,25 @@ import { OutboxModule } from '../../shared/application/outbox/outbox.module';
   providers: [
     DatasetsRepository,
     { provide: DATASET_REPOSITORY_PORT, useExisting: DatasetsRepository },
-    DatasetsService,
+    RecordQueryRepository,
+    { provide: RECORD_QUERY_PORT, useExisting: RecordQueryRepository },
+    DeleteDatasetHandler,
+    IngestDatasetStreamHandler,
+    UpdateColumnPiiHandler,
+    MapPropsToOriginalNamesHandler,
+    DownloadDatasetFileHandler,
+    GetDatasetByIdHandler,
+    GetDatasetByProjectIdHandler,
+    GetDatasetSchemaHandler,
     SchemaInferenceService,
+    DatasetPolicyLoader,
   ],
-  exports: [DatasetsRepository, DATASET_REPOSITORY_PORT, DatasetsService, SchemaInferenceService],
+  exports: [
+    DatasetsRepository,
+    DATASET_REPOSITORY_PORT,
+    RECORD_QUERY_PORT,
+    SchemaInferenceService,
+    DatasetPolicyLoader,
+  ],
 })
 export class DatasetsModule {}

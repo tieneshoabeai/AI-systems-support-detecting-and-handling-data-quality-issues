@@ -1,0 +1,12 @@
+flowchart LR
+  Router["app: bootstrap, providers, router"] --> Views["views + components"]
+  Views --> Hooks["hooks + context subscriptions"]
+  Hooks --> Store["services: management / auth"]
+  Store --> Client["lib: Axios, error, session"]
+  Client --> API["BE API boundary"]
+  API --> Client
+  Router -->|"runtime tạo; chưa có sync UI"| Repo["repositories: Dexie drafts"]
+  Views --> Canvas["components/graphics: React bridge"]
+  Canvas --> Graphics["graphics + math: model / geometry"]
+  Types["types + configs"] -.-> Store
+  Types -.-> Client

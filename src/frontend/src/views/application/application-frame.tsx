@@ -27,5 +27,5 @@ export function ApplicationFrame() {
   }
   return detailId
     ? <ProcessingDataProvider projectId={detailId}>{frame}</ProcessingDataProvider>
-    : <ManagementDataProvider>{frame}</ManagementDataProvider>
+    : <ManagementDataProvider progressiveProjects={management?.section === 'projects' && !management.projectId}>{frame}</ManagementDataProvider>
 }

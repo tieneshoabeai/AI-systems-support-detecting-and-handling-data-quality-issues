@@ -1,0 +1,697 @@
+{
+  "samples": [
+    {
+      "projectNameMs": 9828,
+      "canvasMs": 10099,
+      "dataViewMs": 3964,
+      "firstRowObservedMs": 18665,
+      "pageMs": 1980,
+      "idleFrames": [
+        16.69999999999891,
+        66.70000000000073,
+        16.700000000000728,
+        33.29999999999927,
+        16.700000000000728,
+        49.899999999999636,
+        16.69999999999891,
+        33.30000000000109,
+        16.799999999999272,
+        16.600000000000364,
+        16.700000000000728,
+        33.29999999999927,
+        1366.6000000000004
+      ],
+      "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) Iris(TM) Plus Graphics 645, Unspecified Version)",
+      "dragFrames": [
+        33.30000000000109,
+        33.29999999999927,
+        50,
+        50,
+        66.70000000000073,
+        49.899999999999636,
+        50,
+        66.70000000000073,
+        50,
+        50,
+        50,
+        100.09999999999854,
+        49.900000000001455,
+        50,
+        33.399999999999636,
+        16.600000000000364,
+        33.29999999999927,
+        66.70000000000073,
+        50,
+        50,
+        66.69999999999891
+      ],
+      "phases": [
+        {
+          "phase": "loading",
+          "ms": 4550
+        },
+        {
+          "phase": "towers",
+          "ms": 9776
+        },
+        {
+          "phase": "details",
+          "ms": 10000
+        },
+        {
+          "phase": "ready",
+          "ms": 11883
+        }
+      ],
+      "endpoints": [
+        {
+          "endpoint": "/users/me",
+          "startMs": 1064,
+          "durationMs": 704,
+          "endMs": 1768
+        },
+        {
+          "endpoint": "/projects/:id",
+          "startMs": 2096,
+          "durationMs": 954,
+          "endMs": 3050
+        },
+        {
+          "endpoint": "/workspaces/:id",
+          "startMs": 3382,
+          "durationMs": 846,
+          "endMs": 4228
+        },
+        {
+          "endpoint": "/projects/:id/datasets",
+          "startMs": 3398,
+          "durationMs": 956,
+          "endMs": 4354
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 6080,
+          "durationMs": 531,
+          "endMs": 6611
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 6110,
+          "durationMs": 845,
+          "endMs": 6955
+        },
+        {
+          "endpoint": "/projects/:id/analysis/result",
+          "startMs": 6126,
+          "durationMs": 1120,
+          "endMs": 7246
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 20203,
+          "durationMs": 518,
+          "endMs": 20721
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 20211,
+          "durationMs": 614,
+          "endMs": 20825
+        }
+      ],
+      "trace": false
+    },
+    {
+      "projectNameMs": 6445,
+      "canvasMs": 6520,
+      "dataViewMs": 536,
+      "firstRowObservedMs": 11052,
+      "pageMs": 917,
+      "idleFrames": [
+        50,
+        100,
+        66.69999999999982,
+        16.700000000000728,
+        33.29999999999927,
+        33.400000000000546,
+        16.599999999999454,
+        33.400000000000546,
+        33.19999999999982,
+        50,
+        50.100000000000364,
+        66.60000000000036
+      ],
+      "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) Iris(TM) Plus Graphics 645, Unspecified Version)",
+      "dragFrames": [
+        33.29999999999927,
+        16.700000000000728,
+        49.899999999999636,
+        50,
+        66.70000000000073,
+        33.29999999999927,
+        66.70000000000073,
+        50,
+        50,
+        33.29999999999927,
+        66.70000000000073,
+        33.29999999999927,
+        66.70000000000073,
+        49.899999999999636,
+        50,
+        50,
+        33.399999999999636,
+        66.70000000000073,
+        33.29999999999927,
+        33.29999999999927,
+        50,
+        50
+      ],
+      "phases": [
+        {
+          "phase": "loading",
+          "ms": 2931
+        },
+        {
+          "phase": "core",
+          "ms": 4401
+        },
+        {
+          "phase": "towers",
+          "ms": 5857
+        },
+        {
+          "phase": "details",
+          "ms": 6103
+        },
+        {
+          "phase": "ready",
+          "ms": 7868
+        }
+      ],
+      "endpoints": [
+        {
+          "endpoint": "/users/me",
+          "startMs": 748,
+          "durationMs": 602,
+          "endMs": 1350
+        },
+        {
+          "endpoint": "/projects/:id",
+          "startMs": 1671,
+          "durationMs": 735,
+          "endMs": 2406
+        },
+        {
+          "endpoint": "/workspaces/:id",
+          "startMs": 2924,
+          "durationMs": 638,
+          "endMs": 3562
+        },
+        {
+          "endpoint": "/projects/:id/datasets",
+          "startMs": 2926,
+          "durationMs": 635,
+          "endMs": 3560
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 6020,
+          "durationMs": 611,
+          "endMs": 6631
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 6028,
+          "durationMs": 648,
+          "endMs": 6677
+        },
+        {
+          "endpoint": "/projects/:id/analysis/result",
+          "startMs": 6033,
+          "durationMs": 818,
+          "endMs": 6851
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 11449,
+          "durationMs": 527,
+          "endMs": 11976
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 11457,
+          "durationMs": 622,
+          "endMs": 12079
+        }
+      ],
+      "trace": false
+    },
+    {
+      "projectNameMs": 5853,
+      "canvasMs": 6200,
+      "dataViewMs": 2708,
+      "firstRowObservedMs": 19485,
+      "pageMs": 3241,
+      "idleFrames": [
+        66.69999999999891,
+        216.70000000000073,
+        66.60000000000036,
+        50,
+        216.6999999999989
+      ],
+      "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) Iris(TM) Plus Graphics 645, Unspecified Version)",
+      "dragFrames": [
+        116.70000000000073,
+        166.60000000000036,
+        116.69999999999891,
+        100,
+        66.60000000000036,
+        50,
+        66.80000000000109,
+        66.59999999999854,
+        66.60000000000036,
+        16.700000000000728,
+        33.29999999999927,
+        33.399999999999636,
+        33.30000000000109,
+        100
+      ],
+      "phases": [
+        {
+          "phase": "loading",
+          "ms": 2062
+        },
+        {
+          "phase": "core",
+          "ms": 3218
+        },
+        {
+          "phase": "towers",
+          "ms": 5237
+        },
+        {
+          "phase": "details",
+          "ms": 5576
+        },
+        {
+          "phase": "ready",
+          "ms": 9233
+        }
+      ],
+      "endpoints": [
+        {
+          "endpoint": "/users/me",
+          "startMs": 497,
+          "durationMs": 444,
+          "endMs": 941
+        },
+        {
+          "endpoint": "/projects/:id",
+          "startMs": 1253,
+          "durationMs": 653,
+          "endMs": 1906
+        },
+        {
+          "endpoint": "/workspaces/:id",
+          "startMs": 2054,
+          "durationMs": 622,
+          "endMs": 2676
+        },
+        {
+          "endpoint": "/projects/:id/datasets",
+          "startMs": 2056,
+          "durationMs": 552,
+          "endMs": 2608
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 5455,
+          "durationMs": 643,
+          "endMs": 6098
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 5460,
+          "durationMs": 660,
+          "endMs": 6119
+        },
+        {
+          "endpoint": "/projects/:id/analysis/result",
+          "startMs": 5464,
+          "durationMs": 806,
+          "endMs": 6271
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 22829,
+          "durationMs": 568,
+          "endMs": 23397
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 22874,
+          "durationMs": 624,
+          "endMs": 23498
+        }
+      ],
+      "trace": false
+    },
+    {
+      "projectNameMs": 10767,
+      "canvasMs": 13953,
+      "dataViewMs": 904,
+      "firstRowObservedMs": 25612,
+      "pageMs": 2043,
+      "idleFrames": [
+        116.69999999999891,
+        250,
+        33.30000000000109,
+        150
+      ],
+      "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) Iris(TM) Plus Graphics 645, Unspecified Version)",
+      "dragFrames": [
+        50,
+        33.29999999999927,
+        33.30000000000291,
+        166.59999999999854,
+        150.09999999999854,
+        166.70000000000073,
+        83.29999999999927,
+        33.30000000000291,
+        183.29999999999927,
+        66.70000000000073,
+        116.59999999999854
+      ],
+      "phases": [
+        {
+          "phase": "loading",
+          "ms": 3697
+        },
+        {
+          "phase": "core",
+          "ms": 9886
+        },
+        {
+          "phase": "details",
+          "ms": 13798
+        },
+        {
+          "phase": "ready",
+          "ms": 18370
+        }
+      ],
+      "endpoints": [
+        {
+          "endpoint": "/users/me",
+          "startMs": 1001,
+          "durationMs": 373,
+          "endMs": 1373
+        },
+        {
+          "endpoint": "/projects/:id",
+          "startMs": 1771,
+          "durationMs": 830,
+          "endMs": 2601
+        },
+        {
+          "endpoint": "/workspaces/:id",
+          "startMs": 2605,
+          "durationMs": 581,
+          "endMs": 3186
+        },
+        {
+          "endpoint": "/projects/:id/datasets",
+          "startMs": 2607,
+          "durationMs": 551,
+          "endMs": 3158
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 3714,
+          "durationMs": 599,
+          "endMs": 4313
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 3722,
+          "durationMs": 705,
+          "endMs": 4427
+        },
+        {
+          "endpoint": "/projects/:id/analysis/result",
+          "startMs": 3749,
+          "durationMs": 908,
+          "endMs": 4656
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 26552,
+          "durationMs": 1286,
+          "endMs": 27838
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 26560,
+          "durationMs": 1354,
+          "endMs": 27914
+        }
+      ],
+      "trace": false
+    },
+    {
+      "projectNameMs": 5959,
+      "canvasMs": 7805,
+      "dataViewMs": 493,
+      "firstRowObservedMs": 10925,
+      "pageMs": 1051,
+      "idleFrames": [
+        33.30000000000018,
+        33.399999999999636,
+        33.30000000000018,
+        16.600000000000364,
+        16.699999999999818,
+        66.69999999999982,
+        50,
+        66.60000000000036,
+        50,
+        66.69999999999891,
+        66.70000000000073,
+        50
+      ],
+      "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) Iris(TM) Plus Graphics 645, Unspecified Version)",
+      "dragFrames": [
+        66.60000000000036,
+        33.399999999999636,
+        66.60000000000036,
+        33.29999999999927,
+        66.70000000000073,
+        33.29999999999927,
+        66.70000000000073,
+        50,
+        49.899999999999636,
+        50.100000000000364,
+        49.899999999999636,
+        50.100000000000364,
+        50,
+        50,
+        49.899999999999636,
+        50.100000000000364,
+        50,
+        66.69999999999891,
+        49.900000000001455,
+        50
+      ],
+      "phases": [
+        {
+          "phase": "loading",
+          "ms": 2751
+        },
+        {
+          "phase": "core",
+          "ms": 3959
+        },
+        {
+          "phase": "towers",
+          "ms": 5304
+        },
+        {
+          "phase": "details",
+          "ms": 5502
+        },
+        {
+          "phase": "ready",
+          "ms": 7534
+        }
+      ],
+      "endpoints": [
+        {
+          "endpoint": "/users/me",
+          "startMs": 1236,
+          "durationMs": 429,
+          "endMs": 1664
+        },
+        {
+          "endpoint": "/projects/:id",
+          "startMs": 1975,
+          "durationMs": 758,
+          "endMs": 2732
+        },
+        {
+          "endpoint": "/workspaces/:id",
+          "startMs": 2748,
+          "durationMs": 587,
+          "endMs": 3334
+        },
+        {
+          "endpoint": "/projects/:id/datasets",
+          "startMs": 2749,
+          "durationMs": 525,
+          "endMs": 3274
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 5438,
+          "durationMs": 621,
+          "endMs": 6059
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 5442,
+          "durationMs": 701,
+          "endMs": 6143
+        },
+        {
+          "endpoint": "/projects/:id/analysis/result",
+          "startMs": 5445,
+          "durationMs": 890,
+          "endMs": 6335
+        },
+        {
+          "endpoint": "/datasets/:id/schema",
+          "startMs": 11289,
+          "durationMs": 593,
+          "endMs": 11882
+        },
+        {
+          "endpoint": "/datasets/:id/records",
+          "startMs": 11293,
+          "durationMs": 708,
+          "endMs": 12001
+        }
+      ],
+      "trace": false
+    }
+  ],
+  "trace": {
+    "projectNameMs": 9077,
+    "canvasMs": 9328,
+    "dataViewMs": 700,
+    "firstRowObservedMs": 15244,
+    "pageMs": 1272,
+    "idleFrames": [
+      166.79999999999927,
+      1583.2000000000007
+    ],
+    "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) Iris(TM) Plus Graphics 645, Unspecified Version)",
+    "dragFrames": [
+      83.29999999999927,
+      100,
+      49.899999999999636,
+      50.100000000000364,
+      33.30000000000109,
+      16.599999999998545,
+      33.400000000001455,
+      33.399999999999636,
+      83.29999999999927,
+      66.60000000000036,
+      50.100000000000364,
+      33.19999999999891,
+      33.400000000001455,
+      50,
+      83.39999999999964,
+      49.899999999999636,
+      100,
+      66.70000000000073,
+      66.69999999999891
+    ],
+    "phases": [
+      {
+        "phase": "loading",
+        "ms": 3902
+      },
+      {
+        "phase": "core",
+        "ms": 6538
+      },
+      {
+        "phase": "towers",
+        "ms": 8259
+      },
+      {
+        "phase": "details",
+        "ms": 8543
+      },
+      {
+        "phase": "ready",
+        "ms": 11331
+      }
+    ],
+    "endpoints": [
+      {
+        "endpoint": "/users/me",
+        "startMs": 1631,
+        "durationMs": 654,
+        "endMs": 2285
+      },
+      {
+        "endpoint": "/projects/:id",
+        "startMs": 2599,
+        "durationMs": 948,
+        "endMs": 3547
+      },
+      {
+        "endpoint": "/workspaces/:id",
+        "startMs": 3861,
+        "durationMs": 914,
+        "endMs": 4776
+      },
+      {
+        "endpoint": "/projects/:id/datasets",
+        "startMs": 3885,
+        "durationMs": 924,
+        "endMs": 4809
+      },
+      {
+        "endpoint": "/datasets/:id/schema",
+        "startMs": 8446,
+        "durationMs": 499,
+        "endMs": 8945
+      },
+      {
+        "endpoint": "/datasets/:id/records",
+        "startMs": 8452,
+        "durationMs": 913,
+        "endMs": 9365
+      },
+      {
+        "endpoint": "/projects/:id/analysis/result",
+        "startMs": 8462,
+        "durationMs": 1418,
+        "endMs": 9879
+      },
+      {
+        "endpoint": "/datasets/:id/schema",
+        "startMs": 15998,
+        "durationMs": 566,
+        "endMs": 16565
+      },
+      {
+        "endpoint": "/datasets/:id/records",
+        "startMs": 16003,
+        "durationMs": 669,
+        "endMs": 16672
+      }
+    ],
+    "trace": true
+  }
+}

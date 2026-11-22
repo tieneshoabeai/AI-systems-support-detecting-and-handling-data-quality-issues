@@ -55,7 +55,7 @@ Từ thư mục frontend chạy `yarn test src/__tests__/foundation/api.test.ts 
 
 ## 10. Giới hạn & lưu ý
 
-Validation URL kiểm tra hình thức. Backend, CORS và dung lượng IndexedDB còn phụ thuộc môi trường.
+`getApiConfig()` ném lỗi `config` nếu frontend chạy HTTPS nhưng API dùng HTTP. Kiểm tra URL hoàn tất trước khi gửi request. Nếu URL hợp lệ mà vẫn lỗi mạng, kiểm tra backend và CORS theo origin đang chạy frontend. Dung lượng IndexedDB phụ thuộc trình duyệt.
 
 ## 11. Hướng cải tiến
 

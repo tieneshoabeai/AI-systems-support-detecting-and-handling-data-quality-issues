@@ -1,88 +1,101 @@
-# services
+# Services
 
-## 1. Mục đích
+`src/services` chứa các thao tác nghiệp vụ gọi API, điều phối phiên, xử lý dữ liệu Management và các helper điều hướng. UI gọi service qua runtime, provider hoặc hook tùy luồng. Phần gửi HTTP và chuẩn hóa lỗi dùng [`src/lib`](../lib/README.md).
 
-Thực hiện lời gọi API auth/user/health, điều phối phiên, và cung cấp dữ liệu cùng thao tác giả lập cho preview. Dựng UI và lưu file draft thuộc tầng khác.
+## Chọn đúng chỗ khi sửa
 
-## 2. Vị trí & phụ thuộc
-
-`app/app-runtime.ts` inject `ApiClient` và các port phiên. Preview view và hook dùng route helper và mock store. Service dùng type hợp đồng và `ApiError` từ lib.
-
-## 3. Public API
-
-- `createAuthService(api: ApiClient)` trả `login(input: LoginRequestDto, options?): Promise<LoginResult>`, `refresh(input: RefreshRequestDto, options?): Promise<RefreshResult>`, `logout(options?): Promise<void>`. `options` nhận `signal?: AbortSignal`.
-- `createUsersService(api: ApiClient).getMe(options?): Promise<CurrentUser>` và `createHealthService(api: ApiClient).check(options?): Promise<AuthHealth>` nhận cùng dạng tùy chọn. Response sai contract ném `ApiError` loại `invalid-response`.
-- `createSessionCoordinator(options: SessionCoordinatorOptions)` trả `getSnapshot(): SessionSnapshot`, `subscribe(listener): () => void`, `restore(): Promise<void>`, `checkSession(): Promise<void>`, `signIn(input: LoginRequestDto): Promise<void>`, `confirmRenewal(accepted: boolean): Promise<void>`, `signOut(): Promise<SignOutResult>`, `draftAccess` và `dispose(): void`.
-- `parsePreviewRoute(source: string): PreviewRoute | null`, `is2DPreviewUrl(url: string): boolean`, `readPreviewRoute(): PreviewRoute`, `readPreviewSection(): PreviewSectionId`, `normalizePreviewHash(): void`, `previewHref(section, ids?): string`, `universeUrl(projectId?): string` cùng `twoDPreviewSections`, `universePath`, `previewNavigateEvent` mô tả điều hướng preview.
-- Fixture exports gồm `people`, `currentUser`, `storageUsage`, các seed workspace/project/notification/report/profile/session/preferences, các bộ dữ liệu biên, `fixtureSets` và `isFixtureSetId(value: string | null)`.
-
-### `previewMockStore`
-
-Các ID, tên, vai trò và `personId` trong bảng là chuỗi. Các mutation trả `Promise<PreviewMutationResult>` với thông điệp và callback hoàn tác nếu có. Một số mutation reject khi đích vắng hoặc đầu vào không hợp lệ.
-
-| Nhóm | Phương thức và đầu vào | Đầu ra |
+| Nhóm | Trách nhiệm | Bắt đầu đọc |
 | --- | --- | --- |
-| Theo dõi | `getState()`, `subscribe(listener: () => void)` | `PreviewStoreState`, hàm hủy đăng ký |
-| Phạm vi | `selectWorkspace(workspaceId)`, `selectProject(projectId)`, `clearProject()`, `touchWorkspace(id)` | `void` |
-| Tài nguyên | `createWorkspace(input: NewWorkspaceInput)`, `createProject(input: NewProjectInput)`, `toggleFavorite(workspaceId)`, `updateWorkspace(id, edit: WorkspaceEdit)`, `rename(kind: PreviewResourceKind, id, name)`, `remove(kind: PreviewResourceKind, id)` | Kết quả mutation |
-| Thành viên workspace | `addWorkspaceMember(input: NewWorkspaceMemberInput)`, `setWorkspaceMemberRole(workspaceId, personId, role)`, `removeWorkspaceMember(workspaceId, personId)` | Kết quả mutation |
-| Thành viên project | `addProjectMember(input: NewProjectMemberInput)`, `setProjectMemberRole(projectId, personId, role)`, `removeProjectMember(projectId, personId)` | Kết quả mutation |
-| Thông báo và báo cáo | `markNotificationsRead(ids: readonly string[])`, `removeNotifications(ids: readonly string[])`, `markAllNotificationsRead()`, `createReport(input: NewReportInput)` | Kết quả mutation |
-| Cài đặt | `updateProfile(edit: ProfileEdit)`, `revokeSession(id)`, `revokeOtherSessions()`, `setNotificationPref(key: NotificationPrefKey, value: boolean)` | Kết quả mutation |
-| Bộ dữ liệu | `getFixtureSet()`, `reset(set?: PreviewFixtureSetId)` | `PreviewFixtureSetId`, `PreviewMutationResult` đồng bộ |
+| `auth` | Đăng nhập, gia hạn, kết thúc phiên, tài khoản và callback Google | [`auth.service.ts`](auth/auth.service.ts), [`session-coordinator.ts`](auth/session-coordinator.ts), [`account.service.ts`](auth/account.service.ts), [`google-sign-in.ts`](auth/google-sign-in.ts) |
+| `health` | Kiểm tra backend trước khi gia hạn phiên | [`health.service.ts`](health/health.service.ts) |
+| `users` | Đọc hồ sơ và xóa tài khoản qua `/users/me` | [`users.service.ts`](users/users.service.ts) |
+| `management` | Store workspace/project, mapping phiên, chức năng quản trị, đọc CSV xem trước và kiểm tra upload | [`management.store.ts`](management/management.store.ts), [`session.mapper.ts`](management/session.mapper.ts), [`admin.service.ts`](management/admin.service.ts) |
+| `processing` | Chi tiết, schema và records của dataset, thống kê cột, cờ PII, xóa dataset, tải CSV gốc, project gần đây và kiểm tra đánh giá kết quả | [`dataset.service.ts`](processing/dataset.service.ts), [`recent-projects.service.ts`](processing/recent-projects.service.ts), [`result-review.ts`](processing/result-review.ts) |
+| `navigation` | Tạo và phân tích URL Management/Processing | [`application-route.ts`](navigation/application-route.ts) |
+| `preview` | Fixture, store giả lập và điều hướng preview cũ | [`preview-mock.service.ts`](preview/preview-mock.service.ts), [`preview-fixtures.ts`](preview/preview-fixtures.ts), [`preview-route.ts`](preview/preview-route.ts) |
 
-## 4. Cách dùng (ví dụ)
+[`services/index.ts`](index.ts) export một số factory và helper, gồm `createAuthService`, `createSessionCoordinator`, `createHealthService`, `createUsersService` và `validateResultReview`. Factory dataset, factory admin và loader project gần đây được import từ file triển khai tương ứng. Kiểm tra `index.ts` của nhóm trước khi chọn đường dẫn import.
+
+## Lần theo hai luồng thực tế
+
+### Đăng nhập và vòng đời phiên
+
+1. [`app-runtime.ts`](../app/app-runtime.ts) ghép HTTP client, storage và các service để tạo coordinator.
+2. Coordinator nhận yêu cầu đăng nhập, chuyển sang `signing-in` và gọi auth service. Với callback Google, coordinator tạo phiên ứng viên từ token, gọi `getMe` và kiểm tra hồ sơ khớp tài khoản.
+3. Nếu tác vụ vẫn thuộc phiên hiện tại và dữ liệu hợp lệ, coordinator lưu phiên và phát snapshot. UI đọc snapshot qua AuthProvider. Kết quả từ tác vụ cũ bị bỏ qua nếu phiên đã thay đổi.
+4. Gia hạn đi qua health check và xác nhận người dùng khi đủ điều kiện. Khi đăng xuất, `SignOutResult` cho biết riêng kết quả thu hồi ở backend và lỗi dọn cục bộ nếu có.
+
+### Đọc schema dataset
+
+[`LiveDatasetPanel`](../views/processing/project/sections/live-dataset-panel.tsx) gọi `service.schema(id, signal)`. Phương thức `schema` gửi request theo phiên đến `/datasets/:id/schema`, rồi kiểm tra mảng cột, khóa trùng và các trường bắt buộc trước khi trả dữ liệu. Payload sai làm service ném `ApiError` với loại `invalid-response`.
+
+Ví dụ import từ một module ở ngay dưới `src/`. Caller cấp client của phiên và `AbortSignal` của tác vụ.
 
 ```ts
-import { createHealthService } from './services/health/health.service'
-import type { ApiClient } from './types/api/api.types'
+import { createDatasetService } from './services/processing/dataset.service'
+import type { ApiClient } from './types'
 
-const api: ApiClient = {
-  request: async <T>() => ({ status: 'ok', services: { mongodb_atlas: { status: 'connected' } } }) as T,
+export function loadDatasetColumns(api: ApiClient, datasetId: string, signal: AbortSignal) {
+  return createDatasetService(api).schema(datasetId, signal)
 }
-console.log(await createHealthService(api).check()) // { available: true }
 ```
 
-Chạy ở module TypeScript ESM dưới `src`. Adapter giả trả payload đã unwrap.
+## Quy ước khi sửa service
 
-## 5. Cấu trúc thư mục
+- Giữ đường dẫn endpoint, request và kiểm tra response cạnh service sở hữu nghiệp vụ. Dùng `auth: 'public'` hoặc `auth: 'session'` theo endpoint.
+- Tách kiểu hợp đồng và dữ liệu chạy thật. Với phản hồi cần kiểm tra, nhận `unknown` rồi xác thực hoặc map trước khi trả model. Xem [`types/README.md`](../types/README.md).
+- Truyền `AbortSignal` tại những thao tác có hỗ trợ hủy. Giữ việc ghi phiên và phát snapshot trong coordinator.
+- Workbench trực tuyến báo lỗi API cho UI. Fixture và thao tác giả lập thuộc luồng preview riêng.
 
-**Khi thêm code.** Đặt endpoint và validation response trong service theo nhóm nghiệp vụ. Quyết định chuyển pha phiên đặt trong `auth/session-coordinator.ts`. Fixture và thao tác giả lập đặt riêng ở `preview/`.
+## Cấu trúc thư mục hiện tại
 
-- [auth/auth.service.ts](auth/auth.service.ts) — login, refresh và logout qua API, kiểm response.
-- [auth/session-coordinator.ts](auth/session-coordinator.ts) — vòng đời phiên, consent, generation và quyền draft.
-- [health/health.service.ts](health/health.service.ts) — khả dụng auth dựa trên MongoDB Atlas.
-- [users/users.service.ts](users/users.service.ts) — gọi `/users/me` và map hồ sơ.
-- [preview/preview-fixtures.ts](preview/preview-fixtures.ts) — fixture demo.
-- [preview/preview-worst-case.ts](preview/preview-worst-case.ts) — bộ rỗng, một mục, nhiều mục và dữ liệu biên.
-- [preview/preview-mock.service.ts](preview/preview-mock.service.ts) — store và mutation cục bộ.
-- [preview/preview-route.ts](preview/preview-route.ts) — parse, build và chuẩn hóa URL preview.
-- `.gitkeep` — giữ thư mục.
+```text
+src/services/
+├── auth/
+│   ├── account.service.ts
+│   ├── auth.service.ts
+│   ├── google-sign-in.ts
+│   ├── index.ts
+│   └── session-coordinator.ts
+├── health/
+│   ├── health.service.ts
+│   └── index.ts
+├── management/
+│   ├── admin.service.ts
+│   ├── csv-preview.ts
+│   ├── index.ts
+│   ├── management.store.ts
+│   ├── management.types.ts
+│   ├── session.mapper.ts
+│   └── upload-validation.ts
+├── navigation/
+│   ├── application-route.ts
+│   └── index.ts
+├── preview/
+│   ├── index.ts
+│   ├── preview-fixtures.ts
+│   ├── preview-mock.service.ts
+│   ├── preview-route.ts
+│   └── preview-worst-case.ts
+├── processing/
+│   ├── dataset.service.ts
+│   ├── index.ts
+│   ├── recent-projects.service.ts
+│   └── result-review.ts
+├── users/
+│   ├── index.ts
+│   └── users.service.ts
+├── README.md
+└── index.ts
+```
 
-## 6. Luồng hoạt động
+## Kiểm thử
 
-Auth service gọi API → kiểm DTO → coordinator kiểm phiên/generation → lưu phiên và phát snapshot. Gia hạn đi qua health và xác nhận khi đủ điều kiện. Store preview lấy fixture theo URL → mutation cập nhật snapshot → subscriber render lại.
+Chạy từ `src/frontend`.
 
-## 7. Cấu hình
+| Nhóm | Lệnh |
+| --- | --- |
+| Phiên và callback Google | `yarn test src/__tests__/auth/session-services.test.ts src/__tests__/auth/session-coordinator.test.ts src/__tests__/auth/google-sign-in.test.ts` |
+| Mapping, API Management và contract | `yarn test src/__tests__/management/connected-api.test.ts src/__tests__/management/backend-contract.test.ts` |
 
-| Tham số | Mặc định | Tác dụng |
-| --- | --- | --- |
-| `signal` | Không truyền | Cho phép caller hủy request |
-| Health timeout | 5.000 ms | Hạn chờ `/health` |
-| `?data=` (preview dev) | `demo` | Chọn `worst`, `empty`, `one`, `many` hoặc `demo` |
-
-## 8. Quy ước & bất biến
-
-Login/refresh dùng auth mode `public`, logout và getMe dùng `session`. Coordinator giữ quyền quyết định ghi phiên sau tác vụ bất đồng bộ. Fixture preview nằm ngoài luồng API thật.
-
-## 9. Test & debug
-
-Chạy `yarn test src/__tests__/auth src/__tests__/preview`. Để xem fixture khó, mở `/?data=worst#/preview/workspaces` trong dev.
-
-## 10. Giới hạn & lưu ý
-
-Mock store không chứng minh quyền hay API backend. Logout có kết quả dọn cục bộ và revoke server riêng. Backend không rotate refresh token trong contract hiện tại.
-
-## 11. Hướng cải tiến
-
-Hoàn tất kiểm thử đăng nhập, refresh và revoke với môi trường backend được phép. Khi triển khai tính năng production còn thiếu, đối chiếu DTO thay vì suy ra hợp đồng từ fixture.
+Các suite trên dùng dữ liệu hoặc transport mô phỏng. Xem [README frontend](../../README.md) để chạy bài kiểm tra với backend thử nghiệm.

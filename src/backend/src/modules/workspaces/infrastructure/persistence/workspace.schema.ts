@@ -1,5 +1,6 @@
-import { Schema, Document, Types } from 'mongoose';
-import { BaseEntity } from '../../../../shared/database/base-mongo.repository';
+import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
+import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
 
 export type WorkspaceRole = 'owner' | 'member';
 

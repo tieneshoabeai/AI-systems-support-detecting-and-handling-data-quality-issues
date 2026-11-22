@@ -121,7 +121,13 @@ export type Project = {
   workspaceId: string
   workspaceName: string
   cover: CoverHue
-  dataset: DatasetSummary | null
+  dataset: DatasetSummary | null | undefined
+  supplementary?: {
+    revision: number
+    hasDataset: boolean
+    dataset: 'idle' | 'loading' | 'success' | 'error'
+    members: 'idle' | 'loading' | 'success' | 'error'
+  }
   members: Person[]
   createdAt: string
   updatedAt: string

@@ -1,0 +1,41 @@
+sequenceDiagram
+  actor U as Người dùng
+  participant W as ProjectWizard
+  participant H as PreviewSession hook
+  participant S as ManagementStore
+  participant C as Axios client
+  participant B as BE API
+  U->>W: Xác nhận form và File CSV
+  W->>W: pending = true
+  W->>H: createProject(input)
+  H->>S: createProject(input)
+  S->>S: validate + inFlight/draft lookup
+  opt Chưa có project trong progress Map
+    S->>C: POST workspace projects
+    C->>B: JSON + Bearer
+    B-->>C: Response HTTP
+    C-->>S: Unwrap data.project
+  end
+  S->>C: POST dataset upload, FormData File
+  C->>B: Multipart, timeout 120000 ms
+  alt Upload và members thành công
+    B-->>C: Success response
+    C-->>S: Data sau unwrap
+    S->>C: POST members chưa hoàn thành
+    C->>B: JSON + Bearer
+    B-->>C: Success response
+    C-->>S: Data sau unwrap
+    S->>C: Reload resource lists
+    C->>B: GET requests
+    B-->>C: Resource data
+    C-->>S: Data sau unwrap
+    S-->>H: persisted result
+    H-->>W: success true + toast
+    W-->>U: Success screen
+  else Request thất bại sau khi tạo project
+    B-->>C: HTTP error hoặc timeout
+    C-->>S: ApiError
+    S-->>H: Partial operation error
+    H-->>W: success false + error
+    W-->>U: Giữ form để kiểm tra/thử lại
+  end

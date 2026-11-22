@@ -1,6 +1,4 @@
 import axios from 'axios'
-import { isShoppingDemo } from '../mocks/shopping-trends/demo-mode'
-import { shoppingAuthAdapter } from '../mocks/shopping-trends/auth-adapter'
 import type { AxiosAdapter } from 'axios'
 import { getApiConfig, parseApiConfig } from '../configs/api.config'
 import type { ApiClient, ApiEnvelope, ApiRequestOptions, TokenReader } from '../types'
@@ -68,14 +66,13 @@ const unwrapEnvelope = <T>(value: unknown): T => {
 }
 
 export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient => {
-  const demo = options.baseUrl === undefined && options.adapter === undefined && isShoppingDemo()
-  const config = demo ? parseApiConfig('https://demo.invalid/api/v1') : options.baseUrl === undefined
+  const config = options.baseUrl === undefined
     ? getApiConfig()
     : parseApiConfig(options.baseUrl)
   const instance = axios.create({
     baseURL: config.baseUrl,
     timeout: config.timeoutMs,
-    ...(demo ? { adapter: shoppingAuthAdapter } : options.adapter === undefined ? {} : { adapter: options.adapter }),
+    ...(options.adapter === undefined ? {} : { adapter: options.adapter }),
   })
 
   return {

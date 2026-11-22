@@ -2,13 +2,17 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Dataset3DView } from '../../views/dataset-3d/dataset-3d.view'
 import type { CubeFocus, NeonCubeThemeId } from '../../types'
+import { useEffect } from 'react'
 
 vi.mock('../../components/graphics/holographic-core/holographic-core.scene', () => ({
-  HolographicCoreCanvas: ({ cubeFocus, onFocusCube, colorMode }: {
-    cubeFocus: CubeFocus | null; onFocusCube: (theme: NeonCubeThemeId) => void; colorMode: string
-  }) => <div data-testid="canvas" data-focus={cubeFocus?.theme} data-theme={colorMode}>
-    <button onClick={() => onFocusCube('cyan')}>Cube cyan</button>
-  </div>,
+  HolographicCoreCanvas: ({ cubeFocus, onFocusCube, colorMode, onReadyChange }: {
+    cubeFocus: CubeFocus | null; onFocusCube: (theme: NeonCubeThemeId) => void; colorMode: string; onReadyChange: (ready: boolean) => void
+  }) => {
+    useEffect(() => onReadyChange(true), [onReadyChange])
+    return <div data-testid="canvas" data-focus={cubeFocus?.theme} data-theme={colorMode}>
+      <button onClick={() => onFocusCube('cyan')}>Cube cyan</button>
+    </div>
+  },
 }))
 
 beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} })))

@@ -1,0 +1,12 @@
+flowchart LR
+  Input["Form / File / route"] --> UI["Component + hook"]
+  UI --> Validation["FE validation"]
+  Validation --> Store["Injected API store"]
+  Store --> HTTP["Axios: Bearer + URL + timeout"]
+  HTTP --> API["BE API boundary"]
+  API --> Payload["JSON envelope hoặc Blob"]
+  Payload --> Mapping["Unwrap / DTO mapping / ApiError"]
+  Mapping --> State["publish snapshot"]
+  State --> Render["Subscription → render"]
+  Spec["Swagger snapshot"] -.-> Generated["Generated type aliases"]
+  Generated -.-> Gap["Chưa có static consumer nghiệp vụ"]

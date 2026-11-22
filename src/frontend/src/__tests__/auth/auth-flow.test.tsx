@@ -101,7 +101,7 @@ const requests = (adapter: ReturnType<typeof vi.fn<AxiosAdapter>>, path: string)
 describe('login, routes and session cleanup', () => {
   it.each(['/processing/projects/prj-sales', '/processing/projects/prj-sales/upload'])('protects %s and preserves its post-login destination', async path => {
     await mount({ path })
-    expect(screen.getByTestId('location').textContent).toBe('/auth/login')
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/auth/login'))
     expect(jsonObject(screen.getByTestId('location-state').textContent)['returnTo']).toBe(path)
     await submitLogin()
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/processing/projects/prj-sales'))
@@ -230,7 +230,7 @@ describe('provider timer/focus and consent dialog', () => {
     vi.setSystemTime(new Date('2026-10-28T10:00:00Z'))
     const s = await mount({ path: '/management?old=1', storedExp: Date.now() / 1000 + 1 })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    const dialog = screen.getByRole('dialog', { name: 'Bạn muốn tiếp tục?' })
+    const dialog = screen.getByRole('dialog', { name: 'PHIÊN LÀM VIỆC ĐÃ HẾT HẠN, BẠN CÓ MUỐN TIẾP TỤC KHÔNG' })
     const cancel = within(dialog).getByRole('button', { name: 'Hủy' })
     const accept = within(dialog).getByRole('button', { name: 'Tiếp tục phiên' })
     expect(document.activeElement).toBe(cancel)

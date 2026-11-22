@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "presentationTitle": "Báo cáo Kiểm toán Toàn diện Frontend Architecture, User Flow & API Integration",
+  "designSystem": {
+    "theme": "Light Mode & Dark Accent",
+    "primary": "#2563eb",
+    "brand": "#00a878",
+    "canvas": "#f6f8f7",
+    "surface": "#ffffff",
+    "danger": "#dc2626",
+    "warning": "#fbbf24",
+    "cyan": "#22d3ee",
+    "text": "#202a29"
+  },
+  "metrics": {
+    "totalSlides": 42,
+    "apiConnectedCount": 66,
+    "apiTotalCount": 86,
+    "apiConnectedPercent": 76.7,
+    "unitTestsPassed": 864,
+    "testSuitesPassed": 71,
+    "e2eSuitesPassed": 6,
+    "historicalCoverage": 70.83
+  },
+  "mockInventory": [
+    {
+      "component": "Workspace 3D Universe Preview",
+      "route": "/preview/workspaces-3d",
+      "status": "MOCKED_FIXTURE",
+      "reason": "Three.js graphic prototype, chưa có API cấp tọa độ 3D từ backend"
+    },
+    {
+      "component": "Realtime Notification Stream",
+      "route": "/management/notifications",
+      "status": "MOCKED_STATE",
+      "reason": "Backend chưa hoàn thiện WebSocket/SSE stream, chỉ có API patch preferences"
+    },
+    {
+      "component": "Quality Engine Async Worker Polling",
+      "route": "/processing/projects/:id",
+      "status": "PARTIAL_ASYNC",
+      "reason": "Đã có Schema và Virtual Grid, đang dùng polling hoặc fallback kết quả đã phân tích"
+    },
+    {
+      "component": "Offline Upload Draft Storage",
+      "route": "/processing/new",
+      "status": "LOCAL_INDEXEDDB",
+      "reason": "Dexie.js lưu trữ file CSV cục bộ chống mất dữ liệu, chỉ gửi lên server khi xác nhận"
+    }
+  ]
+}

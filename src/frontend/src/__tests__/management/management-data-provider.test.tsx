@@ -21,7 +21,6 @@ import type { ApiRequestOptions } from '../../types/api/api.types'
 const transport = vi.hoisted(() => ({
   request: vi.fn<(options: ApiRequestOptions) => Promise<unknown>>(),
   token: undefined as (() => string | null) | undefined,
-  demo: false,
 }))
 vi.mock('../../lib/axios-client', () => ({
   createAxiosClient: (options: { readToken: () => string | null }) => {
@@ -29,7 +28,6 @@ vi.mock('../../lib/axios-client', () => ({
     return { request: transport.request }
   },
 }))
-vi.mock('../../mocks/shopping-trends/demo-mode', () => ({ isShoppingDemo: () => transport.demo }))
 vi.mock('../../components/graphics/workspace-3d/home-universe', () => ({ default: () => <div aria-hidden="true" /> }))
 
 const base = { generation: 1, sessionEnded: false, error: null, cleanupError: null }
@@ -47,7 +45,7 @@ function Probe() {
   if (status) return <DataRegionStatus status={status} label="Đang tải dữ liệu"><span /></DataRegionStatus>
   return <output data-testid="source">{state.source === 'api' ? `api:${state.workspaces.length}` : 'fixture'}</output>
 }
-function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false) {
+function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false, progressiveProjects = false) {
   const value: AuthContextValue = {
     snapshot, configurationError: null,
     signIn: () => Promise.resolve(), confirmRenewal: () => Promise.resolve(),
@@ -55,7 +53,7 @@ function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, chi
   }
   return <AuthContext.Provider value={value}>{projectId || recent
     ? <ProcessingDataProvider {...(projectId ? { projectId } : {})}>{children ?? <ProjectProbe />}</ProcessingDataProvider>
-    : <ManagementDataProvider>{children ?? <Probe />}</ManagementDataProvider>}</AuthContext.Provider>
+    : <ManagementDataProvider progressiveProjects={progressiveProjects}>{children ?? <Probe />}</ManagementDataProvider>}</AuthContext.Provider>
 }
 function ProjectProbe() {
   const processing = useContext(ProcessingDataContext)
@@ -71,13 +69,50 @@ const response = (r: ApiRequestOptions): Promise<unknown> => Promise.resolve().t
   throw new Error(`Unexpected request: ${r.path}`)
 })
 beforeEach(() => {
-  transport.demo = false
   transport.token = undefined
   transport.request.mockReset().mockImplementation(response)
   window.sessionStorage.clear()
   persist('first')
 })
 afterEach(() => { cleanup(); window.sessionStorage.clear() })
+
+it('shows a live card while both supplementary requests are pending and keeps viewer actions disabled', async () => {
+  let finishMembers!: (value: unknown) => void
+  let finishDataset!: (value: unknown) => void
+  transport.request.mockImplementation(r => {
+    if (r.path === '/workspaces') return Promise.resolve({ items: [{
+      id: 'w1', name: 'Workspace', ownerId: 'owner', description: '', members: [], storageUsedBytes: 0,
+      version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15',
+    }], total: 1 })
+    if (r.path === '/projects') return Promise.resolve({ items: [{
+      id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', members: [], createdBy: 'owner',
+      hasDataset: true, version: 1, status: 'not_started', createdAt: '2026-11-15', updatedAt: '2026-11-15',
+    }], total: 1 })
+    if (r.path === '/projects/p1/members') return new Promise(resolve => { finishMembers = resolve })
+    if (r.path === '/projects/p1/datasets') return new Promise(resolve => { finishDataset = resolve })
+    return response(r)
+  })
+  render(<MemoryRouter initialEntries={['/management/projects']}>{tree(authenticated, undefined, <PreviewSessionProvider routeIds={{}}>
+    <ManagementArea />
+  </PreviewSessionProvider>, false, true)}</MemoryRouter>)
+  const title = await screen.findByRole('heading', { name: 'Project 1' })
+  const card = title.closest('article')!
+  expect(card.dataset['cardDetails']).toBe('pending')
+  expect(within(card).getByText('Đang tải dữ liệu…')).toBeDefined()
+  expect(within(card).getByText('Đang tải thành viên…')).toBeDefined()
+  const menu = within(card).getByRole<HTMLButtonElement>('button', { name: 'Thao tác với Project 1' })
+  expect(menu.disabled).toBe(true)
+
+  await act(async () => {
+    finishMembers({ members: [{ userId: 'u1', role: 'viewer', name: 'Viewer' }] })
+    finishDataset({ dataset: null })
+  })
+  expect(within(card).getByText('Chưa có tập dữ liệu.')).toBeDefined()
+  expect(card.dataset['cardDetails']).toBe('ready')
+  fireEvent.click(menu)
+  expect(screen.getByRole<HTMLButtonElement>('menuitem', { name: /^Đổi tên/ }).disabled).toBe(true)
+  expect(screen.getByRole<HTMLButtonElement>('menuitem', { name: /^Xóa Project/ }).disabled).toBe(true)
+})
 
 it('renders the project shell immediately and requests only the selected project and its workspace', async () => {
   let finish!: (value: unknown) => void
@@ -292,13 +327,6 @@ it('does not reveal an old load after the session ends', async () => {
   await act(() => { finish({ items: [], total: 0 }); return Promise.resolve() })
   expect(screen.queryByTestId('source')).toBeNull()
   expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
-})
-
-it('keeps the existing Shopping demo store without calling backend endpoints', () => {
-  transport.demo = true
-  render(tree())
-  expect(screen.getByTestId('source').textContent).toBe('fixture')
-  expect(transport.request).not.toHaveBeenCalled()
 })
 
 it('does not substitute fixture data for a local-limited online session', () => {

@@ -3,97 +3,250 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IProject } from './project.schema';
 import {
-  PROJECT_REPOSITORY_PORT,
   type AddProjectMemberRecord,
   type CreateProjectRecord,
   type ProjectListQuery,
   type ProjectMemberRole,
-  type ProjectRecord,
   type ProjectRepositoryPort,
   type ProjectStatus,
 } from '../../domain/ports/project.repository.port';
-import { toProjectRecord } from './project.mapper';
+import { toMemberPersistence, toProjectEntity } from './project.mapper';
+import type { Project } from '../../domain/entities/project.entity';
+import {
+  buildKeysetCondition,
+  buildKeysetSort,
+} from '../../../../shared/domain/pagination/keyset-filter.util';
+import { encodeKeysetCursor } from '../../../../shared/domain/pagination/keyset-cursor';
+import { extractSortValue } from '../../../../shared/domain/pagination/keyset-value.util';
+import {
+  COMMON_SORT_SPECS,
+  resolveSortSpec,
+} from '../../../../shared/domain/pagination/keyset-sort.util';
+
+/** Số bản ghi mặc định cho mỗi trang. */
+const DEFAULT_LIMIT = 15;
 
 /**
  * PROJECTS — Infrastructure adapter (driven).
  * Nơi duy nhất chạm Mongoose. Triển khai PROJECT_REPOSITORY_PORT.
- * Trả về ProjectRecord (camelCase, id string), không lộ Document.
+ * Trả về Project (entity domain — camelCase, id string), không lộ Document.
  */
 @Injectable()
 export class ProjectsRepository implements ProjectRepositoryPort {
   constructor(@InjectModel('Project') private readonly model: Model<IProject>) {}
 
-  async create(data: CreateProjectRecord): Promise<ProjectRecord> {
+  async create(data: CreateProjectRecord): Promise<Project> {
+    const ownerId = data.ownerId ?? data.createdBy;
     const inst = new this.model({
       workspace_id: new Types.ObjectId(data.workspaceId),
       name: data.name.trim(),
       description: data.description ?? '',
       has_dataset: false,
       status: 'not_started',
-      members: [{ user_id: new Types.ObjectId(data.createdBy), role: 'owner', joined_at: new Date() }],
+      members: [{ user_id: new Types.ObjectId(ownerId), role: 'owner', joined_at: new Date() }],
       last_accessed_at: new Date(),
       created_by: new Types.ObjectId(data.createdBy),
       deleted_at: null,
     });
     const saved = await inst.save();
-    return toProjectRecord(saved);
+    return toProjectEntity(saved);
   }
 
-  async findById(id: string): Promise<ProjectRecord | null> {
+  async findById(id: string): Promise<Project | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(id)) return null;
     const doc = await this.model.findOne({ _id: new Types.ObjectId(id), deleted_at: null }).exec();
-    return doc ? toProjectRecord(doc) : null;
+    return doc ? toProjectEntity(doc) : null;
   }
 
-  async findOneByWorkspaceAndName(workspaceId: string, name: string): Promise<ProjectRecord | null> {
+  async findOneByWorkspaceAndName(workspaceId: string, name: string): Promise<Project | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return null;
     const doc = await this.model
       .findOne({ workspace_id: new Types.ObjectId(workspaceId), name: name.trim(), deleted_at: null })
       .exec();
-    return doc ? toProjectRecord(doc) : null;
+    return doc ? toProjectEntity(doc) : null;
   }
 
-  async findByWorkspace(workspaceId: string): Promise<ProjectRecord[]> {
+  async findByWorkspace(workspaceId: string): Promise<Project[]> {
     if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return [];
     const docs = await this.model
       .find({ workspace_id: new Types.ObjectId(workspaceId), deleted_at: null })
       .sort({ updated_at: -1 })
       .exec();
-    return docs.map(toProjectRecord);
+    return docs.map((doc) => toProjectEntity(doc));
+  }
+
+  async countByWorkspace(workspaceId: string, status?: ProjectStatus): Promise<number> {
+    if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) return 0;
+    const filter: Record<string, unknown> = {
+      workspace_id: new Types.ObjectId(workspaceId),
+      deleted_at: null,
+    };
+    if (status) filter.status = status;
+    return this.model.countDocuments(filter).exec();
+  }
+
+  async countByUser(userId: string): Promise<number> {
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) return 0;
+    const uid = new Types.ObjectId(userId);
+    return this.model
+      .countDocuments({ deleted_at: null, $or: [{ created_by: uid }, { 'members.user_id': uid }] })
+      .exec();
+  }
+
+  async findAllByUser(userId: string): Promise<Project[]> {
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) return [];
+    const uid = new Types.ObjectId(userId);
+    const docs = await this.model
+      .find({
+        deleted_at: null,
+        $or: [{ created_by: uid }, { 'members.user_id': uid }],
+      })
+      .exec();
+    return docs.map((doc) => toProjectEntity(doc));
   }
 
   async findByWorkspacePaged(
     workspaceId: string,
     opts: ProjectListQuery = {},
-  ): Promise<{ items: ProjectRecord[]; total: number }> {
-    const filter: Record<string, unknown> = {
-      workspace_id: new Types.ObjectId(workspaceId),
-      deleted_at: null,
-    };
-    if (opts.search?.trim()) filter.name = { $regex: opts.search.trim(), $options: 'i' };
-    if (opts.status) filter.status = opts.status;
-    const page = Math.max(1, Number(opts.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(opts.limit) || 15));
-    const sortMap: Record<string, Record<string, 1 | -1>> = {
-      last_accessed: { last_accessed_at: -1 },
-      updated: { updated_at: -1 },
-      name_asc: { name: 1 },
-      name_desc: { name: -1 },
-      joined: { created_at: -1 },
-    };
-    const sort = sortMap[opts.sort || 'last_accessed'] ?? { last_accessed_at: -1 };
-    const [items, total] = await Promise.all([
-      this.model.find(filter).sort(sort).skip((page - 1) * limit).limit(limit).exec(),
-      this.model.countDocuments(filter).exec(),
-    ]);
-    return { items: items.map(toProjectRecord), total };
+  ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }> {
+    if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+
+    const conditions: Record<string, unknown>[] = [
+      { workspace_id: new Types.ObjectId(workspaceId) },
+      { deleted_at: null },
+    ];
+    if (opts.search?.trim()) {
+      conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
+    }
+    if (opts.status) conditions.push({ status: opts.status });
+
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || DEFAULT_LIMIT));
+    const { code, spec } = resolveSortSpec(COMMON_SORT_SPECS, opts.sort);
+
+    const cursor = opts.cursor;
+    if (cursor) {
+      conditions.push(
+        buildKeysetCondition(spec, {
+          value: cursor.value,
+          isNull: cursor.isNull,
+          id: cursor.id,
+        }),
+      );
+    }
+
+    const docs = await this.model
+      .find({ $and: conditions })
+      .sort(buildKeysetSort(spec))
+      .limit(limit + 1)
+      .exec();
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+    const items = page.map((doc) => toProjectEntity(doc));
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const raw = last as unknown as Record<string, unknown>;
+        const sortValue = extractSortValue(spec, raw);
+        nextCursor = encodeKeysetCursor({
+          s: code,
+          k: sortValue.value,
+          n: sortValue.isNull ? 1 : 0,
+          id: last._id.toString(),
+        });
+      }
+    }
+
+    return { items, nextCursor, hasMore };
+  }
+
+  /**
+   * PROJ-02b — danh sách project toàn hệ thống (keyset pagination).
+   *
+   * Khác `findByWorkspacePaged` ở chỗ **không** lọc theo `workspace_id`.
+   * `search` / `status` / `sort` / `cursor` hoạt động y hệt.
+   */
+  async findAllPaged(
+    userId: string,
+    workspaceIds: string[],
+    opts: ProjectListQuery = {},
+    /** `true` = quản trị viên hệ thống → xem toàn bộ project, không lọc quyền. */
+    isAdmin = false,
+  ): Promise<{ items: Project[]; nextCursor: string | null; hasMore: boolean }> {
+    if (!isAdmin && !/^[0-9a-fA-F]{24}$/.test(userId)) {
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+    const uid = new Types.ObjectId(userId);
+    // Workspace mà user tham gia (owner hoặc member) → user có quyền đọc
+    // project thuộc workspace đó (rule CASL `workspace_id: { $in: [...] }`).
+    const wsIds = workspaceIds
+      .filter((id) => /^[0-9a-fA-F]{24}$/.test(id))
+      .map((id) => new Types.ObjectId(id));
+
+    const accessFilter: Record<string, unknown>[] = [
+      { created_by: uid },
+      { 'members.user_id': uid },
+    ];
+    if (wsIds.length > 0) accessFilter.push({ workspace_id: { $in: wsIds } });
+
+    const conditions: Record<string, unknown>[] = [{ deleted_at: null }];
+    if (!isAdmin) conditions.push({ $or: accessFilter });
+    if (opts.search?.trim()) {
+      conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
+    }
+    if (opts.status) conditions.push({ status: opts.status });
+
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || DEFAULT_LIMIT));
+    const { code, spec } = resolveSortSpec(COMMON_SORT_SPECS, opts.sort);
+
+    const cursor = opts.cursor;
+    if (cursor) {
+      conditions.push(
+        buildKeysetCondition(spec, {
+          value: cursor.value,
+          isNull: cursor.isNull,
+          id: cursor.id,
+        }),
+      );
+    }
+
+    const docs = await this.model
+      .find({ $and: conditions })
+      .sort(buildKeysetSort(spec))
+      .limit(limit + 1)
+      .exec();
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+    const items = page.map((doc) => toProjectEntity(doc));
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const raw = last as unknown as Record<string, unknown>;
+        const sortValue = extractSortValue(spec, raw);
+        nextCursor = encodeKeysetCursor({
+          s: code,
+          k: sortValue.value,
+          n: sortValue.isNull ? 1 : 0,
+          id: last._id.toString(),
+        });
+      }
+    }
+
+    return { items, nextCursor, hasMore };
   }
 
   async updateById(
     id: string,
     update: { name?: string; description?: string },
     expectedVersion?: number,
-  ): Promise<ProjectRecord | null> {
+  ): Promise<Project | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(id)) return null;
     const set: Record<string, unknown> = {};
     if (update.name !== undefined) set.name = update.name.trim();
@@ -103,7 +256,7 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     const doc = await this.model
       .findOneAndUpdate(filter, { $set: set, $inc: { version: 1 } }, { new: true })
       .exec();
-    return doc ? toProjectRecord(doc) : null;
+    return doc ? toProjectEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
@@ -156,7 +309,7 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     const r = await this.model
       .updateOne(
         { _id: new Types.ObjectId(projectId), deleted_at: null },
-        { $push: { members: { user_id: new Types.ObjectId(member.userId), role: member.role as ProjectMemberRole, joined_at: new Date() } } },
+        { $push: { members: toMemberPersistence({ ...member, joinedAt: new Date() }) } },
       )
       .exec();
     return r.modifiedCount > 0;
@@ -173,7 +326,12 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     return r.modifiedCount > 0;
   }
 
-  async updateMemberRole(projectId: string, userId: string, role: ProjectMemberRole, expectedVersion?: number): Promise<boolean | null> {
+  async updateMemberRole(
+    projectId: string,
+    userId: string,
+    role: ProjectMemberRole,
+    expectedVersion?: number,
+  ): Promise<boolean | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(userId)) return false;
     const filter: Record<string, unknown> = {
       _id: new Types.ObjectId(projectId),
@@ -193,14 +351,22 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     return r.modifiedCount > 0;
   }
 
-  async transferOwner(projectId: string, newOwnerId: string, expectedVersion?: number): Promise<boolean | null> {
+  async transferOwner(
+    projectId: string,
+    newOwnerId: string,
+    expectedVersion?: number,
+  ): Promise<boolean | null> {
     if (!/^[0-9a-fA-F]{24}$/.test(projectId) || !/^[0-9a-fA-F]{24}$/.test(newOwnerId)) return false;
     const prjId = new Types.ObjectId(projectId);
     const newId = new Types.ObjectId(newOwnerId);
     const scoped: Record<string, unknown> = { _id: prjId, deleted_at: null };
     if (expectedVersion !== undefined) scoped.version = expectedVersion;
     const demote = await this.model
-      .updateOne(scoped, { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } }, { arrayFilters: [{ 'o.role': 'owner' }] } as never)
+      .updateOne(
+        scoped,
+        { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } },
+        { arrayFilters: [{ 'o.role': 'owner' }] } as never,
+      )
       .exec();
     if (demote.matchedCount === 0) {
       if (expectedVersion !== undefined) {
@@ -216,4 +382,3 @@ export class ProjectsRepository implements ProjectRepositoryPort {
     return r.modifiedCount > 0;
   }
 }
-

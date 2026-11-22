@@ -1,5 +1,12 @@
 #!/usr/bin/env sh
-# Phần 14 v7 — Đợt 1: pre-commit chạy unit test + architectural test.
-# Hooks: test:unit (unit/domain) + test:arch (zero-any, guard-coverage, zod-openapi)
+# Phần 14 v7 — Đợt 1: pre-commit chạy lint + unit test + architectural test.
+#
+# Hooks:
+#   - lint    : ESLint (chặn `any`, vi phạm ranh giới tầng, code thừa)
+#   - test:unit : unit/domain tests
+#   - test:arch : zero-any, guard-coverage, zod-openapi, clean-architecture
+#
+# Lưu ý: `lint` (không phải `lint:fix`) — không tự động sửa code trong pre-commit
+# để lỗi luôn hiển thị cho lập trình viên tự quyết định.
 cd "$(dirname "$0")/../src/backend" || exit 1
-pnpm run test:unit && pnpm run test:arch
+pnpm run lint && pnpm run test:unit && pnpm run test:arch

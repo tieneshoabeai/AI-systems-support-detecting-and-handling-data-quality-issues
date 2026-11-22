@@ -1,66 +1,55 @@
-# lib
+# Lib
 
-## 1. Mục đích
+`src/lib` cung cấp HTTP client, chuẩn hóa lỗi, lưu phiên và cấu hình query cache cho frontend. Các endpoint nghiệp vụ nằm trong [`services`](../services/README.md).
 
-Cung cấp hạ tầng HTTP, chuẩn hóa lỗi, cache truy vấn và lưu phiên. Kiểm tra DTO và quyết định nghiệp vụ thuộc services.
+## Bản đồ file
 
-## 2. Vị trí & phụ thuộc
+| File | Trách nhiệm |
+| --- | --- |
+| [`axios-client.ts`](axios-client.ts) | Tạo `ApiClient`, kiểm tra URL và tùy chọn request, gửi request qua Axios và đọc response. |
+| [`api-error.ts`](api-error.ts) | Định nghĩa `ApiError`, chuẩn hóa lỗi HTTP và cung cấp helper kiểm tra kiểu dữ liệu lúc chạy. |
+| [`session-storage.ts`](session-storage.ts) | Đọc, ghi và xóa phiên trong storage qua một key riêng. |
+| [`query-client.ts`](query-client.ts) | Tạo TanStack Query client và cung cấp thao tác hủy query, dọn cache khi đổi phiên. |
+| [`openapi.json`](openapi.json), [`openapi.ts`](openapi.ts) | Đặc tả đã chuẩn hóa và kiểu sinh tự động. Xem quy trình đồng bộ ở [`types/README.md`](../types/README.md). |
+| [`index.ts`](index.ts) | Điểm import chung cho các factory và helper của `lib`. |
 
-App runtime dùng HTTP và session storage. Bootstrap dùng QueryClient. Services và repositories dùng `ApiError`. Thư viện phụ thuộc Axios, TanStack Query, cấu hình API và tiện ích token.
+## Request chạy như thế nào
 
-## 3. Public API
+1. [Runtime](../app/app-runtime.ts) cấu hình client. Service gọi `request` với đường dẫn, chế độ xác thực và tùy chọn như `signal` hoặc timeout.
+2. Client ghép path với API base. Riêng `GET /health` với `auth: 'public'` dùng path ở origin backend, bên ngoài API prefix.
+3. Với `auth: 'session'`, client lấy token từ `readToken` để gắn Bearer. Token thiếu hoặc request đã bị hủy có thể làm thao tác dừng trước khi gọi mạng.
+4. Client bóc envelope JSON một lần. Request có `responseType: 'blob'` trả dữ liệu file. Service tiếp tục kiểm tra các trường nghiệp vụ trước khi trả model cho UI.
 
-- `createAxiosClient(options?: { baseUrl?: string; readToken?: TokenReader; adapter?: AxiosAdapter }): ApiClient`. `request<T>(options: ApiRequestOptions): Promise<T>` trả `data` của envelope hoặc ném `ApiError`.
-- `ApiError` nhận thông tin `AppError`. `normalizeApiError(error: unknown): ApiError` chuẩn hóa lỗi. `isRecord(value: unknown): value is Record<string, unknown>` kiểm tra object.
-- `createSessionStorage(options?: { getStorage?: () => SessionStoragePort; now?: () => number })` trả `read(): SessionReadResult`, `write(session: StoredSession): void`, `clear(): void`, `readToken(): string | null`. Có thể ném lỗi `storage` hoặc `session`.
-- `createQueryClient(): QueryClient`, `clearSessionQueries(client: QueryClient): void` tạo cache và hủy/xóa cache phiên.
-
-## 4. Cách dùng (ví dụ)
+Ví dụ từ một module đặt ngay dưới `src/`. Hàm nhận client đã cấu hình và chuyển nó cho health service.
 
 ```ts
-import { createQueryClient, clearSessionQueries } from './lib/query-client'
+import { createHealthService } from './services'
+import type { ApiClient } from './types'
 
-const client = createQueryClient()
-client.setQueryData(['demo'], 42)
-clearSessionQueries(client)
-console.log(client.getQueryData(['demo'])) // undefined
+export function checkBackend(api: ApiClient, signal: AbortSignal) {
+  return createHealthService(api).check({ signal })
+}
 ```
 
-Chạy trong module TypeScript dưới `src` với dependencies frontend.
+## Phiên và query cache
 
-## 5. Cấu trúc thư mục
+- `createSessionStorage` dùng key mặc định `data-quality.auth.v1`. `read()` trả `empty`, `invalid`, `expired` hoặc `valid`. Bản ghi sai định dạng bị xóa theo key. `readToken()` chỉ trả access token từ phiên hợp lệ.
+- `createQueryClient` tắt retry mặc định cho query và mutation, đồng thời tắt refetch khi focus hoặc kết nối lại. `clearSessionQueries` yêu cầu hủy các query đang chạy rồi dọn cache.
 
-**Khi thêm code.** Đặt xử lý HTTP, lỗi, cache hoặc storage dùng chung trong file hạ tầng tương ứng. Mapper của một endpoint đặt cạnh [service](../services/README.md) gọi endpoint đó.
+## Cấu trúc thư mục hiện tại
 
-- [api-error.ts](api-error.ts) — lớp lỗi ứng dụng và mapper lỗi Axios.
-- [axios-client.ts](axios-client.ts) — kiểm tra URL, gắn token, gửi request, unwrap envelope.
-- [query-client.ts](query-client.ts) — cấu hình QueryClient và dọn cache phiên.
-- [session-storage.ts](session-storage.ts) — kiểm tra schema, hạn phiên và lưu/xóa một key.
+```text
+src/lib/
+├── README.md
+├── api-error.ts
+├── axios-client.ts
+├── index.ts
+├── openapi.json
+├── openapi.ts
+├── query-client.ts
+└── session-storage.ts
+```
 
-## 6. Luồng hoạt động
+## Kiểm thử
 
-`request` kiểm tra auth mode, path, timeout và signal → thêm bearer nếu `session` → Axios gửi → unwrap `success/data` đúng một lần. Session storage đọc JSON → xác thực schema và account → trả `empty`, `invalid`, `expired` hoặc `valid`. Phiên lỗi format bị xóa riêng key.
-
-## 7. Cấu hình
-
-| Tham số | Mặc định | Tác dụng |
-| --- | --- | --- |
-| HTTP method / timeout | `GET` / 30.000 ms | Cách gọi và hạn chờ mỗi request |
-| `SESSION_STORAGE_KEY` | `data-quality.auth.v1` | Key phiên trong `window.sessionStorage` |
-| Query retry, mutation retry, refetch khi focus/reconnect | `false` | Tránh tự gửi lại hoặc làm mới query theo sự kiện |
-
-## 8. Quy ước & bất biến
-
-Yêu cầu khai báo `auth` rõ. Bearer chỉ gắn vào request `session` trong API base. `readToken()` chỉ trả token ở trạng thái `valid`. Không đưa raw Axios config hoặc credential vào log.
-
-## 9. Test & debug
-
-Chạy `yarn test src/__tests__/foundation/api.test.ts src/__tests__/foundation/session.test.ts`. Dùng Axios adapter và storage giả để kiểm nhánh lỗi mà không gọi mạng.
-
-## 10. Giới hạn & lưu ý
-
-Client chỉ xác thực envelope, DTO cụ thể do service kiểm tra. Hủy phía client không xác nhận server đã dừng xử lý.
-
-## 11. Hướng cải tiến
-
-Nếu triển khai binary export, bổ sung transport riêng theo thiết kế foundation vì luồng hiện tại mong đợi JSON envelope.
+Từ `src/frontend`, chạy `yarn test src/__tests__/foundation/api.test.ts src/__tests__/foundation/session.test.ts src/__tests__/foundation/startup.test.tsx`. Các suite dùng adapter, storage và môi trường trình duyệt mô phỏng.

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zodToOpenApiSchema } from '../src/shared/swagger/zod-openapi';
+import { zodToOpenApiSchema } from '../src/shared/interfaces/swagger/zod-openapi';
 
 describe('Zod-OpenAPI Schema Transformer', () => {
   it('should correctly transform a basic Zod object schema to OpenAPI 3.0 schema', () => {

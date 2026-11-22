@@ -2,7 +2,6 @@ import { requireDefined } from '../../utils/required-value'
 import type { NotificationFilterTab, NotificationPrefKey, PreviewNotification, PreviewNotificationKind, PreviewReport, PreviewSectionId, PreviewStoreState, Project, ProjectFilterTab, ProjectModule, Person, ReportFilterTab, ReportIssueType, ReportStatus, SettingsModule, SettingsNavLeaf, SettingsSectionId, TrendStat, Workspace, WorkspaceOwnershipFilter, WorkspaceRoleFilter, WorkspaceSort } from '../../types'
 import { isSettingsNavGroup } from '../../types/preview'
 import { currentUser, people, storageUsage } from '../../services/preview/preview-fixtures'
-import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
 
 // Shared presentation model for Management/Processing: labels, formatting and
 // selectors over the existing preview fixtures. This module does not call APIs
@@ -102,7 +101,8 @@ export const workspaceStatsFor = (state: PreviewStoreState): readonly TrendStat[
 
 export const projectStatsFor = (list: readonly Project[]): readonly TrendStat[] => [
   { id: 'pj-total', label: 'Tổng project', value: String(list.length), delta: '', tone: 'brand', icon: 'projects' },
-  { id: 'pj-dataset', label: 'Tổng dataset', value: String(count(list, project => project.dataset !== null)), delta: '', tone: 'violet', icon: 'datasets' },
+  { id: 'pj-dataset', label: 'Tổng dataset', value: String(count(list, project => project.dataset === undefined
+    ? project.supplementary?.hasDataset === true : project.dataset !== null)), delta: '', tone: 'violet', icon: 'datasets' },
   { id: 'pj-active', label: 'Đang hoạt động', value: String(count(list, project => project.status === 'active')), delta: '', tone: 'green', icon: 'activity' },
   { id: 'pj-paused', label: 'Tạm dừng', value: String(count(list, project => project.status === 'paused')), delta: '', tone: 'orange', icon: 'pause' },
   { id: 'pj-done', label: 'Đã hoàn thành', value: String(count(list, project => project.status === 'completed')), delta: '', tone: 'cyan', icon: 'check-circle' },
@@ -536,7 +536,7 @@ export const accountInfo = {
   name: currentUser.name,
   initials: currentUser.initials,
   role: currentUser.role,
-  email: isShoppingDemo() ? 'demo@shopping.test' : 'minh.anh@dataverse.io',
+  email: 'minh.anh@dataverse.io',
   language: 'Tiếng Việt',
   theme: 'Tối (Dark)',
 } as const

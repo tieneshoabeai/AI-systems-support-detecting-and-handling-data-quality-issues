@@ -1,13 +1,20 @@
-import { Schema, Document, Types } from 'mongoose';
+import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
   email: string;
   password_hash?: string;
   google_id?: string;
+  /** Nguồn đăng nhập — `local` (email + mật khẩu) hoặc `google` (AUTH-03). */
+  auth_provider?: 'local' | 'google';
   first_name: string;
   last_name: string;
   avatar_url?: string;
+  /** Số điện thoại (E.164-ish). Duy nhất qua partial unique index ở dưới. */
+  phone?: string;
+  /** Giới thiệu ngắn, tối đa 500 ký tự. */
+  bio?: string;
   role: 'admin' | 'analyst';
   notifications_enabled: boolean;
   status: 'active' | 'blocked';
@@ -39,6 +46,12 @@ export const UserSchema = new Schema<IUser>(
       sparse: true,
       index: true,
     },
+    auth_provider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+      index: true,
+    },
     first_name: {
       type: String,
       required: true,
@@ -53,6 +66,17 @@ export const UserSchema = new Schema<IUser>(
     },
     avatar_url: {
       type: String,
+      default: null,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 500,
       default: null,
     },
     role: {
@@ -114,4 +138,10 @@ UserSchema.index({ created_at: -1, _id: -1 });
 UserSchema.index(
   { email: 1 },
   { unique: true, partialFilterExpression: { deleted_at: null } }
+);
+
+// Partial Unique Index: số điện thoại phải duy nhất (chỉ khi có giá trị).
+UserSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: 'string' } } }
 );

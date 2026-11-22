@@ -3,45 +3,47 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { type IIssueReport } from './issue-report.schema';
 import {
-  ISSUE_REPORT_REPOSITORY_PORT,
   type CreateIssueRecord,
   type IssueListQuery,
-  type IssueReportRecord,
   type IssueReportRepositoryPort,
+  type UpdateIssueByUserInput,
 } from '../../domain/ports/issue-report.repository.port';
+import type { IssueReport, IssueAttachment } from '../../domain/entities/issue-report.entity';
 import type { IssueStatus } from '../../domain/value-objects/issue-status.vo';
-import { toIssuePersistence, toIssueRecord } from './issue.mapper';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { toIssueEntity, toIssuePersistence } from './issue.mapper';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 /**
  * ISSUES — Infrastructure adapter (driven).
  * Nơi duy nhất chạm Mongoose. Triển khai ISSUE_REPORT_REPOSITORY_PORT.
+ *
+ * **Bước 3 — Rich Domain Model:** trả entity `IssueReport`.
  */
 @Injectable()
 export class IssuesRepository implements IssueReportRepositoryPort {
   constructor(@InjectModel('IssueReport') private readonly model: Model<IIssueReport>) {}
 
-  async create(doc: CreateIssueRecord): Promise<IssueReportRecord> {
+  async create(doc: CreateIssueRecord): Promise<IssueReport> {
     const inst = new this.model(toIssuePersistence(doc));
     const saved = await inst.save();
-    return toIssueRecord(saved);
+    return toIssueEntity(saved);
   }
 
-  async findById(id: string): Promise<IssueReportRecord | null> {
+  async findById(id: string): Promise<IssueReport | null> {
     if (!isObjectIdHex(id)) return null;
     const doc = await this.model.findOne({ _id: new Types.ObjectId(id), deleted_at: null }).exec();
-    return doc ? toIssueRecord(doc) : null;
+    return doc ? toIssueEntity(doc) : null;
   }
 
-  async findByIdForUser(id: string, userId: string): Promise<IssueReportRecord | null> {
+  async findByIdForUser(id: string, userId: string): Promise<IssueReport | null> {
     if (!isObjectIdHex(id) || !isObjectIdHex(userId)) return null;
     const doc = await this.model
       .findOne({ _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId), deleted_at: null })
       .exec();
-    return doc ? toIssueRecord(doc) : null;
+    return doc ? toIssueEntity(doc) : null;
   }
 
-  async list(opts: IssueListQuery): Promise<IssueReportRecord[]> {
+  async list(opts: IssueListQuery): Promise<IssueReport[]> {
     const filter: Record<string, unknown> = { deleted_at: null };
     if (opts.userId) {
       if (!isObjectIdHex(opts.userId)) return [];
@@ -61,10 +63,10 @@ export class IssuesRepository implements IssueReportRepositoryPort {
     sort[sortField] = dir;
     (sort as Record<string, 1 | -1>)['_id'] = dir;
     const docs = await this.model.find(filter).sort(sort).limit(opts.limit + 1).exec();
-    return docs.map(toIssueRecord);
+    return docs.map(toIssueEntity);
   }
 
-  async addAttachment(id: string, attachment: { id: string; filename: string; storageKey: string; sizeBytes: number; contentType: string }): Promise<IssueReportRecord | null> {
+  async addAttachment(id: string, attachment: IssueAttachment): Promise<IssueReport | null> {
     if (!isObjectIdHex(id)) return null;
     const doc = await this.model
       .findOneAndUpdate(
@@ -83,10 +85,10 @@ export class IssuesRepository implements IssueReportRepositoryPort {
         { new: true },
       )
       .exec();
-    return doc ? toIssueRecord(doc) : null;
+    return doc ? toIssueEntity(doc) : null;
   }
 
-  async updateStatus(id: string, status: IssueStatus, expectedVersion: number): Promise<IssueReportRecord | null> {
+  async updateStatus(id: string, status: IssueStatus, expectedVersion: number): Promise<IssueReport | null> {
     if (!isObjectIdHex(id)) return null;
     const doc = await this.model
       .findOneAndUpdate(
@@ -95,7 +97,38 @@ export class IssuesRepository implements IssueReportRepositoryPort {
         { new: true },
       )
       .exec();
-    return doc ? toIssueRecord(doc) : null;
+    return doc ? toIssueEntity(doc) : null;
+  }
+
+  async updateByUser(id: string, input: UpdateIssueByUserInput): Promise<IssueReport | null> {
+    if (!isObjectIdHex(id) || !isObjectIdHex(input.userId)) return null;
+
+    const set: Record<string, unknown> = { status: 'in_progress' };
+    if (input.title !== undefined) set.title = input.title.trim();
+    if (input.description !== undefined) set.description = input.description.trim();
+
+    const update: Record<string, unknown> = { $set: set, $inc: { version: 1 } };
+
+    // Gỡ tệp đính kèm theo yêu cầu của người dùng.
+    const removeIds = (input.removeAttachmentIds ?? []).filter((aid) => isObjectIdHex(aid));
+    if (removeIds.length > 0) {
+      update.$pull = { attachments: { id: { $in: removeIds.map((aid) => new Types.ObjectId(aid)) } } };
+    }
+
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          user_id: new Types.ObjectId(input.userId),
+          status: 'needs_info',
+          version: input.expectedVersion,
+          deleted_at: null,
+        },
+        update,
+        { new: true },
+      )
+      .exec();
+    return doc ? toIssueEntity(doc) : null;
   }
 
   async findStatusById(id: string): Promise<IssueStatus | null> {
@@ -108,4 +141,3 @@ export class IssuesRepository implements IssueReportRepositoryPort {
     return (doc?.status as IssueStatus | undefined) ?? null;
   }
 }
-

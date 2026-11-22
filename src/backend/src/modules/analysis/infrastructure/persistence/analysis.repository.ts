@@ -11,7 +11,6 @@ import { IReportJob } from './report-job.schema';
 import { IAnalysisConfig } from './analysis-config.schema';
 import { MAX_FEW_SHOT_STORE } from '../../domain/rag-few-shot.util';
 import {
-  ANALYSIS_REPOSITORY_PORT,
   type AiJobRecord,
   type AnalysisConfigRecord,
   type AnalysisRepositoryPort,
@@ -33,7 +32,7 @@ import {
   toProjectSaveRecord,
   toReportJobRecord,
 } from './analysis.mapper';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
@@ -229,8 +228,16 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
 
   async skipStaleJobs(leaseMs = 600000): Promise<unknown> {
     const now = new Date();
+    // Job bị co là stale khi: lease đã hết hạn, HOẶC không có lease nhưng heartbeat quá cũ.
     return this.jobModel.updateMany(
-      { status: 'running', deleted_at: null, lease_expires_at: { $lt: now } },
+      {
+        status: 'running',
+        deleted_at: null,
+        $or: [
+          { lease_expires_at: { $lt: now } },
+          { lease_expires_at: null, heartbeat_at: { $lt: new Date(now.getTime() - leaseMs) } },
+        ],
+      },
       { $set: { status: 'skipped', finished_at: now, error: { code: 'AI_LEASE_EXPIRED', message: 'Worker giu lease khong duoc cap nhat (timeout)', retryable: true } } },
     ).exec();
   }

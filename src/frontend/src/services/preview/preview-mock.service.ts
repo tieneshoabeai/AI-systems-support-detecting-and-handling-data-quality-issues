@@ -1,9 +1,6 @@
 import { requireDefined } from '../../utils/required-value'
 import type { CoverHue, NewProjectInput, NewProjectMemberInput, NewReportInput, NewWorkspaceInput, NewWorkspaceMemberInput, NotificationPrefKey, PreviewMutationResult, PreviewReport, PreviewResourceKind, PreviewStoreState, ProfileEdit, Project, Workspace, WorkspaceEdit } from '../../types'
 import { people, seedNotifications, seedNotificationPrefs, seedProfile, seedProjects, seedReports, seedSessions, seedWorkspaces } from './preview-fixtures'
-import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
-import shopping from '../../mocks/shopping-trends/project.json'
-import { persistDemoState, restoreDemoState } from '../../mocks/shopping-trends/demo-storage'
 import { fixtureSets, isFixtureSetId, type PreviewFixtureSet, type PreviewFixtureSetId } from './preview-worst-case'
 
 // Mock store của batch preview 2D — chỗ duy nhất được phép "ghi" khi chưa có backend.
@@ -28,8 +25,8 @@ const clone = <T>(value: readonly T[]): T[] => value.map(item => ({ ...item }))
    Tham số chọn fixture chỉ có hiệu lực ở DEV. Management hiện vẫn dùng dữ liệu mẫu
    và ghi rõ trên UI; production mở các màn này qua guard của ứng dụng. */
 const demoBundle: PreviewFixtureSet = {
-  ...requireDefined(fixtureSets[0], 'default fixture set'), workspaces: isShoppingDemo() ? [shopping.workspace as Workspace, ...seedWorkspaces] : seedWorkspaces,
-  projects: isShoppingDemo() ? [shopping.project as Project, ...seedProjects] : seedProjects, notifications: seedNotifications,
+  ...requireDefined(fixtureSets[0], 'default fixture set'), workspaces: seedWorkspaces,
+  projects: seedProjects, notifications: seedNotifications,
 }
 const setData = (set: PreviewFixtureSetId): PreviewFixtureSet =>
   set === 'demo' ? demoBundle : fixtureSets.find(item => item.id === set) ?? demoBundle
@@ -51,7 +48,7 @@ const seedState = (): PreviewStoreState => {
     // nạp 'worst' nghĩa là hộp thư liệt kê những project không còn tồn tại ở bộ đó.
     notifications: clone(notifications ?? seedNotifications),
     reports: clone(seedReports),
-    profile: isShoppingDemo() ? { ...seedProfile, name: 'Demo Analyst', email: 'demo@shopping.test', role: 'Data Analyst', phone: '', bio: '', organization: 'Shopping Demo' } : { ...seedProfile },
+    profile: { ...seedProfile },
     sessions: clone(seedSessions),
     notificationPrefs: { ...seedNotificationPrefs },
     // Bộ 'empty' không có bản ghi nào: selection phải chịu được mảng rỗng, nếu
@@ -60,11 +57,10 @@ const seedState = (): PreviewStoreState => {
   }
 }
 
-let state: PreviewStoreState = isShoppingDemo() ? restoreDemoState(seedState()) : seedState()
+let state: PreviewStoreState = seedState()
 const listeners = new Set<() => void>()
 
 const setState = (next: PreviewStoreState): void => {
-  if (isShoppingDemo()) persistDemoState(next)
   state = next
   listeners.forEach(listener => listener())
 }

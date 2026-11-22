@@ -2,8 +2,9 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { StorageService } from './shared/storage/storage.service';
-import { Public } from './shared/decorators/public.decorator';
+import { StorageService } from './shared/infrastructure/storage/storage.service';
+import { Public } from './shared/interfaces/decorators/public.decorator';
+import type { ConnectionStates } from 'mongoose';
 
 @ApiTags('Health')
 @Controller()
@@ -17,7 +18,7 @@ export class AppController {
   @Get('health')
   @ApiOperation({ summary: 'Liveness: tiến trình còn sống, không kiểm tra dependency' })
   @ApiResponse({ status: 200, description: 'Trạng thái hoạt động chi tiết' })
-  async getHealth() {
+  async getHealth(): Promise<{ status: string; timestamp: string; services: { mongodb_atlas: { status: string; readyState: ConnectionStates; }; storage: { mode: string; bucket: string; }; }; }> {
     const mongoStatus = this.mongoConnection.readyState === 1 ? 'connected' : 'disconnected';
     const storageStatus = this.storageService.getCloudStatus();
 
@@ -42,7 +43,7 @@ export class AppController {
   @ApiOperation({ summary: 'Readiness v6: Mongo + storage sẵn sàng mới nhận traffic (ngoài /api/v1)' })
   @ApiResponse({ status: 200, description: 'Sẵn sàng' })
   @ApiResponse({ status: 503, description: 'Chưa sẵn sàng' })
-  async getReady() {
+  async getReady(): Promise<{ status: string; checks: { mongodb: { status: string; readyState: ConnectionStates; latencyMs: number; }; storage: { status: string; mode: string; }; }; uptimeSeconds: number; version: string; timestamp: string; }> {
     const started = Date.now();
     const mongoOk = this.mongoConnection.readyState === 1;
     const storage = this.storageService.getCloudStatus();

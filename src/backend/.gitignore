@@ -29,3 +29,6 @@ coverage/
 # Logs
 *.log
 
+
+# Codemod artifacts (Bước 5 — tách commands/queries)
+.handler-manifest.json

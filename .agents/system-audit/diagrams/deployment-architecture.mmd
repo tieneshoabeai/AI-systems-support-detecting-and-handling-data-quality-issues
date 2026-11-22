@@ -1,0 +1,7 @@
+flowchart LR
+  Source["FE TS/TSX/CSS/assets"] --> Typecheck["tsc -b"]
+  Typecheck --> Vite["vite build + React Compiler"]
+  Vite --> Dist["dist: HTML + JS/CSS/assets"]
+  Dist --> Host["Static hosting: cấu hình triển khai UNVERIFIED"]
+  Host --> Browser["Browser SPA"]
+  Browser --> API["BE API boundary"]

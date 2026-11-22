@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import type {
-  DatasetColumnIssueRecord,
-  DatasetColumnRecord,
-} from '../../domain/ports/dataset.repository.port';
+  DatasetColumn,
+  DatasetColumnIssue,
+} from '../../domain/entities/dataset.entity';
 
 export interface InferredSchema {
-  columns: DatasetColumnRecord[];
-  issues: DatasetColumnIssueRecord[];
+  columns: DatasetColumn[];
+  issues: DatasetColumnIssue[];
 }
 
 /**
@@ -19,12 +19,12 @@ export interface InferredSchema {
  */
 @Injectable()
 export class SchemaInferenceService {
-  inferSchema(headers: string[], sampleRows: Record<string, unknown>[]): DatasetColumnRecord[] {
+  inferSchema(headers: string[], sampleRows: Record<string, unknown>[]): DatasetColumn[] {
     return this.inferSchemaWithIssues(headers, sampleRows).columns;
   }
 
   inferSchemaWithIssues(headers: string[], sampleRows: Record<string, unknown>[]): InferredSchema {
-    const columns: DatasetColumnRecord[] = headers.map((header, i) => {
+    const columns: DatasetColumn[] = headers.map((header, i) => {
       const values = sampleRows
         .map((row) => row[header])
         .filter((val) => val !== undefined);
@@ -54,8 +54,8 @@ export class SchemaInferenceService {
   }
 
   /** Phat hien ten cot rong / chi whitespace / trung (so sanh chinh xac, case-sensitive). */
-  detectColumnIssues(headers: string[]): DatasetColumnIssueRecord[] {
-    const issues: DatasetColumnIssueRecord[] = [];
+  detectColumnIssues(headers: string[]): DatasetColumnIssue[] {
+    const issues: DatasetColumnIssue[] = [];
     const seen = new Map<string, number>();
     headers.forEach((h, i) => {
       const key = `c${i}`;
@@ -83,7 +83,7 @@ export class SchemaInferenceService {
     return false;
   }
 
-  private detectDataType(values: unknown[]): DatasetColumnRecord['dataType'] {
+  private detectDataType(values: unknown[]): DatasetColumn['dataType'] {
     if (values.length === 0) return 'string';
 
     let booleanCount = 0;

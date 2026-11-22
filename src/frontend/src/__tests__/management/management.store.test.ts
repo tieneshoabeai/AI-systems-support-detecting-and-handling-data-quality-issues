@@ -5,7 +5,7 @@ import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
 const account = { id: 'u1', name: 'Tai', email: 'tai@example.com', role: 'analyst', initials: 'TA' }
 const workspace = { id: 'w1', name: 'Workspace', description: '', ownerId: 'u1', members: [], storageUsedBytes: 0, version: 3, createdAt: '2026-11-15', updatedAt: '2026-11-15', lastAccessedAt: null }
 const project = { id: 'p1', name: 'Project', description: '', workspaceId: 'w1', createdBy: 'u1', members: [], status: 'not_started', hasDataset: false, version: 4, createdAt: '2026-11-15', updatedAt: '2026-11-15' }
-function harness(override?: (r: ApiRequestOptions) => unknown) {
+function harness(override?: (r: ApiRequestOptions) => unknown, progressiveProjects = false) {
   const request = vi.fn(async (r: ApiRequestOptions) => {
     const result = override?.(r)
     if (result !== undefined) return await Promise.resolve(result)
@@ -18,10 +18,60 @@ function harness(override?: (r: ApiRequestOptions) => unknown) {
     if (r.path === '/workspaces/w1/projects') return { items: [project], total: 1 }
     return {}
   })
-  const data = createManagementStore({ request } as ApiClient, account)
+  const data = createManagementStore({ request } as ApiClient, account, { progressiveProjects })
   return { ...data, request }
 }
 describe('manager API integration', () => {
+  it('publishes cards before supplementary requests, preserves a successful roster and retries only the failed dataset', async () => {
+    let allowDataset = false
+    const { store, loadCore, request } = harness(r => {
+      if (r.path === '/workspaces/w1/projects') return { items: [{ ...project, hasDataset: true }], total: 1 }
+      if (r.path === '/projects/p1/datasets') return allowDataset ? { dataset: null } : Promise.reject(new Error('Offline'))
+      return undefined
+    }, true)
+    await loadCore()
+    const card = () => store.getState().projects[0]
+    expect(card()).toMatchObject({ name: project.name, canManage: false, canDelete: false })
+    expect(card()?.dataset).toBeUndefined()
+    expect(request.mock.calls.map(([r]) => r.path)).toEqual(['/workspaces', '/projects', '/workspaces/w1/projects'])
+    const signal = new AbortController().signal
+    await Promise.all([
+      store.loadCardData!(['p1'], 'dataset', signal),
+      store.loadCardData!(['p1'], 'members', signal),
+    ])
+    expect(card()).toMatchObject({ canManage: true, supplementary: { dataset: 'error', members: 'success' } })
+    expect(card()?.dataset).toBeUndefined()
+    allowDataset = true
+    await store.loadCardData!(['p1'], 'dataset', signal, true)
+    expect(card()).toMatchObject({ dataset: null, supplementary: { dataset: 'success', members: 'success' } })
+    expect(request.mock.calls.filter(([r]) => r.path === '/projects/p1/members')).toHaveLength(1)
+    expect(request.mock.calls.filter(([r]) => r.path === '/workspaces/w1/members')).toHaveLength(0)
+  })
+
+  it('ignores late roster responses after cancelling a scope or deleting a card', async () => {
+    let deleted = false
+    const finish: Array<(value: unknown) => void> = []
+    const { store, loadCore, request } = harness(r => {
+      if (r.path === '/projects/p1' && r.method === 'DELETE') { deleted = true; return {} }
+      if (r.path === '/projects') return { items: deleted ? [] : [project], total: deleted ? 0 : 1 }
+      if (r.path === '/projects/p1/members') return new Promise(resolve => finish.push(resolve))
+      return undefined
+    }, true)
+    await loadCore()
+    const controller = new AbortController()
+    const old = store.loadCardData!(['p1'], 'members', controller.signal)
+    controller.abort()
+    const pending = store.loadCardData!(['p1'], 'members', new AbortController().signal)
+    finish[0]?.({ members: [{ userId: account.id, role: 'owner' }] })
+    await old
+    expect(store.getState().projects[0]?.canManage).toBe(false)
+    await store.remove('project', 'p1')
+    finish[1]?.({ members: [{ userId: account.id, role: 'owner' }] })
+    await pending
+    expect(store.getState().projects).toEqual([])
+    expect(request.mock.calls.filter(([r]) => r.path === '/projects/p1/members').map(([r]) => r.signal?.aborted)).toEqual([true, true])
+  })
+
   it('uses the global project cursor and keeps projects outside the workspace list', async () => {
     const { load, store, request } = harness(r => {
       if (r.path !== '/projects') return undefined

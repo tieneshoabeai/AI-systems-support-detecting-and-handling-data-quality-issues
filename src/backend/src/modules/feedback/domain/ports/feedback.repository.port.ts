@@ -1,26 +1,16 @@
 /**
  * FEEDBACK — Domain repository port (hexagonal chuẩn).
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `Feedback`
+ * (không phải record trần) → handler có thể gọi hành vi của entity
+ * (`updateByAuthor()`, `softDelete()`).
  */
+
+import type { Feedback } from '../entities/feedback.entity';
 
 export const FEEDBACK_REPOSITORY_PORT = Symbol('FeedbackRepositoryPort');
 
-export interface FeedbackRecord {
-  id: string;
-  analysisRunId: string;
-  projectId: string;
-  workspaceId: string;
-  findingId: string | null;
-  findingKey?: string | null;
-  authorId: string;
-  label: string;
-  reason?: string | null;
-  suggestedSeverity?: string | null;
-  aiConfidence?: number | null;
-  aiRationale?: string | null;
-  authorRoleAtTime?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type { Feedback, FeedbackProps } from '../entities/feedback.entity';
 
 export interface FeedbackListQuery {
   analysisRunId: string;
@@ -45,6 +35,8 @@ export interface CreateFeedbackRecord {
   aiConfidence?: number | null;
   aiRationale?: string | null;
   authorRoleAtTime?: string | null;
+  modelId?: string | null;
+  promptVersion?: string | null;
 }
 
 export interface FeedbackScope {
@@ -54,11 +46,11 @@ export interface FeedbackScope {
 }
 
 export interface FeedbackRepositoryPort {
-  create(doc: CreateFeedbackRecord & Record<string, unknown>): Promise<FeedbackRecord>;
-  listByScope(params: FeedbackListQuery): Promise<FeedbackRecord[]>;
-  listActiveByRun(analysisRunId: string): Promise<FeedbackRecord[]>;
-  findByIdActive(id: string): Promise<FeedbackRecord | null>;
-  updateById(id: string, update: Partial<CreateFeedbackRecord> & Record<string, unknown>): Promise<FeedbackRecord | null>;
+  create(doc: CreateFeedbackRecord & Record<string, unknown>): Promise<Feedback>;
+  listByScope(params: FeedbackListQuery): Promise<Feedback[]>;
+  listActiveByRun(analysisRunId: string): Promise<Feedback[]>;
+  findByIdActive(id: string): Promise<Feedback | null>;
+  updateById(id: string, update: Partial<CreateFeedbackRecord> & Record<string, unknown>): Promise<Feedback | null>;
   softDelete(id: string): Promise<boolean>;
   countByProject(projectId: string): Promise<number>;
   countDistinctAuthors(scope: FeedbackScope): Promise<number>;

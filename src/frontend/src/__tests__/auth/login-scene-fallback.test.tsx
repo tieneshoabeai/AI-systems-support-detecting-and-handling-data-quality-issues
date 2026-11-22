@@ -36,14 +36,14 @@ async function mount() {
   return { ...view, signIn: value.signIn }
 }
 
-it('reveals a usable login form at the scene deadline, not before it', async () => {
+it('waits for 3D until the deadline and can submit from the fallback', async () => {
   const view = await mount()
   expect(screen.queryByRole('form', { name: 'Đăng nhập' })).toBeNull()
-  await act(() => vi.advanceTimersByTime(9999))
+  await act(() => vi.advanceTimersByTime(9_999))
   expect(screen.queryByRole('form', { name: 'Đăng nhập' })).toBeNull()
   await act(() => vi.advanceTimersByTime(1))
   expect(screen.getByRole('form', { name: 'Đăng nhập' })).toBeDefined()
-  expect(screen.queryByLabelText('Test renderer')).toBeNull()
+  expect(document.querySelector('.auth-glass-login-stage')).toBeNull()
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'learner@example.test' } })
   fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'example-password' } })
   await act(() => {
@@ -51,6 +51,8 @@ it('reveals a usable login form at the scene deadline, not before it', async () 
     return Promise.resolve()
   })
   expect(view.signIn).toHaveBeenCalledWith({ email: 'learner@example.test', password: 'example-password' })
+  expect(screen.getByRole('form', { name: 'Đăng nhập' })).toBeDefined()
+  expect(screen.queryByLabelText('Test renderer')).toBeNull()
 })
 
 it('keeps a ready renderer mounted after the original deadline', async () => {
@@ -63,8 +65,11 @@ it('keeps a ready renderer mounted after the original deadline', async () => {
 
 it('reveals the form immediately when the renderer reports a failure', async () => {
   await mount()
+  fireEvent.click(screen.getByRole('button', { name: 'Renderer ready', hidden: true }))
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'learner@example.test' } })
   fireEvent.click(screen.getByRole('button', { name: 'Renderer failed', hidden: true }))
   expect(screen.getByRole('form', { name: 'Đăng nhập' })).toBeDefined()
+  expect(screen.getByLabelText<HTMLInputElement>('Email').value).toBe('learner@example.test')
   expect(screen.queryByLabelText('Test renderer')).toBeNull()
 })
 

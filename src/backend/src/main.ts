@@ -4,14 +4,14 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
-import { useRedisAdapterIfConfigured } from './shared/adapters/redis-io.adapter';
-import { RequestIdMiddleware } from './shared/middleware/request-id.middleware';
-import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
-import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
+import { AllExceptionsFilter } from './shared/interfaces/filters/all-exceptions.filter';
+import { useRedisAdapterIfConfigured } from './shared/infrastructure/adapters/redis-io.adapter';
+import { TransformInterceptor } from './shared/interfaces/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './shared/interfaces/interceptors/logging.interceptor';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -44,6 +44,10 @@ async function bootstrap(): Promise<void> {
     AppModule,
     httpsOptions ? { httpsOptions } : {}
   );
+  // Tạm tắt ETag tự động của Express để API không trả 304 dựa trên ETag.
+  // Bỏ dòng này để dùng lại cấu hình ETag mặc định.
+  app.getHttpAdapter().getInstance().set('etag', false);
+
   const realtimeAdapter = await useRedisAdapterIfConfigured(app);
   if (realtimeAdapter === 'memory') app.useWebSocketAdapter(new IoAdapter(app));
   const config = app.get(ConfigService);
@@ -57,7 +61,10 @@ async function bootstrap(): Promise<void> {
 
   // 1. Trust Proxy cho Cloudflare (Nhận diện chính xác X-Forwarded-Proto: https và CF-Connecting-IP)
   if (cloudflareProxyTrust) {
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+    const httpInstance = app.getHttpAdapter().getInstance() as {
+      set?: (key: string, value: unknown) => void;
+    };
+    httpInstance.set?.('trust proxy', 1);
   }
 
   // 2. Security Headers (Helmet với HSTS và Content Security Policy)
@@ -72,7 +79,11 @@ async function bootstrap(): Promise<void> {
     })
   );
 
-  // 3. CORS (Hỗ trợ truy cập từ frontend local, domain chỉ định, và domain *.trycloudflare.com)
+  // 3. Cookie Parser — BẮT BUỘC cho Google OAuth (đọc cookie `google_oauth_state`).
+  //    Express 5 có `res.cookie()` native nhưng `req.cookies` chỉ có khi đăng ký middleware này.
+  app.use(cookieParser());
+
+  // 4. CORS (Hỗ trợ truy cập từ frontend local, domain chỉ định, và domain *.trycloudflare.com)
   app.enableCors({
     origin: (requestOrigin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!requestOrigin || corsOrigin === '*' || process.env.NODE_ENV === 'development') {
@@ -92,7 +103,7 @@ async function bootstrap(): Promise<void> {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'CF-Connecting-IP', 'CF-Ray'],
   });
 
-  // 4. Global Prefix (/api/v1) - Loại trừ endpoint health check phục vụ monitoring
+  // 5. Global Prefix (/api/v1) - Loại trừ endpoint health check phục vụ monitoring
   app.setGlobalPrefix(apiPrefix, {
     exclude: [
       { path: 'health', method: RequestMethod.GET },
@@ -100,11 +111,11 @@ async function bootstrap(): Promise<void> {
     ],
   });
 
-  // 5. Global Exception Filter & Response Transform Interceptor
+  // 6. Global Exception Filter & Response Transform Interceptor
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalInterceptors(new TransformInterceptor(), new LoggingInterceptor());
 
-  // 6. Swagger OpenAPI Documentation
+  // 7. Swagger OpenAPI Documentation
   const swaggerBuilder = new DocumentBuilder()
     .setTitle('AI-Driven Data Quality Management Platform API')
     .setDescription(
@@ -146,7 +157,7 @@ async function bootstrap(): Promise<void> {
     customSiteTitle: 'Data Quality API Docs',
   });
 
-  // 7. Khởi động Lắng nghe
+  // 8. Khởi động Lắng nghe
   let actualPort = localListenPort;
   try {
     await app.listen(actualPort);
@@ -168,7 +179,7 @@ async function bootstrap(): Promise<void> {
   logger.log(`✓ Để mở Cổng 443 ra Internet qua Cloudflare Tunnel: chạy lệnh 'pnpm run tunnel:start'`);
 }
 
-bootstrap().catch((err: unknown) => {
+bootstrap().catch((err: unknown) : void => {
   const message = err instanceof Error ? err.message : String(err);
   process.stderr.write(`Application bootstrap failed: ${message}\n`);
   process.exitCode = 1;

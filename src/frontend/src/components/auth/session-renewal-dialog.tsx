@@ -37,7 +37,7 @@ export const SessionRenewalDialog = () => {
   }
   return <div className="dialog-backdrop" data-testid="renewal-backdrop">
     <section ref={dialog} className="dialog-panel" role="dialog" aria-modal="true"
-      aria-labelledby="renewal-title" aria-describedby="renewal-description" tabIndex={-1}
+      aria-labelledby="renewal-title" tabIndex={-1}
       aria-busy={pending} onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (!pending) decide(false) }
         if (event.key !== 'Tab') return
@@ -48,10 +48,7 @@ export const SessionRenewalDialog = () => {
         if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); requireDefined(last, 'session-renewal-dialog.tsx:48').focus() }
         else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { event.preventDefault(); first.focus() }
       }}>
-      <span className="eyebrow">Phiên làm việc</span>
-      <h2 id="renewal-title">Bạn muốn tiếp tục?</h2>
-      <p id="renewal-description">Phiên đăng nhập đã hết hạn. Tiếp tục để gia hạn phiên, hoặc Hủy để về đăng nhập.</p>
-      <p className="dialog-status" role="status">{pending ? 'Đang gia hạn phiên…' : 'Các thao tác đang được tạm dừng.'}</p>
+      <h2 id="renewal-title">PHIÊN LÀM VIỆC ĐÃ HẾT HẠN, BẠN CÓ MUỐN TIẾP TỤC KHÔNG</h2>
       <div className="dialog-actions">
         <button ref={cancel} className="button-secondary" disabled={pending} onClick={() => decide(false)}>Hủy</button>
         <button className="button-primary" disabled={pending} onClick={() => decide(true)}>{pending ? 'Đang gia hạn…' : 'Tiếp tục phiên'}</button>

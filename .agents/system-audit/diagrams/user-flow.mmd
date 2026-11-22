@@ -1,0 +1,19 @@
+flowchart TD
+  Entry["Mở ứng dụng"] --> Session["Restore / kiểm tra phiên FE"]
+  Session -->|"anonymous"| Login["Login form"]
+  Login -->|"POST login + map response"| Auth["authenticated"]
+  Session -->|"phiên hợp lệ"| Auth
+  Session -->|"local-limited"| Limited["Management yêu cầu phiên online"]
+  Auth --> Load["ManagementDataProvider load"]
+  Load -->|"lỗi"| Retry["Error + Thử lại"]
+  Retry --> Load
+  Load -->|"thành công"| Frame["Management / Processing"]
+  Frame --> Wizard["Wizard: thông tin, CSV, members, xác nhận"]
+  Wizard --> Create["POST project"]
+  Create --> Upload["POST multipart CSV"]
+  Upload --> Members["POST members + reload"]
+  Members --> Project["Project workspace"]
+  Frame --> Personal["Notifications / Profile / Issues API"]
+  Project --> DemoCheck{"Shopping demo DEV?"}
+  DemoCheck -->|"có"| Demo["Fixture + timer + local review"]
+  DemoCheck -->|"không"| Boundary["Online analysis caller chưa tìm thấy"]

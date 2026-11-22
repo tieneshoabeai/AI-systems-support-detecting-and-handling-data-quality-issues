@@ -8,6 +8,9 @@ import { SRGBColorSpace, Texture } from 'three'
 import pageBackground from '../../../assets/background.svg'
 import { createAuthBackdropMaterial } from '../../../graphics/auth-glass/auth-glass.materials'
 
+// This texture serves the glass effect. The page background uses the full asset.
+const maxBackdropTextureEdge = 768
+
 export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTMLElement | null> }) {
   const canvas = useThree(state => state.gl.domElement)
   const invalidate = useThree(state => state.invalidate)
@@ -19,7 +22,7 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
     const page = pageElement?.current
     if (!page) return
     const image = new Image()
-    const texture = new Texture(image)
+    const texture = new Texture<HTMLImageElement | HTMLCanvasElement>(image)
     texture.colorSpace = SRGBColorSpace
     const uniforms = material.uniforms
 
@@ -45,6 +48,15 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
     }
 
     function showBackdrop() {
+      const scale = Math.min(1, maxBackdropTextureEdge / Math.max(image.naturalWidth, image.naturalHeight))
+      const raster = document.createElement('canvas')
+      raster.width = Math.max(1, Math.round(image.naturalWidth * scale))
+      raster.height = Math.max(1, Math.round(image.naturalHeight * scale))
+      const context = raster.getContext('2d')
+      if (context) {
+        context.drawImage(image, 0, 0, raster.width, raster.height)
+        texture.image = raster
+      }
       texture.needsUpdate = true
       requireDefined(uniforms['tPageBackdrop'], 'auth-glass.backdrop.tsx:47').value = texture
       requireDefined(uniforms['uHasPageBackdrop'], 'auth-glass.backdrop.tsx:48').value = true

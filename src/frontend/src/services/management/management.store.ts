@@ -75,7 +75,9 @@ const displayDate = (value: string): string => {
 const unsupported = (): Promise<PreviewMutationResult> => Promise.reject(new Error('Chức năng này chưa được kết nối với máy chủ.'))
 const saved = (message: string): PreviewMutationResult => ({ message, persisted: true, undo: () => { throw new Error('Thao tác đã được lưu trên máy chủ.') } })
 
-export function createManagementStore(api: ApiClient, account: Person, options: { readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal; recent?: boolean } = {}) {
+export function createManagementStore(api: ApiClient, account: Person, options: {
+  readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal; recent?: boolean; progressiveProjects?: boolean
+} = {}) {
   let state: PreviewStoreState = {
     source: 'api', workspaces: [], projects: [], notifications: [], reports: [], sessions: [],
     profile: { name: account.name, email: account.email ?? '', role: account.role, organization: '', phone: '', bio: '' },
@@ -91,6 +93,8 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   let revision = 0
   let disposed = false
   let workspaceLoad: AbortController | undefined
+  let cardSources = new Map<string, { project: ProjectDto; workspace?: WorkspaceDto }>()
+  let cardRevision = new AbortController()
   const lifecycle = new AbortController()
   const ensureActive = () => {
     if (disposed || options.signal?.aborted) throw new ApiError({ kind: 'cancelled', message: 'Phiên dữ liệu đã kết thúc. Thao tác cũ không được tiếp tục.' })
@@ -134,7 +138,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     initials: memberName(m).slice(0, 2).toUpperCase(),
     ...(m.joinedAt === undefined ? {} : { joinedAt: m.joinedAt }), email: m.email ?? people.get(m.userId)?.email ?? '', role: label(m.role) })
   const email = (p: Person) => { if (!p.email) throw new Error('Máy chủ chưa cung cấp email thành viên này. Vui lòng tải lại danh sách.'); return p.email }
-  const projectModel = (p: ProjectDto, w: WorkspaceDto | undefined, members: Member[], dataset: DatasetSummary | null): Project => {
+  const projectModel = (p: ProjectDto, w: WorkspaceDto | undefined, members: Member[], dataset: Project['dataset']): Project => {
     const roster = members.map(person)
     const ownsWorkspace = w?.ownerId === account.id
     const canManage = ownsWorkspace || roster.some(m => m.id === account.id && m.role === 'Owner')
@@ -248,12 +252,122 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     }
     return { workspace: w, members, projects }
   }
+  async function loadProjectCards(current: number, signal: AbortSignal, rows: WorkspaceDto[], index: ProjectDto[] | null) {
+    const rowsById = new Map(rows.map(workspace => {
+      validateWorkspace(workspace)
+      return [workspace.id, workspace] as const
+    }))
+    const fallback = new Map<string, ProjectDto[]>()
+    if (index === null) {
+      const queue = rows.values()
+      await Promise.all(Array.from({ length: Math.min(WORKSPACE_CONCURRENCY, rows.length) }, async () => {
+        for (const workspace of queue) {
+          fallback.set(workspace.id, await pages<ProjectDto>(`/workspaces/${workspace.id}/projects`, signal))
+        }
+      }))
+    }
+    if (signal.aborted || disposed || current !== revision) return
+    const projectRows = index ?? rows.flatMap(workspace => fallback.get(workspace.id) ?? [])
+    const counts = new Map<string, { projects: number; datasets: number }>()
+    const sources = new Map<string, { project: ProjectDto; workspace?: WorkspaceDto }>()
+    const nextVersions = new Map<string, number>()
+    const workspaces = rows.map((workspace): Workspace => {
+      const members = memberRows({ members: workspace.members }).map(person)
+      members.forEach(member => people.set(member.id, member))
+      nextVersions.set(workspace.id, workspace.version)
+      return {
+        id: workspace.id, name: workspace.name, description: workspace.description,
+        canManage: workspace.ownerId === account.id, currentUserId: account.id, status: 'active',
+        projects: 0, datasets: 0, members: members.length, cover: 'blue',
+        storageGb: workspace.storageUsedBytes / 1073741824,
+        favorite: state.workspaces.find(item => item.id === workspace.id)?.favorite ?? false,
+        createdAt: displayDate(workspace.createdAt), updatedAt: displayDate(workspace.updatedAt),
+        ...(workspace.lastAccessedAt === null ? {} : { accessedAt: displayDate(workspace.lastAccessedAt) }),
+        owner: members.find(member => member.id === workspace.ownerId) ?? person({ userId: workspace.ownerId, role: 'owner' }),
+        memberPreview: members, memberRoles: Object.fromEntries(members.map(member => [member.id, member.role])),
+      }
+    })
+    const projects = projectRows.map((project): Project => {
+      validateProject(project)
+      const workspace = rowsById.get(project.workspaceId)
+      const count = counts.get(project.workspaceId) ?? { projects: 0, datasets: 0 }
+      count.projects++
+      if (project.hasDataset) count.datasets++
+      counts.set(project.workspaceId, count)
+      sources.set(project.id, { project, ...(workspace ? { workspace } : {}) })
+      nextVersions.set(project.id, project.version)
+      return {
+        ...projectModel(project, workspace, memberRows({ members: project.members }), project.hasDataset ? undefined : null),
+        canManage: false, canDelete: false, canUpload: false, canUpdateDatasetMetadata: false, canComplete: false,
+        supplementary: { revision: current, hasDataset: project.hasDataset, dataset: project.hasDataset ? 'idle' : 'success', members: 'idle' },
+      }
+    })
+    cardRevision.abort()
+    cardRevision = new AbortController()
+    cardSources = sources
+    versions.clear()
+    nextVersions.forEach((version, id) => versions.set(id, version))
+    publish({
+      ...state,
+      workspaces: workspaces.map(workspace => ({ ...workspace, ...counts.get(workspace.id) })),
+      projects,
+      selection: {
+        workspaceId: rowsById.has(state.selection.workspaceId) ? state.selection.workspaceId : '',
+        projectId: sources.has(state.selection.projectId) ? state.selection.projectId : '',
+      },
+    })
+    return current
+  }
+
+  async function loadCardData(ids: readonly string[], field: 'dataset' | 'members', signal: AbortSignal, retry = false) {
+    const scope = AbortSignal.any([signal, cardRevision.signal, lifecycle.signal])
+    const queue = ids.values()
+    const worker = async () => {
+      for (const id of queue) {
+        if (scope.aborted || disposed) return
+        const source = cardSources.get(id)
+        const row = state.projects.find(project => project.id === id)
+        if (!source || !row?.supplementary || row.supplementary[field] !== (retry ? 'error' : 'idle')) continue
+        const update = (status: NonNullable<Project['supplementary']>['dataset'], patch: Partial<Project> = {}) => {
+          if (cardSources.get(id) !== source || disposed || !state.projects.some(project => project.id === id)) return
+          publish({ ...state, projects: state.projects.map(project => project.id === id && project.supplementary
+            ? { ...project, ...patch, supplementary: { ...project.supplementary, [field]: status } } : project) })
+        }
+        update('loading')
+        // Clear the pending state synchronously when leaving the visible page or workspace.
+        // The old result is ignored even if the transport resolves after cancellation.
+        const reset = () => update('idle')
+        scope.addEventListener('abort', reset, { once: true })
+        try {
+          if (field === 'dataset') {
+            const dataset = await loadDataset(source.project, scope)
+            if (!scope.aborted) update('success', { dataset })
+          } else {
+            const members = await loadMembers(`/projects/${encodeURIComponent(id)}/members`, scope)
+            const model = projectModel(source.project, source.workspace, members, undefined)
+            if (!scope.aborted) update('success', {
+              members: model.members, owner: model.owner, canManage: model.canManage === true,
+              canDelete: model.canDelete === true, canUpload: model.canUpload === true,
+              canUpdateDatasetMetadata: model.canUpdateDatasetMetadata === true, canComplete: model.canComplete === true,
+            })
+          }
+        } catch {
+          if (!scope.aborted) update('error')
+        } finally {
+          scope.removeEventListener('abort', reset)
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(WORKSPACE_CONCURRENCY, ids.length) }, worker))
+  }
+
   async function loadWorkspaces(current: number, signal: AbortSignal) {
     const rows = await pages<WorkspaceDto>('/workspaces', signal)
     const projectIndex = await pages<ProjectDto>('/projects', signal).catch((error: unknown) => {
       if (normalizeApiError(error).status === 404) return null
       throw error
     })
+    if (options.progressiveProjects) return loadProjectCards(current, signal, rows, projectIndex)
     const projectsByWorkspace = new Map<string, ProjectDto[]>()
     for (const project of projectIndex ?? []) {
       validateProject(project)
@@ -314,6 +428,16 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   async function mutate(path: string, method: NonNullable<ApiRequestOptions['method']>, data?: unknown) {
     await request<void>(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+    if (options.progressiveProjects) {
+      cardRevision.abort()
+      const deletedId = method === 'DELETE' ? path.match(/^\/projects\/([^/]+)$/)?.[1] : undefined
+      if (deletedId) {
+        cardSources.delete(deletedId)
+        versions.delete(deletedId)
+        publish({ ...state, projects: state.projects.filter(project => project.id !== deletedId),
+          selection: state.selection.projectId === deletedId ? { ...state.selection, projectId: '' } : state.selection })
+      }
+    }
     try { await load() } catch { throw new Error('Đã lưu trên máy chủ nhưng chưa tải lại được danh sách. Hãy tải lại trang, không gửi lại thao tác.') }
     return saved('Đã lưu thay đổi trên máy chủ.')
   }
@@ -422,6 +546,11 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   const analysisService = createAnalysisService(sessionApi)
   const store: ManagementStore = {
+    ...(options.progressiveProjects ? {
+      loadCardData,
+      loadProjectWizardRoster: async (workspaceId: string, signal: AbortSignal) =>
+        (await loadMembers(`/workspaces/${encodeURIComponent(workspaceId)}/members`, signal)).map(person),
+    } : {}),
     refreshProject: async (id, signal) => {
       const current = revision
       const { project } = await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(id)}`, { signal })
@@ -436,6 +565,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       if (disposed || revision !== current) return
       if (workspace.id !== project.workspaceId) throw new ApiError({ kind: 'invalid-response', message: 'Workspace không khớp project.' })
       versions.set(id, project.version)
+      cardSources.delete(id)
       const item = projectModel(project, workspace, project.members, dataset)
       publish({ ...state, projects: state.projects.some(row => row.id === id)
         ? state.projects.map(row => row.id === id ? item : row) : [...state.projects, item] })
@@ -640,6 +770,6 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       const loadedRevision = await load()
       if (loadedRevision !== undefined && loadedRevision === revision && !disposed) await loadPersonal(loadedRevision)
     },
-    dispose: () => { disposed = true; revision++; lifecycle.abort(); workspaceLoad?.abort(); listeners.clear() },
+    dispose: () => { disposed = true; revision++; lifecycle.abort(); workspaceLoad?.abort(); cardRevision.abort(); listeners.clear() },
   }
 }

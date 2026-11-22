@@ -12,7 +12,6 @@ const ManagementPage = lazy(() => import('../pages/private/management-page').the
 const ProcessingPage = lazy(() => import('../pages/private/processing-page').then(module => ({ default: module.ProcessingPage })))
 const ApplicationFrame = lazy(() => import('../../views/application/application-frame').then(module => ({ default: module.ApplicationFrame })))
 const ProjectWorkspacePage = lazy(() => import('../pages/private/project-workspace-page').then(module => ({ default: module.ProjectWorkspacePage })))
-const ShoppingRecordsPage = lazy(() => import('../pages/private/shopping-records-page').then(module => ({ default: module.ShoppingRecordsPage })))
 
 function ProcessingProject() {
   const { projectId } = useParams()
@@ -52,7 +51,6 @@ export function WorkbenchRoutes() {
           {['/processing', '/processing/new']
             .map(path => <Route key={path} path={path} element={<ProcessingPage />} />)}
           <Route path="/processing/projects/:projectId" element={<ProcessingProject />} />
-          <Route path="/processing/projects/:projectId/records" element={<ShoppingRecordsPage />} />
           {['/processing/projects/:projectId/upload',
             '/processing/projects/:projectId/analysis', '/processing/projects/:projectId/review',
             '/processing/projects/:projectId/results']

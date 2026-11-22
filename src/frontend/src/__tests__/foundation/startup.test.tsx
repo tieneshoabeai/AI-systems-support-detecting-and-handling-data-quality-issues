@@ -33,11 +33,11 @@ it('keeps login visible with a clear error and disabled submission when configur
   expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Đăng nhập' })).disabled).toBe(true)
 })
 
-it('keeps the desktop form hidden until the 3D stage is ready and restores it if the scene fails', async () => {
+it('waits for the 3D panel on desktop and keeps the form if the scene fails', async () => {
   vi.stubGlobal('WebGL2RenderingContext', class {})
   renderLogin()
 
-  expect(screen.getByRole('status').textContent).toContain('Đang tải giao diện 3D')
+  expect(screen.getByText('Đang tải giao diện 3D…').getAttribute('role')).toBe('status')
   expect(screen.queryByRole('form', { name: 'Đăng nhập' })).toBeNull()
   await waitFor(() => expect(authGlassStage).toHaveBeenCalled())
   const [{ onSceneStatus }] = authGlassStage.mock.lastCall!
@@ -66,6 +66,7 @@ it('falls back to 2D when the 3D stage takes too long', async () => {
   renderLogin()
 
   expect(screen.queryByRole('form', { name: 'Đăng nhập' })).toBeNull()
+  expect(document.querySelector('.auth-glass-login-stage')).not.toBeNull()
   await act(() => vi.advanceTimersByTime(10_000))
   expect(screen.getByRole('form', { name: 'Đăng nhập' })).toBeTruthy()
   expect(document.querySelector('.auth-glass-login-stage')).toBeNull()

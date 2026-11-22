@@ -1,6 +1,5 @@
 import { requireDefined } from '../../utils/required-value'
 import type { PreviewCurrentUser as CurrentUser, DeviceSession, NotificationPrefs, Person, PreviewNotification, PreviewReport, ProfileInfo, Project, StorageUsage, Workspace } from '../../types'
-import { isShoppingDemo } from '../../mocks/shopping-trends/demo-mode'
 
 // Nguồn dữ liệu mẫu của batch preview 2D. Đặt ở tầng service để mock store
 // (preview-mock.service.ts) và các view cùng đọc một bản, đúng luồng
@@ -19,8 +18,7 @@ export const people: Record<'anh' | 'huy' | 'ha' | 'dung' | 'khoi' | 'vy', Perso
 
 const team = [people['anh'], people['huy'], people['ha'], people['dung'], people['khoi'], people['vy']]
 
-export const currentUser: CurrentUser = isShoppingDemo() ? { name: 'Demo Analyst', role: 'Data Analyst', initials: 'DA' }
-  : { name: people['anh'].name, role: people['anh'].role, initials: people['anh'].initials }
+export const currentUser: CurrentUser = { name: people['anh'].name, role: people['anh'].role, initials: people['anh'].initials }
 
 export const storageUsage: StorageUsage = { usedLabel: '1.24 TB', totalLabel: '3 TB', percent: 42 }
 

@@ -10,7 +10,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { createHolographicCoreProductModel, type HolographicCoreProductModel } from '../../../graphics/holographic-core/holographic-core.model'
+import { buildHolographicCoreProductModel, type HolographicCoreProductModel } from '../../../graphics/holographic-core/holographic-core.model'
 import { HolographicEnvironment } from './holographic-core.environment'
 import { HolographicDecor } from './holographic-core.decor'
 import { createNeonCubeCluster } from '../../../graphics/neon-cube'
@@ -41,6 +41,7 @@ type HolographicCoreCanvasProps = CubeFocusProps & {
   detached: boolean
   selectedId: string | null
   onSelectPart(this: void, part: HolographicPartInfo | null): void
+  onReadyChange?: (ready: boolean) => void
 }
 // @react-three/fiber 9.8.2 still builds a THREE.Clock internally; three r183+ warns about it.
 // Filter only that deprecation notice and pass every other three.js message through.
@@ -61,9 +62,9 @@ type CameraEditorProps = {
   onCameraSnapshot(this: void, value: string): void
 }
 
-function CameraControls({ reducedMotion, cubeFocus, productModel, cameraEditing, onCameraSnapshot, onFocusComplete }: CameraEditorProps & {
+function CameraControls({ reducedMotion, cubeFocus, setConnection, cameraEditing, onCameraSnapshot, onFocusComplete }: CameraEditorProps & {
   onFocusComplete?: (theme: NeonCubeThemeId) => void
-  reducedMotion: boolean; cubeFocus: CubeFocus | null; productModel: HolographicCoreProductModel
+  reducedMotion: boolean; cubeFocus: CubeFocus | null; setConnection: HolographicCoreProductModel['setConnection']
 }) {
   const { camera, gl, invalidate } = useThree()
   const controlsRef = useRef<OrbitControls | null>(null)
@@ -84,7 +85,7 @@ function CameraControls({ reducedMotion, cubeFocus, productModel, cameraEditing,
     const update = () => invalidate()
     controls.addEventListener('change', update)
     controls.update()
-    if (camera instanceof PerspectiveCamera) sequence.current = createCubeConnectionFocus(camera, controls, productModel.setConnection, theme => completion.current?.(theme))
+    if (camera instanceof PerspectiveCamera) sequence.current = createCubeConnectionFocus(camera, controls, setConnection, theme => completion.current?.(theme))
     return () => {
       sequence.current?.dispose()
       sequence.current = null
@@ -92,7 +93,7 @@ function CameraControls({ reducedMotion, cubeFocus, productModel, cameraEditing,
       controls.dispose()
       controlsRef.current = null
     }
-  }, [camera, gl, invalidate, productModel])
+  }, [camera, gl, invalidate, setConnection])
   useEffect(() => {
     const controls = controlsRef.current
     if (!controls) return
@@ -113,17 +114,17 @@ function CameraControls({ reducedMotion, cubeFocus, productModel, cameraEditing,
       controls.maxPolarAngle = Math.PI
       controls.enablePan = true
       // Keep the selected connection visible while the user chooses its camera.
-      productModel.setConnection(cubeFocus?.theme ?? null, 1)
+      setConnection(cubeFocus?.theme ?? null, 1)
     } else {
       controls.minDistance = 4.4
       controls.maxDistance = 25
       controls.maxPolarAngle = Math.PI / 2.02
       if (camera instanceof PerspectiveCamera) {
-        sequence.current ??= createCubeConnectionFocus(camera, controls, productModel.setConnection, theme => completion.current?.(theme))
+        sequence.current ??= createCubeConnectionFocus(camera, controls, setConnection, theme => completion.current?.(theme))
         sequence.current.select(cubeFocus?.theme ?? null, reducedMotion)
       }
     }
-  }, [camera, cameraEditing, cubeFocus, gl, productModel, reducedMotion])
+  }, [camera, cameraEditing, cubeFocus, gl, reducedMotion, setConnection])
   useEffect(() => {
     if (!cameraEditing) return
     const canvas = gl.domElement
@@ -446,16 +447,76 @@ function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { ena
 type HolographicSceneProps = CoreStructureProps & CubeFocusProps & CameraEditorProps & {
   colorMode: 'light' | 'dark'
   onContextLost(this: void): void
+  onReadyChange?: (ready: boolean) => void
 }
 
-function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSelectPart, onHeroHover, onContextLost, cubeFocus, onFocusCube, onFocusComplete, cameraEditing, onCameraSnapshot, glassPanel }: HolographicSceneProps) {
+function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSelectPart, onHeroHover, onContextLost, cubeFocus, onFocusCube, onFocusComplete, cameraEditing, onCameraSnapshot, glassPanel, onReadyChange }: HolographicSceneProps) {
   const light = colorMode === 'light'
   const gl = useThree(state => state.gl)
+  const invalidate = useThree(state => state.invalidate)
   const lightFog = useMemo(() => light ? lightSceneColor(LIGHT_ENVIRONMENT.horizon, gl) : null, [light, gl])
   const [glassFrame] = useState(createGlassFrame)
-  const productModel = useMemo(() => createHolographicCoreProductModel(), [])
-  useEffect(() => light ? setLightConnections(productModel.model) : undefined, [light, productModel])
-  useEffect(() => () => productModel.dispose(), [productModel])
+  const [partial, setPartial] = useState<{ model: HolographicCoreProductModel['model']; phase: string }>()
+  const [productModel, setProductModel] = useState<HolographicCoreProductModel>()
+  const [failed, setFailed] = useState(false)
+  const modelRef = useRef<HolographicCoreProductModel | null>(null)
+  const connection = useRef<{ theme: NeonCubeThemeId | null; progress: number }>({ theme: null, progress: 0 })
+  const setConnection = useCallback<HolographicCoreProductModel['setConnection']>((theme, progress) => {
+    connection.current = { theme, progress }
+    modelRef.current?.setConnection(theme, progress)
+  }, [])
+  useEffect(() => {
+    let release: (() => void) | undefined
+    let frame = 0
+    let timer = 0
+    const build = buildHolographicCoreProductModel(dispose => { release = dispose })
+    const schedule = () => {
+      frame = requestAnimationFrame(() => {
+        // A new task after rAF gives the renderer a chance to present the previous batch.
+        frame = requestAnimationFrame(() => { timer = window.setTimeout(advance, 0) })
+      })
+    }
+    const advance = () => {
+      try {
+        const next = build.next()
+        if (next.done) {
+          modelRef.current = next.value
+          next.value.setConnection(connection.current.theme, connection.current.progress)
+          setProductModel(next.value)
+        } else {
+          setPartial(next.value)
+          schedule()
+        }
+        invalidate()
+      } catch {
+        release?.()
+        setFailed(true)
+      }
+    }
+    schedule()
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+      modelRef.current = null
+      release?.()
+    }
+  }, [invalidate])
+  useEffect(() => light && productModel ? setLightConnections(productModel.model) : undefined, [light, productModel])
+  const phase = productModel ? 'ready' : partial?.phase ?? 'loading'
+  useLayoutEffect(() => {
+    const canvas = gl.domElement
+    let firstFrame = 0
+    let secondFrame = 0
+    // Publish the milestone after a browser frame with this scene state.
+    firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        canvas.dataset['projectScenePhase'] = phase
+        if (phase === 'ready') onReadyChange?.(true)
+      })
+    })
+    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }
+  }, [gl, onReadyChange, phase])
+  if (failed) throw new Error('Không thể dựng mô hình Project 3D.')
   return <>
     <fogExp2 attach="fog" args={[lightFog ?? '#040c22', light ? LIGHT_ENVIRONMENT.fogDensity : 0.0095]} />
     <ProjectCanvasViewport />
@@ -465,14 +526,16 @@ function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSe
     <pointLight color="#9a55ff" intensity={10} distance={8} position={[0, 1.1, -3]} />
     <pointLight color="#3f7dff" intensity={12} distance={10} position={[-5, 4.5, -5]} />
     <HolographicEnvironment reducedMotion={reducedMotion} colorMode={colorMode} />
-    <HolographicDecor reducedMotion={reducedMotion} />
-    <NeonCubeNodes {...(!detached && onFocusCube ? { onFocus: onFocusCube } : {})} />
-    <CoreStructure productModel={productModel} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} onHeroHover={onHeroHover} />
-    <CameraControls productModel={productModel} reducedMotion={reducedMotion} cubeFocus={detached ? null : cubeFocus}
+    {productModel && <HolographicDecor reducedMotion={reducedMotion} />}
+    {partial && partial.phase !== 'core' && <NeonCubeNodes {...(!detached && onFocusCube ? { onFocus: onFocusCube } : {})} />}
+    {productModel
+      ? <CoreStructure productModel={productModel} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} onHeroHover={onHeroHover} />
+      : partial && <primitive object={partial.model} />}
+    <CameraControls setConnection={setConnection} reducedMotion={reducedMotion} cubeFocus={detached ? null : cubeFocus}
       {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
       cameraEditing={cameraEditing} onCameraSnapshot={onCameraSnapshot} />
-    {!detached && <CubeLabels frame={glassFrame} onFocus={onFocusCube} colorMode={colorMode} />}
-    <HolographicBloom enabled={!reducedMotion} frame={glassFrame} detached={detached} light={light} {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })} />
+    {productModel && !detached && <CubeLabels frame={glassFrame} onFocus={onFocusCube} colorMode={colorMode} />}
+    {productModel && <HolographicBloom enabled={!reducedMotion} frame={glassFrame} detached={detached} light={light} {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })} />}
   </>
 }
 
@@ -486,24 +549,34 @@ function isVisibleInScene(object: Object3D) {
   return true
 }
 
-export function HolographicCoreCanvas({ colorMode = 'dark', reducedMotion, detached, selectedId, onSelectPart, cubeFocus, onFocusCube, onFocusComplete, cameraToolbar, glassPanel }: HolographicCoreCanvasProps) {
+export function HolographicCoreCanvas({ colorMode = 'dark', reducedMotion, detached, selectedId, onSelectPart, cubeFocus, onFocusCube, onFocusComplete, cameraToolbar, glassPanel, onReadyChange }: HolographicCoreCanvasProps) {
   const [failed, setFailed] = useState(false)
+  const [sceneReady, setSceneReady] = useState(false)
   const [hover, setHover] = useState<HeroHover | null>(null)
   const [cameraEditing, setCameraEditing] = useState(false)
   const [cameraSnapshot, setCameraSnapshot] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
+  const handleReadyChange = useCallback((ready: boolean) => {
+    setSceneReady(ready)
+    onReadyChange?.(ready)
+  }, [onReadyChange])
+  const fail = useCallback(() => {
+    setFailed(true)
+    handleReadyChange(false)
+  }, [handleReadyChange])
   // Keep the label at its entry point while reading it; no React render on every mouse pixel.
   const onHeroHover = useCallback((next: HeroHover | null) => {
     setHover(previous => previous?.id === next?.id ? previous : next)
   }, [])
   if (failed) return <div className="dataset-3d-fallback" role="status"><strong>Không thể hiển thị mô hình 3D</strong><p>WebGL không khả dụng hoặc renderer đã mất context. Hãy tải lại trang để thử lại.</p></div>
-  return <div className="dataset-3d-canvas-shell"><SceneBoundary onFailure={() => setFailed(true)}>
-    <Canvas className="dataset-3d-canvas" dpr={[1, 1.5]} camera={{ fov: 34, near: 0.1, far: 100 }}
+  return <div className="dataset-3d-canvas-shell"><SceneBoundary onFailure={fail}>
+    <Canvas className="dataset-3d-canvas" frameloop={sceneReady ? 'always' : 'demand'} dpr={[1, 1.5]} camera={{ fov: 34, near: 0.1, far: 100 }}
       onPointerMissed={() => { if (detached) onSelectPart(null) }}
       fallback={<div className="dataset-3d-fallback" role="status"><strong>Trình duyệt không hỗ trợ WebGL</strong><p>Không thể mở không gian Dataset 3D trên trình duyệt này.</p></div>}>
       <HolographicScene colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId}
         {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })}
-        onSelectPart={onSelectPart} onHeroHover={onHeroHover} onContextLost={() => setFailed(true)}
+        onSelectPart={onSelectPart} onHeroHover={onHeroHover} onContextLost={fail}
+        onReadyChange={handleReadyChange}
         cubeFocus={cubeFocus} onFocusCube={onFocusCube} {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
         cameraEditing={cameraEditing} onCameraSnapshot={setCameraSnapshot} />
     </Canvas>

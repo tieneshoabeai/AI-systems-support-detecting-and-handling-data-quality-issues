@@ -93,15 +93,83 @@ Request
 
 | Provider / Utility | Thư mục | Mục đích Nghiệp vụ |
 | :--- | :--- | :--- |
-| `CaslAbilityFactory` | `src/shared/casl/` | Tạo đối tượng `AppAbility` tương ứng với vai trò và ngữ cảnh người dùng |
-| `PoliciesGuard` | `src/shared/casl/` | Guard kiểm tra quyền hạn đa tầng (Static $\rightarrow$ Instance) |
-| `@CurrentResource()` | `src/shared/casl/` | Decorator inject thực thể đã nạp trong Guard vào Controller |
-| `MongooseTransactionService` | `src/shared/database/` | Dịch vụ bọc khối lệnh trong MongoDB Multi-document Transaction |
-| `BaseMongoRepository<T>` | `src/shared/database/` | Lớp cơ sở trừu tượng cho Repository, tự động lọc `deleted_at: null` |
-| `StorageService` | `src/shared/storage/` | Dịch vụ tải tệp, kiểm tra hạn mức Quota 10GB trên Cloudflare R2 |
-| `CryptoUtil` | `src/shared/crypto/` | Tiện ích băm Bcrypt, SHA-256, mã hóa dòng AES-256-GCM |
-| `sanitizeObjectForLog` | `src/shared/crypto/` | Làm sạch đối tượng trước khi log (ẩn password, token, PII) |
-| `@ApiZodBody()`, `@ApiZodQuery()` | `src/shared/swagger/` | Tự động sinh đặc tả OpenAPI 3.0 cho Swagger UI từ Zod Schema |
+| `CaslAbilityFactory` | `src/shared/interfaces/casl/` | Tạo đối tượng `AppAbility` tương ứng với vai trò và ngữ cảnh người dùng |
+| `PoliciesGuard` | `src/shared/interfaces/casl/` | Guard kiểm tra quyền hạn đa tầng (Static $\rightarrow$ Instance) |
+| `@CurrentResource()` | `src/shared/interfaces/casl/` | Decorator inject thực thể đã nạp trong Guard vào Controller |
+| `MongooseTransactionService` | `src/shared/infrastructure/database/` | Dịch vụ bọc khối lệnh trong MongoDB Multi-document Transaction |
+| `BaseMongoRepository<T>` | `src/shared/infrastructure/database/` | Lớp cơ sở trừu tượng cho Repository, tự động lọc `deleted_at: null` |
+| `StorageService` | `src/shared/infrastructure/storage/` | Dịch vụ tải tệp, kiểm tra hạn mức Quota 10GB trên Cloudflare R2 |
+| `CryptoUtil` | `src/shared/domain/crypto/` | Tiện ích băm Bcrypt, SHA-256, mã hóa dòng AES-256-GCM |
+| `sanitizeObjectForLog` | `src/shared/domain/crypto/` | Làm sạch đối tượng trước khi log (ẩn password, token, PII) |
+| `@ApiZodBody()`, `@ApiZodQuery()` | `src/shared/interfaces/swagger/` | Tự động sinh đặc tả OpenAPI 3.0 cho Swagger UI từ Zod Schema |
+
+### 5.1. Phân tầng của `shared/` (Clean Architecture)
+
+`shared/` được chia thành 4 tầng, cùng nguyên tắc chiều phụ thuộc với module nghiệp vụ
+(Phần 16 §3.1). Mũi tên phụ thuộc luôn hướng vào trong:
+
+```
+shared/interfaces ─┐
+                    ├─→ shared/application ─→ shared/domain
+shared/infrastructure ┘
+```
+
+| Tầng | Thư mục | Nội dung | Được phép import |
+| :--- | :--- | :--- | :--- |
+| **Domain** | `shared/domain/` | `crypto/`, `pagination/`, `utils/`, `validation/`, `security/` | chỉ `shared/domain/` |
+| **Application** | `shared/application/` | `ports/` — hợp đồng hạ tầng dùng chung | `shared/domain/`, `shared/application/` |
+| **Infrastructure** | `shared/infrastructure/` | `database/`, `events/`, `outbox/`, `storage/`, `adapters/`, `config/` | `shared/domain/`, `shared/application/` |
+| **Interfaces** | `shared/interfaces/` | `casl/`, `decorators/`, `filters/`, `guards/`, `interceptors/`, `middleware/`, `pipes/`, `swagger/` | `shared/domain/`, `shared/application/` |
+
+`shared/shared.module.ts` nằm ở gốc `shared/` vì là **composition root** — được phép
+import mọi tầng của `shared/`, giống `app.module.ts` ở gốc `src/`.
+
+Các quy tắc trên được kiểm chứng tự động bằng rule **CA13–CA16**, **CA19** trong
+`test/clean-architecture.spec.ts`; vi phạm mới sẽ chặn CI.
+
+### 5.2. Kiểu thuần trong `shared/domain/security/`
+
+Các kiểu dữ liệu thuần (không framework) được tách ra khỏi `shared/interfaces/`
+để **tầng `infrastructure` không phải import ngược tầng giao diện**:
+
+| File | Kiểu | Nơi dùng |
+| :--- | :--- | :--- |
+| `current-user-payload.ts` | `CurrentUserPayload` | `JwtStrategy` (infrastructure) trả về; decorator `@CurrentUser()` và `RolesGuard` đọc |
+| `current-user.ts` | `CurrentUser` (= payload + ngữ cảnh workspace/project) | `PoliciesGuard`, `CaslAbilityFactory` |
+| `action.ts` | `Action` (enum quyền) | `CaslAbilityFactory`, `PoliciesGuard` |
+| `subjects.ts` | `SubjectName`, `AppSubjects` | CASL |
+| `policy-resource-loader.ts` | `PolicyResourceLoader` | Policy loader ở tầng `application` |
+
+> **Ghi chú.** File trong `shared/interfaces/` vẫn **re-export** các kiểu này để giữ
+> public contract cũ — ví dụ `import { CurrentUserPayload } from
+> '.../shared/interfaces/decorators/current-user.decorator'` vẫn chạy.
+
+### 5.3. Hệ thống lỗi nghiệp vụ (`DomainError`)
+
+Từ Bước 2 của Phần 16, toàn hệ thống lỗi được chuẩn hoá theo **3 tầng**:
+
+| Tầng | Thư mục | Trách nhiệm |
+| :--- | :--- | :--- |
+| **Domain** | `shared/domain/errors/` | `DomainError` + 13 subclass — mã lỗi nghiệp vụ `SCREAMING_SNAKE_CASE`, **không** biết HTTP |
+| **Application** | `shared/application/errors/` | `StatusError` — lỗi có HTTP status tường minh (escape hatch) |
+| **Interfaces** | `shared/interfaces/errors/` | `ERROR_CODE_TO_HTTP_STATUS` — **ranh giới duy nhất** biết HTTP status |
+
+```ts
+// ✅ Tầng application — thuần nghiệp vụ
+throw new NotFoundError('Chưa có Tổng kết cho project này');
+// → HTTP 404, error.code = 'NOT_FOUND'
+
+// ✅ Khi hợp đồng API bắt buộc status khác mặc định
+throw new StatusError(401, ERROR_CODES.VALIDATION_ERROR, 'Google từ chối yêu cầu.');
+// → HTTP 401, error.code = 'VALIDATION_ERROR'
+```
+
+**Quy tắc:** tên mã lỗi **không** chứa số HTTP (`NOT_FOUND` chứ không phải
+`HTTP_404`) và **không** chứa từ khoá HTTP (`VALIDATION_ERROR` chứ không phải
+`BAD_REQUEST`) — vì đó là khái niệm nghiệp vụ, không phải khái niệm giao thức.
+
+**Rule CA20** chặn CI nếu tầng `application` import `*Exception` hoặc `HttpStatus`
+từ `@nestjs/common`. Xem `Phần 16 §6` để biết chi tiết.
 
 ---
 
@@ -112,6 +180,12 @@ Request
 - **Zod-to-JSON-Schema thay cho Class-Validator:** Loại bỏ hoàn toàn sự phụ thuộc vào decorator reflection và cho phép suy diễn kiểu dữ liệu 100% tự nhiên (`z.infer<typeof Schema>`), đáp ứng tuyệt đối nguyên tắc **Zero Any**.
 
 ### 6.2. Lịch sử Thay đổi (Change Log)
+- `v1.5.0` (2026-11-17):
+  - *Thay đổi gì:* Chuẩn hoá toàn hệ thống lỗi theo 3 tầng — `shared/domain/errors/` (mã lỗi nghiệp vụ thuần), `shared/application/errors/` (`StatusError`), `shared/interfaces/errors/` (`ERROR_CODE_TO_HTTP_STATUS`). Thay 202 throw site `HttpException` trong 81 file `modules/*/application/` bằng `DomainError`. Chuẩn hoá `error.code` sang `SCREAMING_SNAKE_CASE` theo hợp đồng API Phần 7 §3.4.
+  - *Lý do:* Tầng trung bị ràng buộc vào HTTP framework — mỗi endpoint mới phải viết lại logic lỗi. Nay tầng application không còn biết HTTP, và mã lỗi trở thành hợp đồng ổn định mà frontend kiểm tra được. Rule **CA20** chặn CI nếu `application` import `*Exception`/`HttpStatus` từ `@nestjs/common`.
+- `v1.4.0` (2026-11-17):
+  - *Thay đổi gì:* Tái cấu trúc `shared/` thành 4 phân tầng `domain/` · `application/` · `infrastructure/` · `interfaces/` theo Clean Architecture (Phần 16 §3.1). Tách `CurrentUserPayload` sang `shared/domain/security/` để `infrastructure` không phải import ngược `shared/interfaces/` (rule CA19).
+  - *Lý do:* Trước đây `shared/` phẳng 18 thư mục trộn lẫn framework, hạ tầng và hợp đồng — không có ranh giới nào chặn việc domain import nhầm framework. Nay chiều phụ thuộc được kiểm chứng tự động bằng rule CA13–CA16, CA19.
 - `v1.3.0` (2026-10-24):
   - *Thay đổi gì:* Nâng cấp tài liệu sang chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid liên kết các phân hệ và mô tả chuỗi lọc bảo vệ Zero-Trust.
   - *Lý do:* Giúp người xem nắm bắt nền tảng kỹ thuật của toàn bộ dự án mà không cần đọc code.

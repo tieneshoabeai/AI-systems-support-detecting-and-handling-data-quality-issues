@@ -1,8 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../../domain/ports/analysis.repository.port';
-import { AnalysisService } from '../analysis.service';
 import { AiInferencePort, extractJsonObject } from '../ports/ai-inference.port';
+import { RESOURCE_GUARD_PORT, type ResourceGuardPort } from '../ports/resource-guard.port';
+import { BuildPromptForJobHandler } from '../commands/build-prompt-for-job.handler';
+import { IngestAiResultHandler } from '../commands/ingest-ai-result.handler';
 
 const DEFAULT_MAX_ATTEMPTS = 2;
 /** Phan 10 v6: lease timeout 10 phut → job 'running' het han bi 'skipped' */
@@ -23,9 +25,12 @@ export class AiWorkerService implements OnModuleInit {
   constructor(
     @Inject(ANALYSIS_REPOSITORY_PORT)
     private readonly repository: AnalysisRepositoryPort,
-    private readonly analysisService: AnalysisService,
+    private readonly buildPromptForJobHandler: BuildPromptForJobHandler,
+    private readonly ingestAiResultHandler: IngestAiResultHandler,
     private readonly inference: AiInferencePort,
     private readonly config: ConfigService,
+    @Inject(RESOURCE_GUARD_PORT)
+    private readonly resourceGuard: ResourceGuardPort,
   ) {}
 
   onModuleInit(): void {
@@ -54,6 +59,13 @@ export class AiWorkerService implements OnModuleInit {
     if (this.busy) return;
     this.busy = true;
     try {
+      // Phan 12 v8 §3.15.4: RAM Guard — tam dung nhan job AI moi khi RAM khong du.
+      // Job pending van giu nguyen; worker tiep tuc poll lai o tick sau.
+      const reason = this.resourceGuard.blockReason();
+      if (reason !== null) {
+        this.logger.warn(`AI worker tam dung nhan job moi (RAM Guard): ${reason}`);
+        return;
+      }
       await this.repository.skipStaleJobs(LEASE_TIMEOUT_MS);
       const job = await this.repository.claimPendingJob(LEASE_TIMEOUT_MS);
       if (!job) return;
@@ -87,7 +99,7 @@ export class AiWorkerService implements OnModuleInit {
         .catch(() => undefined);
     }, Math.floor(LEASE_TIMEOUT_MS / 3));
     try {
-      const prompt = await this.analysisService.buildPromptForJob(jobId);
+      const prompt = await this.buildPromptForJobHandler.execute(jobId);
       const out = await this.inference.complete({
         prompt,
         timeoutMs,
@@ -97,7 +109,7 @@ export class AiWorkerService implements OnModuleInit {
       if (raw === null) {
         throw new Error('AI tra ve khong phai JSON object');
       }
-      await this.analysisService.ingestAiResult(
+      await this.ingestAiResultHandler.execute(
         jobId,
         raw as Record<string, unknown>,
         out.modelId ?? job.modelId ?? undefined,
@@ -131,7 +143,7 @@ export class AiWorkerService implements OnModuleInit {
       });
       if (/JSON/i.test(message)) {
         try {
-          await this.analysisService.ingestAiResult(jobId, {} as Record<string, unknown>, job.modelId ?? undefined);
+          await this.ingestAiResultHandler.execute(jobId, {} as Record<string, unknown>, job.modelId ?? undefined);
         } catch {
           // bo qua, job da danh dau
         }

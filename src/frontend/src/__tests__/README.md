@@ -36,6 +36,11 @@ Chạy từ thư mục frontend sau khi đã cài dependency. Vitest chạy bộ
 - [auth.service.test.ts](auth/auth.service.test.ts) — request/response login.
 - [session-coordinator.test.ts](auth/session-coordinator.test.ts) — chuyển pha, consent, logout và race.
 - [session-services.test.ts](auth/session-services.test.ts) — refresh/logout, health và user mapping.
+- [google-sign-in.test.ts](auth/google-sign-in.test.ts) — xử lý redirect và callback Google trong môi trường mô phỏng.
+- [backend-contract.test.ts](management/backend-contract.test.ts) — kiểm tra cách frontend đọc và gửi dữ liệu theo các mẫu contract.
+- [management-data-provider.test.tsx](management/management-data-provider.test.tsx) — kiểm tra provider và trạng thái vùng dữ liệu.
+
+Chạy nhóm thay đổi bằng `yarn test src/__tests__/auth src/__tests__/foundation src/__tests__/management`. Xem [README frontend](../../README.md) để chạy Playwright với backend thử nghiệm.
 - [upload-draft.repository.test.ts](auth/upload-draft.repository.test.ts) — draft theo tài khoản, quota và ACK.
 
 ### Preview 2D

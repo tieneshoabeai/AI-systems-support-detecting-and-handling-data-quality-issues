@@ -35,6 +35,8 @@ export type SessionDetail = {
 export type SavedAnalysisResult = { dq05?: { status?: string; violations?: unknown[] } }
 
 export type ManagementStore = typeof previewMockStore & {
+  loadCardData?: (ids: readonly string[], field: 'dataset' | 'members', signal: AbortSignal, retry?: boolean) => Promise<void>
+  loadProjectWizardRoster?: (workspaceId: string, signal: AbortSignal) => Promise<import('../../types/preview/preview.types').Person[]>
   adminService?: import('./admin.service').AdminService
   getWorkspaceOverview?: () => Promise<WorkspaceOverview>
   getWorkspaceDetailOverview?: (workspaceId: string) => Promise<WorkspaceDetailOverview>
