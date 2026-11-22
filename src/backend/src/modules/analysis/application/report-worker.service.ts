@@ -27,8 +27,8 @@ export class ReportWorkerService implements OnModuleInit {
   onModuleInit(): void {
     const mode = ((this.config.get<string>('WORKER_MODE') ?? 'all') as string).toLowerCase();
     if (mode === 'api') { this.logger.log('Report worker tat trong API process (WORKER_MODE=api) - worker rieng dam nhan'); return; }
-    const enabled = this.config.get<string>('REPORT_WORKER_ENABLED') ?? 'false';
-    const on = enabled === 'true' || enabled === '1';
+    const raw = this.config.get<boolean | string>('REPORT_WORKER_ENABLED') ?? false;
+    const on = raw === true || String(raw).toLowerCase() === 'true' || String(raw) === '1';
     if (!on) {
       this.logger.log('Report worker tat (REPORT_WORKER_ENABLED != true). PDF sinh khi worker bat.');
       return;
