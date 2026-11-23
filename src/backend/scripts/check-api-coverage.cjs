@@ -14,7 +14,7 @@ const files = [];
   for (const f of fs.readdirSync(d)) {
     const p = path.join(d, f);
     if (fs.statSync(p).isDirectory()) walk(p);
-    else if (f.endsWith('.controller.ts')) files.push(p);
+    else if (f.endsWith('.controller.ts') || f.endsWith('.routes.ts')) files.push(p);
   }
 })('src');
 

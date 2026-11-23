@@ -1,3 +1,13 @@
+# MÔ-ĐUN `overview` — Tổng quan (Template: Simple)
+
+> **P3.1 (2026-11-24):** Flatten từ Hexagonal → Simple Monolith theo ADR-0002.
+> - Vì sao Simple: 2 query chỉ-đọc, không DB riêng, không invariant/transaction/outbox.
+> - Bất biến: E3 `GET /overview/workspaces` (tránh xung đột `/workspaces/:id`), E4 `GET /workspaces/:id/overview`; `Promise.all` đếm song song; 2 port WORKSPACE/PROJECT_REPOSITORY_PORT; `NotFoundError` E4; guard Jwt+Policies + WorkspacePolicyLoader.
+> - Cấu trúc mới: `overview.service.ts + overview.routes.ts + overview.types.ts + index.ts + overview.module.ts` (imports WorkspacesModule + ProjectsModule, không exports).
+> - Tooling: `*.routes.ts` được quét như controller (`check-api-coverage.cjs`, `extract-routes.cjs`, `api-contract-coverage.spec.ts`); `guard-coverage.spec.ts` đã thêm OverviewController — 84/84 route.
+> - Cấm: đổi Symbol port (TC-03), bỏ guard/policy (BC), đổi strict/best-effort (BC-02).
+
+---
 # MÔ-ĐUN `overview` — Tổng quan
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

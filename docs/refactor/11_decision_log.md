@@ -51,7 +51,7 @@
 |---|---|---|---|---|---|---|
 | Baseline P1 (`31cd2f3`) | 340 | 31 505 | ~60 | 1 277 ✅ | 82+1 ✅ | — |
 | P2 audit | 338 | 31 439 | -5 subdirs (audit phang) | xanh (arch+guard+contract) | 84/84 | LogHandler+adapter gop thanh AuditService.log() |
-| P3 overview | | | | | | |
+| P3 overview | 338 | 31 416 | subdirs 150->146 | xanh (step3 34/34 + arch/guard/contract) | 84/84 | 2 handler gop thanh OverviewService; tooling + guard ho tro *.routes.ts |
 | P3 realtime | | | | | | |
 | P3 data-view | | | | | | |
 | P3 notifications | | | | | | |

@@ -2,7 +2,7 @@
  * Architectural Test: **Hợp đồng API khớp 1-1 với mã nguồn**.
  *
  * Đối chiếu route trong mã nguồn (decorator `@Get/@Post/@Put/@Patch/@Delete`
- * trong mọi `*.controller.ts`) với bảng route của hợp đồng
+ * trong mọi `*.controller.ts` + `*.routes.ts` (Template Simple) với bảng route của hợp đồng
  * `docs/restructures/7_api_contracts_v8.md` §3.13.
  *
  * **Vì sao cần test này?** Trước đó, thêm một endpoint mới mà quên cập nhật
@@ -37,7 +37,7 @@ function collectControllerFiles(dir: string): string[] {
     const full = path.join(dir, entry);
     if (fs.statSync(full).isDirectory()) {
       out.push(...collectControllerFiles(full));
-    } else if (entry.endsWith('.controller.ts')) {
+    } else if (entry.endsWith('.controller.ts') || entry.endsWith('.routes.ts')) {
       out.push(full);
     }
   }

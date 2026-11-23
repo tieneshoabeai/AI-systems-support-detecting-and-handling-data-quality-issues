@@ -159,12 +159,11 @@ export const notificationsHandlers = {
 } as const;
 
 // -------------------- overview --------------------
-import { GetUserOverviewHandler as OverviewGetUserOverviewHandler } from '../../src/modules/overview/application/queries/get-user-overview.handler';
-import { GetWorkspaceOverviewHandler as OverviewGetWorkspaceOverviewHandler } from '../../src/modules/overview/application/queries/get-workspace-overview.handler';
+import { OverviewService as OverviewOverviewService } from '../../src/modules/overview/overview.service';
 
 export const overviewHandlers = {
-  getUserOverview: OverviewGetUserOverviewHandler,
-  getWorkspaceOverview: OverviewGetWorkspaceOverviewHandler,
+  getUserOverview: OverviewOverviewService,
+  getWorkspaceOverview: OverviewOverviewService,
 } as const;
 
 // -------------------- projects --------------------
