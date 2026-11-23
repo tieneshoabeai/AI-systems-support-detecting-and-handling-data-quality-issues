@@ -1,15 +1,15 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { RealtimeService } from './application/realtime.service';
-import { RealtimeAuthService } from './application/realtime-auth.service';
-import { RealtimeGateway } from './presentation/gateways/realtime.gateway';
-import { RealtimeRevocationSubscriber } from './application/realtime-revocation.subscriber';
-import { SocketIoRealtimeTransport } from './infrastructure/websocket/socket-io-realtime.transport';
+import { RealtimeService } from './realtime.service';
+import { RealtimeAuthService } from './realtime-auth.service';
+import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeRevocationSubscriber } from './realtime-revocation.subscriber';
+import { SocketIoRealtimeTransport } from './socket-io-realtime.transport';
 import { UsersModule } from '../users/users.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { REALTIME_PORT } from '../../shared/application/ports/realtime.port';
-import { REALTIME_TRANSPORT_PORT } from './domain/ports/realtime-transport.port';
+import { REALTIME_TRANSPORT_PORT } from './realtime.transport';
 
 /**
  * REALTIME-01 — Module realtime (Phần 7 v6 §3.17.2, Phần 9 v4).

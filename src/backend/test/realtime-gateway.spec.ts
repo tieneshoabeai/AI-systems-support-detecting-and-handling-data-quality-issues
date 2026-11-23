@@ -14,9 +14,9 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Types } from 'mongoose';
-import { RealtimeGateway } from '../src/modules/realtime/presentation/gateways/realtime.gateway';
-import { RealtimeAuthService } from '../src/modules/realtime/application/realtime-auth.service';
-import { REALTIME_TRANSPORT_PORT } from '../src/modules/realtime/domain/ports/realtime-transport.port';
+import { RealtimeGateway } from '../src/modules/realtime/realtime.gateway';
+import { RealtimeAuthService } from '../src/modules/realtime/realtime-auth.service';
+import { REALTIME_TRANSPORT_PORT } from '../src/modules/realtime/realtime.transport';
 import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
 import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
 

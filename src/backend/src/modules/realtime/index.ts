@@ -30,4 +30,4 @@ export {
 export {
   REALTIME_TRANSPORT_PORT,
   type RealtimeTransportPort,
-} from './domain/ports/realtime-transport.port';
+} from './realtime.transport';

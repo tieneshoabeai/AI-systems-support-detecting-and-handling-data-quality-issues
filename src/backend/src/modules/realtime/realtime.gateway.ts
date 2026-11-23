@@ -9,16 +9,16 @@ import {
 } from '@nestjs/websockets';
 import { Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { isObjectIdHex } from '../../shared/domain/utils/object-id.util';
 import { Server, Socket } from 'socket.io';
-import { RealtimeAuthService, RealtimeClientIdentity } from '../../application/realtime-auth.service';
+import { RealtimeAuthService, RealtimeClientIdentity } from './realtime-auth.service';
 import {
   REALTIME_TRANSPORT_PORT,
   type RealtimeTransportPort,
-} from '../../domain/ports/realtime-transport.port';
-import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
-import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
-import { RealtimeRooms } from '../../../../shared/domain/utils/realtime-events';
+} from './realtime.transport';
+import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../projects';
+import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../workspaces';
+import { RealtimeRooms } from '../../shared/domain/utils/realtime-events';
 
 interface JoinProjectPayload {
   projectId?: string;

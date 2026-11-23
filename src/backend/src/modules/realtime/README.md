@@ -1,3 +1,13 @@
+# MÔ-ĐUN `realtime` — WebSocket realtime (Template: Simple)
+
+> **P3.2 (2026-11-24):** Flatten từ Hexagonal → Simple Monolith theo ADR-0002 (gần như chỉ di chuyển file — không gộp logic/service).
+> - Vì sao Simple: 2 service không DB (RealtimeService + RealtimeAuthService) + 1 subscriber idempotent + 1 gateway + 1 transport socket.io, không invariant/transaction/outbox.
+> - Bất biến: gateway giữ `path /api/v1/realtime`, `transports websocket/polling`, `pingInterval 25000/pingTimeout 60000`; 4 message `joinProject/joinAnalysis/leaveProject/leaveAnalysis` + kiểm quyền; handshake check trạng thái tài khoản + 4401; `extractUserId` chấp nhận `user_id`/`userId`; `disconnectUser(userId,status)` emit `user.force_disconnect` rồi `disconnectSockets(true)`.
+> - Cấu trúc mới: `realtime.service.ts + realtime-auth.service.ts + realtime-revocation.subscriber.ts + realtime.transport.ts (từ port) + realtime.gateway.ts (từ gateway) + socket-io-realtime.transport.ts (nơi duy nhất biết socket.io) + realtime.module.ts + index.ts`.
+> - DI giữ: `@Global()` + `imports: [JwtModule, UsersModule, ProjectsModule, WorkspacesModule]` + 2 binding `useExisting` (`REALTIME_PORT`, `REALTIME_TRANSPORT_PORT`); token chuẩn ở `shared/`.
+> - Cấm: đổi Symbol port (TC-03), bỏ `OnModuleInit` subscriber (TC-04), bỏ adapter config (FC-03), đổi WS path (AC-01).
+
+---
 # MÔ-ĐUN `realtime` — WebSocket realtime
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

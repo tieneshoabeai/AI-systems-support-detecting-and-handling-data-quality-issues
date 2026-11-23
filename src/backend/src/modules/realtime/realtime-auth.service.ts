@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../users';
+import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../users';
 
 export interface RealtimeClientIdentity {
   userId: string;

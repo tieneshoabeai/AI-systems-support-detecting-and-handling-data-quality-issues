@@ -11,7 +11,7 @@
  * (`shared/domain/`) — vì vậy envelope được import từ
  * `shared/domain/utils/realtime-events.ts` chứ không phải `shared/application/ports/`.
  */
-import type { RealtimeEnvelope } from '../../../../shared/domain/utils/realtime-events';
+import type { RealtimeEnvelope } from '../../shared/domain/utils/realtime-events';
 
 export const REALTIME_TRANSPORT_PORT = Symbol('RealtimeTransportPort');
 

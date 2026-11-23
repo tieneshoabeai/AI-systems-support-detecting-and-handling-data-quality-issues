@@ -11,8 +11,8 @@
  * 2. `RealtimeRevocationSubscriber` nghe event → gọi `disconnectUser` đúng user/status.
  * 3. `RealtimeService.disconnectUser` → emit `user.force_disconnect` **rồi** đóng socket.
  */
-import { RealtimeRevocationSubscriber } from '../src/modules/realtime/application/realtime-revocation.subscriber';
-import { RealtimeService } from '../src/modules/realtime/application/realtime.service';
+import { RealtimeRevocationSubscriber } from '../src/modules/realtime/realtime-revocation.subscriber';
+import { RealtimeService } from '../src/modules/realtime/realtime.service';
 import { UserAccessRevocationService } from '../src/modules/users/application/services/user-access-revocation.service';
 import { BlockUserHandler } from '../src/modules/users/application/commands/block-user.handler';
 import { SoftDeleteUserHandler } from '../src/modules/users/application/commands/soft-delete-user.handler';

@@ -3,12 +3,12 @@ import {
   DOMAIN_EVENT_HANDLER_REGISTRY,
   type DomainEventHandler,
   type DomainEventHandlerRegistry,
-} from '../../../shared/application/ports/domain-event-handler.port';
+} from '../../shared/application/ports/domain-event-handler.port';
 import {
   RealtimeRevocationEvents,
   type RealtimeRevocationStatus,
-} from '../../../shared/domain/utils/realtime-events';
-import { REALTIME_PORT, type RealtimePort } from '../../../shared/application/ports/realtime.port';
+} from '../../shared/domain/utils/realtime-events';
+import { REALTIME_PORT, type RealtimePort } from '../../shared/application/ports/realtime.port';
 
 /**
  * REALTIME — Subscriber thu hồi socket (OPEN-08).
