@@ -1,200 +1,56 @@
-# 10. Checklist tổng hợp — bảng điều khiển 30 giờ
+# 10. Checklist tổng (bản hybrid 6+7)
 
-> **In file này ra, hoặc giữ nguyên trong editor cạnh terminal.** Tick theo thứ tự.
+> Tick theo module, không theo giờ cứng. Mỗi module xong phải qua cổng `03_phase_p0_p1.md` §3.3.
 
----
+## P1 (đã xong ở 31cd2f3)
 
-## 10.1. Trước khi bắt đầu (10 phút)
+- [x] MM2 ESLint + arch test ranh giới
+- [x] `measure-refactor.sh` + notes baseline
+- [x] ADR-0001 (lịch sử) + ADR-0002 (hướng chốt)
 
-```
-☐  Đọc 00_overview.md (nguyên tắc R1–R5)
-☐  Mở 12_business_invariants.md đúng module (§12.2) để tick từng handler/route
-☐  Đọc 01_target_architecture.md
-☐  Đọc 09_risk_and_rollback.md §9.2 (cải thiện ngầm)
-☐  Xác nhận: deadline thật sự còn bao lâu
-☐  Xác nhận: làm một mình hay có team
-☐  Tạo git branch: git checkout -b refactor/modular-monolith
-☐  Ghi giờ bắt đầu vào notes.md
-```
+## P2 pilot — audit (Simple mẫu)
 
----
+- [ ] Đối chiếu §12 audit + tick §13.6
+- [ ] `audit.types/service/routes` + DI + index.ts
+- [ ] Xóa thư mục cũ sau type-check xanh
+- [ ] `README.md` (Template: Simple)
+- [ ] type-check / lint / test(audit) / api-coverage 82+1
+- [ ] measure + notes + tag `v1.2.0-audit`
 
-## 10.2. P0 — Baseline (2 giờ) ⏱ `0h → 2h`
+## P3 — 5 Simple (overview → realtime → data-view → notifications → feedback)
 
-```
-☐  0.1  git commit baseline + tag v1.1.0-baseline
-☐  0.2  Tạo docs/refactor/notes.md với số liệu baseline
-☐  0.3  Viết docs/adr/0001-modular-monolith.md
-☐  0.4  Tạo docs/refactor/architecture-diagram.md (trước/sau)
-☐  0.5  Ghi bảng "reset point" vào 09_risk_and_rollback.md §9.4
-☐  VERIFY: git tag --list 'v1.1.0*'
-```
+- [ ] `overview` — giữ Promise.all + 2 port → tag `v1.2.0-overview`
+- [ ] `realtime` — giữ extractUserId/disconnect/handshake → tag `v1.2.0-realtime`
+- [ ] `data-view` — giữ RECORD_QUERY_PORT + limit + tách route query → tag `v1.2.0-data-view`
+- [ ] `notifications` — giữ 2 mapper riêng + route preferences + thứ tự unread-count → tag `v1.2.0-notifications`
+- [ ] `feedback` — giữ create/updateByAuthor/requiresReason/ensureNotAdmin + camel-snake + deleted_at → tag `v1.2.0-feedback` (quá 100' thì cắt sang P6)
+- [ ] Tag `v1.2.0-p3`; arch MM5' pass cho 6 Simple
 
----
+## P4 — 4 Hexagonal vừa (không gộp)
 
-## 10.3. P1 — Công cụ enforce (3 giờ) ⏱ `2h → 5h`
+- [ ] `datasets` — tx strict + 2 schema/repo + RECORD_QUERY_PORT → tag `v1.2.0-datasets-h`
+- [ ] `projects` — 3 policy loader + best-effort outbox + cascade → tag `v1.2.0-projects-h`
+- [ ] `workspaces` — quota 20 + 2 adapter fail-safe + WORKSPACE_DELETED trong tx → tag `v1.2.0-workspaces-h`
+- [ ] `users` — password policy + revocation + 2 controller + USER events → tag `v1.2.0-users-h`
+- [ ] Mỗi module: README Template Hexagonal; file/LOC không đổi
+- [ ] Tag `v1.2.0-p4`
 
-```
-☐  1.1  ESLint rule MM2: cấm deep cross-module import
-☐  1.2  test/modular-monolith.spec.ts — MM5 (module phẳng)
-☐  1.3  test/modular-monolith.spec.ts — MM6 (service không HTTP exception)
-☐  1.4  scripts/measure-refactor.sh + chmod +x
-☐  1.5  Chạy eslint --fix nếu có lỗi mới
-☐  VERIFY: type-check 0 · lint 0 · arch test xanh
-☐  COMMIT + TAG v1.2.0-p1
-```
+## P5 — 3 Hexagonal khó (không gộp)
 
----
+- [ ] `issues` — locking + 1 controller (2 nhóm route) + Roles admin (D14) → tag `v1.2.0-issues-h`
+- [ ] `analysis` — worker + RAM/cardinality + 7 schema/14 util giữ tách → tag `v1.2.0-analysis-h`
+- [ ] `auth` — OAuth/session rotation + 7 token/4 adapter + thứ tự sessions/me → tag `v1.2.0-auth-h`
+- [ ] Tag `v1.2.0-p5`
 
-## 10.4. P2 — PILOT `audit` (2 giờ) ⏱ `5h → 7h` 🔴 **QUAN TRỌNG NHẤT**
+## P6 — Tài liệu
 
-```
-☐  2.1  git mv 7 file vào vị trí mới
-☐  2.2  Viết audit.types.ts (gộp 2 port file)
-☐  2.3  Viết audit.service.ts (AuditService implement AuditLoggerPort)
-☐  2.4  Sửa audit.repository.ts + audit.schema.ts (import path)
-☐  2.5  Sửa audit.module.ts (provider)
-☐  2.6  Sửa index.ts (public contract)
-☐  2.7  rm -rf domain/ application/ infrastructure/
-☐  2.8  grep -rn "LogHandler\|AuditLoggerAdapter" src/ test/  → 0
-☐  VERIFY: type-check 0 · lint 0 · test xanh · route 82/82 (§12.1) · MM5 pass
-☐  COMMIT + TAG v1.2.0-p2-pilot
-```
+- [ ] 13 README module (Template + lý do + bất biến + cấm)
+- [ ] ADR-0002 phụ lục số liệu thực tế
+- [ ] architecture-diagram (vỏ MM + ruột S/H)
+- [ ] Báo cáo đồ án (lý do hybrid + bảng 6+7 + số liệu + nợ)
 
-> **⏸ DỪNG TẠI ĐÂY.** Nếu pilot chưa qua → đọc §4.8, cân nhắc phương án B (đóng băng).
+## P7 — Verify
 
----
-
-## 10.5. P3 — Tier 1 (3 giờ) ⏱ `7h → 10h`
-
-```
-☐  3.1  overview      (20 phút)  → tag
-☐  3.2  realtime      (30 phút)  → tag
-☐  3.3  data-view     (35 phút)  → tag
-☐  3.4  notifications (40 phút)  → tag
-☐  3.5  feedback      (45 phút)  → tag
-☐  3.6  issues        (50 phút)  → tag
-☐  VERIFY Tổng P3: 7 module phẳng · 1 069 test · 82 route (§12.1) + tick catalogue §12.2
-☐  COMMIT + TAG v1.2.0-p3
-☐  ⏰ CHECKPOINT: giờ 12 → nếu trễ, cắt sang P6
-```
-
----
-
-## 10.6. P4 — Tier 2 (8 giờ) ⏱ `10h → 18h`
-
-```
-☐  4.1  users      (2 giờ)     → tag
-☐  4.2  workspaces (1h45)       → tag
-☐  4.3  projects   (2 giờ)     → tag
-☐  4.4  datasets   (2h15)       → tag
-☐  VERIFY Tổng P4: 11 module phẳng · 1 069 test · 82 route (§12.1) + giữ transaction/outbox §12.5
-☐  COMMIT + TAG v1.2.0-p4
-☐  ⚠  datasets: KIỂM TRA kỹ — không thêm route, giữ transaction/outbox
-```
-
----
-
-## 10.7. P5 — Tier 3 (3 giờ) ⏱ `18h → 21h`
-
-```
-☐  5.1  analysis (1h45)  → tag     [CÓ THỂ BỎ]
-☐  5.2  auth     (1h15)  → tag     [CÓ THỂ BỎ]
-☐  VERIFY: 13/13 module phẳng · 1 069 test · 82 route (§12.1) + diff move-only T3
-☐  COMMIT + TAG v1.2.0-p5
-☐  ⚠  DIFF CHECK: git diff -M HEAD~1 -- src/modules/analysis/ | grep '^[+-][^+-]'
-☐     → Phải rỗng (move-only). Có dòng → đã sửa logic → review
-```
-
----
-
-## 10.8. P6 — Tài liệu (6 giờ) ⏱ `21h → 27h` 🔴 **KHÔNG CẮT**
-
-```
-☐  6.1  docs/ARCHITECTURE.md            (2 giờ)
-☐  6.2  docs/ONBOARDING.md               (2 giờ)
-☐  6.3  Cập nhật 30 README               (1h30)
-☐  6.4  Regenerate 19_handler_inventory  (20 phút)
-☐  6.5  Bảng số liệu trước/sau          (30 phút)
-☐  6.6  Link checker → 0 broken          (15 phút)
-☐  COMMIT + TAG v1.2.0-p6
-```
-
----
-
-## 10.9. P7 — Verify (3 giờ) ⏱ `27h → 30h`
-
-```
-☐  7.1  pnpm type-check                    → 0 lỗi
-☐  7.2  pnpm lint                          → 0 cảnh báo
-☐  7.3  pnpm exec jest --maxWorkers=2      → 67 suite / 1 069 test
-☐  7.4  pnpm arch:api-coverage             → 82 | 82 | 0 | 0 (§12.1)
-☐  7.5  pnpm test:cov                      → ≥ 71%
-☐  7.6  bash scripts/test-infra-up.sh
-☐  7.7  pnpm test:integration              → 7 suite / 138 test
-☐  7.8  pnpm test:e2e                      → 5 suite / 70 test
-☐  7.9  bash scripts/test-infra-down.sh    → giải phóng RAM
-☐  7.10 Link checker lần cuối              → 0 broken
-☐  7.11 Cập nhật số liệu cuối vào README + notes.md
-☐  7.12 COMMIT + TAG v1.2.0-final
-```
-
----
-
-## 10.10. Bàn giao (15 phút)
-
-```
-☐  Bảo vệ đồ án: chuẩn bị trình bày 5 phút
-     - Vấn đề: người mới khó hiểu + yêu cầu modular monolith
-     - Quyết định: ADR-0001
-     - Bằng chứng: bảng số liệu trước/sau
-     - Bằng chứng: ESLint + arch test output thật
-     - Bằng chứng: 1 277 test xanh, 82 route khớp 1-1 (§12.1)
-☐  README root cập nhật phần "Kiến trúc"
-☐  notes.md hoàn tất
-```
-
----
-
-## 10.11. Đường cắt — tra cứu nhanh
-
-| Giờ | Đã làm | Hành động |
-|---|---|---|
-| 7h | Pilot chưa qua | **Dừng.** Đọc §9. Cân nhắc phương án B. |
-| 10h | P3 chưa xong | Cắt `issues` + `feedback` (làm sau P4) |
-| 12h | P4 chưa xong | Cắt P4 còn `users` + `workspaces` |
-| 18h | P4 chưa xong | **Bỏ P4 & P5** → P6 (tài liệu) |
-| 21h | P5 chưa xong | Bỏ P5 → P6 |
-| 27h | P6 chưa xong | Dừng viết tài liệu mới → verify + polish |
-| Bất kỳ | Test đỏ > 15 phút | Revert về tag gần nhất |
-
----
-
-## 10.12. Bảng theo dõi nhanh (điền khi chạy)
-
-| Giờ | Phase | Module đã flatten | File .ts | LOC | Test | Route | Tag | Ghi chú |
-|---|---|---|---|---|---|---|---|---|
-| 0 | baseline | 0/13 | 340 | 31 505 | 1 277 ✅ | 82 ✅ | v1.1.0-baseline | |
-| 5 | P1 | 0/13 | | | | | | |
-| 7 | P2 | 1/13 | | | | | | |
-| 10 | P3 | 6/13 | | | | | | |
-| 18 | P4 | 11/13 | | | | | | |
-| 21 | P5 | 13/13 | | | | | | |
-| 27 | P6 | | | | | | | |
-| 30 | P7 | | | | | | | |
-
----
-
-## 10.13. Lời nhắc cuối cùng
-
-> **Ba điều tuyệt đối không làm:**
->
-> 1. ❌ Sửa assert của test — chỉ đổi import path (TC-01 ở `13_refactor_constraints.md`).
-> 2. ❌ Thêm route mới — `arch:api-coverage` phải luôn là 82 (§12.1).
-> 3. ❌ Đụng logic `analysis` / `auth` — chỉ di chuyển file.
->
-> **Ba điều luôn làm:**
->
-> 1. ✅ Commit + tag sau mỗi phase.
-> 2. ✅ Chạy cổng kiểm soát trước mỗi commit.
-> 3. ✅ Ghi quyết định vào `notes.md` ngay khi có.
+- [ ] type-check 0 / lint 0 / full test xanh / api-coverage 82+1
+- [ ] measure ~305/~28 500/~30 + tick §13.6 toàn repo
+- [ ] Tag `v1.2.0-final`

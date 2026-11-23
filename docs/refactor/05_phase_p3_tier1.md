@@ -1,327 +1,184 @@
-# 5. Phase P3 — Tier 1: 6 module dễ (3 giờ)
+# 5. Phase P3 — 5 module Simple còn lại (5 giờ)
 
-> **Thời gian:** 3 giờ · **Mục tiêu:** áp dụng template P2 cho 6 module có rủi ro thấp.
-> **Điều kiện tiên quyết:** P2 đã qua cổng kiểm soát.
+> **Thời gian:** 5 giờ · **Mục tiêu:** flatten 5 Simple còn lại theo đúng template S đã chốt ở P2.
+> **Điều kiện tiên quyết:** P2 (`audit`) đã qua cổng kiểm soát.
+> **Thứ tự bắt buộc (dễ → khó):** `overview → realtime → data-view → notifications → feedback`.
+> `issues` KHÔNG làm ở P3 nữa — đã chuyển sang Hexagonal ở P5 (quyết định D14).
 
 ---
 
-## 5.1. Thứ tự thực hiện (quan trọng)
-
-Làm **từ nhỏ đến lớn** để tích lũy kinh nghiệm và phát hiện vấn đề sớm:
+## 5.1. Danh sách + thời gian
 
 | # | Module | File | LOC | Handler | Thời gian | Ghi chú đặc biệt |
 |---|---|---|---|---|---|---|
-| 1 | `overview` | 5 | 190 | 2 | 20 phút | Không có DB, không schema — đơn giản nhất |
-| 2 | `realtime` | 8 | 642 | 0 | 30 phút | Không có handler; có gateway + transport |
-| 3 | `data-view` | 15 | 897 | 4 | 35 phút | Không có repository riêng; dùng `datasets` |
-| 4 | `notifications` | 21 | 1 294 | 6 | 40 phút | Có email mapper, notification mapper |
-| 5 | `feedback` | 21 | 2 103 | 7 | 45 phút | 2 entity (feedback + finding-feedback) |
-| 6 | `issues` | 23 | 1 913 | 9 | 50 phút | 2 controller (user + admin) |
-| | **Tổng** | **93** | **7 039** | **28** | **3 giờ 40 phút** | |
-
-> **Ước lượng 3h.** Nếu vượt → cắt `issues` (làm sau P4). Đường cắt đã định nghĩa sẵn.
+| 1 | `overview` | 5 | 190 | 2 query | 40 phút | Không DB riêng, đơn giản nhất sau audit |
+| 2 | `realtime` | 8 | 642 | 0 + 1 sub | 50 phút | Gateway + subscriber, gần như chỉ di chuyển file |
+| 3 | `data-view` | 15 | 967 | 4 query | 60 phút | Không repo riêng (qua `RECORD_QUERY_PORT` của `datasets`) |
+| 4 | `notifications` | 21 | 1 294 | 3 cmd + 3 qry | 70 phút | **Giữ 2 mapper riêng** (DB vs email) — không gộp |
+| 5 | `feedback` | 21 | 2 186 | 5 cmd + 2 qry | 100 phút | Khó nhất P3: 2 entity + `ensureNotAdmin` + camel/snake |
+| | **Tổng** | **70** | **5 279** | **19** | **~5 giờ 20 phút** | Vượt thì cắt `feedback` sang P6 ghi nợ |
 
 ---
 
-## 5.2. Module `overview` — 20 phút
+## 5.2. Module `overview` — 40 phút
 
-### Cấu trúc hiện tại
-```
-src/modules/overview/
-├── application/queries/get-user-overview.handler.ts
-├── application/queries/get-workspace-overview.handler.ts
-├── index.ts
-├── overview.module.ts
-└── presentation/controllers/overview.controller.ts
-```
+### Trước → Sau
 
-### Đích
 ```
-src/modules/overview/
-├── overview.module.ts
-├── overview.routes.ts        ← từ presentation/controllers/overview.controller.ts
-├── overview.service.ts       ← từ application/queries/*.handler.ts (2 handler)
-├── index.ts
-└── README.md
+src/modules/overview/                       src/modules/overview/
+├── application/queries/*.handler.ts (2)    ├── overview.routes.ts      ← controller
+├── presentation/controllers/*.ts          ├── overview.service.ts     ← 2 method
+├── index.ts / overview.module.ts           ├── overview.types.ts       ← type dùng chung (nếu có)
+                                            ├── index.ts / overview.module.ts / README.md
 ```
 
-### Bước thực hiện
+### Bước
 
 | Bước | Hành động |
 |---|---|
-| 1 | `git mv presentation/controllers/overview.controller.ts overview.routes.ts` |
-| 2 | `git mv application/queries/get-user-overview.handler.ts overview.service.ts` |
-| 3 | `git mv application/queries/get-workspace-overview.handler.ts _tmp/` |
-| 4 | Gộp 2 handler vào `overview.service.ts` → `OverviewService` với 2 method `getUserOverview()` / `getWorkspaceOverview()` |
-| 5 | Sửa import trong `overview.routes.ts` (controller → dùng `OverviewService`) |
-| 6 | Sửa `overview.module.ts`: provider `OverviewService` |
-| 7 | Sửa `index.ts` |
-| 8 | `rm -rf application presentation` |
-| 9 | Verify + commit + tag |
-
-### ⚠️ Quyết định quan trọng: gộp 2 handler vào 1 service hay giữ 2 file?
-
-| Cách | Khi nào chọn |
-|---|---|
-| **1 service, N method** | Module nhỏ, các handler dùng chung dependency (≤ 3 method) |
-| **N service, 1 method mỗi cái** | Module lớn, > 4 handler, hoặc handler độc lập |
-
-> **Quy tắc:** `overview` có 2 handler → **1 service**. Nhưng `issues` có 9 handler → **nhiều service nhỏ** (xem §5.7).
+| 1 | Đối chiếu `12_business_invariants.md` §overview: `GetUserOverview(userId)` + `GetWorkspaceOverview(workspaceId)`, giữ `Promise.all`, giữ 2 port `WORKSPACE_REPOSITORY_PORT` + `PROJECT_REPOSITORY_PORT` |
+| 2 | Tạo `overview.service.ts` (`OverviewService`, 2 method) — copy nguyên body handler, giữ thứ tự tham số |
+| 3 | Tạo `overview.routes.ts` từ controller — GIỮ `JwtAuthGuard + PoliciesGuard + WorkspacePolicyLoader + CheckPolicies`, GIỮ comment xung đột đường dẫn E3 (`overview/workspaces` tách khỏi `workspaces/:id`) + 2 path `overview/workspaces` và `workspaces/:id/overview` |
+| 4 | Chuyển DI ở `overview.module.ts` — GIỮ `imports: [WorkspacesModule, ProjectsModule]` + 2 provider; export lại ở `index.ts` (giữ export 2 handler để tương thích) |
+| 5 | Xóa `application/ presentation/` rỗng sau khi type-check xanh |
+| 6 | Viết `README.md`: `Template: Simple`, lý do + bất biến |
+| 7 | Verify + commit + tag `v1.2.0-overview` |
 
 ---
 
-## 5.3. Module `realtime` — 30 phút
+## 5.3. Module `realtime` — 50 phút
 
-### Cấu trúc hiện tại
-```
-src/modules/realtime/
-├── application/realtime-auth.service.ts
-├── application/realtime-revocation.subscriber.ts
-├── application/realtime.service.ts
-├── domain/ports/realtime-transport.port.ts
-├── index.ts
-├── infrastructure/websocket/socket-io-realtime.transport.ts
-├── presentation/gateways/realtime.gateway.ts
-└── realtime.module.ts
-```
+### Trước → Sau
 
-### Đích
 ```
-src/modules/realtime/
-├── realtime.module.ts
-├── realtime.service.ts          ← giữ (đã đúng tên)
-├── realtime-auth.service.ts     ← giữ (đã đúng tên)
-├── realtime-revocation.subscriber.ts  ← giữ
-├── realtime.transport.ts        ← từ domain/ports/realtime-transport.port.ts
-├── realtime.gateway.ts          ← từ presentation/gateways/realtime.gateway.ts
-├── socket-io-realtime.transport.ts   ← từ infrastructure/websocket/
-├── index.ts
-└── README.md
+src/modules/realtime/                      src/modules/realtime/
+├── application/*.service.ts + *.subscriber.ts  ├── realtime.service.ts (giữ tên)
+├── domain/ports/*.port.ts                     ├── realtime-auth.service.ts (giữ)
+├── infrastructure/websocket/*.ts               ├── realtime-revocation.subscriber.ts (giữ)
+├── presentation/gateways/*.ts                  ├── realtime.transport.ts (từ port)
+└── ...                                         ├── realtime.gateway.ts (từ gateway)
+                                                ├── socket-io-realtime.transport.ts              ← giữ nguyên (nơi duy nhất biết `socket.io`)
+                                                ├── realtime.module.ts GIỮ gateway config (`path: /api/v1/realtime`, `transports`, `pingInterval/pingTimeout`)
 ```
 
-### Bước thực hiện
+### Bước
 
 | Bước | Hành động |
 |---|---|
-| 1 | `git mv domain/ports/realtime-transport.port.ts realtime.transport.ts` |
-| 2 | `git mv presentation/gateways/realtime.gateway.ts realtime.gateway.ts` |
-| 3 | `git mv infrastructure/websocket/socket-io-realtime.transport.ts socket-io-realtime.transport.ts` |
-| 4 | `git mv application/realtime-auth.service.ts realtime-auth.service.ts` |
-| 5 | `git mv application/realtime-revocation.subscriber.ts realtime-revocation.subscriber.ts` |
-| 6 | `rm -rf application domain infrastructure presentation` |
-| 7 | Sửa import trong 3 file di chuyển + `index.ts` + `realtime.module.ts` |
-| 8 | Verify + commit + tag |
+| 1 | Đối chiếu §realtime: giữ `extractUserId` (cả `user_id`/`userId`), giữ `disconnectUser`, giữ handshake check trạng thái |
+| 2 | `git mv` từng file ra gốc đúng tên trên (giữ nội dung) |
+| 3 | Sửa import + `index.ts` (GIỮ re-export `REALTIME_PORT` + helpers từ `shared/`) + `realtime.module.ts` — GIỮ `@Global()` + `imports: [JwtModule, UsersModule, ProjectsModule, WorkspacesModule]` + 2 binding `useExisting` (`REALTIME_PORT`, `REALTIME_TRANSPORT_PORT`) + exports |
+| 4 | `rm -rf` thư mục rỗng |
+| 5 | Verify + commit + tag `v1.2.0-realtime` |
 
-> **Module này gần như chỉ là di chuyển file** — rủi ro cực thấp. Làm nó sớm để "lấy cảm hứng".
+> Rủi ro thấp nhất P3 — nếu P2 gặp khó, có thể làm `realtime` trước để lấy đà (ghi vào notes).
 
 ---
 
-## 5.4. Module `data-view` — 35 phút
+## 5.4. Module `data-view` — 60 phút
 
-### Cấu trúc hiện tại
+### Trước → Sau
+
 ```
-src/modules/data-view/
-├── application/data-view.types.ts
-├── application/data-view.utils.ts
-├── application/queries/get-chart-data.handler.ts
-├── application/queries/get-column-stats.handler.ts
-├── application/queries/get-records.handler.ts
-├── application/queries/query-records.handler.ts
-├── data-view.module.ts
-├── domain/entities/record-query.entity.ts
-├── domain/value-objects/record-filter.vo.ts
-├── domain/value-objects/record-query.vo.ts
-├── index.ts
-├── presentation/controllers/data-view.controller.ts
-├── presentation/dtos/chart-data.dto.ts
-├── presentation/dtos/query-records-body.dto.ts
-└── presentation/dtos/query-records.dto.ts
+src/modules/data-view/                     src/modules/data-view/
+├── application/queries/*.handler.ts (4)   ├── data-view.routes.ts   ← controller + 3 DTO
+├── application/*.types.ts + *.utils.ts     ├── data-view.service.ts  ← 4 method
+├── domain/entities + value-objects        ├── data-view.types.ts    ← types + entity/vo gộp
+├── presentation/controllers + dtos       ├── data-view.utils.ts    ← giữ
+└── ...                                     └── index.ts / module / README.md
 ```
 
-### Đích
-```
-src/modules/data-view/
-├── data-view.module.ts
-├── data-view.routes.ts       ← controller + 3 DTO
-├── data-view.service.ts      ← 4 handler
-├── data-view.types.ts        ← từ application/data-view.types.ts + domain/entities + value-objects
-├── data-view.utils.ts        ← từ application/data-view.utils.ts
-├── index.ts
-└── README.md
-```
-
-### Bước thực hiện
+### Bước
 
 | Bước | Hành động |
 |---|---|
-| 1 | `git mv presentation/controllers/data-view.controller.ts data-view.routes.ts` |
-| 2 | Gộp 3 DTO vào `data-view.routes.ts` (DTO chỉ dùng 1 nơi) |
-| 3 | `git mv application/data-view.types.ts data-view.types.ts` |
-| 4 | `git mv application/data-view.utils.ts data-view.utils.ts` |
-| 5 | `git mv application/queries/get-chart-data.handler.ts _tmp/` (+ 3 file nữa) |
-| 6 | Gộp 4 handler → `DataViewService` với 4 method |
-| 7 | Gộp `domain/entities/record-query.entity.ts` + `domain/value-objects/*.vo.ts` → `data-view.types.ts` |
-| 8 | `rm -rf application domain presentation` |
-| 9 | Sửa import: `data-view.routes.ts`, `data-view.service.ts`, `index.ts`, `data-view.module.ts` |
-| 10 | **Quan trọng:** module này import 13 lần từ `datasets` — phải qua `../datasets` (public contract) |
-| 11 | Verify + commit + tag |
-
-> **Lưu ý:** `data-view` là module "read-only view" — không có schema riêng, đọc qua `RECORD_QUERY_PORT` của `datasets`. Đây là ví dụ đẹp của **module dùng port của module khác** — và nó hoạt động tốt.
+| 1 | Đối chiếu §data-view: giữ `RECORD_QUERY_PORT` của `datasets`, giữ `DEFAULT/MAX_RECORD_LIMIT` + `normalizeRecordLimit`, giữ tách route `records/query` (POST) vs `records` (GET) |
+| 2 | Gộp 3 DTO vào `data-view.routes.ts` (DTO 1 nơi) |
+| 3 | Gộp entity + vo vào `data-view.types.ts` (không tách `domain/`) |
+| 4 | Gộp 4 handler → `DataViewService` (4 method, giữ `execute()` + thứ tự tham số) |
+| 5 | Import chéo `datasets` **phải qua `../datasets`** (MM2) — 13 chỗ, kiểm tra kỹ; GIỮ `imports: [DatasetsModule]` trong module + `DatasetPolicyLoader` trong routes (2 resource `DataRecord`/`Dataset`) |
+| 6 | Verify + commit + tag `v1.2.0-data-view` |
 
 ---
 
-## 5.5. Module `notifications` — 40 phút
+## 5.5. Module `notifications` — 70 phút
 
-### Cấu trúc hiện tại → Đích
-```
-src/modules/notifications/
-├── application/commands/dispatch.handler.ts
-├── application/commands/mark-as-read.handler.ts
-├── application/commands/update-preferences.handler.ts
-├── application/notification-email.mapper.ts
-├── application/notifications.types.ts
-├── application/notifications.utils.ts
-├── application/queries/count-unread.handler.ts
-├── application/queries/get-detail.handler.ts
-├── application/queries/list-for-user.handler.ts
-├── domain/entities/notification.entity.ts
-├── domain/events/notification-events.ts
-├── domain/ports/notification.repository.port.ts
-├── domain/value-objects/notification-type.vo.ts
-├── index.ts
-├── infrastructure/persistence/notification.mapper.ts
-├── infrastructure/persistence/notification.schema.ts
-├── infrastructure/persistence/notifications.repository.ts
-├── notifications.module.ts
-├── presentation/controllers/notifications.controller.ts
-└── presentation/dtos/list-notifications-query.dto.ts
-+ presentation/dtos/update-preferences.dto.ts
-```
+### Trước → Sau
 
 ```
-src/modules/notifications/
-├── notifications.module.ts
-├── notifications.routes.ts     ← controller + 2 DTO
-├── notifications.service.ts    ← 6 handler (3 cmd + 3 qry)
-├── notifications.repository.ts ← từ infrastructure/persistence/notifications.repository.ts
-├── notifications.schema.ts     ← từ infrastructure/persistence/notification.schema.ts
-├── notifications.types.ts      ← types + entity + vo + port token
-├── notifications.events.ts     ← từ domain/events/notification-events.ts
-├── notifications.mapper.ts     ← từ infrastructure/persistence/notification.mapper.ts
-├── notifications.email.mapper.ts ← từ application/notification-email.mapper.ts
-├── notifications.utils.ts      ← từ application/notifications.utils.ts
-├── index.ts
-└── README.md
+src/modules/notifications/                 src/modules/notifications/
+├── application/commands + queries (6)     ├── notifications.routes.ts     ← controller + 2 DTO
+├── application/*.mapper.ts + *.utils.ts   ├── notifications.service.ts    ← 6 method
+├── domain/entities + events + ports + vo  ├── notifications.repository.ts ← giữ
+├── infrastructure/*.schema.ts + *.repo.ts ├── notifications.schema.ts    ← giữ
+├── presentation/controllers + dtos       ├── notifications.types.ts      ← entity + vo + port token
+└── ...                                     ├── notifications.events.ts   ← giữ riêng
+                                            ├── notification.mapper.ts    ← DB mapping, GIỮ RIÊNG
+                                            ├── notification-email.mapper.ts ← email rendering, GIỮ RIÊNG
+                                            ├── notifications.utils.ts
 ```
 
-> **Lưu ý:** 2 file mapper (`notification.mapper.ts` DB mapping và `notification-email.mapper.ts` email rendering) là **hai thứ khác nhau** — giữ tách biệt, đừng gộp nhầm.
+### Giữ DI + cấm gộp nhầm (ghi vào checklist review)
+
+- GIỮ `imports: [MongooseModule.forFeature([{ name: 'Notification' }]), UsersModule]` + `{ provide: NOTIFICATION_REPOSITORY_PORT, useExisting: NotificationsRepository }` — không bỏ `UsersModule`.
+
+- `notification.mapper.ts` (DB mapping) vs `notification-email.mapper.ts` (email rendering): **2 thứ khác nghĩa, giữ tách**.
+- Giữ route `PATCH users/me/notification-preferences` ở đúng controller.
+- Giữ thứ tự `unread-count` trước `:id`.
 
 ---
 
-## 5.6. Module `feedback` — 45 phút
+## 5.6. Module `feedback` — 100 phút (khó nhất P3)
 
-### Đích
+### Trước → Sau
+
 ```
-src/modules/feedback/
-├── feedback.module.ts
-├── feedback.routes.ts          ← controller + DTO
-├── feedback.service.ts         ← 7 handler
-├── feedback.repository.ts
-├── feedback.types.ts           ← 2 entity + 2 vo + port token + types
-├── feedback.events.ts
-├── feedback.utils.ts
-├── finding-feedback.schema.ts  ← schema riêng của entity thứ 2
-├── index.ts
-└── README.md
+src/modules/feedback/                     src/modules/feedback/
+├── application/commands + queries (7)    ├── feedback.routes.ts      ← controller + DTO
+├── domain 2 entities + vo                ├── feedback.service.ts     ← 7 method
+├── infrastructure 1 repo + schemas       ├── feedback.repository.ts  ← 1 repo (giữ, dùng 1 model `FindingFeedback`)
+├── presentation controllers + dtos      ├── feedback.types.ts       ← 2 entity + vo + port token (giữ `Feedback.create/updateByAuthor`)
+                                           ├── feedback.mapper.ts        ← giữ riêng (mapping snake/camel)
+                                           ├── feedback.module.ts GIỮ `forFeature([{ name: 'FindingFeedback' }])` + `imports: [ProjectsModule, WorkspacesModule, UsersModule, AnalysisModule]` + `useExisting`
+└── ...                                    ├── feedback.events.ts + feedback.utils.ts
+                                           ├── finding-feedback.schema.ts ← schema entity thứ 2, giữ riêng
 ```
 
-> **Điểm đặc biệt:** `feedback` có **2 entity** (`feedback` + `finding-feedback`) nhưng **1 repository**. Giữ nguyên cấu trúc này — chỉ flatten.
+### Điều kiện Simple (bắt buộc giữ trong `types.ts` + service)
+
+- Giữ `Feedback.create/updateByAuthor + requiresReason + ensureNotAdmin`.
+- Giữ chữ ký 4 tham số của `UpdateMine`.
+- Giữ tương thích camel/snake/ObjectId trong repository + `deleted_at: null` mọi query.
+
+> Nếu quá 100 phút chưa xanh: **cắt** — revert `feedback`, ghi nợ vào `notes.md`, sang P4. Không cố gộp.
 
 ---
 
-## 5.7. Module `issues` — 50 phút
-
-### Đích — nhiều service nhỏ
-```
-src/modules/issues/
-├── issues.module.ts
-├── issues.routes.ts              ← controller user (issues.controller.ts)
-├── issues.admin.routes.ts         ← controller admin (admin-issues.controller.ts)
-├── issues.service.ts              ← 4 command handler
-├── issues.query.service.ts        ← 5 query handler
-├── issues.repository.ts
-├── issues.schema.ts
-├── issues.types.ts
-├── issues.events.ts
-├── issues.utils.ts
-├── issue.mapper.ts
-├── index.ts
-└── README.md
-```
-
-### Quy tắc tách service
-
-| Nhóm | Handler | Service |
-|---|---|---|
-| Command (ghi) | `create-report`, `update-my-report`, `update-status`, `upload-attachment` | `issues.service.ts` |
-| Query (đọc) | `download-attachment`, `get-for-admin`, `get-mine`, `list-for-admin`, `list-mine` | `issues.query.service.ts` |
-
-> **Quy tắc chung cho module ≥ 6 handler:** tách `*.service.ts` (command) và `*.query.service.ts` (query).
-> Lý do: người mới đọc "service" sẽ thấy 2 nhóm rõ ràng — ghi hay đọc — thay vì 9 method lẫn lộn.
-
-**Áp dụng quy tắc này cho:** `users` (17), `projects` (17), `workspaces` (14), `feedback` (7), `issues` (9), `notifications` (6), `datasets` (8), `auth` (11).
-
----
-
-## 5.8. Checklist chung cho mỗi module P3
+## 5.7. Checklist chung mỗi module P3
 
 ```
-☐  1. git mv từng file (giữ nội dung, chỉ đổi vị trí)
-☐  2. Gộp file theo bảng quy đổi
-☐  3. Gộp handler → service method (giữ tên method & thứ tự tham số)
-☐  4. Giữ nguyên tên type / port token / event type
-☐  5. Sửa import trong file di chuyển
-☐  6. Sửa index.ts (public contract)
-☐  7. Sửa <ten>.module.ts (provider)
-☐  8. grep tên cũ: grep -rn "<TênCũ>" src/ test/  → phải 0 kết quả
-☐  9. rm -rf thư mục rỗng
-☐ 10. pnpm type-check → 0 lỗi
-☐ 11. pnpm lint → 0 cảnh báo
-☐ 12. pnpm exec jest --maxWorkers=2 → xanh
-☐ 13. pnpm arch:api-coverage → khớp 82 route (§12.1) + giữ thứ tự sessions/me, unread-count
-☐ 14. test/modular-monolith.spec.ts → MM5 pass
-☐ 15. bash scripts/measure-refactor.sh → ghi notes.md
-☐ 16. git commit + tag
+☐ 1. Đối chiếu 12_business_invariants.md §module + tick 13_refactor_constraints.md §13.6
+☐ 2. Tạo file mới (types/service/routes) — không xóa cũ ngay
+☐ 3. Handler → method: giữ tên execute()/log() + thứ tự tham số
+☐ 4. Chuyển DI ở *.module.ts + export lại ở index.ts
+☐ 5. Xóa file cũ + thư mục rỗng sau khi type-check xanh
+☐ 6. Viết README.md (Template: Simple + lý do + bất biến)
+☐ 7. pnpm type-check → 0 lỗi
+☐ 8. pnpm lint → 0 cảnh báo
+☐ 9. pnpm exec jest --maxWorkers=2 --testPathPatterns '<mod>|modular-monolith|clean-architecture' → xanh
+☐ 10. pnpm arch:api-coverage → 82 HTTP + 1 WS
+☐ 11. bash scripts/measure-refactor.sh → ghi notes.md
+☐ 12. git commit + tag v1.2.0-<mod>
 ```
 
 ---
 
-## 5.9. Cổng kiểm soát P3
+## 5.8. Cổng kiểm soát P3
 
 | Điều kiện | Giá trị kỳ vọng |
 |---|---|
-| `src/modules/{audit,overview,realtime,data-view,notifications,feedback,issues}/` phẳng | 0 thư mục con mỗi module |
-| File `.ts` trong `src/modules/` | 340 → ~305 |
-| LOC | 31 505 → ~28 000 |
-| `pnpm type-check` | 0 l�i |
-| `pnpm lint` | 0 cảnh báo |
-| `pnpm exec jest --maxWorkers=2` | 67 suites / 1 069 tests |
-| `pnpm arch:api-coverage` | 82 / 82 / 0 / 0 (đối chiếu §12.1) |
+| 6 Simple phẳng (`audit` + 5 P3) | 0 thư mục con mỗi module (arch test MM5' pass cho 6 Simple) |
+| File `.ts` | 340 → ~305 |
+| LOC | 31 505 → ~28 500 |
+| type-check / lint / test / api-coverage | xanh / 0 / xanh / 82+1 |
 | Tag | `v1.2.0-p3` |
-
----
-
-## 5.10. Đối chiếu nghiệp vụ Tier 1 (bắt buộc — xem `12_business_invariants.md`)
-
-> Trước khi gộp mỗi module, tick từng mục ở §12.1–§12.2. Sau khi gộp, kiểm tra lại §12.4–§12.6.
-
-- **overview (§12.2):** `GetUserOverview.execute(userId)` + `GetWorkspaceOverview.execute(workspaceId)` — giữ `Promise.all`, giữ 2 port `WORKSPACE_REPOSITORY_PORT` + `PROJECT_REPOSITORY_PORT`.
-- **realtime:** 0 handler + 1 subscriber `realtime-revocation` — giữ `extractUserId` hỗ trợ cả `user_id`/`userId`, giữ `disconnectUser`, giữ handshake check trạng thái.
-- **data-view (§12.2):** 4 query — giữ `RECORD_QUERY_PORT` của `datasets`, giữ `DEFAULT/MAX_RECORD_LIMIT` + `normalizeRecordLimit`, giữ thứ tự route `records/query` (POST) tách khỏi `records` (GET).
-- **notifications (§12.2):** 6 handler — giữ route `PATCH users/me/notification-preferences` ở đúng controller, giữ 2 mapper riêng, giữ thứ tự `unread-count` trước `:id`.
-- **feedback (§12.2):** 7 handler — giữ `ensureNotAdmin`, giữ chữ ký 4 tham số của `UpdateMine`, giữ tương thích camel/snake/ObjectId trong repository, giữ `deleted_at: null` trong mọi query.
-- **issues (§12.2):** 9 handler — giữ invariant title/desc trong entity, giữ `expectedVersion` optimistic locking, giữ phân biệt routes user vs `admin/*` + `Roles('admin')`.
-
----
-
-> **Khóa chống vỡ test/API/hạ tầng:** trước mỗi commit của phase này, tick hết [`13_refactor_constraints.md`](13_refactor_constraints.md) §13.6 (TC giữ test/token/session/subscriber · AC giữ 82 route/envelope/filter/guard · FC giữ AppModule/main/worker/env/tunnel/test-infra · BC giữ ingest/cascade/policy · PC 1 module/1 commit, đỏ >15' thì revert).

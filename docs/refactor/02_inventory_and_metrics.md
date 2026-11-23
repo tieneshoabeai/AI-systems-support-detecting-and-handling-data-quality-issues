@@ -1,165 +1,131 @@
-# 2. Kiểm kê & số liệu baseline
+# 2. Kiểm kê & số liệu baseline (bản hybrid 6+7)
 
-> Nguồn: đo trực tiếp từ cây nguồn ngày 2026-11-21. Dùng để **lập kế hoạch** và **đo kết quả** sau refactor.
+> Nguồn: đo trực tiếp từ cây nguồn ở P1 (`31cd2f3`). Dùng để **lập kế hoạch** và **đo kết quả** sau refactor. Viết lại 2026-11-24 theo ADR-0002.
 
 ---
 
 ## 2.1. Baseline tổng thể
 
-| Chỉ số | Baseline | Mục tiêu | Nguồn đo |
+| Chỉ số | Baseline (P1) | Mục tiêu hybrid | Nguồn đo |
 |---|---|---|---|
-| File `.ts` trong `src/modules/` | **340** | ~180 | `find src/modules -name '*.ts' \| wc -l` |
-| LOC trong `src/modules/` | **31 505** | ~20 000 | `find … -exec cat {} + \| wc -l` |
+| File `.ts` trong `src/modules/` | **340** | **~305** (chỉ flatten 6 Simple) | `find src/modules -name '*.ts' \| wc -l` |
+| LOC trong `src/modules/` | **31 505** | **~28 500** (−~3 000) | `wc -l` |
 | File `.ts` trong `src/shared/` | **88** | 88 (không đổi) | — |
 | LOC trong `src/shared/` | **5 567** | 5 567 (không đổi) | — |
-| **Tổng file `.ts`** | **427** | ~268 | — |
-| **Tổng LOC** | **36 643** | ~25 500 | — |
-| Thư mục con trong `src/modules/` | **~60** | ~20 | `find … -mindepth 2 -type d` |
-| Tầng kiến trúc | **4** | **1** | — |
-| Rule kiến trúc | **14** | **5** | `eslint.config.mjs` + `clean-architecture.spec.ts` |
-| HTTP route | **82 HTTP + 1 WS** | **82** (bất biến) | `pnpm arch:api-coverage` |
-| Handler | **107** (61 cmd + 46 query) | 107 service method | `19_handler_inventory.md` |
-| Mongoose model | **18 (17 file)** | 20 (bất biến) | `MongooseModule.forFeature` |
-| Test | **1 277** / 79 suite | 1 277 (bất biến) | `pnpm test*` |
+| Thư mục con trong `src/modules/` | **~60** | **~30** (−~30, từ 6 Simple) | `find … -mindepth 2 -type d` |
+| Template kiến trúc | 4 tầng đồng nhất × 13 | **Simple × 6 + Hexagonal × 7** | — |
+| Rule kiến trúc | MM1–MM4 + CA nội bộ H | MM1–MM4 + MM5' (không ép phẳng) | `eslint.config.mjs` + arch test |
+| HTTP route | **82 HTTP + 1 WS** | **82+1** (bất biến) | `pnpm arch:api-coverage` |
+| Handler | **107** (61 cmd + 46 query) + 3 subscriber | 107 (Simple → method; H giữ file) | inventory handler |
+| Mongoose model | **18 (17 file)** | bất biến | `MongooseModule.forFeature` |
+| Test | **1 277** / 79 suite | 1 277 (bất biến, chỉ đổi import path) | `pnpm test*` |
 | Coverage (stmts) | 71.03% | ≥ 71% | `pnpm test:cov` |
 
+> Hướng cũ đặt mục tiêu ~180 file / ~20 000 LOC vì ép cả 13 module phẳng — **đã bỏ**. Mục tiêu mới thực tế hơn vì 7 Hexagonal không gộp.
+
 ---
 
-## 2.2. Baseline chi tiết từng module
+## 2.2. Baseline chi tiết từng module + template chốt
 
-| Module | Handler (cmd/qry) | File `.ts` | LOC | Tầng con | Phân loại |
+| Module | Handler (cmd/qry) | File `.ts` | LOC | Template chốt | Ghi chú bất biến (§12) |
 |---|---|---|---|---|---|
-| `analysis` | 6 / 5 | 56 | 8 242 | 6 | 🔴 T3 — chỉ di chuyển (11 handler + 3 service + 7 schema + 14 util, xem §12.2) |
-| `auth` | 9 / 2 | 35 | 2 862 | 6 | 🔴 T3 — chỉ di chuyển (11 handler + 2 service + 7 token + 4 adapter, xem §12.2) |
-| `datasets` | 4 / 4 | 33 | 4 227 | 7 | 🟡 T2 — nhạy cảm nhất (8 handler + 1 subscriber, 2 schema, 2 repository, xem §12.5) |
-| `projects` | 10 / 7 | 43 | 3 182 | 7 | 🟡 T2 (17 handler + 1 subscriber, 3 policy loader, xem §12.2) |
-| `users` | 11 / 6 | 34 | 2 822 | 6 | 🟡 T2 (17 handler + revocation service, xem §12.2) |
-| `workspaces` | 8 / 6 | 38 | 2 625 | 7 | 🟡 T2 (14 handler, quota 20, transaction strict, xem §12.5) |
-| `feedback` | 5 / 2 | 21 | 2 186 | 6 | 🟡 T2 (7 handler, `ensureNotAdmin`, tương thích camel/snake, xem §12.2) |
-| `issues` | 4 / 5 | 23 | 1 913 | 6 | 🟡 T2 nhưng làm ở P3 (9 handler, optimistic locking, 2 nhóm user/admin) |
-| `notifications` | 3 / 3 | 21 | 1 294 | 6 | 🟢 T1 (6 handler, 2 mapper khác nhau — không gộp, xem §12.2) |
-| `data-view` | 0 / 4 | 15 | 967 | 4 | 🟢 T1 (4 query, không có repository riêng — qua `RECORD_QUERY_PORT`) |
-| `realtime` | 0 / 0 | 8 | 642 | 4 | 🟢 T1 |
-| `audit` | 1 / 0 | 8 | 353 | 4 | 🟢 T1 — **PILOT** |
-| `overview` | 0 / 2 | 5 | 190 | 2 | 🟢 T1 |
-| **Tổng** | **61 / 46 = 107 (+3 subscriber)** | **340** | **31 505** | ~60 | — |
+| `audit` | 1 / 0 | 8 | 353 | 🟢 **Simple — PILOT** | facade `AUDIT_LOGGER_PORT`, `LogHandler.execute()` → `AuditService.log()` |
+| `overview` | 0 / 2 | 5 | 190 | 🟢 **Simple** | 2 query đọc/view, không DB riêng |
+| `realtime` | 0 / 0 (+1 sub) | 8 | 642 | 🟢 **Simple** | WS gateway + subscriber, side-effect cục bộ |
+| `data-view` | 0 / 4 | 15 | 967 | 🟢 **Simple** | 4 query, không repo riêng (qua `RECORD_QUERY_PORT`) |
+| `notifications` | 3 / 3 | 21 | 1 294 | 🟢 **Simple** | 6 handler; **giữ 2 mapper riêng** (DB vs email) — không gộp |
+| `feedback` | 5 / 2 | 21 | 2 186 | 🟢 **Simple (có điều kiện)** | 7 handler; giữ `create/updateByAuthor + requiresReason + ensureNotAdmin` trong `types.ts`; tương thích camel/snake |
+| `issues` | 4 / 5 | 23 | 1 913 | 🟠 **Hexagonal** (đổi so với hướng cũ) | optimistic locking + 1 controller (2 nhóm route) + cascade — đủ ngưỡng giữ H (D14) |
+| `datasets` | 4 / 4 (+1 sub) | 33 | 4 227 | 🟠 **Hexagonal** | 2 schema/2 repo, tx strict, policy loader |
+| `projects` | 10 / 7 (+1 sub) | 43 | 3 182 | 🟠 **Hexagonal** | 17 handler + 3 policy loader + best-effort outbox |
+| `users` | 11 / 6 | 34 | 2 822 | 🟠 **Hexagonal** | password policy + revocation service |
+| `workspaces` | 8 / 6 | 38 | 2 625 | 🟠 **Hexagonal** | quota 20, tx strict, RBAC 3 tầng |
+| `analysis` | 6 / 5 | 56 | 8 242 | 🔴 **Hexagonal** | AI worker + RAM/cardinality guard + 7 schema + 14 util |
+| `auth` | 9 / 2 | 35 | 2 862 | 🔴 **Hexagonal** | OAuth/session rotation + 7 token + 4 adapter |
+| **Tổng** | **61 / 46 = 107 (+3 sub)** | **340** | **31 505** | 6 S + 7 H | — |
 
-### Phân loại rủi ro
+### Thứ tự làm việc
 
-| Tier | Module | Tiêu chí | Handler | Ước lượng giờ |
-|---|---|---|---|---|
-| 🟢 **T1** | `audit` (1), `overview` (2), `data-view` (4), `realtime` (0+1 sub), `notifications` (6) | CRUD + đọc view, side-effect cục bộ (realtime disconnect, email mapper) | 13 | 2h |
-| 🟡 **T2** | `issues` (9, làm ở P3), `feedback` (7, làm ở P3), `datasets` (8+1 sub), `users` (17), `workspaces` (14), `projects` (17+1 sub) | Có transaction/outbox/cascade/policy, có invariant phức tạp | 72 | 9–10h (P3 gánh `issues`+`feedback`, P4 gánh 4 module còn lại) |
-| 🔴 **T3** | `auth` (11), `analysis` (11) | OAuth/session rotation, AI worker + RAM guard + cardinality guard | 22 | 3h (chỉ di chuyển, xem §12.2) |
+| Phase | Module | Việc | Handler chạm |
+|---|---|---|---|
+| P2 pilot | `audit` (Simple) | Flatten mẫu, chốt template S | 1 |
+| P3 Simple còn lại | `overview → realtime → data-view → notifications → feedback` | Flatten 5 module (feedback khó nhất để cuối) | 2+0+4+6+7 = 19 |
+| P4 Hexagonal vừa | `datasets, projects, workspaces, users` | Chuẩn hóa import + README, không gộp | 8+17+14+17 = 56 (+2 sub) |
+| P5 Hexagonal khó | `issues, analysis, auth` | Chuẩn hóa + tài liệu lý do giữ H | 9+11+11 = 31 (+1 sub) |
 
-> **Đếm lại đúng (quét thật):** T1 lõi `audit`(1) + `overview`(2) + `data-view`(4) + `realtime`(0) = **7 handler**; cộng `notifications`(6) = **13**. P3 làm thêm `feedback`(7) + `issues`(9) nên tổng P3 = **28 handler** (xem §12.2). T2 còn lại 4 module = **56 handler + 2 subscriber**. T3 = **22 handler**. Tổng **107 + 3 subscriber**. ✅
+> Tổng Simple flatten: **20 handler** (`audit` 1 + P3 19). Tổng Hexagonal chuẩn hóa: **87 handler + 3 sub** (giữ nguyên file).
 
 ---
 
-## 2.3. Cross-module import — hiện trạng đã tốt
+## 2.3. Cross-module import — giữ nguyên MM2
 
-**Đo được:** 116 cross-module import, **100% đi qua `index.ts`** (public contract) — không có deep import nào.
+**Đo được ở P1:** 116 cross-module import, **100% qua `index.ts`** — đã đạt, không làm lại.
 
-| Nguồn → Đích | Số import |
+| Nguồn → Đích (top) | Số import |
 |---|---|
 | `data-view` → `datasets` | 13 |
 | `analysis` → `projects` | 8 |
 | `projects` → `workspaces` | 7 |
 | `feedback` → `projects` | 6 |
 | `feedback` → `workspaces` | 6 |
-| `feedback` → `users` | 5 |
-| `analysis` → `datasets` | 4 |
-| `feedback` → `analysis` | 4 |
-| `projects` → `users` | 4 |
-| `workspaces` → `users` | 4 |
-| `datasets` → `workspaces` | 3 |
-| `datasets` → `projects` | 3 |
-| `issues` → `notifications` | 3 |
-| `auth` → `users` | 3 |
-| `overview` → `workspaces` | 3 |
-| *(còn lại)* | 47 |
+| *(còn lại)* | xem bản cũ / quét lại bằng AST |
 
-> **Phát hiện quan trọng:** Ranh giới module **đã được enforce chặt** bằng `index.ts` + ESLint + arch test. Đây chính là "M2" của modular monolith — **đã đạt**.
->
-> → **Không cần làm lại.** Chỉ cần giữ nguyên cơ chế này khi flatten thư mục.
+> Khi flatten Simple: import nội bộ module rút ngắn; import chéo module **vẫn qua `index.ts`** (MM2). Khi chuẩn hóa H: chỉ sửa deep import còn sót (nếu có), không đổi public contract.
 
 ---
 
-## 2.4. Bảng quy đổi file theo module (dùng cho P2–P5)
+## 2.4. Bảng quy đổi file
 
-Áp dụng cho mọi module — mẫu chuẩn hóa:
+### 2.4a. Simple (áp dụng 6 module S)
 
-| Tầng cũ | Đích | Quy tắc đặt tên |
+| Tầng cũ | Đích | Quy tắc |
 |---|---|---|
-| `presentation/controllers/X.controller.ts` | `x.routes.ts` | gộp controller + DTO vào 1 file |
-| `presentation/dtos/*.dto.ts` | `x.routes.ts` hoặc `x.types.ts` | DTO chỉ dùng 1 nơi → nhúng vào routes |
-| `presentation/responses/*.response.ts` | `x.types.ts` | type response |
-| `application/commands/*.handler.ts` | `x.service.ts` | mỗi handler → 1 method của service |
-| `application/queries/*.handler.ts` | `x.service.ts` | như trên |
-| `application/services/*.service.ts` | `x.service.ts` | gộp vào service chính |
-| `application/policy-loaders/*.ts` | `x.policy.ts` | giữ riêng |
-| `application/ports/*.port.ts` | `x.service.ts` hoặc `x.types.ts` | port nội bộ → gộp |
-| `domain/entities/*.entity.ts` | `x.types.ts` | type + schema |
-| `domain/value-objects/*.vo.ts` | `x.types.ts` | enum + helper |
-| `domain/events/*.event.ts` | `x.events.ts` | giữ riêng nếu có |
-| `domain/ports/*.port.ts` | `x.types.ts` (interface) | interface trong types |
-| `domain/services/*.util.ts` | `x.service.ts` hoặc `x.utils.ts` | util thuần |
-| `infrastructure/persistence/X.schema.ts` | `x.schema.ts` | giữ |
-| `infrastructure/persistence/X.repository.ts` | `x.repository.ts` | giữ (nếu tách) |
-| `infrastructure/persistence/X.mapper.ts` | gộp vào `x.repository.ts` | **chỉ T1/T2** |
-| `infrastructure/adapters/*.adapter.ts` | `x.adapter.ts` | giữ |
-| `index.ts` | `index.ts` | **giữ nguyên** |
-| `x.module.ts` | `x.module.ts` | **giữ nguyên** |
+| `presentation/controllers/*.controller.ts` | `<mod>.routes.ts` | gộp controller + DTO 1 nơi |
+| `presentation/dtos/*.dto.ts` | `<mod>.routes.ts` hoặc `<mod>.types.ts` | DTO 1 nơi → nhúng vào routes |
+| `presentation/responses/*.response.ts` | `<mod>.types.ts` | type response |
+| `application/commands/*.handler.ts` | `<mod>.service.ts` | mỗi handler → 1 method, giữ `execute()` + thứ tự tham số |
+| `application/queries/*.handler.ts` | `<mod>.service.ts` | như trên |
+| `application/services/*.service.ts` | `<mod>.service.ts` | gộp |
+| `domain/entities/*.entity.ts` (nhẹ) | `<mod>.types.ts` | vd `Notification.create/markAsRead`, `Feedback.create` |
+| `domain/value-objects/*.vo.ts` | `<mod>.types.ts` | enum + helper |
+| `infrastructure/persistence/*.schema.ts` | `<mod>.schema.ts` | giữ (nếu có DB riêng) |
+| `infrastructure/persistence/*.repository.ts` | `<mod>.repository.ts` | giữ (nếu có DB riêng) |
+| `infrastructure/persistence/*.mapper.ts` | giữ riêng nếu khác nghĩa | **`notifications`: giữ 2 mapper riêng** |
+| `index.ts` / `<mod>.module.ts` | giữ | **bất biến** |
 
-### Quy tắc "giữ file hay gộp"
+### 2.4b. Hexagonal (áp dụng 7 module H)
 
-| Điều kiện | Hành động |
+| Việc | Quy tắc |
 |---|---|
-| File > 150 LOC hoặc phục vụ > 1 mục đích rõ ràng | **Giữ riêng** (vd: `x.repository.ts`) |
-| File chỉ là wrapper 1-1 | **Gộp** |
-| File < 60 LOC và chỉ dùng 1 nơi | **Gộp** |
-| File là interface + Symbol được module khác dùng | **Giữ riêng** trong `x.types.ts` hoặc `x.repository.ts` |
+| Giữ toàn bộ `application/ + domain/ + infrastructure/ + presentation/` | không gộp, không đổi tên file |
+| Chuẩn hóa `index.ts` | export public contract rõ (port/symbol dùng chéo) |
+| Sửa import | nội bộ module import trực tiếp; chéo module qua `index.ts` |
+| Viết `README.md` | ghi `Template: Hexagonal` + lý do giữ + invariant chính |
 
 ---
 
-## 2.5. Script đo lại (chạy sau mỗi phase)
+## 2.5. Script đo lại (chạy sau mỗi module/phase)
 
-Tạo file `scripts/measure-refactor.sh` — xem `03_phase_p0_p1.md` §3.4.
+Dùng `scripts/measure-refactor.sh` đã có từ P1. Ghi kết quả vào `docs/refactor/notes.md` + bảng §2.6.
 
 ```bash
-#!/usr/bin/env bash
-# Đo baseline sau mỗi phase refactor
-set -euo pipefail
-cd "$(dirname "$0")/.."
-
-printf '=== File .ts trong src/modules ===\n'
-find src/modules -name '*.ts' | wc -l
-
-printf '=== LOC trong src/modules ===\n'
-find src/modules -name '*.ts' -exec cat {} + | wc -l
-
-printf '=== Thư mục con trong src/modules ===\n'
-find src/modules -mindepth 2 -type d | wc -l
-
-printf '=== Handler ===\n'
-ls src/modules/*/application/{commands,queries}/*.handler.ts 2>/dev/null | wc -l || true
-
-printf '=== Route (contract 3.13) ===\n'
-node scripts/check-api-coverage.cjs | tail -3
+./scripts/measure-refactor.sh
+pnpm type-check && pnpm lint
+pnpm arch:api-coverage   # phải 82 HTTP + 1 WS
+pnpm test -- <module-liên-quan>
 ```
-
-> **Ghi kết quả vào `docs/refactor/notes.md`** sau mỗi phase — đây là số liệu dùng cho báo cáo đồ án.
 
 ---
 
-## 2.6. Đường cong đo lại
+## 2.6. Đường cong đo lại (mục tiêu hybrid)
 
 | Phase | File `.ts` | LOC | Thư mục con | Handler | Ghi chú |
 |---|---|---|---|---|---|
-| Baseline (hiệu chỉnh 2026-11-23) | 340 | 31 505 | ~60 | 107 | — |
-| Sau P2 (pilot) | −7 | −~350 | −5 | 107 | `audit` làm mẫu |
-| Sau P3 (T1) | ~305 | ~28 000 | ~38 | 107 | 6 module dễ |
-| Sau P4 (T2) | ~225 | ~22 500 | ~22 | 107 | 5 module vừa |
-| Sau P5 (T3) | ~180 | ~20 000 | ~20 | 107 | chỉ di chuyển |
+| Baseline P1 | 340 | 31 505 | ~60 | 107 | `31cd2f3` |
+| Sau P2 (`audit`) | ~333 | ~31 150 | ~55 | 107 | Simple mẫu |
+| Sau P3 (5 Simple) | ~305 | ~28 500 | ~30 | 107 | xong 6 Simple |
+| Sau P4 (4 H chuẩn hóa) | ~305 | ~28 500 | ~30 | 107 | file không đổi, chỉ chuẩn hóa |
+| Sau P5 (3 H chuẩn hóa) | ~305 | ~28 500 | ~30 | 107 | file không đổi |
+| Sau P6/P7 | ~305 | ~28 500 | ~30 | 107 | tài liệu + verify |
 
-> **Ước lượng:** giảm **~47% file**, **~36% LOC**, **~67% thư mục con**.
+> **Ước lượng hybrid:** giảm **~10% file**, **~10% LOC**, **~50% thư mục con** — khiêm tốn nhưng an toàn; giá trị chính nằm ở 6 Simple gọn + tài liệu rõ template.

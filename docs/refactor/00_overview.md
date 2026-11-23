@@ -1,8 +1,8 @@
-# 0. Tổng quan kịch bản thực thi
+# 0. Tổng quan kịch bản thực thi (Hybrid 6+7)
 
-> **Mục đích:** Tái cấu trúc backend từ **Clean Architecture 4 tầng** → **Modular Monolith (vertical slice)** theo yêu cầu đồ án, trong 30 giờ, **không đổi hành vi quan sát được từ bên ngoài**.
+> **Mục đích:** Tái cấu trúc backend từ **Clean 4 tầng đồng nhất** → **Modular Monolith lai (heterogeneous)** trong 30 giờ, **không đổi hành vi quan sát được từ bên ngoài**.
 >
-> **Ngày lập:** 2026-11-21 · **Trạng thái:** Sẵn sàng thực thi
+> **Ngày lập:** 2026-11-21 · **Viết lại:** 2026-11-24 theo ADR-0002 (thay hướng slice-toàn-bộ bằng hybrid 6+7) · **Trạng thái:** Sẵn sàng thực thi (đang ở P1 `31cd2f3`)
 
 ---
 
@@ -10,11 +10,20 @@
 
 | Vấn đề thực tế | Bằng chứng |
 |---|---|
-| **Người mới khó hiểu codebase** | 4 tầng × 13 module = 4 thư mục phải grep cho mỗi request; 340 file `.ts` trong `src/modules/` |
-| **Yêu cầu đồ án: modular monolith** | Bài nộp cần cấu trúc modular monolith rõ ràng, có thể chứng minh bằng công cụ |
-| **Over-engineering** | 107 handler + 3 subscriber, phần lớn là wrapper 1-1 được sinh bằng codemod; 14 rule kiến trúc để bảo vệ cấu trúc đã thành gánh nặng đồng bộ |
+| **Người mới khó hiểu nhóm module đơn giản** | 4 tầng × 6 module đơn giản = 4 thư mục phải grep cho 1 request chỉ đọc/view; `audit` 8 file/353 LOC vẫn chia 4 tầng |
+| **Yêu cầu đồ án: modular monolith** | Bài nộp cần cấu trúc modular monolith rõ ràng, chứng minh bằng công cụ (ESLint MM2 + arch test + `index.ts`) |
+| **Over-engineering có chọn lọc** | 107 handler + 3 subscriber; nhóm đơn giản phần lớn là wrapper 1-1; nhóm phức tạp thì hexagonal đang gánh thật (transaction/outbox/policy/AI worker) |
+| **Ép 1 template cho cả 13 module là sai** | Đã revert 5 commit slice-toàn-bộ về P1 — module phức tạp mất chỗ bảo vệ invariant, module đơn giản không có gì để bảo vệ |
 
-## 0.2. Baseline đã đo (điểm xuất phát)
+## 0.2. Hướng đi đã chốt (ADR-0002): vỏ Modular Monolith + ruột heterogeneous
+
+- **Vỏ giữ strict:** 1 process/deploy, 1 `AppModule`, 1 `shared/` kernel, 13 module, `index.ts` public contract, cấm import sâu (MM2).
+- **Ruột chia 2 template:**
+  - **Simple (monolith bên trong): 6 module** — `audit, overview, data-view, realtime, notifications, feedback`
+  - **Hexagonal (giữ 4 tầng): 7 module** — `analysis, auth, datasets, projects, workspaces, users, issues`
+- Chi tiết ngưỡng Simple-vs-Hexagonal + cấu trúc đích xem `01_target_architecture.md`. Catalogue bất biến xem `12_business_invariants.md`.
+
+## 0.3. Baseline đã đo (điểm xuất phát P1)
 
 | Chỉ số | Giá trị | Cách đo |
 |---|---|---|
@@ -23,79 +32,78 @@
 | File `.ts` trong `src/shared/` | **88** | — |
 | LOC trong `src/shared/` | **5 567** | — |
 | HTTP route | **82 HTTP + 1 WS gateway** | `pnpm arch:api-coverage` |
-| Command/Query handler | **107** (61 cmd + 46 query) | `19_handler_inventory.md` |
-| Cross-module import | **116**, đều qua `index.ts` | quét AST |
+| Command/Query handler | **107** (61 cmd + 46 query) + 3 subscriber | inventory handler |
+| Cross-module import | **116**, 100% qua `index.ts` (MM2 đã đạt ở P1) | quét AST |
 | Test | **1 277** (1 069 unit/arch + 138 integration + 70 e2e) | `pnpm test*` |
 | Mongoose model | **18 (17 file schema)** | `MongooseModule.forFeature` |
+| Mục tiêu mới (hybrid) | **~305 file / -~3 000 LOC / -~30 thư mục con** (thay vì ~180 file của hướng cũ) | chỉ flatten 6 Simple, 7 Hexagonal chỉ chuẩn hóa |
 
-## 0.3. Nguyên tắc bất di bất dịch
+## 0.4. Nguyên tắc bất di bất dịch (giữ + sửa R4)
 
 > **R1 — Hành vi bên ngoài không đổi.** Route, request/response shape, status code, side-effect, DB schema: giữ nguyên tuyệt đối.
 >
-> **R2 — Test là điểm tựa.** Không bao giờ commit khi test đỏ. Test đỏ → revert ngay, không debug lâu.
+> **R2 — Test là điểm tựa.** Không bao giờ commit khi test đỏ. Test đỏ → revert ngay, không debug > 15 phút.
 >
-> **R3 — Commit + tag sau mỗi phase.** Luôn có một bản nộp được ở mọi thời điểm.
+> **R3 — Commit + tag sau mỗi module/phase.** Luôn có một bản nộp được ở mọi thời điểm.
 >
-> **R4 — Không đụng `analysis` và `auth` logic.** Hai module này chỉ được *di chuyển file*, không *gộp*.
+> **R4 (sửa) — 7 module Hexagonal không gộp.** `analysis, auth, datasets, projects, workspaces, users, issues` chỉ được *chuẩn hóa import + tài liệu*, không gộp entity/port/handler. 6 module Simple mới được flatten.
 >
 > **R5 — Đường cắt sẵn.** Định nghĩa trước dự phòng để không phải quyết định lúc 27h.
+>
+> **R6 (mới) — Bất biến 13_refactor_constraints.** `session/outbox`, `ensureNotAdmin/isObjectIdHex/deleted_at/camel-snake`, thứ tự guard + route, TTL/index: giữ nguyên cho cả 2 template.
 
-## 0.4. Bản đồ tài liệu của kịch bản này
+## 0.5. Bản đồ tài liệu của kịch bản này (đã viết lại 2026-11-24)
 
 | File | Nội dung | Dùng khi nào |
 |---|---|---|
-| `00_overview.md` | File này — tổng quan, nguyên tắc, bản đồ | Đọc đầu tiên |
-| `01_target_architecture.md` | Cấu trúc đích + quy tắc + lý do | Trước P1 |
-| `02_inventory_and_metrics.md` | Số liệu baseline chi tiết từng module | Trước P2 |
-| `03_phase_p0_p1.md` | P0 baseline + P1 ESLint/arch rule | Phase 0–1 |
-| `04_phase_p2_pilot.md` | P2 pilot `audit` — tạo template | Phase 2 (**quan trọng nhất**) |
-| `05_phase_p3_tier1.md` | P3 — 5 module dễ | Phase 3 |
-| `06_phase_p4_tier2.md` | P4 — 5 module vừa | Phase 4 |
-| `07_phase_p5_tier3.md` | P5 — `analysis`/`auth` chỉ di chuyển | Phase 5 |
-| `08_phase_p6_p7_docs_verify.md` | P6 tài liệu + P7 verify | Phase 6–7 |
-| `09_risk_and_rollback.md` | Rủi ro + kịch bản rollback | Bất cứ lúc nào |
-| `10_checklist_master.md` | Checklist tổng hợp theo giờ | Dùng như bảng điều khiển |
-| `11_decision_log.md` | Nhật ký quyết định (D1–D12) | Điền khi chạy, dùng viết ADR |
-| `12_business_invariants.md` | Catalogue nghiệp vụ bất biến (82 route + 107 handler + token/guard/transaction) | Đối chiếu trước khi gộp mỗi module — **đọc kèm mọi phase** |
+| `00_overview.md` | File này — tổng quan hybrid 6+7 | Đọc đầu tiên |
+| `01_target_architecture.md` | Vỏ MM + 2 template ruột + ngưỡng Simple/Hexagonal | Trước P2 |
+| `02_inventory_and_metrics.md` | Baseline + phân loại 6 Simple / 7 Hexagonal + mục tiêu ~305 file | Trước P2 |
+| `03_phase_p0_p1.md` | P0 baseline + P1 ESLint/arch rule (đã xong ở `31cd2f3`, giữ nguyên) | Tham khảo |
+| `04_phase_p2_pilot.md` | P2 pilot `audit` (Simple template) — quan trọng nhất | Phase 2 |
+| `05_phase_p3_tier1.md` | P3 — 5 Simple còn lại: `overview → realtime → data-view → notifications → feedback` | Phase 3 |
+| `06_phase_p4_tier2.md` | P4 — chuẩn hóa 4 Hexagonal: `datasets, projects, workspaces, users` (không gộp) | Phase 4 |
+| `07_phase_p5_tier3.md` | P5 — chuẩn hóa 3 Hexagonal khó nhất: `issues, analysis, auth` + lý do `issues` ở lại Hexagonal | Phase 5 |
+| `08_phase_p6_p7_docs_verify.md` | P6 tài liệu + P7 verify (82+1 route + type-check + lint + test) | Phase 6–7 |
+| `09_risk_and_rollback.md` | Rủi ro + rollback (bổ sung rủi ro xóa nhầm invariant ở Simple) | Bất cứ lúc nào |
+| `10_checklist_master.md` | Checklist tổng hợp theo giờ (bản hybrid) | Dùng như bảng điều khiển |
+| `11_decision_log.md` | Nhật ký quyết định (D1–D12 giữ + thêm D13, D14 hybrid) | Điền khi chạy |
+| `12_business_invariants.md` | Catalogue bất biến — **đọc kèm mọi phase, cả 2 template** | Mọi phase |
+| `13_refactor_constraints.md` | Ràng buộc TC/AC/BC/PC — áp dụng cho cả Simple lẫn Hexagonal | Mọi phase |
 
-## 0.5. Lịch trình 30 giờ
+## 0.6. Lịch trình 30 giờ (bản hybrid — việc ít hơn, chắc hơn)
 
 ```
 Giờ:  0    5    10   15   20   25   30
        │    │    │    │    │    │    │
-P0 ────┤ 2h│    │    │    │    │    │  ADR + baseline + sơ đồ
-P1 ────┤    ├ 3h │    │    │    │    │  ESLint rule + arch test
-P2 ────┤    │    ├ 2h│    │    │    │    │  PILOT: module audit
-P3 ────┤    │    │    ├ 3h│    │    │    │  Tier 1 (5 module dễ)
-       │    │    │    │    │    │    │
-P4 ────┤    │    │    │    ├ 8h│    │    │  Tier 2 (5 module vừa)
-P5 ────┤    │    │    │    │    ├ 3h│    │  Tier 3 (chỉ di chuyển)
-P6 ────┤    │    │    │    │    │    ├ 6h│    │  Tài liệu
-P7 ────┤    │    │    │    │    │    │    ├ 3h  Verify + buffer
+P0+P1 ─┤ ĐÃ XONG (31cd2f3) │    │    │    │  ADR + baseline + MM2
+P2 ────┤    │    ├ 2h│    │    │    │    │  PILOT: audit (Simple template)
+P3 ────┤    │    │    ├ 5h│    │    │    │  5 Simple còn lại
+P4 ────┤    │    │    │    ├ 6h│    │    │  Chuẩn hóa 4 Hexagonal (không gộp)
+P5 ────┤    │    │    │    │    ├ 4h│    │  Chuẩn hóa 3 Hexagonal khó
+P6 ────┤    │    │    │    │    │    ├ 6h│  Tài liệu (README template/module)
+P7 ────┤    │    │    │    │    │    │  ├ 3h Verify + buffer
 ```
 
-**Tổng: 30h** (buffer 3h nằm trong P7)
+**Tổng: ~20h việc + buffer.** Phần việc code giảm so với hướng cũ vì 7 Hexagonal không gộp.
 
-### Đường cắt (định nghĩa trước — không quyết định lúc chạy)
+### Đường cắt (định nghĩa trước)
 
 | Mốc thời gian | Đã làm xong | Hành động |
 |---|---|---|
-| **Giờ 12** | Chưa xong P3 | **Cắt P4 → chỉ làm 2 module dễ nhất của Tier 2** (`issues`, `notifications`) |
-| **Giờ 20** | Chưa xong P4 | **Cắt P4 & P5 hoàn toàn** → sang P6 (tài liệu) — tài liệu luôn có giá trị |
-| **Giờ 26** | Chưa xong P6 | **Dừng code, chỉ verify + polish** — không viết tài liệu mới |
-| **Bất kỳ lúc nào** | Test đỏ > 15 phút | **Revert về tag gần nhất**, ghi nhận vào `notes.md`, sang phase sau |
+| **Giờ 12** | Chưa xong P3 | **Cắt `feedback` (Simple khó nhất) sang P6** → làm tài liệu ghi nợ, không cố gộp |
+| **Giờ 18** | Chưa xong P4 | **Cắt P4/P5 còn lại** → sang P6 viết tài liệu — tài liệu luôn có giá trị |
+| **Giờ 26** | Chưa xong P6 | **Dừng code, chỉ verify + polish** |
+| **Bất kỳ lúc nào** | Test đỏ > 15 phút | **Revert về tag gần nhất**, ghi `notes.md`, sang module sau |
 
-> **Nguyên tắc cắt:** *Cắt theo thứ tự P5 → P4 → P3. Tài liệu (P6) luôn được giữ lại cuối cùng vì nó là deliverable trực tiếp cho đồ án.*
+> **Nguyên tắc cắt:** *Cắt theo thứ tự P5 → P4 → feedback → P3. Tài liệu (P6) luôn giữ lại cuối cùng.*
 
-## 0.6. Rủi ro số 1: "trough of sorrow"
+## 0.7. Rủi ro số 1: "trough of sorrow" + rủi ro số 2: xóa nhầm invariant ở Simple
 
-Sau ~18–22 giờ bạn sẽ ở trạng thái: code đã đổi một nửa, chưa xong, deadline đang đến. Đây là lúc 60% người ta muốn bỏ cuộc.
-
-**Phòng ngừa (bắt buộc làm):**
-
-| Cơ chế | Hành động cụ thể |
+| Rủi ro | Phòng ngừa (bắt buộc) |
 |---|---|
-| Luôn có bản chạy được | Tag `v1.1.0` → `v1.2.0-p1` → `v1.2.0-p2` → … sau **mỗi** phase |
-| Không debug quá 15 phút | Test đỏ → revert hoặc ghi TODO rồi đi tiếp |
+| Nửa chừng nản (giờ 18–22) | Tag sau **mỗi module** (`v1.2.0-audit`, `-overview`, …); không debug > 15 phút |
+| Xóa nhầm `session/outbox/policy/guard` khi gộp Simple | Đối chiếu `12_business_invariants.md` + `13_refactor_constraints.md` trước khi gộp; checklist cấm xóa trong `04/05` |
+| Nhầm 2 mapper `notifications` / 2 entity `feedback` | Giữ file riêng như `04/05` đã ghi; reviewer check đúng dòng này |
 | Không refactor sau giờ 20 | Từ giờ 20 chỉ viết tài liệu + verify |
-| Ghi nhận quyết định | `docs/refactor/notes.md` — quyết định + lý do, để viết ADR sau cùng |
+| Ghi nhận quyết định | `docs/refactor/notes.md` + `11_decision_log.md` — để viết ADR sau cùng |

@@ -1,242 +1,51 @@
-# 6. Phase P4 — Tier 2: 5 module trung bình (8 giờ)
+# 6. Phase P4 — Chuẩn hóa 4 module Hexagonal vừa (6 giờ, KHÔNG gộp)
 
-> **Thời gian:** 8 giờ · **Điều kiện tiên quyết:** P3 qua cổng kiểm soát.
-> **Đường cắt:** nếu giờ 12 chưa xong → chỉ làm `issues` + `notifications`, bỏ 3 module còn lại.
-
----
-
-## 6.1. Vì sao 8 giờ cho 5 module?
-
-| Lý do | Chi tiết |
-|---|---|
-| Handler nhiều hơn | 8–17 handler/module (so với 1–9 ở T1) |
-| Có transaction | `datasets`, `workspaces`, `projects` dùng `TransactionPort` |
-| Có outbox event | `WORKSPACE_DELETED`, `PROJECT_DELETED` — cascade phải đúng |
-| Có policy loader | `workspaces` (1), `projects` (3), `datasets` (1) |
-| Có adapter | `workspaces` (2), `projects` (2) — adapter gắn với shared port |
-| Có entity phức tạp | `datasets` có 3 VO với invariant logic |
-
-> **Ước lượng:** `issues` (đã làm ở P3) không tính. 5 module còn lại: `datasets`, `users`, `workspaces`, `projects`, `analysis`(T3).
+> **Thời gian:** 6 giờ · **Điều kiện:** P3 qua cổng kiểm soát.
+> **Nguyên tắc:** 4 module `datasets, projects, workspaces, users` GIỮ NGUYÊN 4 tầng. Chỉ chuẩn hóa import + index.ts + README. Cấm gộp entity/port/handler (R4 sửa đổi).
 
 ---
 
-## 6.2. Module `users` — 2 giờ
+## 6.1. Vì sao không gộp 4 module này
 
-### Cấu trúc hiện tại → Đích
-
-```
-src/modules/users/                                    src/modules/users/
-├── application/commands/*.handler.ts (11)            ├── users.module.ts
-├── application/queries/*.handler.ts (6)              ├── users.routes.ts
-├── application/services/user-access-revocation.service.ts ├── users.admin.routes.ts
-├── domain/entities/{user,user-session}.entity.ts     ├── users.service.ts        (11 cmd)
-├── domain/events/user-events.ts                       ├── users.query.service.ts   (6 qry)
-├── domain/ports/user.repository.port.ts               ├── user-access-revocation.service.ts
-├── domain/value-objects/{session-policy,user-role}.vo.ts ├── users.repository.ts
-├── infrastructure/persistence/{user.mapper,user.schema,   ├── user.schema.ts
-│   user-session.schema,users.repository}.ts           ├── user-session.schema.ts
-├── presentation/controllers/{admin-users,users}.controller.ts ├── users.types.ts
-├── presentation/dtos/update-user.dto.ts               ├── users.events.ts
-├── presentation/responses/user.response.ts            ├── user.mapper.ts
-├── index.ts                                           ├── index.ts
-└── users.module.ts                                    └── README.md
-```
-
-### Bước thực hiện
-
-| Bước | Hành động | Ghi chú |
+| Module | Handler | Lý do giữ Hexagonal |
 |---|---|---|
-| 1 | `git mv presentation/controllers/users.controller.ts users.routes.ts` | |
-| 2 | `git mv presentation/controllers/admin-users.controller.ts users.admin.routes.ts` | 2 controller riêng |
-| 3 | `git mv presentation/dtos/update-user.dto.ts _tmp/` | Gộp vào `users.routes.ts` |
-| 4 | `git mv presentation/responses/user.response.ts _tmp/` | Gộp vào `users.types.ts` |
-| 5 | `git mv application/commands/*.handler.ts _tmp/` → gộp thành `users.service.ts` | 11 method `execute()` |
-| 6 | `git mv application/queries/*.handler.ts _tmp/` → gộp thành `users.query.service.ts` | 6 method `execute()` |
-| 7 | `git mv application/services/user-access-revocation.service.ts .` | Giữ nguyên tên |
-| 8 | `git mv domain/entities/*.entity.ts domain/events/user-events.ts domain/ports/*.ts domain/value-objects/*.vo.ts _tmp/` → gộp `users.types.ts` | |
-| 9 | `git mv infrastructure/persistence/users.repository.ts users.repository.ts` | |
-| 10 | `git mv infrastructure/persistence/user.schema.ts user.schema.ts` | |
-| 11 | `git mv infrastructure/persistence/user-session.schema.ts user-session.schema.ts` | |
-| 12 | `git mv infrastructure/persistence/user.mapper.ts user.mapper.ts` | Giữ riêng — mapping phức tạp |
-| 13 | `rm -rf application domain infrastructure presentation` | |
-| 14 | Sửa import + `index.ts` + `users.module.ts` | |
-| 15 | Verify + commit + tag | |
+| `datasets` | 4 cmd + 4 qry + 1 sub | 2 schema/2 repo + tx strict + policy loader + cascade OPEN-09 |
+| `projects` | 10 + 7 + 1 sub | 17 handler + 3 policy loader + best-effort outbox + cascade project→dataset |
+| `workspaces` | 8 + 6 | quota 20 + tx strict + RBAC 3 tầng + 2 adapter fail-safe |
+| `users` | 11 + 6 | password policy + revocation service + USER_BLOCKED/REMOVED dùng bởi realtime |
 
-### ⚠️ Cảnh báo cho `users`
+> Gộp 4 module này tiết kiệm ~40 file nhưng mất chỗ bảo vệ transaction/outbox/policy — sai 1 chỗ là vỡ cascade. Hướng cũ đã revert vì lý do này.
 
-| Vấn đề | Xử lý |
-|---|---|
-| `domain/value-objects/session-policy.vo.ts` có invariant (luật session) | Giữ logic nguyên vẹn trong `users.types.ts` |
-| `domain/events/user-events.ts` có `USER_BLOCKED`/`USER_REMOVED` — dùng bởi `realtime` | Giữ nguyên tên event; `realtime` import qua `../users` |
-| `user-access-revocation.service.ts` cần cả `users` + `realtime` | Giữ là file riêng, không gộp vào service chính |
-| `soft-delete-user` / `block-user` / `unblock-user` liên quan bảo mật | Không đổi logic, không đổi thứ tự thao tác |
+## 6.2. Việc làm cho mỗi module H (giống nhau cả 4)
 
----
-
-## 6.3. Module `workspaces` — 1 giờ 45 phút
-
-```
-src/modules/workspaces/
-├── workspaces.module.ts
-├── workspaces.routes.ts              ← controller + 6 DTO
-├── workspaces.service.ts             ← 8 command handler
-├── workspaces.query.service.ts       ← 6 query handler
-├── workspaces.repository.ts
-├── workspaces.schema.ts
-├── workspaces.types.ts               ← entity + 2 VO + 2 port + types + utils
-├── workspaces.events.ts
-├── workspaces.mapper.ts
-├── workspace-access.adapter.ts       ← adapter (implement shared port)
-├── workspace-context.adapter.ts      ← adapter (implement shared port)
-├── workspace-policy.ts               ← policy loader
-├── index.ts
-└── README.md
-```
-
-### ⚠️ Cảnh báo
-
-| Vấn đề | Xử lý |
-|---|---|
-| `WORKSPACE_CONTEXT_PORT` & `WORKSPACE_ACCESS_PORT` là port của **`shared/`**, module chỉ *implement* | Giữ adapter riêng; token định nghĩa ở `shared/application/ports/` |
-| `workspace-context.adapter.ts` là **fail-safe** (lỗi → tập rỗng) | Giữ nguyên logic try/catch |
-| `delete-workspace.handler.ts` phát event `WORKSPACE_DELETED` trong **transaction** | **Không đụng logic** — chỉ di chuyển file |
-| `workspace-quota.vo.ts` có `MAX_WORKSPACES_PER_USER = 20` | Giữ nguyên hằng số |
-| `increment-storage-used.handler.ts` | Có thể gộp vào `workspaces.service.ts` — không tách riêng |
-
----
-
-## 6.4. Module `projects` — 2 giờ
-
-```
-src/modules/projects/
-├── projects.module.ts
-├── projects.routes.ts                ← controller + 5 DTO
-├── projects.service.ts               ← 10 command handler
-├── projects.query.service.ts         ← 7 query handler
-├── projects.repository.ts
-├── projects.schema.ts
-├── projects.types.ts
-├── projects.events.ts
-├── projects.mapper.ts
-├── project-access.adapter.ts
-├── project-context.adapter.ts
-├── project-policy.ts                 ← gộp 3 policy loader
-├── cascade-project-event.subscriber.ts
-├── index.ts
-└── README.md
-```
-
-### ⚠️ Cảnh báo
-
-| Vấn đề | Xử lý |
-|---|---|
-| **3 policy loader** (`project-policy`, `project-scope-policy`, `workspace-scope-policy`) | Gộp vào `projects.policy.ts` — giữ nguyên 3 class, chỉ đổi file |
-| `cascade-project-event.subscriber.ts` — consumer `WORKSPACE_DELETED` | **Giữ riêng**, không gộp vào service (nó là subscriber, không phải use case) |
-| `cascade-workspace-projects.handler.ts` — xóa project khi workspace bị xóa | Giữ riêng — logic cascade nhạy cảm |
-| `delete-project.handler.ts` phát `PROJECT_DELETED` trong transaction | **Không đụng logic** |
-| `transfer-project-owner` / `remove-project-member` / `update-project-member-role` | Chỉ di chuyển |
-
-### Quyết định: gộp 3 policy loader hay giữ 3 file?
-
-| Cách | Ưu | Nhược |
+| Bước | Hành động | Cấm |
 |---|---|---|
-| **Gộp vào `projects.policy.ts`** | Ít file hơn | File 3 class |
-| Giữ 3 file | Rõ ràng | Nhiều file |
+| 1 | Đối chiếu `12_business_invariants.md` §module: liệt kê tx/outbox/policy/adapter/event | cấm đổi logic |
+| 2 | Rà soát import chéo: tất cả qua `../<mod>` (index.ts). Sửa deep import còn sót (nếu có) | cấm đổi public contract |
+| 3 | Rà soát `index.ts`: export đủ port symbol + entity dùng chéo (vd USER events cho realtime) | cấm bớt export |
+| 4 | Rà soát `*.module.ts`: provider đầy đủ handler/service/adapter/policy | cấm gộp provider |
+| 5 | Viết `README.md` | mẫu §6.3 |
+| 6 | Verify + commit + tag `v1.2.0-<mod>-h` | — |
 
-> **Chọn: gộp vào `projects.policy.ts`.** Vì 3 loader đều nhỏ (~30–50 LOC) và liên quan cùng một resource (`Project`). Tương tự, `datasets` có 1 loader → `datasets.policy.ts`.
+### 6.3. Mẫu README Hexagonal (bắt buộc giống nhau)
 
----
-
-## 6.5. Module `datasets` — 2 giờ 15 phút
-
-```
-src/modules/datasets/
-├── datasets.module.ts
-├── datasets.routes.ts                ← controller + response
-├── datasets.service.ts               ← 4 command handler
-├── datasets.query.service.ts         ← 4 query handler
-├── datasets.repository.ts
-├── record-query.repository.ts        ← repository thứ 2 (giữ riêng)
-├── datasets.schema.ts
-├── dataset-record.schema.ts          ← schema thứ 2 (giữ riêng)
-├── dataset.mapper.ts
-├── datasets.types.ts
-├── datasets.events.ts
-├── datasets.utils.ts
-├── dataset-policy.ts
-├── schema-inference.service.ts       ← service riêng (giữ)
-├── dataset-finding.service.ts        ← service riêng (giữ)
-├── cascade-dataset-event.subscriber.ts  ← subscriber (giữ riêng)
-├── csv-delimiter.util.ts             ← util thuần
-├── pii-heuristic.util.ts             ← util thuần (giữ riêng — logic nghiệp vụ)
-├── finding.util.ts                   ← util thuần
-├── index.ts
-└── README.md
+```md
+# <mod> — Template: Hexagonal
+- Vì sao Hexagonal: <1 dòng — vd datasets: 2 schema/2 repo + tx strict + policy>
+- Bất biến chính: <tx/outbox/policy/quota/event, dẫn chiếu §12>
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
 ```
 
-### ⚠️ Cảnh báo — module phức tạp nhất của T2
+## 6.4. Lưu ý từng module (không được bỏ qua)
 
-| Vấn đề | Xử lý |
-|---|---|
-| **3 VO có invariant** (`column-type.vo`, `dataset-limits.vo`, `value-coercion.vo`) | Giữ nguyên logic trong `datasets.types.ts` — **đây là nghiệp vụ cốt lõi** |
-| `pii-heuristic.util.ts` — tự suy luận cột PII | **Giữ riêng file** — logic nghiệp vụ thuần, không gộp |
-| `ingest-dataset-stream.handler.ts` — streaming, giữ RAM ~20 MB | **Không đụng logic** (R4 — đây là điểm nhạy cảm RAM) |
-| `cascade-project-datasets.handler.ts` — xóa dataset khi project bị xóa | Giữ riêng — cascade phải đúng |
-| `map-props-to-original-names.handler.ts` | Gộp vào `datasets.service.ts` |
-| `schema-inference.service.ts` & `dataset-finding.service.ts` | Giữ riêng — 2 trách nhiệm khác nhau |
-| `record-query.repository.ts` | Giữ riêng — phục vụ Virtual Grid |
-| `dataset-record.schema.ts` | Giữ riêng — collection riêng |
-| `download-dataset-file.handler.ts` | Gộp vào `datasets.query.service.ts` |
+- **`datasets`:** giữ `resolveMongoSession` + tx strict; giữ 2 schema (`dataset` + `dataset-record`) / 2 repo (`datasets` + `record-query`) tách + 2 service (`dataset-finding`, `schema-inference`) + 3 VO + `csv-delimiter/finding/pii` utils; giữ subscriber ingest (`cascade-project-datasets` + `cascade-dataset-event`); giữ `RECORD_QUERY_PORT` cho `data-view` (13 import qua index.ts).
+- **`projects`:** giữ 3 policy loader (`project`, `project-scope`, `workspace-scope`) + 2 adapter (`access` + `context`) riêng (không gộp vào types); giữ best-effort outbox (khác workspaces strict); giữ cascade xóa project→dataset.
+- **`workspaces`:** giữ 2 adapter (`access` + `context`, context fail-safe try/catch); giữ hằng `MAX_WORKSPACES_PER_USER = 20`; giữ event `WORKSPACE_DELETED` trong transaction.
+- **`users`:** giữ `session-policy.vo` + password policy; giữ 2 controller user/admin tách; giữ `user-access-revocation.service.ts` riêng (dùng cả users + realtime); giữ event USER_BLOCKED/REMOVED.
 
-### ⚠️ Cảnh báo — `datasets` là **module bất biến**
+## 6.5. Cổng kiểm soát P4
 
-> Dataset là **insert-only**: không có route cập nhật cột. Đây là quy tắc nghiệp vụ, KHÔNG phải hạn chế kỹ thuật.
-> Refactor **không được** thêm bất kỳ route cập nhật nào vào `datasets`.
->
-> Kiểm tra sau mỗi commit: `pnpm arch:api-coverage` phải vẫn là **82 route** (§12.1) — không phải 83. Giữ nguyên `deleted_at: null`, transaction/outbox (§12.5), hằng số §12.6.
-
----
-
-## 6.6. Checklist chung P4 (giống P3 + bổ sung)
-
-```
-☐  Giữ nguyên logic transaction / outbox / cascade
-☐  Giữ nguyên tất cả hằng số nghiệp vụ (MAX_WORKSPACES_PER_USER, TYPE_INFERENCE_THRESHOLD, ...)
-☐  Không thêm route mới (dataset bất biến)
-☐  Adapter implement shared port vẫn giữ nguyên tên class
-☐  Policy loader giữ nguyên tên class
-☐  Subscriber giữ riêng, không gộp vào service
-☐  VO có invariant → giữ logic, chỉ đổi vị trí
-☐  Util nghiệp vụ thuần (pii-heuristic, csv-delimiter, finding) → giữ file riêng
-☐  Verify đầy đủ (xem §5.8)
-☐  Commit + tag
-```
-
----
-
-## 6.7. Cổng kiểm soát P4
-
-| Điều kiện | Giá trị kỳ vọng |
-|---|---|
-| File `.ts` trong `src/modules/` | ~305 → ~225 |
-| LOC | ~28 000 → ~22 500 |
-| Thư mục con | ~38 → ~22 |
-| `pnpm type-check` | 0 lỗi |
-| `pnpm lint` | 0 cảnh báo |
-| `pnpm exec jest --maxWorkers=2` | 67 suites / 1 069 tests |
-| `pnpm arch:api-coverage` | 82 / 82 / 0 / 0 (§12.1) |
-| Tag | `v1.2.0-p4` |
-
----
-
-## 6.8. Đối chiếu nghiệp vụ Tier 2 (bắt buộc — xem `12_business_invariants.md` §12.3–§12.6)
-
-- **users:** 17 handler — giữ snake_case của `CreateSession/CreateUser/UpdateProfile`, giữ `includePassword=false`, giữ `UserAccessRevocationService` file riêng + outbox `USER_BLOCKED/REMOVED`, giữ TTL 7/30 ngày, giữ `deleted_at: null`.
-- **workspaces:** 14 handler — giữ `MAX_WORKSPACES_PER_USER=20` (chỉ tính owned, admin miễn), giữ transaction strict của `DeleteWorkspace`, giữ fail-safe try/catch của `workspace-context.adapter`, giữ `incrementStorageUsed` với số âm khi xoá dataset.
-- **projects:** 17 handler — giữ nguyên 3 policy loader class, giữ subscriber cascade riêng, giữ transaction + outbox `PROJECT_DELETED`, giữ lớp phòng thủ loại project mồ côi ở query, giữ `touch=false` mặc định.
-- **datasets:** 8 handler + 1 subscriber — **không đụng** `IngestDatasetStream` 2 pha (delimiter `,`, giữ dòng rỗng, header trùng thành finding, batch 5000, sample 500); giữ `coerceValue` + `TYPE_INFERENCE_THRESHOLD=0.8` + `Asia/Ho_Chi_Minh`; giữ transaction xoá dataset (soft-delete records + `setHasDataset(false)` + trừ storage); giữ `MapPropsToOriginalNames` là migration không tham số; giữ `DatasetRecord` chỉ khai báo ở module này.
-- **Kiểm tra chung:** mọi repository giữ `deleted_at: null`; mọi `*.module.ts` chỉ đổi đường dẫn import; mọi adapter giữ tên class; không thêm route (vẫn 82).
-
----
-
-> **Khóa chống vỡ test/API/hạ tầng:** trước mỗi commit của phase này, tick hết [`13_refactor_constraints.md`](13_refactor_constraints.md) §13.6 (TC giữ test/token/session/subscriber · AC giữ 82 route/envelope/filter/guard · FC giữ AppModule/main/worker/env/tunnel/test-infra · BC giữ ingest/cascade/policy · PC 1 module/1 commit, đỏ >15' thì revert).
+- File/LOC **không đổi** (~305/~28 500) — chuẩn hóa không thêm/bớt file (trừ README).
+- `pnpm type-check` 0 lỗi · `pnpm lint` 0 cảnh báo · test xanh · `arch:api-coverage` 82+1.
+- Arch test: MM2 xanh; MM5' **bỏ qua** 4 module này (được phép có thư mục con).
+- Tag `v1.2.0-p4`.

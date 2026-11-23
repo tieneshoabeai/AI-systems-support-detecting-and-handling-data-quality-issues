@@ -1,36 +1,26 @@
-# Sơ đồ kiến trúc trước / sau (P0.4)
+# Sơ đồ kiến trúc (hybrid 6+7)
 
-## Trước: Clean Architecture 4 tầng (mỗi module lặp lại)
+## Vỏ Modular Monolith (cả 13 module)
 
 ```mermaid
-flowchart TD
-    C[Controller<br/>presentation] --> H[Handler<br/>application/commands+queries]
-    H --> E[Entity/VO<br/>domain]
-    H --> P[Port<br/>domain/ports]
-    A[Adapter<br/>infrastructure/adapters] --> P
-    R[Repository<br/>infrastructure/persistence] --> P
-    R --> M[(Mongo Model<br/>schema)]
-    C --> G[Guard/Pipe/Filter<br/>shared/interfaces]
-    H --> TX[TransactionPort<br/>shared]
+graph LR
+    APP["AppModule<br/>(1 process/deploy)"] --> M13["13 modules<br/>(mỗi module + index.ts)"]
+    M13 --> SHARED["shared/<br/>(kernel: guard/filter/pipe/outbox/tx)"]
+    M13 --> DB[("MongoDB / Redis / S3")]
 ```
 
-> 1 request đi qua 4 thư mục: `presentation/` → `application/` → `domain/` → `infrastructure/`.
-
-## Sau: Modular Monolith vertical slice (mỗi module 1 thư mục phẳng)
+## Ruột heterogeneous
 
 ```mermaid
-flowchart LR
-    subgraph MOD ["modules/<ten>/ (phẳng)"]
-        R1[*.routes.ts<br/>controller + DTO]
-        S[*.service.ts<br/>nghiệp vụ]
-        RP[*.repository.ts<br/>truy vấn DB]
-        SC[*.schema.ts<br/>Mongoose model]
-        T[*.types.ts<br/>type + port token]
+graph LR
+    subgraph S["Simple × 6 (audit/overview/data-view/realtime/notifications/feedback)"]
+        R["*.routes.ts"] --> SVC["*.service.ts"]
+        SVC --> SCH["*.schema/repository (nếu có)"]
     end
-    R1 --> S --> RP --> SC
-    S --> T
-    MOD --> K[shared kernel<br/>guards/pipes/filters/tx/outbox/events/storage]
-    K --- DB[(Mongo/Redis/MinIO)]
+    subgraph H["Hexagonal × 7 (analysis/auth/datasets/projects/workspaces/users/issues)"]
+        P["presentation"] --> A["application"]
+        A --> D["domain"]
+        D --> I["infrastructure"]
+    end
+    S -.->|"qua index.ts (MM2)"| H
 ```
-
-> 1 request chỉ đọc 1 thư mục module + shared kernel. Ranh giới module giữ nguyên, enforce bằng ESLint MM2 + arch test MM5/MM6.

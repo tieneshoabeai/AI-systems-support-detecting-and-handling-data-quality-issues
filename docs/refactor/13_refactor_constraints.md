@@ -14,7 +14,7 @@
 - **TC-05 — Giữ `resolveMongoSession` / `mongo-session-context`.** Repository nào đang truyền `session` thì sau khi gộp vào `*.repository.ts` vẫn phải truyền. Bỏ session là transaction mất tác dụng, test `open09-transaction-rollback` + `cascade-delete` đỏ.
 - **TC-06 — Giữ `deleted_at: null` trong mọi query list/find.** Soft-delete là `deleted_at: Date | null` + index partial unique. Khi gộp mapper + repository không được bỏ điều kiện này, không được “làm sạch” nhánh tương thích camel/snake/ObjectId cũ trong `feedback.repository.ts`.
 - **TC-07 — Không đụng `test/fixtures`, `test/helpers`, jest config.** Giữ `testRegex` của `jest-e2e.json` (`*.e2e-spec.ts`) và `jest-integration.json` (`test/integration/*.spec.ts`, `maxWorkers: 1`, timeout 60s). Không đổi `moduleNameMapper @/`.
-- **TC-08 — Arch test phải được cập nhật đồng bộ.** Sau khi flatten, `clean-architecture.spec.ts` (CA1–CA11, CA20) + `modular-monolith.spec.ts` (MM1–MM6) + `guard-coverage.spec.ts` (mọi endpoint phải có `JwtAuthGuard` hoặc `@Public()`) + `api-contract-coverage.spec.ts` (§3.13) phải xanh. Luật: service mới (`*.service.ts`) không import `HttpException`/`HttpStatus`; `shared/` không import từ `modules/`; cross-module chỉ qua `index.ts`; không chu trình; không SDK AI ngoài.
+- **TC-08 — Arch test phải được cập nhật đồng bộ (bản hybrid).** `clean-architecture.spec.ts` (CA1–CA11, CA20) **giữ hiệu lực bên trong 7 module Hexagonal**, không áp dụng cho 6 Simple. `modular-monolith.spec.ts` (MM1–MM4 + MM5') + `guard-coverage.spec.ts` (mọi endpoint phải có `JwtAuthGuard` hoặc `@Public()`) + `api-contract-coverage.spec.ts` phải xanh cho cả 13 module. Luật: service mới (`*.service.ts` của Simple) không import `HttpException`/`HttpStatus`; `shared/` không import từ `modules/`; cross-module chỉ qua `index.ts`; không chu trình; không SDK AI ngoài.
 - **TC-09 — Hạ tầng test giữ nguyên cổng.** `test-infra-up.sh`: Mongo replica `rs0` @ 27018, Redis @ 6380, MinIO @ 9002 (console 9003). Không đổi cổng, không đổi biến `DQ_TEST_INFRA_DIR`. Chạy `test:infra:up → test:integration + test:e2e → test:infra:down` đúng thứ tự ở P7.
 
 ## 13.2. Ràng buộc API (AC) — 82 route + envelope + guard không đổi
@@ -49,10 +49,10 @@
 ## 13.5. Ràng buộc thao tác (PC) — làm sao để không trượt
 
 - **PC-01 — Một module/một commit + tag.** Dùng `git mv` (không copy tay), xong 1 module chạy cổng kiểm soát rồi mới commit. Không gộp 2 module vào 1 commit.
-- **PC-02 — Cổng kiểm soát trước mỗi commit:** `type-check 0` → `lint 0` → `jest 67 suite/1069 test` → `arch:api-coverage 82/82` → `grep tên cũ = 0` → module phẳng → ghi `notes.md`.
+- **PC-02 — Cổng kiểm soát trước mỗi commit:** `type-check 0` → `lint 0` → `jest` xanh → `arch:api-coverage 82/82` → `grep tên cũ = 0` → module phẳng (Simple) hoặc chuẩn hóa xong (Hexagonal) → ghi `notes.md`.
 - **PC-03 — Test đỏ >15 phút thì revert về tag gần nhất**, ghi lý do vào `notes.md`, sang module khác. Không sửa assert để test xanh.
-- **PC-04 — T3 move-only:** `git diff -M` của `analysis/auth` phải 100% rename (+ đổi import path). Có dòng `+`/`-` thực chất là vi phạm, revert ngay.
-- **PC-05 — Đường cắt:** P5 → P4 → P3; P6 tài liệu không cắt; từ giờ 20 chỉ verify + polish.
+- **PC-04 — 7 module Hexagonal chuẩn hóa-only (mở rộng từ T3 move-only):** `git diff` của `analysis, auth, datasets, projects, workspaces, users, issues` chỉ được là chuẩn hóa import qua `index.ts` + README (không gộp entity/port/handler, không đổi logic). Có dòng `+`/`-` đổi logic là vi phạm, revert ngay.
+- **PC-05 — Đường cắt (bản hybrid):** P5 → P4 → `feedback` → P3; P6 tài liệu không cắt; từ giờ 20 chỉ verify + polish.
 
 ## 13.6. Checklist khóa trước mỗi commit (tick hết mới được commit)
 
@@ -61,5 +61,5 @@
 ☐ AC: route đủ 82 + đúng thứ tự sessions/me, unread-count; guard/policy/public/roles/throttle giữ; envelope + filter + Zod giữ; upload/download giữ stream
 ☐ FC: AppModule/shared/main/worker/env/script giữ; tunnel + test-infra cổng giữ; realtime adapter giữ
 ☐ BC: ingest 2 pha + coerce + quota + TTL + password + expectedVersion + title/desc giữ (§12.6); cascade strict/outbox + audit best-effort giữ (§12.5)
-☐ PC: 1 module/1 commit; type-check/lint/jest/coverage xanh; diff T3 move-only; notes.md đã ghi
+☐ PC: 1 module/1 commit; type-check/lint/jest/coverage xanh; diff H chuẩn hóa-only (không gộp/đổi logic); notes.md đã ghi
 ```

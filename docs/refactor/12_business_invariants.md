@@ -1,7 +1,9 @@
 # 12. Catalogue nghiệp vụ bất biến — Không được làm mất khi refactor
 
-> **Mục đích:** Liệt kê toàn bộ nghiệp vụ đã đọc từ mã nguồn thật (340 file, 107 handler + 3 subscriber, 82 route HTTP + 1 WS gateway) để khi flatten sang vertical slice **không sót logic**.
-> **Nguyên tắc dùng:** Trước khi gộp mỗi module, đối chiếu checklist của module đó ở đây. Sau khi gộp, chạy cổng kiểm soát ở `03_phase_p0_p1.md` §3.4.
+> **Mục đích:** Liệt kê toàn bộ nghiệp vụ đã đọc từ mã nguồn thật (340 file, 107 handler + 3 subscriber, 82 route HTTP + 1 WS gateway) để khi flatten 6 module Simple và khi chuẩn hóa 7 module Hexagonal **không sót logic**. Catalogue này có hiệu lực cho **cả 2 template** (ADR-0002).
+> **Nguyên tắc dùng:** Trước khi chạm mỗi module (gộp nếu Simple, chuẩn hóa nếu Hexagonal), đối chiếu checklist của module đó ở đây. Sau đó chạy cổng kiểm soát ở `03_phase_p0_p1.md` §3.3.
+>
+> **Ghi chú 2026-11-24 (bản hybrid):** nhãn Template trong các mục dưới đã cập nhật theo ADR-0002 (hướng slice-toàn-bộ). Template chốt theo `01_target_architecture.md` §1.2 và `02_inventory_and_metrics.md` §2.2 — khác biệt duy nhất: **`issues` thuộc Hexagonal** (D14), không flatten ở P3.
 >
 > **Số liệu đã hiệu chỉnh ngày 2026-11-23 (đo thật):** `src/modules` = **340 file / 31 505 LOC**, `src/shared` = **88 file / 5 567 LOC**, handler = **107 (61 cmd + 46 query) + 3 subscriber**, route HTTP thật = **82 decorator**, model Mongoose = **18 model / 17 file schema**.
 
@@ -33,7 +35,7 @@
 
 > Mỗi handler thành **1 method** trong service, **giữ nguyên tên logic + tham số + thứ tự**. Không đổi `execute()` thành tên khác (trừ `audit` đã chốt ở P2).
 
-### `analysis` (11: 6 cmd + 5 query) — T3 chỉ di chuyển
+### `analysis` (11: 6 cmd + 5 query) — Template Hexagonal (chuẩn hóa-only)
 - `BuildPromptForJobHandler.execute(jobId)` · `CreateSummaryHandler.execute(projectId)` · `IngestAiResultHandler.execute(jobId, raw, modelId?)` · `RequestReportHandler.execute(projectId)` · `RetryJobHandler.execute(jobId)` · `RunAnalysisHandler.execute(projectId, dto, userId?)`.
 - `DownloadReportFileHandler.execute(projectId, reportId)` · `GetJobHandler.execute(jobId)` · `GetReportFileMetaHandler.execute(projectId, reportId)` · `GetResultHandler.execute(projectId)` · `GetSummaryHandler.execute(projectId)`.
 - Kèm 3 service giữ riêng: `ai-worker`, `rag-few-shot`, `report-worker`; 2 port `AiInferencePort`, `RESOURCE_GUARD_PORT`; 2 policy loader `AnalysisJobPolicyLoader`, `AnalysisRunPolicyLoader`.
@@ -41,47 +43,47 @@
 ### `audit` (1) — pilot, đã chốt template
 - `LogHandler.execute(input, changes?)` → `AuditService.log()` (điểm lệch duy nhất, implement `AUDIT_LOGGER_PORT`). Module `@Global()`, best-effort try/catch warn.
 
-### `auth` (11: 9 cmd + 2 query) — T3 chỉ di chuyển
+### `auth` (11: 9 cmd + 2 query) — Template Hexagonal (chuẩn hóa-only)
 - `ChangePasswordHandler.execute(userId, currentSessionId, currentPassword, newPassword, confirmPassword)` · `ForgotPasswordHandler.execute(emailRaw)` · `LoginHandler.execute(dto, ip?, ua?)` · `LoginWithGoogleHandler.execute(code, state, expectedState, ip?, ua?, rememberMe=false)` · `LogoutHandler.execute(sessionId?)` · `RefreshAccessTokenHandler.execute(rawRefreshToken)` · `RegisterHandler.execute(dto)` · `ResetPasswordHandler.execute(emailRaw, otp, newPassword)` · `RevokeSessionHandler.execute(userId, sessionId)`.
 - `GetSessionByIdHandler.execute(userId, sessionId)` · `GetSessionsHandler.execute(userId)`.
 - Kèm `admin-bootstrap.service`, `security-alert.service`; VO `password-policy` (8–100 ký tự); adapter `users-auth-lookup/session` implement port của `users`.
 
-### `datasets` (8 handler + 1 subscriber) — T2 nhạy cảm nhất
+### `datasets` (8 handler + 1 subscriber) — Template Hexagonal (chuẩn hóa-only)
 - `CascadeProjectDatasetsHandler.execute(projectId, workspaceId?)` (giữ riêng) · `DeleteDatasetHandler.execute(id)` (transaction: soft-delete + `setHasDataset(false)` + trừ storage) · `IngestDatasetStreamHandler.execute({projectId, fileStream, fileName, mimeType, contentLength?})` (**2 pha**: suy schema từ `SAMPLE_ROWS_CAP` dòng rồi ép kiểu + ghi batch `IMPORT_BATCH_SIZE`; delimiter cố định `,`; giữ dòng rỗng làm finding; header trùng chấp nhận thành finding) · `MapPropsToOriginalNamesHandler.execute()` (không tham số — migration/backfill, giữ riêng).
 - `DownloadDatasetFileHandler.execute(id)` · `GetDatasetByIdHandler.execute(id)` · `GetDatasetByProjectIdHandler.execute(projectId)` · `GetDatasetSchemaHandler.execute(id)` · `CascadeDatasetEventSubscriber` (giữ riêng).
 
-### `data-view` (4 query) — T1
+### `data-view` (4 query) — Template Simple
 - `GetChartDataHandler.execute(datasetId, {columns?, topN?, maxRows?})` · `GetColumnStatsHandler.execute(datasetId, columnRef)` · `GetRecordsHandler.execute(datasetId, query)` · `QueryRecordsHandler.execute(datasetId, body)`.
 - Không có schema/repository riêng — đọc qua `RECORD_QUERY_PORT` của `datasets`. Hằng số `DEFAULT_RECORD_LIMIT=50`, `MAX_RECORD_LIMIT=500`, `normalizeRecordLimit()` giữ nguyên.
 
-### `feedback` (7: 5 cmd + 2 query) — T2
+### `feedback` (7: 5 cmd + 2 query) — Template Simple (có điều kiện)
 - `AiQualityMetricsHandler.execute(userId, role, projectId)` · `CreateFindingFeedbackHandler.execute(userId, role, analysisId, findingId, dto)` · `CreateRunFeedbackHandler.execute(userId, role, analysisId, dto)` · `RemoveHandler.execute(userId, role, id)` · `UpdateMineHandler.execute(userId, roleOrId, idOrDto, dtoOrRole?)` (**chữ ký 4 tham số quá tải — giữ nguyên thứ tự khi gộp, không chuẩn hoá**).
 - `ListFindingFeedbackHandler.execute(userId, role, analysisId, findingId, query)` · `ListRunFeedbackHandler.execute(userId, role, analysisId, query)`.
 - Bất biến: `ensureNotAdmin(role)` — admin hệ thống bị `ForbiddenError` với FB-*; guard `isObjectIdHex`; repository hỗ trợ cả camel + snake + ObjectId cũ — không được “làm sạch” logic này.
 
-### `issues` (9: 4 cmd + 5 query) — T2
+### `issues` (9: 4 cmd + 5 query) — Template Hexagonal (chuẩn hóa-only, D14)
 - `CreateReportHandler.execute(userId, dto)` (entity `IssueReport.create()` kiểm tra title ≤ 200, desc ≤ 5000) · `UpdateMyReportHandler.execute(userId, id, {title?, description?, removeAttachmentIds?, expectedVersion})` (optimistic locking) · `UpdateStatusHandler.execute(id, role, status, expectedVersion)` · `UploadAttachmentHandler.execute(userId, role, issueId, {filename, mimeType, size, stream})`.
 - `DownloadAttachmentHandler.execute(userId, role, issueId, attachmentId)` · `GetForAdminHandler.execute(id, role)` · `GetMineHandler.execute(userId, id)` · `ListForAdminHandler.execute(query)` · `ListMineHandler.execute(userId, query)`.
 
-### `notifications` (6: 3 cmd + 3 query) — T1
+### `notifications` (6: 3 cmd + 3 query) — Template Simple
 - `DispatchHandler.execute(params)` · `MarkAsReadHandler.execute(userId, id)` · `UpdatePreferencesHandler.execute(userId, enabled)` (route `PATCH users/me/notification-preferences` nằm ở controller notifications — khi gộp giữ nguyên route, không chuyển sang users).
 - `CountUnreadHandler.execute(userId)` · `GetDetailHandler.execute(userId, id)` · `ListForUserHandler.execute(userId, query)`.
 - 2 mapper khác nhau: `notification.mapper.ts` (DB) vs `notification-email.mapper.ts` (email) — **không gộp**.
 
-### `overview` (2 query) — T1 đơn giản nhất
+### `overview` (2 query) — Template Simple
 - `GetUserOverviewHandler.execute(userId)` (Promise.all 3 count) · `GetWorkspaceOverviewHandler.execute(workspaceId)` — chỉ đọc qua `WORKSPACE_REPOSITORY_PORT` + `PROJECT_REPOSITORY_PORT`, không có DB riêng.
 
-### `projects` (17: 10 cmd + 7 query) — T2
+### `projects` (17: 10 cmd + 7 query) — Template Hexagonal (chuẩn hóa-only)
 - `AddProjectMemberHandler.execute(projectId, dto)` · `CascadeWorkspaceProjectsHandler.execute(workspaceId)` (giữ riêng) · `CreateProjectHandler.execute(workspaceId, userId, dto)` · `DeleteProjectHandler.execute(id)` (transaction + outbox `PROJECT_DELETED`) · `MarkCompletedHandler.execute(projectId, expectedVersion?)` · `RemoveProjectMemberHandler.execute(projectId, memberUserId)` · `SetHasDatasetHandler.execute(projectId, hasDataset)` · `TransferProjectOwnerHandler.execute(projectId, actorUserId, dto)` · `UpdateProjectHandler.execute(id, dto)` · `UpdateProjectMemberRoleHandler.execute(projectId, memberUserId, dto)`.
 - `GetProjectByIdHandler.execute(id, touch=false)` · `GetProjectsByWorkspaceHandler.execute(workspaceId)` · `GetWorkspaceNameHandler.execute(workspaceId)` · `ListAllProjectsHandler.execute(userId, workspaceIds, q, isAdmin)` · `ListMembersHandler.execute(projectId, q)` · `ListProjectsByWorkspaceHandler.execute(workspaceId, q)` · `ResolveUserProjectRoleHandler.execute(projectId, userId, workspaceRole?)`.
 - 3 policy loader giữ nguyên 3 class khi gộp vào `projects.policy.ts`; `cascade-project-event.subscriber.ts` giữ riêng.
 
-### `users` (17: 11 cmd + 6 query) — T2
+### `users` (17: 11 cmd + 6 query) — Template Hexagonal (chuẩn hóa-only)
 - `BlockUserHandler.execute(userId)` · `CreateSessionHandler.execute({user_id, refresh_token_hash, device_name?, ip_address?, user_agent?, remember_me?})` (snake_case — giữ nguyên) · `CreateUserHandler.execute({id, email, password_hash, first_name, last_name, role?})` · `RevokeAllUserSessionsHandler.execute(userId)` · `RevokeSessionByIdHandler.execute(sessionId)` · `RevokeSessionHandler.execute(userId, sessionId)` · `SoftDeleteUserHandler.execute(userId)` (transaction + outbox `USER_REMOVED`) · `TouchSessionHandler.execute(sessionId, lastUsedAt)` · `UnblockUserHandler.execute(userId)` · `UpdateNotificationPreferencesHandler.execute(userId, enabled)` · `UpdateProfileHandler.execute(userId, {...})`.
 - `FindActiveSessionsHandler.execute(userId)` · `FindByEmailHandler.execute(email, includePassword=false)` · `FindByIdHandler.execute(id)` · `FindPagedHandler.execute(opts)` · `FindSessionByIdHandler.execute(sessionId)` · `FindSessionByTokenHashHandler.execute(refreshTokenHash)`.
 - `UserAccessRevocationService` giữ file riêng (ghi outbox `USER_BLOCKED`/`USER_REMOVED` + publish realtime); VO session `SESSION_TTL 7 ngày`, `REMEMBER_ME 30 ngày`.
 
-### `workspaces` (14: 8 cmd + 6 query) — T2
+### `workspaces` (14: 8 cmd + 6 query) — Template Hexagonal (chuẩn hóa-only)
 - `AddMemberHandler.execute(workspaceId, dto, invitedByUserId?)` · `CreateWorkspaceHandler.execute(userId, dto)` (kiểm tra quota `MAX_WORKSPACES_PER_USER=20`, chỉ tính owned, admin miễn) · `DeleteWorkspaceHandler.execute(id)` (transaction + outbox `WORKSPACE_DELETED` strict — lỗi ghi outbox thì rollback) · `IncrementStorageUsedHandler.execute(workspaceId, deltaBytes)` · `LeaveWorkspaceHandler.execute(workspaceId, userId)` · `RemoveMemberHandler.execute(workspaceId, memberUserId)` · `TransferOwnerHandler.execute(workspaceId, actorUserId, dto)` · `UpdateWorkspaceHandler.execute(id, dto)`.
 - `CheckWorkspaceUploadQuotaHandler.execute(workspaceId, incomingBytes, quotaBytes)` · `GetWorkspaceByIdHandler.execute(id, touch=false)` · `GetWorkspacesHandler.execute(user)` · `ListMembersHandler.execute(workspaceId, q)` · `ListWorkspacesHandler.execute(user, q)` · `ResolveUserWorkspaceRoleHandler.execute(workspaceId, userId)`.
 - Adapter `workspace-context` là fail-safe (lỗi → tập rỗng) — giữ try/catch.
@@ -133,13 +135,13 @@
 - `workspaces`: `MAX_WORKSPACES_PER_USER=20` (chỉ tính owned, admin miễn).
 - `auth/users`: mật khẩu 8–100 ký tự, session 7 ngày, remember-me 30 ngày.
 - `issues`: title ≤ 200, description ≤ 5000, `expectedVersion` optimistic locking.
-- `analysis`: `MAX_CORRELATION_CELLS` (cardinality guard), `MAX_FEW_SHOT_STORE`, `DEFAULT_TOP_K/MIN_TRUST/MAX_AGE_DAYS` của RAG — T3 không đụng.
+- `analysis`: `MAX_CORRELATION_CELLS` (cardinality guard), `MAX_FEW_SHOT_STORE`, `DEFAULT_TOP_K/MIN_TRUST/MAX_AGE_DAYS` của RAG — Hexagonal không đụng.
 
 ---
 
 ## 12.7. Schemas và Repository (18 model / 17 file — giữ nguyên tên + collection + index)
 
-`AiJob` · `AnalysisResult` · `AnalysisRun` · `CellEvidence` · `FewShotExample` · `ProjectSave` · `ReportJob` (7 ở `analysis`) · `AuditLog` + `AuditChange` (2 chung 1 file ở `audit`) · `Dataset` + `DatasetRecord` (2 ở `datasets`, `DatasetRecord` chỉ khai báo ở đây) · `FindingFeedback` · `IssueReport` · `Notification` · `Project` · `Workspace` · `User` + `UserSession`. `MongooseModule.forFeature` trong `*.module.ts` giữ nguyên; `*.schema.ts` chỉ đổi đường dẫn; `*.mapper.ts` T1/T2 được gộp vào repository, T3 giữ riêng; `record-query.repository.ts` giữ riêng phục vụ Virtual Grid.
+`AiJob` · `AnalysisResult` · `AnalysisRun` · `CellEvidence` · `FewShotExample` · `ProjectSave` · `ReportJob` (7 ở `analysis`) · `AuditLog` + `AuditChange` (2 chung 1 file ở `audit`) · `Dataset` + `DatasetRecord` (2 ở `datasets`, `DatasetRecord` chỉ khai báo ở đây) · `FindingFeedback` · `IssueReport` · `Notification` · `Project` · `Workspace` · `User` + `UserSession`. `MongooseModule.forFeature` trong `*.module.ts` giữ nguyên; `*.schema.ts` chỉ đổi đường dẫn; `*.mapper.ts` của Simple được gộp vào repository (trừ 2 mapper `notifications` + mapper `feedback`), của Hexagonal giữ riêng; `record-query.repository.ts` giữ riêng phục vụ Virtual Grid.
 
 ---
 

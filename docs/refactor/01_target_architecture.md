@@ -1,165 +1,139 @@
-# 1. Kiến trúc đích — Modular Monolith (Vertical Slice)
+# 1. Kiến trúc đích — Modular Monolith lai (vỏ MM + ruột heterogeneous)
 
-> **Nguyên tắc:** Chỉ thay đổi *cách tổ chức bên trong*. Hành vi bên ngoài giữ nguyên tuyệt đối (R1).
-
----
-
-## 1.1. So sánh cấu trúc: trước → sau
-
-### TRƯỚC — Clean Architecture 4 tầng (hiện tại)
-
-```
-src/modules/datasets/
-├── application/
-│   ├── commands/          4 file
-│   ├── queries/           4 file
-│   ├── policy-loaders/    1 file
-│   └── services/          3 file
-├── domain/
-│   ├── entities/          2 file
-│   ├── events/            1 file
-│   ├── ports/             2 file
-│   ├── services/          1 file
-│   └── value-objects/     3 file
-├── infrastructure/
-│   ├── adapters/          0 file
-│   └── persistence/       5 file
-├── presentation/
-│   ├── controllers/       2 file
-│   ├── dtos/              3 file
-│   └── responses/         2 file
-├── index.ts               ← public contract
-└── datasets.module.ts
-```
-
-**Người mới phải làm:** 4 lần grep ở 4 thư mục khác nhau để hiểu 1 request.
-
-### SAU — Vertical Slice (đích)
-
-```
-src/modules/datasets/
-├── datasets.routes.ts        ← HTTP + validation (Zod) + guard
-├── datasets.service.ts       ← toàn bộ nghiệp vụ
-├── datasets.schema.ts        ← Mongoose model
-├── datasets.types.ts         ← type + constant
-├── datasets.errors.ts        ← lỗi nghiệp vụ (nếu có)
-├── index.ts                 ← public contract (giữ)
-└── datasets.module.ts       ← DI wiring (giữ)
-```
-
-**Người mới:** 1 lần grep trong 1 thư mục.
+> **Nguyên tắc:** Chỉ thay đổi *cách tổ chức bên trong*. Hành vi bên ngoài giữ nguyên tuyệt đối (R1). Chi tiết ADR: `docs/adr/0002-hybrid-modular-monolith.md` (thay hướng slice-toàn-bộ của ADR-0001).
 
 ---
 
-## 1.2. Bốn điều kiện để gọi là "Modular Monolith" — và cách chứng minh
+## 1.1. Vỏ Modular Monolith (giữ strict cho cả 13 module)
 
-| # | Điều kiện | Hiện tại | Sau | Bằng chứng |
-|---|---|---|---|---|
-| **M1** | Ranh giới module rõ ràng | ✅ 13 module | ✅ | Thư mục độc lập, không dùng chung |
-| **M2** | Không import chéo module (ngoài public contract) | ✅ 116 import đều qua `index.ts` | ✅ | ESLint rule + arch test |
-| **M3** | Module = 1 vertical slice (HTTP → DB trong 1 thư mục) | ❌ 4 tầng | ✅ | Thư mục phẳng, 5–8 file |
-| **M4** | Shared kernel + 1 process deploy | ✅ | ✅ | `src/shared/`, 1 `AppModule` |
+```
+src/
+├── AppModule (1 process/deploy)      ← Host
+├── shared/ (88 file, shared kernel)  ← BuildingBlocks, không đổi
+└── modules/ (13 module, mỗi module 1 thư mục + index.ts)
+```
 
-> **M2 đã đạt.** Chỉ cần làm **M3** — và đó là phần cốt lõi của kịch bản này.
+| # | Điều kiện MM | Trạng thái | Bằng chứng |
+|---|---|---|---|
+| M1 | Ranh giới module rõ ràng | ✅ | 13 thư mục độc lập |
+| M2 | Không import chéo ngoài public contract | ✅ đã đạt ở P1 | ESLint MM2 + arch test, 116 import qua `index.ts` |
+| M3 | Mỗi module tự giải thích được | ✅ theo 2 template dưới | README ghi `Template: Simple/Hexagonal` |
+| M4 | Shared kernel + 1 process | ✅ | `src/shared/`, 1 `AppModule` |
 
----
+Quy tắc dependency giữ nguyên MM1–MM4 (xem §1.4). **Bỏ MM5** kiểu cũ (ép mọi module phẳng) — thay bằng MM5' dưới đây.
 
-## 1.3. Quy tắc dependency (thay cho CA1–CA14)
+## 1.2. Ruột heterogeneous: 2 template
+
+### Template S — Simple Monolith (6 module)
+
+Áp dụng: `audit, overview, data-view, realtime, notifications, feedback`
+
+```
+src/modules/audit/                  ← ví dụ Simple sau refactor
+├── audit.routes.ts                 ← controller + DTO + Zod validation + guard dùng
+├── audit.service.ts                ← toàn bộ nghiệp vụ (handler gộp thành method)
+├── audit.repository.ts             ← chỉ nếu có DB riêng (audit/notifications/feedback có; overview/data-view/realtime không)
+├── audit.schema.ts                 ← chỉ nếu có DB riêng
+├── audit.adapter.ts                ← từ infrastructure/adapters/* (giữ riêng nếu có)
+├── audit.types.ts                  ← type/enum/constant + entity nhẹ (nếu có) + port nội bộ
+├── index.ts                        ← public contract (giữ)
+└── audit.module.ts                 ← DI wiring (giữ)
+```
+
+- Entity nhẹ (nếu có) nằm gọn trong `<mod>.types.ts`, không tách `domain/`.
+- Mỗi handler cũ → 1 method service, **giữ nguyên chữ ký `execute()` + thứ tự tham số** (TC-02).
+- File đặc biệt giữ riêng: `notifications` giữ 2 mapper riêng (DB vs email); `feedback` giữ 2 entity trong `types.ts` + 1 repository.
+
+### Template H — Hexagonal giữ 4 tầng (7 module)
+
+Áp dụng: `analysis, auth, datasets, projects, workspaces, users, issues`
+
+```
+src/modules/datasets/              ← ví dụ Hexagonal (giữ nguyên tầng)
+├── application/ (commands/queries/policy-loaders/services)
+├── domain/ (entities/events/ports/services/value-objects)
+├── infrastructure/ (persistence/adapters)
+├── presentation/ (controllers/dtos/responses)
+├── index.ts                        ← public contract (chuẩn hóa)
+└── datasets.module.ts              ← DI wiring (giữ)
+```
+
+- **Không gộp entity/port/handler.** Chỉ chuẩn hóa: import qua `index.ts`, sửa test import path, viết README.
+- Lý do giữ: xem §1.3.
+
+## 1.3. Ngưỡng Simple vs Hexagonal (ngưỡng cứng)
+
+Giữ **Hexagonal** nếu module có ≥ 1 trong:
+
+1. **Invariant phải bảo vệ bằng entity** — vd `issues` (optimistic locking + title/reason), `users` (password policy + revocation), `workspaces` (quota 20), `feedback` chạm ngưỡng 1 nhưng được miễn có điều kiện sang Simple vì entity nhẹ gộp được vào `types.ts` (giữ đủ `create/updateByAuthor + requiresReason + ensureNotAdmin`).
+2. **Transaction + outbox + cascade** — `tx.runInTransaction`, `resolveMongoSession`, strict vs best-effort (`datasets, projects, workspaces, users`).
+3. **Policy RBAC 3 tầng / fail-safe adapter** — `projects` (3 policy loader), `datasets` (policy + 2 schema/2 repo), `auth` (session rotation + OAuth).
+4. **Tích hợp ngoài fallible** — AI worker/RAM guard/cardinality (`analysis`), SMTP/ntfy/S3 stream; lỗi không được hỏng luồng chính.
+
+Ngược lại → **Simple**. Bảng phân loại chốt:
+
+| Template | Module | Lý do ngắn |
+|---|---|---|
+| Simple | `audit` | 1 cmd, facade `AUDIT_LOGGER_PORT`, không invariant |
+| Simple | `overview` | 2 query đọc/view, không DB riêng |
+| Simple | `data-view` | 4 query, không repo riêng (qua `RECORD_QUERY_PORT`) |
+| Simple | `realtime` | 0 handler + 1 subscriber WS, side-effect cục bộ |
+| Simple | `notifications` | 6 handler CRUD + 2 mapper riêng (giữ riêng, không gộp) |
+| Simple (đk) | `feedback` | 7 handler + `ensureNotAdmin` + camel/snake — được Simple vì entity nhẹ gộp được vào `types.ts` |
+| Hexagonal | `issues` | optimistic locking + 1 controller (2 nhóm route user + `admin/*`) + cascade — **ở lại H** (quyết định D14, khác hướng cũ) |
+| Hexagonal | `datasets` | 2 schema/2 repo + tx strict + policy + subscriber |
+| Hexagonal | `projects` | 17 handler + 3 policy loader + cascade + best-effort outbox |
+| Hexagonal | `workspaces` | quota + tx strict + RBAC 3 tầng |
+| Hexagonal | `users` | password policy + revocation service + 17 handler |
+| Hexagonal | `analysis` | AI worker + RAM/cardinality guard + 7 schema + 14 util |
+| Hexagonal | `auth` | OAuth/session rotation + 7 token + 4 adapter |
+
+## 1.4. Quy tắc dependency MM1–MM4 + MM5'
 
 ```mermaid
 graph LR
-    HTTP["HTTP / WebSocket"] --> MOD["module<br/>(vertical slice)"]
-    MOD --> SHARED["shared/<br/>(kernel)"]
-    MOD -.->|"qua index.ts"| MOD2["module khác"]
-    MOD --> DB[("MongoDB / Redis / S3")]
-
-    style MOD fill:#e8f4ff,stroke:#1f6feb
-    style SHARED fill:#fff4e5,stroke:#e8590c
+    HTTP["HTTP / WebSocket"] --> MODS["module Simple<br/>(routes+service)"]
+    HTTP --> MODH["module Hexagonal<br/>(presentation→application→domain)"]
+    MODS --> SHARED["shared/<br/>(kernel)"]
+    MODH --> SHARED
+    MODS -.->|"qua index.ts"| MODH
+    MODS --> DB[("MongoDB / Redis / S3")]
+    MODH --> DB
 ```
 
-| Luật | Nội dung | Cơ chế enforce |
+| Luật | Nội dung | Enforce |
 |---|---|---|
-| **MM1** | `shared/` không import từ `modules/` | ESLint + arch test (giữ CA5) |
-| **MM2** | Module A không import trực tiếp file của module B; chỉ qua `index.ts` | ESLint `no-restricted-imports` + arch test (giữ CA4/CA8) |
-| **MM3** | Không chu trình phụ thuộc giữa các module | Arch test (giữ CA9) |
-| **MM4** | Không import SDK AI/LLM bên thứ ba | Arch test (giữ CA10) |
-| **MM5** | Mỗi module tự chứa đủ: route + service + schema | Arch test **mới** (thay CA1/CA2/CA20) |
+| MM1 | `shared/` không import từ `modules/` | ESLint + arch test (giữ) |
+| MM2 | Module A không import file module B; chỉ qua `index.ts` | ESLint `no-restricted-imports` + arch test (giữ từ P1) |
+| MM3 | Không chu trình giữa các module | Arch test (giữ) |
+| MM4 | Không import SDK AI/LLM bên thứ ba vào module | Arch test (giữ) |
+| MM5' | Simple: route+service+schema/types tự chứa; Hexagonal: tầng trong module không lọt ra ngoài qua deep import | Arch test (nới lỏng so với MM5 cũ — chỉ check ranh giới module, không ép phẳng) |
 
-### Điều MM5 thay thế điều gì?
+> CA1/CA2/CA20 (cấm domain import framework...) **giữ hiệu lực bên trong 7 module Hexagonal**, **không áp dụng** cho 6 module Simple.
 
-| Luật cũ | Nội dung | Trạng thái sau refactor |
-|---|---|---|
-| CA1 | `domain/` không import framework | **BỎ** — không còn `domain/` tách riêng |
-| CA2 | `application/` không import infrastructure | **BỎ** — không còn tầng |
-| CA20 | `application/` không import `HttpException` | **THAY** bằng MM5: service không được dùng HTTP exception |
-| CA3/CA4/CA5/CA8/CA9/CA10/CA11 | Ranh giới module, shared, chu trình, SDK AI | **GIỮ** — nguyên giá trị, chuyển sang ngữ nghĩa modular monolith |
+## 1.5. Quy tắc đặt tên file
 
-> **Từ 14 luật → 5 luật.** Ít luật hơn = ít tài liệu đồng bộ hơn = ít nợ kỹ thuật hơn.
+Simple dùng tiền tố module; Hexagonal giữ tên cũ:
 
----
-
-## 1.4. Quy tắc đặt tên file
-
-Mỗi module dùng tiền tố tên module:
-
-| File | Vai trò | Ví dụ (`datasets`) |
-|---|---|---|
-| `<mod>.routes.ts` | Controller + DTO + validation | `datasets.routes.ts` |
-| `<mod>.service.ts` | Nghiệp vụ (thay handler + service + port impl) | `datasets.service.ts` |
-| `<mod>.schema.ts` | Mongoose model | `datasets.schema.ts` |
-| `<mod>.types.ts` | Type, enum, constant | `datasets.types.ts` |
-| `<mod>.errors.ts` | Lỗi nghiệp vụ | `datasets.errors.ts` |
-| `<mod>.events.ts` | Event type định nghĩa | `datasets.events.ts` |
-| `<mod>.policy.ts` | Policy loader | `datasets.policy.ts` |
-| `<mod>.adapter.ts` | Adapter đặc biệt (chỉ khi cần) | `datasets.adapter.ts` |
-| `<mod>.module.ts` | NestJS module (DI wiring) | `datasets.module.ts` |
-| `index.ts` | Public contract | `index.ts` |
-
-> **Quy tắc:** `<tên-file>.<vai-trò>.ts`. Không dùng tên generic như `service.ts`, `controller.ts` — vì khi có nhiều module trong cùng thư mục, người mới cần biết file thuộc module nào.
-
----
-
-## 1.5. `shared/` — giữ nguyên hay rút gọn?
-
-**Quyết định: GIỮ NGUYÊN trong kịch bản 30h.**
-
-| Lý do giữ | Chi tiết |
+| Template | Ví dụ |
 |---|---|
-| `shared/` đã là "shared kernel" đúng nghĩa | 88 file, 5 567 LOC, 25 thư mục con — đã là kiểu modular monolith |
-| Rủi ro cao khi đụng | 88 file, guard/filter/interceptor/pipes — sai 1 chỗ là hỏng toàn hệ thống |
-| Không đóng góp cho M1–M4 | M1–M4 không yêu cầu thay đổi `shared/` |
-| Ảnh hưởng "người mới khó hiểu" | `shared/` là **cross-cutting** — người mới hiểu nó 1 lần là dùng cho mọi module |
+| Simple | `<mod>.routes.ts`, `<mod>.service.ts`, `<mod>.repository.ts`, `<mod>.schema.ts`, `<mod>.types.ts`, `index.ts`, `<mod>.module.ts` |
+| Hexagonal | giữ `application/commands/*.handler.ts`, `domain/entities/*.entity.ts`, ... chỉ chuẩn hóa export ở `index.ts` |
 
-> **Ghi nhận nợ kỹ thuật:** `shared/` có thể rút gọn thành `shared/{db,http,auth,realtime,utils}` (5 thư mục) — để dành cho đợt sau. Ghi vào `docs/refactor/notes.md`.
+> Không dùng tên generic (`service.ts`, `controller.ts`) ở Simple — phải có tiền tố module.
 
----
+## 1.6. `shared/` — giữ nguyên
 
-## 1.6. Ranh giới giữa `shared/` và module
+Giữ nguyên 88 file kernel (guard/filter/pipe/outbox/transaction/storage/realtime). Nguyên tắc: thứ dùng bởi ≥ 3 module nằm ở `shared/`; 1–2 module → nằm trong module đó. Nợ kỹ thuật rút gọn `shared/` để dành đợt sau.
 
-| Nằm ở `shared/` | Nằm ở module |
-|---|---|
-| `JwtAuthGuard`, `PoliciesGuard`, `@CurrentUser` | Nghiệp vụ cụ thể của domain |
-| `HttpExceptionFilter`, `TransformInterceptor` | Schema Mongoose của entity |
-| `ZodValidationPipe` | Repository truy vấn entity đó |
-| `OutboxService`, `TransactionPort` | Policy loader của resource đó |
-| `StorageService`, `EmailSender`, `PushSender` | — |
-| `RealtimeTransport` (socket.io) | — |
-| `cursor-paginated.response`, `Action`, `SubjectName` | — |
-
-> **Nguyên tắc:** `shared/` = thứ dùng bởi **≥ 3 module**. Dùng bởi 1–2 module → đặt trong module đó.
-
----
-
-## 1.7. Những gì KHÔNG đổi trong toàn bộ kịch bản
+## 1.7. Những gì KHÔNG đổi (cả 2 template)
 
 | Không đổi | Lý do |
 |---|---|
-| **82 HTTP route + 1 WS gateway** + response shape | Frontend đang dựa vào; contract §3.13 đã chốt |
-| **18 Mongoose model** + collection/index (xem `12_business_invariants.md` §12.7) | DB đang có dữ liệu thật |
-| **107 handler (+3 subscriber) → 107 service method** (map 1-1, chi tiết ở `12_business_invariants.md` §12.2) | Đổi tên lớp, không đổi logic |
-| **Outbox + transaction** | Đang hoạt động tốt (OPEN-09) |
-| **RBAC 3 tầng** (workspace → project → dataset) | Đã giải quyết IDOR, có test |
-| **Cursor pagination** | Đã chốt trong hợp đồng API |
-| **Zod validation** | Đang dùng đúng |
-| **1 277 test** — chỉ đổi import path | Test là tài sản lớn nhất |
-| **AI worker + RAM guard + cardinality guard** | Domain cốt lõi của sản phẩm |
+| 82 HTTP + 1 WS, response shape, status code | Frontend + `arch:api-coverage` |
+| 18 model + collection/index | DB thật (`12_business_invariants.md` §12.7) |
+| 107 handler + 3 subscriber (Simple: 20 handler → method map 1-1; Hexagonal: 87 handler + 3 sub giữ nguyên file) | Đổi chỗ, không đổi logic |
+| Outbox + transaction + `resolveMongoSession` | OPEN-09 |
+| RBAC 3 tầng, cursor pagination, Zod, thứ tự guard + route | Hợp đồng API + IDOR |
+| 1 277 test — chỉ đổi import path | Tài sản lớn nhất |
+| AI worker + RAM/cardinality guard, TTL/index, `ensureNotAdmin/isObjectIdHex/deleted_at/camel-snake` | `13_refactor_constraints.md` TC/AC/BC/PC |
