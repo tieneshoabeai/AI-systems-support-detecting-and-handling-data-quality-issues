@@ -17,7 +17,6 @@ import { previewCardProps, stopCardBubble } from '../../preview/preview-card'
 import { UniverseHero } from '../../preview/components/universe-hero'
 import type { UniverseHeroProps } from '../../preview/components/universe-hero'
 import { RecentProjects } from '../../preview/components/recent-projects'
-import { AdminApiPanel } from './admin-api-panel'
 export { UniverseHero } from '../../preview/components/universe-hero'
 export type { UniverseHeroProps } from '../../preview/components/universe-hero'
 
@@ -109,7 +108,7 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
       if (active) setOverviewError(error instanceof Error ? error.message : 'Không tải được tổng quan workspace.')
     })
     return () => { active = false }
-  }, [state.source, store])
+  }, [state.source, state.workspaces, state.projects, store])
   const activeOverview = state.source === 'api' ? serverOverview : null
   const overviewStats = homeOverviewStats(state).map(stat => {
     if (!activeOverview) return stat
@@ -119,7 +118,6 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
   })
   return <PreviewShell active="home">
     <UniverseHero scene={scene} />
-    {store.adminService && <AdminApiPanel />}
 
     <div className="home-overview">
       <Panel title="Activity Overview" className="panel-overview"

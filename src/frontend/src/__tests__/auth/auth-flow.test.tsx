@@ -22,8 +22,18 @@ vi.mock('../../views/processing/processing.view', () => ({ ProcessingView: () =>
 vi.mock('../../views/preview/project-workspace-2d.view', () => ({ ProjectWorkspaceView: () => <h1>Project</h1> }))
 // Keep the real session controls while isolating the fixture-heavy management UI.
 vi.mock('../../views/preview/preview-entry', async () => {
+  const { PreviewTopbar } = await import('../../views/preview/components/preview-topbar')
+  const { PreviewSessionProvider } = await import('../../views/preview/preview-session')
+  const { usePreviewSession } = await import('../../views/preview/preview-session-context')
   const { WorkspaceView } = await import('../../views/workspace/workspace.view')
-  return { ManagementArea: WorkspaceView }
+  function AccountTopbar() {
+    const { state } = usePreviewSession()
+    return <PreviewTopbar active="home" sidebarToggle={null} state={state} />
+  }
+  return { ManagementArea: () => <>
+    <PreviewSessionProvider routeIds={{}}><AccountTopbar /></PreviewSessionProvider>
+    <WorkspaceView />
+  </> }
 })
 
 const disposers: Array<() => Promise<void>> = []
@@ -43,7 +53,7 @@ const LocationProbe = () => {
   return <><output data-testid="location">{location.pathname}{location.search}{location.hash}</output><output data-testid="location-state">{JSON.stringify(location.state)}</output></>
 }
 
-const mount = async (options: { path?: string; storedExp?: number; rejectLogin?: boolean; pendingLogin?: Promise<unknown>; pendingRefresh?: Promise<unknown>; meFailure?: boolean } = {}) => {
+const mount = async (options: { path?: string; storedExp?: number; rejectLogin?: boolean; pendingLogin?: Promise<unknown>; pendingRefresh?: Promise<unknown>; meFailure?: boolean; logoutFailure?: boolean } = {}) => {
   const records = new Map<string, string>()
   const storage = createSessionStorage({ getStorage: () => ({
     getItem: key => records.get(key) ?? null,
@@ -63,7 +73,10 @@ const mount = async (options: { path?: string; storedExp?: number; rejectLogin?:
       data = profile
     } else if (config.url?.endsWith('/health')) data = { status: 'ok', services: { mongodb_atlas: { status: 'connected' } } }
     else if (config.url?.endsWith('/auth/refresh')) data = options.pendingRefresh ? await options.pendingRefresh : { access_token: token(), refresh_token: 'rotated-refresh', expires_in: 900 }
-    else data = { message: 'Đăng xuất thành công' }
+    else if (config.url?.endsWith('/auth/logout')) {
+      if (options.logoutFailure) throw new AxiosError('network', 'ERR_NETWORK')
+      data = { message: 'Đăng xuất thành công' }
+    }
     return { config, status: 200, statusText: 'OK', headers: new AxiosHeaders(), data: { success: true, data } }
   })
   const runtime = createAppRuntime({ storage, database, client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, clearSessionCache: () => clearSessionQueries(queryClient) })
@@ -88,7 +101,7 @@ const requests = (adapter: ReturnType<typeof vi.fn<AxiosAdapter>>, path: string)
 describe('login, routes and session cleanup', () => {
   it.each(['/processing/projects/prj-sales', '/processing/projects/prj-sales/upload'])('protects %s and preserves its post-login destination', async path => {
     await mount({ path })
-    expect(screen.getByTestId('location').textContent).toBe('/auth/login')
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/auth/login'))
     expect(jsonObject(screen.getByTestId('location-state').textContent)['returnTo']).toBe(path)
     await submitLogin()
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/processing/projects/prj-sales'))
@@ -110,7 +123,12 @@ describe('login, routes and session cleanup', () => {
     expect(screen.getByTestId('location').textContent).toBe('/auth/login')
     await submitLogin()
     expect(screen.getByTestId('location').textContent).toBe('/management?view=local#top')
-    const logout = await screen.findByRole('button', { name: /Đăng xuất/ })
+    const originalSession = s.storage.read()
+    if (originalSession.status !== 'valid') throw new Error('Expected a valid session before logout')
+    const account = await screen.findByRole('button', { name: /^Tài khoản / })
+    expect(account.classList.contains('is-live')).toBe(true)
+    fireEvent.click(account)
+    const logout = within(screen.getByRole('dialog', { name: /^Tài khoản / })).getByRole('button', { name: 'Đăng xuất' })
     s.queryClient.setQueryData(['users', 'a', 'me'], { private: true })
     await act(async () => { fireEvent.click(logout)
       return Promise.resolve()
@@ -120,7 +138,23 @@ describe('login, routes and session cleanup', () => {
     expect(screen.getByLabelText<HTMLInputElement>('Email').value).toBe('')
     expect(screen.getByLabelText<HTMLInputElement>('Mật khẩu').value).toBe('')
     expect(s.storage.read()).toEqual({ status: 'empty' })
+    expect(requests(s.adapter, '/auth/logout')).toHaveLength(1)
+    const request = requests(s.adapter, '/auth/logout')[0]?.[0]
+    expect(request?.method?.toUpperCase()).toBe('POST')
+    expect(request?.headers.get('Authorization')).toBe(`Bearer ${originalSession.session.accessToken}`)
     expect(s.queryClient.getQueryCache().getAll()).toHaveLength(0)
+  })
+
+  it('clears the local session and reports an unconfirmed server revocation when logout loses network', async () => {
+    const s = await mount({ path: '/management', logoutFailure: true })
+    await submitLogin()
+    fireEvent.click(await screen.findByRole('button', { name: /^Tài khoản / }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: /^Tài khoản / })).getByRole('button', { name: 'Đăng xuất' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Chưa xác nhận được việc thu hồi phiên trên máy chủ.')
+    expect(screen.getByTestId('location').textContent).toBe('/auth/login')
+    expect(s.storage.read()).toEqual({ status: 'empty' })
+    expect(requests(s.adapter, '/auth/logout')).toHaveLength(1)
   })
 
   it('keeps invalid input out of transport and shows login rejection without renewal', async () => {
@@ -196,7 +230,7 @@ describe('provider timer/focus and consent dialog', () => {
     vi.setSystemTime(new Date('2026-10-28T10:00:00Z'))
     const s = await mount({ path: '/management?old=1', storedExp: Date.now() / 1000 + 1 })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    const dialog = screen.getByRole('dialog', { name: 'Bạn muốn tiếp tục?' })
+    const dialog = screen.getByRole('dialog', { name: 'PHIÊN LÀM VIỆC ĐÃ HẾT HẠN, BẠN CÓ MUỐN TIẾP TỤC KHÔNG' })
     const cancel = within(dialog).getByRole('button', { name: 'Hủy' })
     const accept = within(dialog).getByRole('button', { name: 'Tiếp tục phiên' })
     expect(document.activeElement).toBe(cancel)

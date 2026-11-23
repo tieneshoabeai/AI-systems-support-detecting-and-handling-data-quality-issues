@@ -1,6 +1,5 @@
 import { Button } from '../../../components/ui/controls'
-import { Dialog } from '../../../components/ui/overlay/dialog'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
 import type { CubeFocus, NeonCubeThemeId } from '../../../types'
@@ -17,14 +16,24 @@ import { Dataset3DView } from '../../dataset-3d/dataset-3d.view'
 import type { ConfirmedProjectResult } from '../../../types'
 import { bindProjectGlassMotion } from '../../../graphics/holographic-core'
 import styles from './project-workspace.module.css'
-import { isShoppingDemo } from '../../../mocks/shopping-trends/demo-mode'
-import { useShoppingDetection } from '../../../hooks/preview/use-shopping-detection'
-import { ShoppingContent } from '../../preview/components/shopping-demo-content'
-import { ResultReviewDialog } from '../../preview/components/result-review-dialog'
-import { downloadShopping } from '../../../mocks/shopping-trends/data'
 import { LiveDatasetPanel } from './sections/live-dataset-panel'
 import { LiveAnalysisPanel } from './sections/live-analysis-panel'
+import { Dialog } from '../../../components/ui/overlay/dialog'
+import { firstRecordQuery, type DatasetPreview } from '../../../services/processing/dataset.service'
+import { ProcessingDataContext } from '../../application/processing-data-context'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import type { SavedAnalysisResult } from '../../../services/management/management.types'
+
+type DetectionResponse = { datasetId: string; value?: SavedAnalysisResult | null; error?: string }
+
+function SavedDetectionStatus({ response, onRetry }: { response: DetectionResponse | null; onRetry: () => void }) {
+  if (!response) return <p role="status">Đang tải kết quả Detection…</p>
+  if (response.error) return <><p role="alert">{response.error}</p><Button type="button" onClick={onRetry}>Thử lại</Button></>
+  if (!response.value) return <p>Chưa có kết quả Detection đã lưu.</p>
+  const assessment = response.value.dq05
+  if (assessment?.status === 'unassessed') return <p>Kết quả đã lưu · Chưa đánh giá quy tắc</p>
+  return <p>Kết quả đã lưu{Array.isArray(assessment?.violations) && ` · ${assessment.violations.length} vi phạm`}</p>
+}
 
 // Project chrome and actions stay in this view; Dataset3DView owns scene interactions.
 const MODULE_CUBES = {
@@ -36,18 +45,9 @@ const PROJECT_PANEL_ENABLED = true
 
 export function ProjectWorkspaceView({ projectId, scene, result = null }: { projectId: string; scene?: ReactNode; result?: ConfirmedProjectResult | null }) {
   const session = usePreviewSession()
+  const processing = useContext(ProcessingDataContext)
+  const liveProject = processing !== null
   const store = useManagementStore()
-  const [projectLoadError, setProjectLoadError] = useState<{ id: string; message: string } | null>(null)
-  useEffect(() => {
-    if (!store.refreshProject) return
-    const controller = new AbortController()
-    void store.refreshProject(projectId, controller.signal).then(() => {
-      if (!controller.signal.aborted) setProjectLoadError(null)
-    }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setProjectLoadError({ id: projectId, message: error instanceof Error ? error.message : 'Không tải được chi tiết project.' })
-    })
-    return () => controller.abort()
-  }, [projectId, store])
   // No selected module until the user chooses a nav button or a scene cube.
   const [focus, setFocus] = useState<CubeFocus | null>(null)
   const [completedFocus, setCompletedFocus] = useState<CubeFocus | null>(null)
@@ -56,27 +56,12 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   const [instant, setInstant] = useState(false)
   const nav = useRef<HTMLElement>(null)
   const [glassPanel, setGlassPanel] = useState<HTMLElement | null>(null)
-  const demo = isShoppingDemo() && projectId === 'shopping-trends'
-  const flow = useShoppingDetection(demo)
-  const { start, cancel, needsReview, save } = flow
-  const [reviewing, setReviewing] = useState(false)
-  const pendingFocus = useRef<{ next: CubeFocus | null; immediate: boolean } | null>(null)
-  const applyFocus = useCallback((next: CubeFocus | null, immediate = false) => {
+  const selectFocus = useCallback((next: CubeFocus | null, immediate = false) => {
     setInstant(immediate)
     setCompletedFocus(null)
     setFocus(next)
-    if (demo) { setPanelFocus(next); setCompletedFocus(next) }
-  }, [demo])
-  const selectFocus = useCallback((next: CubeFocus | null, immediate = false) => {
-    if (demo && needsReview && next?.theme !== 'orange') {
-      pendingFocus.current = { next, immediate }
-      setReviewing(true)
-      return
-    }
-    if (demo && next?.theme !== 'orange') cancel()
-    applyFocus(next, immediate)
-    if (demo && next?.theme === 'orange') start()
-  }, [demo, needsReview, cancel, applyFocus, start])
+    if (liveProject) { setPanelFocus(next); setCompletedFocus(next) }
+  }, [liveProject])
   const completeFocus = useCallback((theme: NeonCubeThemeId) => {
     if (focus?.theme === theme) { setPanelFocus(focus); setCompletedFocus(focus) }
   }, [focus])
@@ -108,45 +93,75 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   useEffect(() => {
     if (!panelFocus) return
     const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !reviewing) { selectFocus(null, true); event.stopPropagation(); document.querySelector<HTMLButtonElement>('.pj-module.is-active')?.focus() }
+      if (event.key === 'Escape') { selectFocus(null, true); event.stopPropagation(); document.querySelector<HTMLButtonElement>('.pj-module.is-active')?.focus() }
     }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
-  }, [panelFocus, reviewing, selectFocus])
-  useEffect(() => {
-    if (!demo || !panelOpen) return
-    const outside = (event: Event) => {
-      if (reviewing && event.target instanceof Element && event.target.closest('[role="dialog"]')) return
-      if (!(event.target instanceof Node) || glassPanel?.contains(event.target)
-        || nav.current?.contains(event.target)) return
-      if (needsReview) { event.preventDefault(); event.stopPropagation() }
-      selectFocus(null, true)
-    }
-    document.addEventListener('pointerdown', outside, true)
-    document.addEventListener('click', outside, true)
-    return () => { document.removeEventListener('pointerdown', outside, true); document.removeEventListener('click', outside, true) }
-  }, [demo, panelOpen, reviewing, glassPanel, needsReview, selectFocus])
+  }, [panelFocus, selectFocus])
   const [detached, setDetached] = useState(false)
   const selected = projectModules.find(module => MODULE_CUBES[module.id] === focus?.theme)?.id ?? null
   const [uploading, setUploading] = useState(false)
-  const project = session.state.projects.find(item => item.id === projectId) ?? null
+  const project = processing?.loading || processing?.error
+    ? null : session.state.projects.find(item => item.id === projectId) ?? null
+  const dataset = project?.dataset
+  const datasetId = dataset?.id
+  const [preview, setPreview] = useState<{ datasetId: string; value: DatasetPreview | null } | null>(null)
+  const [analysis, setAnalysis] = useState<DetectionResponse | null>(null)
+  const [analysisAttempt, setAnalysisAttempt] = useState(0)
+  const [runningAnalysis, setRunningAnalysis] = useState(false)
+  const prefetch = Boolean(processing && datasetId)
+  useEffect(() => {
+    const service = store.datasetService
+    if (!prefetch || !datasetId || !service) return
+    const controller = new AbortController()
+    const { signal } = controller
+    void Promise.all([service.schema(datasetId, signal), service.records(datasetId, firstRecordQuery, signal)])
+      .then(([columns, page]) => { if (!signal.aborted) setPreview({ datasetId, value: { columns, page } }) })
+      .catch(() => { if (!signal.aborted) setPreview({ datasetId, value: null }) })
+    return () => controller.abort()
+  }, [datasetId, prefetch, store])
+  useEffect(() => {
+    if (!prefetch || !datasetId || !store.readAnalysisResult) return
+    const controller = new AbortController()
+    const { signal } = controller
+    void store.readAnalysisResult(projectId, signal)
+      .then(value => { if (!signal.aborted) setAnalysis({ datasetId, value }) })
+      .catch(() => { if (!signal.aborted) setAnalysis({ datasetId, error: 'Không tải được kết quả Detection.' }) })
+    return () => controller.abort()
+  }, [analysisAttempt, datasetId, prefetch, projectId, store])
+  const currentPreview = preview?.datasetId === datasetId ? preview : null
+  const invalidatePreview = () => { if (datasetId) setPreview({ datasetId, value: null }) }
+  const currentAnalysis = analysis?.datasetId === datasetId ? analysis : null
+  const retryAnalysis = () => { setAnalysis(null); setAnalysisAttempt(value => value + 1) }
+  const runAnalysis = async () => {
+    if (!datasetId || !store.runAnalysis || runningAnalysis) return
+    setRunningAnalysis(true)
+    try {
+      const value = await store.runAnalysis(projectId)
+      setAnalysis({ datasetId, value })
+    } catch {
+      setAnalysis({ datasetId, error: 'Không thể chạy Detection. Hãy kiểm tra kết quả mới nhất trước khi thử lại.' })
+    } finally {
+      setRunningAnalysis(false)
+    }
+  }
 
   // Id không còn trong store (vừa bị xóa) → về danh sách thay vì vẽ trang trống.
-  if (!project) return <PreviewShell active="workspaces" area="processing">
+  if ((!processing && !project) || processing?.missing) return <PreviewShell active="workspaces" area="processing">
     <EmptyHint title="Không tìm thấy project" note="Project không còn tồn tại. Hãy chọn project khác trong danh sách." />
     <Button type="button" className="button-secondary" onClick={() => session.openSection('projects')}>Về danh sách Project</Button>
   </PreviewShell>
 
-  const dataset = project.dataset
   const menuButton = (element: HTMLElement) =>
-    session.openMenu({ ...projectDatasetMenu(project), origin: { kind: 'anchor', element } })
+    { if (project) session.openMenu({ ...projectDatasetMenu(project), origin: { kind: 'anchor', element } }) }
 
   return <PreviewShell active="workspaces" area="processing" contentClassName={`project-processing-content ${styles['screen']}`}
-    headerAction={<ProjectResultDownload result={demo && flow.state.status === 'reviewed'
-      ? { id: 'shopping-detection', save, download: () => downloadShopping('report') } : result} />}>
-    <h1 id="page-heading" tabIndex={-1} className="visually-hidden">{project.name}</h1>
-    {projectLoadError?.id === projectId && <p role="alert">{projectLoadError.message}</p>}
-    <div className="pj-head-row">
+    headerAction={<ProjectResultDownload result={result} />}>
+    <h1 id="page-heading" tabIndex={-1} className="visually-hidden">{project?.name ?? 'Project'}</h1>
+    {!project && (processing?.error
+      ? <div role="alert">{processing.error} <Button type="button" onClick={processing.retry}>Thử lại</Button></div>
+      : <p role="status">Đang tải thông tin project…</p>)}
+    {project && <div className="pj-head-row">
       <nav className="ws-crumb" aria-label="Path điều hướng">
         <Button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</Button>
         <span className="crumb-sep" aria-hidden="true">›</span>
@@ -161,7 +176,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
           {/* "dung lượng bao gồm luôn shape()" = kích thước tệp + số dòng + số cột, đúng ba vế
               ảnh vẽ: '124.6 MB | 1,250,000 dòng | 24 cột'. */}
           <span>{dataset
-            ? `${formatDataSize(dataset.sizeMb)} | ${demo ? dataset.rows.toLocaleString('vi-VN') + ' dòng' : formatRows(dataset.rows)} | ${formatCount(dataset.columns)} cột`
+            ? `${formatDataSize(dataset.sizeMb)} | ${formatRows(dataset.rows)} | ${formatCount(dataset.columns)} cột`
             : 'Project chưa có tập dữ liệu.'}</span>
         </div>
         {!dataset && project.canUpload !== false && <Button type="button" className="button-primary" onClick={() => setUploading(true)}>Upload data</Button>}
@@ -175,29 +190,40 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
           <PreviewIcon name="more" />
         </Button>
       </div>
-    </div>
+    </div>}
 
-    <section className="pj-stage" aria-label={`Vũ trụ dữ liệu của ${project.name}`}>
+    <section key="project-stage" className="pj-stage" aria-label={project ? `Vũ trụ dữ liệu của ${project.name}` : 'Vũ trụ dữ liệu'}>
       {scene ?? <Dataset3DView embedded colorMode={session.appearance.resolved} focus={focus}
         glassPanel={glassPanel}
-        onFocusChange={next => selectFocus(next)} onDetachedChange={value => { setDetached(value); if (!demo) setCompletedFocus(null) }}
+        onFocusChange={next => selectFocus(next)} onDetachedChange={value => { setDetached(value); setCompletedFocus(null) }}
         onFocusComplete={completeFocus} />}
       {PROJECT_PANEL_ENABLED && panelFocus && <aside ref={setGlassPanel} className="project-module-panel" aria-labelledby="project-module-title"
-        data-has-content={demo || panelFocus.theme === 'orange' || panelFocus.theme === 'blue' || panelFocus.theme === 'violet' || panelFocus.theme === 'cyan'}
+        data-has-content={panelFocus.theme === 'orange' || panelFocus.theme === 'blue' || panelFocus.theme === 'violet'}
         data-open={panelOpen} data-instant={instant} data-module={projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.id}
         aria-hidden={!panelOpen} inert={!panelOpen}>
         <div className="project-module-content">
           <header>
             <h2 id="project-module-title">{projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.label}</h2>
-            <button ref={panelClose} type="button" className="icon-button" aria-label="Đóng bảng module"
-              onClick={event => selectFocus(null, event.detail === 0)}>×</button>
+            <Button ref={panelClose} type="button" className="icon-button" aria-label="Đóng bảng module"
+              onClick={event => selectFocus(null, event.detail === 0)}>×</Button>
           </header>
-          {demo ? <ShoppingContent module={projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)!.id}
-            flow={flow} onReview={() => { pendingFocus.current = null; setReviewing(true) }} />
+          {!project ? <p role="status">{processing?.error ?? 'Đang tải thông tin project…'}</p>
             : panelFocus.theme === 'blue' || panelFocus.theme === 'violet'
-              ? <LiveDatasetPanel key={`${project.id}:${dataset?.id ?? ''}:${panelFocus.theme}`} project={project} overview={panelFocus.theme === 'violet'} />
-              : panelFocus.theme === 'cyan' ? <LiveAnalysisPanel key={project.id} project={project} />
-              : panelFocus.theme === 'orange' && <div className="project-module-review"><ProjectResultActions result={result} reviewOnly /></div>}
+              ? prefetch && !currentPreview ? <p role="status">Đang tải dữ liệu từ máy chủ.</p>
+                : <LiveDatasetPanel key={`${project.id}:${dataset?.id ?? ''}:${panelFocus.theme}`} project={project}
+                    overview={panelFocus.theme === 'violet'} initialPreview={currentPreview?.value ?? null}
+                    onInvalidatePreview={invalidatePreview} />
+              : panelFocus.theme === 'cyan' ? <LiveAnalysisPanel key={`${project.id}:${datasetId ?? ''}`}
+                  project={project} canExecute={project.canComplete === true} onAnalysisRun={retryAnalysis} />
+              : panelFocus.theme === 'orange' && <div className="project-module-review">
+                  {processing && !result ? !datasetId ? <p>Project chưa có tập dữ liệu.</p>
+                    : <SavedDetectionStatus response={currentAnalysis} onRetry={retryAnalysis} />
+                    : <ProjectResultActions result={result} reviewOnly />}
+                  {processing && !result && dataset?.status === 'processed' &&
+                    project.canComplete && store.runAnalysis &&
+                    <Button type="button" disabled={!currentAnalysis || Boolean(currentAnalysis.error) || runningAnalysis}
+                      onClick={() => { void runAnalysis() }}>{runningAnalysis ? 'Đang chạy…' : 'Chạy Detection'}</Button>}
+                </div>}
         </div>
       </aside>}
 
@@ -205,26 +231,18 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
       <nav ref={nav} className="pj-modules" aria-label="Bốn module của project">
         {projectModules.map(module => {
           const current = selected === module.id
-          return <button type="button" key={module.id} data-tone={module.tone} data-module={module.id}
+          return <Button type="button" key={module.id} data-tone={module.tone} data-module={module.id}
             className={`pj-module${current ? ' is-active' : ''}`} aria-current={current ? 'true' : undefined}
             disabled={detached} title={detached ? 'Lắp lại mô hình để chọn module' : undefined}
             onClick={event => selectFocus({ theme: MODULE_CUBES[module.id] }, event.detail === 0)}>
             <span className="pj-module-icon" aria-hidden="true"><PreviewIcon name={module.icon} /></span>
             <span className="pj-module-label">{module.label}</span>
-          </button>
+          </Button>
         })}
       </nav>
     </section>
 
-    {uploading && !dataset && <ProjectUploadDialog onClose={() => setUploading(false)} />}
-    {demo && reviewing && <ResultReviewDialog result={{ id: 'shopping-detection', save }}
-      onClose={() => { setReviewing(false); pendingFocus.current = null }}
-      onSaved={() => {
-        setReviewing(false)
-        const pending = pendingFocus.current
-        pendingFocus.current = null
-        if (pending) { applyFocus(pending.next, pending.immediate); if (pending.next?.theme === 'orange') start() }
-      }} />}
+    {uploading && project && !dataset && <ProjectUploadDialog onClose={() => setUploading(false)} />}
 
     {/* Trang không còn dải lý do cho "Quản lý thành viên" hay các control của trang Projects:
         mục đó đã BẬT THẬT và chính modal của nó mang ghi chú ở chân (id `projectMembersPage`).

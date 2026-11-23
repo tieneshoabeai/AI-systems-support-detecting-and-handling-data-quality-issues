@@ -1,0 +1,18 @@
+flowchart TD
+  Application --> AppProviders
+  AppProviders --> QueryClientProvider
+  QueryClientProvider --> AuthProvider
+  AuthProvider --> BrowserRouter
+  BrowserRouter --> AppRouter
+  AppRouter --> LoginPage
+  AppRouter --> ProtectedRoute
+  ProtectedRoute --> ApplicationFrame
+  ApplicationFrame --> RouteScope{"Route scope"}
+  RouteScope --> ManagementDataProvider
+  RouteScope --> ProcessingDataProvider
+  ManagementDataProvider --> PreviewSessionProvider
+  ProcessingDataProvider --> PreviewSessionProvider
+  PreviewSessionProvider --> Outlet
+  Outlet --> ManagementPage
+  Outlet --> ProcessingPage
+  Outlet --> ProjectWorkspacePage

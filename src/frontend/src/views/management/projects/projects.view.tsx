@@ -1,5 +1,6 @@
 import { Button, Select } from '../../../components/ui/controls'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { PreviewMenuOrigin, Project, ProjectFilterTab } from '../../../types'
 import {
   formatCount, formatDataSize, formatRows, projectStatsFor, projectTabsFor, projectsOf,
@@ -30,31 +31,45 @@ const sortProjects = (list: readonly Project[], key: SortKey): Project[] => {
   return copy
 }
 
-export function ProjectCard({ project, selected, view }: {
+export function ProjectCard({ project, selected, view, retry }: {
   project: Project
   selected: boolean
   view: ViewMode
+  retry?: (field: 'dataset' | 'members') => void
 }) {
   const session = usePreviewSession()
   const target = { kind: 'project' as const, id: project.id, name: project.name }
   const openMenu = (origin: PreviewMenuOrigin) => session.openMenu({ ...projectMenu(project), origin })
+  const datasetState = project.supplementary?.dataset ?? 'success'
+  const membersState = project.supplementary?.members ?? 'success'
+  const ready = datasetState === 'success' && membersState === 'success'
+  const sectionStatus = (field: 'dataset' | 'members', error: boolean) => {
+    const label = field === 'dataset' ? 'dữ liệu' : 'thành viên'
+    return error
+      ? <span role="status">Không tải được {label}. <Button type="button" onClick={event => {
+        event.stopPropagation()
+        retry?.(field)
+      }}>Thử lại {label}</Button></span>
+      : <span role="status">Đang tải {label}…</span>
+  }
 
   return <article className={`resource-card${selected ? ' is-selected' : ''}${view === 'list' ? ' is-list' : ''}`}
     role="button" tabIndex={0} aria-pressed={selected}
+    data-card-details={ready ? 'ready' : datasetState === 'error' || membersState === 'error' ? 'error' : 'pending'}
     {...previewCardProps({
       // Đặc tả: "bấm vào phải có trang project". 1 click = trang Project Workspace Overview
       // (run('open') ghi route /projects/<ws>/<prj}); KHÔNG truyền universe — chuột kép cũng đáp
       // đúng trang đó, vì mọi lối "vào project" đều phải qua Overview (ảnh Overview_v1). Scene 3D
       // của T gọi từ chính trang ấy.
       detail: () => session.run('open', target),
-      menu: openMenu,
+      menu: origin => { if (ready) openMenu(origin) },
     })}>
     <div className="card-cover"><CoverArt hue={project.cover} seed={project.id} kind="project" />
       {/* Ảnh projects đánh dấu thẻ đang chọn bằng check tròn trên ảnh. */}
       {selected && <span className="card-select-check" aria-hidden="true"><PreviewIcon name="check" /></span>}
       <span className="card-top-actions">
         <StatusBadge status={project.status} />
-        <Button type="button" className="icon-button on-dark" aria-label={`Thao tác với ${project.name}`} aria-haspopup="menu"
+        <Button type="button" className="icon-button on-dark" aria-label={`Thao tác với ${project.name}`} aria-haspopup="menu" disabled={!ready}
           onClick={event => { event.stopPropagation(); openMenu({ kind: 'anchor', element: event.currentTarget }) }}>
           <PreviewIcon name="more" />
         </Button>
@@ -63,20 +78,20 @@ export function ProjectCard({ project, selected, view }: {
     <div className="card-body">
       <h3 className="card-title">{project.name}</h3>
       <p className="card-desc">{project.description}</p>
-      {project.dataset
+      {datasetState !== 'success' ? sectionStatus('dataset', datasetState === 'error') : project.dataset
         ? <div className="file-row">
           <span className="file-badge" aria-hidden="true">{project.dataset.format.slice(0, 3).toUpperCase()}</span>
           <span className="file-text"><strong>{project.dataset.fileName}</strong>
             <small>{project.dataset.format} · {formatRows(project.dataset.rows)} · {project.dataset.columns} cột</small></span>
         </div>
         : <p className="file-missing">Chưa có tập dữ liệu.</p>}
-      <dl className="card-metrics">
+      {datasetState === 'success' && <dl className="card-metrics">
         <div><dt>{project.dataset ? formatCount(project.dataset.rows) : '0'}</dt><dd>bản ghi</dd></div>
         <div><dt>{project.dataset?.columns ?? 0}</dt><dd>cột</dd></div>
         <div><dt>{project.dataset ? formatDataSize(project.dataset.sizeMb) : '—'}</dt><dd>dung lượng</dd></div>
-      </dl>
+      </dl>}
       <footer className="card-foot">
-        {project.members.length
+        {membersState !== 'success' ? sectionStatus('members', membersState === 'error') : project.members.length
           ? <span className="avatar-stack">
             {project.members.slice(0, maxAvatars).map(person => <Avatar key={person.id} initials={person.initials} size="sm" />)}
             {project.members.length > maxAvatars && <span className="avatar-more">+{project.members.length - maxAvatars}</span>}
@@ -90,6 +105,8 @@ export function ProjectCard({ project, selected, view }: {
 
 export function ProjectsPreviewView() {
   const session = usePreviewSession()
+  const { loadCardData } = useManagementStore()
+  const cardScope = useRef<AbortController | null>(null)
   const [tab, setTab] = useState<ProjectFilterTab>('all')
   const [view, setView] = useState<ViewMode>('grid')
   const [sort, setSort] = useState<SortKey>('recent')
@@ -105,14 +122,28 @@ export function ProjectsPreviewView() {
     : state.projects
   const workspaceLabel = state.workspaces.find(item => item.id === state.selection.workspaceId)?.name ?? 'mọi không gian'
 
+  const matches = useMemo(() => scoped.filter(project => matchTab(project, tab)), [scoped, tab])
+  const waitingForRows = sort === 'rows' && matches.some(project => project.supplementary && project.supplementary.dataset !== 'success')
   const filtered = useMemo(
-    () => sortProjects(scoped.filter(project => matchTab(project, tab)), sort),
-    [scoped, tab, sort],
+    () => sortProjects(matches, waitingForRows ? 'recent' : sort),
+    [matches, sort, waitingForRows],
   )
   const pageCount = Math.max(1, Math.ceil(filtered.length / perPage))
   const safePage = Math.min(page, pageCount)
   const visible = filtered.slice((safePage - 1) * perPage, safePage * perPage)
   const selected = filtered.find(project => project.id === state.selection.projectId) ?? filtered[0] ?? null
+  const visibleIds = JSON.stringify(visible.map(project => project.id).sort())
+  const datasetIds = sort === 'rows' ? JSON.stringify(matches.map(project => project.id).sort()) : visibleIds
+  const revision = state.projects[0]?.supplementary?.revision
+
+  useEffect(() => {
+    if (!loadCardData) return
+    const controller = new AbortController()
+    cardScope.current = controller
+    void loadCardData(JSON.parse(visibleIds) as string[], 'members', controller.signal)
+    void loadCardData(JSON.parse(datasetIds) as string[], 'dataset', controller.signal)
+    return () => { cardScope.current = null; controller.abort() }
+  }, [loadCardData, visibleIds, datasetIds, revision, state.selection.workspaceId])
 
   return <PreviewShell active="projects">
     <div className="page-head">
@@ -151,6 +182,10 @@ export function ProjectsPreviewView() {
         </label>
       </div>
     </div>
+    {waitingForRows && <p role="status">Đang tải số bản ghi để sắp xếp. <Button type="button" onClick={() => {
+      const signal = cardScope.current?.signal
+      if (signal) void loadCardData?.(JSON.parse(datasetIds) as string[], 'dataset', signal, true)
+    }}>Thử lại phần dữ liệu lỗi</Button></p>}
 
     {visible.length === 0
       ? <EmptyHint title="Không có kết quả"
@@ -159,6 +194,10 @@ export function ProjectsPreviewView() {
           : 'Thử đổi tab lọc hoặc đổi không gian ở topbar.'} />
       : <div className={`card-grid${view === 'list' ? ' is-list' : ''}`}>
         {visible.map(project => <ProjectCard key={project.id} project={project}
+          retry={field => {
+            const signal = cardScope.current?.signal
+            if (signal) void loadCardData?.([project.id], field, signal, true)
+          }}
           view={view} selected={project.id === selected?.id} />)}
       </div>}
 

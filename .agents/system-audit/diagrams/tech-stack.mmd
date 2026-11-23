@@ -1,0 +1,13 @@
+flowchart TD
+  FE["Frontend SPA"] --> UI["React + TypeScript"]
+  FE --> Build["Vite + React Compiler"]
+  UI --> Routes["React Router"]
+  UI --> State["Context / external stores / QueryClient infrastructure"]
+  UI --> Styling["CSS / CSS Modules / custom properties"]
+  UI --> Graphics["Three.js + React Three Fiber"]
+  UI --> HTTP["Axios JSON / multipart / Blob"]
+  HTTP --> Boundary["BE API boundary; live UNVERIFIED"]
+  UI --> Local["sessionStorage / localStorage / Dexie IndexedDB"]
+  FE --> Types["openapi-typescript + Swagger aliases"]
+  Types --> Gap["Payload schema / consumer gap"]
+  FE --> Tests["Vitest + Testing Library; Playwright demo specs"]

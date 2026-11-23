@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
 import { Button, Input, Select } from '../../../../components/ui/controls'
+import { useEffect, useState } from 'react'
 import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
-import type { ColumnStats, DatasetColumn, RecordPage, RecordQuery } from '../../../../services/processing/dataset.service'
+import { firstRecordQuery, type ColumnStats, type DatasetColumn, type DatasetPreview, type RecordPage, type RecordQuery } from '../../../../services/processing/dataset.service'
 import type { Project } from '../../../../types/preview/preview.types'
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Không tải được dữ liệu.'
@@ -20,15 +20,16 @@ const cell = (value: unknown): string => {
   return JSON.stringify(value) ?? '—'
 }
 
-export function LiveDatasetPanel({ project, overview = false }: { project: Project; overview?: boolean }) {
-  const service = useManagementStore().datasetService
+export function LiveDatasetPanel({ project, overview = false, initialPreview, onInvalidatePreview }: {
+  project: Project; overview?: boolean; initialPreview?: DatasetPreview | null; onInvalidatePreview?: () => void
+}) {
   const store = useManagementStore()
+  const service = store.datasetService
   const dataset = project.dataset
   const id = dataset?.id
-  const [columns, setColumns] = useState<DatasetColumn[]>([])
-  const [page, setPage] = useState<RecordPage | null>(null)
-  const [detail, setDetail] = useState<{ name: string; rowCount: number; columnCount: number } | null>(null)
-  const [query, setQuery] = useState<RecordQuery>({ limit: 50 })
+  const [columns, setColumns] = useState<DatasetColumn[]>(initialPreview?.columns ?? [])
+  const [page, setPage] = useState<RecordPage | null>(overview ? null : initialPreview?.page ?? null)
+  const [query, setQuery] = useState<RecordQuery>(firstRecordQuery)
   const [history, setHistory] = useState<RecordQuery[]>([])
   const [search, setSearch] = useState('')
   const [column, setColumn] = useState('')
@@ -39,25 +40,35 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
   const [piiUpdateAvailable, setPiiUpdateAvailable] = useState(true)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialPreview)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [detail, setDetail] = useState<Awaited<ReturnType<NonNullable<typeof service>['detail']>> | null>(null)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    if (!id || !service) return
+    if (!overview || !id || !service) return
+    const controller = new AbortController()
+    void service.detail(id, controller.signal).then(value => {
+      if (!controller.signal.aborted) setDetail(value)
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) setActionError(message(cause))
+    })
+    return () => controller.abort()
+  }, [overview, id, service, attempt])
+  useEffect(() => {
+    if (!id || !service || (initialPreview && attempt === 0 && query === firstRecordQuery)) return
     const controller = new AbortController()
     void Promise.all([
       service.schema(id, controller.signal),
       overview ? Promise.resolve(null) : service.records(id, query, controller.signal),
-      overview ? service.detail(id, controller.signal) : Promise.resolve(null),
-    ]).then(([schema, rows, datasetDetail]) => {
+    ]).then(([schema, rows]) => {
       if (controller.signal.aborted) return
-      setColumns(schema); setPage(rows); setDetail(datasetDetail); setError(''); setLoading(false)
+      setColumns(schema); setPage(rows); setError(''); setLoading(false)
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted) { setError(message(cause)); setLoading(false) }
     })
     return () => controller.abort()
-  }, [id, service, query, overview, attempt])
+  }, [id, service, query, overview, attempt, initialPreview])
   if (!dataset) return <p>Project chưa có tập dữ liệu. Hãy tải CSV lên trước.</p>
   if (!service || !id) return <p>Dịch vụ dữ liệu chưa sẵn sàng.</p>
   const activeColumn = columns.find(item => item.key === column) ?? columns[0]
@@ -67,7 +78,7 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
     setBusy(true); setActionError('')
     try { await operation() } catch (cause) { setActionError(message(cause)) } finally { setBusy(false) }
   }
-  const reload = () => { setLoading(true); setError(''); setAttempt(value => value + 1) }
+  const reload = () => { onInvalidatePreview?.(); setLoading(true); setError(''); setAttempt(value => value + 1) }
   const download = async () => {
     const blob = await service.download(id)
     const url = URL.createObjectURL(blob)
@@ -80,17 +91,22 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
     <div className="form-actions">
       <Button disabled={busy} onClick={() => { void action(download) }}>Tải CSV gốc</Button>
       <Button disabled={loading || busy} onClick={reload}>Tải lại</Button>
-      {project.canManage && <Button disabled={busy} onClick={() => setConfirmDelete(true)}>Xóa dataset</Button>}
+      {project.canManage && store.refreshProject && <Button disabled={busy} onClick={() => setConfirmDelete(true)}>Xóa dataset</Button>}
     </div>
     <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} busy={busy} aria-labelledby="delete-dataset-title">
       <h2 id="delete-dataset-title">Xóa dataset?</h2>
       <p>Dataset sẽ bị xóa mềm khỏi Project. Dữ liệu không thể dùng trong Data View sau thao tác này.</p>
+      {actionError && <p role="alert">{actionError}</p>}
       <div className="form-actions">
-        <Button type="button" className="button-secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>Hủy</Button>
-        <Button type="button" className="button-primary" disabled={busy} onClick={() => {
+        <Button type="button" disabled={busy} onClick={() => setConfirmDelete(false)}>Hủy</Button>
+        <Button type="button" disabled={busy} onClick={() => {
           void action(async () => {
             await service.delete(id)
-            await store.refreshProject?.(project.id, new AbortController().signal)
+            onInvalidatePreview?.()
+            try { await store.refreshProject?.(project.id, new AbortController().signal) } catch {
+              setConfirmDelete(false)
+              throw new Error('Đã xóa dataset trên máy chủ nhưng chưa tải lại được Project. Hãy tải lại trang, không gửi lại thao tác.')
+            }
             setConfirmDelete(false)
           })
         }}>Xác nhận xóa</Button>
@@ -122,7 +138,7 @@ export function LiveDatasetPanel({ project, overview = false }: { project: Proje
       setQuery({ limit: 50, ...(search && selectedColumn ? { search: { columns: [selectedColumn], value: search } } : {}),
         filters, ...(sort && selectedColumn ? { sort: [{ column: selectedColumn, order: sort === 'desc' ? 'desc' : 'asc' }] } : {}) })
     }}>
-      <label>Cột <Select value={selectedColumn} disabled={busy} onChange={event => { setColumn(event.target.value); setStats(null) }}>
+      <label>Cột <Select value={selectedColumn} onChange={event => { setColumn(event.target.value); setStats(null) }}>
         {columns.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
       </Select></label>
       <label>Tìm kiếm <Input value={search} maxLength={200} onChange={event => setSearch(event.target.value)} /></label>

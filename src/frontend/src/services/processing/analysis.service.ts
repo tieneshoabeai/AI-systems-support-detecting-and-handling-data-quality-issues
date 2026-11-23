@@ -1,4 +1,6 @@
-import type { ApiClient } from '../../types/api/api.types'
+import type { ApiClient, ApiResponseWithStatus } from '../../types/api/api.types'
+import { ApiError } from '../../lib/api-error'
+import type { SavedAnalysisResult } from '../management/management.types'
 import type {
   postProjectsByProjectIdSaveAnalysisConfigRequestBody,
   postProjectsByProjectIdRunAnalysisRequestBody,
@@ -33,9 +35,9 @@ export function createAnalysisService(api: ApiClient) {
     saveConfig: (projectId: string, data: AnalysisConfigInput, signal?: AbortSignal) =>
       request<unknown>(projectPath(projectId, 'analysis/config'), { method: 'POST', data, ...(signal ? { signal } : {}) }),
     run: (projectId: string, data: RunAnalysisInput, signal?: AbortSignal) =>
-      request<unknown>(projectPath(projectId, 'analysis'), { method: 'POST', data, ...(signal ? { signal } : {}) }),
+      request<SavedAnalysisResult>(projectPath(projectId, 'analysis'), { method: 'POST', data, ...(signal ? { signal } : {}) }),
     getResult: (projectId: string, signal?: AbortSignal) =>
-      request<unknown>(projectPath(projectId, 'analysis/result'), signal ? { signal } : {}),
+      request<SavedAnalysisResult>(projectPath(projectId, 'analysis/result'), signal ? { signal } : {}),
     getJob: (jobId: string, signal?: AbortSignal) =>
       request<unknown>(`/analysis/jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : {}),
     retryJob: (jobId: string, signal?: AbortSignal) =>
@@ -47,17 +49,23 @@ export function createAnalysisService(api: ApiClient) {
     requestReport: (projectId: string, signal?: AbortSignal) =>
       request<unknown>(projectPath(projectId, 'report'), { method: 'POST', ...(signal ? { signal } : {}) }),
     async downloadReport(projectId: string, reportId: string, signal?: AbortSignal): Promise<ReportDownload> {
-      const file = await request<Blob>(
-        `${projectPath(projectId, `report/${encodeURIComponent(reportId)}/file`)}`,
-        { responseType: 'blob', ...(signal ? { signal } : {}) },
-      )
-      if (file.type.includes('application/json')) {
-        const text = await file.text()
+      const { status, data } = await api.request<ApiResponseWithStatus<Blob>>({
+        path: projectPath(projectId, `report/${encodeURIComponent(reportId)}/file`),
+        auth: 'session',
+        responseType: 'blob',
+        includeStatus: true,
+        ...(signal ? { signal } : {}),
+      })
+      if (status === 202) {
+        const text = data?.size ? await data.text() : ''
         let metadata: unknown = text
         try { metadata = JSON.parse(text) as unknown } catch { /* Keep the server message as text. */ }
         return { status: 'pending', metadata }
       }
-      return { status: 'ready', file }
+      if (status !== 200 || !data || await data.slice(0, 5).text() !== '%PDF-') {
+        throw new ApiError({ kind: 'invalid-response', status, message: 'Phản hồi tải report không chứa tệp PDF hợp lệ.' })
+      }
+      return { status: 'ready', file: data }
     },
     createRunFeedback: (analysisId: string, data: CreateFeedbackInput, signal?: AbortSignal) =>
       request<unknown>(`/analyses/${encodeURIComponent(analysisId)}/feedback`, { method: 'POST', data, ...(signal ? { signal } : {}) }),

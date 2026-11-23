@@ -1,0 +1,7 @@
+flowchart LR
+  Commit["ĐỀ XUẤT: thay đổi FE"] --> Install["Install theo lockfile thống nhất"]
+  Install --> Checks["Typecheck + lint + scoped/full tests"]
+  Checks --> Build["Production build"]
+  Build --> Contract["Contract / smoke trên môi trường cô lập"]
+  Contract --> Approval["Human review artifact và deployment config"]
+  Approval --> Publish["Publish static artifacts"]

@@ -34,10 +34,10 @@ describe('API configuration', () => {
     vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:3000')
     vi.stubEnv('VITE_API_PREFIX', '/api/v1')
     const adapter: AxiosAdapter = async config => {
-      expect(config.url).toBe(`${baseUrl}/health`)
+      expect(config.url).toBe(`${baseUrl}/projects`)
       return Promise.resolve(response(config, { success: true, data: true }))
     }
-    await expect(createAxiosClient({ adapter }).request({ path: '/health', auth: 'public' }))
+    await expect(createAxiosClient({ adapter, readToken: () => 'test-access' }).request({ path: '/projects', auth: 'session' }))
       .resolves.toBe(true)
   })
 
@@ -64,10 +64,10 @@ describe('API configuration', () => {
 })
 
 describe('Axios client', () => {
-  it('keeps the prefix, unwraps once and does not read a public request token', async () => {
+  it('unwraps once and does not read a public request token', async () => {
     const readToken = vi.fn(() => 'secret')
     const adapter = vi.fn<AxiosAdapter>(async config => {
-      expect(config.url).toBe(`${baseUrl}/health`)
+      expect(config.url).toBe(new URL('/health', baseUrl).href)
       expect(config.timeout).toBe(5_000)
       expect(config.headers.get('Authorization')).toBeUndefined()
       return Promise.resolve(response(config, { success: true, data: { data: 0 } }))
@@ -174,7 +174,13 @@ describe('error normalization', () => {
   })
 })
 
-it('accepts a successful 204 deletion without requiring a JSON envelope', async () => {
+it.each(['/workspaces/example', '/projects/example', '/datasets/example'])('accepts 204 for DELETE %s', async path => {
   const api = createAxiosClient({ baseUrl, readToken: () => 'token', adapter: config => Promise.resolve({ ...response(config, ''), status: 204 }) })
-  await expect(api.request({ path: '/workspaces/example', method: 'DELETE', auth: 'session' })).resolves.toBeUndefined()
+  await expect(api.request<void>({ path, method: 'DELETE', auth: 'session' })).resolves.toBeUndefined()
+})
+
+it('rejects an unexpected 204 when the caller requires a response body', async () => {
+  const api = createAxiosClient({ baseUrl, readToken: () => 'token', adapter: config => Promise.resolve({ ...response(config, ''), status: 204 }) })
+  await expect(api.request({ path: '/workspaces', method: 'POST', auth: 'session', requireBody: true }))
+    .rejects.toMatchObject({ kind: 'invalid-response', status: 204 })
 })

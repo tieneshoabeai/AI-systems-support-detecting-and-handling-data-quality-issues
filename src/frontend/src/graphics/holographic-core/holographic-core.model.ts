@@ -610,12 +610,35 @@ function applyTierContrast(runtime: ProceduralModelRuntime) {
 //      safety net: anything outside pickableMeshes stops answering the pointer. By design; keep it.
 //   I7 The first resetMotion runs after every subsystem is built — it touches risers, spool, constellation
 //      and inbound streams.
-export function createHolographicCoreProductModel(): HolographicCoreProductModel {
+type CoreBuildStage = { model: THREE.Group; phase: 'core' | 'towers' | 'details' }
+
+export function* buildHolographicCoreProductModel(
+  registerDispose: (dispose: () => void) => void,
+): Generator<CoreBuildStage, HolographicCoreProductModel> {
   const model = createHolographicOrbitalDataCoreV2Model({
     castShadow: false,
     receiveShadow: false,
     qualityPriority: 'reference-fidelity',
   })
+  const ownedResources: Array<() => void> = []
+  let disposed = false
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
+    ownedResources.forEach(release => release())
+    const geometries = new Set<THREE.BufferGeometry>()
+    const materials = new Set<THREE.Material>()
+    model.traverse(object => {
+      if (!isDrawable(object)) return
+      if (object instanceof THREE.InstancedMesh) object.dispose()
+      geometries.add(object.geometry)
+      const entries = Array.isArray(object.material) ? object.material : [object.material]
+      entries.forEach(material => materials.add(material))
+    })
+    geometries.forEach(geometry => geometry.dispose())
+    materials.forEach(material => material.dispose())
+  }
+  registerDispose(dispose)
   const runtime = model.userData['sculptRuntime'] as ProceduralModelRuntime
   removeInactiveGeneratedTowers(runtime)
   createIntermediateBase(runtime)
@@ -625,19 +648,53 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   applyFaceShading(runtime)
   applyTierContrast(runtime)
   const spool = CORE_VISUAL_REVISION === 'v4-spool' ? createSpoolCore() : null
+  const attachToNode = (object: THREE.Object3D, id: string) => {
+    runtime.nodes[id]?.attach(object)
+  }
+  const spoolLayers = spool ? [
+    [spool.parts.top, 'core-upper'], [spool.parts.chamber, 'core-upper'],
+    [spool.parts.base, 'core-lower'], [spool.parts.platform, 'base-deck'],
+  ] as const : []
+  const restoreSpoolLayers: Array<() => void> = []
   if (spool) {
+    ownedResources.push(() => spool.dispose())
     // Keep the old meshes (and their nodes) for detach/pick offsets, but never draw them.
     for (const id of ['core-upper', 'core-lower', 'core-cap', 'core-mid-collar', 'core-lower-collar', 'core-foot', 'orbit-violet']) {
       const mesh = runtime.meshes[id]
       if (mesh) mesh.visible = false
     }
+    model.updateMatrixWorld(true)
+    // Preview the real core layers, then restore their local transforms and
+    // insert them at their original position in the finalized scene graph.
+    for (const [part, nodeId] of spoolLayers) {
+      const position = part.position.clone()
+      const rotation = part.quaternion.clone()
+      const scale = part.scale.clone()
+      attachToNode(part, nodeId)
+      restoreSpoolLayers.push(() => {
+        part.removeFromParent()
+        part.position.copy(position)
+        part.quaternion.copy(rotation)
+        part.scale.copy(scale)
+      })
+    }
+    spool.parts.fx.visible = false
+    model.add(spool.parts.fx)
   }
+  yield { model, phase: 'core' }
+
   // The constellation lives in world space (core root is at the origin) so issue lanes can
   // reach the selected satellite cube. It is hidden while the model is exploded.
   const constellation = CORE_VISUAL_REVISION !== 'v2-tier' && ISSUE_CONSTELLATION.enabled
     ? createIssueConstellation({ nucleusBands: CORE_VISUAL_REVISION !== 'v4-spool' })
     : null
-  if (constellation) model.add(constellation.root)
+  if (constellation) {
+    model.add(constellation.root)
+    ownedResources.push(() => {
+      model.remove(constellation.root)
+      constellation.dispose()
+    })
+  }
 
   // Reference shows the collar and orbit as thin white-hot ring lights on top of their bands.
   const ringLight = (radius: number, tube: number, color: string, y: number, opacity: number) => {
@@ -723,11 +780,12 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     addScatteredNodes(runtime.meshes['base-deck'] ?? model, [1.58, 0.026, 1.18, -1.35, 0.026, 1.48, 2.3, 0.026, -1.42, -2.42, 0.026, -0.7, 0.44, 0.026, -2.18, -0.65, 0.026, 2.42], 0.018),
     addScatteredNodes(runtime.meshes['base-intermediate'] ?? model, [2.44, 0.108, 0.45, -2.31, 0.108, -0.72, 0.42, 0.108, -2.5], 0.014),
   ]
-  // Towers: build order, placement, the shared materials and the riser animation all live in
-  // tower-ring.ts, at exactly this position in the pipeline (see the invariants above).
   const towerRing = createTowerRing(runtime, model)
+  yield { model, phase: 'towers' }
   const gauge = createTowerGauge(runtime, MOCK_QUALITY_SCORES)
+  ownedResources.push(() => gauge.dispose())
   const crowns = createTowerCrowns(runtime)
+  ownedResources.push(() => crowns.dispose())
 
   const runner = new THREE.Group()
   runner.name = 'orbit-violet-runner'
@@ -746,10 +804,6 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   // Ring lights and the runner belong to the parts they decorate, so they must ride
   // along when the model explodes instead of hovering at ground level.
   model.updateMatrixWorld(true)
-  const attachToNode = (object: THREE.Object3D, id: string) => {
-    const target = runtime.nodes[id]
-    if (target) target.attach(object)
-  }
   attachToNode(capRimLight, 'core-cap')
   attachToNode(collarLight, 'core-mid-collar')
   attachToNode(lowerCollarLight, 'core-lower-collar')
@@ -760,14 +814,12 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   attachToNode(runner, 'orbit-violet')
   attachToNode(baseRimHalo, 'base-rim-outer-bottom')
   if (spool) {
-    // Each spool layer rides the node of the old part it replaces, so detach offsets still work.
-    // The top drum stays on core-upper (static) because the old cap node keeps its spin.
-    attachToNode(spool.parts.top, 'core-upper')
-    attachToNode(spool.parts.chamber, 'core-upper')
-    attachToNode(spool.parts.base, 'core-lower')
-    attachToNode(spool.parts.platform, 'base-deck')
+    restoreSpoolLayers.forEach(restore => restore())
+    for (const [part, nodeId] of spoolLayers) attachToNode(part, nodeId)
+    spool.parts.fx.visible = true
     model.add(spool.parts.fx)
   }
+  yield { model, phase: 'details' }
 
   const DETACH_DURATION = 0.65
   const detachEntries: Array<{ node: THREE.Object3D; base: THREE.Vector3; offset: THREE.Vector3 }> = []
@@ -824,6 +876,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
   }
 
   const selectionContours = new Map<string, THREE.LineSegments>()
+  let contourBatch = 0
   for (const [id, mesh] of Object.entries(runtime.meshes)) {
     if (NON_SELECTABLE_PART_IDS.has(id)) continue
     const contour = new THREE.LineSegments(
@@ -838,6 +891,7 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     contour.raycast = () => {}
     mesh.add(contour)
     selectionContours.set(id, contour)
+    if (++contourBatch % 4 === 0) yield { model, phase: 'details' }
   }
   if (spool) {
     for (const [id, mesh] of spool.selectableMeshes) {
@@ -962,28 +1016,19 @@ export function createHolographicCoreProductModel(): HolographicCoreProductModel
     setSelected,
     applyQualityScores: gauge.applyScores,
     resolvePart,
-    dispose() {
-      crowns.dispose()
-      gauge.dispose()
-      if (constellation) {
-        model.remove(constellation.root)
-        constellation.dispose()
-      }
-      spool?.dispose()
-      const geometries = new Set<THREE.BufferGeometry>()
-      const materials = new Set<THREE.Material>()
-      model.traverse((object) => {
-        if (isDrawable(object)) {
-          const geometry = object.geometry
-          const material = object.material
-          if (object instanceof THREE.InstancedMesh) object.dispose()
-          geometries.add(geometry)
-          const entries = Array.isArray(material) ? material : [material]
-          entries.forEach(material => materials.add(material))
-        }
-      })
-      geometries.forEach(geometry => geometry.dispose())
-      materials.forEach(material => material.dispose())
-    },
+    dispose,
+  }
+}
+
+export function createHolographicCoreProductModel(): HolographicCoreProductModel {
+  let dispose: (() => void) | undefined
+  const build = buildHolographicCoreProductModel(release => { dispose = release })
+  try {
+    let step = build.next()
+    while (!step.done) step = build.next()
+    return step.value
+  } catch (error) {
+    dispose?.()
+    throw error
   }
 }

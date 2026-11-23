@@ -40,6 +40,7 @@ type Dataset3DViewProps = {
 export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onFocusChange, onDetachedChange, onFocusComplete, glassPanel }: Dataset3DViewProps) {
   const reducedMotion = useReducedMotion()
   const [detached, setDetached] = useState(false)
+  const [modelReady, setModelReady] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false)
   const [part, setPart] = useState<HolographicPartInfo | null>(null)
   const [localFocus, setLocalFocus] = useState<CubeFocus | null>(null)
@@ -99,7 +100,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
       <HolographicCoreCanvas colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} cameraToolbar={cameraToolbar}
         {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })}
         {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
-        selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} />
+        selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} onReadyChange={setModelReady} />
       <div className="dataset-3d-overlay">
         <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>
           <header className="dataset-3d-legend-header">
@@ -134,7 +135,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
         {cubeFocus && <button ref={overviewButton} type="button" className="dataset-3d-overview" onClick={returnToOverview}>
           Về góc tổng quan
         </button>}
-        <button className="dataset-3d-detach" type="button" aria-pressed={detached}
+        <button className="dataset-3d-detach" type="button" aria-pressed={detached} disabled={!modelReady}
           aria-controls="dataset-3d-part-panel" onClick={toggleDetached}>
           {detached ? 'Lắp lại mô hình' : 'Tách mô hình'}
         </button>
@@ -161,6 +162,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
         )}
       </div>
     </section>
+    {reducedMotion && <p role="status">Chuyển động đã tắt theo cài đặt thiết bị.</p>}
     {!embedded && <p className="dataset-3d-boundary">Nhân trung tâm là một bộ dữ liệu; bốn khối neon là bốn module. Chọn một khối để xem ba đường nối sáng dần từ core; camera giữ góc nhìn của khối đó khi hoàn tất. Đây là minh hoạ khái niệm, chưa nối dữ liệu thật.</p>}
   </Container>
 }

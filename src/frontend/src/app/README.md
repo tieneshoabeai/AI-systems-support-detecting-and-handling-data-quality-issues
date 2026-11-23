@@ -76,7 +76,9 @@ Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/a
 
 ## 10. Giới hạn & lưu ý
 
-Management, Processing và Dataset 3D yêu cầu phiên cả dev lẫn production. Các màn quản lý vẫn dùng fixture, chưa nối API nghiệp vụ; yêu cầu phiên không thay đổi nguồn dữ liệu. Workspace 3D preview riêng chỉ ở dev. Test bootstrap/auth mô phỏng transport và scene, không chứng minh backend authorization hay render WebGL. Xem [bảng route](../../README.md#route-management-và-ai-data-processing).
+Management, Processing và Dataset 3D yêu cầu phiên cả dev lẫn production. `ApplicationFrame` gắn provider dữ liệu cho các route workbench. Route danh sách project gần đây và route chi tiết có phạm vi tải riêng. Với phiên trực tuyến, provider lấy dữ liệu từ API và hiển thị trạng thái tải hoặc lỗi. Workspace 3D preview riêng chạy trong dev. Test bootstrap/auth dùng transport và scene mô phỏng. Xem [bảng route](../../README.md#route-management-và-ai-data-processing).
+
+`createAppRuntime` cấp client theo phiên và nối `getMe`, `logout`, `deleteMe` vào coordinator. `AuthProvider` đưa thao tác nhận phiên Google và xóa tài khoản tới UI.
 
 ## 11. Hướng cải tiến
 

@@ -10,18 +10,22 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   forbidOnly: true,
+  timeout: 120_000,
+  expect: { timeout: 20_000 },
   reporter: [
     ['list'],
     ['html', { outputFolder: '.agents/testing-e2e/report', open: 'never' }],
   ],
   use: {
     baseURL,
-    viewport: { width: 1280, height: 900 },
+    // Exercise the real compact layout; API tests do not benchmark the 3D renderer.
+    viewport: { width: 960, height: 900 },
     deviceScaleFactor: 1,
     locale: 'vi-VN',
     timezoneId: 'Asia/Ho_Chi_Minh',
     colorScheme: 'dark',
-    trace: 'retain-on-failure',
+    // Live login traffic contains credentials and tokens; never retain network traces.
+    trace: 'off',
     screenshot: 'only-on-failure',
     video: 'off',
     serviceWorkers: 'block',
@@ -29,7 +33,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { browserName: 'chromium', channel: 'chromium' } }],
   webServer: {
     command: 'yarn dev:e2e',
-    url: `${baseURL}/auth/login?demo=shopping`,
+    url: `${baseURL}/auth/login`,
     // Do not silently attach to an unrelated application on the dedicated E2E port.
     reuseExistingServer: false,
   },

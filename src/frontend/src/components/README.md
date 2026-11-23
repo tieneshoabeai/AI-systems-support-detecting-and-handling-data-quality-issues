@@ -1,106 +1,76 @@
-# components
+# Components
 
-## Domain ownership after Phase 4
+`src/components` chứa các thành phần React dùng ở cấp ứng dụng, gồm UI dùng chung, component theo nghiệp vụ và các scene 3D. Bắt đầu từ bảng dưới để tìm file triển khai và điểm import.
 
-- `project/{create,members,overview,list}`: wizard, member dialog, info card and recent projects.
-- `workspace/dialogs`: shared workspace edit and member surfaces. Workspace creation stays in its view.
-- `resource/{avatar,artwork,presentation}`: shared resource artwork, initials and presentation adapters.
-- `notification/center`, `report/center`: the existing workbench centers.
-- `processing/result-review`: review UI; validation/save state lives in its processing hook.
+## Chọn nơi đặt component
 
-Each domain and subgroup has explicit `index.ts` exports. Cross-domain imports use
-the owning domain's public entry. Existing files under `views/preview/components`
-remain compatibility exports where implementations moved; they do not create a
-second component or store. View-specific project actions, shell, hero and demo UI
-remain with their existing views. All moved dialogs use the shared inline Dialog;
-Result Review keeps backdrop dismissal disabled and blocks close while saving.
-
-Design System DOM dùng chung nằm tại [ui/README.md](ui/README.md). Mỗi component có
-entry riêng; không import nghiệp vụ hoặc đồ họa từ UI. Các adapter preview giữ export
-cũ trong giai đoạn migration, CSS global/theme chưa được xóa ở Phase 2.
-
-## 1. Mục đích
-
-Chứa component UI ở cấp ứng dụng và các scene React Three Fiber. Dialog hiển thị lựa chọn gia hạn phiên. Scene dựng canvas, quản lý lifecycle render và trả sự kiện về view. Điều phối phiên thuộc service, còn geometry và vật liệu thuộc graphics.
-
-## 2. Vị trí & phụ thuộc
-
-`app/App.tsx` render dialog dưới `AuthProvider`. Dialog dùng `hooks/auth/use-auth.ts` để nhận snapshot và callback. Các view Workspace 3D, Dataset 3D và Auth dùng scene từ `components/graphics`. Scene dùng [graphics](../graphics/README.md), [math](../math/README.md) và [types](../types/README.md).
-
-## 3. Public API
-
-`SessionRenewalDialog(): JSX.Element | null` không nhận props. Cần `AuthProvider` ở phía trên. Dialog hiển thị lúc chờ xác nhận hoặc đang gia hạn và trả `null` ở các pha khác.
-
-| Component scene | Đầu vào và đầu ra |
+| Khi viết hoặc sửa | Vị trí |
 | --- | --- |
-| `HolographicCoreCanvas(props)` | Nhận trạng thái motion, detach, part và cube focus. Trả canvas hoặc fallback. Báo part hoặc theme qua callback. |
-| `ResourceScene(props)` | Nhận layout, ID chọn/focus, trạng thái motion và lệnh camera. Trả canvas hoặc fallback. Gọi `onSelect(id)` khi chọn node. |
-| `AuthGlassStage(props)` | Nhận góc nhìn, ref form, panel đang chọn và tùy chọn render. Báo đổi panel qua callback. |
-| `AuthGlassReview({ view, overlay, low })`, `DisplayBaseReview({ view, overlay, slabs })` | Nhận góc review và cờ hiển thị, trả UI review. |
+| Button, Dialog, Skeleton, Pagination hoặc thành phần giao diện dùng chung | [`components/ui`](ui/README.md) |
+| Bảng, dialog hoặc panel gắn với nghiệp vụ như project, workspace hoặc báo cáo | Thư mục nghiệp vụ trong `components` |
+| UI chỉ thuộc một route, như panel dataset trên trang chi tiết project | Thư mục màn hình tương ứng trong [`views`](../views/README.md) |
+| Canvas, vòng render, camera và sự kiện chọn vật thể | `components/graphics` |
+| Geometry, vật liệu, shader và dữ liệu scene | [`src/graphics`](../graphics/README.md) |
 
-## 4. Cách dùng (ví dụ)
+## Bản đồ thư mục
+
+| Nhóm | Trách nhiệm | Điểm import hoặc file triển khai |
+| --- | --- | --- |
+| `auth` | Dialog xác nhận gia hạn phiên | [`auth/index.ts`](auth/index.ts) |
+| `branding` | Biểu trưng DataVerse | [`branding/index.ts`](branding/index.ts) |
+| `loading` | Skeleton cấp trang và phản hồi tải/lỗi theo vùng | [`loading/index.ts`](loading/index.ts), [`data-region-status.tsx`](loading/data-region-status.tsx) |
+| `navigation` | Giao diện không tìm thấy trang | [`navigation/index.ts`](navigation/index.ts) |
+| `project` | Wizard tạo project, dialog thành viên, thẻ thông tin và bảng project gần đây | [`project/index.ts`](project/index.ts), [`project/list/index.ts`](project/list/index.ts) |
+| `workspace` | Dialog chỉnh sửa workspace và quản lý thành viên | [`workspace/dialogs/index.ts`](workspace/dialogs/index.ts) |
+| `resource` | Avatar, artwork, trình bày và thao tác quyền trên tài nguyên | [`resource/index.ts`](resource/index.ts), [`resource/access/index.ts`](resource/access/index.ts) |
+| `notification`, `report` | Trung tâm thông báo và báo cáo | [`notification/index.ts`](notification/index.ts), [`report/index.ts`](report/index.ts) |
+| `processing` | Dialog đánh giá và lưu kết quả xử lý | [`processing/result-review/index.ts`](processing/result-review/index.ts) |
+| `graphics` | Workspace 3D, Dataset 3D và màn Auth Glass | [`graphics/index.ts`](graphics/index.ts) |
+| `ui` | Design System DOM | [`ui/README.md`](ui/README.md) |
+
+Khi import qua thư mục, kiểm tra tên export trong `index.ts` của nhóm. [`components/index.ts`](index.ts) chỉ xuất một số thành phần dùng ở cấp ứng dụng. Ví dụ, `RecentProjects` có entry riêng ở `project/list`, còn `DataRegionStatus` được import từ file triển khai.
+
+## Đọc luồng từ code
+
+### Gia hạn phiên
+
+[`App.tsx`](../app/App.tsx) gắn một [`SessionRenewalDialog`](auth/session-renewal-dialog.tsx). Dialog dùng `useAuth()` để đọc `snapshot.phase` và gọi `confirmRenewal`. Pha `awaiting-consent` mở hộp thoại. Nhấn Escape ở pha này gửi quyết định hủy. Pha `refreshing` giữ hộp thoại mở và khóa quyết định trong lúc xử lý. Ở các pha còn lại component trả `null`. [Session coordinator](../services/auth/session-coordinator.ts) xử lý quyết định và cập nhật snapshot.
+
+### Tải dữ liệu theo vùng
+
+[`ManagementDataProvider`](../views/application/management-data-provider.tsx) cấp trạng thái tải hoặc lỗi. [`DataRegionStatus`](loading/data-region-status.tsx) nhận `status`, `label` và `children`. Khi tải, nó render `children` trong vùng `role="status"` có nhãn. Khi lỗi, nó render thông báo với `role="alert"` và chỉ hiện nút **Thử lại** nếu có callback `status.retry`. Caller render nội dung bình thường khi đã có dữ liệu.
+
+Ví dụ trong một module đặt trực tiếp dưới `src/`:
 
 ```tsx
-import { SessionRenewalDialog } from './components/auth/session-renewal-dialog'
+import { DataRegionStatus } from './components/loading/data-region-status'
 
-// Trong cây đã có AuthContext, dùng một instance như App đang làm.
-export const RenewalSlot = () => <SessionRenewalDialog />
+export function ProjectLoading() {
+  return (
+    <DataRegionStatus status={{ phase: 'loading' }} label="Đang tải project">
+      <span>Đang tải…</span>
+    </DataRegionStatus>
+  )
+}
 ```
 
-Đầu vào đến từ context. `awaiting-consent` mở dialog, còn `anonymous` không render dialog.
+### Project gần đây
 
-## 5. Cấu trúc thư mục
+[`RecentProjects`](project/list/recent-projects.tsx) nhận hai props tùy chọn là `action` và `onOpenProject`. Component lấy store từ context. Khi caller truyền `onOpenProject` và store có `listRecentProjects`, bảng tải từng trang theo con trỏ. Yêu cầu trang đang chạy được hủy khi effect kết thúc. Nếu thiếu một trong hai điều kiện, bảng dùng danh sách trong snapshot. Khi chọn hàng, component gọi `onOpenProject(id)` nếu có, hoặc chuyển thao tác mở project cho session.
 
-**Khi thêm code.** Đặt component được dùng ở cấp ứng dụng trong nhóm phù hợp như `auth/`. Component chỉ phục vụ một màn hình đặt cạnh màn hình đó, như `views/preview/components/`.
+### Đánh giá kết quả và scene 3D
 
-- `.gitkeep` — tệp giữ chỗ của thư mục.
-- [auth/session-renewal-dialog.tsx](auth/session-renewal-dialog.tsx) — hiển thị lựa chọn gia hạn và chuyển thao tác tới context.
-- [graphics/workspace-3d/resource-scene.tsx](graphics/workspace-3d/resource-scene.tsx) — canvas, ống dữ liệu, nhãn và fallback Workspace 3D.
-- [graphics/workspace-3d/resource-camera-controller.tsx](graphics/workspace-3d/resource-camera-controller.tsx) — áp lệnh camera và theo dõi context.
-- [graphics/workspace-3d/resource-hardware.tsx](graphics/workspace-3d/resource-hardware.tsx) — mesh tài nguyên và sự kiện pointer.
-- [graphics/workspace-3d/hardware-lighting.tsx](graphics/workspace-3d/hardware-lighting.tsx) — ánh sáng môi trường phần cứng.
-- [graphics/holographic-core/holographic-core.scene.tsx](graphics/holographic-core/holographic-core.scene.tsx) — canvas, picking, compositing và fallback Dataset 3D.
-- [graphics/holographic-core/holographic-core.environment.tsx](graphics/holographic-core/holographic-core.environment.tsx) — nền và quỹ đạo.
-- [graphics/holographic-core/holographic-core.decor.tsx](graphics/holographic-core/holographic-core.decor.tsx) — trang trí nền và chế độ concept.
-- [graphics/holographic-core/cube-label.tsx](graphics/holographic-core/cube-label.tsx) — mesh nhãn và callback focus.
-- [graphics/auth-glass/auth-glass.scene.tsx](graphics/auth-glass/auth-glass.scene.tsx) — stage và review kính, thao tác xoay panel.
-- [graphics/auth-glass/auth-glass.backdrop.tsx](graphics/auth-glass/auth-glass.backdrop.tsx) — nền và pattern.
-- [graphics/auth-glass/auth-glass.render.ts](graphics/auth-glass/auth-glass.render.ts) — hook điều phối render kính.
-- [graphics/auth-glass/auth-glass.css](graphics/auth-glass/auth-glass.css) — stage, overlay và form projection.
-- [graphics/auth-glass/display-base/display-base.tsx](graphics/auth-glass/display-base/display-base.tsx) — mesh đế, chân đèn và bàn xoay.
-- [graphics/auth-glass/display-base/display-base.review.tsx](graphics/auth-glass/display-base/display-base.review.tsx) — trang review đế.
-- [graphics/auth-glass/display-base/display-base.review.css](graphics/auth-glass/display-base/display-base.review.css) — style trang review đế.
-- [graphics/auth-glass/display-base/use-base-environment.ts](graphics/auth-glass/display-base/use-base-environment.ts) — hook cấp và dọn texture PMREM của đế.
+- [`ResultReviewDialog`](processing/result-review/result-review-dialog.tsx) nhận kết quả đã xác nhận và các callback đóng/lưu. Hook [`useResultReview`](../hooks/processing/use-result-review.ts) giữ trạng thái form, kiểm tra đầu vào và xử lý lưu. Dialog khóa thao tác đóng trong lúc lưu và tắt đóng bằng backdrop.
+- [`ResourceScene`](graphics/workspace-3d/resource-scene.tsx) nhận layout, lựa chọn và lệnh camera từ view. [`HolographicCoreCanvas`](graphics/holographic-core/holographic-core.scene.tsx) nhận trạng thái scene và báo thao tác chọn về view. Khi chỉnh scene, kiểm tra cả reduced motion, fallback WebGL và quá trình tháo component.
 
-## 6. Luồng hoạt động
+## Kiểm thử
 
-Provider cập nhật snapshot → dialog kiểm tra pha → người dùng tiếp tục hoặc hủy → `confirmRenewal` chuyển quyết định đến coordinator → snapshot mới cập nhật giao diện.
+Chạy từ `src/frontend`.
 
-View truyền layout hoặc state vào scene → scene lắp geometry và vật liệu Three.js → frame loop cập nhật camera/mesh → sự kiện chọn gọi callback về view.
+| Cần kiểm tra | Lệnh |
+| --- | --- |
+| Hiển thị và thao tác gia hạn phiên | `yarn test src/__tests__/auth/auth-flow.test.tsx` |
+| Panel kết nối dữ liệu và trạng thái tải/lỗi | `yarn test src/__tests__/management/connected-panels.test.tsx src/__tests__/management/management-data-provider.test.tsx` |
+| Vòng đời Workspace 3D và tương tác Dataset 3D | `yarn test src/__tests__/workspace-3d/scene-lifecycle.test.tsx src/__tests__/dataset-3d/dataset-3d-view.test.tsx` |
 
-## 7. Cấu hình
-
-| Tham số | Mặc định | Tác dụng |
-| --- | --- | --- |
-| Props dialog | Không có | Nội dung hiển thị do pha phiên quyết định |
-| Canvas Dataset / Workspace DPR | `[1, 1.5]` | Giới hạn pixel ratio |
-| Auth Glass `view`, `interactive`, `low` | `hero`, `false`, `false` | Góc, điều khiển và chất lượng mặc định |
-| `DECOR_CONCEPT` | `star-chart` | Trang trí scene Dataset |
-
-## 8. Quy ước & bất biến
-
-Chỉ gắn một dialog trong cây provider. Escape khi chờ xác nhận tương ứng hủy. Trong lúc refresh, thao tác được khóa.
-
-Components không import từ `app` hoặc `views`. Scene nhận state và callback qua props, giữ reduced motion, fallback WebGL và dọn tài nguyên khi tháo khỏi cây React.
-
-## 9. Test & debug
-
-Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/workspace-3d/scene-lifecycle.test.tsx src/__tests__/dataset-3d/dataset-3d-view.test.tsx`. Review scene qua các route trong [views](../views/README.md).
-
-## 10. Giới hạn & lưu ý
-
-Dialog cần context và trạng thái phiên phù hợp để xuất hiện. Test UI dùng môi trường mô phỏng.
-
-## 11. Hướng cải tiến
-
-Chưa có thay đổi component nào được chốt. Đề xuất kiểm tra trải nghiệm bàn phím trong lần kiểm thử gia hạn trên trình duyệt với môi trường thật.
+Các suite trên kiểm tra hành vi giao diện trong môi trường mô phỏng. Kiểm tra render WebGL và thao tác bàn phím trên trình duyệt khi thay đổi scene hoặc dialog.

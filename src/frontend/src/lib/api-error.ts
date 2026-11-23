@@ -7,6 +7,7 @@ export class ApiError extends Error implements AppError {
   readonly status?: number
   readonly code?: string
   readonly fieldErrors?: Record<string, string[]>
+  readonly retryAfterMs?: number
 
   constructor(details: AppError) {
     super(details.message)
@@ -15,6 +16,7 @@ export class ApiError extends Error implements AppError {
     if (details.status !== undefined) this.status = details.status
     if (details.code !== undefined) this.code = details.code
     if (details.fieldErrors !== undefined) this.fieldErrors = details.fieldErrors
+    if (details.retryAfterMs !== undefined) this.retryAfterMs = details.retryAfterMs
   }
 }
 
@@ -76,6 +78,16 @@ export const normalizeApiError = (error: unknown): ApiError => {
 
       const code = isClientError && typeof serverError?.['code'] === 'string' ? serverError['code'] : undefined
       const details = serverError?.['details']
+      const retryHeader: unknown = error.response.headers['retry-after']
+      const seconds = typeof retryHeader === 'string' && /^\d+$/.test(retryHeader.trim())
+        ? Number(retryHeader) : typeof retryHeader === 'number' ? retryHeader : undefined
+      const retryDate = typeof retryHeader === 'string' && seconds === undefined ? Date.parse(retryHeader) : NaN
+      const retryAfterMs = status === 429
+        ? seconds !== undefined && Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000
+          : Number.isFinite(retryDate) ? Math.max(0, retryDate - Date.now())
+            : isRecord(details) && typeof details['retryAfterSeconds'] === 'number' && Number.isFinite(details['retryAfterSeconds']) && details['retryAfterSeconds'] >= 0
+              ? details['retryAfterSeconds'] * 1000 : undefined
+        : undefined
       const fieldErrors = isClientError
         ? readFieldErrors(serverError?.['message']) ?? readFieldErrors(isRecord(details) ? details['fields'] : undefined)
         : undefined
@@ -86,6 +98,7 @@ export const normalizeApiError = (error: unknown): ApiError => {
         ...(code === undefined ? {} : { code }),
         // Chỉ map field khi response thực sự có danh sách field/message.
         ...(fieldErrors === undefined ? {} : { fieldErrors }),
+        ...(retryAfterMs === undefined || !Number.isFinite(retryAfterMs) ? {} : { retryAfterMs }),
       })
     }
 

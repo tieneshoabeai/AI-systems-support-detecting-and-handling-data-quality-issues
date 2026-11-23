@@ -21,7 +21,7 @@ it('submits the report edit from the detail UI and renders the server response',
     switch (options.path) {
       case '/workspaces':
       case '/projects': return { items: [], total: 0 }
-      case '/users/me': return { firstName: 'Test', lastName: 'User', notificationsEnabled: true }
+      case '/users/me': return { firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'analyst', notificationsEnabled: true }
       case '/notifications': return { items: [], meta: { hasMore: false } }
       case '/notifications/unread-count': return { unreadCount: 0 }
       case '/issues': return { items: [issue], meta: { hasMore: false } }
@@ -44,7 +44,7 @@ it('submits the report edit from the detail UI and renders the server response',
   expect(await screen.findByText('More information')).toBeDefined()
   expect(screen.queryByRole('button', { name: 'Bổ sung báo cáo' })).toBeNull()
   expect(request).toHaveBeenLastCalledWith({ path: '/issues/i1', method: 'PATCH', auth: 'session',
-    data: { title: 'Issue to edit', description: 'More information', expectedVersion: 2 } })
+    data: { title: 'Issue to edit', description: 'More information', expectedVersion: 2 }, signal: expect.any(AbortSignal) })
 })
 it('keeps an upload open on failure, prevents a second request, closes only after acknowledgment', async () => {
   let accept!: () => void

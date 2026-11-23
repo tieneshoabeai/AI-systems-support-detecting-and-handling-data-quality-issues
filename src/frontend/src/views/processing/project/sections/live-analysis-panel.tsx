@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
 import { Button, Input, Select } from '../../../../components/ui/controls'
+import { useEffect, useState } from 'react'
+
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
 import type { DatasetColumn } from '../../../../services/processing/dataset.service'
 import type { Project } from '../../../../types/preview/preview.types'
@@ -20,7 +21,11 @@ const labels = [
   ['other', 'Khác'],
 ] as const
 
-export function LiveAnalysisPanel({ project }: { project: Project }) {
+export function LiveAnalysisPanel({ project, canExecute, onAnalysisRun }: {
+  project: Project
+  canExecute: boolean
+  onAnalysisRun: () => void
+}) {
   const store = useManagementStore()
   const service = store.analysisService
   const datasetId = project.dataset?.id
@@ -47,10 +52,10 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
   const [configurationAvailable, setConfigurationAvailable] = useState(true)
   const [configurationNotice, setConfigurationNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(Boolean(service && datasetId && store.datasetService))
 
   useEffect(() => {
-    if (!service || !datasetId || !store.datasetService) { setLoading(false); return }
+    if (!service || !datasetId || !store.datasetService) return
     const controller = new AbortController()
     const schemaRequest = store.datasetService.schema(datasetId, controller.signal)
     void Promise.allSettled([service.getConfig(project.id, controller.signal), schemaRequest]).then(([savedResult, schemaResult]) => {
@@ -120,7 +125,8 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
     const pollUrl = readString(record?.['pollUrl'])
     const job = readString(record?.['jobId']) || pollUrl.split('/').filter(Boolean).at(-1) || ''
     if (id) setAnalysisId(id)
-    if (job) setJobId(job)
+    setJobId(job)
+    onAnalysisRun()
     setResponse(result); setStatus('Đã nhận kết quả chạy phân tích.')
   })
   const submitFeedback = (finding = false) => action(async () => {
@@ -153,7 +159,7 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
       <fieldset className={styles['analysisColumns']} disabled={!configurationAvailable}>
         <legend>Cột cần phân tích</legend>
         {columns.map(column => <label key={column.key}>
-          <input type="checkbox" checked={selectedColumns.includes(column.key)} onChange={event => {
+          <Input type="checkbox" checked={selectedColumns.includes(column.key)} onChange={event => {
             setSelectedColumns(current => event.target.checked
               ? [...current, column.key] : current.filter(key => key !== column.key))
           }} />
@@ -193,8 +199,8 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
       </label>
       <label>Top N<Input type="number" min={1} max={100} value={topN} onChange={event => setTopN(Number(event.target.value))} /></label>
       <div className={styles['analysisActions']}>
-        <Button disabled={busy || loading || !columns.length || !configurationAvailable} onClick={() => { void saveConfig() }}>Lưu cấu hình</Button>
-        <Button disabled={busy || loading || !columns.length} onClick={() => { void runAnalysis() }}>Chạy phân tích</Button>
+        <Button disabled={!canExecute || busy || loading || !columns.length || !configurationAvailable} onClick={() => { void saveConfig() }}>Lưu cấu hình</Button>
+        <Button disabled={!canExecute || busy || loading || !columns.length} onClick={() => { void runAnalysis() }}>Chạy phân tích</Button>
         <Button disabled={busy} onClick={() => { void action(async () => { const result = await service.getResult(project.id); const id = readString(asRecord(result)?.['analysisId']); if (id) setAnalysisId(id); setResponse(result) }) }}>Tải kết quả</Button>
       </div>
     </section>
@@ -204,7 +210,7 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
       <label>Mã job<Input value={jobId} onChange={event => setJobId(event.target.value)} /></label>
       <div className={styles['analysisActions']}>
         <Button disabled={busy || !jobId} onClick={() => { void action(async () => { setResponse(await service.getJob(jobId)) }) }}>Xem trạng thái</Button>
-        <Button disabled={busy || !jobId} onClick={() => { void action(async () => { setResponse(await service.retryJob(jobId)) }) }}>Thử lại job</Button>
+        <Button disabled={!canExecute || busy || !jobId} onClick={() => { void action(async () => { setResponse(await service.retryJob(jobId)) }) }}>Thử lại job</Button>
       </div>
     </section>
 
@@ -213,8 +219,8 @@ export function LiveAnalysisPanel({ project }: { project: Project }) {
       <label>Mã report<Input value={reportId} onChange={event => setReportId(event.target.value)} /></label>
       <div className={styles['analysisActions']}>
         <Button disabled={busy} onClick={() => { void action(async () => { setResponse(await service.getSummary(project.id)) }) }}>Tải tổng kết</Button>
-        <Button disabled={busy} onClick={() => { void action(async () => { setResponse(await service.createSummary(project.id)); setStatus('Đã tạo tổng kết.') }) }}>Tạo tổng kết</Button>
-        <Button disabled={busy} onClick={() => { void action(async () => {
+        <Button disabled={!canExecute || busy} onClick={() => { void action(async () => { setResponse(await service.createSummary(project.id)); setStatus('Đã tạo tổng kết.') }) }}>Tạo tổng kết</Button>
+        <Button disabled={!canExecute || busy} onClick={() => { void action(async () => {
           const result = await service.requestReport(project.id)
           const id = readString(asRecord(result)?.['reportId'])
           if (id) setReportId(id)

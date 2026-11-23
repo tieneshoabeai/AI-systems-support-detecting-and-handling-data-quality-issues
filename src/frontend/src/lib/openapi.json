@@ -1,6 +1,90 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/datasets/{id}/columns/pii": {
+      "patch": {
+        "description": "Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.",
+        "operationId": "DatasetsController_updateColumnPii",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "columnKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "isPii": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "columnKey",
+                        "isPii"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "columns"
+                ],
+                "additionalProperties": false,
+                "example": {
+                  "columns": [
+                    {
+                      "columnKey": "c0",
+                      "isPii": true
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công"
+          },
+          "400": {
+            "description": "Key cột không tồn tại hoặc không có cột nào thay đổi"
+          },
+          "404": {
+            "description": "Không tìm thấy dataset"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)",
+        "tags": [
+          "Datasets"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "AppController_getHealth",
@@ -1899,90 +1983,6 @@
           }
         ],
         "summary": "F4.5: Xoa mem tap du lieu va giai phong du an",
-        "tags": [
-          "Datasets"
-        ]
-      }
-    },
-    "/api/v1/datasets/{id}/columns/pii": {
-      "patch": {
-        "description": "Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.",
-        "operationId": "DatasetsController_updateColumnPii",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …)",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "columns": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "columnKey": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 64
-                        },
-                        "isPii": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "columnKey",
-                        "isPii"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "minItems": 1,
-                    "maxItems": 200
-                  }
-                },
-                "required": [
-                  "columns"
-                ],
-                "additionalProperties": false,
-                "example": {
-                  "columns": [
-                    {
-                      "columnKey": "c0",
-                      "isPii": true
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Thành công"
-          },
-          "400": {
-            "description": "Key cột không tồn tại hoặc không có cột nào thay đổi"
-          },
-          "404": {
-            "description": "Không tìm thấy dataset"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)",
         "tags": [
           "Datasets"
         ]

@@ -9,8 +9,6 @@ import { authGlassDebugModes, parseAuthGlassView } from '../../../graphics/auth-
 import type { AuthGlassPanel } from '../../../types'
 import { parseDisplayBaseView } from '../../../graphics/auth-glass/display-base/display-base.config'
 import '../login-glass.css'
-import { isShoppingDemo } from '../../../mocks/shopping-trends/demo-mode'
-import demoAuth from '../../../mocks/shopping-trends/auth.json'
 import { createAccountService } from '../../../services/auth/account.service'
 import { PasswordRecoveryDialog } from './sections/password-recovery-dialog'
 
@@ -80,7 +78,7 @@ export const LoginView = () => {
   }
   const disabled = form.pending || registerPending || !!form.configurationError || !!form.cleanupError
   const register = async () => {
-    if (disabled || isShoppingDemo()) return
+    if (disabled) return
     setRegisterPending(true); setRegisterError(''); setAccountNotice('')
     try {
       await createAccountService().register({ email: registerDraft.email.trim(), password: registerDraft.password,
@@ -142,7 +140,6 @@ export const LoginView = () => {
             <header className="auth-glass-form-header">
               <h1 id="page-heading" tabIndex={-1}>Chào mừng trở lại</h1>
               <p className="form-intro">Đăng nhập để tiếp tục với DataVerse.</p>
-              {isShoppingDemo() && <p role="note">Demo — không kết nối backend<br />Email: {demoAuth.email}<br />Mật khẩu demo: {demoAuth.password}</p>}
             </header>
             {form.configurationError && <div className="feedback-error" role="alert">Dịch vụ đăng nhập chưa được cấu hình. Vui lòng liên hệ người quản trị.</div>}
             {!form.configurationError && form.error && <div id="login-error" className="feedback-error" role="alert">{form.error}</div>}
@@ -174,7 +171,7 @@ export const LoginView = () => {
               </div>
               <div className="auth-glass-sign-in-options">
                 <span>Phiên đăng nhập được giữ trong tab này.</span>
-                <button type="button" disabled={disabled || isShoppingDemo()} onClick={() => setRecovering(true)}>Quên mật khẩu</button>
+                <button type="button" disabled={disabled} onClick={() => setRecovering(true)}>Quên mật khẩu</button>
               </div>
               <button className="button-primary login-submit" type="submit" disabled={disabled}>
                 {form.pending ? 'Đang đăng nhập…' : 'Đăng nhập'}
@@ -184,7 +181,7 @@ export const LoginView = () => {
             <AuthProviderButtons action="Đăng nhập" disabled={disabled} />
             <p className="auth-glass-sign-in-register">
               Chưa có tài khoản?{' '}
-              <button type="button" disabled={disabled || isShoppingDemo()} onClick={() => changePanel('register')}>Đăng ký</button>
+              <button type="button" disabled={disabled} onClick={() => changePanel('register')}>Đăng ký</button>
             </p>
             {form.cleanupError && <button type="button" className="text-link" onClick={() => { void form.signOut() }}>Thử dọn phiên lại</button>}
           </div>
@@ -224,7 +221,7 @@ export const LoginView = () => {
                 <input id="register-password" name="password" type="password" autoComplete="new-password" placeholder="Nhập mật khẩu" required
                   disabled={disabled} minLength={8} maxLength={100} value={registerDraft.password} onChange={event => updateRegisterDraft('password', event.target.value)} />
               </div>
-              <button className="button-primary login-submit" type="submit" disabled={disabled || isShoppingDemo()}>Tạo tài khoản</button>
+              <button className="button-primary login-submit" type="submit" disabled={disabled}>Tạo tài khoản</button>
               <p className="form-status" role="status">{registerPending ? 'Đang tạo tài khoản.' : ''}</p>
             </form>
             <AuthProviderButtons action="Đăng ký" disabled={disabled} />

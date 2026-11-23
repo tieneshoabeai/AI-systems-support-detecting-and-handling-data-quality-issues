@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="20 slide báo cáo Frontend và luồng FE–API, dựa trên chương I–VI của system-audit, snapshot fef6bab.">
+  <title>AI Data Quality — Báo cáo Frontend</title>
+  <!-- BE Vietnam Pro không tìm thấy trong font/project/attachments đã kiểm tra.
+       Không tải font ngoài. Dùng system-ui dự phòng theo Chương II. -->
+  <style>
+    :root {
+      --canvas:#f6f8f7; --surface:#ffffff; --surface-alt:#eef3f0;
+      --ink:#202a29; --ink-muted:#576660; --brand:#00a878;
+      --brand-strong:#007a57; --brand-hover:#006146;
+      --danger:#dc2626; --danger-ink:#a51d1d; --danger-surface:#fff0f0;
+      --disabled-bg:#e4eae7; --disabled-ink:#52615a;
+      --dk-bg:#0a1120; --dk-surface:#16263c; --dk-ink:#e8f1fb;
+      --dk-ink-muted:#a9bcd6; --dk-primary:#2563eb; --dk-primary-hv:#2a6ee6;
+      --dk-blue:#2f7cf6; --dk-violet:#7c5cff; --dk-cyan:#22d3ee; --dk-green:#34d399;
+      --lt-bg:#f3f6fc; --lt-surface:#ffffff; --lt-ink:#14243e;
+      --font-ui:'Plus Jakarta Sans',system-ui,sans-serif;
+      --radius-panel:32px; --radius-lg:20px; --radius-md:14px;
+      --shadow-dark:0 18px 40px rgba(2,8,20,.55);
+      --ease-main:cubic-bezier(.32,.72,0,1);
+      --ease-hover:cubic-bezier(0,.55,.2,1); --ease-chrome:cubic-bezier(.2,0,0,1);
+      --t-chrome:140ms; --t-hover:110ms; --t-press:80ms; --t-surface:130ms;
+      --bg:var(--canvas); --panel:var(--surface); --text:var(--ink);
+      --muted:var(--ink-muted); --accent:var(--brand-strong); --line:var(--disabled-bg);
+      --positive:var(--brand-strong); --connector:var(--brand-strong); --soft:var(--surface-alt);
+      --focus:var(--brand-strong); --button:var(--brand-strong); --button-hover:var(--brand-hover);
+    }
+    @media (prefers-color-scheme:dark) {
+      :root:not([data-theme]) {
+        --bg:var(--dk-bg); --panel:var(--dk-surface); --text:var(--dk-ink);
+        --muted:var(--dk-ink-muted); --accent:var(--dk-cyan); --line:var(--dk-surface);
+        --positive:var(--dk-green); --connector:var(--dk-cyan); --soft:var(--dk-surface);
+        --focus:var(--dk-cyan); --button:var(--dk-primary); --button-hover:var(--dk-primary-hv);
+      }
+    }
+    html[data-theme="dark"] {
+      color-scheme:dark; --bg:var(--dk-bg); --panel:var(--dk-surface); --text:var(--dk-ink);
+      --muted:var(--dk-ink-muted); --accent:var(--dk-cyan); --line:var(--dk-surface);
+      --positive:var(--dk-green); --connector:var(--dk-cyan); --soft:var(--dk-surface);
+      --focus:var(--dk-cyan); --button:var(--dk-primary); --button-hover:var(--dk-primary-hv);
+    }
+    html[data-theme="light"] { color-scheme:light; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-width:320px; height:100%; background:var(--bg); color:var(--text); }
+    body { font-family:var(--font-ui); line-height:1.6; overflow:hidden; }
+    button,a { -webkit-tap-highlight-color:var(--soft); }
+    button { font:inherit; cursor:pointer; }
+    a { color:var(--accent); text-underline-offset:4px; }
+    button:disabled { cursor:not-allowed; background:var(--disabled-bg); color:var(--disabled-ink); }
+    :focus-visible { outline:3px solid var(--focus); outline-offset:5px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+    .skip { position:fixed; top:12px; left:12px; z-index:10; padding:12px; background:var(--panel); transform:translateY(-160%); }
+    .skip:focus { transform:none; }
+    .progress { position:fixed; inset:0 0 auto; height:4px; z-index:5; background:var(--line); }
+    .progress-fill { height:100%; background:var(--accent); transform:scaleX(.05); transform-origin:left; transition:transform 450ms var(--ease-main); }
+    .chrome { position:fixed; inset:4px 0 auto; min-height:65px; z-index:4; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px clamp(20px,4vw,64px); background:var(--bg); border-bottom:1px solid var(--line); }
+    .wordmark { font-size:.73rem; font-weight:750; letter-spacing:.13em; }
+    .wordmark span { color:var(--accent); }
+    .chrome-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .control { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:9px 16px; border:1px solid var(--muted); border-radius:var(--radius-md); background:var(--bg); color:var(--text); text-decoration:none; font-size:.82rem; white-space:nowrap; }
+    .control.primary { background:var(--button); border-color:var(--button); color:var(--surface); }
+    .deck { position:relative; height:100dvh; min-height:400px; overflow:hidden; touch-action:pan-y pinch-zoom; }
+    .slide { position:absolute; inset:69px 0 78px; display:flex; flex-direction:column; padding:clamp(24px,3.3vh,46px) clamp(24px,5vw,80px) 16px; overflow:auto; overscroll-behavior:contain; opacity:0; visibility:hidden; transform:translateX(40px); pointer-events:none; transition:opacity 450ms var(--ease-main),transform 450ms var(--ease-main); }
+    .slide.is-active { opacity:1; visibility:visible; transform:none; pointer-events:auto; z-index:1; }
+    .slide.is-prev { transform:translateX(-40px); }
+    .eyebrow { display:flex; align-items:center; gap:12px; margin:0 0 12px; font-size:.72rem; font-weight:750; letter-spacing:.13em; text-transform:uppercase; color:var(--accent); }
+    .eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); }
+    h1,h2,h3,p { margin-top:0; }
+    h1,h2 { line-height:1.15; letter-spacing:-.045em; font-weight:730; text-wrap:balance; }
+    h1 { font-size:clamp(2.65rem,6.1vw,6.5rem); max-width:13ch; margin-bottom:24px; }
+    h2 { font-size:clamp(1.9rem,3.65vw,3.75rem); margin-bottom:14px; }
+    h3 { font-size:clamp(1rem,1.45vw,1.35rem); line-height:1.35; margin-bottom:12px; }
+    .takeaway { max-width:88ch; color:var(--muted); font-size:clamp(.95rem,1.35vw,1.2rem); margin-bottom:clamp(20px,3vh,34px); }
+    .body { flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; min-height:min-content; }
+    .source { margin:24px 0 0; padding-top:12px; border-top:1px solid var(--line); font-size:.7rem; color:var(--muted); overflow-wrap:anywhere; }
+    .source a { color:inherit; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+    .grid.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .grid.five { grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+    .panel { background:var(--panel); border-radius:var(--radius-lg); padding:clamp(18px,2.2vw,30px); min-width:0; }
+    .panel p:last-child { margin-bottom:0; }
+    .panel p,.panel li { color:var(--muted); font-size:clamp(.9rem,1.2vw,1.07rem); }
+    .panel .important { color:var(--text); }
+    .number { display:block; color:var(--accent); font-size:clamp(2.1rem,3.8vw,4rem); line-height:1.1; letter-spacing:-.045em; font-weight:750; font-variant-numeric:tabular-nums; }
+    .mini { font-size:.78rem; color:var(--muted); }
+    .tag { display:inline-flex; align-items:center; padding:4px 10px; border-radius:var(--radius-md); font-size:.7rem; font-weight:750; letter-spacing:.03em; white-space:nowrap; }
+    .tag.pass { color:var(--positive); border:1px solid var(--positive); }
+    .tag.warn { color:var(--danger-ink); background:var(--danger-surface); border:1px solid var(--danger); }
+    .tag.mock { color:var(--dk-violet); border:1px solid var(--dk-violet); }
+    .tag.neutral { color:var(--muted); border:1px solid var(--muted); }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .note { margin:0; border-left:3px solid var(--accent); padding:10px 16px; color:var(--muted); font-size:.88rem; }
+    .note.warning { border-color:var(--danger); background:var(--danger-surface); color:var(--danger-ink); border-radius:0 var(--radius-md) var(--radius-md) 0; }
+    .table-wrap { overflow-x:auto; border-radius:var(--radius-lg); background:var(--panel); }
+    table { width:100%; border-collapse:collapse; font-size:clamp(.8rem,1.1vw,1rem); font-variant-numeric:tabular-nums; text-align:left; }
+    th,td { padding:12px 18px; border-bottom:1px solid var(--bg); vertical-align:top; }
+    th { color:var(--muted); font-size:.72rem; letter-spacing:.06em; font-weight:700; }
+    tr:last-child td { border-bottom:0; }
+    code,pre { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+    code { font-size:.88em; overflow-wrap:anywhere; }
+    pre { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font-size:clamp(.75rem,1.03vw,.95rem); line-height:1.65; color:var(--text); }
+    .split { display:grid; grid-template-columns:1.2fr 1fr; gap:clamp(24px,4vw,64px); align-items:center; }
+    .cover .body { justify-content:center; }
+    .cover .subtitle { max-width:45ch; font-size:clamp(1rem,1.45vw,1.35rem); color:var(--muted); }
+    .cover-meta { display:flex; flex-wrap:wrap; gap:10px 26px; font-size:.8rem; color:var(--muted); }
+    .cover-visual { padding:32px; border-radius:var(--radius-panel); border:1px solid var(--connector); }
+    .cover-visual svg { display:block; width:100%; height:auto; }
+    .cover-visual svg text { fill:var(--text); font-family:var(--font-ui); font-size:13px; }
+    .cover-visual svg rect { fill:var(--panel); stroke:var(--connector); }
+    .cover-visual svg path { fill:none; stroke:var(--connector); stroke-width:2; }
+    .cover-visual .visual-label { text-align:center; margin:18px 0 0; font-size:.8rem; color:var(--muted); }
+    .toc { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 40px; padding:0; list-style:none; margin:0; }
+    .toc a { display:flex; align-items:baseline; gap:18px; padding:16px 0; border-bottom:1px solid var(--line); color:var(--text); text-decoration:none; }
+    .toc strong { color:var(--accent); font-size:1.2rem; min-width:30px; }
+    .toc small { display:block; color:var(--muted); }
+    .stack-card { border-top:3px solid var(--accent); }
+    .stack-card h3 { margin:0 0 7px; }
+    .stack-card p { font-size:.78rem; }
+    .flow { display:flex; align-items:stretch; gap:0; padding:6px 0; }
+    .node { flex:1; min-width:0; background:var(--panel); border-radius:var(--radius-md); padding:18px 14px; }
+    .node b { display:block; font-size:.95rem; line-height:1.4; }
+    .node small { display:block; color:var(--muted); margin-top:6px; font-size:.76rem; }
+    .arrow { display:grid; align-items:center; padding:0 8px; color:var(--connector); font-size:1.4rem; }
+    .step-no { display:block; color:var(--accent); font-size:.72rem; font-weight:750; margin-bottom:10px; }
+    .flow.compact .node { padding:16px 10px; }
+    .flow.compact .node b { font-size:.84rem; }
+    .flow.compact .arrow { padding:0 5px; }
+    .swatch { display:flex; align-items:center; gap:12px; }
+    .swatch-sample { width:42px; height:42px; flex:none; border-radius:var(--radius-md); border:1px solid var(--muted); }
+    .swatches { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px 10px; }
+    .swatch code { display:block; font-size:.73rem; color:var(--muted); }
+    .swatch b { font-size:.84rem; }
+    .token-row { display:flex; flex-wrap:wrap; gap:14px 24px; color:var(--muted); font-size:.8rem; }
+    .state-samples { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    .sample-button { display:inline-flex; align-items:center; min-height:42px; padding:8px 18px; background:var(--button); color:var(--surface); border-radius:var(--radius-md); font-weight:650; font-size:.82rem; }
+    .sample-disabled { background:var(--disabled-bg); color:var(--disabled-ink); }
+    .sample-focus { outline:3px solid var(--focus); outline-offset:3px; }
+    .checklist { margin:0; padding-left:20px; }
+    .checklist li { margin-bottom:12px; }
+    .checklist li:last-child { margin-bottom:0; }
+    .route-table code { font-size:.77rem; }
+    .route-table th,.route-table td { padding-top:8px; padding-bottom:8px; }
+    .architecture { display:grid; gap:12px; }
+    .architecture .flow .node { border-top:2px solid var(--connector); }
+    .edge-caption { text-align:right; color:var(--muted); font-size:.75rem; }
+    .hierarchy { display:flex; flex-direction:column; gap:7px; }
+    .branch { border-left:2px solid var(--connector); margin-left:18px; padding:3px 0 3px 18px; }
+    .hierarchy strong { font-size:.84rem; overflow-wrap:anywhere; }
+    .hierarchy small { color:var(--muted); font-size:.74rem; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+    .stat { padding:20px 0; border-top:2px solid var(--accent); }
+    .stat .label { display:block; margin-top:12px; font-size:.82rem; color:var(--muted); }
+    .stat .number { font-size:clamp(2rem,4vw,4.2rem); }
+    .pyramid { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .pyramid div { padding:12px 18px; border-radius:var(--radius-md); text-align:center; background:var(--panel); width:100%; font-size:.82rem; }
+    .pyramid div:nth-child(1) { max-width:66%; }
+    .pyramid div:nth-child(2) { max-width:83%; }
+    .pyramid small { color:var(--muted); }
+    .reveal,.flow .node,.flow .arrow { opacity:0; transform:translateY(12px); }
+    .is-active .reveal,.is-active .flow .node,.is-active .flow .arrow { opacity:1; transform:none; transition:opacity 400ms var(--ease-main),transform 400ms var(--ease-main); transition-delay:calc(var(--i,0)*60ms); }
+    .footer { position:fixed; inset:auto 0 0; height:78px; padding:14px clamp(20px,4vw,64px); display:flex; align-items:center; justify-content:space-between; gap:16px; background:var(--bg); border-top:1px solid var(--line); z-index:4; }
+    .footer .hint { color:var(--muted); font-size:.72rem; }
+    .pagination { display:flex; align-items:center; gap:14px; }
+    .page-count { font-size:.84rem; min-width:65px; text-align:center; font-variant-numeric:tabular-nums; }
+    .footer .control { min-width:46px; }
+    @media (hover:hover) and (pointer:fine) {
+      .control:hover { transform:translateY(-2px); }
+      .control.primary:hover { background:var(--button-hover); }
+      .control:disabled:hover { transform:none; }
+      .toc a:hover { transform:translateX(4px); }
+    }
+    .control,.toc a { transition:transform var(--t-hover) var(--ease-hover); }
+    .control:active:not(:disabled) { transform:scale(.97); transition-duration:var(--t-press); }
+    @media (max-width:900px) {
+      .grid.five { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .split { gap:24px; }
+      .cover-visual { padding:20px; }
+      h1 { font-size:clamp(2.6rem,7vw,4rem); }
+      .flow { flex-wrap:wrap; gap:9px; }
+      .flow .node { flex:1 1 25%; }
+      .flow .arrow { padding:0 2px; }
+      .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width:767px) {
+      .slide { padding:24px 24px 16px; }
+      .split { grid-template-columns:1fr; }
+      .cover-visual { max-width:420px; }
+      .grid { grid-template-columns:1fr; }
+      .grid.two { grid-template-columns:1fr; }
+      .toc { grid-template-columns:1fr; gap:0; }
+      .takeaway { margin-bottom:20px; }
+      th,td { padding:10px 12px; }
+      .footer .hint { display:none; }
+      .footer { justify-content:center; }
+      .source { font-size:.67rem; }
+    }
+    @media (max-width:720px) {
+      .chrome { padding:10px 16px; }
+      .wordmark { font-size:.62rem; letter-spacing:.06em; }
+      .chrome .control { padding:8px 10px; font-size:.74rem; }
+      .slide { padding:22px 18px 14px; }
+      .grid.five { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      h2 { font-size:clamp(1.7rem,6vw,2.6rem); }
+      .flow { flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:6px; }
+      .flow .node { flex:auto; }
+      .flow .arrow { align-self:center; transform:rotate(90deg); height:22px; padding:0; }
+      .is-active .flow .arrow { transform:rotate(90deg); }
+      .swatches { gap:12px; }
+      .swatch { gap:8px; }
+      .swatch-sample { width:32px; height:36px; }
+      .swatch b { font-size:.72rem; }
+      .swatch code { font-size:.65rem; }
+      .panel { padding:18px; }
+      .cover .body { padding-top:12px; }
+      .page-count { min-width:58px; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+      .slide,.reveal,.flow .node { transform:none!important; }
+      .flow .arrow { transition:none!important; }
+    }
+    @media print {
+      html,body { height:auto; overflow:visible; }
+      .chrome,.footer,.progress,.skip { display:none; }
+      .deck { height:auto; overflow:visible; }
+      .slide { position:relative; inset:auto; visibility:visible; opacity:1; transform:none; pointer-events:auto; min-height:95vh; overflow:visible; break-after:page; padding:28px; }
+      .reveal,.flow .node,.flow .arrow { opacity:1; transform:none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#slide-1-heading">Đi tới nội dung slide</a>
+  <div class="progress" role="progressbar" aria-label="Tiến độ trình chiếu" aria-valuemin="1" aria-valuemax="20" aria-valuenow="1"><div class="progress-fill"></div></div>
+  <header class="chrome"><div class="wordmark">DATA QUALITY <span>/ FRONTEND AUDIT</span></div><nav class="chrome-actions" aria-label="Công cụ trình chiếu"><a class="control" href="#2" aria-label="Mở mục lục tại slide 2">Mục lục</a><button class="control" id="theme-toggle" type="button" aria-label="Đổi giao diện sáng hoặc tối">Sáng / Tối</button></nav></header>
+  <main class="deck" id="deck" aria-label="Báo cáo 20 slide về Frontend và luồng FE–API">
+
+    <section class="slide cover is-active" id="slide-1" role="region" aria-label="Slide 1: Trang bìa" aria-hidden="false">
+      <div class="body split"><div><p class="eyebrow reveal">Báo cáo dự án AI · Chương I–VI</p><h1 id="slide-1-heading" tabindex="-1" class="reveal" style="--i:1">Chất lượng dữ liệu.<br>Góc nhìn Frontend.</h1><p class="subtitle reveal" style="--i:2">Kiến trúc, giao diện và luồng FE–API của nền tảng hỗ trợ phát hiện, xử lý vấn đề chất lượng dữ liệu.</p><div class="tags reveal" style="--i:3"><span class="tag pass">Frontend audit</span><span class="tag warn">Live FE–BE: UNVERIFIED</span></div><p class="cover-meta reveal" style="--i:4"><span>Snapshot <strong>fef6bab</strong></span><span>Ngày audit 17/11/2026</span></p></div><div class="cover-visual reveal" style="--i:3"><svg viewBox="0 0 360 290" role="img" aria-labelledby="cover-diagram-title"><title id="cover-diagram-title">Frontend gửi và nhận dữ liệu qua ranh giới API</title><rect x="25" y="20" width="140" height="65" rx="14"/><text x="95" y="57" text-anchor="middle">Frontend UI</text><rect x="195" y="105" width="140" height="65" rx="14"/><text x="265" y="142" text-anchor="middle">API boundary</text><rect x="25" y="200" width="140" height="65" rx="14"/><text x="95" y="237" text-anchor="middle">State → Render</text><path d="M165 52 H265 V94 M259 87 L265 94 L271 87 M265 170 V232 H178 M185 226 L178 232 L185 238 M95 200 V98 M89 105 L95 98 L101 105"/></svg><p class="visual-label">Source + test mock ≠ live integration</p></div></div>
+      <p class="source">Nguồn: <a href="01-project-overview.md">01-project-overview.md</a> §1; <a href="06-software-testing.md">06-software-testing.md</a> §2–5.</p>
+    </section>
+
+    <section class="slide" id="slide-2" role="region" aria-label="Slide 2: Mục lục" aria-hidden="true" inert>
+      <p class="eyebrow">01—06 / Nội dung</p><h2 id="slide-2-heading" tabindex="-1">Sáu chương, một đường đi</h2><p class="takeaway">Đọc từ phạm vi hệ thống đến hành vi và bằng chứng kiểm thử.</p><div class="body"><ol class="toc"><li class="reveal"><a href="#3"><strong>I</strong><span>Tổng quan dự án<small>Phạm vi · tính năng · tech stack · khởi tạo</small></span></a></li><li class="reveal" style="--i:1"><a href="#7"><strong>II</strong><span>UI &amp; Design System<small>Token · component · trạng thái · accessibility</small></span></a></li><li class="reveal" style="--i:2"><a href="#10"><strong>III</strong><span>User Flow<small>Auth · routes · workspace · project · upload</small></span></a></li><li class="reveal" style="--i:3"><a href="#14"><strong>IV</strong><span>Kiến trúc Frontend<small>Layers · folders · providers · persistence</small></span></a></li><li class="reveal" style="--i:4"><a href="#17"><strong>V</strong><span>Request–Response<small>HTTP · mapping · Swagger · generated types</small></span></a></li><li class="reveal" style="--i:5"><a href="#18"><strong>VI</strong><span>Kiểm thử &amp; giới hạn<small>Test mock · E2E · coverage · bước tiếp theo</small></span></a></li></ol></div><p class="source">Nguồn: các file 01-project-overview.md đến 06-software-testing.md; cấu trúc chương I–VI.</p>
+    </section>
+
+    <section class="slide" id="slide-3" role="region" aria-label="Slide 3: Bài toán và phạm vi" aria-hidden="true" inert>
+      <p class="eyebrow">I / Bài toán</p><h2 id="slide-3-heading" tabindex="-1">Quản lý và đánh giá dữ liệu</h2><p class="takeaway">FE tổ chức hành trình người dùng; báo cáo dừng ở ranh giới API.</p><div class="body"><div class="grid"><article class="panel reveal"><span class="step-no">NGƯỜI DÙNG</span><h3>Analyst và admin</h3><p>FE chấp nhận role từ API. Quyền owner/member/viewer điều khiển khả năng thao tác trên UI.</p><p class="important">Role không chứng minh mọi màn hình quản trị đã có.</p></article><article class="panel reveal" style="--i:1"><span class="step-no">CHỨC NĂNG</span><h3>Workspace → Project → CSV</h3><p>Đăng nhập, quản lý tài nguyên, nhập CSV, xem thông báo, hồ sơ và báo cáo sự cố.</p><p class="important">Có giao diện trực quan Dataset 3D.</p></article><article class="panel reveal" style="--i:2"><span class="step-no">RANH GIỚI</span><h3>Frontend và FE–API</h3><p>Kiểm tra kiến trúc, state, HTTP và render kết quả. Không phân tích nội bộ backend.</p><span class="tag warn">Live behavior: UNVERIFIED</span></article></div><p class="note reveal" style="--i:3">Có caller trong source chưa đồng nghĩa request đã được xác nhận trên server thật.</p></div><p class="source">Nguồn: <a href="01-project-overview.md">01-project-overview.md</a> §1; <a href="04-system-architecture.md">04-system-architecture.md</a> §1.</p>
+    </section>
+
+    <section class="slide" id="slide-4" role="region" aria-label="Slide 4: Hiện trạng tính năng" aria-hidden="true" inert>
+      <p class="eyebrow">I / Phạm vi đã triển khai</p><h2 id="slide-4-heading" tabindex="-1">Có implementation, có giới hạn</h2><p class="takeaway">Trạng thái được phân loại theo bằng chứng, không theo tên màn hình.</p><div class="body"><div class="table-wrap reveal"><table><thead><tr><th scope="col">NHÓM</th><th scope="col">HIỆN TRẠNG FE</th><th scope="col">BẰNG CHỨNG</th></tr></thead><tbody><tr><td>Auth &amp; session</td><td>Login, restore, logout, consent renewal</td><td><span class="tag pass">Có</span> <span class="tag mock">test mock</span></td></tr><tr><td>Management</td><td>Provider inject API store cho workspace/project/member</td><td><span class="tag pass">Có caller</span></td></tr><tr><td>Project &amp; upload</td><td>Tạo project → multipart CSV → members</td><td><span class="tag pass">Có</span> <span class="tag mock">test mock</span></td></tr><tr><td>Dataset 3D</td><td>Scene tương tác; chưa chứng minh dữ liệu phân tích thật</td><td><span class="tag warn">UNVERIFIED</span></td></tr><tr><td>Shopping detection</td><td>Fixture, timer, sessionStorage</td><td><span class="tag mock">demo DEV</span></td></tr><tr><td>Register / social login</td><td>Có control UI; chưa có hành trình API hoàn chỉnh</td><td><span class="tag neutral">PARTIAL</span></td></tr><tr><td>Auto-sync upload drafts</td><td>Chưa có coordinator runtime trong sync/</td><td><span class="tag warn">NOT FOUND</span></td></tr></tbody></table></div></div><p class="source">Nguồn: <a href="01-project-overview.md">01-project-overview.md</a> §1, bảng nhóm tính năng.</p>
+    </section>
+
+    <section class="slide" id="slide-5" role="region" aria-label="Slide 5: Tech stack" aria-hidden="true" inert>
+      <p class="eyebrow">I / Công nghệ</p><h2 id="slide-5-heading" tabindex="-1">Stack thực tế của Frontend</h2><p class="takeaway">Version dưới đây lấy từ khai báo manifest, không đại diện mọi máy cài đặt.</p><div class="body"><div class="grid five"><article class="panel stack-card reveal"><h3>React 19</h3><p>React / DOM<br><code>^19.3.1</code></p></article><article class="panel stack-card reveal" style="--i:1"><h3>TypeScript 6</h3><p>Strict checking<br><code>~6.0.3</code></p></article><article class="panel stack-card reveal" style="--i:2"><h3>Vite 8</h3><p>React Compiler<br><code>^8.3.4</code></p></article><article class="panel stack-card reveal" style="--i:3"><h3>React Router</h3><p>Routes / guards<br><code>8.5.0</code></p></article><article class="panel stack-card reveal" style="--i:4"><h3>Axios</h3><p>HTTP transport<br><code>1.20.0</code></p></article><article class="panel stack-card reveal" style="--i:1"><h3>TanStack Query</h3><p>Provider / cache policy<br><code>5.104.5</code></p></article><article class="panel stack-card reveal" style="--i:2"><h3>Dexie</h3><p>IndexedDB drafts<br><code>4.4.7</code></p></article><article class="panel stack-card reveal" style="--i:3"><h3>Three / R3F</h3><p>Graphics bridge<br><code>0.186.1 / 9.8.2</code></p></article><article class="panel stack-card reveal" style="--i:4"><h3>Vitest</h3><p>Unit / integration<br><code>5.0.5</code></p></article><article class="panel stack-card reveal" style="--i:5"><h3>Playwright</h3><p>Browser demo specs<br><code>1.61.1</code></p></article></div><p class="note">CSS / CSS Modules / custom properties. Management dùng external store + Context; không tự nhận query cache.</p></div><p class="source">Nguồn: <a href="01-project-overview.md">01-project-overview.md</a> §2.</p>
+    </section>
+
+    <section class="slide" id="slide-6" role="region" aria-label="Slide 6: Khởi tạo và lệnh" aria-hidden="true" inert>
+      <p class="eyebrow">I / Khởi tạo</p><h2 id="slide-6-heading" tabindex="-1">Bootstrap trước, feature sau</h2><p class="takeaway">Composition root ghép runtime, providers và router thay vì mỗi view tự khởi tạo phiên.</p><div class="body"><div class="flow" aria-label="Thứ tự khởi tạo ứng dụng"><div class="node" style="--i:0"><b>index.html</b><small>React root</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:1"><b>main.tsx</b><small>Skeleton + lazy bootstrap</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:2"><b>Runtime</b><small>QueryClient + session</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:3"><b>Providers</b><small>Auth + Router</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:4"><b>Frame</b><small>ManagementDataProvider</small></div></div><div class="grid two"><div class="panel reveal" style="--i:2"><h3>Lệnh từ thư mục src/frontend/</h3><pre>yarn dev             yarn build
+yarn lint            yarn test
+yarn test:coverage   yarn test:e2e
+yarn preview         yarn gen:types</pre></div><div class="panel reveal" style="--i:3"><h3>Cấu hình được đọc trong source</h3><p><code>VITE_API_BASE_URL</code><br><code>VITE_API_PREFIX</code><br><code>VITE_SWAGGER_URL</code></p><p class="mini">Chỉ hiển thị tên biến. Không công bố giá trị cục bộ.</p></div></div><p class="note">Đây là danh sách script có sẵn, không phải tuyên bố tất cả lệnh đã được chạy.</p></div><p class="source">Nguồn: <a href="01-project-overview.md">01-project-overview.md</a> §3–5.</p>
+    </section>
+
+    <section class="slide" id="slide-7" role="region" aria-label="Slide 7: Bảng màu Design System" aria-hidden="true" inert>
+      <p class="eyebrow">II / Bảng màu</p><h2 id="slide-7-heading" tabindex="-1">Hai nhóm theme có trong source</h2><p class="takeaway">Slide chỉ sử dụng các giá trị của bảng màu template, rút từ Chương II.</p><div class="body"><div class="grid two"><article class="panel reveal"><h3>Platform sáng</h3><div class="swatches"><div class="swatch"><span class="swatch-sample" style="background:var(--canvas)"></span><div><b>Canvas</b><code>#f6f8f7</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--surface)"></span><div><b>Surface</b><code>#ffffff</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--brand)"></span><div><b>Brand</b><code>#00a878</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--brand-strong)"></span><div><b>Action</b><code>#007a57</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--ink)"></span><div><b>Ink</b><code>#202a29</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--danger)"></span><div><b>Danger</b><code>#dc2626</code></div></div></div></article><article class="panel reveal" style="--i:1"><h3>Management tối</h3><div class="swatches"><div class="swatch"><span class="swatch-sample" style="background:var(--dk-bg)"></span><div><b>Background</b><code>#0a1120</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--dk-surface)"></span><div><b>Surface</b><code>#16263c</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--dk-primary)"></span><div><b>Primary fill</b><code>#2563eb</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--dk-cyan)"></span><div><b>Connector</b><code>#22d3ee</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--dk-violet)"></span><div><b>mock / demo</b><code>#7c5cff</code></div></div><div class="swatch"><span class="swatch-sample" style="background:var(--dk-green)"></span><div><b>PASS</b><code>#34d399</code></div></div></div></article></div><div class="token-row reveal" style="--i:2"><span>Radius: 32 / 20 / 14 px</span><span>Body line-height: 1.6</span><span>Heading: 1.15 / tracking −0.045em</span></div><p class="note">Contrast trên pixel thực: <strong>UNVERIFIED</strong>. Không có kết luận “đạt WCAG”.</p></div><p class="source">Nguồn: <a href="02-design-system.md">02-design-system.md</a> §1; template mục 3–4.</p>
+    </section>
+
+    <section class="slide" id="slide-8" role="region" aria-label="Slide 8: Component và trạng thái" aria-hidden="true" inert>
+      <p class="eyebrow">II / Component system</p><h2 id="slide-8-heading" tabindex="-1">Tái sử dụng UI, giữ đúng trách nhiệm</h2><p class="takeaway">Primitive hiển thị trạng thái; logic request thuộc hook và store.</p><div class="body"><div class="grid two"><div class="table-wrap reveal"><table><thead><tr><th scope="col">MỨC</th><th scope="col">THÀNH PHẦN</th></tr></thead><tbody><tr><td>Primitive</td><td>Button, Input</td></tr><tr><td>Composite</td><td>FormField, Dialog + focus hook</td></tr><tr><td>Layout</td><td>ApplicationFrame + providers</td></tr><tr><td>Feature</td><td>ProjectWizard, upload/review UI</td></tr><tr><td>Graphics UI</td><td>Dataset3DView + canvas bridge</td></tr></tbody></table></div><article class="panel reveal" style="--i:1"><h3>Interactive states</h3><div class="state-samples" aria-label="Minh họa trạng thái button, không phải nút thao tác"><span class="sample-button">Default</span><span class="sample-button sample-disabled">Disabled</span><span class="sample-button sample-focus">Focus</span></div><p style="margin-top:20px">Loading → disabled + aria-busy.<br>Error → thông báo + retry.<br>Success → ACK phù hợp rồi cập nhật UI.</p><div class="tags"><span class="tag warn">Error</span><span class="tag pass">Success</span><span class="tag neutral">Empty</span></div></article></div><p class="note reveal" style="--i:2">Source có token chung và token --pv-* riêng; chưa phải một theme framework tập trung duy nhất.</p></div><p class="source">Nguồn: <a href="02-design-system.md">02-design-system.md</a> §3–4.</p>
+    </section>
+
+    <section class="slide" id="slide-9" role="region" aria-label="Slide 9: Responsive và accessibility" aria-hidden="true" inert>
+      <p class="eyebrow">II / Khả năng sử dụng</p><h2 id="slide-9-heading" tabindex="-1">Có cơ chế hỗ trợ trong source</h2><p class="takeaway">Bằng chứng implementation không thay cho kiểm thử trên thiết bị và công nghệ hỗ trợ.</p><div class="body"><div class="grid two"><article class="panel reveal"><h3>Đã tìm thấy</h3><ul class="checklist"><li>Breakpoint 900 / 767 / 720px; min-width 320px.</li><li>Focus-visible, label và aria cho control.</li><li>Escape, roving focus và dialog Tab trap.</li><li>Reduced motion qua CSS và hook graphics.</li><li>Login compact/WebGL fallback; timeout 10 giây.</li></ul></article><article class="panel reveal" style="--i:1"><h3>Chưa xác minh thực tế</h3><div class="tags"><span class="tag warn">UNVERIFIED</span></div><ul class="checklist" style="margin-top:18px"><li>Desktop / tablet / mobile rendering.</li><li>Screen reader, zoom 200%, focus traversal.</li><li>Contrast trên nền thực và WebGL visual proof.</li></ul></article></div><p class="note">Các hỗ trợ trong file trình chiếu này không làm thay đổi trạng thái audit accessibility của sản phẩm.</p></div><p class="source">Nguồn: <a href="02-design-system.md">02-design-system.md</a> §5.</p>
+    </section>
+
+    <section class="slide" id="slide-10" role="region" aria-label="Slide 10: User flow xác thực" aria-hidden="true" inert>
+      <p class="eyebrow">III / Authentication</p><h2 id="slide-10-heading" tabindex="-1">Phiên hợp lệ trước dữ liệu online</h2><p class="takeaway">Session coordinator kiểm tra dữ liệu và vòng đời trước khi publish authenticated.</p><div class="body"><div class="flow" aria-label="Luồng đăng nhập từ người dùng tới management"><div class="node"><span class="step-no">01</span><b>Login form</b><small>Email / password</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:1"><span class="step-no">02</span><b>useLogin</b><small>signIn + pending</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:2"><span class="step-no">03</span><b>Coordinator</b><small>Generation / abort</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:3"><span class="step-no">04</span><b>POST login</b><small>Check DTO / identity</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:4"><span class="step-no">05</span><b>Authenticated</b><small>Persist → router → provider</small></div></div><div class="grid two"><article class="panel reveal" style="--i:3"><h3>Gia hạn có lựa chọn</h3><p>Hết hạn → health → awaiting-consent.<br>Đồng ý → refresh → users/me → commit.<br>Từ chối hoặc lỗi → cleanup.</p></article><article class="panel reveal" style="--i:4"><h3>Giới hạn cần nhớ</h3><p>local-limited không phải offline CRUD.<br>FE đọc payload JWT để điều phối.<br>Không thay server xác minh chữ ký/quyền.</p></article></div></div><p class="source">Nguồn: <a href="03-user-flow.md">03-user-flow.md</a> §1–2; <a href="05-technical-workflow.md">05-technical-workflow.md</a> §2.</p>
+    </section>
+
+    <section class="slide" id="slide-11" role="region" aria-label="Slide 11: Route inventory" aria-hidden="true" inert>
+      <p class="eyebrow">III / Điều hướng</p><h2 id="slide-11-heading" tabindex="-1">Route và admission của UI</h2><p class="takeaway">Có URL không đồng nghĩa đã có feature online độc lập.</p><div class="body"><div class="table-wrap reveal route-table"><table><thead><tr><th scope="col">URL</th><th scope="col">MÀN HÌNH / HÀNH VI</th><th scope="col">ADMISSION</th></tr></thead><tbody><tr><td><code>/auth/login</code></td><td>Login</td><td>PublicOnlyRoute</td></tr><tr><td><code>/management</code><br><code>/management/workspaces/:workspaceId</code></td><td>Home / Workspace</td><td>ProtectedRoute + data provider</td></tr><tr><td><code>/management/projects</code><br><code>/management/notifications</code></td><td>Projects / Notifications</td><td>Cùng guard và frame</td></tr><tr><td><code>/management/settings/:settingsSection</code></td><td>Settings</td><td>Cùng guard và frame</td></tr><tr><td><code>/processing</code><br><code>/processing/projects/:projectId</code></td><td>Landing / Project workspace</td><td>Session; project tồn tại trong store</td></tr><tr><td><code>…/:projectId/records</code></td><td>Shopping records; chưa khẳng định generic grid online</td><td>Protected route</td></tr><tr><td><code>…/upload | analysis | review | results</code></td><td>Redirect về management project context</td><td>Không là page feature riêng</td></tr></tbody></table></div><p class="note">DEV <code>/preview/workspaces-3d</code> có entry riêng; route không khớp trả shared 404.</p></div><p class="source">Nguồn: <a href="03-user-flow.md">03-user-flow.md</a> §2, route inventory chọn lọc.</p>
+    </section>
+
+    <section class="slide" id="slide-12" role="region" aria-label="Slide 12: Workspace và Project wizard" aria-hidden="true" inert>
+      <p class="eyebrow">III / Tạo project</p><h2 id="slide-12-heading" tabindex="-1">CSV được giữ như một File thật</h2><p class="takeaway">Wizard chờ chuỗi request hoàn thành trước khi hiển thị success.</p><div class="body"><div class="flow" aria-label="Bốn bước của project wizard"><div class="node"><span class="step-no">BƯỚC 1</span><b>Thông tin</b><small>Workspace / name / description</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:1"><span class="step-no">BƯỚC 2</span><b>CSV</b><small>Đọc UTF-8 + parse cục bộ</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:2"><span class="step-no">BƯỚC 3</span><b>Thành viên</b><small>Email + role hợp lệ</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:3"><span class="step-no">BƯỚC 4</span><b>Xác nhận</b><small>Pending chặn submit trùng</small></div></div><div class="panel reveal" style="--i:3"><h3>API store online</h3><p class="important"><code>POST project → multipart CSV → POST members → reload</code></p><p>Project đã tạo nhưng upload/member lỗi → báo partial operation.<br>Maps hỗ trợ tiếp tục trong cùng store; không bền qua reload.</p></div><p class="note warning">Upload thành công không đồng nghĩa phân tích dữ liệu đã hoàn tất.</p></div><p class="source">Nguồn: <a href="03-user-flow.md">03-user-flow.md</a> §3; <a href="05-technical-workflow.md">05-technical-workflow.md</a> §4.</p>
+    </section>
+
+    <section class="slide" id="slide-13" role="region" aria-label="Slide 13: Upload, thông báo và issues" aria-hidden="true" inert>
+      <p class="eyebrow">III / Các hành trình liên quan</p><h2 id="slide-13-heading" tabindex="-1">Ba luồng, ba kết quả cần phân biệt</h2><p class="takeaway">FE đã có caller; semantics và phản hồi server thật vẫn cần kiểm chứng.</p><div class="body"><div class="grid"><article class="panel reveal"><span class="step-no">UPLOAD</span><h3>File → FormData</h3><p>projectId lấy từ session selection.<br>Validate CSV → uploadDataset.<br>Giữ dialog khi lỗi, đóng sau ACK.</p><span class="tag pass">Có caller</span></article><article class="panel reveal" style="--i:1"><span class="step-no">NOTIFICATIONS</span><h3>Load → map → read</h3><p>Danh sách cursor và unread từ readAt.<br>PATCH từng ID rồi reloadPersonal.<br>Realtime subscription: <strong>NOT FOUND</strong> trong flow.</p></article><article class="panel reveal" style="--i:2"><span class="step-no">ISSUES</span><h3>Tạo trước, đính kèm sau</h3><p>POST issues → nhận ID.<br>POST attachment; GET Blob tải tệp.<br>Retry progress chỉ trong instance.</p><span class="tag warn">Live: UNVERIFIED</span></article></div><p class="note warning">Online analysis caller: <strong>NOT FOUND</strong> trong flow khảo sát. Shopping detection là <strong>demo DEV</strong>, fixture + timer, không phải AI thật.</p></div><p class="source">Nguồn: <a href="03-user-flow.md">03-user-flow.md</a> §4–5; <a href="05-technical-workflow.md">05-technical-workflow.md</a> §5, §7.</p>
+    </section>
+
+    <section class="slide" id="slide-14" role="region" aria-label="Slide 14: Kiến trúc tổng thể" aria-hidden="true" inert>
+      <p class="eyebrow">IV / Layers</p><h2 id="slide-14-heading" tabindex="-1">Ranh giới trách nhiệm của FE</h2><p class="takeaway">Theo dependency và context thực tế thay vì suy luận từ tên folder.</p><div class="body architecture"><div class="flow compact" aria-label="Luồng layer frontend tới API"><div class="node"><b>app</b><small>Bootstrap / providers / router</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:1"><b>views</b><small>Components / feature UI</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:2"><b>hooks</b><small>Interaction / subscriptions</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:3"><b>services</b><small>Auth / management store</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:4"><b>lib</b><small>Axios / ApiError</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:5"><b>BE API</b><small>Chỉ là boundary</small></div></div><div class="grid two"><article class="panel reveal" style="--i:3"><h3>Composition và lifecycle</h3><p>AppRuntime sở hữu session + drafts.<br>ManagementDataProvider tạo API store.<br>Dispose không có nghĩa request đã rollback.</p></article><article class="panel reveal" style="--i:4"><h3>Graphics và local data</h3><p>UI bridge → graphics / math.<br>App runtime → Dexie drafts.<br>Sync coordinator runtime: <strong>NOT FOUND</strong>.</p></article></div><p class="edge-caption">Không vẽ database, worker hoặc các tầng nội bộ backend.</p></div><p class="source">Nguồn: <a href="04-system-architecture.md">04-system-architecture.md</a> §1, §3–5.</p>
+    </section>
+
+    <section class="slide" id="slide-15" role="region" aria-label="Slide 15: Cấu trúc thư mục và component hierarchy" aria-hidden="true" inert>
+      <p class="eyebrow">IV / Structure</p><h2 id="slide-15-heading" tabindex="-1">Folder và cây composition</h2><p class="takeaway">Tên preview là lịch sử; store thực được chọn qua provider/context.</p><div class="body"><div class="grid two"><article class="panel reveal"><h3>src/frontend/src/ — cây chọn lọc</h3><pre>app/             views/          components/
+hooks/           services/       repositories/
+lib/             types/          configs/
+styles/          graphics/       math/
+mocks/           sync/           utils/
+assets/          __tests__/</pre><p class="mini" style="margin-top:14px">Store ở services; auth context/provider ở app/hooks. Không giả định folder stores/ hoặc features/.</p></article><article class="panel reveal" style="--i:1"><h3>Component hierarchy</h3><div class="hierarchy"><strong>Application / AppProviders</strong><div class="branch"><strong>QueryClientProvider → AuthProvider</strong><div class="branch"><strong>BrowserRouter → AppRouter</strong><div class="branch"><strong>ProtectedRoute → ApplicationFrame</strong><div class="branch"><strong>ManagementDataProvider</strong><div class="branch"><strong>PreviewSessionProvider → Outlet</strong><br><small>Management / Processing / Project</small></div></div></div></div></div></div></article></div></div><p class="source">Nguồn: <a href="04-system-architecture.md">04-system-architecture.md</a> §2, §5–6.</p>
+    </section>
+
+    <section class="slide" id="slide-16" role="region" aria-label="Slide 16: State và persistence" aria-hidden="true" inert>
+      <p class="eyebrow">IV / Data ownership</p><h2 id="slide-16-heading" tabindex="-1">Mỗi loại state có một lifetime</h2><p class="takeaway">Có local persistence không đồng nghĩa đã có cơ chế tự đồng bộ lên API.</p><div class="body"><div class="table-wrap reveal"><table><thead><tr><th scope="col">DỮ LIỆU</th><th scope="col">CHỦ SỞ HỮU</th><th scope="col">GIỚI HẠN</th></tr></thead><tbody><tr><td>Input / step / pending</td><td>Component / hook</td><td>Trong instance UI</td></tr><tr><td>Auth snapshot / credential</td><td>Coordinator / sessionStorage</td><td>Theo account, expiry, generation</td></tr><tr><td>Management records</td><td>Injected API store</td><td>Cache trong tab; nguồn chính từ request</td></tr><tr><td>Theme preference</td><td>usePreviewColorScheme / localStorage</td><td>Local preference, không phải API preference</td></tr><tr><td>Upload drafts</td><td>Dexie / IndexedDB repository</td><td>Metadata tách Blob; không tự HTTP upload</td></tr><tr><td>Retry progress</td><td>Maps trong management store</td><td>Mất khi dispose/reload; không là server idempotency</td></tr><tr><td>Fixture / shopping demo</td><td>previewMockStore / storage demo</td><td><span class="tag mock">mock / demo DEV</span></td></tr></tbody></table></div></div><p class="source">Nguồn: <a href="04-system-architecture.md">04-system-architecture.md</a> §4.</p>
+    </section>
+
+    <section class="slide" id="slide-17" role="region" aria-label="Slide 17: Request response và Swagger types" aria-hidden="true" inert>
+      <p class="eyebrow">V / Technical workflow</p><h2 id="slide-17-heading" tabindex="-1">Request–Response và Swagger types</h2><p class="takeaway">Type được sinh chưa đồng nghĩa payload đã được validate lúc chạy.</p><div class="body"><div class="flow compact" aria-label="Vòng request và response frontend"><div class="node"><b>UI / hook</b><small>Event + validation</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:1"><b>API store</b><small>Input → request</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:2"><b>Axios → API</b><small>Bearer / timeout</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:3"><b>Response</b><small>204 / Blob / JSON</small></div><span class="arrow" aria-hidden="true">→</span><div class="node" style="--i:4"><b>Map → publish</b><small>State → render / error</small></div></div><div class="grid two"><article class="panel reveal" style="--i:2"><h3>Pipeline từ source</h3><p><code>Swagger → openapi.json → openapi.ts<br>→ types/services-type/*</code></p><p>65 path / 86 operation trong snapshot.<br>86 operation chưa có success response content trực tiếp.</p></article><article class="panel reveal" style="--i:3"><h3>Khoảng trống contract</h3><p>Generated file có <code>@ts-nocheck</code>.<br>Chưa thấy static consumer nghiệp vụ.<br>Management hiện dùng DTO viết tay.</p><span class="tag pass">204 đã có nhánh + test mock</span></article></div><p class="note">Chương V có nội dung. Không suy diễn pipeline CI hoặc nội bộ backend.</p></div><p class="source">Nguồn: <a href="05-technical-workflow.md">05-technical-workflow.md</a> §1, §3, §6–7.</p>
+    </section>
+
+    <section class="slide" id="slide-18" role="region" aria-label="Slide 18: Kết quả kiểm thử" aria-hidden="true" inert>
+      <p class="eyebrow">VI / Validation</p><h2 id="slide-18-heading" tabindex="-1">Test pass trong phạm vi đã chạy</h2><p class="takeaway">Kết quả dùng transport mock, không phải bằng chứng live FE–BE.</p><div class="body"><div class="stats"><div class="stat reveal"><span class="number" data-count="20" aria-hidden="true">20</span><span class="sr-only">20</span><span class="label">file test liên quan</span></div><div class="stat reveal" style="--i:1"><span class="number" data-count="315" aria-hidden="true">315</span><span class="sr-only">315</span><span class="label">test PASS · 32,41 s</span></div><div class="stat reveal" style="--i:2"><span class="number" aria-hidden="true"><span data-count="55">55</span>/55</span><span class="sr-only">55 trên 55</span><span class="label">api.test.ts PASS · gồm HTTP 204</span></div><div class="stat reveal" style="--i:3"><span class="number" aria-hidden="true">0 / <span data-count="24">24</span></span><span class="sr-only">0 error và 24 warning</span><span class="label">ESLint · phạm vi 18 file</span></div></div><div class="table-wrap reveal" style="--i:3"><table><thead><tr><th scope="col">TẦNG</th><th scope="col">ĐIỀU ĐƯỢC KIỂM TRA</th><th scope="col">BOUNDARY</th></tr></thead><tbody><tr><td>Unit / service</td><td>URL, envelope, error, session, mapping</td><td>Adapter / ports giả</td></tr><tr><td>Provider / store / UI</td><td>Token account, paging, partial failure, pending/ACK</td><td>Transport hoặc store mock</td></tr><tr><td>Lint / typecheck</td><td>App + config PASS; 22 migration + 2 indent warning</td><td>Compile-time / scope chọn lọc</td></tr></tbody></table></div><p class="note warning">55/55 trùng scope test trước đó — <strong>không cộng thành 370</strong>. Full suite / coverage hiện tại chưa chạy lại.</p></div><p class="source">Nguồn: <a href="06-software-testing.md">06-software-testing.md</a> §1–3, kết quả tại snapshot fef6bab.</p>
+    </section>
+
+    <section class="slide" id="slide-19" role="region" aria-label="Slide 19: E2E, coverage và giới hạn" aria-hidden="true" inert>
+      <p class="eyebrow">VI / Evidence boundary</p><h2 id="slide-19-heading" tabindex="-1">Phần chưa đo vẫn là UNVERIFIED</h2><p class="takeaway">Demo specs, structural tests và kết quả lịch sử không thay baseline hiện tại.</p><div class="body"><div class="grid two"><div class="table-wrap reveal"><table><thead><tr><th scope="col">COVERAGE HIỆN TẠI</th><th scope="col">TRẠNG THÁI</th></tr></thead><tbody><tr><td>Statements</td><td><span class="tag warn">UNVERIFIED</span></td></tr><tr><td>Branches</td><td><span class="tag warn">UNVERIFIED</span></td></tr><tr><td>Functions</td><td><span class="tag warn">UNVERIFIED</span></td></tr><tr><td>Lines</td><td><span class="tag warn">UNVERIFIED</span></td></tr></tbody></table></div><article class="panel reveal" style="--i:1"><h3>Playwright có ba demo specs</h3><p>Login demo + mở Processing.<br>Sai mật khẩu rồi phục hồi.<br>Đổi theme và reload giữ preference.</p><div class="tags"><span class="tag mock">demo DEV</span><span class="tag warn">Chưa chạy lượt mới</span></div><p class="mini" style="margin-top:14px">Live E2E, screenshots, WebGL: UNVERIFIED.</p></article></div><p class="note warning"><strong>Lịch sử, không phải baseline fef6bab:</strong> 864 test; 863 PASS / 1 timeout; file timeout chạy riêng 25/25 PASS. Lines coverage 70,83% thuộc source trước.</p></div><p class="source">Nguồn: <a href="06-software-testing.md">06-software-testing.md</a> §4–6.</p>
+    </section>
+
+    <section class="slide" id="slide-20" role="region" aria-label="Slide 20: Kết luận và đề xuất" aria-hidden="true" inert>
+      <p class="eyebrow">Bước tiếp theo / Đề xuất</p><h2 id="slide-20-heading" tabindex="-1">Khép khoảng trống bằng chứng</h2><p class="takeaway">Hiện trạng đã được mô tả; các bước dưới đây là đề xuất, chưa triển khai trong audit.</p><div class="body"><div class="grid"><article class="panel reveal"><span class="step-no">01 / CONTRACT</span><h3>Kiểm chứng API boundary</h3><p>Health root URL, error field payload và Blob theo contract.<br>Giữ regression test HTTP 204 hiện có.</p></article><article class="panel reveal" style="--i:1"><span class="step-no">02 / LIFECYCLE</span><h3>Test paging và partial retry</h3><p>Members cursor nhiều trang.<br>Dispose trong lúc mutation.<br>Retry sau remount/reload.</p></article><article class="panel reveal" style="--i:2"><span class="step-no">03 / UI &amp; LIVE</span><h3>Kiểm chứng trước mở rộng</h3><p>Chuẩn hóa control/loading/error trước gộp token.<br>Online E2E trên môi trường cô lập, có cleanup.</p></article></div><p class="note warning">Kết luận hiện tại: source + test mock có bằng chứng. Production readiness, live FE–BE và accessibility thực vẫn <strong>UNVERIFIED</strong>.</p><div class="tags reveal" style="--i:3"><span class="tag pass">Source-grounded</span><span class="tag mock">mock ≠ live</span><a href="#2">Quay lại mục lục</a></div></div><p class="source">Nguồn: <a href="02-design-system.md">02-design-system.md</a> §6; <a href="06-software-testing.md">06-software-testing.md</a> §7; nhắc lại giới hạn Chương I–VI.</p>
+    </section>
+  </main>
+  <footer class="footer"><span class="hint">← → / Space · Home / End · Vuốt để chuyển slide</span><nav class="pagination" aria-label="Điều hướng slide"><button class="control" id="prev" type="button" aria-label="Slide trước" disabled>←</button><output class="page-count" id="page-count" aria-label="Số trang hiện tại">1 / 20</output><button class="control primary" id="next" type="button" aria-label="Slide tiếp theo">→</button></nav></footer>
+  <p class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true">Slide 1 trên 20: Trang bìa</p>
+  <noscript><p class="note warning" style="position:fixed;bottom:80px;z-index:8">Cần bật JavaScript để chuyển slide. Nội dung chính đã có sẵn trong HTML.</p></noscript>
+  <script>
+    (() => {
+      'use strict';
+      const root = document.documentElement;
+      const deck = document.getElementById('deck');
+      const slides = Array.from(deck.querySelectorAll('.slide'));
+      const previous = document.getElementById('prev');
+      const next = document.getElementById('next');
+      const count = document.getElementById('page-count');
+      const progress = document.querySelector('.progress');
+      const fill = document.querySelector('.progress-fill');
+      const announcement = document.getElementById('announcement');
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const scheme = window.matchMedia('(prefers-color-scheme: dark)');
+      const counterFrames = new Map();
+      let index = -1;
+      let manualTheme = false;
+      let touch = null;
+
+      root.dataset.theme = scheme.matches ? 'dark' : 'light';
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        manualTheme = true;
+        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      });
+      scheme.addEventListener('change', event => {
+        if (!manualTheme) root.dataset.theme = event.matches ? 'dark' : 'light';
+      });
+
+      function finishCounters() {
+        counterFrames.forEach((frame, element) => {
+          cancelAnimationFrame(frame);
+          element.textContent = element.dataset.count;
+        });
+        counterFrames.clear();
+      }
+
+      function animateCounters(slide) {
+        finishCounters();
+        slide.querySelectorAll('[data-count]').forEach(element => {
+          const target = Number(element.dataset.count);
+          if (reduce.matches || element.dataset.counted === 'true') {
+            element.textContent = element.dataset.count;
+            return;
+          }
+          element.dataset.counted = 'true';
+          const start = performance.now();
+          function tick(now) {
+            const fraction = Math.min((now - start) / 700, 1);
+            const eased = 1 - Math.pow(1 - fraction, 3);
+            element.textContent = String(Math.round(target * eased));
+            if (fraction < 1) counterFrames.set(element, requestAnimationFrame(tick));
+            else { element.textContent = element.dataset.count; counterFrames.delete(element); }
+          }
+          counterFrames.set(element, requestAnimationFrame(tick));
+        });
+      }
+
+      function openSlide(requested, focusHeading = true) {
+        const destination = Math.max(0, Math.min(slides.length - 1, requested));
+        if (destination === index) return;
+        slides.forEach((slide, position) => {
+          const active = position === destination;
+          slide.classList.toggle('is-active', active);
+          slide.classList.toggle('is-prev', position < destination);
+          slide.setAttribute('aria-hidden', String(!active));
+          slide.inert = !active;
+        });
+        index = destination;
+        const active = slides[index];
+        active.scrollTop = 0;
+        previous.disabled = index === 0;
+        next.disabled = index === slides.length - 1;
+        count.textContent = `${index + 1} / ${slides.length}`;
+        progress.setAttribute('aria-valuenow', String(index + 1));
+        fill.style.transform = `scaleX(${(index + 1) / slides.length})`;
+        announcement.textContent = `${active.getAttribute('aria-label')} · ${index + 1} trên ${slides.length}`;
+        document.querySelector('.skip').href = `#slide-${index + 1}-heading`;
+        animateCounters(active);
+        if (focusHeading) active.querySelector('h1,h2').focus({ preventScroll: true });
+      }
+
+      function navigate(destination) {
+        const bounded = Math.max(0, Math.min(slides.length - 1, destination));
+        if (bounded === index) return;
+        history.replaceState(null, '', `#${bounded + 1}`);
+        openSlide(bounded);
+      }
+
+      function fromHash(initial = false) {
+        const match = /^#(\d+)$/.exec(location.hash);
+        if (!match && /^#slide-\d+-heading$/.test(location.hash)) return;
+        const number = match ? Number(match[1]) : 1;
+        const valid = Number.isSafeInteger(number) && number >= 1 && number <= slides.length;
+        const destination = valid ? number - 1 : 0;
+        if (!valid || !match) history.replaceState(null, '', `#${destination + 1}`);
+        openSlide(destination, !initial);
+      }
+
+      previous.addEventListener('click', () => navigate(index - 1));
+      next.addEventListener('click', () => navigate(index + 1));
+      window.addEventListener('hashchange', () => fromHash());
+      document.addEventListener('keydown', event => {
+        if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+        const target = event.target;
+        if (target instanceof Element && target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        if (event.code === 'Space' && target instanceof Element && target.closest('button,a')) return;
+        const commands = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: slides.length - 1 };
+        let destination = commands[event.key];
+        if (event.code === 'Space') destination = event.shiftKey ? index - 1 : index + 1;
+        if (destination === undefined) return;
+        event.preventDefault();
+        navigate(destination);
+      });
+      deck.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1 || event.target.closest('a,button,input,table,pre')) { touch = null; return; }
+        touch = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      }, { passive: true });
+      deck.addEventListener('touchend', event => {
+        if (!touch || event.changedTouches.length !== 1) { touch = null; return; }
+        const dx = event.changedTouches[0].clientX - touch.x;
+        const dy = event.changedTouches[0].clientY - touch.y;
+        touch = null;
+        if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4 && !window.getSelection()?.toString()) navigate(index + (dx < 0 ? 1 : -1));
+      }, { passive: true });
+      deck.addEventListener('touchcancel', () => { touch = null; }, { passive: true });
+      reduce.addEventListener('change', event => { if (event.matches) finishCounters(); });
+      fromHash(true);
+    })();
+  </script>
+</body>
+</html>

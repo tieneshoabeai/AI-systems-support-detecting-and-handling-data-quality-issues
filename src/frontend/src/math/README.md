@@ -1,69 +1,58 @@
-# math
+# Math
 
-## 1. Mục đích
+`src/math` chứa logic tính toán dùng cho Workspace 3D. Code ở đây nhận dữ liệu và tính layout, đường nối, góc camera hoặc nhãn. Canvas và tương tác được triển khai trong [`components/graphics`](../components/README.md).
 
-Tính bố cục, đường nối, camera, ngân sách nhãn và parse CSV cho Workspace 3D. Tầng này không quản lý DOM, state React hay lưu file.
+## Bản đồ file
 
-## 2. Vị trí & phụ thuộc
+| File | Trách nhiệm |
+| --- | --- |
+| [`resource-layout.ts`](workspace-3d/resource-layout.ts) | Kiểm tra cây tài nguyên, tìm đường dẫn cha và bố trí node. |
+| [`resource-routing.ts`](workspace-3d/resource-routing.ts) | Tạo tuyến đường nối giữa node và đường cong để scene vẽ. |
+| [`resource-connection-profile.ts`](workspace-3d/resource-connection-profile.ts) | Tập trung thông số đường nối và tính bán kính theo danh sách node. |
+| [`resource-camera.ts`](workspace-3d/resource-camera.ts) | Tính góc tổng quan, fit camera vào nhóm node, giới hạn pan và cập nhật projection. |
+| [`resource-label-policy.ts`](workspace-3d/resource-label-policy.ts) | Tính số lượng nhãn phù hợp và quyết định nhãn nào được hiển thị. |
+| [`local-csv.ts`](workspace-3d/local-csv.ts) | Parse nội dung CSV cục bộ và chuyển tài liệu CSV thành cây tài nguyên. |
 
-[views](../views/README.md) gọi parse CSV và layout. [graphics](../graphics/README.md) dùng camera, nhãn và đường cong. Một số hàm dùng vector/curve của Three.js.
+Import các hàm dùng chung qua [`math/index.ts`](index.ts). Danh sách export riêng của nhóm nằm tại [`workspace-3d/index.ts`](workspace-3d/index.ts).
 
-## 3. Public API
+## Từ dữ liệu tài nguyên đến scene
 
-- `parseLocalCsv(text: string): Omit<LocalCsvDocument, 'id' | 'name'>` trả delimiter, headers và rows. Ném `Error` nếu header rỗng, dấu nháy sai hoặc độ rộng hàng lệch. `localCsvResources(documents: readonly LocalCsvDocument[]): ResourceNode[]` dựng cây mẫu.
-- `validateResources(input: unknown): Validation` trả `{ ok: true, resources }` hoặc `{ ok: false, message }`. `layoutResources(resources, scopeId?): ResourceLayout`, `resourceTrail(resources, id): ResourceNode[]` và `advanceFlow(phase: number, delta: number): number` xử lý cây hợp lệ và pha hiệu ứng.
-- `routeResources(input: readonly PositionedResource[], radius?: number): Pick<ResourceLayout, 'nodes' | 'edges'>`, `routeCurve(route: ResourceRoute): CurvePath<Vector3>`, `connectionRadius(nodes: readonly ResourceNode[]): number`, `CONNECTION` dựng kết nối.
-- `overviewDirection(): Vector3`, `nodeCorners(node: PositionedResource): Vector3[]`, `fitPose(nodes, target, direction, fov, aspect): CameraPose`, `overviewPose(layout, fov, aspect): CameraPose`, `panPose(pose, direction, layout): CameraPose`, `clampTarget(target, layout): Vector3` tính khung camera. `updateCameraProjection(camera: PerspectiveCamera, aspect: number, far: number): void` cập nhật camera nhận vào.
-- `resourceLabelBudget(sceneWidth: number): number` và `shouldShowResourceLabel(...)` quyết định ngân sách và điều kiện nhãn. Xem [resource-label-policy.ts](workspace-3d/resource-label-policy.ts) cho từng cờ.
+1. `validateResources(input)` kiểm tra ID, tên, loại và quan hệ cha. Hierarchy hợp lệ là Workspace → Project → Dataset. ID trùng hoặc parent sai loại trả `{ ok: false, message }`.
+2. `layoutResources(resources, scopeId)` tính vị trí node theo cây và scope, giữ thứ tự đầu vào. Bên trong, hàm tính tuyến nối qua `routeResources` và trả layout có tâm và kích thước để scene sử dụng.
+3. Scene dùng các hàm camera để fit vùng đang xem. Chính sách nhãn quyết định số nhãn có thể hiển thị và nhãn nào được giữ.
 
-## 4. Cách dùng (ví dụ)
+Ví dụ từ module đặt ngay dưới `src/`. Kiểm tra nhánh lỗi trước khi tính layout.
 
 ```ts
-import { parseLocalCsv } from './math/workspace-3d/local-csv'
+import { layoutResources, validateResources } from './math'
 
-console.log(parseLocalCsv('id,name\n1,An'))
-// { delimiter: ',', headers: ['id', 'name'], rows: [['1', 'An']] }
+export function prepareWorkspaceLayout(input: unknown) {
+  const result = validateResources(input)
+  if (!result.ok) throw new Error(result.message)
+  return layoutResources(result.resources)
+}
 ```
 
-Ví dụ chạy ở module TypeScript dưới `src`. Ô dữ liệu giữ kiểu chuỗi.
+## CSV cục bộ
 
-## 5. Cấu trúc thư mục
+`parseLocalCsv(text)` dò dấu phân cách từ hàng tiêu đề, xử lý ô có dấu nháy và trả `delimiter`, `headers`, `rows`. Hàm ném lỗi khi thiếu tiêu đề hợp lệ, dấu nháy sai hoặc số ô lệch với tiêu đề. Caller thêm ID và tên tài liệu. `localCsvResources(documents)` dùng các tài liệu này để tạo node workspace, project và dataset cho scene.
 
-**Khi thêm code.** Với Workspace 3D, chọn file theo phép tính cần sửa, như camera trong `resource-camera.ts` hoặc đường nối trong `resource-routing.ts`. Việc áp pose lên renderer thuộc [graphics](../graphics/README.md).
+## Cấu trúc thư mục hiện tại
 
-- [workspace-3d/local-csv.ts](workspace-3d/local-csv.ts) — parse CSV và map thành cây tài nguyên.
-- [workspace-3d/resource-camera.ts](workspace-3d/resource-camera.ts) — fit, pan và cập nhật projection.
-- [workspace-3d/resource-connection-profile.ts](workspace-3d/resource-connection-profile.ts) — ngưỡng bán kính và profile cổng.
-- [workspace-3d/resource-label-policy.ts](workspace-3d/resource-label-policy.ts) — số lượng nhãn và ưu tiên hiển thị.
-- [workspace-3d/resource-layout.ts](workspace-3d/resource-layout.ts) — validation, breadcrumb, layout và pha chuyển động.
-- [workspace-3d/resource-routing.ts](workspace-3d/resource-routing.ts) — cổng, cạnh và đoạn Bézier.
-- `.gitkeep` — giữ thư mục.
+```text
+src/math/
+├── workspace-3d/
+│   ├── index.ts
+│   ├── local-csv.ts
+│   ├── resource-camera.ts
+│   ├── resource-connection-profile.ts
+│   ├── resource-label-policy.ts
+│   ├── resource-layout.ts
+│   └── resource-routing.ts
+├── README.md
+└── index.ts
+```
 
-## 6. Luồng hoạt động
+## Kiểm thử
 
-CSV → phát hiện dấu phân cách ngoài dấu nháy → tạo header/hàng → tạo nodes. Nodes → kiểm ID và quan hệ cha → tính vị trí → dựng cổng và cạnh → camera dùng center/span hoặc scope.
-
-## 7. Cấu hình
-
-| Tham số | Mặc định | Tác dụng |
-| --- | --- | --- |
-| `scopeId` | `null` | Bố cục toàn bộ cây nếu không chọn scope |
-| Ngưỡng chiều rộng scene | 640 px | Ngân sách nhãn 4 dưới ngưỡng, 8 từ ngưỡng trở lên |
-| Dấu phân cách | Khi bằng điểm, ưu tiên `,` rồi `;` rồi tab | Đếm số lần xuất hiện ngoài dấu nháy ở header |
-| Tốc độ pha | 0,22 chu kỳ/giây | `advanceFlow` tính theo delta |
-
-## 8. Quy ước & bất biến
-
-Kiểm tra dữ liệu trước layout. ID phải duy nhất. Thứ tự sibling theo input. Cây tuân theo Workspace → Project → Dataset. Parser giữ nguyên dấu phân cách bên trong ô có nháy.
-
-## 9. Test & debug
-
-Chạy `yarn test src/__tests__/workspace-3d/local-csv.test.ts src/__tests__/workspace-3d/resource-layout.test.ts src/__tests__/workspace-3d/resource-label-policy.test.ts`. Có thể dùng `/preview/workspaces-3d` để thử CSV mẫu.
-
-## 10. Giới hạn & lưu ý
-
-Parser đọc toàn bộ chuỗi và giữ toàn bộ rows trong bộ nhớ. Ngân sách nhãn chỉ giới hạn chữ, số node render có thể lớn hơn.
-
-## 11. Hướng cải tiến
-
-Đề xuất đo với cây rộng và CSV lớn trước khi thay đổi ngân sách hiển thị hoặc chuyển parse sang luồng riêng.
+Từ `src/frontend`, chạy `yarn test src/__tests__/workspace-3d`. Bắt đầu từ [test layout](../__tests__/workspace-3d/resource-layout.test.ts), [test nhãn](../__tests__/workspace-3d/resource-label-policy.test.ts) hoặc [test CSV](../__tests__/workspace-3d/local-csv.test.ts) tùy phần đang sửa.

@@ -2,7 +2,7 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại.** Management đã nối API workspace/project/thành viên và tải CSV khi tạo project. Auth, 3D và xử lý dữ liệu chuyên sâu do thành viên FE còn lại phụ trách; thông báo, hồ sơ và báo lỗi đã nối các endpoint hiện có. BE thật chưa được nghiệm thu vì đang chờ URL/tài khoản test.
+**Trạng thái hiện tại.** Frontend có luồng đăng nhập và quản lý phiên. Management dùng API cho workspace/project, thành viên, thông báo, báo cáo vấn đề và hồ sơ; Settings nối đổi mật khẩu và quản lý phiên. Trong project, panel Overview/Data View đọc schema/bản ghi, hỗ trợ truy vấn, thống kê cột, đổi tên cột và tải CSV. Tài khoản admin có trang Quản trị tài khoản/báo cáo vấn đề từ Home. Các lời gọi này cần kiểm chứng với backend triển khai; build/test mô phỏng không thay nghiệm thu BE thật. Dev hỗ trợ mock Management/Processing và preview Workspace 3D riêng.
 
 ## 1. Project Overview
 
@@ -44,12 +44,12 @@ Frontend cần giải quyết các yêu cầu:
 
 | Module | Phạm vi mục tiêu | Hiện trạng FE |
 |---|---|---|
-| Auth | Đăng nhập/đăng ký, quản lý phiên, gia hạn theo xác nhận người dùng | Có login, phiên và gia hạn. Panel đăng ký là UI thử |
-| User | Xem và cập nhật hồ sơ | Đọc hồ sơ phiên; Settings lưu họ tên và tùy chọn thông báo qua API |
-| Workspace | Danh sách, chi tiết và quản lý workspace/thành viên theo quyền | Dùng API trong phiên đăng nhập; dữ liệu mẫu chỉ bật tường minh ở dev |
-| Project | Quản lý project trong workspace | Đã nối tạo/đổi tên/xóa, thành viên, chuyển quyền và upload CSV |
-| Dataset | Upload, metadata, schema, đổi tên và xóa | Có repository draft cục bộ và luồng thử CSV trong Workspace 3D |
-| Visualization | Cursor grid, thống kê cột, sửa ô trực tuyến và ranh giới data 3D | Có trang review Dataset 3D với nguồn điểm mẫu |
+| Auth | Đăng nhập, đăng ký và quản lý phiên | UI gọi API đăng ký và đăng nhập, nhận callback Google và hỗ trợ gia hạn phiên theo xác nhận người dùng. |
+| User | Hồ sơ và vòng đời tài khoản | Workbench trực tuyến đọc hồ sơ từ API. Runtime nối thao tác xóa tài khoản với coordinator. |
+| Workspace | Danh sách, chi tiết và quản lý workspace/thành viên theo quyền | Workbench tải dữ liệu qua API cho phiên trực tuyến. Preview dev có fixture riêng. |
+| Project | Quản lý project trong workspace | Danh sách gần đây và chi tiết project dùng các luồng tải API theo phạm vi route. |
+| Dataset | Upload, metadata, schema và quản lý dataset | Project gọi API upload CSV, đọc schema, tải file gốc và xóa dataset. Bản nháp cục bộ có repository riêng. |
+| Visualization | Bảng records, thống kê cột và scene 3D | Data View đọc records theo con trỏ và thống kê cột từ API. Scene 3D vẫn có phần hiển thị mẫu. |
 | Transformation | Chuẩn bị, xem trước và thực thi phép biến đổi | Có plan; contract backend còn cần xác nhận |
 | Version / Lineage | Graph, truy vết và kiểm tra toàn vẹn; history/rollback khi có contract | Có plan; một số phần chờ backend |
 | Export | Preview, download và save-as-new khi có API phù hợp | Có plan; contract backend còn cần xác nhận |
@@ -76,21 +76,23 @@ React Router điều hướng bằng pathname; URL 2D mới không dùng `/previ
 | --- | --- |
 | `/management` | Home của khu vực quản lý |
 | `/management/workspaces`, `/management/workspaces/:workspaceId` | Danh sách và chi tiết workspace |
-| `/management/projects`, `/management/projects/:projectId` | Danh sách và chi tiết project |
+| `/management/projects` | Danh sách project |
+| `/management/members` | Thành viên và khu vực quản trị theo quyền |
 | `/management/projects?workspace=:workspaceId` | Danh sách project lọc theo workspace |
 | `/management/settings`, `/management/settings/:settingsSection` | Cài đặt và mục con |
 | `/management/notifications`, `/management/notifications/:notificationId` | Thông báo |
 | `/processing` | Trang mở đầu: chào mừng và Projects gần đây, không có sidebar |
-| `/processing/new` | Khung thông tin project mới, chờ kết nối dịch vụ tạo |
-| `/processing/projects/:projectId/upload`, `/analysis`, `/review`, `/results` | Các URL từng bước cũ chuyển hướng tới `/management/projects/:projectId` |
+| `/processing/new` | Tạo project, upload CSV và thêm thành viên qua API |
+| `/processing/projects/:projectId` | Chi tiết project và các panel dataset |
+| `/processing/projects/:projectId/upload`, `/analysis`, `/review`, `/results` | Các URL từng bước cũ chuyển hướng tới chi tiết project |
 
-Ví dụ URL cũ `/preview/home#/preview/projects/ws-acme/prj-sales` được chuyển hướng bằng `replace` tới `/management/projects/prj-sales`. Workspace không nằm trong định danh URL của project. ID hiện hỗ trợ chữ, số, `_` và `-`; workspace ở query là bộ lọc danh sách.
+Đường dẫn chi tiết hiện tại có dạng `/processing/projects/prj-sales`. ID workspace có thể dùng để lọc danh sách qua query `?workspace=` tại `/management/projects`.
 
 Mặc định dev và production đi qua `ProtectedRoute` cho Management, Processing và Dataset 3D. Riêng dev có thể đặt `VITE_MANAGEMENT_DATA_MODE=mock` để xem Management/Processing không cần BE; production không dùng nhánh này. Đích mặc định sau đăng nhập là `/processing`; đây chỉ là điều hướng, không chứng minh kết nối API nghiệp vụ. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project mở `/processing/new`; một dòng project mở trang Project hiện tại. Các màn quản lý nhận store API từ `ManagementDataProvider`; chế độ dev mock dùng fixture.
 
-**Upload và lưu kết quả:** Project chưa có dataset có nút Upload data và hộp chọn tệp trên thiết bị; upload thật chưa nối dịch vụ nên không gửi tệp hoặc gắn dataset giả. Mục Detection chuẩn bị khu vực lưu kết quả, hiện không khả dụng vì chưa có kết quả server xác nhận. `ConfirmedProjectResult` là biên tích hợp UI, không phải DTO backend: chỉ truyền vào khi có kết quả thật; callback `save` chỉ được resolve sau khi cả đánh giá và kết quả đã lưu trong hệ thống. Biểu mẫu bắt buộc 1–5 sao và nội dung không trắng, giữ nội dung để thử lại khi lưu lỗi, chặn gửi trùng khi đang chờ. Tải file là tùy chọn và chỉ được bật sau khi lưu thành công, nếu có dịch vụ download. Chưa tự tạo endpoint đánh giá hoặc nối API upload/lưu/xuất; quy tắc nơi lưu khi bỏ qua workspace vẫn chờ chốt.
+**Upload và lưu kết quả:** Project chưa có dataset có nút Upload data theo quyền upload. Tệp CSV được gửi qua API, UI chờ server xác nhận và tải lại dữ liệu; lỗi giữ hộp thoại để thử lại. Mục Detection vẫn cần kết quả server xác nhận. `ConfirmedProjectResult` là biên tích hợp UI, không phải DTO backend: callback `save` chỉ được resolve sau khi đánh giá và kết quả được lưu. Đợt tích hợp này chưa nối API lưu đánh giá/xuất kết quả Detection. Tải CSV gốc trong Data View là thao tác riêng với tải kết quả xử lý.
 
-**Hosting:** cần cấu hình SPA fallback: request giao diện như `/management/projects/prj-sales` và `/processing/new` phải trả `index.html`; giữ riêng đường dẫn API và static assets. Vite dev/preview hỗ trợ tải lại các route này. Repository chưa xác định nền tảng hosting production nên chưa có cấu hình triển khai cho một nhà cung cấp cụ thể.
+**Hosting.** Cấu hình SPA fallback để URL giao diện như `/processing/projects/prj-sales` và `/processing/new` trả `index.html`. Giữ riêng đường dẫn API và tài nguyên tĩnh. Vite dev/preview hỗ trợ tải lại các route này.
 
 **Layout và theme dùng chung:** `views/application/application-frame.tsx` giữ một UI session cho cả Management và Processing. Hai khu vực dùng `PreviewShell`/`PreviewTopbar`, cùng nền và token light/dark. Processing chỉ giữ header, không có sidebar hoặc nút thu gọn; nội dung dùng toàn bộ chiều ngang. Header Processing có lối về Quản lý và ngữ cảnh project thay cho bộ chọn phạm vi. Header có bộ chọn Sáng / Tối / Theo hệ thống trước chuông thông báo, dùng cùng lựa chọn với Settings → System → Color. Lựa chọn được lưu trên thiết bị khi storage khả dụng; nếu storage bị chặn, vẫn giữ trong phiên khi chuyển giữa hai khu vực nhưng không bảo đảm qua tải lại trang. Management giữ sidebar thu gọn; hai khu vực dùng chung menu tài khoản/thông báo/báo cáo.
 
@@ -221,10 +223,37 @@ Mở terminal tại thư mục **src/frontend** của repository:
 
 ~~~sh
 yarn install --frozen-lockfile
+yarn dev:cert
 yarn dev
 ~~~
 
-Mở URL **Local** mà Vite hiển thị trong terminal. Cổng thường dùng là 5173; nếu có tiến trình khác sử dụng, kiểm tra URL thực tế thay vì giả định cổng cố định.
+Dev server dùng `https://localhost:5173` và strict port. `yarn dev:cert` tạo certificate tự ký 30 ngày trong `certs/`, không ghi đè file có sẵn và không tự thêm trust vào trình duyệt. Trên macOS/Linux cần OpenSSL; trên Windows script mặc định gọi PowerShell (`pwsh`). Nếu có certificate đã được tin cậy, dùng `DEV_HTTPS_KEY` và `DEV_HTTPS_CERT` để chọn đường dẫn. Không commit certificate/private key. API dùng từ FE HTTPS cũng phải dùng HTTPS; cấu hình CORS của server cần chấp nhận origin FE. Thiếu certificate sẽ làm dev server không khởi động. Build không yêu cầu certificate; cấu hình E2E riêng không bật HTTPS.
+
+### Xem giao diện bằng mock local (PowerShell)
+
+Chạy trong `src/frontend`; nếu đã có dependencies và hai file certificate thì không cần cài hoặc tạo lại:
+
+~~~powershell
+$env:VITE_MANAGEMENT_DATA_MODE = "mock"
+npm run dev
+~~~
+
+Mở trực tiếp `https://localhost:5173/management` hoặc `https://localhost:5173/processing`. Chế độ này dùng dữ liệu mẫu, không cần backend hoặc đăng nhập. Mở `/` vẫn đi vào luồng đăng nhập; mock chỉ áp dụng cho các route Management/Processing khi chạy dev. Preview Workspace 3D riêng ở `https://localhost:5173/preview/workspaces-3d`. Các thao tác phụ thuộc API thật như Analysis không được mô phỏng đầy đủ.
+
+### Xem giao diện với API thật từ link Swagger (PowerShell)
+
+Dừng Vite bằng `Ctrl+C`. Ví dụ backend cung cấp Swagger tại `https://your-backend-host.example/api/v1/docs`, cấu hình và chạy lại:
+
+~~~powershell
+$env:VITE_MANAGEMENT_DATA_MODE = "api"
+$env:VITE_API_BASE_URL = "https://your-backend-host.example"
+$env:VITE_API_PREFIX = "/api/v1"
+npm run dev
+~~~
+
+Thay hostname ví dụ bằng hostname backend đang hoạt động. `VITE_API_BASE_URL` chỉ chứa origin (protocol, hostname và port nếu có); không thêm `/api/v1` hoặc `/docs`. Đặt prefix theo server thực tế. Mở `https://localhost:5173/auth/login`, đăng nhập tài khoản backend rồi vào `/processing` hoặc `/management`. Biến môi trường PowerShell ghi đè `.env`; khi đổi chế độ hoặc URL cần khởi động lại Vite. Nếu muốn lưu cấu hình, dùng `.env.local` (không commit), đồng thời bỏ các biến PowerShell cũ hoặc mở terminal mới để tránh bị ghi đè.
+
+Backend cần cho phép CORS từ `https://localhost:5173`, bật credentials và chấp nhận header `Authorization`. API phải là HTTPS khi dùng dev server HTTPS này. Nếu backend chỉ mở HTTP local, cần bật HTTPS hoặc dùng tunnel HTTPS trước. Với tunnel, cập nhật hostname mỗi khi link đổi. Mở Swagger thành công chưa chứng minh frontend đã kết nối: trong DevTools → Network, xác nhận request đăng nhập và tải danh sách trả 2xx từ đúng host, giao diện hiển thị dữ liệu của tài khoản. Lỗi 401 thường cần đăng nhập lại; lỗi CORS cần sửa origin phía backend; lỗi mixed content cần sửa protocol; lỗi 5xx cần kiểm tra backend.
 
 ### Build, lint và preview
 
@@ -240,13 +269,19 @@ Build chạy TypeScript build và Vite production build. Preview phục vụ b�
 
 Chạy `yarn test` để kiểm tra các suite frontend bằng Vitest, Testing Library và jsdom. Dùng [bản đồ test](src/__tests__/README.md) để chạy nhóm cụ thể. HTTP adapter giả và test DOM chỉ kiểm tra hành vi mô phỏng. Xác nhận API và WebGL cần môi trường tích hợp hoặc trình duyệt.
 
+`yarn test:e2e` chạy Playwright với **API thật**, không dùng mock HTTP. Vite E2E mở riêng `http://127.0.0.1:4173`; backend phải cho phép CORS từ origin này. Chỉ cấu hình công khai `VITE_API_BASE_URL`/`VITE_API_PREFIX` được đưa vào browser. Trong `.env.local` (không commit), khai báo `E2E_TEST_EMAIL` và `E2E_TEST_PASSWORD` của tài khoản thử; ca quản trị yêu cầu role `admin`. Hai biến này chỉ được đọc trong Node test runner. Thiếu credentials làm ca đăng nhập fail rõ ràng, không skip hoặc fallback sang dữ liệu giả.
+
+Suite kiểm tra guard, login/reload, logout và cờ thu hồi phiên phía BE, giao diện Admin, theme, tạo/đổi tên workspace/project và upload/đọc lại CSV giả lập. Lifecycle chỉ tạo tài nguyên `E2E-<uuid>` và dọn đúng ID do ca đó nhận về, theo thứ tự dataset → project → workspace; có workspace chứng minh thao tác xóa không ảnh hưởng bản ghi khác. Đây là xóa mềm theo API, không phải purge file R2. Chỉ chạy trên backend thử nghiệm đã được phép ghi/xóa dữ liệu thử. Không tái sử dụng refresh token cũ, đổi mật khẩu hoặc đăng ký tài khoản.
+
+Không có credentials vẫn có thể chạy riêng `yarn test:e2e tests/e2e/auth/anonymous-guard.spec.ts`. Bộ Vitest mock giữ nguyên cho timeout, lỗi mạng và race. Live E2E tắt trace để tránh lưu password/token trong network trace; screenshot lỗi và report nằm trong `.agents/testing-e2e/`. Không đưa artifact có thông tin tài khoản lên public.
+
 ### Quản lý phiên nền tảng
 
 Runtime ghép session storage và coordinator. AuthProvider theo dõi trạng thái phiên để cập nhật guard và UI. Coordinator điều phối khôi phục, gia hạn và kết thúc phiên. Xem [lib](src/lib/README.md) để tra cách lưu phiên và [services](src/services/README.md) để theo dõi điều kiện gia hạn.
 
 ### Cấu hình địa chỉ API
 
-[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Luồng chính đọc cấu hình khi tạo runtime. Nếu cấu hình sai, bootstrap chuyển lỗi tới UI. Hai nhánh preview dev được chọn trước khi nạp runtime chính.
+[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Luồng chính đọc cấu hình khi tạo runtime. Nếu cấu hình sai, bootstrap chuyển lỗi tới UI. Mock Management/Processing và preview Workspace 3D ở dev được chọn trước khi nạp runtime chính.
 
 Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin FE. Không đưa token, API key, password hoặc secret backend vào cấu hình FE; không in nội dung **.env** vào chat/tài liệu. Xem [AI usage](AI-usage.md).
 
@@ -256,7 +291,7 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 
 **Đầu vào.** Chạy dev server và mở `/management/workspaces`.
 
-**Kết quả theo source.** Entry preview chọn màn hình Workspaces và hiển thị fixture mẫu. Thao tác trong preview cập nhật mock store. Xem [views](src/views/README.md) để tra URL, các bộ dữ liệu và lệnh test.
+**Kết quả theo source.** Người dùng chưa đăng nhập được chuyển qua luồng đăng nhập. Khi có phiên trực tuyến, provider tải workspace/project từ API. Thao tác ghi chờ server xác nhận; API lỗi không được thay bằng fixture.
 
 ### Ví dụ luồng mục tiêu — chưa triển khai
 

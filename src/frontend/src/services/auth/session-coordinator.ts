@@ -261,7 +261,12 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
       try { await revoke(); serverRevoked = true } catch (error) { revokeError = safeError(error) }
     }
     // UI có thể login B trong lúc revoke A pending: không ghi đè snapshot B.
-    if (isCurrent(captured) && revokeError) publish(emptySnapshot('anonymous', revokeError, cleanupError))
+    if (isCurrent(captured) && revokeError) {
+      publish(emptySnapshot('anonymous', {
+        ...revokeError,
+        message: 'Chưa xác nhận được việc thu hồi phiên trên máy chủ.',
+      }, cleanupError))
+    }
     return { serverRevoked, revokeError, cleanupError }
   }
 

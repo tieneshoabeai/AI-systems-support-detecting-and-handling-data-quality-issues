@@ -5,6 +5,26 @@
  */
 
 export interface paths {
+    "/api/v1/datasets/{id}/columns/pii": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)
+         * @description Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.
+         */
+        patch: operations["DatasetsController_updateColumnPii"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -597,26 +617,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datasets/{id}/columns/pii": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)
-         * @description Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.
-         */
-        patch: operations["DatasetsController_updateColumnPii"];
-        trace?: never;
-    };
     "/api/v1/datasets/{id}/file": {
         parameters: {
             query?: never;
@@ -1186,6 +1186,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    DatasetsController_updateColumnPii: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …) */
+        requestBody: {
+            content: {
+                "application/json": {
+                    columns: {
+                        columnKey: string;
+                        isPii: boolean;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Thành công */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Key cột không tồn tại hoặc không có cột nào thay đổi */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Không tìm thấy dataset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AppController_getHealth: {
         parameters: {
             query?: never;
@@ -2306,50 +2350,6 @@ export interface operations {
         responses: {
             /** @description Thành công, không có nội dung phản hồi */
             204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DatasetsController_updateColumnPii: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        /** @description Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …) */
-        requestBody: {
-            content: {
-                "application/json": {
-                    columns: {
-                        columnKey: string;
-                        isPii: boolean;
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Thành công */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Key cột không tồn tại hoặc không có cột nào thay đổi */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Không tìm thấy dataset */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };

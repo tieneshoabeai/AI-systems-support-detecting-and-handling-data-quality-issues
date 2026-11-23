@@ -1,6 +1,6 @@
+import { Button, Input } from '../../../../components/ui/controls'
 import { useState } from 'react'
 import { Dialog } from '../../../../components/ui/overlay/dialog'
-import { Button, Input } from '../../../../components/ui/controls'
 import { createAccountService } from '../../../../services/auth/account.service'
 
 export function PasswordRecoveryDialog({ initialEmail, onClose }: { initialEmail: string; onClose: () => void }) {

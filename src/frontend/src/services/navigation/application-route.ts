@@ -13,6 +13,7 @@ const segment = (value: string): string => encodeURIComponent(value)
 // Workspace scope is a filter; a project has its own stable URL independent of its workspace.
 export const managementHref = (section: PreviewSectionId, ids: PreviewRouteIds = {}): string => {
   if (section === 'home') return '/management'
+  if (section === 'members') return '/management/members'
   if (section === 'projects') {
     if (ids.projectId) return projectHref(ids.projectId)
     return `/management/projects${ids.workspaceId ? `?workspace=${segment(ids.workspaceId)}` : ''}`
@@ -31,6 +32,7 @@ export const parseManagementRoute = (source: string): PreviewRoute | null => {
   if (id !== null && !resourceId.test(id)) return null
   const base: PreviewRoute = { section: 'home', workspaceId: null, projectId: null, notificationId: null, settingsSection: null }
   if (section === 'home') return parts.length === 1 ? base : null
+  if (section === 'members') return id === null ? { ...base, section } : null
   if (section === 'workspaces') return { ...base, section, workspaceId: id }
   if (section === 'projects') {
     if (id) return null

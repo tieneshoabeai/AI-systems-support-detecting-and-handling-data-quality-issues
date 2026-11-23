@@ -7,6 +7,7 @@ import { vi } from 'vitest'
 // Routing/theme suites use explicit fixture data. Provider/API behavior has its own suite.
 vi.mock('../../views/application/management-data-provider', () => ({
   ManagementDataProvider: ({ children }: { children: ReactNode }) => children,
+  ProcessingDataProvider: ({ children }: { children: ReactNode }) => children,
 }))
 
 // Explicit session fixture for existing routing/theme tests, never a product bypass.

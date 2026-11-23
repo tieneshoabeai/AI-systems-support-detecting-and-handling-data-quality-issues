@@ -1,0 +1,35 @@
+{
+  "url": "https://127.0.0.1:4181/auth/login",
+  "samples": [
+    {
+      "firstInputMs": 8530,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1743,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1839,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1550,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1484,
+      "scene": "ready",
+      "canvasCount": 1
+    }
+  ],
+  "trace": {
+    "firstInputMs": 1682,
+    "scene": "ready",
+    "canvasCount": 1
+  }
+}

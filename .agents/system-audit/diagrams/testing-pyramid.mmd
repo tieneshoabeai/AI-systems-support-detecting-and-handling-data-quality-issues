@@ -1,0 +1,4 @@
+flowchart BT
+  Unit["Unit / utility / mapping / session tests có source"] --> Integration["Provider + store + UI integration với mock transport"]
+  Integration --> Browser["Playwright API thật — trước ghép: 6 PASS / 1 FAIL"]
+  Browser --> Current["API mới + cleanup đã sửa — live retest UNVERIFIED"]

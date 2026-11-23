@@ -1,6 +1,4 @@
 import axios from 'axios'
-import { isShoppingDemo } from '../mocks/shopping-trends/demo-mode'
-import { shoppingAuthAdapter } from '../mocks/shopping-trends/auth-adapter'
 import type { AxiosAdapter } from 'axios'
 import { getApiConfig, parseApiConfig } from '../configs/api.config'
 import type { ApiClient, ApiEnvelope, ApiRequestOptions, TokenReader } from '../types'
@@ -68,14 +66,13 @@ const unwrapEnvelope = <T>(value: unknown): T => {
 }
 
 export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient => {
-  const demo = options.baseUrl === undefined && options.adapter === undefined && isShoppingDemo()
-  const config = demo ? parseApiConfig('https://demo.invalid/api/v1') : options.baseUrl === undefined
+  const config = options.baseUrl === undefined
     ? getApiConfig()
     : parseApiConfig(options.baseUrl)
   const instance = axios.create({
     baseURL: config.baseUrl,
     timeout: config.timeoutMs,
-    ...(demo ? { adapter: shoppingAuthAdapter } : options.adapter === undefined ? {} : { adapter: options.adapter }),
+    ...(options.adapter === undefined ? {} : { adapter: options.adapter }),
   })
 
   return {
@@ -85,7 +82,8 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           throw new ApiError({ kind: 'config', message: 'Request chưa khai báo chế độ xác thực.' })
         }
 
-        const health = request.scope === 'health'
+        const method = request.method ?? 'GET'
+        const health = request.scope === 'health' || (request.auth === 'public' && (request.method ?? 'GET') === 'GET' && request.path === '/health')
         if (health && (request.auth !== 'public' || (request.method ?? 'GET') !== 'GET'
           || !['/health', '/health/ready'].includes(request.path))) {
           throw new ApiError({ kind: 'config', message: 'Đường dẫn kiểm tra trạng thái không hợp lệ.' })
@@ -118,7 +116,7 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
 
         const response = await instance.request<unknown>({
           url,
-          method: request.method ?? 'GET',
+          method,
           data: request.data,
           ...(request.params === undefined ? {} : { params: request.params }),
           ...(request.signal === undefined ? {} : { signal: request.signal }),
@@ -127,8 +125,13 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
           headers,
         })
 
-        console.info('[qa-network]', request.method ?? 'GET', request.path, response.status)
-        if (response.status === 204) return undefined as T
+        if (request.includeStatus) return { status: response.status, data: response.data } as T
+        if (response.status === 204) {
+          if (request.requireBody) {
+            throw new ApiError({ kind: 'invalid-response', status: 204, message: 'API trả về 204 nhưng thao tác này cần dữ liệu phản hồi.' })
+          }
+          return undefined as T
+        }
         if (request.responseType === 'blob') return response.data as T
         return unwrapEnvelope<T>(response.data)
       } catch (error) {

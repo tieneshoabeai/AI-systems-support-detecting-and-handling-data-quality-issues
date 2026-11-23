@@ -61,7 +61,7 @@ Mount trong React ở trình duyệt. Tab đang hiển thị và tùy chọn gi�
 
 ## 6. Luồng hoạt động
 
-AuthProvider → `useAuth()` → `useLogin()` → submit → coordinator cập nhật snapshot. Preview nhận ID từ URL và theo dõi mock store bằng `useSyncExternalStore`. Motion nhận thay đổi media query hoặc visibility rồi cập nhật `moving`.
+AuthProvider → `useAuth()` → `useLogin()` → submit → coordinator cập nhật snapshot. Hook preview theo dõi store do provider cấp bằng `useSyncExternalStore`. Motion nhận thay đổi media query hoặc visibility rồi cập nhật `moving`.
 
 ## 7. Cấu hình
 
@@ -73,7 +73,7 @@ AuthProvider → `useAuth()` → `useLogin()` → submit → coordinator cập n
 
 ## 8. Quy ước & bất biến
 
-Gọi hook ở cấp trên cùng của function component hoặc hook. Hook không chứa JSX và không import `app`, `views` hoặc `components`. Đọc mock store qua subscription để React nhận thay đổi. Selector trả `null` nếu ID đã mất khỏi snapshot.
+Gọi hook ở cấp trên cùng của function component hoặc hook. Hook không chứa JSX và không import `app`, `views` hoặc `components`. Đọc store qua subscription để React nhận thay đổi. Selector trả `null` nếu ID đã mất khỏi snapshot.
 
 ## 9. Test & debug
 
@@ -81,7 +81,7 @@ Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview/pr
 
 ## 10. Giới hạn & lưu ý
 
-Preview hook chỉ thao tác fixture cục bộ. Hook motion cần API trình duyệt hoặc stub thích hợp trong jsdom.
+`use-preview-session.ts` đọc snapshot từ store được cấp cho workbench. Store trực tuyến lấy dữ liệu qua service. Preview dev và Demo có store fixture riêng. [ManagementLoadingContext](preview/management-loading-context.ts) chuyển trạng thái tải hoặc lỗi kèm callback thử lại từ provider tới từng vùng UI. Hook motion cần API trình duyệt hoặc stub thích hợp trong jsdom.
 
 ## 11. Hướng cải tiến
 

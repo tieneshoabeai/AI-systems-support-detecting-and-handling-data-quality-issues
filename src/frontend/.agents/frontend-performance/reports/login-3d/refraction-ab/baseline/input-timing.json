@@ -1,0 +1,41 @@
+{
+  "url": "https://127.0.0.1:4183/auth/login",
+  "samples": [
+    {
+      "firstInputMs": 1258,
+      "maxInputGapMs": 88,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1183,
+      "maxInputGapMs": 135,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1246,
+      "maxInputGapMs": 110,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1073,
+      "maxInputGapMs": 91,
+      "scene": "ready",
+      "canvasCount": 1
+    },
+    {
+      "firstInputMs": 1046,
+      "maxInputGapMs": 79,
+      "scene": "ready",
+      "canvasCount": 1
+    }
+  ],
+  "trace": {
+    "firstInputMs": 1075,
+    "maxInputGapMs": 83,
+    "scene": "ready",
+    "canvasCount": 1
+  }
+}

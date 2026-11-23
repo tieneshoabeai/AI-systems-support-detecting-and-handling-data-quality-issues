@@ -4,7 +4,7 @@ import { ResourceAccessActions } from '../../resource/access'
 import { useEffect, useState } from 'react'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { WorkspaceDetailOverview } from '../../../services/management/management.types'
-import type { Person, PreviewWorkspacePanel, Project, Workspace, WorkspaceEdit } from '../../../types/preview/preview.types'
+import type { Person, PreviewWorkspacePanel, Project, Workspace, WorkspaceEdit } from '../../../types'
 import {
   directory, emailForPerson, personFromEmail, previewNoteIds, previewReasons, workspaceMemberRows,
 } from '../../../hooks/preview/preview-presentation'
@@ -110,17 +110,17 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
         </div>
       </div>
 
-      <dl className="ws-edit-info">
-        <div><dt><PreviewIcon name="shield" /> Chủ sở hữu</dt>
-          <dd><span className="info-owner"><Avatar initials={workspace.owner.initials} size="sm" />{workspace.owner.name}</span>
-            <span className="info-sub">{ownerEmail}</span></dd></div>
-        <div><dt><PreviewIcon name="clock" /> Ngày tạo</dt><dd>{workspace.createdAt}</dd></div>
-        <div><dt><PreviewIcon name="reset" /> Cập nhật gần nhất</dt><dd>{workspace.updatedAt}</dd></div>
+    <dl className="ws-edit-info">
+      <div><dt><PreviewIcon name="shield" /> Chủ sở hữu</dt>
+        <dd><span className="info-owner"><Avatar initials={workspace.owner.initials} size="sm" />{workspace.owner.name}</span>
+          <span className="info-sub">{ownerEmail}</span></dd></div>
+      <div><dt><PreviewIcon name="clock" /> Ngày tạo</dt><dd>{workspace.createdAt}</dd></div>
+      <div><dt><PreviewIcon name="reset" /> Cập nhật gần nhất</dt><dd>{workspace.updatedAt}</dd></div>
         <div><dt><PreviewIcon name="users" /> Số lượng thành viên</dt><dd>{overview?.memberCount ?? workspace.members} thành viên</dd></div>
         <div><dt><PreviewIcon name="box" /> Số lượng Project</dt><dd>{overview?.projectCount ?? projectCount} Project</dd></div>
         {overview && <div><dt><PreviewIcon name="database" /> Dung lượng đã dùng</dt><dd>{(overview.storageUsedBytes / 1073741824).toFixed(2)} GB</dd></div>}
         {overviewError !== '' && <div className="span-all"><dt>Tổng quan máy chủ</dt><dd role="status">{overviewError} Đang hiển thị số liệu đã tải trước đó.</dd></div>}
-      </dl>
+    </dl>
 
       {error && <p className="dialog-error" id="ws-edit-error" role="alert">{error}</p>}
       <footer className="dialog-actions">

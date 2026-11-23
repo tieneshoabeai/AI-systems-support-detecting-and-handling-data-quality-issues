@@ -10,7 +10,6 @@ import { ProjectInfoCard } from './components/project-info-card'
 import { ProjectPanelSurface } from './components/project-members-dialog'
 import { ProjectWizard } from './components/project-wizard'
 import { WorkspacePanelSurface } from './components/workspace-detail-dialogs'
-import { ShoppingDemoBanner } from './components/shopping-demo-banner'
 
 // Bọc flow (hooks/preview/use-preview-session.ts) với các surface nổi rồi phát xuống cây
 // qua context. Đây là component composition nên nằm ở tầng view; logic thao tác vẫn
@@ -34,7 +33,6 @@ export function PreviewSessionProvider({ routeIds, navigateUniverse, navigateSec
 
   return <PreviewSessionContext.Provider value={model}>
     <div data-preview="2d" data-theme={model.appearance.resolved}>
-      <ShoppingDemoBanner />
       {children}
       <PreviewContextMenu request={model.menu} onRun={model.run} onClose={model.closeMenu}
         onInfoHover={(projectId, element) => model.openInfo({ projectId, origin: { kind: 'anchor', element }, side: 'right' })}

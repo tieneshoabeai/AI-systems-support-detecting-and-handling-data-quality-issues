@@ -30,7 +30,7 @@ import { ALL_TOWER_IDS, buildClearance, coreSurfaceGap, coreSurfaces } from './s
 const BASELINE = resolve(process.cwd(), '.agents/dataset-3d-core/fingerprint/p1-orbit-clearance.ndjson')
 
 function parseLines(text: string): string[] {
-  return text.split('\n').filter(line => line && !line.startsWith('#'))
+  return text.split(/\r?\n/).filter(line => line && !line.startsWith('#'))
 }
 
 function field(lines: string[], prefix: string, key: string): number {

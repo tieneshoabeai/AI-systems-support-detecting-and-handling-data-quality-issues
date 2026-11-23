@@ -261,7 +261,7 @@ it('xóa phải xác nhận, và sau xác nhận vẫn Hoàn tác được', asy
   fireEvent.contextMenu(cardByTitle('Acme Corp'), { clientX: 100, clientY: 100 })
   fireEvent.click(menuItem('Xóa Workspace'))
 
-  const dialog = screen.getByRole('alertdialog', { name: 'Gỡ “Acme Corp” khỏi danh sách?' })
+  const dialog = screen.getByRole('alertdialog', { name: 'Gỡ “Acme Corp” khỏi danh sách mẫu?' })
   // Không phải mọi thao tác đều cần confirm; ở đây confirm là thật vì workspace kéo theo project.
   expect(dialog.textContent).toContain('12 project')
   fireEvent.click(screen.getByRole('button', { name: 'Giữ lại' }))
@@ -318,8 +318,8 @@ it('xóa project từ ⋯: phải xác nhận, danh sách và tab cùng đổi t
   fireEvent.contextMenu(cardByTitle('Sales Analytics'), { clientX: 100, clientY: 100 })
   fireEvent.click(menuItem('Xóa Project'))
 
-  const dialog = screen.getByRole('alertdialog', { name: 'Gỡ “Sales Analytics” khỏi danh sách?' })
-  expect(dialog.textContent).toContain('Project sẽ bị xóa')
+  const dialog = screen.getByRole('alertdialog', { name: 'Gỡ “Sales Analytics” khỏi danh sách mẫu?' })
+  expect(dialog.textContent).toContain('chỉ gỡ bản ghi khỏi danh sách mẫu trong bộ nhớ tab')
   fireEvent.click(screen.getByRole('button', { name: 'Gỡ khỏi danh sách' }))
 
   expect(await screen.findByText('Đã xóa Sales Analytics khỏi danh sách mẫu')).toBeDefined()
