@@ -1,11 +1,10 @@
+/** DATA-VIEW — Types (Template Simple). Gop application types + entity RecordQuery + VO limit/filter. */
 /**
  * DATA-VIEW — Kiểu dữ liệu tầng application (input/output contract).
  *
  * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
  * Không import HTTP, không import infrastructure.
  */
-
-import type { RecordFilterOperator } from '../../datasets';
 
 export interface GetRecordsInput {
   cursor?: string;
@@ -96,4 +95,81 @@ export interface ChartDataResult {
   box_plot?: ChartBoxPlot;
   /** Chỉ có với cột `string` / `boolean`. */
   category?: ChartCategory;
+}
+
+// --- Gop tu domain/entities/record-query.entity.ts ---
+
+export interface RecordQueryProps {
+  datasetId: string;
+  limit: number;
+}
+
+export class RecordQuery {
+  private constructor(private readonly props: RecordQueryProps) {}
+
+  static create(props: RecordQueryProps): RecordQuery {
+    return new RecordQuery({ ...props, limit: normalizeRecordLimit(props.limit) });
+  }
+
+  get limit(): number {
+    return this.props.limit;
+  }
+
+  static fieldPath(columnKey: string): string {
+    return propsPath(columnKey);
+  }
+}
+
+// --- Gop tu domain/value-objects/record-query.vo.ts ---
+export const DEFAULT_RECORD_LIMIT = 50;
+
+export const MAX_RECORD_LIMIT = 500;
+
+export function normalizeRecordLimit(limit: number | undefined): number {
+  if (!Number.isFinite(limit) || (limit as number) <= 0) return DEFAULT_RECORD_LIMIT;
+  return Math.min(Math.floor(limit as number), MAX_RECORD_LIMIT);
+}
+
+// --- Gop tu domain/value-objects/record-filter.vo.ts ---
+/**
+ * DATA-VIEW — Value objects pure (domain).
+ * Khong phu thuoc NestJS/Mongoose. Chua operator hop le + props path + resolve key.
+ */
+
+export const RECORD_FILTER_OPERATORS = [
+  'equals',
+  'notEquals',
+  'contains',
+  'notContains',
+  'startsWith',
+  'endsWith',
+  'greaterThan',
+  'greaterThanOrEqual',
+  'lessThan',
+  'lessThanOrEqual',
+  'between',
+  'in',
+  'isEmpty',
+  'isNotEmpty',
+] as const;
+
+export type RecordFilterOperator = (typeof RECORD_FILTER_OPERATORS)[number];
+
+export function isValidOperator(op: string): op is RecordFilterOperator {
+  return (RECORD_FILTER_OPERATORS as readonly string[]).includes(op);
+}
+
+export function propsPath(columnKey: string): string {
+  return `props.${columnKey}`;
+}
+
+/** Giai key cot: uu tien key c{i}, sau do ten hien thi / ten goc. Pure, dung o application. */
+export function resolveColumnKeyPure(
+  input: string,
+  keys: string[],
+  names: Map<string, string>,
+): string | null {
+  if (keys.includes(input)) return input;
+  const hit = names.get(input);
+  return hit ?? null;
 }

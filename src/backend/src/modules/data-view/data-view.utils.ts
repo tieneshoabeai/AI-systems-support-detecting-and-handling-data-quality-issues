@@ -1,12 +1,13 @@
+/** DATA-VIEW — Utils (Template Simple). Giu isObjectIdHex/decodeRowCursor/toSnakeStats/resolveColumnKey. */
 /**
  * DATA-VIEW — Hàm thuần dùng chung cho handlers.
  *
  * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
  */
 
-import { CursorCodec } from '../../../shared/domain/pagination/cursor-codec';
-import { type DomainError, ValidationError } from '../../../shared/domain/errors';
-import type { ColumnStatsResult as DomainColumnStats } from '../../datasets';
+import { CursorCodec } from '../../shared/domain/pagination/cursor-codec';
+import { type DomainError, ValidationError } from '../../shared/domain/errors';
+import type { ColumnStatsResult as DomainColumnStats } from '../datasets';
 import type { ColumnStatsResult } from './data-view.types';
 
 export function validationError(message: string): DomainError {

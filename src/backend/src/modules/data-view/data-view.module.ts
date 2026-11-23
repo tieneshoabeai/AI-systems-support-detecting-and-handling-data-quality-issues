@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
-import { DataViewController } from './presentation/controllers/data-view.controller';
+import { DataViewController } from './data-view.routes';
+import { DataViewService } from './data-view.service';
 import { DatasetsModule } from '../datasets/datasets.module';
-import { GetColumnStatsHandler } from './application/queries/get-column-stats.handler';
-import { GetChartDataHandler } from './application/queries/get-chart-data.handler';
-import { GetRecordsHandler } from './application/queries/get-records.handler';
-import { QueryRecordsHandler } from './application/queries/query-records.handler';
 
 /**
  * DATA-VIEW — Module Virtual Grid (đọc bản ghi dataset).
@@ -16,7 +13,7 @@ import { QueryRecordsHandler } from './application/queries/query-records.handler
 @Module({
   imports: [DatasetsModule],
   controllers: [DataViewController],
-  providers: [GetRecordsHandler, QueryRecordsHandler, GetColumnStatsHandler, GetChartDataHandler],
+  providers: [DataViewService],
   exports: [],
 })
 export class DataViewModule {}

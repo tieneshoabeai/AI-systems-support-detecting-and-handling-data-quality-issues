@@ -13,11 +13,21 @@ export type HandlerClass = abstract new (...args: never[]) => unknown;
 
 /** Suy luận type của proxy từ map `{ methodName: HandlerClass }`. */
 export type ProxyOf<T extends Record<string, HandlerClass>> = {
-  [K in keyof T]: T[K] extends abstract new (...args: never[]) => {
-    execute: (...args: infer A) => infer R;
-  }
-    ? (...args: A) => Promise<Awaited<R>>
-    : (...args: unknown[]) => Promise<unknown>;
+  [K in keyof T]: T[K] extends abstract new (...args: never[]) => infer I
+    ? K extends keyof I
+      ? I[K] extends (...args: infer A) => infer R
+        ? (...args: A) => Promise<Awaited<R>>
+        : T[K] extends abstract new (...args: never[]) => {
+              execute: (...args: infer A2) => infer R2;
+            }
+          ? (...args: A2) => Promise<Awaited<R2>>
+          : (...args: never[]) => Promise<unknown>
+      : T[K] extends abstract new (...args: never[]) => {
+            execute: (...args: infer A2) => infer R2;
+          }
+        ? (...args: A2) => Promise<Awaited<R2>>
+        : (...args: never[]) => Promise<unknown>
+    : never;
 };
 
 /**

@@ -5,7 +5,7 @@ import { UsersController } from '../src/modules/users/presentation/controllers/u
 import { WorkspacesController } from '../src/modules/workspaces/presentation/controllers/workspaces.controller';
 import { ProjectsController } from '../src/modules/projects/presentation/controllers/projects.controller';
 import { DatasetsController } from '../src/modules/datasets/presentation/controllers/datasets.controller';
-import { DataViewController } from '../src/modules/data-view/presentation/controllers/data-view.controller';
+import { DataViewController } from '../src/modules/data-view/data-view.routes';
 import { AnalysisController } from '../src/modules/analysis/presentation/controllers/analysis.controller';
 import { SummaryController } from '../src/modules/analysis/presentation/controllers/summary.controller';
 import { ReportController } from '../src/modules/analysis/presentation/controllers/report.controller';

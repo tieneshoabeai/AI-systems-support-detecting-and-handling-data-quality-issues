@@ -53,7 +53,7 @@
 | P2 audit | 338 | 31 439 | -5 subdirs (audit phang) | xanh (arch+guard+contract) | 84/84 | LogHandler+adapter gop thanh AuditService.log() |
 | P3 overview | 338 | 31 416 | subdirs 150->146 | xanh (step3 34/34 + arch/guard/contract) | 84/84 | 2 handler gop thanh OverviewService; tooling + guard ho tro *.routes.ts |
 | P3 realtime | 338 | 31 416 | subdirs 146->139 | xanh (realtime 47/47 + arch/guard/contract) | 84/84 | git mv 6 file ra goc, giu @Global + gateway config + subscriber OnModuleInit |
-| P3 data-view | | | | | | |
+| P3 data-view | 329 | 31 306 | subdirs 139->131 | xanh (data-view/chart 52 + arch/guard/contract) | 84/84 | 4 handler gop thanh DataViewService; 3 DTO gop vao routes; VO/entity gop vao types |
 | P3 notifications | | | | | | |
 | P3 feedback | | | | | | |
 | P4 (4 H) | | | | | | file không đổi |

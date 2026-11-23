@@ -68,16 +68,13 @@ export const authHandlers = {
 } as const;
 
 // -------------------- data-view --------------------
-import { GetChartDataHandler as DataViewGetChartDataHandler } from '../../src/modules/data-view/application/queries/get-chart-data.handler';
-import { GetColumnStatsHandler as DataViewGetColumnStatsHandler } from '../../src/modules/data-view/application/queries/get-column-stats.handler';
-import { GetRecordsHandler as DataViewGetRecordsHandler } from '../../src/modules/data-view/application/queries/get-records.handler';
-import { QueryRecordsHandler as DataViewQueryRecordsHandler } from '../../src/modules/data-view/application/queries/query-records.handler';
+import { DataViewService as DataViewDataViewService } from '../../src/modules/data-view/data-view.service';
 
 export const dataviewHandlers = {
-  getChartData: DataViewGetChartDataHandler,
-  getColumnStats: DataViewGetColumnStatsHandler,
-  getRecords: DataViewGetRecordsHandler,
-  queryRecords: DataViewQueryRecordsHandler,
+  getChartData: DataViewDataViewService,
+  getColumnStats: DataViewDataViewService,
+  getRecords: DataViewDataViewService,
+  queryRecords: DataViewDataViewService,
 } as const;
 
 // -------------------- datasets --------------------

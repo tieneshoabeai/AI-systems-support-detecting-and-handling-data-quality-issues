@@ -19,7 +19,7 @@ import {
   clampChartTopN,
   histogram,
 } from '../src/shared/domain/utils/chart-data.util';
-import { GetChartDataHandler } from '../src/modules/data-view/application/queries/get-chart-data.handler';
+import { DataViewService } from '../src/modules/data-view/data-view.service';
 
 const datasetId = new Types.ObjectId().toHexString();
 
@@ -122,8 +122,8 @@ describe('GĐ6 — chart-data.util (hàm thuần)', () => {
   });
 });
 
-describe('GĐ6 — GetChartDataHandler', () => {
-  let handler: GetChartDataHandler;
+describe('GĐ6 — DataViewService.getChartData', () => {
+  let handler: DataViewService;
   let records: { getColumnValues: jest.Mock };
   let datasetsPort: { findById: jest.Mock };
 
@@ -156,26 +156,26 @@ describe('GĐ6 — GetChartDataHandler', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        GetChartDataHandler,
+        DataViewService,
         { provide: RECORD_QUERY_PORT, useValue: records },
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsPort },
       ],
     }).compile();
 
-    handler = module.get(GetChartDataHandler);
+    handler = module.get(DataViewService);
   });
 
   it('ID dataset khong hop le -> ValidationError', async () => {
-    await expect(handler.execute('khong-hop-le')).rejects.toThrow(/ID Tap du lieu khong hop le/);
+    await expect(handler.getChartData('khong-hop-le')).rejects.toThrow(/ID Tap du lieu khong hop le/);
   });
 
   it('dataset khong ton tai -> NotFoundError', async () => {
     datasetsPort.findById.mockResolvedValueOnce(null);
-    await expect(handler.execute(datasetId)).rejects.toThrow(/Khong tim thay tap du lieu/);
+    await expect(handler.getChartData(datasetId)).rejects.toThrow(/Khong tim thay tap du lieu/);
   });
 
   it('cot so -> histogram + box_plot', async () => {
-    const charts = await handler.execute(datasetId, { columns: ['c0'] });
+    const charts = await handler.getChartData(datasetId, { columns: ['c0'] });
     expect(charts).toHaveLength(1);
     const c = charts[0]!;
     expect(c.column_key).toBe('c0');
@@ -187,7 +187,7 @@ describe('GĐ6 — GetChartDataHandler', () => {
   });
 
   it('cot phan loai -> category Top N, khong co histogram', async () => {
-    const charts = await handler.execute(datasetId, { columns: ['c1'], topN: 2 });
+    const charts = await handler.getChartData(datasetId, { columns: ['c1'], topN: 2 });
     const c = charts[0]!;
     expect(c.category).toBeDefined();
     expect(c.category!.top_n).toBe(2);
@@ -198,13 +198,13 @@ describe('GĐ6 — GetChartDataHandler', () => {
   });
 
   it('cot boolean -> category', async () => {
-    const charts = await handler.execute(datasetId, { columns: ['c2'] });
+    const charts = await handler.getChartData(datasetId, { columns: ['c2'] });
     expect(charts[0]!.category).toBeDefined();
     expect(charts[0]!.category!.items.map((i) => i.value).sort()).toEqual(['false', 'true']);
   });
 
   it('cot date -> chi ty le thieu, khong co bieu do', async () => {
-    const charts = await handler.execute(datasetId, { columns: ['c3'] });
+    const charts = await handler.getChartData(datasetId, { columns: ['c3'] });
     const c = charts[0]!;
     expect(c.data_type).toBe('date');
     expect(c.histogram).toBeUndefined();
@@ -214,7 +214,7 @@ describe('GĐ6 — GetChartDataHandler', () => {
   });
 
   it('ty le thieu: dem gia tri null, khong tu dien 0', async () => {
-    const charts = await handler.execute(datasetId, { columns: ['c0'] });
+    const charts = await handler.getChartData(datasetId, { columns: ['c0'] });
     const c = charts[0]!;
     expect(c.sampled_records).toBe(6);
     expect(c.missing_count).toBe(1);
@@ -222,25 +222,25 @@ describe('GĐ6 — GetChartDataHandler', () => {
   });
 
   it('top_n mac dinh = 5', async () => {
-    const charts = await handler.execute(datasetId, { columns: ['c1'] });
+    const charts = await handler.getChartData(datasetId, { columns: ['c1'] });
     expect(charts[0]!.category!.top_n).toBe(5);
   });
 
   it('loc cot theo ten hien thi va ten goc', async () => {
-    const byDisplay = await handler.execute(datasetId, { columns: ['amount'] });
+    const byDisplay = await handler.getChartData(datasetId, { columns: ['amount'] });
     expect(byDisplay[0]!.column_key).toBe('c0');
-    const byOriginal = await handler.execute(datasetId, { columns: ['Customer'] });
+    const byOriginal = await handler.getChartData(datasetId, { columns: ['Customer'] });
     expect(byOriginal[0]!.column_key).toBe('c1');
   });
 
   it('cot khong ton tai -> NotFoundError', async () => {
-    await expect(handler.execute(datasetId, { columns: ['khong_co'] })).rejects.toThrow(
+    await expect(handler.getChartData(datasetId, { columns: ['khong_co'] })).rejects.toThrow(
       /Khong tim thay cot nao/,
     );
   });
 
   it('khong loc -> tra ve moi cot cua dataset', async () => {
-    const charts = await handler.execute(datasetId);
+    const charts = await handler.getChartData(datasetId);
     expect(charts).toHaveLength(4);
     expect(charts.map((c) => c.column_key)).toEqual(['c0', 'c1', 'c2', 'c3']);
   });
@@ -253,14 +253,14 @@ describe('GĐ6 — GetChartDataHandler', () => {
       sampledRecords: 3,
       truncated: true,
     });
-    const charts = await handler.execute(datasetId, { columns: ['c0'] });
+    const charts = await handler.getChartData(datasetId, { columns: ['c0'] });
     expect(charts[0]!.truncated).toBe(true);
     expect(charts[0]!.total_records).toBe(1000);
     expect(charts[0]!.sampled_records).toBe(3);
   });
 
   it('max_rows duoc gioi han o MAX_CHART_SAMPLE_ROWS', async () => {
-    await handler.execute(datasetId, { columns: ['c0'], maxRows: 999_999 });
+    await handler.getChartData(datasetId, { columns: ['c0'], maxRows: 999_999 });
     const call = records.getColumnValues.mock.calls[0]!;
     expect(call[3]).toBe(50_000);
   });

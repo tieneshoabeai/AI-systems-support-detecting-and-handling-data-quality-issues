@@ -1,3 +1,12 @@
+# MÔ-ĐUN `data-view` — Virtual Grid (Template: Simple)
+
+> **P3.3 (2026-11-24):** Flatten từ Hexagonal → Simple Monolith theo ADR-0002.
+> - Vì sao Simple: 4 query chỉ-đọc, không DB riêng (đọc qua `RECORD_QUERY_PORT` của `datasets`), không invariant/transaction/outbox.
+> - Bất biến: 4 route `GET records`, `POST records/query` (tách riêng), `GET columns/:columnKey/stats` (key `c{i}` ổn định), `GET charts` (histogram/boxplot/TopN + PII masked); limit `DEFAULT 50/MAX 500 + normalizeRecordLimit`; DTO Zod giữ nguyên qua pipe; guard Jwt+Policies + `DatasetPolicyLoader` (2 resource `DataRecord`/`Dataset`).
+> - Cấu trúc mới: `data-view.service.ts (4 method) + data-view.routes.ts (controller + 3 DTO gộp) + data-view.types.ts (types + entity RecordQuery + VO limit/filter) + data-view.utils.ts + index.ts + data-view.module.ts` (giữ `imports: [DatasetsModule]`).
+> - Cấm: tự khai schema `DatasetRecord` (CA6/L2), đổi Symbol port (TC-03), đổi thứ tự/tham số method (BC), gộp route records/query.
+
+---
 # MÔ-ĐUN `data-view` — Lưới dữ liệu ảo
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

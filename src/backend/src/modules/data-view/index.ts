@@ -1,35 +1,35 @@
-/**
- * Public contract của module DATA-VIEW (Virtual Grid).
- *
- * Các module khác chỉ được import qua file này (quy tắc CA8 — cross-module
- * import phải đi qua public contract), không import sâu vào
- * `domain/ports/...` hay `application/...`.
- *
- * Lưu ý L2 (R3/CA6): module này KHÔNG sở hữu schema Mongoose `DatasetRecord`.
- * Việc đọc bản ghi đi qua `RECORD_QUERY_PORT` thuộc module `datasets`
- * (xem `modules/datasets/index.ts`).
- */
-
-
+/** Public contract cua module DATA-VIEW (Template Simple). */
+export { DataViewService, MAX_CHART_SAMPLE_ROWS, MAX_CHART_COLUMNS } from './data-view.service';
+export type {
+  GetRecordsInput,
+  QueryRecordsBodyInput,
+  ColumnStatsResult,
+  ChartDataResult,
+  ChartHistogram,
+  ChartHistogramBin,
+  ChartBoxPlot,
+  ChartCategory,
+  ChartCategoryItem,
+  RecordQueryProps,
+  RecordFilterOperator,
+} from './data-view.types';
 export {
   DEFAULT_RECORD_LIMIT,
   MAX_RECORD_LIMIT,
   normalizeRecordLimit,
-} from './domain/value-objects/record-query.vo';
-
-export {
   RECORD_FILTER_OPERATORS,
   isValidOperator,
   propsPath,
   resolveColumnKeyPure,
-  type RecordFilterOperator,
-} from './domain/value-objects/record-filter.vo';
-
-export { GetRecordsHandler } from './application/queries/get-records.handler';
-export { GetColumnStatsHandler } from './application/queries/get-column-stats.handler';
-export { GetChartDataHandler } from './application/queries/get-chart-data.handler';
-
-// ── GĐ6 — Dữ liệu biểu đồ (E1) ─────────────────────────────────────────
+  RecordQuery,
+} from './data-view.types';
+export {
+  validationError,
+  isObjectIdHex,
+  decodeRowCursor,
+  toSnakeStats,
+  resolveColumnKey,
+} from './data-view.utils';
 export {
   DEFAULT_CHART_TOP_N,
   MAX_HISTOGRAM_BINS,
@@ -43,7 +43,3 @@ export {
   type HistogramBin,
   type BoxPlot,
 } from '../../shared/domain/utils/chart-data.util';
-
-// ── Handlers (Command/Query) ──────────────────────────
-// ── Queries (đọc) ──────────────────────────────────────────────
-export { QueryRecordsHandler } from './application/queries/query-records.handler';
