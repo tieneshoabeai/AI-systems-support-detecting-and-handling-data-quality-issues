@@ -111,26 +111,27 @@ export class FeedbackController {
   }
 
   @Patch('feedback/:id')
-  @ApiOperation({ summary: 'FB-05: Sửa nhận xét của chính mình' })
+  @ApiOperation({ summary: 'FB-05: Sửa nhận xét của chính mình (System Admin bị chặn)' })
   @ApiZodBody(UpdateFeedbackSchema)
   @ApiResponse({ status: 200, description: 'Thành công' })
+  @ApiResponse({ status: 403, description: 'System Admin không có quyền với nhóm nhận xét' })
   async updateMine(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateFeedbackSchema)) dto: UpdateFeedbackDto,
   ): Promise<Record<string, unknown>> {
-    return this.updateMineHandler.execute(user.userId, id, dto);
+    return this.updateMineHandler.execute(user.userId, user.role, id, dto);
   }
 
   @Delete('feedback/:id')
-  @ApiOperation({ summary: 'FB-05: Xoá nhận xét (chủ hoặc Owner xử lý vi phạm)' })
+  @ApiOperation({ summary: 'FB-05: Xoá nhận xét (chủ, Owner xử lý vi phạm, hoặc System Admin kiểm duyệt)' })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string): Promise<{ deleted: boolean; }> {
     return this.removeHandler.execute(user.userId, user.role, id);
   }
 
   @Get('projects/:projectId/ai-quality-metrics')
-  @ApiOperation({ summary: 'FB-06: Thống kê chất lượng AI theo project' })
+  @ApiOperation({ summary: 'FB-06: Thống kê chất lượng AI theo project (System Admin bị chặn)' })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async aiQualityMetrics(
     @CurrentUser() user: CurrentUserPayload,

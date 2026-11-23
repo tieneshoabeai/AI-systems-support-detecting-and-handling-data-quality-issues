@@ -1,23 +1,23 @@
-# Script Van Hanh & Bao Tri
+# Kịch bản vận hành & Bảo trì
 
-Cac script phuc vu van hanh, kiem thu, benchmark va bao tri code. Phan lon la **codemod** - chay mot lan trong qua trinh refactor, khong phai chay hang ngay.
+Các kịch bản (script) phục vụ vận hành, kiểm thử, đo hiệu năng (benchmark) và bảo trì mã nguồn. Phần lớn là **codemod** — chạy một lần trong quá trình tái cấu trúc, không phải chạy hằng ngày.
 
-> Moi script deu nen chay tu `src/backend` va dung `pnpm exec tsx <file>` hoac `node <file>` theo loai.
+> Mọi kịch bản đều nên chạy từ `src/backend` và dùng `pnpm exec tsx <tệp>` hoặc `node <tệp>` tùy loại.
 
 ---
 
-## 1. Kiem Tra Kien Truc
+## 1. Kiểm tra kiến trúc
 
-| Script | Cong | Dung khi |
+| Kịch bản | Công dụng | Dùng khi nào |
 |---|---|---|
-| `check-api-coverage.cjs` | Do khớp hop dong API §3.13 voi ma nguon | Truoc khi merge, sau moi thay doi route |
-| `extract-routes.cjs` | Trich danh sach route tu controller | Sinh tai lieu hop dong |
-| `list-cross-module-imports.ts` | Liet ke import cheo giua module | Phat hien vi pham CA8 |
-| `generate-arch-baseline.ts` | Sinh baseline kien truc (`test/fixtures/arch-baseline.json`) | Sau khi refactor co chu dich |
-| `verify-di-graph.ts` | Xac nhan do thi phu thuoc DI | Khi them module/provider |
-| `status-audit.cjs` | Tong hop trang thai cac muc checklist | Theo doi tien do |
+| `check-api-coverage.cjs` | Đối chiếu hợp đồng API §3.13 với mã nguồn | Trước khi hợp nhất (merge), sau mỗi thay đổi tuyến đường |
+| `extract-routes.cjs` | Trích danh sách tuyến từ controller | Sinh tài liệu hợp đồng |
+| `list-cross-module-imports.ts` | Liệt kê import chéo giữa các mô-đun | Phát hiện vi phạm CA8 |
+| `generate-arch-baseline.ts` | Sinh đường cơ sở kiến trúc (`test/fixtures/arch-baseline.json`) | Sau khi tái cấu trúc có chủ đích |
+| `verify-di-graph.ts` | Xác nhận đồ thị phụ thuộc DI | Khi thêm mô-đun/provider |
+| `status-audit.cjs` | Tổng hợp trạng thái các mục trong danh sách kiểm tra | Theo dõi tiến độ |
 
-Lenh bao loi cua cac script nay cung duoc goi qua `pnpm`:
+Lệnh bao ngoài của các kịch bản này cũng được gọi qua `pnpm`:
 
 ```bash
 pnpm arch:api-coverage
@@ -28,76 +28,76 @@ pnpm arch:verify-di
 
 ---
 
-## 2. Codemod & Refactor
+## 2. Codemod & Tái cấu trúc
 
-Cac script nay **tu dong sua ma nguon**. Luon review bang `git diff` truoc khi commit, va chay tren nhanh rieng truoc.
+Các kịch bản này **tự động sửa mã nguồn**. Luôn xem lại bằng `git diff` trước khi chốt (commit), và chạy trên nhánh riêng trước.
 
-| Script | Tac dung |
+| Kịch bản | Tác dụng |
 |---|---|
-| `codemod-domain-error.mjs` | Chuyen `throw new Error` -> `DomainError` co ma loi |
-| `normalize-domain-error-classes.mjs` | Chuoi hoa lop loi domain |
-| `codemod-test-domain-error.mjs` | Sua assertion trong test theo loi moi |
-| `codemod-test-assertions-multiline.mjs` | Format assertion test xuong dong |
-| `dedupe-test-error-imports.mjs` | Loai import trung lap trong test |
-| `cleanup-nestjs-exception-imports.mjs` | Loai import `HttpException` thua |
-| `cleanup-presentation-error-imports.mjs` | Don dep import loi o tang presentation |
-| `cleanup-unused-error-code-imports.mjs` | Loai import ma loi khong dung |
-| `fix-http-status-regression.mjs` | Sua regression HTTP status |
-| `fix-test-import-paths.mjs` | Sua duong dan import trong test |
-| `split-commands-queries.ts` | Tach handler thanh command / query |
-| `wire-handlers.ts` | Gien provider + controller goi handler |
-| `rebase-handler-imports.ts` | Chuan hoa import cua handler |
-| `map-handler-to-service.ts` | Sinh bang anh handler -> service |
-| `add-explicit-return-types.ts` | Them kieu tra ve tuong minh |
-| `fix-shared-app-files.ts` | Sua file trong `shared/application` |
-| `update-module-index.py` | Cap nhat `modules/index.ts` (public contract) |
-| `update-tests-for-handlers.py` | Sinh/sua test theo handler moi |
-| `generate-test-handlers.py` | Sinh test handler boilerplate |
-| `cleanup-old-services.py` | Xoa service da thay the |
-| `restore-step4-modules.py` | Khoi phuc module buoc 4 |
-| `_refactor_b1.py` | Refactor B1 |
+| `codemod-domain-error.mjs` | Chuyển `throw new Error` thành `DomainError` có mã lỗi |
+| `normalize-domain-error-classes.mjs` | Chuẩn hoá lớp lỗi domain |
+| `codemod-test-domain-error.mjs` | Sửa assertion trong kiểm thử theo lỗi mới |
+| `codemod-test-assertions-multiline.mjs` | Định dạng assertion kiểm thử xuống nhiều dòng |
+| `dedupe-test-error-imports.mjs` | Loại import trùng lặp trong kiểm thử |
+| `cleanup-nestjs-exception-imports.mjs` | Loại import `HttpException` thừa |
+| `cleanup-presentation-error-imports.mjs` | Dọn dẹp import lỗi ở tầng trình bày |
+| `cleanup-unused-error-code-imports.mjs` | Loại import mã lỗi không dùng |
+| `fix-http-status-regression.mjs` | Sửa hồi quy (regression) trạng thái HTTP |
+| `fix-test-import-paths.mjs` | Sửa đường dẫn import trong kiểm thử |
+| `split-commands-queries.ts` | Tách handler thành command / query |
+| `wire-handlers.ts` | Gắn provider + controller gọi handler |
+| `rebase-handler-imports.ts` | Chuẩn hoá import của handler |
+| `map-handler-to-service.ts` | Sinh bảng ánh xạ handler → service |
+| `add-explicit-return-types.ts` | Thêm kiểu trả về tường minh |
+| `fix-shared-app-files.ts` | Sửa tệp trong `shared/application` |
+| `update-module-index.py` | Cập nhật `modules/index.ts` (hợp đồng công khai) |
+| `update-tests-for-handlers.py` | Sinh/sửa kiểm thử theo handler mới |
+| `generate-test-handlers.py` | Sinh kiểm thử handler mẫu (boilerplate) |
+| `cleanup-old-services.py` | Xoá service đã thay thế |
+| `restore-step4-modules.py` | Khôi phục mô-đun ở bước 4 |
+| `_refactor_b1.py` | Tái cấu trúc B1 |
 
 ---
 
-## 3. Ha Tang & Dich Vu
+## 3. Hạ tầng & Dịch vụ
 
-| Script | Cong |
+| Kịch bản | Công dụng |
 |---|---|
-| `test-infra-up.sh` | Khoi dong MongoDB replica set + Redis + MinIO cho test |
-| `test-infra-down.sh` | Tat va don dep ha tang test |
-| `verify-external-services.ts` | Kiem tra dich vu ben ngoai (Mongo, Redis, S3) co hoat dong khong |
-| `bootstrap-database.ts` | Tao collection + index can thiet |
-| `seed-initial-data.ts` | Nap du lieu mau |
-| `migrate-coerce-and-orphans.ts` | Ep kieu du lieu & don orphan |
-| `backup-mongo.sh` / `restore-mongo.sh` | Sao luu / khoi phuc MongoDB |
-| `backup-storage.sh` | Sao luu storage |
-| `generate-ssl-certs.sh` | Sinh chung thu SSL tu ky |
-| `install-cloudflared.sh` | Cai cloudflared |
-| `start-cloudflare-tunnel.sh` | Khoi dong Cloudflare Tunnel |
-| `perf-report.sh` | Tong hop bao cao hieu nang |
+| `test-infra-up.sh` | Khởi động MongoDB replica set + Redis + MinIO cho kiểm thử |
+| `test-infra-down.sh` | Tắt và dọn dẹp hạ tầng kiểm thử |
+| `verify-external-services.ts` | Kiểm tra dịch vụ bên ngoài (Mongo, Redis, S3) có hoạt động không |
+| `bootstrap-database.ts` | Tạo collection + chỉ mục cần thiết |
+| `seed-initial-data.ts` | Nạp dữ liệu mẫu |
+| `migrate-coerce-and-orphans.ts` | Ép kiểu dữ liệu & dọn bản ghi mồ côi |
+| `backup-mongo.sh` / `restore-mongo.sh` | Sao lưu / khôi phục MongoDB |
+| `backup-storage.sh` | Sao lưu kho lưu trữ |
+| `generate-ssl-certs.sh` | Sinh chứng thư SSL tự ký |
+| `install-cloudflared.sh` | Cài đặt cloudflared |
+| `start-cloudflare-tunnel.sh` | Khởi động Cloudflare Tunnel |
+| `perf-report.sh` | Tổng hợp báo cáo hiệu năng |
 
 ---
 
-## 4. Benchmark
+## 4. Đo hiệu năng (Benchmark)
 
-| Script | Cong |
+| Kịch bản | Công dụng |
 |---|---|
-| `benchmark/` | Thu muc cac script benchmark mo hinh AI |
-| `lib/` | Tien ich dung chung cho benchmark |
+| `benchmark/` | Thư mục các kịch bản đo hiệu năng mô hình AI |
+| `lib/` | Tiện ích dùng chung cho benchmark |
 
 ```bash
-pnpm bench:models    # Chay benchmark mo hinh
-pnpm bench:gold     # Mo ta bo du lieu vang
-pnpm bench:stats    # So sanh ket qua
-pnpm bench:pareto   # Phan tich duong Pareto
+pnpm bench:models    # Chạy đo hiệu năng mô hình
+pnpm bench:gold      # Mô tả bộ dữ liệu vàng
+pnpm bench:stats     # So sánh kết quả giữa các mô hình
+pnpm bench:pareto    # Phân tích đường Pareto
 ```
 
 ---
 
-## 5. Luu Y Khi Chay Codemod
+## 5. Lưu ý khi chạy codemod
 
-1. **Lam viec tren nhanh rieng** - khong chay truc tiep tren nhanh chinh.
-2. **Commit/backup truoc khi chay** - de rollback duoc.
-3. **Review `git diff` sau khi chay** - codemod co the cham sai cho.
-4. **Chay `pnpm type-check && pnpm lint && pnpm test`** ngay sau.
-5. **Khong chay codemod lap lai** tren code da qua codemod - de sinh thay doi sai lan thu hai.
+1. **Làm việc trên nhánh riêng** — không chạy trực tiếp trên nhánh chính.
+2. **Chốt/sao lưu trước khi chạy** — để khôi phục (rollback) được.
+3. **Xem lại `git diff` sau khi chạy** — codemod có thể sửa sai chỗ.
+4. **Chạy `pnpm type-check && pnpm lint && pnpm test`** ngay sau đó.
+5. **Không chạy codemod lặp lại** trên mã nguồn đã qua codemod — dễ sinh thay đổi sai ở lần thứ hai.

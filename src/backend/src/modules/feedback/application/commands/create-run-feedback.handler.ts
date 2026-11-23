@@ -9,7 +9,6 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import {
   FEEDBACK_REPOSITORY_PORT,
-  type Feedback,
   type FeedbackRepositoryPort,
 } from '../../domain/ports/feedback.repository.port';
 import {
@@ -20,8 +19,8 @@ import {
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../../../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../../../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
-import { requiresReason } from '../../domain/value-objects/feedback-label.vo';
-import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { Feedback } from '../../domain/entities/feedback.entity';
+import { isObjectIdHex, newObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { CreateFeedbackInput } from '../feedback.types';
 import { toPlain } from '../feedback.utils';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
@@ -50,10 +49,9 @@ export class CreateRunFeedbackHandler {
     }
   }
 
-  private checkReason(label: string, reason: string | null | undefined): void {
-    if (requiresReason(label) && (!reason || reason.trim().length === 0)) {
-      throw new ValidationError('Nhãn này bắt buộc kèm lý do (reason)');
-    }
+  private checkReason(_label: string, _reason: string | null | undefined): void {
+    // Giữ để tương thích: invariant lý do đã nằm trong `Feedback.create()`
+    // (entity) — handler không check thủ công nữa để tránh 2 bản lệch nhau.
   }
 
   private async resolveRunProject(
@@ -122,20 +120,39 @@ export class CreateRunFeedbackHandler {
       modelId = null;
     }
 
-    const doc = await this.repo.create({
+    // FB-02: đi qua `Feedback.create()` như FB-01 để invariant tập trung ở
+    // entity (label/reason/severity/findingId) thay vì check thủ công rải rác.
+    const entity = Feedback.create({
+      id: newObjectIdHex(),
       analysisRunId: run.id,
       findingId: null,
       projectId: run.projectId,
       workspaceId: run.workspaceId,
       label: dto.label,
-      reason: dto.reason?.trim() ? dto.reason.trim().slice(0, 2000) : null,
+      reason: dto.reason ?? null,
       suggestedSeverity: dto.suggestedSeverity ?? null,
       aiConfidence: null,
       aiRationale: null,
       authorId: userId,
       authorRoleAtTime: projectRole ?? workspaceRole ?? 'viewer',
-      model_id: modelId,
-      prompt_version: 'corr-v1',
+      modelId,
+      promptVersion: 'corr-v1',
+    });
+
+    const doc = await this.repo.create({
+      analysisRunId: entity.analysisRunId,
+      findingId: entity.findingId,
+      projectId: entity.projectId,
+      workspaceId: entity.workspaceId,
+      label: entity.label,
+      reason: entity.reason,
+      suggestedSeverity: entity.suggestedSeverity,
+      aiConfidence: entity.aiConfidence,
+      aiRationale: entity.aiRationale,
+      authorId: entity.authorId,
+      authorRoleAtTime: entity.authorRoleAtTime,
+      model_id: entity.modelId,
+      prompt_version: entity.promptVersion,
     });
     const names = await this.authorNames([doc]);
     const plain = toPlain(doc, userId, names.get(userId) ?? null);

@@ -1,42 +1,42 @@
-# Cac Module Nghiep Vu
+# Các Mô-đun Nghiệp Vụ
 
-He thong backend gom **13 module nghiep vu**. Moi module la mot **bounded context** doc lap, tuan thu Clean Architecture 4 tang va chi giao tiep qua `index.ts` (public contract).
+Hệ thống backend gồm **13 mô-đun nghiệp vụ**. Mỗi mô-đun là một **ngữ cảnh giới hạn** độc lập, tuân thủ Clean Architecture 4 tầng và chỉ giao tiếp qua `index.ts` (hợp đồng công khai).
 
 ---
 
-## 1. Danh muc Module
+## 1. Danh mục mô-đun
 
-| Module | Phu vi trach nhiem | README |
+| Mô-đun | Phạm vi trách nhiệm | README |
 |---|---|---|
-| `users` | Tai khoan, phien dang nhap, quan tri, khoa tai khoan | [README](./users/README.md) |
-| `auth` | Dang ky, dang nhap, JWT, refresh, Google OAuth 2.0, quen mat khau | [README](./auth/README.md) |
-| `workspaces` | Khong gian lam viec, vai tro thanh vien, ha nganh, chuyen owner | [README](./workspaces/README.md) |
-| `projects` | Du an, thanh vien, trang thai, snapshot, cascade | [README](./projects/README.md) |
-| `datasets` | Nhap CSV streaming, schema, dong du lieu, findings, PII | [README](./datasets/README.md) |
-| `data-view` | Luoi du lieu ao, keyset pagination, thong ke cot, bieu do | [README](./data-view/README.md) |
-| `analysis` | Phan tich chat luong du lieu, AI job local, bao cao PDF, tong ket | [README](./analysis/README.md) |
-| `feedback` | Phan hoi nguoi dung, RAG few-shot, chi so chat luong AI | [README](./feedback/README.md) |
-| `issues` | Bao cao loi, tep dinh kem, quan tri, vong doi trang thai | [README](./issues/README.md) |
-| `notifications` | Hop thu, push ntfy, email, tuy chon nguoi dung | [README](./notifications/README.md) |
-| `overview` | Tong quan dashboard (chi doc) | [README](./overview/README.md) |
-| `realtime` | WebSocket Socket.IO, phong, thu hoi token | [README](./realtime/README.md) |
-| `audit` | Nhat ky kiem toan append-only | [README](./audit/README.md) |
+| `users` | Tài khoản, phiên đăng nhập, quản trị, khóa tài khoản | [README](./users/README.md) |
+| `auth` | Đăng ký, đăng nhập, JWT, refresh, Google OAuth 2.0, quên mật khẩu | [README](./auth/README.md) |
+| `workspaces` | Không gian làm việc, vai trò thành viên, hạn ngạch, chuyển chủ sở hữu | [README](./workspaces/README.md) |
+| `projects` | Dự án, thành viên, trạng thái, snapshot, cascade | [README](./projects/README.md) |
+| `datasets` | Nhập CSV streaming, schema, dòng dữ liệu, phát hiện vấn đề, PII | [README](./datasets/README.md) |
+| `data-view` | Lưới dữ liệu ảo, phân trang keyset, thống kê cột, biểu đồ | [README](./data-view/README.md) |
+| `analysis` | Phân tích chất lượng dữ liệu, AI job nội bộ, báo cáo PDF, tổng kết | [README](./analysis/README.md) |
+| `feedback` | Phản hồi người dùng, RAG few-shot, chỉ số chất lượng AI | [README](./feedback/README.md) |
+| `issues` | Báo cáo lỗi, tệp đính kèm, quản trị, vòng đời trạng thái | [README](./issues/README.md) |
+| `notifications` | Hộp thư, push ntfy, email, tùy chọn người dùng | [README](./notifications/README.md) |
+| `overview` | Tổng quan dashboard (chỉ đọc) | [README](./overview/README.md) |
+| `realtime` | WebSocket Socket.IO, phòng, thu hồi token | [README](./realtime/README.md) |
+| `audit` | Nhật ký kiểm toán append-only | [README](./audit/README.md) |
 
 ---
 
-## 2. Cau Truc Chung
+## 2. Cấu trúc chung
 
-Moi module deu co **cung mot bo cuc**:
+Mỗi mô-đun đều có **cùng một bố cục**:
 
 ```text
 <module>/
-├── domain/           # Loi nghiep vu thuan: entity, value-object, port, event
+├── domain/           # Lõi nghiệp vụ thuần: entity, value-object, port, event
 │   ├── entities/
 │   ├── value-objects/
 │   ├── events/
 │   ├── ports/
-│   └── services/     # (mot so module) ham thuan dung chung
-├── application/      # Use case: command/query handler (CQRS), policy loader, service
+│   └── services/     # (một số mô-đun) hàm thuần dùng chung
+├── application/      # Ca sử dụng: command/query handler (CQRS), policy loader, service
 │   ├── commands/
 │   ├── queries/
 │   ├── services/
@@ -47,47 +47,47 @@ Moi module deu co **cung mot bo cuc**:
 
 ---
 
-## 3. Quy Tac Phu Thuoc
+## 3. Quy tắc phụ thuộc
 
-| Ma | Quy tac | Kiem chung |
+| Mã | Quy tắc | Kiểm chứng |
 |---|---|---|
-| CA1 | `domain` khong import `application` / `infrastructure` / `presentation` | `clean-architecture.spec.ts` |
-| CA2 | `domain` khong import framework | `clean-architecture.spec.ts` |
-| CA3 | `domain` khong import module khac | `clean-architecture.spec.ts` |
-| CA4 | `application` chi import `domain` | `clean-architecture.spec.ts` |
-| CA5 | `shared` khong import tu `modules/` | `clean-architecture.spec.ts` |
-| CA6 | `infrastructure` duoc import `domain` | `clean-architecture.spec.ts` |
-| CA7 | `presentation` duoc import `application` | `clean-architecture.spec.ts` |
-| CA8 | Import cheo module phai qua `index.ts` | `arch:cross-imports` |
-| CA9 | `presentation` khong chua logic nghiep vu | `clean-architecture.spec.ts` |
-| CA10 | Repository chi duoc goi tu `application` / `infrastructure` | `clean-architecture.spec.ts` |
-| CA11 | `domain` khong dung `any` | ESLint |
-| CA12 | Controller khong chua logic nghiep vu | `clean-architecture.spec.ts` |
-| CA13 | `shared/domain` khong import framework | `clean-architecture.spec.ts` |
-| CA14 | `shared/domain` khong import `shared/interfaces` | `clean-architecture.spec.ts` |
+| CA1 | `domain` không import `application` / `infrastructure` / `presentation` | `clean-architecture.spec.ts` |
+| CA2 | `domain` không import framework | `clean-architecture.spec.ts` |
+| CA3 | `domain` không import mô-đun khác | `clean-architecture.spec.ts` |
+| CA4 | `application` chỉ import `domain` | `clean-architecture.spec.ts` |
+| CA5 | `shared` không import từ `modules/` | `clean-architecture.spec.ts` |
+| CA6 | `infrastructure` được import `domain` | `clean-architecture.spec.ts` |
+| CA7 | `presentation` được import `application` | `clean-architecture.spec.ts` |
+| CA8 | Import chéo mô-đun phải qua `index.ts` | `arch:cross-imports` |
+| CA9 | `presentation` không chứa logic nghiệp vụ | `clean-architecture.spec.ts` |
+| CA10 | Repository chỉ được gọi từ `application` / `infrastructure` | `clean-architecture.spec.ts` |
+| CA11 | `domain` không dùng `any` | ESLint |
+| CA12 | Controller không chứa logic nghiệp vụ | `clean-architecture.spec.ts` |
+| CA13 | `shared/domain` không import framework | `clean-architecture.spec.ts` |
+| CA14 | `shared/domain` không import `shared/interfaces` | `clean-architecture.spec.ts` |
 
 ---
 
-## 4. Vai Tro Trong Mo Hinh Phan Quyen 3 Tang
+## 4. Vai trò trong mô hình phân quyền 3 tầng
 
-| Tang | Module so huu | Vai tro |
+| Tầng | Mô-đun sở hữu | Vai trò |
 |---|---|---|
-| **He thong** | `users`, `auth` | `admin`, `analyst` |
+| **Hệ thống** | `users`, `auth` | `admin`, `analyst` |
 | **Workspace** | `workspaces` | `owner`, `member` |
 | **Project** | `projects` | `owner`, `member`, `viewer` |
 
-Quy tac suy ra:
+Quy tắc suy ra:
 
-| Vai tro workspace | Vai tro project suy ra |
+| Vai trò workspace | Vai trò project suy ra |
 |---|---|
-| `owner` | `owner` - toan quyen tren moi project cua workspace |
-| `member` | lay dung vai tro ghi trong `project.members`; neu khong co -> `viewer` |
+| `owner` | `owner` — toàn quyền trên mọi project của workspace |
+| `member` | lấy đúng vai trò ghi trong `project.members`; nếu không có → `viewer` |
 
-Hai **context port** (`WORKSPACE_CONTEXT_PORT`, `PROJECT_CONTEXT_PORT`) - khai bao trong `shared/application/ports/` va hien thuc o `modules/workspaces/infrastructure/adapters/workspace-context.adapter.ts` va `modules/projects/infrastructure/adapters/project-context.adapter.ts` - giup CASL giai quyet vai tro theo request.
+Hai **context port** (`WORKSPACE_CONTEXT_PORT`, `PROJECT_CONTEXT_PORT`) — khai báo trong `shared/application/ports/` và hiện thực ở `modules/workspaces/infrastructure/adapters/workspace-context.adapter.ts` và `modules/projects/infrastructure/adapters/project-context.adapter.ts` — giúp CASL giải quyết vai trò theo từng request.
 
 ---
 
-## 5. Luu Do Module
+## 5. Lưu đồ mô-đun
 
 ```text
 users ──▶ auth ──▶ workspaces ──▶ projects ──▶ datasets ──▶ data-view
@@ -97,25 +97,25 @@ users ──▶ auth ──▶ workspaces ──▶ projects ──▶ datasets 
                                     ├──▶ issues ──▶ notifications
                                     └──▶ overview
 
-realtime  (nhận event từ mọi module)
-audit     (ghi nhật ký từ mọi module)
+realtime  (nhận event từ mọi mô-đun)
+audit     (ghi nhật ký từ mọi mô-đun)
 ```
 
 ---
 
-## 6. Module Nao Co README?
+## 6. Mô-đun nào có README?
 
-Tat ca 13 module deu co README rieng, mo ta **trang thai hien thuc hien tai**: cau truc thu muc, domain model, phan quyen, API, luu tru va kiem thu lien quan.
+Tất cả 13 mô-đun đều có README riêng, mô tả **trạng thái hiện thực hiện tại**: cấu trúc thư mục, domain model, phân quyền, API, lưu trữ và kiểm thử liên quan.
 
-Dac ta **ke hoach** (khac voi hien thuc) nam o `../../../../../docs/modules/`.
+Đặc tả **kế hoạch** (khác với hiện thực) nằm ở `../../../../../docs/modules/`.
 
 ---
 
-## 7. Lien Quan
+## 7. Liên quan
 
-| Tai lieu | Noi dung |
+| Tài liệu | Nội dung |
 |---|---|
-| [`../shared/README.md`](../shared/README.md) | Lop cross-cutting: CASL, keyset, event bus, outbox/inbox |
-| [`../README.md`](../../README.md) | Huong dan van hanh backend |
-| [`../../../../README.md`](../../../../README.md) | Kien truc tong the du an |
-| `../../../../docs/modules/` | Dac ta module (ke hoach) |
+| [`../shared/README.md`](../shared/README.md) | Lớp cross-cutting: CASL, keyset, event bus, outbox/inbox |
+| [`../README.md`](../../README.md) | Hướng dẫn vận hành backend |
+| [`../../../../README.md`](../../../../README.md) | Kiến trúc tổng thể dự án |
+| `../../../../docs/modules/` | Đặc tả mô-đun (kế hoạch) |

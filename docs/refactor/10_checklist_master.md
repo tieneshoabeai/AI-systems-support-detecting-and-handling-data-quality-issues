@@ -8,6 +8,7 @@
 
 ```
 ☐  Đọc 00_overview.md (nguyên tắc R1–R5)
+☐  Mở 12_business_invariants.md đúng module (§12.2) để tick từng handler/route
 ☐  Đọc 01_target_architecture.md
 ☐  Đọc 09_risk_and_rollback.md §9.2 (cải thiện ngầm)
 ☐  Xác nhận: deadline thật sự còn bao lâu
@@ -56,7 +57,7 @@
 ☐  2.6  Sửa index.ts (public contract)
 ☐  2.7  rm -rf domain/ application/ infrastructure/
 ☐  2.8  grep -rn "LogHandler\|AuditLoggerAdapter" src/ test/  → 0
-☐  VERIFY: type-check 0 · lint 0 · test xanh · coverage 84/84 · MM5 pass
+☐  VERIFY: type-check 0 · lint 0 · test xanh · route 82/82 (§12.1) · MM5 pass
 ☐  COMMIT + TAG v1.2.0-p2-pilot
 ```
 
@@ -73,7 +74,7 @@
 ☐  3.4  notifications (40 phút)  → tag
 ☐  3.5  feedback      (45 phút)  → tag
 ☐  3.6  issues        (50 phút)  → tag
-☐  VERIFY Tổng P3: 7 module phẳng · 1 069 test · 84 route
+☐  VERIFY Tổng P3: 7 module phẳng · 1 069 test · 82 route (§12.1) + tick catalogue §12.2
 ☐  COMMIT + TAG v1.2.0-p3
 ☐  ⏰ CHECKPOINT: giờ 12 → nếu trễ, cắt sang P6
 ```
@@ -87,7 +88,7 @@
 ☐  4.2  workspaces (1h45)       → tag
 ☐  4.3  projects   (2 giờ)     → tag
 ☐  4.4  datasets   (2h15)       → tag
-☐  VERIFY Tổng P4: 11 module phẳng · 1 069 test · 84 route
+☐  VERIFY Tổng P4: 11 module phẳng · 1 069 test · 82 route (§12.1) + giữ transaction/outbox §12.5
 ☐  COMMIT + TAG v1.2.0-p4
 ☐  ⚠  datasets: KIỂM TRA kỹ — không thêm route, giữ transaction/outbox
 ```
@@ -99,7 +100,7 @@
 ```
 ☐  5.1  analysis (1h45)  → tag     [CÓ THỂ BỎ]
 ☐  5.2  auth     (1h15)  → tag     [CÓ THỂ BỎ]
-☐  VERIFY: 13–14 module phẳng · 1 069 test · 84 route
+☐  VERIFY: 13/13 module phẳng · 1 069 test · 82 route (§12.1) + diff move-only T3
 ☐  COMMIT + TAG v1.2.0-p5
 ☐  ⚠  DIFF CHECK: git diff -M HEAD~1 -- src/modules/analysis/ | grep '^[+-][^+-]'
 ☐     → Phải rỗng (move-only). Có dòng → đã sửa logic → review
@@ -127,7 +128,7 @@
 ☐  7.1  pnpm type-check                    → 0 lỗi
 ☐  7.2  pnpm lint                          → 0 cảnh báo
 ☐  7.3  pnpm exec jest --maxWorkers=2      → 67 suite / 1 069 test
-☐  7.4  pnpm arch:api-coverage             → 84 | 84 | 0 | 0
+☐  7.4  pnpm arch:api-coverage             → 82 | 82 | 0 | 0 (§12.1)
 ☐  7.5  pnpm test:cov                      → ≥ 71%
 ☐  7.6  bash scripts/test-infra-up.sh
 ☐  7.7  pnpm test:integration              → 7 suite / 138 test
@@ -148,7 +149,7 @@
      - Quyết định: ADR-0001
      - Bằng chứng: bảng số liệu trước/sau
      - Bằng chứng: ESLint + arch test output thật
-     - Bằng chứng: 1 277 test xanh, 84 route khớp 1-1
+     - Bằng chứng: 1 277 test xanh, 82 route khớp 1-1 (§12.1)
 ☐  README root cập nhật phần "Kiến trúc"
 ☐  notes.md hoàn tất
 ```
@@ -173,12 +174,12 @@
 
 | Giờ | Phase | Module đã flatten | File .ts | LOC | Test | Route | Tag | Ghi chú |
 |---|---|---|---|---|---|---|---|---|
-| 0 | baseline | 0/14 | 339 | 31 076 | 1 277 ✅ | 84 ✅ | v1.1.0-baseline | |
-| 5 | P1 | 0/14 | | | | | | |
-| 7 | P2 | 1/14 | | | | | | |
-| 10 | P3 | 7/14 | | | | | | |
-| 18 | P4 | 12/14 | | | | | | |
-| 21 | P5 | 14/14 | | | | | | |
+| 0 | baseline | 0/13 | 340 | 31 505 | 1 277 ✅ | 82 ✅ | v1.1.0-baseline | |
+| 5 | P1 | 0/13 | | | | | | |
+| 7 | P2 | 1/13 | | | | | | |
+| 10 | P3 | 6/13 | | | | | | |
+| 18 | P4 | 11/13 | | | | | | |
+| 21 | P5 | 13/13 | | | | | | |
 | 27 | P6 | | | | | | | |
 | 30 | P7 | | | | | | | |
 
@@ -188,8 +189,8 @@
 
 > **Ba điều tuyệt đối không làm:**
 >
-> 1. ❌ Sửa assert của test — chỉ đổi import path.
-> 2. ❌ Thêm route mới — `arch:api-coverage` phải luôn là 84.
+> 1. ❌ Sửa assert của test — chỉ đổi import path (TC-01 ở `13_refactor_constraints.md`).
+> 2. ❌ Thêm route mới — `arch:api-coverage` phải luôn là 82 (§12.1).
 > 3. ❌ Đụng logic `analysis` / `auth` — chỉ di chuyển file.
 >
 > **Ba điều luôn làm:**

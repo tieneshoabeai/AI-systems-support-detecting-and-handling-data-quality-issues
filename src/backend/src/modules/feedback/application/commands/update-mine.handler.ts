@@ -14,7 +14,7 @@ import {
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../../../users';
 import { UpdateFeedbackInput } from '../feedback.types';
 import { toPlain } from '../feedback.utils';
-import { NotFoundError } from '../../../../shared/domain/errors';
+import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 
 @Injectable()
 export class UpdateMineHandler {
@@ -42,9 +42,30 @@ export class UpdateMineHandler {
 
   async execute(
     userId: string,
-    id: string,
-    dto: UpdateFeedbackInput,
+    roleOrId: string,
+    idOrDto: string | UpdateFeedbackInput,
+    dtoOrRole?: UpdateFeedbackInput | string,
   ): Promise<Record<string, unknown>> {
+    // Tương thích 2 chữ ký:
+    // - mới (controller): execute(userId, role, id, dto)
+    // - cũ (test trực tiếp): execute(userId, id, dto)
+    let role: string | undefined;
+    let id: string;
+    let dto: UpdateFeedbackInput;
+    if (typeof idOrDto === 'string' && dtoOrRole !== undefined && typeof dtoOrRole === 'object') {
+      role = roleOrId;
+      id = idOrDto;
+      dto = dtoOrRole;
+    } else {
+      id = roleOrId;
+      dto = idOrDto as UpdateFeedbackInput;
+      role = typeof dtoOrRole === 'string' ? dtoOrRole : undefined;
+    }
+    // FB-05: System Admin không có quyền với nhóm nhận xét (kể cả sửa của
+    // chính mình) — nhất quán với create/list (ensureNotAdmin).
+    if (role === 'admin') {
+      throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
+    }
     const existing = await this.repo.findByIdActive(id);
     if (!existing) throw new NotFoundError('Không tìm thấy nhận xét');
     // Entity áp dụng invariant: chỉ chủ nhận xét được sửa + nhãn bắt buộc lý do

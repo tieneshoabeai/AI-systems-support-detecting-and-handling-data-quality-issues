@@ -1,29 +1,29 @@
-# MODULE `overview` - Tong quan
+# MÔ-ĐUN `overview` — Tổng quan
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/overview` (5 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/overview` (5 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ
 
-Module tra cu bien nhat cho man hinh dashboard: so lieu tong hop ma khong can cham vao tung module.
+Mô-đun trả về số liệu tóm tắt cho màn hình dashboard: số liệu tổng hợp mà không cần chạm vào từng mô-đun.
 
-Day la module **chi doc**. Khong co command handler, khong co domain event phat ra.
+Đây là mô-đun **chỉ đọc**. Không có command handler, không có domain event phát ra.
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Tong quan nguoi dung | So workspace, project, dataset, phan tich cua toi |
-| Tong quan workspace | Thong ke theo tung project trong workspace |
+| Tổng quan người dùng | Số workspace, project, dataset, phân tích của tôi |
+| Tổng quan workspace | Thống kê theo từng project trong workspace |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 overview/
@@ -36,84 +36,84 @@ overview/
 `-- overview.module.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-- **User Prompt / Business Intent:** Cung cap mot API tom tat cho dashboard, de frontend khong phai goi 5-6 endpoint khac nhau chi de ve mot man hinh tong quan.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Cung cấp một API tóm tắt cho dashboard, để frontend không phải gọi 5–6 endpoint khác nhau chỉ để vẽ một màn hình tổng quan.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Khong co `domain/` rieng.** Module nay **khong co quy tac nghiep vu** chi duoc bien dich - tat ca so lieu lay tu repository cua module khac qua port. Tao `domain/` rong se chi la nhieu.
+1. **Không có `domain/` riêng.** Mô-đun này **không có quy tắc nghiệp vụ** riêng cần biên dịch — tất cả số liệu lấy từ repository của mô-đun khác qua port. Tạo `domain/` rỗng sẽ chỉ là nhiễu.
 
-2. **Khong co command handler, khong co event.** Module chi doc - khong duoc tao hay sua du lieu.
+2. **Không có command handler, không có event.** Mô-đun chỉ đọc — không được tạo hay sửa dữ liệu.
 
-3. **Tinh nhieu chi so trong mot lan quet.** Module dung **aggregation pipeline** voi `$facet` de tinh nhieu chi so theo tung project trong mot lan quet database, thay vi chay nhieu truy van rieng le. Voi dataset lon, cach nay khac biet giua chay duoc va khong chay duoc.
+3. **Tính nhiều chỉ số trong một lần quét.** Mô-đun dùng **pipeline aggregation** với `$facet` để tính nhiều chỉ số theo từng project trong một lần quét cơ sở dữ liệu, thay vì chạy nhiều truy vấn riêng lẻ. Với dataset lớn, cách này khác biệt giữa chạy được và không chạy được.
 
-4. **Chi lay so lieu can cho dashboard.** Khong dua du lieu chi tiet (bang record, danh sach day du) vao response tong quan - response phai nhe.
+4. **Chỉ lấy số liệu cần cho dashboard.** Không đưa dữ liệu chi tiết (bảng bản ghi, danh sách đầy đủ) vào response tổng quan — response phải nhẹ.
 
-- **Generated / Modified Artifacts:**
+- **Hiện vật đã tạo / đã sửa:**
 
-- `application/queries/get-user-overview.handler.ts` - tong quan nguoi dung.
-- `application/queries/get-workspace-overview.handler.ts` - tong quan workspace, dung `$facet`.
+- `application/queries/get-user-overview.handler.ts` — tổng quan người dùng.
+- `application/queries/get-workspace-overview.handler.ts` — tổng quan workspace, dùng `$facet`.
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+## 4. Đặc tả giao tiếp kỹ thuật
 
-### 4.1. Endpoints
+### 4.1. Điểm cuối (Endpoints)
 
-| Method | Path | Chinh sach | Mo ta |
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `GET` | `/api/v1/overview/workspaces` | Member | Tong quan cua toi |
-| `GET` | `/api/v1/workspaces/:id/overview` | Member workspace | Tong quan workspace |
+| `GET` | `/api/v1/overview/workspaces` | Thành viên | Tổng quan của tôi |
+| `GET` | `/api/v1/workspaces/:id/overview` | Thành viên workspace | Tổng quan workspace |
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/overview/index.ts` export public contract:
+`src/backend/src/modules/overview/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `OverviewModule` | Nest module |
+| `OverviewModule` | Mô-đun Nest |
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-> Module nay **khong phat su kien** - no thuan la lop doc du lieu tong hop.
+> Mô-đun này **không phát sự kiện** — nó thuần là lớp đọc dữ liệu tổng hợp.
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-- Chi so phai phan anh dung trang thai hien tai cua du lieu nguoi dung xem.
-- Khong duoc lo du lieu chi tiet vao response tong quan.
-- Chi tinh so lieu cua workspace ma nguoi dung **la thanh vien**.
-- So lieu phai duoc tinh trong **mot** aggregation pipeline khi co the.
+- Chỉ số phải phản ánh đúng trạng thái hiện tại của dữ liệu mà người dùng được xem.
+- Không được lộ dữ liệu chi tiết vào response tổng quan.
+- Chỉ tính số liệu của workspace mà người dùng **là thành viên**.
+- Số liệu phải được tính trong **một** pipeline aggregation khi có thể.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Xem tong quan workspace nguoi khac | Policy loader kiem tra instance |
-| Lo du lieu qua response | Chi con so lieu tong hop |
-| Query lan qua nhieu lan | Aggregation `$facet` gom nhieu chi so trong mot lan quet |
+| Xem tổng quan workspace người khác | Policy loader kiểm tra instance |
+| Lộ dữ liệu qua response | Chỉ trả số liệu tổng hợp |
+| Truy vấn lặp quá nhiều lần | Aggregation `$facet` gom nhiều chỉ số trong một lần quét |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `GET /overview/workspaces` | Loc theo vai tro cua toi |
-| `GET /workspaces/:id/overview` | Member workspace |
+| `GET /overview/workspaces` | Lọc theo vai trò của tôi |
+| `GET /workspaces/:id/overview` | Thành viên workspace |
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung `get-workspace-overview.handler.ts` dung `$facet` / Mot lan quet database cho nhieu chi so / `modules/overview`
-- **v0.5.0** / 2026-11-XX / Bo sung `get-user-overview.handler.ts` / Dashboard tong quan ca nhan / `modules/overview`
-- **v0.1.0** / 2026-11-XX / Tao module / Lop doc tong hop, tach khoi `projects` / `modules/overview`
+- **v1.0.0** / 2026-11-XX / Bổ sung `get-workspace-overview.handler.ts` dùng `$facet` / Một lần quét cơ sở dữ liệu cho nhiều chỉ số / `modules/overview`
+- **v0.5.0** / 2026-11-XX / Bổ sung `get-user-overview.handler.ts` / Dashboard tổng quan cá nhân / `modules/overview`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun / Lớp đọc tổng hợp, tách khỏi `projects` / `modules/overview`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

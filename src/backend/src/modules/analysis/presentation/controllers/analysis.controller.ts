@@ -86,7 +86,7 @@ export class AnalysisController {
 
   @Post('analysis/jobs/:jobId/retry')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'AI-01: Thử lại AI job (tối đa 2 retry)', operationId: 'retryAiJob' })
+  @ApiOperation({ summary: 'AI-01: Thử lại AI job (không giới hạn — job cũ thành skipped)', operationId: 'retryAiJob' })
   // UC-22 (thử lại AI): PROJ-MEMBER trở lên.
   @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))

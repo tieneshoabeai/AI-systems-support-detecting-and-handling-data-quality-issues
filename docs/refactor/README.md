@@ -21,6 +21,8 @@
 | [09_risk_and_rollback.md](09_risk_and_rollback.md) | 11 rủi ro + kịch bản rollback A/B/C/D | Bất cứ lúc nào |
 | [10_checklist_master.md](10_checklist_master.md) | Checklist theo từng giờ + đường cắt | Bảng điều khiển |
 | [11_decision_log.md](11_decision_log.md) | Nhật ký quyết định | Điền khi chạy |
+| [12_business_invariants.md](12_business_invariants.md) | Catalogue 82 route + 107 handler + token/guard/transaction bất biến | Đối chiếu trước khi gộp mỗi module |
+| [13_refactor_constraints.md](13_refactor_constraints.md) | Ràng buộc TC/AC/FC/BC/PC + checklist khóa trước mỗi commit — không vi phạm khi flatten | Chạy trước MỖI commit |
 
 ---
 
@@ -28,11 +30,11 @@
 
 | | |
 |---|---|
-| **Vấn đề** | 339 file, 4 tầng/module, 14 luật kiến trúc → người mới khó hiểu; đồ án yêu cầu modular monolith |
+| **Vấn đề** | 340 file, 4 tầng/module, 14 luật kiến trúc → người mới khó hiểu; đồ án yêu cầu modular monolith |
 | **Quyết định** | Flatten mỗi module thành 1 thư mục phẳng (routes + service + schema + types) |
-| **Bất biến** | 84 route · 107 handler · 20 model · 1 277 test · không đổi logic |
+| **Bất biến** | 82 route HTTP + WS · 107 handler · 18 model · 1 277 test · không đổi logic |
 | **Rủi ro chính** | Hết giờ + "cải thiện ngầm" → đã có đường cắt + quy tắc git |
-| **Cổng kiểm soát** | type-check 0 · lint 0 · 1 069 test · 84/84 route · link 0 broken |
+| **Cổng kiểm soát** | type-check 0 · lint 0 · 1 069 test · 82/82 route · link 0 broken · checklist `13` §13.6 |
 
 ---
 

@@ -25,8 +25,8 @@ Tạo `docs/refactor/notes.md`:
 # Ghi chú quá trình refactor
 
 ## Baseline (2026-11-21)
-- File .ts src/modules: 339 · LOC: 31 076 · thư mục con: ~60
-- Handler: 107 (61 cmd + 46 query) · Route: 84 · Test: 1 277 / 79 suite
+- File .ts src/modules: 340 · LOC: 31 505 · thư mục con: ~60
+- Handler: 107 (61 cmd + 46 query) + 3 subscriber · Route: 82 HTTP + 1 WS gateway (xem 12_business_invariants.md §12.1–12.2) · Test: 1 277 / 79 suite
 - Coverage stmts: 71.03%
 
 ## Quyết định
@@ -63,8 +63,8 @@ Tạo `docs/refactor/architecture-diagram.md` với 2 Mermaid diagram:
 
 ## Bối cảnh
 Backend dùng Clean Architecture 4 tầng (domain / application / infrastructure / presentation)
-cho 14 module. Hệ quả:
-- 339 file `.ts`, 31 076 LOC trong `src/modules/`
+cho 13 module. Hệ quả:
+- 340 file `.ts`, 31 505 LOC trong `src/modules/`
 - Người mới cần 4 lần grep ở 4 thư mục để hiểu 1 request
 - 107 command/query handler, phần lớn là wrapper 1-1 được sinh bằng codemod
 - 14 luật kiến trúc (CA1–CA14) phải đồng bộ cùng mỗi đổi cấu trúc
@@ -75,7 +75,7 @@ Chuyển sang **Modular Monolith (vertical slice)**:
 - Mỗi module = 1 thư mục phẳng: routes + service + schema + types
 - Ranh giới module giữ nguyên, enforce bằng ESLint + arch test
 - `shared/` giữ nguyên vai trò shared kernel
-- Hành vi bên ngoài bất biến: 84 route, response shape, DB schema, 1 277 test
+- Hành vi bên ngoài bất biến: 82 route HTTP + WS gateway, response shape, DB schema, 1 277 test
 
 ## Các lựa chọn đã cân nhắc
 | Lựa chọn | Lý do bị loại |
@@ -93,7 +93,7 @@ Chuyển sang **Modular Monolith (vertical slice)**:
 | Khả năng tách module thành microservice | Còn nguyên ranh giới module → tách sau khi scale |
 
 ## Trạng thái ký sinh
-Đã đo: 339 file → mục tiêu ~180 file; 31 076 LOC → ~20 000 LOC.
+Đã đo (hiệu chỉnh 2026-11-23): 340 file → mục tiêu ~180 file; 31 505 LOC → ~20 000 LOC. Đối chiếu catalogue nghiệp vụ ở `12_business_invariants.md` trước khi đo lại.
 ```
 
 ---
@@ -250,10 +250,13 @@ pnpm lint                             # phải: 0 cảnh báo
 pnpm exec jest --maxWorkers=2         # phải: 67 suites / 1 069 tests
 
 # 4. Contract API
-pnpm arch:api-coverage                # phải: 84 | 84 | thiếu 0 | thừa 0
+pnpm arch:api-coverage                # phải khớp 82 route ở 12_business_invariants.md §12.1 (không thêm/bớt, giữ thứ tự sessions/me và unread-count)
 
 # 5. Đo lại
 bash scripts/measure-refactor.sh      # ghi vào notes.md
+
+# 6. Checklist khóa refactor (bắt buộc)
+# Tick hết `13_refactor_constraints.md` §13.6 (TC/AC/FC/BC/PC) mới được commit
 ```
 
 > **Nếu bất kỳ bước nào đỏ:**

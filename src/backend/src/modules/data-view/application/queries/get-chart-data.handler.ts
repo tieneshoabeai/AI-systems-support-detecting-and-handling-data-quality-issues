@@ -148,6 +148,29 @@ export class GetChartDataHandler {
       }
 
       if (col.dataType === 'string' || col.dataType === 'boolean') {
+        // PII: cột đánh dấu PII không trả giá trị thô — chỉ trả distinct_count
+        // + missing để không rò rỉ qua GET /charts (đồng bộ với run-analysis
+        // vốn loại cột PII khỏi charts.categories).
+        if (col.isPii) {
+          results.push({
+            ...base,
+            category: {
+              column_key: col.key,
+              column_name: col.name,
+              top_n: topN,
+              items: [],
+              other: null,
+              distinct_count: new Set(
+                values
+                  .filter((v) => v !== null && v !== undefined)
+                  .map((v) => (typeof v === 'string' ? v : String(v)).trim())
+                  .filter((v) => v.length > 0),
+              ).size,
+              masked: true,
+            },
+          });
+          continue;
+        }
         // Chuỗi rỗng / null = thiếu → không tính vào tần suất.
         const strings = values
           .filter((v) => v !== null && v !== undefined)

@@ -76,6 +76,8 @@ export interface ChartCategory {
   /** Nhóm "Khác" — phần còn lại ngoài Top N. `null` nếu không có. */
   other: { count: number; rate: number } | null;
   distinct_count: number;
+  /** `true` khi cột PII bị ẩn giá trị Top N (chỉ trả missing/distinct). */
+  masked?: boolean;
 }
 
 export interface ChartDataResult {

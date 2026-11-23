@@ -204,7 +204,7 @@ src/modules/auth/
 ☐  pnpm type-check → 0 lỗi
 ☐  pnpm lint → 0 cảnh báo
 ☐  pnpm exec jest --maxWorkers=2 → xanh (chú ý: ai-worker.spec.ts, analysis-*.spec.ts)
-☐  pnpm arch:api-coverage → 84/84
+☐  pnpm arch:api-coverage → 82/82 (§12.1) + diff move-only
 ☐  Commit + tag
 ```
 
@@ -219,7 +219,7 @@ src/modules/auth/
 | Bất kỳ test nào đỏ sau 15 phút | Revert module đó về trạng thái trước, đánh dấu "optional" |
 
 > **Lưu ý cho báo cáo đồ án:** nếu 2 module cuối cùng không phẳng, hãy nói rõ trong ADR:
-> *"12/14 module đã flatten; `analysis` và `auth` giữ cấu trúc 4 tầng do rủi ro bảo mật/hiệu năng trong khung 30 giờ — đã ghi nhận nợ kỹ thuật cụ thể."*
+> *"11/13 module đã flatten; `analysis` và `auth` giữ cấu trúc 4 tầng do rủi ro bảo mật/hiệu năng trong khung 30 giờ — đã ghi nhận nợ kỹ thuật cụ thể."*
 >
 > Đây là **quyết định kỹ thuật có chủ ý**, không phải dấu hiệu làm dở. Nêu rõ lý do sẽ ăn điểm.
 
@@ -235,6 +235,18 @@ src/modules/auth/
 | `pnpm type-check` | 0 lỗi |
 | `pnpm lint` | 0 cảnh báo |
 | `pnpm exec jest --maxWorkers=2` | 67 suites / 1 069 tests |
-| `pnpm arch:api-coverage` | 84 / 84 / 0 / 0 |
+| `pnpm arch:api-coverage` | 82 / 82 / 0 / 0 (§12.1) |
 | Coverage | ≥ 71% (không giảm) |
 | Tag | `v1.2.0-p5` hoặc `v1.2.0-p5-partial` |
+
+---
+
+## 7.8. Đối chiếu nghiệp vụ Tier 3 — chỉ di chuyển, không gộp (xem `12_business_invariants.md` §12.2–§12.6)
+
+- **analysis:** 11 handler + 3 service (`ai-worker`, `rag-few-shot`, `report-worker`) + 7 schema + 2 port AI/guard + 2 policy loader + 14 util thuần (correlation, VIF, DQ, column-role, pii-mask, input-fingerprint, top-n, suspicion, impact, stats, date-parse, ai-grounding). Giữ `MAX_CORRELATION_CELLS`, `MAX_FEW_SHOT_STORE`, `DEFAULT_TOP_K/MIN_TRUST/MAX_AGE_DAYS`; giữ `LocalInferenceAdapter` đọc `ConfigService` trực tiếp; giữ `RESOURCE_GUARD_PORT`.
+- **auth:** 11 handler + `admin-bootstrap` + `security-alert` + 7 token + 2 VO chính sách + 4 adapter cầu nối `users-auth-*`. Giữ thứ tự `sessions/me` trước `sessions/:id`; giữ `rememberMe=false` mặc định; giữ `PASSWORD 8–100`; giữ refresh rotation.
+- **Quy tắc diff:** `git diff -M` phải 100% rename (trừ đổi import path). Có dòng `+`/`-` thực chất là vi phạm T3-1 — revert ngay.
+
+---
+
+> **Khóa chống vỡ test/API/hạ tầng:** trước mỗi commit của phase này, tick hết [`13_refactor_constraints.md`](13_refactor_constraints.md) §13.6 (TC giữ test/token/session/subscriber · AC giữ 82 route/envelope/filter/guard · FC giữ AppModule/main/worker/env/tunnel/test-infra · BC giữ ingest/cascade/policy · PC 1 module/1 commit, đỏ >15' thì revert).

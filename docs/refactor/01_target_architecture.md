@@ -55,7 +55,7 @@ src/modules/datasets/
 
 | # | Điều kiện | Hiện tại | Sau | Bằng chứng |
 |---|---|---|---|---|
-| **M1** | Ranh giới module rõ ràng | ✅ 14 module | ✅ | Thư mục độc lập, không dùng chung |
+| **M1** | Ranh giới module rõ ràng | ✅ 13 module | ✅ | Thư mục độc lập, không dùng chung |
 | **M2** | Không import chéo module (ngoài public contract) | ✅ 116 import đều qua `index.ts` | ✅ | ESLint rule + arch test |
 | **M3** | Module = 1 vertical slice (HTTP → DB trong 1 thư mục) | ❌ 4 tầng | ✅ | Thư mục phẳng, 5–8 file |
 | **M4** | Shared kernel + 1 process deploy | ✅ | ✅ | `src/shared/`, 1 `AppModule` |
@@ -154,9 +154,9 @@ Mỗi module dùng tiền tố tên module:
 
 | Không đổi | Lý do |
 |---|---|
-| **84 HTTP route** + response shape | Frontend đang dựa vào; contract §3.13 đã chốt |
-| **20 Mongoose model** + collection/index | DB đang có dữ liệu thật |
-| **107 handler → 107 service method** (map 1-1) | Đổi tên lớp, không đổi logic |
+| **82 HTTP route + 1 WS gateway** + response shape | Frontend đang dựa vào; contract §3.13 đã chốt |
+| **18 Mongoose model** + collection/index (xem `12_business_invariants.md` §12.7) | DB đang có dữ liệu thật |
+| **107 handler (+3 subscriber) → 107 service method** (map 1-1, chi tiết ở `12_business_invariants.md` §12.2) | Đổi tên lớp, không đổi logic |
 | **Outbox + transaction** | Đang hoạt động tốt (OPEN-09) |
 | **RBAC 3 tầng** (workspace → project → dataset) | Đã giải quyết IDOR, có test |
 | **Cursor pagination** | Đã chốt trong hợp đồng API |

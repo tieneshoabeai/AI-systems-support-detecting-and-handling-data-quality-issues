@@ -56,4 +56,6 @@ export interface FeedbackRepositoryPort {
   countDistinctAuthors(scope: FeedbackScope): Promise<number>;
   countDistinctRuns(projectId: string): Promise<number>;
   aggregateByProject(projectId: string): Promise<Array<{ label: string; count: number }>>;
+  /** Đếm theo phạm vi run/finding để dựng `summary` — không cắt ở 1000. */
+  summaryByScope?(params: { analysisRunId: string; findingId?: string | null; label?: string }): Promise<Record<string, number>>;
 }

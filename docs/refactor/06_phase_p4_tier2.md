@@ -193,7 +193,7 @@ src/modules/datasets/
 > Dataset là **insert-only**: không có route cập nhật cột. Đây là quy tắc nghiệp vụ, KHÔNG phải hạn chế kỹ thuật.
 > Refactor **không được** thêm bất kỳ route cập nhật nào vào `datasets`.
 >
-> Kiểm tra sau mỗi commit: `pnpm arch:api-coverage` phải vẫn là **84 route** — không phải 85.
+> Kiểm tra sau mỗi commit: `pnpm arch:api-coverage` phải vẫn là **82 route** (§12.1) — không phải 83. Giữ nguyên `deleted_at: null`, transaction/outbox (§12.5), hằng số §12.6.
 
 ---
 
@@ -224,5 +224,19 @@ src/modules/datasets/
 | `pnpm type-check` | 0 lỗi |
 | `pnpm lint` | 0 cảnh báo |
 | `pnpm exec jest --maxWorkers=2` | 67 suites / 1 069 tests |
-| `pnpm arch:api-coverage` | 84 / 84 / 0 / 0 |
+| `pnpm arch:api-coverage` | 82 / 82 / 0 / 0 (§12.1) |
 | Tag | `v1.2.0-p4` |
+
+---
+
+## 6.8. Đối chiếu nghiệp vụ Tier 2 (bắt buộc — xem `12_business_invariants.md` §12.3–§12.6)
+
+- **users:** 17 handler — giữ snake_case của `CreateSession/CreateUser/UpdateProfile`, giữ `includePassword=false`, giữ `UserAccessRevocationService` file riêng + outbox `USER_BLOCKED/REMOVED`, giữ TTL 7/30 ngày, giữ `deleted_at: null`.
+- **workspaces:** 14 handler — giữ `MAX_WORKSPACES_PER_USER=20` (chỉ tính owned, admin miễn), giữ transaction strict của `DeleteWorkspace`, giữ fail-safe try/catch của `workspace-context.adapter`, giữ `incrementStorageUsed` với số âm khi xoá dataset.
+- **projects:** 17 handler — giữ nguyên 3 policy loader class, giữ subscriber cascade riêng, giữ transaction + outbox `PROJECT_DELETED`, giữ lớp phòng thủ loại project mồ côi ở query, giữ `touch=false` mặc định.
+- **datasets:** 8 handler + 1 subscriber — **không đụng** `IngestDatasetStream` 2 pha (delimiter `,`, giữ dòng rỗng, header trùng thành finding, batch 5000, sample 500); giữ `coerceValue` + `TYPE_INFERENCE_THRESHOLD=0.8` + `Asia/Ho_Chi_Minh`; giữ transaction xoá dataset (soft-delete records + `setHasDataset(false)` + trừ storage); giữ `MapPropsToOriginalNames` là migration không tham số; giữ `DatasetRecord` chỉ khai báo ở module này.
+- **Kiểm tra chung:** mọi repository giữ `deleted_at: null`; mọi `*.module.ts` chỉ đổi đường dẫn import; mọi adapter giữ tên class; không thêm route (vẫn 82).
+
+---
+
+> **Khóa chống vỡ test/API/hạ tầng:** trước mỗi commit của phase này, tick hết [`13_refactor_constraints.md`](13_refactor_constraints.md) §13.6 (TC giữ test/token/session/subscriber · AC giữ 82 route/envelope/filter/guard · FC giữ AppModule/main/worker/env/tunnel/test-infra · BC giữ ingest/cascade/policy · PC 1 module/1 commit, đỏ >15' thì revert).

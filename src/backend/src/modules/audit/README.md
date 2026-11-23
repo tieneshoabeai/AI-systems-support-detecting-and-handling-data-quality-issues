@@ -1,36 +1,36 @@
-# MODULE `audit` - Nhat ky kiem toan
+# MÔ-ĐUN `audit` — Nhật ký kiểm toán
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/audit` (8 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/audit` (8 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ
 
-Module ghi lai **moi thao tac nhay cam** vao mot nhat ky append-only: ai, lam gi, luc nao, tren tai nguyen nao, ket qua ra sao.
+Mô-đun ghi lại **mọi thao tác nhạy cảm** vào một nhật ký chỉ ghi thêm (append-only): ai, làm gì, lúc nào, trên tài nguyên nào, kết quả ra sao.
 
-> **Nguyen tac:** nhat ky kiem toan **khong bao gio** duoc sua hoac xoa. Khong co API cap nhat hay xoa nhat ky.
+> **Nguyên tắc:** nhật ký kiểm toán **không bao giờ** được sửa hoặc xoá. Không có API cập nhật hay xoá nhật ký.
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Ghi nhat ky | Ghi hanh dong cua nguoi dung / he thong |
-| Truy van | Doc nhat ky theo tieu chi loc (admin) |
+| Ghi nhật ký | Ghi hành động của người dùng / hệ thống |
+| Truy vấn | Đọc nhật ký theo tiêu chí lọc (admin) |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 audit/
 |-- application/commands/log.handler.ts
 |-- domain/ports/
 |   |-- audit-logger.port.ts       # AUDIT_LOGGER_PORT
-|   `-- audit.repository.port.ts   # port ghi + doc
+|   `-- audit.repository.port.ts   # cổng ghi + đọc
 |-- infrastructure/
 |   |-- adapters/audit-logger.adapter.ts
 |   `-- persistence/
@@ -39,112 +39,107 @@ audit/
 `-- audit.module.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-- **User Prompt / Business Intent:** Dam bao moi thao tac nhay cam deu **truy vet duoc**, va viec ghi nhat ky khong duoc lam hong luong nghiep vu chinh.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Bảo đảm mọi thao tác nhạy cảm đều **truy vết được**, và việc ghi nhật ký không được làm hỏng luồng nghiệp vụ chính.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Hai port tach biet.** `AuditLogger` (dung cho module khac) va `AuditRepository` (dung cho tang presentation). Port `AuditLogger` nam o **domain** - bat ky module nao cung ghi nhat ky ma khong can biet MongoDB.
+1. **Hai cổng tách biệt.** `AuditLogger` (dùng cho mô-đun khác) và `AuditRepository` (dùng cho tầng trình bày). Cổng `AuditLogger` nằm ở **domain** — bất kỳ mô-đun nào cũng ghi nhật ký mà không cần biết MongoDB.
 
-2. **Facade port de tranh phu thuoc truc tiep.** Controller cua module khac **khong** import truc tiep `AuditService` cua module `audit`. Module `audit` **so huu** hop dong nay, export qua `modules/audit/index.ts` (public contract) va bind token toi `AuditService` trong `AuditModule`. Cach nay giu ranh gi giua cac module ma van dung DI.
+2. **Cổng mặt tiền (facade) để tránh phụ thuộc trực tiếp.** Controller của mô-đun khác **không** import trực tiếp `AuditService` của mô-đun `audit`. Mô-đun `audit` **sở hữu** hợp đồng này, xuất qua `modules/audit/index.ts` (hợp đồng công khai) và gắn token tới `AuditService` trong `AuditModule`. Cách này giữ ranh giới giữa các mô-đun mà vẫn dùng DI.
 
-3. **Ghi nhat ky la best-effort.** `log(input, changes)` nem loi duoc bat va ghi lai, **khong** nem ra ngoai. Mot loi ghi nhat ky khong duoc lam mat hanh dong cua nguoi dung (vi du: dang nhap van thanh cong du audit log that bai).
+3. **Ghi nhật ký theo kiểu cố gắng tối đa (best-effort).** `log(input, changes)` có lỗi sẽ bị bắt và ghi lại, **không** ném ra ngoài. Một lỗi ghi nhật ký không được làm mất hành động của người dùng (ví dụ: đăng nhập vẫn thành công dù ghi audit log thất bại).
 
-4. **Chi co duong ghi.** `AuditLogger` chi co `log(...)` - khong mo repository cho doc. Truy van chi qua `AuditRepository` (tang presentation, phia admin).
+4. **Chỉ có đường ghi.** `AuditLogger` chỉ có `log(...)` — không mở repository cho đọc. Truy vấn chỉ qua `AuditRepository` (tầng trình bày, phía admin).
 
-5. **Append-only thuan.** Collection khong co `deleted_at`, khong co `updated_at`. Khong co API cap nhat hay xoa nhat ky.
+5. **Chỉ ghi thêm thuần tuý.** Collection không có `deleted_at`, không có `updated_at`. Không có API cập nhật hay xoá nhật ký.
 
-- **Generated / Modified Artifacts:**
+- **Hiện vật đã tạo / đã sửa:**
 
-- `domain/ports/audit-logger.port.ts` - `AUDIT_LOGGER_PORT` (`Symbol`), interface `AuditLoggerPort` voi method `log(input, changes?)`.
-- `domain/ports/audit.repository.port.ts` - `CreateAuditLogInput`, `AuditChangeInput`.
-- `infrastructure/adapters/audit-logger.adapter.ts` - hien thuc port, bat loi.
-- `infrastructure/persistence/audit-log.schema.ts` - schema MongoDB + 2 chi muc.
-- `application/commands/log.handler.ts` - xu ly ghi nhat ky.
+- `domain/ports/audit-logger.port.ts` — `AUDIT_LOGGER_PORT` (`Symbol`), interface `AuditLoggerPort` với phương thức `log(input, changes?)`.
+- `domain/ports/audit.repository.port.ts` — `CreateAuditLogInput`, `AuditChangeInput`.
+- `infrastructure/adapters/audit-logger.adapter.ts` — hiện thực cổng, bắt lỗi.
+- `infrastructure/persistence/audit-log.schema.ts` — schema MongoDB + 2 chỉ mục.
+- `application/commands/log.handler.ts` — xử lý ghi nhật ký.
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+## 4. Đặc tả giao tiếp kỹ thuật
 
-### 4.1. Endpoints
+### 4.1. Điểm cuối (Endpoints)
 
-Module audit **khong co controller HTTP** — khong ton tai route nao tren `/api/v1/audit/*`.
+Mô-đun audit **không có controller HTTP** — không tồn tại tuyến đường nào trên `/api/v1/audit/*`.
 
-| Giao dien | Hinh thuc | Mo ta |
+| Giao diện | Hình thức | Mô tả |
 |---|---|---|
-| `AUDIT_LOGGER_PORT.log(...)` | Port (noi bo) | Module khac ghi nhat ky qua port token, **khong** qua HTTP |
-| `AuditRepositoryPort.findLogs(...)` | Port (noi bo) | Truy van nhat ky cho code noi bo / bao cao |
+| `AUDIT_LOGGER_PORT.log(...)` | Cổng (nội bộ) | Mô-đun khác ghi nhật ký qua token cổng, **không** qua HTTP |
+| `AuditRepositoryPort.findLogs(...)` | Cổng (nội bộ) | Truy vấn nhật ký cho mã nội bộ / báo cáo |
 
-> **Luu y:** bang trong ban "Dac ta" cua hop dong §3.13 cung khong co route `/audit/logs` — 84 route
-> hien hanh khong bao gom audit. Truy van nhat ky cho quan tri chua duoc mo route HTTP; neu can,
-> se phai them controller + policy `@Roles('admin')` va dong bo lai hop dong.
+> **Lưu ý:** bảng trong bản "Đặc tả" của hợp đồng §3.13 cũng không có tuyến `/audit/logs` — 84 tuyến hiện hành không bao gồm audit. Truy vấn nhật ký cho quản trị chưa được mở tuyến HTTP; nếu cần, sẽ phải thêm controller + chính sách `@Roles('admin')` và đồng bộ lại hợp đồng.
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/audit/index.ts` export public contract:
+`src/backend/src/modules/audit/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `AuditModule` | Nest module |
-| `AUDIT_LOGGER_PORT` | Port ghi nhat ky (dung boi module khac) |
-| `AuditLoggerPort` | Interface ghi nhat ky |
+| `AuditModule` | Mô-đun Nest |
+| `AUDIT_LOGGER_PORT` | Cổng ghi nhật ký (dùng bởi mô-đun khác) |
+| `AuditLoggerPort` | Interface ghi nhật ký |
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-> Module nay **khong phat su kien**. No **ghi** nhat ky ve cac su kien cua module khac.
+> Mô-đun này **không phát sự kiện**. Nó **ghi** nhật ký về các sự kiện của mô-đun khác.
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-| Truong | Bat buoc |
+| Trường | Bắt buộc |
 |---|---|
-| `userId` | `null` cho hanh dong he thong |
-| `action` | Khong rong |
-| `entityType` | Khong rong |
-| `createdAt` | Tu dong |
-| `expiresAt` | Cho phep null (luu lau dai) |
+| `userId` | `null` cho hành động hệ thống |
+| `action` | Không rỗng |
+| `entityType` | Không rỗng |
+| `createdAt` | Tự động |
+| `expiresAt` | Cho phép null (lưu lâu dài) |
 
-- Moi ban ghi co `created_at` - **khong** co `updated_at`.
-- Moi ban ghi co `expires_at` - cho phep xoa theo quy tac bao luu (tu dong phoi cho phan quyen doc, khong phai xoa thu cong).
-- `targetLabel` toi da 200 ky tu; `ipAddress` toi da 45; `userAgent` toi da 500.
-- Khong co API sua hoac xoa nhat ky.
-- Ghi nhat ky **khong** duoc lam hong luong nghiep vu chinh.
+- Mọi bản ghi có `created_at` — **không** có `updated_at`.
+- Mọi bản ghi có `expires_at` — cho phép xoá theo quy tắc lưu trữ (tự động, phục vụ cho phân quyền đọc, không phải xoá thủ công).
+- `targetLabel` tối đa 200 ký tự; `ipAddress` tối đa 45 ký tự; `userAgent` tối đa 500 ký tự.
+- Không có API sửa hoặc xoá nhật ký.
+- Ghi nhật ký **không** được làm hỏng luồng nghiệp vụ chính.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+Mô-đun này **không áp dụng xoá mềm** — nhật ký là append-only, không có `deleted_at`. Quy tắc `deleted_at: null` của repository nền không áp dụng ở đây.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Doi tien nhat ky de che dau | Append-only, khong co API sua / xoa |
-| Loi audit lam mat hanh dong | `log()` bat loi, ghi lai, khong nem ra ngoai |
-| Xoa nhat ky thu cong | Khong co duong xoa thu cong; chi tu dong theo `expires_at` |
-| Rò PII trong nhat ky | Chi luu id, loai, nhan, metadata; khong luu gia tri du lieu nghiep vu |
-| Truy van nhat ky khong phai admin | Chua mo route HTTP; khi mo route moi phai gan `@Roles('admin')` |
-| Truy van cham tren nhat ky lon | Chi muc `{ actor_id, created_at }` va `{ target_type, target_id, created_at }` |
+| Sửa nhật ký để che dấu vết | Append-only, không có API sửa / xoá |
+| Lỗi audit làm mất hành động | `log()` bắt lỗi, ghi lại, không ném ra ngoài |
+| Xoá nhật ký thủ công | Không có đường xoá thủ công; chỉ tự động theo `expires_at` |
+| Rò rỉ PII trong nhật ký | Chỉ lưu id, loại, nhãn, metadata; không lưu giá trị dữ liệu nghiệp vụ |
+| Truy vấn nhật ký không phải admin | Chưa mở tuyến HTTP; khi mở tuyến mới phải gắn `@Roles('admin')` |
+| Truy vấn chậm trên nhật ký lớn | Chỉ mục `{ actor_id, created_at }` và `{ target_type, target_id, created_at }` |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-Module nay **khong co route HTTP**, nen khong co bang phan quyen theo route.
-Quyen duoc ap dung o tang ghi:
+Mô-đun này **không có tuyến HTTP**, nên không có bảng phân quyền theo tuyến. Quyền được áp dụng ở tầng ghi:
 
-| Giao dien | Chinh sach |
+| Giao diện | Chính sách |
 |---|---|
-| `AUDIT_LOGGER_PORT` | Chi module trong he thong moi goi duoc (qua DI token, khong phai HTTP) |
-| Truy van nhat ky | Chua mo route; neu mo phai co `@Roles('admin')` + audit log cho ban ghi doc |
+| `AUDIT_LOGGER_PORT` | Chỉ mô-đun trong hệ thống mới gọi được (qua token DI, không phải HTTP) |
+| Truy vấn nhật ký | Chưa mở tuyến; nếu mở phải có `@Roles('admin')` + ghi audit cho bản ghi đọc |
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung `AUDIT_LOGGER_PORT` va `audit-logger.adapter.ts` best-effort / Module khac ghi nhat ky ma khong phu thuoc truc tiep / `modules/audit`
-- **v0.5.0** / 2026-11-XX / Bo sung `expires_at` va chi muc theo actor / theo target / Truy van nhat ky tren quy mo khong cham / `modules/audit`
-- **v0.1.0** / 2026-11-XX / Tao module / Truy vet thao tac nhay cam / `modules/audit`
+- **v1.0.0** / 2026-11-XX / Bổ sung `AUDIT_LOGGER_PORT` và `audit-logger.adapter.ts` kiểu best-effort / Mô-đun khác ghi nhật ký mà không phụ thuộc trực tiếp / `modules/audit`
+- **v0.5.0** / 2026-11-XX / Bổ sung `expires_at` và chỉ mục theo tác nhân / theo đối tượng / Truy vấn nhật ký trên quy mô lớn không chậm / `modules/audit`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun / Truy vết thao tác nhạy cảm / `modules/audit`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

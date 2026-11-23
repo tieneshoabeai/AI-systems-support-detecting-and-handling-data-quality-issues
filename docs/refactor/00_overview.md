@@ -10,23 +10,23 @@
 
 | Vấn đề thực tế | Bằng chứng |
 |---|---|
-| **Người mới khó hiểu codebase** | 4 tầng × 14 module = 4 thư mục phải grep cho mỗi request; 339 file `.ts` trong `src/modules/` |
+| **Người mới khó hiểu codebase** | 4 tầng × 13 module = 4 thư mục phải grep cho mỗi request; 340 file `.ts` trong `src/modules/` |
 | **Yêu cầu đồ án: modular monolith** | Bài nộp cần cấu trúc modular monolith rõ ràng, có thể chứng minh bằng công cụ |
-| **Over-engineering** | 107 handler sinh bằng codemod, phần lớn là wrapper 1-1; 14 rule kiến trúc để bảo vệ cấu trúc đã thành gánh nặng đồng bộ |
+| **Over-engineering** | 107 handler + 3 subscriber, phần lớn là wrapper 1-1 được sinh bằng codemod; 14 rule kiến trúc để bảo vệ cấu trúc đã thành gánh nặng đồng bộ |
 
 ## 0.2. Baseline đã đo (điểm xuất phát)
 
 | Chỉ số | Giá trị | Cách đo |
 |---|---|---|
-| File `.ts` trong `src/modules/` | **339** | `find src/modules -name '*.ts'` |
-| LOC trong `src/modules/` | **31 076** | `wc -l` |
+| File `.ts` trong `src/modules/` | **340** | `find src/modules -name '*.ts'` |
+| LOC trong `src/modules/` | **31 505** | `wc -l` |
 | File `.ts` trong `src/shared/` | **88** | — |
 | LOC trong `src/shared/` | **5 567** | — |
-| HTTP route | **84** | `pnpm arch:api-coverage` |
+| HTTP route | **82 HTTP + 1 WS gateway** | `pnpm arch:api-coverage` |
 | Command/Query handler | **107** (61 cmd + 46 query) | `19_handler_inventory.md` |
 | Cross-module import | **116**, đều qua `index.ts` | quét AST |
 | Test | **1 277** (1 069 unit/arch + 138 integration + 70 e2e) | `pnpm test*` |
-| Mongoose model | **20** (19 file schema) | `MongooseModule.forFeature` |
+| Mongoose model | **18 (17 file schema)** | `MongooseModule.forFeature` |
 
 ## 0.3. Nguyên tắc bất di bất dịch
 
@@ -55,6 +55,8 @@
 | `08_phase_p6_p7_docs_verify.md` | P6 tài liệu + P7 verify | Phase 6–7 |
 | `09_risk_and_rollback.md` | Rủi ro + kịch bản rollback | Bất cứ lúc nào |
 | `10_checklist_master.md` | Checklist tổng hợp theo giờ | Dùng như bảng điều khiển |
+| `11_decision_log.md` | Nhật ký quyết định (D1–D12) | Điền khi chạy, dùng viết ADR |
+| `12_business_invariants.md` | Catalogue nghiệp vụ bất biến (82 route + 107 handler + token/guard/transaction) | Đối chiếu trước khi gộp mỗi module — **đọc kèm mọi phase** |
 
 ## 0.5. Lịch trình 30 giờ
 

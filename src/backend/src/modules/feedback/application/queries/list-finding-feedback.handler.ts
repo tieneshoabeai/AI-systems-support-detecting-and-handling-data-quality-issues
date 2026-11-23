@@ -151,14 +151,26 @@ export class ListFindingFeedbackHandler {
     });
     const names = await this.authorNames(docs.slice(0, query.limit));
     const page = this.buildPage(docs, query.limit, userId, names);
-    const all = await this.repo.listByScope({
-      analysisRunId: analysisId,
-      findingId: fid,
-      limit: 1000,
-      sortOrder: 'desc',
-    });
-    const summary: Record<string, number> = {};
-    for (const d of all) summary[d.label] = (summary[d.label] ?? 0) + 1;
+    // Summary đếm bằng aggregation (không cắt ở 1000) — đúng khi >1000 feedback.
+    const summaryRepo = this.repo as FeedbackRepositoryPort & {
+      summaryByScope?: (p: { analysisRunId: string; findingId?: string | null; label?: string }) => Promise<Record<string, number>>;
+    };
+    let summary: Record<string, number> = {};
+    if (typeof summaryRepo.summaryByScope === 'function') {
+      summary = await summaryRepo.summaryByScope({
+        analysisRunId: analysisId,
+        findingId: fid,
+        ...(query.label ? { label: query.label } : {}),
+      });
+    } else {
+      const all = await this.repo.listByScope({
+        analysisRunId: analysisId,
+        findingId: fid,
+        limit: 1000,
+        sortOrder: 'desc',
+      });
+      for (const d of all) summary[d.label] = (summary[d.label] ?? 0) + 1;
+    }
     return { ...page, summary };
   }
 }

@@ -366,12 +366,14 @@ export class RunAnalysisHandler {
         if (col.role === 'excluded') continue;
         const samples: string[] = [];
         const markedPii = piiColumnKeys.has(col.key);
+        // GĐ2 — role của cột để maskForAi quyết định raw/shape/***.
+        const aiRole = roleByName.get(col.key) ?? null;
         for (const row of rows) {
           if (samples.length >= 20) break;
           const v = row[col.key];
           if (v === null || v === undefined || v === '') continue;
-          const masked = maskSampleValue(v, markedPii);
-          if (masked === null) continue; // ô không che được → loại khỏi prompt
+          const masked = maskSampleValue(v, markedPii, aiRole);
+          if (masked === null) continue; // ô thiếu → bỏ qua
           samples.push(masked);
         }
         maskedSamples[col.key] = samples;
@@ -588,7 +590,7 @@ export class RunAnalysisHandler {
         let masked: string | null = null;
         if (kind === 'missing') masked = null;
         else {
-          const mv = maskSampleValue(raw, isPii);
+          const mv = maskSampleValue(raw, isPii, roleByName.get(column) ?? null);
           masked = mv ?? '***';
         }
         evidenceDocs.push({
@@ -613,9 +615,6 @@ export class RunAnalysisHandler {
             n++;
           }
         }
-      }
-      for (const r of dq03Rows) {
-        void r;
       }
       for (const c of selectedKeys) {
         let n = 0;
@@ -785,7 +784,7 @@ export class RunAnalysisHandler {
         prompt_version: 'corr-v1',
       } as Partial<Parameters<AnalysisRepositoryPort['createJob']>[0]>);
 
-      await this.analysisRepository.markResultsStale(projectId, run.id, 'config_changed');
+      await this.analysisRepository.markResultsStale(projectId, run.id, 'superseded_by_new_run');
 
       this.logger.log(
         `Analysis run ${run.id} project ${projectId}: ${cells.length} cells, VIF commonN=${vifComp.commonN}`,

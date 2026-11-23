@@ -1,45 +1,45 @@
-# MODULE `data-view` - Luoi du lieu ao
+# MÔ-ĐUN `data-view` — Lưới dữ liệu ảo
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản (Version Information)
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/data-view` (15 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/data-view` (15 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ (Scope & Responsibility)
 
-Module cung cap khac nang **xem va truy van du lieu lon** ma khong bao gio nap toan bo vao RAM. Day la module hien thuc "Luoi du lieu ao" - trai nghiem bang voi hang trieu dong nhung moi trang chi <= 500 dong.
+Mô-đun cung cấp khả năng **xem và truy vấn dữ liệu lớn** mà không bao giờ nạp toàn bộ vào RAM. Đây là mô-đun hiện thực "Lưới dữ liệu ảo" — trải nghiệm mượt như bảng vài chục dòng dù dữ liệu có hàng triệu dòng, mỗi trang chỉ ≤ 500 dòng.
 
-Module nay **chi doc**. No khong co repository rieng - dung `RecordQueryPort` do module `datasets` cung cap. Do dung: truy van ban ghi thuoc ve tang luu tru dataset, con `data-view` chi la lop trinh bay.
+Mô-đun này **chỉ đọc**. Nó không có repository riêng — dùng `RecordQueryPort` do mô-đun `datasets` cung cấp. Lý do: truy vấn bản ghi thuộc về tầng lưu trữ dataset, còn `data-view` chỉ là lớp trình bày.
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Doc dong | Phan trang keyset theo `(row_index, _id)` |
-| Truy van | Loc + sap xep + phan trang to hop |
-| Thong ke cot | Count, distinct, min/max, trung binh, histogram, box plot |
-| Bieu do | Histogram, box plot, top-N theo nhom |
+| Đọc dòng | Phân trang keyset theo `(row_index, _id)` |
+| Truy vấn | Lọc + sắp xếp + phân trang tổ hợp |
+| Thống kê cột | Count, distinct, min/max, trung bình, histogram, box plot |
+| Biểu đồ | Histogram, box plot, top-N theo nhóm |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 data-view/
 |-- domain/
 |   |-- entities/record-query.entity.ts
 |   |-- value-objects/
-|   |   |-- record-filter.vo.ts     # 14 toan tu loc
-|   |   `-- record-query.vo.ts      # gioi han trang
+|   |   |-- record-filter.vo.ts     # 14 toán tử lọc
+|   |   `-- record-query.vo.ts      # giới hạn trang
 |-- application/
 |   |-- queries/
-|   |   |-- get-records.handler.ts      # phan trang
-|   |   |-- query-records.handler.ts    # loc + sap xep
-|   |   |-- get-column-stats.handler.ts # thong ke cot
-|   |   `-- get-chart-data.handler.ts   # du lieu bieu do
+|   |   |-- get-records.handler.ts      # phân trang
+|   |   |-- query-records.handler.ts    # lọc + sắp xếp
+|   |   |-- get-column-stats.handler.ts # thống kê cột
+|   |   `-- get-chart-data.handler.ts   # dữ liệu biểu đồ
 |   |-- data-view.types.ts
 |   `-- data-view.utils.ts
 `-- presentation/
@@ -47,47 +47,49 @@ data-view/
     `-- dtos/  (chart-data.dto, query-records.dto, query-records-body.dto)
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật (Prompting Log & Rationale)
 
-- **User Prompt / Business Intent:** Cho phep nguoi dung xem va loc du lieu hang trieu dong nhu mot bang binh thuong, voi do tre <= 50 ms cho moi lan cuon, ma khong bao gio phai nap du lieu ve Node.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Cho phép người dùng xem và lọc dữ liệu hàng triệu dòng như một bảng bình thường, với độ trễ ≤ 50 ms cho mỗi lần cuộn, mà không bao giờ phải nạp dữ liệu về Node.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Keyset pagination, khong offset.** `offset=1000000` cua MongoDB phai scan va bo qua 1.000.000 document. Voi nguoi dung nhay toi trang 500.000, offset mat nhieu giay; keyset nhay thang toi vi tri can doc, duoi 50 ms. Cursor chua gia tri sap xep cuoi cung + `_id` de pha the hoan hao khi nhieu gia tri bang nhau.
+1. **Phân trang keyset, không offset.** `offset=1000000` của MongoDB phải quét và bỏ qua 1.000.000 document. Với người dùng nhảy tới trang 500.000, offset mất nhiều giây; keyset nhảy thẳng tới vị trí cần đọc, dưới 50 ms. Cursor chứa giá trị sắp xếp cuối cùng + `_id` để phá thế hoà hoàn hảo khi nhiều giá trị bằng nhau.
 
-2. **Gioi han trang 50 / 500.** `DEFAULT_RECORD_LIMIT = 50`, `MAX_RECORD_LIMIT = 500`. `normalizeRecordLimit` chuan hoa: gia tri khong huu han / <= 0 -> 50; > 500 -> 500. Client khong the ep server tra ve mot luc luon du lieu.
+2. **Giới hạn trang 50 / 500.** `DEFAULT_RECORD_LIMIT = 50`, `MAX_RECORD_LIMIT = 500`. `normalizeRecordLimit` chuẩn hoá: giá trị không hữu hạn / ≤ 0 → 50; > 500 → 500. Client không thể ép server trả về một lúc toàn bộ dữ liệu.
 
-3. **Sap xep so & ngay: null o cuoi.** MongoDB sap xep `null` **truoc** moi gia tri khac khi tang dan. Nguoi dung muon xem "nhung nguoi khong cung cap tuoi" o **cuoi** danh sach. Voi hang tram nghin dong thieu gia tri, dau danh sach se toan dong rong - vo dung. `record-query.repository.ts` dung aggregation **hai giai doan** voi co `__sortnull_num` / `__sortnull_date` (0 = hop le, 1 = null).
+3. **Sắp xếp số & ngày: null ở cuối.** MongoDB sắp xếp `null` **trước** mọi giá trị khác khi tăng dần. Người dùng muốn xem "những người không cung cấp tuổi" ở **cuối** danh sách. Với hàng trăm nghìn dòng thiếu giá trị, đầu danh sách sẽ toàn dòng rỗng — vô dụng. `record-query.repository.ts` dùng aggregation **hai giai đoạn** với cờ `__sortnull_num` / `__sortnull_date` (0 = hợp lệ, 1 = null).
 
-4. **Chuyen doi kieu an toan.** Chi nhung gia tri thuc su la so moi duoc chuyen. Khong co kiem tra `$type`, MongoDB bien `false` -> `0` va `true` -> `1`, tao ra **histogram gia** cho cot boolean. Dieu kien: `$type` thuoc `double | int | long | decimal | string`.
+4. **Chuyển đổi kiểu an toàn.** Chỉ những giá trị thực sự là số mới được chuyển. Không có kiểm tra `$type`, MongoDB biến `false` → `0` và `true` → `1`, tạo ra **histogram giả** cho cột boolean. Điều kiện: `$type` thuộc `double | int | long | decimal | string`.
 
-5. **14 toan tu loc, giai key cot linh hoat.** `resolveColumnKeyPure` uu tien key `c{i}`, sau do ten hien thi, cuoi cung ten goc - frontend co the gui key hoac ten cot.
+5. **14 toán tử lọc, giải key cột linh hoạt.** `resolveColumnKeyPure` ưu tiên key `c{i}`, sau đó tên hiển thị, cuối cùng tên gốc — frontend có thể gửi key hoặc tên cột.
 
-6. **Moi thong ke chay bang aggregation MongoDB**, khong ke du lieu ve Node de tinh. O voi hang trieu dong, cach nay khac biet giua chay duoc va khong chay duoc.
+6. **Mọi thống kê chạy bằng aggregation MongoDB**, không kéo dữ liệu về Node để tính. Với hàng triệu dòng, cách này khác biệt giữa chạy được và không chạy được.
 
-- **Generated / Modified Artifacts:**
+7. **Che PII ở biểu đồ phân loại.** Cột bị đánh dấu `is_pii` không trả về chuỗi thô trong Top-N phân loại mà trả về `{ items: [], masked: true }` — tránh rò rỉ dữ liệu nhạy cảm qua biểu đồ.
 
-- `domain/value-objects/record-filter.vo.ts` - `RECORD_FILTER_OPERATORS` (14 toan tu), `isValidOperator`, `propsPath`, `resolveColumnKeyPure`.
-- `domain/value-objects/record-query.vo.ts` - `DEFAULT_RECORD_LIMIT` (50), `MAX_RECORD_LIMIT` (500), `normalizeRecordLimit`.
-- `application/queries/get-records.handler.ts` - phan trang keyset, tra `nextCursor`.
-- `application/queries/query-records.handler.ts` - loc + sap xep + phan trang to hop.
-- `application/queries/get-column-stats.handler.ts` - thong ke theo kieu cot.
-- `application/queries/get-chart-data.handler.ts` - histogram / boxPlot / categoryTopN.
+- **Hiện vật đã tạo / đã sửa:**
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+- `domain/value-objects/record-filter.vo.ts` — `RECORD_FILTER_OPERATORS` (14 toán tử), `isValidOperator`, `propsPath`, `resolveColumnKeyPure`.
+- `domain/value-objects/record-query.vo.ts` — `DEFAULT_RECORD_LIMIT` (50), `MAX_RECORD_LIMIT` (500), `normalizeRecordLimit`.
+- `application/queries/get-records.handler.ts` — phân trang keyset, trả `nextCursor`; khi có `sort_field`/`sort_order` sẽ uỷ thác cho `queryRecords` để sắp xếp phía server.
+- `application/queries/query-records.handler.ts` — lọc + sắp xếp + phân trang tổ hợp.
+- `application/queries/get-column-stats.handler.ts` — thống kê theo kiểu cột.
+- `application/queries/get-chart-data.handler.ts` — histogram / boxPlot / categoryTopN (có che PII).
 
-### 4.1. Endpoints
+## 4. Đặc tả giao tiếp kỹ thuật (Technical Contracts & API Specifications)
 
-| Method | Path | Chinh sach | Mo ta |
+### 4.1. Điểm cuối (Endpoints)
+
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `GET` | `/api/v1/datasets/:datasetId/records` | `Action.Read` | Trang du lieu (keyset) |
-| `POST` | `/api/v1/datasets/:datasetId/records/query` | `Action.Read` | Truy van loc + sap xep |
-| `GET` | `/api/v1/datasets/:datasetId/columns/:columnKey/stats` | `Action.Read` | Thong ke cot |
-| `GET` | `/api/v1/datasets/:datasetId/charts` | `Action.Read` | Du lieu bieu do |
+| `GET` | `/api/v1/datasets/:datasetId/records` | `Action.Read` | Trang dữ liệu (keyset) |
+| `POST` | `/api/v1/datasets/:datasetId/records/query` | `Action.Read` | Truy vấn lọc + sắp xếp |
+| `GET` | `/api/v1/datasets/:datasetId/columns/:columnKey/stats` | `Action.Read` | Thống kê cột |
+| `GET` | `/api/v1/datasets/:datasetId/charts` | `Action.Read` | Dữ liệu biểu đồ (histogram/boxPlot/categoryTopN) |
 
-**Query params `GET /records`:** `limit` (mac dinh 50, toi da 500), `cursor`, `sort`, `order` (`asc` | `desc`).
+**Tham số truy vấn `GET /records`:** `limit` (mặc định 50, tối đa 500), `cursor`, `sort`, `order` (`asc` | `desc`), `sort_field`, `sort_order`.
 
-**Body `POST /records/query`:**
+**Thân `POST /records/query`:**
 
 ```json
 {
@@ -100,70 +102,71 @@ data-view/
 }
 ```
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/data-view/index.ts` export public contract:
+`src/backend/src/modules/data-view/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `DataViewModule` | Nest module |
-| `RecordQuery` entity | Domain contract |
-| `RecordFilterOperator`, `RECORD_FILTER_OPERATORS` | Danh muc toan tu loc |
+| `DataViewModule` | Mô-đun Nest |
+| Thực thể `RecordQuery` | Hợp đồng domain |
+| `RecordFilterOperator`, `RECORD_FILTER_OPERATORS` | Danh mục toán tử lọc |
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-> Module nay **khong phat su kien** - no thuan la lop doc du lieu.
+> Mô-đun này **không phát sự kiện** — nó thuần là lớp đọc dữ liệu.
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến (Invariants & Security Rules)
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-- `limit` luon nam trong `[1, 500]`; gia tri khong hop le -> 50.
-- Cursor **phai** duoc sinh tu chinh API nay - client khong duoc tu chay.
-- Toan tu loc phai thuoc `RECORD_FILTER_OPERATORS` - toan tu la duoc `isValidOperator` chan.
-- Duong dan thuoc tinh **luon** nam trong `props.c{i}` - khong duoc truy cap truc tiep field khac cua `dataset_record`.
-- Gia tri **null** (hoac khong parse duoc) phai sap xep **cuoi** danh sach khi sap xep theo so / ngay.
-- Cot boolean **khong** duoc tinh histogram so.
-- Moi trang **khong vuot qua** `MAX_RECORD_LIMIT` dong.
+- `limit` luôn nằm trong `[1, 500]`; giá trị không hợp lệ → 50.
+- Cursor **phải** được sinh ra từ chính API này — client không được tự chế.
+- Toán tử lọc phải thuộc `RECORD_FILTER_OPERATORS` — toán tử lạ được `isValidOperator` chặn.
+- Đường dẫn thuộc tính **luôn** nằm trong `props.c{i}` — không được truy cập trực tiếp field khác của `dataset_record`.
+- Giá trị **null** (hoặc không parse được) phải sắp xếp **cuối** danh sách khi sắp xếp theo số / ngày.
+- Cột boolean **không** được tính histogram số.
+- Cột `is_pii` **không** được lộ chuỗi thô trong biểu đồ phân loại.
+- Mỗi trang **không vượt quá** `MAX_RECORD_LIMIT` dòng.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Doc dataset nguoi khac | Policy loader cua module `datasets` kiem tra instance |
-| Ep server tra ve du lieu lon | `normalizeRecordLimit` chan tren 500 dong |
-| Injection qua ten cot | `resolveColumnKeyPure` chi nhan key co trong danh sach; duong dan dung `propsPath` |
-| Toan tu loc la | `isValidOperator` chan truoc khi build truy van |
-| Lo du lieu qua phan trang | Chi con du lieu thuoc dataset da duoc cap quyen |
+| Đọc dataset người khác | Policy loader của mô-đun `datasets` kiểm tra instance |
+| Ép server trả về dữ liệu lớn | `normalizeRecordLimit` chặn trên 500 dòng |
+| Injection qua tên cột | `resolveColumnKeyPure` chỉ nhận key có trong danh sách; đường dẫn dùng `propsPath` |
+| Toán tử lọc lạ | `isValidOperator` chặn trước khi build truy vấn |
+| Lộ dữ liệu qua phân trang | Chỉ trả dữ liệu thuộc dataset đã được cấp quyền |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `GET /datasets/:datasetId/records` | `Action.Read` tren `Dataset` + policy loader |
+| `GET /datasets/:datasetId/records` | `Action.Read` trên `Dataset` + policy loader |
 | `POST /datasets/:datasetId/records/query` | `Action.Read` |
 | `GET /datasets/:datasetId/columns/:columnKey/stats` | `Action.Read` |
 | `GET /datasets/:datasetId/charts` | `Action.Read` |
 
-> Module nay **khong** dinh nghia policy loader rieng - no tai su dung loader cua module `datasets` de khong nhan hai noi suat ve quyen.
+> Mô-đun này **không** định nghĩa policy loader riêng — nó tái sử dụng loader của mô-đun `datasets` để không nhân hai nơi suy xét về quyền.
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi (Change Log & Version History)
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung `GET /charts` phuc vu histogram, boxPlot, categoryTopN / Cho phep truc tiep ve bieu do ma khong can tinh o client / `modules/data-view`
-- **v0.9.0** / 2026-11-XX / Bo sung `get-column-stats.handler.ts` va tien ich `chart-data.util.ts` / Tien hoa thong ke cot theo kieu du lieu / `modules/data-view`
-- **v0.8.0** / 2026-11-XX / Chuyen tu offset sang keyset pagination va them gioi han `MAX_RECORD_LIMIT = 500` / Lo do tre tren du lieu lon / `modules/data-view`, `shared/domain/pagination`
-- **v0.7.0** / 2026-11-XX / Bo sung `__sortnull_num` / `__sortnull_date` trong aggregation hai giai doan / Gia tri null o cuoi danh sach / `modules/datasets`
-- **v0.6.0** / 2026-11-XX / Chan chuyen doi kieu khong an toan: bo sung kiem tra `$type` / Xoa histogram gia cho cot boolean / `modules/datasets`
-- **v0.1.0** / 2026-11-XX / Tao module, tach tu `datasets` / Luoi du lieu ao la tang rieng / `modules/data-view`
+- **v1.0.0** / 2026-11-XX / Bổ sung `GET /charts` phục vụ histogram, boxPlot, categoryTopN / Cho phép vẽ trực tiếp biểu đồ mà không cần tính ở client / `modules/data-view`
+- **v0.9.0** / 2026-11-XX / Bổ sung `get-column-stats.handler.ts` và tiện ích `chart-data.util.ts` / Tiến hoá thống kê cột theo kiểu dữ liệu / `modules/data-view`
+- **v0.8.0** / 2026-11-XX / Chuyển từ offset sang phân trang keyset và thêm giới hạn `MAX_RECORD_LIMIT = 500` / Giảm độ trễ trên dữ liệu lớn / `modules/data-view`, `shared/domain/pagination`
+- **v0.7.0** / 2026-11-XX / Bổ sung `__sortnull_num` / `__sortnull_date` trong aggregation hai giai đoạn / Giá trị null ở cuối danh sách / `modules/datasets`
+- **v0.6.0** / 2026-11-XX / Chặn chuyển đổi kiểu không an toàn: bổ sung kiểm tra `$type` / Xoá histogram giả cho cột boolean / `modules/datasets`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun, tách từ `datasets` / Lưới dữ liệu ảo là tầng riêng / `modules/data-view`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

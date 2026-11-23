@@ -37,36 +37,36 @@ Hệ thống được thiết kế theo mô hình **Modular Monolith** phân t�
 │   │   │   ├── main.ts            # Bootstrap HTTP server + Swagger + helmet + CORS
 │   │   │   ├── worker.ts         # Bootstrap tiến trình worker (outbox + AI + report)
 │   │   │   ├── app.module.ts      # Root module: 13 module nghiệp vụ + hạ tầng
-│   │   │   ├── modules/           # 13 module nghiệp vụ (Clean Architecture)
-│   │   │   │   ├── users/         # Tai khoan, phien dang nhap, quan tri
-│   │   │   │   ├── auth/          # JWT, refresh, Google OAuth 2.0, reset mat khau
-│   │   │   │   ├── workspaces/    # Khong gian lam viec + vai tro thanh vien
-│   │   │   │   ├── projects/      # Du an + thanh vien + snapshot + chuyen owner
-│   │   │   │   ├── datasets/      # Upload CSV, schema, dong du lieu, xoa cascade
-│   │   │   │   ├── data-view/     # Luoi ao: records, query, stats, charts
-│   │   │   │   ├── analysis/      # Phan tich DQ, AI job, bao cao PDF, tong ket
-│   │   │   │   ├── feedback/      # Phan hoi nguoi dung + chi so chat luong AI
-│   │   │   │   ├── issues/        # Bao cao loi + tep dinh kem + quan tri
-│   │   │   │   ├── notifications/ # Thong bao + tuy chon nguoi dung
-│   │   │   │   ├── overview/      # Tong quan workspace
+│   │   │   ├── modules/           # 13 mô-đun nghiệp vụ (Clean Architecture)
+│   │   │   │   ├── users/         # Tài khoản, phiên đăng nhập, quản trị
+│   │   │   │   ├── auth/          # JWT, refresh, Google OAuth 2.0, đặt lại mật khẩu
+│   │   │   │   ├── workspaces/    # Không gian làm việc + vai trò thành viên
+│   │   │   │   ├── projects/      # Dự án + thành viên + snapshot + chuyển chủ sở hữu
+│   │   │   │   ├── datasets/      # Tải lên CSV, schema, dòng dữ liệu, xoá dây chuyền
+│   │   │   │   ├── data-view/     # Lưới ảo: records, query, stats, charts
+│   │   │   │   ├── analysis/      # Phân tích DQ, AI job, báo cáo PDF, bản tóm tắt
+│   │   │   │   ├── feedback/      # Phản hồi người dùng + chỉ số chất lượng AI
+│   │   │   │   ├── issues/        # Báo cáo lỗi + tệp đính kèm + quản trị
+│   │   │   │   ├── notifications/ # Thông báo + tùy chọn người dùng
+│   │   │   │   ├── overview/      # Tổng quan workspace
 │   │   │   │   ├── realtime/      # Socket.IO gateway + transport port
-│   │   │   │   └── audit/         # Nhat ky kiem toan (append-only)
-│   │   │   ├── shared/            # Lop cross-cutting: domain / application / infrastructure / interfaces
-│   │   │   └── test/              # 74 file spec (unit + arch + integration + e2e)
+│   │   │   │   └── audit/         # Nhật ký kiểm toán (append-only)
+│   │   │   ├── shared/            # Lớp cross-cutting: domain / application / infrastructure / interfaces
+│   │   │   └── test/              # 74 tệp spec (unit + arch + integration + e2e)
 │   │   ├── deploy/                # docker-compose.dev.yml, docker-compose.test.yml
-│   │   ├── scripts/               # Script van hanh, kiem thu, benchmark
+│   │   ├── scripts/               # Kịch bản vận hành, kiểm thử, benchmark
 │   │   └── package.json
-│   ├── plan/                      # Tai lieu ke hoach
-│   ├── edit/                      # Tai lieu bien tap
-│   └── reports/                   # Bao cao sinh tu dong (.docx)
+│   ├── plan/                      # Tài liệu kế hoạch
+│   ├── edit/                      # Tài liệu biên tập
+│   └── reports/                   # Báo cáo sinh tự động (.docx)
 ├── docs/
-│   ├── restructures/              # 12 tai lieu kien truc + hop dong API v8
-│   ├── frontend-handover/         # Handoff API cho team frontend
-│   ├── modules/                   # Dac ta theo module
-│   ├── plan/                      # Dac ta & ke hoach trien khai
-│   ├── report/                    # Bao cao cong nghe ky thuat
-│   └── test-reports/              # Ket qua benchmark & hieu nang
-└── remember/                      # Ghi chu lam viec cho AI agent
+│   ├── restructures/              # 12 tài liệu kiến trúc + hợp đồng API v8
+│   ├── frontend-handover/         # Bàn giao API cho nhóm frontend
+│   ├── modules/                   # Đặc tả theo mô-đun
+│   ├── plan/                      # Đặc tả & kế hoạch triển khai
+│   ├── report/                    # Báo cáo công nghệ kỹ thuật
+│   └── test-reports/              # Kết quả benchmark & hiệu năng
+└── remember/                      # Ghi chú làm việc cho AI agent
 ```
 ## 4. Công nghệ & Thư viện Sử Dụng
 

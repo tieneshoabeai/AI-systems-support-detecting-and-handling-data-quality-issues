@@ -288,7 +288,7 @@ src/modules/issues/
 ☐ 10. pnpm type-check → 0 lỗi
 ☐ 11. pnpm lint → 0 cảnh báo
 ☐ 12. pnpm exec jest --maxWorkers=2 → xanh
-☐ 13. pnpm arch:api-coverage → 84/84
+☐ 13. pnpm arch:api-coverage → khớp 82 route (§12.1) + giữ thứ tự sessions/me, unread-count
 ☐ 14. test/modular-monolith.spec.ts → MM5 pass
 ☐ 15. bash scripts/measure-refactor.sh → ghi notes.md
 ☐ 16. git commit + tag
@@ -301,10 +301,27 @@ src/modules/issues/
 | Điều kiện | Giá trị kỳ vọng |
 |---|---|
 | `src/modules/{audit,overview,realtime,data-view,notifications,feedback,issues}/` phẳng | 0 thư mục con mỗi module |
-| File `.ts` trong `src/modules/` | 339 → ~305 |
-| LOC | 31 076 → ~28 000 |
+| File `.ts` trong `src/modules/` | 340 → ~305 |
+| LOC | 31 505 → ~28 000 |
 | `pnpm type-check` | 0 l�i |
 | `pnpm lint` | 0 cảnh báo |
 | `pnpm exec jest --maxWorkers=2` | 67 suites / 1 069 tests |
-| `pnpm arch:api-coverage` | 84 / 84 / 0 / 0 |
+| `pnpm arch:api-coverage` | 82 / 82 / 0 / 0 (đối chiếu §12.1) |
 | Tag | `v1.2.0-p3` |
+
+---
+
+## 5.10. Đối chiếu nghiệp vụ Tier 1 (bắt buộc — xem `12_business_invariants.md`)
+
+> Trước khi gộp mỗi module, tick từng mục ở §12.1–§12.2. Sau khi gộp, kiểm tra lại §12.4–§12.6.
+
+- **overview (§12.2):** `GetUserOverview.execute(userId)` + `GetWorkspaceOverview.execute(workspaceId)` — giữ `Promise.all`, giữ 2 port `WORKSPACE_REPOSITORY_PORT` + `PROJECT_REPOSITORY_PORT`.
+- **realtime:** 0 handler + 1 subscriber `realtime-revocation` — giữ `extractUserId` hỗ trợ cả `user_id`/`userId`, giữ `disconnectUser`, giữ handshake check trạng thái.
+- **data-view (§12.2):** 4 query — giữ `RECORD_QUERY_PORT` của `datasets`, giữ `DEFAULT/MAX_RECORD_LIMIT` + `normalizeRecordLimit`, giữ thứ tự route `records/query` (POST) tách khỏi `records` (GET).
+- **notifications (§12.2):** 6 handler — giữ route `PATCH users/me/notification-preferences` ở đúng controller, giữ 2 mapper riêng, giữ thứ tự `unread-count` trước `:id`.
+- **feedback (§12.2):** 7 handler — giữ `ensureNotAdmin`, giữ chữ ký 4 tham số của `UpdateMine`, giữ tương thích camel/snake/ObjectId trong repository, giữ `deleted_at: null` trong mọi query.
+- **issues (§12.2):** 9 handler — giữ invariant title/desc trong entity, giữ `expectedVersion` optimistic locking, giữ phân biệt routes user vs `admin/*` + `Roles('admin')`.
+
+---
+
+> **Khóa chống vỡ test/API/hạ tầng:** trước mỗi commit của phase này, tick hết [`13_refactor_constraints.md`](13_refactor_constraints.md) §13.6 (TC giữ test/token/session/subscriber · AC giữ 82 route/envelope/filter/guard · FC giữ AppModule/main/worker/env/tunnel/test-infra · BC giữ ingest/cascade/policy · PC 1 module/1 commit, đỏ >15' thì revert).

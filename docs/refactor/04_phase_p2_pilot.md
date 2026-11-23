@@ -1,7 +1,7 @@
 # 4. Phase P2 — PILOT: module `audit` (2 giờ)
 
 > **Đây là phase quan trọng nhất của toàn bộ kịch bản.**
-> Nó tạo ra **template** mà 13 module còn lại sẽ copy. Nếu pilot sai, cả 13 module sai.
+> Nó tạo ra **template** mà 12 module còn lại sẽ copy. Nếu pilot sai, cả 12 module sai.
 >
 > **Thời gian:** 2 giờ · **Rủi ro:** rất thấp (module nhỏ nhất: 8 file, 353 LOC)
 
@@ -281,7 +281,7 @@ Module `audit` là **đặc biệt**: nó được module khác gọi qua `AUDIT
 
 > **Chọn: đổi thành `log()`.** Module `audit` là nơi duy nhất có port facade, nên đây là điểm lệch duy nhất — xử lý ngay tại pilot là hợp lý.
 
-**Quy tắc chung cho 13 module còn lại:** giữ nguyên tên method `execute()` cho command/query, vì:
+**Quy tắc chung cho 12 module còn lại:** giữ nguyên tên method `execute()` cho command/query, vì:
 - Test hiện tại gọi `handler.execute(...)` — đổi tên = sửa test = rủi ro
 - `execute()` là quy ước nhất quán cho command/query → người mới dễ học
 
@@ -300,14 +300,15 @@ Module `audit` là **đặc biệt**: nó được module khác gọi qua `AUDIT
 | 7 | `pnpm type-check` → 0 lỗi | ☐ |
 | 8 | `pnpm lint` → 0 cảnh báo | ☐ |
 | 9 | Unit test audit xanh | ☐ |
-| 10 | `pnpm arch:api-coverage` → 84/84 | ☐ |
+| 10 | `pnpm arch:api-coverage` → khớp 82 route ở `12_business_invariants.md` §12.1 | ☐ |
 | 11 | `test/modular-monolith.spec.ts` → MM5 pass | ☐ |
 | 12 | Đo lại số liệu, ghi vào `notes.md` | ☐ |
 | 13 | Commit + tag `v1.2.0-p2-pilot` | ☐ |
+| 14 | Tick checklist `13_refactor_constraints.md` §13.6 (TC/AC/FC/BC/PC) | ☐ |
 
 ---
 
-## 4.7. Sau pilot — template áp dụng cho 13 module
+## 4.7. Sau pilot — template áp dụng cho 12 module
 
 **Template "module đã flatten"** (đây là thứ bạn copy):
 
@@ -347,9 +348,9 @@ src/modules/<ten>/
 2. `pnpm type-check` 0 lỗi
 3. `pnpm lint` 0 cảnh báo
 4. Unit test xanh (67 suite / 1 069 test)
-5. `pnpm arch:api-coverage` → 84 | 84 | 0 | 0
+5. `pnpm arch:api-coverage` → khớp 82 route §12.1 (không thêm/bớt)
 6. `test/modular-monolith.spec.ts` MM5 pass
 7. Đã commit + tag `v1.2.0-p2-pilot`
 
-> **Nếu qua được P2 → bạn đã có template. 13 module còn lại chỉ là việc lặp lại.**
+> **Nếu qua được P2 → bạn đã có template. 12 module còn lại chỉ là việc lặp lại.**
 > **Nếu không qua được → dừng lại, đọc `09_risk_and_rollback.md`, xem lại phương án B (đóng băng).**

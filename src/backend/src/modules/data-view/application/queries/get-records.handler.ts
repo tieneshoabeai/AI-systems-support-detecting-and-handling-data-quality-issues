@@ -37,6 +37,51 @@ export class GetRecordsHandler {
     }
     const lastRowIndex = decodeRowCursor(query.cursor);
     const limit = normalizeRecordLimit(query.limit);
+    // GET /records hỗ trợ sort đơn cột (sort_field/sort_order). Khi có sort,
+    // ủy thác sang `queryRecords` (Mongo sort phía server) thay vì lặng lẽ
+    // bỏ qua — trước đây handler chỉ đọc cursor/limit nên sort bị nuốt.
+    if (query.sort_field) {
+      const byKey = new Map(dataset.columns.map((c) => [c.key, c.key]));
+      const byName = new Map<string, string>();
+      for (const c of dataset.columns) {
+        if (!byName.has(c.name)) byName.set(c.name, c.key);
+        if (!byName.has(c.originalName)) byName.set(c.originalName, c.key);
+      }
+      const hitKey = byKey.get(query.sort_field);
+      const hitName = byName.get(query.sort_field);
+      const sortKey = hitKey ?? hitName;
+      if (!sortKey) {
+        throw new ValidationError(`Cot khong ton tai trong dataset: ${query.sort_field}`);
+      }
+      const cursorForPort =
+        lastRowIndex !== undefined ? CursorCodec.encode({ row_index: lastRowIndex }) : undefined;
+      const { items, hasMore } = await this.records.queryRecords(
+        datasetId,
+        {
+          filters: [],
+          sort: [{ column: sortKey, order: query.sort_order ?? 'asc' }],
+          cursor: cursorForPort,
+          limit,
+        },
+        dataset.columns.map((c) => ({
+          key: c.key,
+          name: c.name,
+          originalName: c.originalName,
+          dataType: c.dataType,
+        })),
+      );
+      let nextCursor: string | null = null;
+      if (hasMore && items.length > 0) {
+        const last = items[items.length - 1];
+        if (last) nextCursor = CursorCodec.encode({ row_index: last.rowIndex });
+      }
+      return {
+        items,
+        meta: { nextCursor, hasMore, limit },
+        next_cursor: nextCursor,
+        has_more: hasMore,
+      };
+    }
     const cursorForPort =
       lastRowIndex !== undefined ? CursorCodec.encode({ row_index: lastRowIndex }) : undefined;
     const { items, hasMore } = await this.records.listRecords(datasetId, cursorForPort, limit);

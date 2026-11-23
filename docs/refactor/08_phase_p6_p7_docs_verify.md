@@ -19,7 +19,7 @@
 ## 1. Tổng quan
 
 Hệ thống là **modular monolith**: một tiến trình Node.js duy nhất, chia thành
-**14 module nghiệp vụ** độc lập + **1 shared kernel**.
+**13 module nghiệp vụ** độc lập + **1 shared kernel**.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -97,7 +97,7 @@ graph TD
 | `auth` | 9 | `auth.routes.ts` |
 | ... | ... | ... |
 
-## 6. Dữ liệu: 20 Mongoose model
+## 6. Dữ liệu: 18 Mongoose model (17 file — xem `12_business_invariants.md` §12.7)
 
 | Model | Module | Schema file |
 
@@ -106,7 +106,7 @@ graph TD
 ## 8. Kiểm chứng
 
 ```bash
-pnpm arch:api-coverage     # 84 route khớp 1-1 với hợp đồng §3.13
+pnpm arch:api-coverage     # 82 route khớp 1-1 với `12_business_invariants.md` §12.1
 pnpm test:arch             # CA + MM rules
 ```
 ````
@@ -250,12 +250,12 @@ Tạo `docs/refactor/02_inventory_and_metrics.md` — cập nhật bảng "Đư�
 
 | Chỉ số | Trước | Sau | Δ |
 |---|---|---|---|
-| File `.ts` trong `src/modules/` | 339 | ___ | −__% |
-| LOC | 31 076 | ___ | −__% |
+| File `.ts` trong `src/modules/` | 340 | ___ | −__% |
+| LOC | 31 505 | ___ | −__% |
 | Thư mục con | ~60 | ___ | −__% |
 | Tầng | 4 | 1 | −75% |
 | Rule kiến trúc | 14 | 5 | −64% |
-| Route | 84 | 84 | 0 (bất biến) |
+| Route | 82 HTTP + WS | 82 HTTP + WS | 0 (bất biến, §12.1) |
 | Handler | 107 | 107 | 0 (bất biến) |
 | Test | 1 277 | 1 277 | 0 (bất biến) |
 
@@ -308,7 +308,7 @@ pnpm lint                              # 0 cảnh báo
 pnpm exec jest --maxWorkers=2          # 67 suites / 1 069 tests
 
 # 4. Contract API
-pnpm arch:api-coverage                 # 84 | 84 | 0 | 0
+pnpm arch:api-coverage                 # 82 | 82 | 0 | 0 (§12.1)
 
 # 5. Coverage
 pnpm test:cov                          # ≥ 71% stmts
@@ -359,15 +359,15 @@ bash scripts/test-infra-down.sh         # tắt hạ tầng — giải phóng RA
 - [ ] `pnpm exec jest --maxWorkers=2` → 1 069 pass
 - [ ] `pnpm test:integration` → 138 pass
 - [ ] `pnpm test:e2e` → 70 pass
-- [ ] `pnpm arch:api-coverage` → 84 / 84 / 0 / 0
+- [ ] `pnpm arch:api-coverage` → 82 / 82 / 0 / 0 (§12.1)
 - [ ] Coverage ≥ 71%
 - [ ] Link checker → 0 broken
 
 ### Bất biến đã giữ
 
-- [ ] 84 route — không thêm, không bớt
+- [ ] 82 route HTTP + WS gateway — không thêm, không bớt (§12.1), giữ thứ tự sessions/me và unread-count
 - [ ] 107 handler — đổi tên lớp, không đổi logic
-- [ ] 20 Mongoose model
+- [ ] 18 Mongoose model / 17 file schema (§12.7)
 - [ ] 1 277 test xanh
 - [ ] Dataset vẫn insert-only (không route cập nhật cột)
 - [ ] Audit vẫn best-effort, không có HTTP route
@@ -379,3 +379,7 @@ bash scripts/test-infra-down.sh         # tắt hạ tầng — giải phóng RA
 - [ ] Tag `v1.2.0-p1` … `v1.2.0-p7` (từng phase)
 - [ ] Tag `v1.2.0-final` (bàn giao)
 - [ ] Commit message theo Conventional Commits
+
+---
+
+> **Khóa chống vỡ test/API/hạ tầng:** trước mỗi commit của phase này, tick hết [`13_refactor_constraints.md`](13_refactor_constraints.md) §13.6 (TC giữ test/token/session/subscriber · AC giữ 82 route/envelope/filter/guard · FC giữ AppModule/main/worker/env/tunnel/test-infra · BC giữ ingest/cascade/policy · PC 1 module/1 commit, đỏ >15' thì revert).

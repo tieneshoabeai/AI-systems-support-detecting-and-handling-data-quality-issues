@@ -66,7 +66,7 @@ git diff -M HEAD~1 -- src/modules/analysis/ | grep -E '^\+[^+]|^-[^-]' | head -2
 1. git tag --list 'v1.2.0-*'          # xem đã tag đến đâu
 2. git reset --hard v1.2.0-p3         # về trạng thái tốt nhất
 3. Chuyển sang P6 (tài liệu) — luôn có giá trị
-4. Báo cáo: "Đã flatten 7/14 module; 7 module giữ nguyên do khung thời gian"
+4. Báo cáo: "Đã flatten 6/13 module; 7 module giữ nguyên do khung thời gian"
 ```
 
 ### Kịch bản C — Cảm giác "trough of sorrow"
@@ -76,7 +76,7 @@ git diff -M HEAD~1 -- src/modules/analysis/ | grep -E '^\+[^+]|^-[^-]' | head -2
 2. Chạy: pnpm exec jest --maxWorkers=2    # xem vẫn xanh không
 3. Nếu xanh → hệ thống vẫn tốt → tiếp tục từ module nhỏ nhất
 4. Nếu đỏ → reset về tag
-5. Nhớ: 13 module còn lại = copy template. Không phải viết lại từ đầu.
+5. Nhớ: 12 module còn lại = copy template. Không phải viết lại từ đầu.
 ```
 
 ### Kịch bản D — Phát hiện sai sót sau khi đã merge
@@ -95,13 +95,13 @@ git diff -M HEAD~1 -- src/modules/analysis/ | grep -E '^\+[^+]|^-[^-]' | head -2
 
 | Tag | Nội dung | Module đã flatten | Test | Route |
 |---|---|---|---|---|
-| `v1.1.0-baseline` | Trước refactor | 0/14 | 1 277 ✅ | 84 ✅ |
-| `v1.2.0-p1` | Công cụ enforce | 0/14 | 1 277 ✅ | 84 ✅ |
-| `v1.2.0-p2-pilot` | Pilot `audit` | 1/14 | 1 277 ✅ | 84 ✅ |
-| `v1.2.0-p3` | Tier 1 xong | 7/14 | 1 277 ✅ | 84 ✅ |
-| `v1.2.0-p4` | Tier 2 xong | 12/14 | 1 277 ✅ | 84 ✅ |
-| `v1.2.0-p5` | Tier 3 xong | 14/14 | 1 277 ✅ | 84 ✅ |
-| `v1.2.0-final` | Bàn giao | 14/14 | 1 277 ✅ | 84 ✅ |
+| `v1.1.0-baseline` | Trước refactor | 0/13 | 1 277 ✅ | 82 ✅ |
+| `v1.2.0-p1` | Công cụ enforce | 0/13 | 1 277 ✅ | 82 ✅ |
+| `v1.2.0-p2-pilot` | Pilot `audit` | 1/13 | 1 277 ✅ | 82 ✅ |
+| `v1.2.0-p3` | Tier 1 xong | 6/13 | 1 277 ✅ | 82 ✅ |
+| `v1.2.0-p4` | Tier 2 xong | 11/13 | 1 277 ✅ | 82 ✅ |
+| `v1.2.0-p5` | Tier 3 xong | 13/13 | 1 277 ✅ | 82 ✅ |
+| `v1.2.0-final` | Bàn giao | 13/13 | 1 277 ✅ | 82 ✅ |
 
 > **Ghi cột "Test" và "Route" vào bảng sau MỖI lần tag.** Đây là bằng chứng bất biến.
 
@@ -113,7 +113,7 @@ git diff -M HEAD~1 -- src/modules/analysis/ | grep -E '^\+[^+]|^-[^-]' | head -2
 ☐  pnpm type-check           → 0 lỗi
 ☐  pnpm lint                 → 0 cảnh báo
 ☐  pnpm exec jest --maxWorkers=2  → xanh
-☐  pnpm arch:api-coverage    → 84 / 84 / 0 / 0
+☐  pnpm arch:api-coverage    → 82 / 82 / 0 / 0 (§12.1)
 ☐  git diff --stat            → không có file lạ (untracked bất thường)
 ☐  grep -rn "<TênCũ>" src/ test/  → 0 kết quả
 ☐  Module này phẳng (không thư mục con)
@@ -131,3 +131,7 @@ git diff -M HEAD~1 -- src/modules/analysis/ | grep -E '^\+[^+]|^-[^-]' | head -2
 | **Giảng vi nghi ngờ "chỉ đổi tên file"** | "Refactor này có ý nghĩa gì?" | Bảng số liệu trước/sau + giải thích "người mới" |
 | **Không ai test được hệ thống** | — | Chạy `test-infra-up.sh` + integration + e2e trước buổi trình bày |
 | **Bạn bị hỏi về microservices** | "Sao không tách service?" | ADR mục "Các lựa chọn đã cân nhắc" đã trả lời sẵn |
+
+---
+
+> **Ràng buộc phòng ngừa chi tiết:** mọi quy tắc TC/AC/FC/BC/PC + checklist khóa commit nằm ở [`13_refactor_constraints.md`](13_refactor_constraints.md). Vi phạm 1 ràng buộc là revert, không debug quá 15 phút.

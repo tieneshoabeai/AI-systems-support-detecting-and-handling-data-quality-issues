@@ -8,8 +8,8 @@
 
 | Chỉ số | Baseline | Mục tiêu | Nguồn đo |
 |---|---|---|---|
-| File `.ts` trong `src/modules/` | **339** | ~180 | `find src/modules -name '*.ts' \| wc -l` |
-| LOC trong `src/modules/` | **31 076** | ~20 000 | `find … -exec cat {} + \| wc -l` |
+| File `.ts` trong `src/modules/` | **340** | ~180 | `find src/modules -name '*.ts' \| wc -l` |
+| LOC trong `src/modules/` | **31 505** | ~20 000 | `find … -exec cat {} + \| wc -l` |
 | File `.ts` trong `src/shared/` | **88** | 88 (không đổi) | — |
 | LOC trong `src/shared/` | **5 567** | 5 567 (không đổi) | — |
 | **Tổng file `.ts`** | **427** | ~268 | — |
@@ -17,9 +17,9 @@
 | Thư mục con trong `src/modules/` | **~60** | ~20 | `find … -mindepth 2 -type d` |
 | Tầng kiến trúc | **4** | **1** | — |
 | Rule kiến trúc | **14** | **5** | `eslint.config.mjs` + `clean-architecture.spec.ts` |
-| HTTP route | **84** | **84** (bất biến) | `pnpm arch:api-coverage` |
+| HTTP route | **82 HTTP + 1 WS** | **82** (bất biến) | `pnpm arch:api-coverage` |
 | Handler | **107** (61 cmd + 46 query) | 107 service method | `19_handler_inventory.md` |
-| Mongoose model | **20** | 20 (bất biến) | `MongooseModule.forFeature` |
+| Mongoose model | **18 (17 file)** | 20 (bất biến) | `MongooseModule.forFeature` |
 | Test | **1 277** / 79 suite | 1 277 (bất biến) | `pnpm test*` |
 | Coverage (stmts) | 71.03% | ≥ 71% | `pnpm test:cov` |
 
@@ -29,30 +29,30 @@
 
 | Module | Handler (cmd/qry) | File `.ts` | LOC | Tầng con | Phân loại |
 |---|---|---|---|---|---|
-| `analysis` | 6 / 5 | 56 | 8 206 | 6 | 🔴 T3 — chỉ di chuyển |
-| `auth` | 9 / 2 | 34 | 2 636 | 6 | 🔴 T3 — chỉ di chuyển |
-| `datasets` | 4 / 4 | 33 | 4 213 | 7 | 🟡 T2 |
-| `projects` | 10 / 7 | 43 | 3 182 | 7 | 🟡 T2 |
-| `users` | 11 / 6 | 34 | 2 822 | 6 | 🟡 T2 |
-| `workspaces` | 8 / 6 | 38 | 2 625 | 7 | 🟡 T2 |
-| `feedback` | 5 / 2 | 21 | 2 103 | 6 | 🟡 T2 |
-| `issues` | 4 / 5 | 23 | 1 913 | 6 | 🟡 T2 |
-| `notifications` | 3 / 3 | 21 | 1 294 | 6 | 🟡 T2 |
-| `data-view` | 0 / 4 | 15 | 897 | 4 | 🟢 T1 |
+| `analysis` | 6 / 5 | 56 | 8 242 | 6 | 🔴 T3 — chỉ di chuyển (11 handler + 3 service + 7 schema + 14 util, xem §12.2) |
+| `auth` | 9 / 2 | 35 | 2 862 | 6 | 🔴 T3 — chỉ di chuyển (11 handler + 2 service + 7 token + 4 adapter, xem §12.2) |
+| `datasets` | 4 / 4 | 33 | 4 227 | 7 | 🟡 T2 — nhạy cảm nhất (8 handler + 1 subscriber, 2 schema, 2 repository, xem §12.5) |
+| `projects` | 10 / 7 | 43 | 3 182 | 7 | 🟡 T2 (17 handler + 1 subscriber, 3 policy loader, xem §12.2) |
+| `users` | 11 / 6 | 34 | 2 822 | 6 | 🟡 T2 (17 handler + revocation service, xem §12.2) |
+| `workspaces` | 8 / 6 | 38 | 2 625 | 7 | 🟡 T2 (14 handler, quota 20, transaction strict, xem §12.5) |
+| `feedback` | 5 / 2 | 21 | 2 186 | 6 | 🟡 T2 (7 handler, `ensureNotAdmin`, tương thích camel/snake, xem §12.2) |
+| `issues` | 4 / 5 | 23 | 1 913 | 6 | 🟡 T2 nhưng làm ở P3 (9 handler, optimistic locking, 2 nhóm user/admin) |
+| `notifications` | 3 / 3 | 21 | 1 294 | 6 | 🟢 T1 (6 handler, 2 mapper khác nhau — không gộp, xem §12.2) |
+| `data-view` | 0 / 4 | 15 | 967 | 4 | 🟢 T1 (4 query, không có repository riêng — qua `RECORD_QUERY_PORT`) |
 | `realtime` | 0 / 0 | 8 | 642 | 4 | 🟢 T1 |
 | `audit` | 1 / 0 | 8 | 353 | 4 | 🟢 T1 — **PILOT** |
 | `overview` | 0 / 2 | 5 | 190 | 2 | 🟢 T1 |
-| **Tổng** | **61 / 46 = 107** | **339** | **31 076** | ~60 | — |
+| **Tổng** | **61 / 46 = 107 (+3 subscriber)** | **340** | **31 505** | ~60 | — |
 
 ### Phân loại rủi ro
 
 | Tier | Module | Tiêu chí | Handler | Ước lượng giờ |
 |---|---|---|---|---|
-| 🟢 **T1** | `audit`, `overview`, `notifications`, `feedback`, `data-view`, `realtime` | CRUD thuần, không side-effect ngoài | ~20 | 5h |
-| 🟡 **T2** | `issues`, `datasets`, `users`, `workspaces`, `projects` | Có transaction/outbox, có policy | ~55 | 8h |
-| 🔴 **T3** | `auth`, `analysis` | OAuth, AI worker, RAM guard, cardinality guard | ~26 | 3h (chỉ di chuyển) |
+| 🟢 **T1** | `audit` (1), `overview` (2), `data-view` (4), `realtime` (0+1 sub), `notifications` (6) | CRUD + đọc view, side-effect cục bộ (realtime disconnect, email mapper) | 13 | 2h |
+| 🟡 **T2** | `issues` (9, làm ở P3), `feedback` (7, làm ở P3), `datasets` (8+1 sub), `users` (17), `workspaces` (14), `projects` (17+1 sub) | Có transaction/outbox/cascade/policy, có invariant phức tạp | 72 | 9–10h (P3 gánh `issues`+`feedback`, P4 gánh 4 module còn lại) |
+| 🔴 **T3** | `auth` (11), `analysis` (11) | OAuth/session rotation, AI worker + RAM guard + cardinality guard | 22 | 3h (chỉ di chuyển, xem §12.2) |
 
-> **Đếm lại T1:** `notifications` (3+3=6) + `feedback` (5+2=7) + `data-view` (4) + `realtime` (0) + `audit` (1) + `overview` (2) = **20 handler**. ✅
+> **Đếm lại đúng (quét thật):** T1 lõi `audit`(1) + `overview`(2) + `data-view`(4) + `realtime`(0) = **7 handler**; cộng `notifications`(6) = **13**. P3 làm thêm `feedback`(7) + `issues`(9) nên tổng P3 = **28 handler** (xem §12.2). T2 còn lại 4 module = **56 handler + 2 subscriber**. T3 = **22 handler**. Tổng **107 + 3 subscriber**. ✅
 
 ---
 
@@ -156,7 +156,7 @@ node scripts/check-api-coverage.cjs | tail -3
 
 | Phase | File `.ts` | LOC | Thư mục con | Handler | Ghi chú |
 |---|---|---|---|---|---|
-| Baseline | 339 | 31 076 | ~60 | 107 | — |
+| Baseline (hiệu chỉnh 2026-11-23) | 340 | 31 505 | ~60 | 107 | — |
 | Sau P2 (pilot) | −7 | −~350 | −5 | 107 | `audit` làm mẫu |
 | Sau P3 (T1) | ~305 | ~28 000 | ~38 | 107 | 6 module dễ |
 | Sau P4 (T2) | ~225 | ~22 500 | ~22 | 107 | 5 module vừa |

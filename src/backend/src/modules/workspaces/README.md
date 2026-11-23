@@ -1,35 +1,35 @@
-# MODULE `workspaces` - Khong gian lam viec
+# MÔ-ĐUN `workspaces` — Không gian làm việc
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/workspaces` (38 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/workspaces` (38 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ
 
-Workspace la **vung chua cap cao nhat** trong mo hinh phan quyen. Moi project, dataset va phan tich deu nam ben trong mot workspace.
+Workspace là **vùng chứa cấp cao nhất** trong mô hình phân quyền. Mọi project, dataset và phân tích đều nằm bên trong một workspace.
 
 ```text
 User ---> Workspace ---> Project ---> Dataset ---> DataRecord
         (owner/member)  (owner/member/viewer)
 ```
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| CRUD workspace | Tao, doc, cap nhat, xoa mem |
-| Thanh vien | Them, xoa, liet ke, chuyen quyen so huu, tu roi |
-| Han ngach | Gioi han so workspace/user, dung luong/workspace |
-| Phan quyen ngu canh | Resolve vai tro workspace cua user theo request |
-| Su kien | `workspace.created`, `workspace.member_added`, `workspace.member_removed`, `workspace.owner_transferred`, `WORKSPACE_DELETED` |
+| CRUD workspace | Tạo, đọc, cập nhật, xoá mềm |
+| Thành viên | Thêm, xoá, liệt kê, chuyển quyền sở hữu, tự rời |
+| Hạn ngạch | Giới hạn số workspace/người dùng, dung lượng/workspace |
+| Phân quyền ngữ cảnh | Giải quyết vai trò workspace của người dùng theo từng request |
+| Sự kiện | `workspace.created`, `workspace.member_added`, `workspace.member_removed`, `workspace.owner_transferred`, `WORKSPACE_DELETED` |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 workspaces/
@@ -37,7 +37,7 @@ workspaces/
 |   |-- entities/workspace.entity.ts
 |   |-- value-objects/
 |   |   |-- workspace-role.vo.ts     # owner | member + resolveWorkspaceRole
-|   |   `-- workspace-quota.vo.ts    # gioi han 20 workspace/user
+|   |   `-- workspace-quota.vo.ts    # giới hạn 20 workspace/người dùng
 |   |-- events/workspace-events.ts
 |   `-- ports/
 |       |-- workspace.repository.port.ts
@@ -51,7 +51,7 @@ workspaces/
 |-- infrastructure/
 |   |-- adapters/
 |   |   |-- workspace-access.adapter.ts
-|   |   `-- workspace-context.adapter.ts    # hien thuc WORKSPACE_CONTEXT_PORT
+|   |   `-- workspace-context.adapter.ts    # hiện thực WORKSPACE_CONTEXT_PORT
 |   `-- persistence/                  # schema, repository, mapper
 `-- presentation/
     |-- controllers/workspaces.controller.ts
@@ -59,128 +59,124 @@ workspaces/
     `-- responses/workspace.response.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-- **User Prompt / Business Intent:** Lam `workspaces` la **tang trung gian** cua mo hinh phan quyen 3 tang: giua vai tro he thong (`admin`/`analyst`) va vai tro project (`owner`/`member`/`viewer`). Module nay phai tra loi duy nhat mot cau hoi: "user nay co quyen gi trong workspace nay?"
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Làm `workspaces` là **tầng trung gian** của mô hình phân quyền 3 tầng: giữa vai trò hệ thống (`admin`/`analyst`) và vai trò project (`owner`/`member`/`viewer`). Mô-đun này phải trả lời duy nhất một câu hỏi: "người dùng này có quyền gì trong workspace này?"
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Vai tro workspace la nguon su that duy nhat.** `resolveWorkspaceRole(ownerId, members, userId)` trong `workspace-role.vo.ts` la **ham duy nhat** quyet dinh vai tro. No duoc dung lai boi `WorkspaceContextAdapter` de suy ra quyen o tang policy. Khong viet lai dieu kien o guard, o handler, o query - tranh mau thuan.
+1. **Vai trò workspace là nguồn sự thật duy nhất.** `resolveWorkspaceRole(ownerId, members, userId)` trong `workspace-role.vo.ts` là **hàm duy nhất** quyết định vai trò. Nó được dùng lại bởi `WorkspaceContextAdapter` để suy ra quyền ở tầng policy. Không viết lại điều kiện ở guard, ở handler, ở query — tránh mâu thuẫn.
 
-2. **Vai tro `editor` / `viewer` trong `members[]` bi chuan hoa thanh `member`.** Chi con 2 vai tro `owner` | `member` o tang workspace. Logic chi tiet hon nam o tang project. Cach nay giu mo hinh 3 tang de doc va de kiem chung.
+2. **Vai trò `editor` / `viewer` trong `members[]` được chuẩn hoá thành `member`.** Chỉ còn 2 vai trò `owner` | `member` ở tầng workspace. Logic chi tiết hơn nằm ở tầng project. Cách này giữ mô hình 3 tầng dễ đọc và dễ kiểm chứng.
 
-3. **Han ngach so workspace/user = 20.** Neu khong gioi han, mot tai khoan co the tao hang loat workspace va gui loi moi toi hang loat dia chi - bien he thong thanh cong cu spam. Admin he thong **khong** bi gioi han. Chi tinh workspace ma user lam **owner** (khong tinh workspace chi la thanh vien).
+3. **Hạn ngạch số workspace/người dùng = 20.** Nếu không giới hạn, một tài khoản có thể tạo hàng loạt workspace và gửi lời mời tới hàng loạt địa chỉ — biến hệ thống thành công cụ spam. Admin hệ thống **không** bị giới hạn. Chỉ tính workspace mà người dùng làm **owner** (không tính workspace chỉ là thành viên).
 
-4. **Quota dung luong theo `storage_used_bytes`** dong bo bang lenh tang cac module, tranh truy van dem la.
+4. **Quota dung lượng theo `storage_used_bytes`** được đồng bộ bằng lệnh tăng của các mô-đun, tránh truy vấn đếm lại.
 
-5. **Cascade xoa qua domain event, boc transaction MongoDB.** Xoa workspace phai xoa project -> dataset -> record. Lam truc tiep trong handler se tao trang thai nua cua doi. Dung outbox event + transaction de dam bao nhat quan.
+5. **Cascade xoá qua domain event, bọc transaction MongoDB.** Xoá workspace phải xoá project → dataset → record. Làm trực tiếp trong handler sẽ tạo trạng thái nửa vời. Dùng outbox event + transaction để bảo đảm nhất quán.
 
-- **Generated / Modified Artifacts:**
+- **Hiện vật đã tạo / đã sửa:**
 
-- `domain/value-objects/workspace-role.vo.ts` - `WorkspaceRole`, `resolveWorkspaceRole`.
-- `domain/value-objects/workspace-quota.vo.ts` - `MAX_WORKSPACES_PER_USER = 20`, `WorkspaceQuotaExceededError`.
-- `infrastructure/adapters/workspace-context.adapter.ts` - hien thuc `WORKSPACE_CONTEXT_PORT`, **fail-safe** ( loi tra ve tap rong).
-- `application/policy-loaders/workspace-policy.loader.ts` - nap resource cho kiem tra instance.
-- `application/commands/delete-workspace.handler.ts` - phat `WORKSPACE_DELETED`.
+- `domain/value-objects/workspace-role.vo.ts` — `WorkspaceRole`, `resolveWorkspaceRole`.
+- `domain/value-objects/workspace-quota.vo.ts` — `MAX_WORKSPACES_PER_USER = 20`, `WorkspaceQuotaExceededError`.
+- `infrastructure/adapters/workspace-context.adapter.ts` — hiện thực `WORKSPACE_CONTEXT_PORT`, **fail-safe** (lỗi trả về tập rỗng).
+- `application/policy-loaders/workspace-policy.loader.ts` — nạp tài nguyên cho kiểm tra instance.
+- `application/commands/delete-workspace.handler.ts` — phát `WORKSPACE_DELETED`.
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+## 4. Đặc tả giao tiếp kỹ thuật
 
-### 4.1. Endpoints
+### 4.1. Điểm cuối (Endpoints)
 
-| Method | Path | Chinh sach | Mo ta |
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `POST` | `/api/v1/workspaces` | Dang nhap | Tao workspace (tu dong la owner) |
-| `GET` | `/api/v1/workspaces` | Dang nhap | Danh sach workspace toi tham gia |
-| `GET` | `/api/v1/workspaces/:id` | Member | Chi tiet |
-| `PATCH` | `/api/v1/workspaces/:id` | Owner | Cap nhat |
-| `DELETE` | `/api/v1/workspaces/:id` | Owner | Xoa mem (cascade project) |
-| `GET` | `/api/v1/workspaces/:id/members` | Member | Danh sach thanh vien |
-| `POST` | `/api/v1/workspaces/:id/members` | Owner | Them thanh vien |
-| `DELETE` | `/api/v1/workspaces/:id/members/:userId` | Owner | Xoa thanh vien (khong xoa owner) |
-| `POST` | `/api/v1/workspaces/:id/transfer-owner` | Owner hien tai | Chuyen quyen so huu |
-| `POST` | `/api/v1/workspaces/:id/leave` | Member (tru owner) | Tu roi workspace |
+| `POST` | `/api/v1/workspaces` | Đăng nhập | Tạo workspace (tự động là owner) |
+| `GET` | `/api/v1/workspaces` | Đăng nhập | Danh sách workspace tôi tham gia |
+| `GET` | `/api/v1/workspaces/:id` | Thành viên | Chi tiết |
+| `PATCH` | `/api/v1/workspaces/:id` | Owner | Cập nhật |
+| `DELETE` | `/api/v1/workspaces/:id` | Owner | Xoá mềm (cascade project) |
+| `GET` | `/api/v1/workspaces/:id/members` | Thành viên | Danh sách thành viên |
+| `POST` | `/api/v1/workspaces/:id/members` | Owner | Thêm thành viên |
+| `DELETE` | `/api/v1/workspaces/:id/members/:userId` | Owner | Xoá thành viên (không xoá owner) |
+| `POST` | `/api/v1/workspaces/:id/transfer-owner` | Owner hiện tại | Chuyển quyền sở hữu |
+| `POST` | `/api/v1/workspaces/:id/leave` | Thành viên (trừ owner) | Tự rời workspace |
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/workspaces/index.ts` export public contract:
+`src/backend/src/modules/workspaces/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `WorkspacesModule` | Nest module |
-| `Workspace` entity, `WorkspaceRole` | Domain contract |
-| `WORKSPACE_REPOSITORY_PORT` | Port truy van workspace |
-| `WorkspaceQuotaExceededError` | Loi nghiep vu |
+| `WorkspacesModule` | Mô-đun Nest |
+| Thực thể `Workspace`, `WorkspaceRole` | Hợp đồng domain |
+| `WORKSPACE_REPOSITORY_PORT` | Cổng truy vấn workspace |
+| `WorkspaceQuotaExceededError` | Lỗi nghiệp vụ |
 
-> `WORKSPACE_CONTEXT_PORT` **khong** thuoc public contract cua module `workspaces` — no la
-> port tang `shared` (`shared/application/ports/workspace-context.port.ts`), duoc
-> `workspaces` **implement** qua `infrastructure/adapters/workspace-context.adapter.ts`
-> (fail-safe: loi tra ve tap rong). Token nay khong duoc re-export tu
-> `modules/workspaces/index.ts`.
+> `WORKSPACE_CONTEXT_PORT` **không** thuộc hợp đồng công khai của mô-đun `workspaces` — nó là cổng tầng `shared` (`shared/application/ports/workspace-context.port.ts`), được `workspaces` **hiện thực** qua `infrastructure/adapters/workspace-context.adapter.ts` (fail-safe: lỗi trả về tập rỗng).
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-| Event | Khi nao | Muc dich |
+| Sự kiện | Khi nào | Mục đích |
 |---|---|---|
-| `workspace.created` | Tao workspace | Audit log |
-| `workspace.member_added` | Them thanh vien | Thong bao + audit log |
-| `workspace.member_removed` | Xoa thanh vien | Thong bao + audit log |
-| `workspace.owner_transferred` | Chuyen owner | Thong bao cho ca hai ben |
-| `WORKSPACE_DELETED` | Xoa workspace | Kich hoat cascade xoa project |
+| `workspace.created` | Tạo workspace | Audit log |
+| `workspace.member_added` | Thêm thành viên | Thông báo + audit log |
+| `workspace.member_removed` | Xoá thành viên | Thông báo + audit log |
+| `workspace.owner_transferred` | Chuyển owner | Thông báo cho cả hai bên |
+| `WORKSPACE_DELETED` | Xoá workspace | Kích hoạt cascade xoá project |
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-- Workspace **phai** co `ownerId`. Khong ton tai workspace khong chu so huu.
-- Chi `owner` duoc them / xoa thanh vien, chuyen quyen so huu.
-- **Khong** xoa chinh owner qua `DELETE /members/:userId` - phai dung `transfer-owner` truoc.
-- Owner phai `transfer-owner` truoc khi `leave`.
-- So workspace ma user lam **owner** khong vuot qua `MAX_WORKSPACES_PER_USER = 20` (tru admin).
-- `storage_used_bytes` khong duoc vuot `WORKSPACE_STORAGE_QUOTA_BYTES`; tong khong vuot `STORAGE_MAX_QUOTA_BYTES`.
-- Ten workspace **duy nhất** trong cac workspace chua xoa mem (partial unique index).
+- Workspace **phải** có `ownerId`. Không tồn tại workspace không có chủ sở hữu.
+- Chỉ `owner` được thêm / xoá thành viên, chuyển quyền sở hữu.
+- **Không** xoá chính owner qua `DELETE /members/:userId` — phải dùng `transfer-owner` trước.
+- Owner phải `transfer-owner` trước khi `leave`.
+- Số workspace mà người dùng làm **owner** không vượt quá `MAX_WORKSPACES_PER_USER = 20` (trừ admin).
+- `storage_used_bytes` không được vượt `WORKSPACE_STORAGE_QUOTA_BYTES`; tổng không vượt `STORAGE_MAX_QUOTA_BYTES`.
+- Tên workspace **duy nhất** trong các workspace chưa xoá mềm (partial unique index).
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Truy cap workspace nguoi khac | Policy loader nap instance + kiem tra `ownerId` / `members` |
-| IDOR qua `workspaceId` trong URL | Dynamic check cua `PoliciesGuard` kiem tra instance thuoc tinh |
-| Spam workspace + moi nguoi | Han ngach 20 workspace/user, chi owner moi gui moi |
-| Xoa nham workspace nguoi khac | Chi owner duoc xoa; policy loader kiem tra instance |
-| Vượt hạn ngạch dung lượng | Kiem tra quota truoc khi ghi, tra loi domain |
-| Truy van context loi | Adapter fail-safe tra tap rong thay vi nem |
+| Truy cập workspace người khác | Policy loader nạp instance + kiểm tra `ownerId` / `members` |
+| IDOR qua `workspaceId` trong URL | Kiểm tra động của `PoliciesGuard` kiểm tra thuộc tính instance |
+| Spam workspace + mời người | Hạn ngạch 20 workspace/người dùng, chỉ owner mới gửi mời |
+| Xoá nhầm workspace người khác | Chỉ owner được xoá; policy loader kiểm tra instance |
+| Vượt hạn ngạch dung lượng | Kiểm tra quota trước khi ghi, trả lỗi domain |
+| Truy vấn ngữ cảnh lỗi | Adapter fail-safe trả tập rỗng thay vì ném lỗi |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `POST /workspaces` | Dang nhap - tu dong la owner |
-| `GET /workspaces` | Loc theo vai tro cua toi |
-| `GET /workspaces/:id` | Member |
+| `POST /workspaces` | Đăng nhập — tự động là owner |
+| `GET /workspaces` | Lọc theo vai trò của tôi |
+| `GET /workspaces/:id` | Thành viên |
 | `PATCH /workspaces/:id`, `DELETE /workspaces/:id` | Owner |
-| `GET /workspaces/:id/members` | Member |
+| `GET /workspaces/:id/members` | Thành viên |
 | `POST /workspaces/:id/members`, `DELETE .../members/:userId` | Owner |
-| `POST /workspaces/:id/transfer-owner` | Owner hien tai |
-| `POST /workspaces/:id/leave` | Member (tru owner) |
+| `POST /workspaces/:id/transfer-owner` | Owner hiện tại |
+| `POST /workspaces/:id/leave` | Thành viên (trừ owner) |
 
-**Suy ra quyen project tu vai tro workspace:** WS-OWNER -> PROJ-OWNER (toan quyen tren moi project cua workspace); WS-MEMBER -> lay dung vai tro ghi trong `project.members`, neu khong co -> PROJ-VIEWER.
+**Suy ra quyền project từ vai trò workspace:** WS-OWNER → PROJ-OWNER (toàn quyền trên mọi project của workspace); WS-MEMBER → lấy đúng vai trò ghi trong `project.members`, nếu không có → PROJ-VIEWER.
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung `workspace-context.adapter.ts` hien thuc `WORKSPACE_CONTEXT_PORT` / Bo sung tang ngu canh cho mo hinh phan quyen 3 tang / `modules/workspaces`, `shared/application/ports`
-- **v0.9.0** / 2026-11-XX / Bo sung han ngach `MAX_WORKSPACES_PER_USER` va quota dung luong / Chong spam + bao ve ha tang / `modules/workspaces`
-- **v0.7.0** / 2026-11-XX / Cascade xoa workspace -> project -> dataset, boc transaction MongoDB / Tranh trang thai nua cua doi / `modules/workspaces`, `modules/projects`, `modules/datasets`
-- **v0.3.0** / 2026-11-XX / Bo sung `transfer-owner` va `leave` / Vong doi so huu an toan / `modules/workspaces`
-- **v0.1.0** / 2026-11-XX / Tao module, tach thanh vien vao mang `members[]` / Kien truc Clean Architecture / `modules/workspaces`
+- **v1.0.0** / 2026-11-XX / Bổ sung `workspace-context.adapter.ts` hiện thực `WORKSPACE_CONTEXT_PORT` / Bổ sung tầng ngữ cảnh cho mô hình phân quyền 3 tầng / `modules/workspaces`, `shared/application/ports`
+- **v0.9.0** / 2026-11-XX / Bổ sung hạn ngạch `MAX_WORKSPACES_PER_USER` và quota dung lượng / Chống spam + bảo vệ hạ tầng / `modules/workspaces`
+- **v0.7.0** / 2026-11-XX / Cascade xoá workspace → project → dataset, bọc transaction MongoDB / Tránh trạng thái nửa vời / `modules/workspaces`, `modules/projects`, `modules/datasets`
+- **v0.3.0** / 2026-11-XX / Bổ sung `transfer-owner` và `leave` / Vòng đời sở hữu an toàn / `modules/workspaces`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun, tách thành viên vào mảng `members[]` / Kiến trúc Clean Architecture / `modules/workspaces`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

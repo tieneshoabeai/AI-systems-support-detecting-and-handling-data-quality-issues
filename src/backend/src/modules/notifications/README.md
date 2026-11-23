@@ -1,28 +1,28 @@
-# MODULE `notifications` - Thong bao & Tuy chon nguoi dung
+# MÔ-ĐUN `notifications` — Thông báo & Tùy chọn người dùng
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/notifications` (21 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/notifications` (21 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ
 
-Module gui thong bao trong he thong: thong bao trong ung dung, push notification qua ntfy, va email.
+Mô-đun gửi thông báo trong hệ thống: thông báo trong ứng dụng, thông báo đẩy qua ntfy, và email.
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Dispatch | Nhan yeu cau gui, kiem tra tuy chon nguoi nhan, luu, day realtime, gui push/email |
-| Hop thu | Liet ke, dem chua doc, doc chi tiet, danh dau da doc |
-| Tuy chon | Nguoi dung bat/tat tung loai thong bao |
+| Điều phối (Dispatch) | Nhận yêu cầu gửi, kiểm tra tùy chọn người nhận, lưu, đẩy realtime, gửi push/email |
+| Hộp thư | Liệt kê, đếm chưa đọc, đọc chi tiết, đánh dấu đã đọc |
+| Tùy chọn | Người dùng bật/tắt từng loại thông báo |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 notifications/
@@ -52,121 +52,121 @@ notifications/
     `-- dtos/list-notifications-query.dto.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-- **User Prompt / Business Intent:** Dam bao nguoi dung **khong bo lo** thong bao quan trong, dong thoi **khong bi spam** thong bao khong can thiet.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Bảo đảm người dùng **không bỏ lỡ** thông báo quan trọng, đồng thời **không bị làm phiền** bởi thông báo không cần thiết.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Hai loai thong bao BAT BUOC.** `MANDATORY_NOTIFICATION_TYPES = ['issue_needs_info', 'security_alert']`.
-   - `issue_needs_info`: quan tri vien yeu cau bo sung thong tin - nguoi dung khong duoc "khong thay" yeu cau.
-   - `security_alert`: canh bao bao mat (dang nhap la, thu hoi phien).
+1. **Hai loại thông báo BẮT BUỘC.** `MANDATORY_NOTIFICATION_TYPES = ['issue_needs_info', 'security_alert']`.
+   - `issue_needs_info`: quản trị viên yêu cầu bổ sung thông tin — người dùng không được "không thấy" yêu cầu.
+   - `security_alert`: cảnh báo bảo mật (đăng nhập lạ, thu hồi phiên).
 
-   Logic: `isMandatoryNotification(type, explicitFlag)` -> `explicitFlag === true` hoac loai thuoc danh sach; `shouldDispatch(enabled, mandatory)` -> chi bo qua khi `enabled === false` **va** khong bat buoc. Ket qua: nguoi dung tat `security_alert` van **luon** nhan duoc.
+   Logic: `isMandatoryNotification(type, explicitFlag)` → `explicitFlag === true` hoặc loại thuộc danh sách; `shouldDispatch(enabled, mandatory)` → chỉ bỏ qua khi `enabled === false` **và** không bắt buộc. Kết quả: người dùng tắt `security_alert` vẫn **luôn** nhận được.
 
-2. **Luu DB truoc, day realtime sau.** Neu day realtime loi, thong bao van con trong hop thu - nguoi dung khong bi mat thong tin. Thu tu nguoc lai se tao tinh trang "da gui nhung khong co trong hop thu".
+2. **Lưu vào DB trước, đẩy realtime sau.** Nếu đẩy realtime lỗi, thông báo vẫn còn trong hộp thư — người dùng không bị mất thông tin. Thứ tự ngược lại sẽ tạo tình trạng "đã gửi nhưng không có trong hộp thư".
 
-3. **Sai loi realtime khong lam hong luong chinh.** `EventDispatcherService` (module `shared`) bat va ghi log loi - khong rollback transaction da commit.
+3. **Lỗi realtime không làm hỏng luồng chính.** `EventDispatcherService` (mô-đun `shared`) bắt và ghi log lỗi — không rollback transaction đã commit.
 
-4. **Tuy chon luu dung thuc** khi nguoi dung tat loai bat buoc: gia tri `false` duoc bo qua khi kiem tra nhung **van luu** de hien thi trung thuc trong UI - nguoi dung thay "khong the tat" thi nhan ro.
+4. **Tùy chọn lưu đúng thực tế** khi người dùng tắt loại bắt buộc: giá trị `false` được bỏ qua khi kiểm tra nhưng **vẫn lưu** để hiển thị trung thực trong giao diện — người dùng thấy "không thể tắt" thì nhận rõ.
 
-- **Generated / Modified Artifacts:**
+- **Hiện vật đã tạo / đã sửa:**
 
-- `domain/value-objects/notification-type.vo.ts` - `NOTIFICATION_TYPES` (10 loai), `MANDATORY_NOTIFICATION_TYPES`, `isMandatoryNotification`, `shouldDispatch`.
-- `application/commands/dispatch.handler.ts` - luong gui: kiem tra tuy chon -> luu -> realtime -> push -> email.
-- `application/notification-email.mapper.ts` - mapping loai thong bao -> noi dung email.
-- `application/commands/update-preferences.handler.ts` - cap nhat tuy chon.
+- `domain/value-objects/notification-type.vo.ts` — `NOTIFICATION_TYPES` (10 loại), `MANDATORY_NOTIFICATION_TYPES`, `isMandatoryNotification`, `shouldDispatch`.
+- `application/commands/dispatch.handler.ts` — luồng gửi: kiểm tra tùy chọn → lưu → realtime → push → email.
+- `application/notification-email.mapper.ts` — ánh xạ loại thông báo → nội dung email.
+- `application/commands/update-preferences.handler.ts` — cập nhật tùy chọn.
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+## 4. Đặc tả giao tiếp kỹ thuật
 
-### 4.1. Endpoints
+### 4.1. Điểm cuối (Endpoints)
 
-| Method | Path | Chinh sach | Mo ta |
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `GET` | `/api/v1/notifications` | Chu thong bao | Hop thu (phan trang) |
-| `GET` | `/api/v1/notifications/unread-count` | Chu thong bao | So chua doc |
-| `GET` | `/api/v1/notifications/:id` | Chu thong bao | Chi tiet |
-| `PATCH` | `/api/v1/notifications/:id/read` | Chu thong bao | Danh dau da doc |
-| `PATCH` | `/api/v1/users/me/notification-preferences` | Chu nguoi dung | Cap nhat tuy chon |
+| `GET` | `/api/v1/notifications` | Chủ thông báo | Hộp thư (phân trang) |
+| `GET` | `/api/v1/notifications/unread-count` | Chủ thông báo | Số chưa đọc |
+| `GET` | `/api/v1/notifications/:id` | Chủ thông báo | Chi tiết |
+| `PATCH` | `/api/v1/notifications/:id/read` | Chủ thông báo | Đánh dấu đã đọc |
+| `PATCH` | `/api/v1/users/me/notification-preferences` | Chủ người dùng | Cập nhật tùy chọn |
 
-**Query params `GET /notifications`:** `unreadOnly`, `type`, `limit`, `cursor`.
+**Tham số truy vấn `GET /notifications`:** `unreadOnly`, `type`, `limit`, `cursor`.
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/notifications/index.ts` export public contract:
+`src/backend/src/modules/notifications/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `NotificationsModule` | Nest module |
-| `Notification` entity, `NotificationType` | Domain contract |
-| `NOTIFICATION_REPOSITORY_PORT` | Port truy van thong bao |
+| `NotificationsModule` | Mô-đun Nest |
+| Thực thể `Notification`, `NotificationType` | Hợp đồng domain |
+| `NOTIFICATION_REPOSITORY_PORT` | Cổng truy vấn thông báo |
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-| Event | Khi nao | Muc dich |
+| Sự kiện | Khi nào | Mục đích |
 |---|---|---|
-| `notification.created` | Tao thong bao | Realtime den phong `user:${userId}` |
-| `notification.read` | Danh dau da doc | Realtime |
+| `notification.created` | Tạo thông báo | Realtime đến phòng `user:${userId}` |
+| `notification.read` | Đánh dấu đã đọc | Realtime |
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-| Loai | Bat buoc |
+| Loại | Bắt buộc |
 |---|---|
-| `project_created` | Khong |
-| `project_deleted` | Khong |
-| `project_member_added` | Khong |
-| `issue_needs_info` | **Co** |
-| `issue_resolved` | Khong |
-| `analysis_completed` | Khong |
-| `analysis_failed` | Khong |
-| `ai_analysis_ready` | Khong |
-| `report_ready` | Khong |
-| `security_alert` | **Co** |
+| `project_created` | Không |
+| `project_deleted` | Không |
+| `project_member_added` | Không |
+| `issue_needs_info` | **Có** |
+| `issue_resolved` | Không |
+| `analysis_completed` | Không |
+| `analysis_failed` | Không |
+| `ai_analysis_ready` | Không |
+| `report_ready` | Không |
+| `security_alert` | **Có** |
 
-- Thong bao **luon** duoc luu DB truoc khi day realtime / push / email.
-- Loai bat buoc **duoc gui du** nguoi dung tat tuy chon.
-- Chi nguoi dung **sau huu** duoc danh dau doc thong bao khac.
-- Moi thong bao phai tro toi mot `entityType` + `entityId` de frontend dieu huong.
+- Thông báo **luôn** được lưu vào DB trước khi đẩy realtime / push / email.
+- Loại bắt buộc **được gửi dù** người dùng tắt tùy chọn.
+- Chỉ người dùng **sở hữu** mới được đánh dấu đọc thông báo của mình.
+- Mỗi thông báo phải trỏ tới một `entityType` + `entityId` để frontend điều hướng.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Doc thong bao cua nguoi khac | Policy loader kiem tra `userId` khu vuc |
-| Danh dau doc thong bao nguoi khac | Policy loader kiem tra `userId` khu vuc |
-| Mat thong bao quan trong | Loai bat buoc khong the tat |
-| Spam thong bao | Bo tan tuy chon + `security_alert` luon gui |
-| Luu PII trong thong bao | Khong day gia tri o loi / nhận xet qua thong bao; chi day id + trang thai |
-| Loi realtime lam mat thong bao | Luu DB truoc; loi realtime chi ghi log |
+| Đọc thông báo của người khác | Policy loader kiểm tra `userId` khu vực |
+| Đánh dấu đọc thông báo người khác | Policy loader kiểm tra `userId` khu vực |
+| Mất thông báo quan trọng | Loại bắt buộc không thể tắt |
+| Gửi quá nhiều thông báo (spam) | Bộ lọc tùy chọn + `security_alert` luôn gửi |
+| Lưu PII trong thông báo | Không đẩy giá trị ô dữ liệu / nhận xét qua thông báo; chỉ đẩy id + trạng thái |
+| Lỗi realtime làm mất thông báo | Lưu vào DB trước; lỗi realtime chỉ ghi log |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `GET /notifications` | Chu thong bao - loc theo `userId` hien tai |
-| `GET /notifications/unread-count` | Chu thong bao |
-| `GET /notifications/:id` | Chu thong bao |
-| `PATCH /notifications/:id/read` | Chu thong bao |
-| `PATCH /users/me/notification-preferences` | Chu nguoi dung |
+| `GET /notifications` | Chủ thông báo — lọc theo `userId` hiện tại |
+| `GET /notifications/unread-count` | Chủ thông báo |
+| `GET /notifications/:id` | Chủ thông báo |
+| `PATCH /notifications/:id/read` | Chủ thông báo |
+| `PATCH /users/me/notification-preferences` | Chủ người dùng |
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung `security_alert` vao danh sach bat buoc + `shouldDispatch` / Canh bao bao mat khong the tat / `modules/notifications`
-- **v0.9.0** / 2026-11-XX / Bo sung `issue_needs_info` vao danh sach bat buoc / Yeu cau bo sung thong tin phai duoc thay / `modules/notifications`, `modules/issues`
-- **v0.6.0** / 2026-11-XX / Bo sung `update-preferences.handler.ts` va route `/users/me/notification-preferences` / Nguoi dung tu kiem soat / `modules/notifications`
-- **v0.4.0** / 2026-11-XX / Tach `dispatch.handler.ts`: luu DB truoc, day realtime sau / Khong mat thong bao khi realtime loi / `modules/notifications`
-- **v0.1.0** / 2026-11-XX / Tao module / Thong bao la kenh thong tin chinh / `modules/notifications`
+- **v1.0.0** / 2026-11-XX / Bổ sung `security_alert` vào danh sách bắt buộc + `shouldDispatch` / Cảnh báo bảo mật không thể tắt / `modules/notifications`
+- **v0.9.0** / 2026-11-XX / Bổ sung `issue_needs_info` vào danh sách bắt buộc / Yêu cầu bổ sung thông tin phải được thấy / `modules/notifications`, `modules/issues`
+- **v0.6.0** / 2026-11-XX / Bổ sung `update-preferences.handler.ts` và route `/users/me/notification-preferences` / Người dùng tự kiểm soát / `modules/notifications`
+- **v0.4.0** / 2026-11-XX / Tách `dispatch.handler.ts`: lưu vào DB trước, đẩy realtime sau / Không mất thông báo khi realtime lỗi / `modules/notifications`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun / Thông báo là kênh thông tin chính / `modules/notifications`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

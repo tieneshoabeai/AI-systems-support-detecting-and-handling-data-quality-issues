@@ -1,9 +1,13 @@
 /**
  * Phần 12 v8 §3.6b — Quyết định nhóm A #2: Che PII trước khi đưa mẫu vào prompt AI.
  *
- * 1. Che theo KIỂU DỮ LIỆU (regex): email, số điện thoại, CCCD/CMND.
- * 2. Che theo CỘT NGƯỜI DÙNG ĐÁNH DẤU PII (dataset.columns[].is_pii = true).
- * 3. Ô không che được → LOẠI KHỎI PROMPT, không gửi đi.
+ * 1. Che theo KIỂU DỮ LIỆU (regex): email, số điện thoại, CCCD/CMND → `***`.
+ * 2. Che theo CỘT ĐƯỢC ĐÁNH DẤU PII (dataset.columns[].is_pii = true) → `***`.
+ * 3. Cột vai trò `identifier` / `text` → dạng mẫu (shape), không lộ giá trị thật.
+ * 4. Giá trị thường còn lại → gửi thô (cắt 40 ký tự).
+ *
+ * `maskCell()` giữ hành vi cũ (nghiêm ngặt: giá trị lạ → dropped) để tương
+ * thích test/regex. Luồng prompt AI dùng `maskForAi()` phía dưới.
  *
  * Giá trị đã che luôn dùng ký hiệu `***`.
  */

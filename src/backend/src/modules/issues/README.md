@@ -1,36 +1,36 @@
-# MODULE `issues` - Bao cao loi & Quan tri
+# MÔ-ĐUN `issues` — Báo cáo lỗi & Quản trị
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/issues` (23 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/issues` (23 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ
 
-Module cho phep nguoi dung bao loi he thong, kem tep dinh kem, va cho quan tri vien theo doi / xu ly.
+Mô-đun cho phép người dùng báo lỗi hệ thống, kèm tệp đính kèm, và cho quản trị viên theo dõi / xử lý.
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Bao cao | Nguoi dung tao bao cao loi kem tep dinh kem |
-| Theo doi | Nguoi dung xem / sua bao cao cua chinh minh |
-| Quan tri | Quan tri vien xem tat ca, chuyen trang thai, ghi chu |
-| Tep dinh kem | Upload / tai tep, quan ly vong doi file |
+| Báo cáo | Người dùng tạo báo cáo lỗi kèm tệp đính kèm |
+| Theo dõi | Người dùng xem / sửa báo cáo của chính mình |
+| Quản trị | Quản trị viên xem tất cả, chuyển trạng thái, ghi chú |
+| Tệp đính kèm | Tải lên / tải về tệp, quản lý vòng đời tệp |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 issues/
 |-- domain/
 |   |-- entities/issue-report.entity.ts
 |   |-- value-objects/
-|   |   |-- issue-status.vo.ts      # vong doi & chuyen trang thai
+|   |   |-- issue-status.vo.ts      # vòng đời & chuyển trạng thái
 |   |   |-- issue-type.vo.ts
 |   |   `-- attachment.vo.ts
 |   |-- events/issue-events.ts
@@ -52,121 +52,121 @@ issues/
     `-- responses/issue.response.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-- **User Prompt / Business Intent:** Cho nguoi dung bao loi he thong va theo doi viec sua chua, dong thoi cho quan tri vien co cong quan tri rieng de xu ly kip thoi.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Cho người dùng báo lỗi hệ thống và theo dõi việc sửa chữa, đồng thời cho quản trị viên có công cụ quản trị riêng để xử lý kịp thời.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Ma tran chuyen trang thai tai domain.** `ALLOWED_ISSUE_TRANSITIONS` la **nguon su truth duy nhat** cho viec chuyen trang thai. Chuyen sai -> loi domain, khong phai loi HTTP. `closed` la trang thai **cuoi** - khong mo lai duoc; `resolved` co the quay lai `in_progress` neu phat hien lai loi.
+1. **Ma trận chuyển trạng thái tại domain.** `ALLOWED_ISSUE_TRANSITIONS` là **nguồn sự thật duy nhất** cho việc chuyển trạng thái. Chuyển sai → lỗi domain, không phải lỗi HTTP. `closed` là trạng thái **cuối** — không mở lại được; `resolved` có thể quay lại `in_progress` nếu phát hiện lại lỗi.
 
-2. **Chi cho sua khi `needs_info`.** `USER_EDITABLE_ISSUE_STATUSES = ['needs_info']`. Chi khi quan tri vien yeu cau bo sung thong tin, nguoi dung moi duoc sua bao cao cua chinh minh. `title`, `description`, `attachments` sua duoc; **`issueType` khong** - loai bao cao la ban chat, khong doi duoc.
+2. **Chỉ cho sửa khi `needs_info`.** `USER_EDITABLE_ISSUE_STATUSES = ['needs_info']`. Chỉ khi quản trị viên yêu cầu bổ sung thông tin, người dùng mới được sửa báo cáo của chính mình. `title`, `description`, `attachments` sửa được; **`issueType` không** — loại báo cáo là bản chất, không đổi được.
 
-3. **Sau khi sua, bao cao tu quay ve `in_progress`.** Nguoi dung tra loi xong -> viec xu ly chay lai tu dau, khong phai tiep tuc tu `resolved`.
+3. **Sau khi sửa, báo cáo tự quay về `in_progress`.** Người dùng trả lời xong → việc xử lý chạy lại từ đầu, không phải tiếp tục từ `resolved`.
 
-4. **Tep dinh kem luu tren R2, metadata trong MongoDB.** Khong luu binary trong document - tai qua `StoragePort` voi kiem tra quyen so huu truoc khi doc file.
+4. **Tệp đính kèm lưu trên R2, metadata trong MongoDB.** Không lưu binary trong document — tải qua `StoragePort` với kiểm tra quyền sở hữu trước khi đọc tệp.
 
-5. **Tach route user va route admin.** `/issues*` cho nguoi dung (chi bao cao cua toi), `/admin/issues*` cho quan tri vien. Khac biet ro rang giup audit trail de doc.
+5. **Tách route người dùng và route admin.** `/issues*` cho người dùng (chỉ báo cáo của tôi), `/admin/issues*` cho quản trị viên. Khác biệt rõ ràng giúp audit trail dễ đọc.
 
-- **Generated / Modified Artifacts:**
+- **Hiện vật đã tạo / đã sửa:**
 
-- `domain/value-objects/issue-status.vo.ts` - `ISSUE_STATUSES` (5 trang thai), `ALLOWED_ISSUE_TRANSITIONS`, `isAllowedIssueTransition`, `assertAllowedIssueTransition`, `isUserEditableIssueStatus`.
-- `domain/value-objects/issue-type.vo.ts` - `ISSUE_TYPES` (5 loai).
-- `domain/entities/issue-report.entity.ts` - aggregate root.
-- `application/commands/update-my-report.handler.ts` - kiem tra `isUserEditableIssueStatus` truoc khi sua.
-- `application/commands/update-status.handler.ts` - kiem tra `assertAllowedIssueTransition`.
+- `domain/value-objects/issue-status.vo.ts` — `ISSUE_STATUSES` (5 trạng thái), `ALLOWED_ISSUE_TRANSITIONS`, `isAllowedIssueTransition`, `assertAllowedIssueTransition`, `isUserEditableIssueStatus`.
+- `domain/value-objects/issue-type.vo.ts` — `ISSUE_TYPES` (5 loại).
+- `domain/entities/issue-report.entity.ts` — aggregate root.
+- `application/commands/update-my-report.handler.ts` — kiểm tra `isUserEditableIssueStatus` trước khi sửa.
+- `application/commands/update-status.handler.ts` — kiểm tra `assertAllowedIssueTransition`.
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+## 4. Đặc tả giao tiếp kỹ thuật
 
-### 4.1. Endpoints
+### 4.1. Điểm cuối (Endpoints)
 
-| Method | Path | Chinh sach | Mo ta |
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `POST` | `/api/v1/issues` | Dang nhap | Tao bao cao |
-| `GET` | `/api/v1/issues` | Dang nhap | Bao cao cua toi |
-| `GET` | `/api/v1/issues/:id` | Chu bao cao hoac admin | Chi tiet |
-| `PATCH` | `/api/v1/issues/:id` | Chu bao cao (chi khi `needs_info`) hoac admin | Sua bao cao |
-| `POST` | `/api/v1/issues/:id/attachments` | Chu bao cao hoac admin | Them tep dinh kem |
-| `GET` | `/api/v1/issues/:id/attachments/:attachmentId` | Chu bao cao hoac admin | Tai tep dinh kem |
-| `GET` | `/api/v1/admin/issues` | `@Roles('admin')` | Tat ca bao cao |
-| `GET` | `/api/v1/admin/issues/:id` | `@Roles('admin')` | Chi tiet (admin) |
-| `PATCH` | `/api/v1/admin/issues/:id/status` | `@Roles('admin')` | Chuyen trang thai |
+| `POST` | `/api/v1/issues` | Đăng nhập | Tạo báo cáo |
+| `GET` | `/api/v1/issues` | Đăng nhập | Báo cáo của tôi |
+| `GET` | `/api/v1/issues/:id` | Chủ báo cáo hoặc admin | Chi tiết |
+| `PATCH` | `/api/v1/issues/:id` | Chủ báo cáo (chỉ khi `needs_info`) hoặc admin | Sửa báo cáo |
+| `POST` | `/api/v1/issues/:id/attachments` | Chủ báo cáo hoặc admin | Thêm tệp đính kèm |
+| `GET` | `/api/v1/issues/:id/attachments/:attachmentId` | Chủ báo cáo hoặc admin | Tải tệp đính kèm |
+| `GET` | `/api/v1/admin/issues` | `@Roles('admin')` | Tất cả báo cáo |
+| `GET` | `/api/v1/admin/issues/:id` | `@Roles('admin')` | Chi tiết (admin) |
+| `PATCH` | `/api/v1/admin/issues/:id/status` | `@Roles('admin')` | Chuyển trạng thái |
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/issues/index.ts` export public contract:
+`src/backend/src/modules/issues/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `IssuesModule` | Nest module |
-| `IssueReport` entity, `IssueStatus`, `IssueType` | Domain contract |
-| `ISSUE_REPORT_REPOSITORY_PORT` | Port truy van bao cao |
+| `IssuesModule` | Mô-đun Nest |
+| Thực thể `IssueReport`, `IssueStatus`, `IssueType` | Hợp đồng domain |
+| `ISSUE_REPORT_REPOSITORY_PORT` | Cổng truy vấn báo cáo |
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-| Event | Khi nao | Muc dich |
+| Sự kiện | Khi nào | Mục đích |
 |---|---|---|
-| `issue.created` | Tao bao cao | Audit log + thong bao admin |
-| `issue.status_changed` | Chuyen trang thai | Thong bao nguoi dung |
-| `issue.attachment_added` | Them tep | Audit log |
+| `issue.created` | Tạo báo cáo | Audit log + thông báo admin |
+| `issue.status_changed` | Chuyển trạng thái | Thông báo người dùng |
+| `issue.attachment_added` | Thêm tệp | Audit log |
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-| Tu | Sang duoc |
+| Từ | Sang được |
 |---|---|
 | `new` | `in_progress`, `needs_info` |
 | `needs_info` | `in_progress` |
 | `in_progress` | `resolved`, `new`, `needs_info` |
 | `resolved` | `closed` |
-| `closed` | *(khong)* |
+| `closed` | *(không)* |
 
-- Chi `needs_info` cho phep nguoi dung tu sua bao cao.
-- `issueType` **khong** doi duoc khi nguoi dung sua.
-- Sau khi nguoi dung sua, trang thai tu quay ve `in_progress`.
-- Chi **chu bao cao** hoac **admin** duoc doc / sua bao cao.
-- Tep dinh kem phai thuoc dung `issueId` ma nguoi dang truy cap.
+- Chỉ `needs_info` cho phép người dùng tự sửa báo cáo.
+- `issueType` **không** đổi được khi người dùng tự sửa.
+- Sau khi người dùng sửa, trạng thái tự quay về `in_progress`.
+- Chỉ **chủ báo cáo** hoặc **admin** được đọc / sửa báo cáo.
+- Tệp đính kèm phải thuộc đúng `issueId` mà người đang truy cập.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Doc bao cao cua nguoi khac | Policy loader kiem tra `userId` khu vuc |
-| Sua bao cao ngoai trang thai cho phep | `isUserEditableIssueStatus` chan o domain |
-| Chuyen trang thai trai phép | `assertAllowedIssueTransition` chan o domain |
-| Tai tep dinh kem cua nguoi khac | Kiem tra quyen so huu truoc khi doc file |
-| Doi `issueType` de doi bac bao cao | `issueType` khong cho sua khi user tu sua |
-| File dinh kem nguy hiem | Giu file tren R2, khong lo truc tiep ra public |
+| Đọc báo cáo của người khác | Policy loader kiểm tra `userId` khu vực |
+| Sửa báo cáo ngoài trạng thái cho phép | `isUserEditableIssueStatus` chặn ở domain |
+| Chuyển trạng thái trái phép | `assertAllowedIssueTransition` chặn ở domain |
+| Tải tệp đính kèm của người khác | Kiểm tra quyền sở hữu trước khi đọc tệp |
+| Đổi `issueType` để nâng hạng báo cáo | `issueType` không cho sửa khi người dùng tự sửa |
+| Tệp đính kèm nguy hiểm | Giữ tệp trên R2, không lộ trực tiếp ra public |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `POST /issues` | Dang nhap - bao cao cua toi |
-| `GET /issues` | Dang nhap - chi bao cao cua toi |
-| `GET /issues/:id` | Chu bao cao hoac admin |
-| `PATCH /issues/:id` | Chu bao cao (chi `needs_info`) hoac admin |
-| `POST /issues/:id/attachments` | Chu bao cao hoac admin |
-| `GET /issues/:id/attachments/:attachmentId` | Chu bao cao hoac admin |
+| `POST /issues` | Đăng nhập — báo cáo của tôi |
+| `GET /issues` | Đăng nhập — chỉ báo cáo của tôi |
+| `GET /issues/:id` | Chủ báo cáo hoặc admin |
+| `PATCH /issues/:id` | Chủ báo cáo (chỉ `needs_info`) hoặc admin |
+| `POST /issues/:id/attachments` | Chủ báo cáo hoặc admin |
+| `GET /issues/:id/attachments/:attachmentId` | Chủ báo cáo hoặc admin |
 | `GET /admin/issues*`, `PATCH /admin/issues/:id/status` | `@Roles('admin')` |
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung trang thai `needs_info` va quyen sua bao cao chi khi `needs_info` (quyet dinh 3.21) / Cho phep hoi thong tin nguoi dung ma khong mo quyen sua chung / `modules/issues`
-- **v0.6.0** / 2026-11-XX / Bo sung `upload-attachment.handler.ts` va `download-attachment.handler.ts` / Luu bang chung kem loi / `modules/issues`
-- **v0.4.0** / 2026-11-XX / Bo sung `ALLOWED_ISSUE_TRANSITIONS` va `assertAllowedIssueTransition` / Chan chuyen trang thai trai phép / `modules/issues`
-- **v0.2.0** / 2026-11-XX / Tach route `/admin/issues` / Phan biet quyen nguoi dung va quan tri / `modules/issues`
-- **v0.1.0** / 2026-11-XX / Tao module / Chien tiep nhan bao loi / `modules/issues`
+- **v1.0.0** / 2026-11-XX / Bổ sung trạng thái `needs_info` và quyền sửa báo cáo chỉ khi `needs_info` (quyết định 3.21) / Cho phép hỏi thêm thông tin người dùng mà không mở quyền sửa chung / `modules/issues`
+- **v0.6.0** / 2026-11-XX / Bổ sung `upload-attachment.handler.ts` và `download-attachment.handler.ts` / Lưu bằng chứng kèm lỗi / `modules/issues`
+- **v0.4.0** / 2026-11-XX / Bổ sung `ALLOWED_ISSUE_TRANSITIONS` và `assertAllowedIssueTransition` / Chặn chuyển trạng thái trái phép / `modules/issues`
+- **v0.2.0** / 2026-11-XX / Tách route `/admin/issues` / Phân biệt quyền người dùng và quản trị / `modules/issues`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun / Kênh tiếp nhận báo lỗi / `modules/issues`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

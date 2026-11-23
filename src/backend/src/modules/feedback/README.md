@@ -1,42 +1,42 @@
-# MODULE `feedback` - Phan hoi & Vong lap hoc lai
+# MÔ-ĐUN `feedback` — Phản hồi & Vòng lặp học lại
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/feedback` (21 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/feedback` (21 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ
 
-Module hien thuc **vong lap Human-in-the-Loop**: nguoi dung danh gia ket qua AI, phan hoi duoc luu **bat bien** va dung lam **few-shot example** cho cac lan chay AI sau.
+Mô-đun hiện thực **vòng lặp Human-in-the-Loop**: người dùng đánh giá kết quả AI, phản hồi được lưu **bất biến** và dùng làm **ví dụ few-shot** cho các lần chạy AI sau.
 
 ```text
-AI Result ---> Nguoi dung danh gia ---> Feedback (bat bien) ---> RAG few-shot
+Kết quả AI ---> Người dùng đánh giá ---> Phản hồi (bất biến) ---> RAG few-shot
                                                                         |
-                                              prompt lan chay sau <----+
+                                              prompt lần chạy sau <----+
 ```
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Phan hoi muc finding | Danh gia **mot** phat hien cu the |
-| Phan hoi muc lan chay | Danh gia **toan bo** ket qua mot lan phan tich |
-| Quan ly phan hoi | Sua / xoa phan hoi **cua toi** |
-| Chi so chat luong AI | Tinh ty le dung / sai / bo qua theo project |
+| Phản hồi mức finding | Đánh giá **một** phát hiện cụ thể |
+| Phản hồi mức lần chạy | Đánh giá **toàn bộ** kết quả một lần phân tích |
+| Quản lý phản hồi | Sửa / xoá phản hồi **của tôi** |
+| Chỉ số chất lượng AI | Tính tỉ lệ đúng / sai / bỏ qua theo project |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 feedback/
 |-- domain/
 |   |-- entities/
-|   |   |-- feedback.entity.ts           # phan hoi muc lan chay
-|   |   `-- finding-feedback.entity.ts   # phan hoi muc finding
+|   |   |-- feedback.entity.ts           # phản hồi mức lần chạy
+|   |   `-- finding-feedback.entity.ts   # phản hồi mức finding
 |   |-- value-objects/feedback-label.vo.ts
 |   |-- events/feedback-events.ts
 |   `-- ports/feedback.repository.port.ts
@@ -53,124 +53,126 @@ feedback/
 `-- presentation/controllers/feedback.controller.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-- **User Prompt / Business Intent:** Dong lai vong lap giua nguoi dung va AI: moi phan hoi cua nguoi dung phai **bien dich** thanh vi du mau giup AI lam tot hon o lan sau, ma khong can huan luyen lai mo hinh.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Khép kín vòng lặp giữa người dùng và AI: mỗi phản hồi của người dùng phải **biên dịch** thành ví dụ mẫu giúp AI làm tốt hơn ở lần sau, mà không cần huấn luyện lại mô hình.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Hai cap phan hoi.** `FindingFeedback` (danh gia mot phat hien: "cot nay khong bi thieu") va `Feedback` (danh gia ca lan chay: "ket qua chung nhin on"). Ca hai dung chung bo nhan va muc do nghiem trong. Cap thao fine huu ich cho UI; cap tong hop huu ich cho bao cao.
+1. **Hai cấp phản hồi.** `FindingFeedback` (đánh giá một phát hiện: "cột này không bị thiếu") và `Feedback` (đánh giá cả lần chạy: "kết quả chung nhìn ổn"). Cả hai dùng chung bộ nhãn và mức độ nghiêm trọng. Cấp chi tiết hữu ích cho giao diện; cấp tổng hợp hữu ích cho báo cáo.
 
-2. **Nhan bat buoc co ly do.** `LABELS_REQUIRING_REASON = ['false_positive', 'missed_issue', 'other']`. `assertReasonForLabel` nem loi neu chon mot trong ba nhan nay ma khong ghi ly do. Ly do cu the moi giup AI hoc duoc; nhan khong kem ly do chi la tin hieu nho.
+2. **Nhãn bắt buộc có lý do.** `LABELS_REQUIRING_REASON = ['false_positive', 'missed_issue', 'other']`. `assertReasonForLabel` báo lỗi nếu chọn một trong ba nhãn này mà không ghi lý do. Lý do cụ thể mới giúp AI học được; nhãn không kèm lý do chỉ là tín hiệu nhiễu.
 
-3. **Muc do nghiem trong cua nguoi danh gia tach khoi muc do nghiem trong do AI gan.** Hai khai niem khac nhau: "van de nay nghiem trong" (AI) vs " toi nghi van de nay nghiem trong" (nguoi dung). Muc do cua nguoi dung tinh `trust_score` cho RAG.
+3. **Mức độ nghiêm trọng của người đánh giá tách khỏi mức độ nghiêm trọng do AI gắn.** Hai khái niệm khác nhau: "vấn đề này nghiêm trọng" (AI) so với "tôi nghĩ vấn đề này nghiêm trọng" (người dùng). Mức độ của người dùng tính `trust_score` cho RAG.
 
-4. **`trust_score` chuan hoa ve [0, 1].** Dien gop theo nhan: `correct` +1.0, `partially_correct` +0.5, `false_positive` -1.0, `missed_issue` -0.5, `other` 0.0. Phan hoi diem thap bi **loc bo** khi xay dung prompt.
+4. **`trust_score` chuẩn hoá về [0, 1].** Điểm cộng theo nhãn: `correct` +1.0, `partially_correct` +0.5, `false_positive` -1.0, `missed_issue` -0.5, `other` 0.0. Phản hồi điểm thấp bị **loại bỏ** khi dựng prompt.
 
-5. **Phan hoi bat bien ve nghiep vu.** `update-mine.handler.ts` chi cho phep sua **phan hoi cua chinh nguoi goi**. Lich su phan hoi duoc giu de truy vet - dung de tinh lai `trust_score` khi doi cong thuc.
+5. **Phản hồi bất biến về nghiệp vụ.** `update-mine.handler.ts` chỉ cho phép sửa **phản hồi của chính người gọi**. Tài khoản System Admin bị cấm tạo/sửa phản hồi (`ensureNotAdmin`) nhưng được phép xoá kiểm duyệt. Lịch sử phản hồi được giữ để truy vết — dùng để tính lại `trust_score` khi đổi công thức.
 
-6. **RAG loc theo `max_age_days`.** Phan hoi cu khong con dung mo hinh hien tai. Loc theo tuoi la chat luong du lieu, khong phai lam mat du lieu.
+6. **RAG lọc theo `max_age_days`.** Phản hồi cũ không còn đúng với mô hình hiện tại. Lọc theo tuổi là chất lượng dữ liệu, không phải làm mất dữ liệu.
 
-7. **`stripIdentifiers` loai dinh danh ca nhan khoi vi du.** Du mo hinh chay cuc bo, khong nen dua PII vao prompt.
+7. **`stripIdentifiers` loại định danh cá nhân khỏi ví dụ.** Dù mô hình chạy cục bộ, không nên đưa PII vào prompt.
 
-- **Generated / Modified Artifacts:**
+8. **Tổng hợp theo phạm vi thay vì giới hạn 1.000 bản ghi.** `summaryByScope` dùng aggregation `$group` theo nhãn nên đếm chính xác toàn bộ, không bị cắt cụt.
 
-- `domain/value-objects/feedback-label.vo.ts` - `FEEDBACK_LABELS` (5 nhan), `FEEDBACK_SEVERITIES` (4 muc), `LABELS_REQUIRING_REASON`, `assertReasonForLabel`.
-- `domain/entities/finding-feedback.entity.ts` - phan hoi muc finding.
-- `domain/entities/feedback.entity.ts` - phan hoi muc lan chay.
-- `application/commands/update-mine.handler.ts` - chi sua phan hoi cua toi.
-- `application/commands/ai-quality-metrics.handler.ts` - chi so chat luong AI theo project.
+- **Hiện vật đã tạo / đã sửa:**
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+- `domain/value-objects/feedback-label.vo.ts` — `FEEDBACK_LABELS` (5 nhãn), `FEEDBACK_SEVERITIES` (4 mức), `LABELS_REQUIRING_REASON`, `assertReasonForLabel`.
+- `domain/entities/finding-feedback.entity.ts` — phản hồi mức finding.
+- `domain/entities/feedback.entity.ts` — phản hồi mức lần chạy.
+- `application/commands/update-mine.handler.ts` — chỉ sửa phản hồi của tôi, cấm admin.
+- `application/commands/ai-quality-metrics.handler.ts` — chỉ số chất lượng AI theo project.
 
-### 4.1. Endpoints
+## 4. Đặc tả giao tiếp kỹ thuật
 
-| Method | Path | Chinh sach | Mo ta |
+### 4.1. Điểm cuối (Endpoints)
+
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `POST` | `/api/v1/analyses/:analysisId/findings/:findingId/feedback` | `Action.Create` | Danh gia mot finding |
-| `GET` | `/api/v1/analyses/:analysisId/findings/:findingId/feedback` | `Action.Read` | Doc danh gia cua finding |
-| `POST` | `/api/v1/analyses/:analysisId/feedback` | `Action.Create` | Danh gia ca lan chay |
-| `GET` | `/api/v1/analyses/:analysisId/feedback` | `Action.Read` | Danh sach danh gia cua lan chay |
-| `PATCH` | `/api/v1/feedback/:id` | Chu phan hoi | Sua phan hoi cua toi |
-| `DELETE` | `/api/v1/feedback/:id` | Chu phan hoi | Xoa phan hoi cua toi |
-| `GET` | `/api/v1/projects/:projectId/ai-quality-metrics` | `Action.Read` | Chi so chat luong AI |
+| `POST` | `/api/v1/analyses/:analysisId/findings/:findingId/feedback` | `Action.Create` | Đánh giá một finding |
+| `GET` | `/api/v1/analyses/:analysisId/findings/:findingId/feedback` | `Action.Read` | Đọc đánh giá của finding |
+| `POST` | `/api/v1/analyses/:analysisId/feedback` | `Action.Create` | Đánh giá cả lần chạy |
+| `GET` | `/api/v1/analyses/:analysisId/feedback` | `Action.Read` | Danh sách đánh giá của lần chạy |
+| `PATCH` | `/api/v1/feedback/:id` | Chủ phản hồi | Sửa phản hồi của tôi |
+| `DELETE` | `/api/v1/feedback/:id` | Chủ phản hồi | Xoá phản hồi của tôi |
+| `GET` | `/api/v1/projects/:projectId/ai-quality-metrics` | `Action.Read` | Chỉ số chất lượng AI |
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/feedback/index.ts` export public contract:
+`src/backend/src/modules/feedback/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `FeedbackModule` | Nest module |
-| `Feedback`, `FindingFeedback` entities | Domain contract |
-| `FeedbackLabel`, `FeedbackSeverity` | Domain contract |
-| `FEEDBACK_REPOSITORY_PORT` | Port truy van phan hoi |
+| `FeedbackModule` | Mô-đun Nest |
+| `Feedback`, `FindingFeedback` entities | Hợp đồng domain |
+| `FeedbackLabel`, `FeedbackSeverity` | Hợp đồng domain |
+| `FEEDBACK_REPOSITORY_PORT` | Cổng truy vấn phản hồi |
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-| Event | Khi nao | Muc dich |
+| Sự kiện | Khi nào | Mục đích |
 |---|---|---|
-| `feedback.created` | Tao phan hoi | Realtime + cap nhat chi so |
-| `feedback.updated` | Sua phan hoi | Realtime |
-| `feedback.deleted` | Xoa phan hoi | Realtime |
-| `ai.quality.updated` | Chi so chat luong thay doi | Realtime |
+| `feedback.created` | Tạo phản hồi | Realtime + cập nhật chỉ số |
+| `feedback.updated` | Sửa phản hồi | Realtime |
+| `feedback.deleted` | Xoá phản hồi | Realtime |
+| `ai.quality.updated` | Chỉ số chất lượng thay đổi | Realtime |
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-| Nhan | Bat buoc co ly do |
+| Nhãn | Bắt buộc có lý do |
 |---|---|
-| `correct` | Khong |
-| `partially_correct` | Khong |
-| `false_positive` | **Co** |
-| `missed_issue` | **Co** |
-| `other` | **Co** |
+| `correct` | Không |
+| `partially_correct` | Không |
+| `false_positive` | **Có** |
+| `missed_issue` | **Có** |
+| `other` | **Có** |
 
-- Muc do nghiem trong phai thuoc `{ low, medium, high, critical }`.
-- `trust_score` phai duoc chuan hoa ve khoang [0, 1].
-- Chi sua / xoa **phan hoi cua chinh nguoi goi**.
-- Phan hoi co `trust_score` duoi nguong hoac qua `max_age_days` **khong** duoc dung lam few-shot.
-- Vi du dua vao prompt **phai** qua `stripIdentifiers`.
-- Chi so chat luong AI phai tinh duoc tren **tap phan hoi da loc** cho project do.
+- Mức độ nghiêm trọng phải thuộc `{ low, medium, high, critical }`.
+- `trust_score` phải được chuẩn hoá về khoảng [0, 1].
+- Chỉ sửa / xoá **phản hồi của chính người gọi**; admin bị cấm tạo/sửa.
+- Phản hồi có `trust_score` dưới ngưỡng hoặc quá `max_age_days` **không** được dùng làm few-shot.
+- Ví dụ đưa vào prompt **phải** qua `stripIdentifiers`.
+- Chỉ số chất lượng AI phải tính được trên **tập phản hồi đã lọc** cho project đó, dùng aggregation.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| Sua phan hoi cua nguoi khac | Policy loader kiem tra `userId` khu vuc |
-| Xoa phan hoi cua nguoi khac | Policy loader kiem tra `userId` khu vuc |
-| PII lo qua vi du few-shot | `stripIdentifiers` loai dinh danh ca nhan |
-| Manipulate `trust_score` de AI hoc sai | `trust_score` tinh o domain, client khong truyen truc tiep |
-| Doc phan hoi cua project khac | Policy loader kiem tra `projectId` |
+| Sửa phản hồi của người khác | Policy loader kiểm tra `userId` khu vực + cấm admin |
+| Xoá phản hồi của người khác | Policy loader kiểm tra `userId` khu vực |
+| PII lộ qua ví dụ few-shot | `stripIdentifiers` loại định danh cá nhân |
+| Thao túng `trust_score` để AI học sai | `trust_score` tính ở domain, client không truyền trực tiếp |
+| Đọc phản hồi của project khác | Policy loader kiểm tra `projectId` |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `POST /analyses/:analysisId/findings/:findingId/feedback` | `Action.Create` tren `FindingFeedback` |
+| `POST /analyses/:analysisId/findings/:findingId/feedback` | `Action.Create` trên `FindingFeedback` |
 | `GET /analyses/:analysisId/findings/:findingId/feedback` | `Action.Read` |
 | `POST /analyses/:analysisId/feedback` | `Action.Create` |
 | `GET /analyses/:analysisId/feedback` | `Action.Read` |
-| `PATCH /feedback/:id`, `DELETE /feedback/:id` | Chu phan hoi (theo `userId` trong ban ghi) |
-| `GET /projects/:projectId/ai-quality-metrics` | `Action.Read` tren `Project` |
+| `PATCH /feedback/:id`, `DELETE /feedback/:id` | Chủ phản hồi (theo `userId` trong bản ghi) |
+| `GET /projects/:projectId/ai-quality-metrics` | `Action.Read` trên `Project` |
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bo sung `ai-quality-metrics.handler.ts` va `GET /projects/:projectId/ai-quality-metrics` / Canh bao chat luong AI truoc khi dua vao su dung / `modules/feedback`
-- **v0.8.0** / 2026-11-XX / Bo sung `RAG_FEW_SHOT_PORT` va `stripIdentifiers` / AI hoc lai ma khong lo PII / `modules/feedback`, `modules/analysis`
-- **v0.5.0** / 2026-11-XX / Bo sung `LABELS_REQUIRING_REASON` va `assertReasonForLabel` / Chat luong du lieu phan hoi / `modules/feedback`
-- **v0.3.0** / 2026-11-XX / Tach 2 cap phan hoi (finding / run) / Vuot qua nhu cau danh gia chi tiet va tong hop / `modules/feedback`
-- **v0.1.0** / 2026-11-XX / Tao module / Vong lap Human-in-the-Loop / `modules/feedback`
+- **v1.0.0** / 2026-11-XX / Bổ sung `ai-quality-metrics.handler.ts` và `GET /projects/:projectId/ai-quality-metrics` / Cảnh báo chất lượng AI trước khi đưa vào sử dụng / `modules/feedback`
+- **v0.8.0** / 2026-11-XX / Bổ sung `RAG_FEW_SHOT_PORT` và `stripIdentifiers` / AI học lại mà không lộ PII / `modules/feedback`, `modules/analysis`
+- **v0.5.0** / 2026-11-XX / Bổ sung `LABELS_REQUIRING_REASON` và `assertReasonForLabel` / Chất lượng dữ liệu phản hồi / `modules/feedback`
+- **v0.3.0** / 2026-11-XX / Tách 2 cấp phản hồi (finding / run) / Vượt qua nhu cầu đánh giá chi tiết và tổng hợp / `modules/feedback`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun / Vòng lặp Human-in-the-Loop / `modules/feedback`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

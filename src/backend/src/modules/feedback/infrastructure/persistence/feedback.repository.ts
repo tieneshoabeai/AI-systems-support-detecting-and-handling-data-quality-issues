@@ -164,5 +164,23 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     ]).exec() as Array<{ _id: string; count: number }>;
     return rows.map((r) => ({ label: r._id, count: r.count }));
   }
+
+  async summaryByScope(params: { analysisRunId: string; findingId?: string | null; label?: string }): Promise<Record<string, number>> {
+    if (!isObjectIdHex(params.analysisRunId)) return {};
+    const match: Record<string, unknown> = {
+      analysis_run_id: oid(params.analysisRunId),
+      deleted_at: null,
+    };
+    // findingId null = feedback cấp run; string = feedback cấp finding.
+    if (params.findingId !== undefined) match.finding_id = params.findingId;
+    if (params.label) match.label = params.label;
+    const rows = await this.model.aggregate([
+      { $match: match },
+      { $group: { _id: '$label', count: { $sum: 1 } } },
+    ]).exec() as Array<{ _id: string; count: number }>;
+    const out: Record<string, number> = {};
+    for (const r of rows) out[r._id] = r.count;
+    return out;
+  }
 }
 

@@ -1,34 +1,34 @@
-# Ban giao Backend -> Frontend
+# Bàn Giao Backend → Frontend
 
-> Base URL local: `http://localhost:3000/api/v1` — Swagger: `http://localhost:3000/api/v1/docs`
-> Base URL tunnel: `https://<tunnel-host>/api/v1` — Swagger: `https://<tunnel-host>/api/v1/docs`
-> Trong Swagger, o **Servers** phai chon **`Current origin`** (khong de `Local Development Server`) khi mo qua tunnel, neu khong se `Failed to fetch` vi Swagger goi nham `localhost:3000` cua may nguoi xem.
+> Địa chỉ gốc khi chạy local: `http://localhost:3000/api/v1` — Swagger: `http://localhost:3000/api/v1/docs`
+> Địa chỉ gốc khi qua tunnel: `https://<tunnel-host>/api/v1` — Swagger: `https://<tunnel-host>/api/v1/docs`
+> Trong Swagger, ở mục **Servers** phải chọn **`Current origin`** (không để `Local Development Server`) khi mở qua tunnel, nếu không sẽ báo `Failed to fetch` vì Swagger gọi nhầm vào `localhost:3000` của máy người xem.
 
-## 1. Cach goi API (bat buoc doc)
+## 1. Cách gọi API (bắt buộc đọc)
 
-- Moi request (tru `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`) deu can header:
+- Mọi yêu cầu (trừ `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`) đều cần tiêu đề:
   `Authorization: Bearer <access_token>`
-- `Content-Type: application/json`, tru upload CSV la `multipart/form-data`.
-- Khong dung cookie/session. Token luu o frontend (`localStorage` hoac memory + refresh flow).
-- Luong token:
-  1. `POST /auth/login` -> nhan `access_token` (ngan han), `refresh_token` (dai han), `expires_in`, `user`.
-  2. Gan `access_token` vao moi request.
-  3. Khi `401`, goi `POST /auth/refresh { refresh_token }` de lay `access_token` moi, retry request cu 1 lan.
-  4. `POST /auth/logout` de thu hoi session hien tai.
+- `Content-Type: application/json`, trừ tải lên CSV là `multipart/form-data`.
+- Không dùng cookie/session. Token lưu ở frontend (`localStorage` hoặc bộ nhớ + luồng làm mới).
+- Luồng token:
+  1. `POST /auth/login` → nhận `access_token` (ngắn hạn), `refresh_token` (dài hạn), `expires_in`, `user`.
+  2. Gắn `access_token` vào mọi yêu cầu.
+  3. Khi gặp `401`, gọi `POST /auth/refresh { refresh_token }` để lấy `access_token` mới, thử lại yêu cầu cũ một lần.
+  4. `POST /auth/logout` để thu hồi phiên hiện tại.
 
-## 2. Envelope tra ve (ap dung toan bo API JSON)
+## 2. Khung đáp ứng (áp dụng toàn bộ API JSON)
 
-Thanh cong (`TransformInterceptor`):
+Thành công (`TransformInterceptor`):
 
 ```json
-{ "success": true, "data": { "...du lieu that..." } }
+{ "success": true, "data": { "...dữ liệu thật..." } }
 ```
 
-Nghia la voi axios: `const inner = res.data.data;`
+Nghĩa là với axios: `const inner = res.data.data;`
 
-File tai ve (`GET report file` khi da xong) tra ve stream truc tiep, khong boc envelope.
+Tệp tải về (`GET report file` khi đã xong) trả về luồng trực tiếp, không bọc khung.
 
-Loi (`AllExceptionsFilter`):
+Lỗi (`AllExceptionsFilter`):
 
 ```json
 {
@@ -37,105 +37,97 @@ Loi (`AllExceptionsFilter`):
 }
 ```
 
-- `400` + `code: ZOD_VALIDATION_ERROR`: `message` la mang `{ field, message }` -> highlight tung field o form.
-- `409` + `code: DUPLICATE_RESOURCE`: trung key (email...).
-- Cap nhat trang thai issue dung optimistic locking: gui sai `expectedVersion` se loi -> frontend phai doc lai detail roi thu lai.
+- `400` + `code: ZOD_VALIDATION_ERROR`: `message` là mảng `{ field, message }` → làm nổi bật từng trường ở biểu mẫu.
+- `409` + `code: DUPLICATE_RESOURCE`: trùng khoá (email...).
+- Cập nhật trạng thái báo lỗi (issue) dùng khoá lạc quan: gửi sai `expectedVersion` sẽ lỗi → frontend phải đọc lại chi tiết rồi thử lại.
 
-## 3. Quy uoc chung
+## 3. Quy ước chung
 
-- ID MongoDB: chuoi 24 ky tu hex (`/^[0-9a-fA-F]{24}$/`). Sai dinh dang -> `400`.
-- Email luon lowercase + trim o server; password toi thieu 8 ky tu, toi da 100.
-- Phan trang 2 kieu:
-  - Kieu `page/limit` (workspaces, projects): `?page=1&limit=15`.
-  - Kieu `cursor/limit` (notifications, issues, feedback, data-view): response co `meta: { nextCursor, hasMore }`, request tiep theo gui `cursor=nextCursor`.
-- Vai tro user: `admin | analyst`. Workspace: `owner | member`. Project: `owner | member | viewer`.
-- Mot so endpoint admin: `GET /admin/issues*`, `PATCH /admin/issues/:id/status` yeu cau `role=admin` (403 neu khong du quyen).
+- ID MongoDB: chuỗi 24 ký tự hex (`/^[0-9a-fA-F]{24}$/`). Sai định dạng → `400`.
+- Email luôn viết thường + cắt khoảng trắng ở server; mật khẩu tối thiểu 8 ký tự, tối đa 100 ký tự.
+- Phân trang 2 kiểu:
+  - Kiểu `page/limit` (workspaces, projects): `?page=1&limit=15`.
+  - Kiểu `cursor/limit` (notifications, issues, feedback, data-view): đáp ứng có `meta: { nextCursor, hasMore }`, yêu cầu tiếp theo gửi `cursor=nextCursor`.
+- Vai trò người dùng: `admin | analyst`. Workspace: `owner | member`. Project: `owner | member | viewer`.
+- Một số điểm cuối quản trị: `GET /admin/issues*`, `PATCH /admin/issues/:id/status` yêu cầu `role=admin` (403 nếu không đủ quyền).
 
-## 3b. Dang nhap Google (OAuth 2.0) — frontend can lam dung
+## 3b. Đăng nhập Google (OAuth 2.0) — frontend cần làm đúng
 
-Backend da hoan thien. Co **2 che do**, chon theo kien truc frontend:
+Backend đã hoàn thiện. Có **2 chế độ**, chọn theo kiến trúc frontend:
 
-### Cach A — 1 tab (khuyen nghi cho SPA)
+### Cách A — 1 thẻ (khuyến nghị cho SPA)
 
 ```js
-// Nut "Dang nhap voi Google"
+// Nút "Đăng nhập với Google"
 window.location.href = `${API}/auth/google?format=redirect`;
 ```
 
-Chuoi bien xu ly sau khi Google quay ve `${APP_URL}`:
+Chuỗi xử lý sau khi Google quay về `${APP_URL}`:
 
 ```js
 const hash = new URLSearchParams(window.location.hash.slice(1));
-
 if (hash.get('error')) {
-  // Google tu choi / loi backend: VALIDATION_ERROR, CONFLICT, FORBIDDEN, ...
+  // Google từ chối / lỗi backend: VALIDATION_ERROR, CONFLICT, FORBIDDEN, ...
   showLoginError(hash.get('error'), hash.get('error_description'));
 } else if (hash.get('access_token')) {
   localStorage.setItem('access_token', hash.get('access_token'));
   localStorage.setItem('refresh_token', hash.get('refresh_token'));
-  // XOA NGAY fragment — token la bi mat, khong nen nam lai trong URL (history, screenshot, ...)
+  // XOÁ NGAY đoạn fragment — token là bí mật, không nên nằm lại trong địa chỉ (lịch sử, ảnh chụp, ...)
   window.history.replaceState(null, '', window.location.pathname);
   window.location.href = '/';
 }
 ```
 
-> Token nam trong **fragment (`#`)** chu khong phai query (`?`) → khong bi ghi vao access log
-> cua proxy, khong nam trong `Referer`.
+> Token nằm trong **đoạn fragment (`#`)** chứ không phải truy vấn (`?`) → không bị ghi vào nhật ký truy cập của proxy, không nằm trong `Referer`.
 
-### Cach B — JSON (mac dinh)
+### Cách B — JSON (mặc định)
 
 ```js
-window.location.href = `${API}/auth/google`;   // mac dinh -> che do json
+window.location.href = `${API}/auth/google`;   // mặc định → chế độ json
 ```
 
-Callback tra JSON envelope — **shape giong het `POST /auth/login`**:
+Hàm gọi lại (callback) trả về khung JSON — **hình dạng giống hệt `POST /auth/login`**:
 
 ```json
 { "success": true, "data": { "access_token": "...", "refresh_token": "...", "expires_in": 900, "user": { "id": "...", "email": "...", "role": "analyst" } } }
 ```
 
-Doc token o `body.data.access_token` (luu y envelope `data`, khong phai `data.data`).
+Đọc token ở `body.data.access_token` (lưu ý khung `data`, không phải `data.data`).
 
-> **KHONG** mo popup roi `fetch` lai `/auth/google/callback`: cookie `google_oauth_state`
-> co `SameSite=Lax` → khong duoc gui kem `fetch` → callback tra 401.
-> Voi SPA dung **Cach A**.
+> **KHÔNG** mở cửa sổ bật lên rồi dùng `fetch` gọi lại `/auth/google/callback`: cookie `google_oauth_state` có `SameSite=Lax` → không được gửi kèm `fetch` → hàm gọi lại trả về 401.
+> Với SPA hãy dùng **Cách A**.
 
-### Da kiem chung o backend
+### Đã kiểm chứng ở backend
 
-- `GET /auth/google` → **302** + `Set-Cookie: google_oauth_state=...; HttpOnly; SameSite=Lax; Path=/`
-  (+ `google_oauth_format=redirect` neu co `?format=redirect`).
-- `GET /auth/google/callback` → **200** `{ success: true, data: {...} }` (che do json)
-  hoac **302** ve `${APP_URL}#access_token=...` (che do redirect).
-- Loi → **401/409/403** voi `{ success: false, error: { code, message } }` (che do json)
-  hoac **302** ve `${APP_URL}#error=CODE&error_description=...` (che do redirect).
+- `GET /auth/google` → **302** + `Set-Cookie: google_oauth_state=...; HttpOnly; SameSite=Lax; Path=/` (+ `google_oauth_format=redirect` nếu có `?format=redirect`).
+- `GET /auth/google/callback` → **200** `{ success: true, data: {...} }` (chế độ json) hoặc **302** về `${APP_URL}#access_token=...` (chế độ chuyển hướng).
+- Lỗi → **401/409/403** với `{ success: false, error: { code, message } }` (chế độ json) hoặc **302** về `${APP_URL}#error=CODE&error_description=...` (chế độ chuyển hướng).
 
-### Can lam o Google Cloud Console
+### Cần làm ở Google Cloud Console
 
-`Authorized redirect URIs` phai co **chinh xac** (khong them query, khong them `#`):
+`Authorized redirect URIs` phải có **chính xác** (không thêm truy vấn, không thêm `#`):
 
 ```
 http://localhost:3000/api/v1/auth/google/callback
 ```
 
-> Neu dung Cloudflare Tunnel (https), them them mot dong dang `https://<tunnel-host>/api/v1/auth/google/callback`
-> va dat `GOOGLE_REDIRECT_URI` trong `.env` trung gia voi domain do.
+> Nếu dùng Cloudflare Tunnel (https), thêm một dòng dạng `https://<tunnel-host>/api/v1/auth/google/callback` và đặt `GOOGLE_REDIRECT_URI` trong `.env` trùng khớp với tên miền đó.
 
-## 4. So do tich hop man hinh
+## 4. Sơ đồ tích hợp màn hình
 
-1. Auth -> `POST /auth/login` -> `GET /users/me`.
-2. Sidebar workspaces -> `GET /workspaces` -> chon -> `GET /workspaces/:id` + `GET /workspaces/:workspaceId/projects`.
-3. Vao project -> `GET /projects/:id` -> `GET /projects/:projectId/datasets` (chua co thi hien nut Upload).
-4. Upload CSV -> `POST /projects/:projectId/datasets/upload` (`multipart/form-data`, 1 file CSV duy nhat, <= 50MB) -> `GET /datasets/:id/schema` de ve cot.
-   > **Xoa dataset (2 buoc):** `GET /projects/:projectId/datasets` -> lay `dataset.id` -> `DELETE /datasets/:id`.
-   > Khong co `DELETE /projects/:projectId/datasets`; va **khong co route sua dataset/cot**
-   > (dataset bat bien — muon sua du lieu thi xoa roi nap lai).
-5. Virtual Grid -> `GET /datasets/:datasetId/records?limit=50` lan dau, scroll thi dung `cursor`; filter/sort/search dung `POST /datasets/:datasetId/records/query`.
-6. Chay phan tich -> `POST /projects/:projectId/analysis` (cau hinh phan tich nam trong body) -> poll `GET /analysis/jobs/:jobId` hoac nghe socket -> doc `GET /projects/:projectId/analysis/result`.
-7. Tong ket -> `POST /projects/:projectId/summary` (lan dau) roi `GET /projects/:projectId/summary`.
-8. Bao cao file -> `POST /projects/:projectId/report` -> nhan `reportId` + `pollUrl` -> `GET .../report/:reportId/file` (202 = chua xong, 200 + stream = xong).
-9. Feedback AI -> cac endpoint `/analyses/:analysisId/.../feedback`.
-10. Chuong thong bao -> `GET /notifications`, `GET /notifications/unread-count`, socket `notification.created`.
-11. Bao loi he thong -> `POST /issues`, `GET /issues` (user) / `GET /admin/issues` (admin).
-12. Realtime socket (xem `02-realtime-and-env.md`): connect `path=/api/v1/realtime?token=<access_token>`, join room project/analysis de nhan tien do.
+1. Xác thực → `POST /auth/login` → `GET /users/me`.
+2. Thanh bên workspaces → `GET /workspaces` → chọn → `GET /workspaces/:id` + `GET /workspaces/:workspaceId/projects`.
+3. Vào project → `GET /projects/:id` → `GET /projects/:projectId/datasets` (chưa có thì hiện nút Tải lên).
+4. Tải lên CSV → `POST /projects/:projectId/datasets/upload` (`multipart/form-data`, 1 tệp CSV duy nhất, ≤ 50MB) → `GET /datasets/:id/schema` để vẽ cột.
+   > **Xoá dataset (2 bước):** `GET /projects/:projectId/datasets` → lấy `dataset.id` → `DELETE /datasets/:id`.
+   > Không có `DELETE /projects/:projectId/datasets`; và **không có tuyến sửa dataset/cột** (dataset bất biến — muốn sửa dữ liệu thì xoá rồi nạp lại).
+5. Lưới ảo → `GET /datasets/:datasetId/records?limit=50` lần đầu, cuộn thì dùng `cursor`; lọc/sắp xếp/tìm kiếm dùng `POST /datasets/:datasetId/records/query`.
+6. Chạy phân tích → `POST /projects/:projectId/analysis` (cấu hình phân tích nằm trong thân) → thăm dò `GET /analysis/jobs/:jobId` hoặc nghe socket → đọc `GET /projects/:projectId/analysis/result`.
+7. Tóm tắt → `POST /projects/:projectId/summary` (lần đầu) rồi `GET /projects/:projectId/summary`.
+8. Báo cáo tệp → `POST /projects/:projectId/report` → nhận `reportId` + `pollUrl` → `GET .../report/:reportId/file` (202 = chưa xong, 200 + luồng = xong).
+9. Phản hồi AI → các điểm cuối `/analyses/:analysisId/.../feedback`.
+10. Chuông thông báo → `GET /notifications`, `GET /notifications/unread-count`, socket `notification.created`.
+11. Báo lỗi hệ thống → `POST /issues`, `GET /issues` (người dùng) / `GET /admin/issues` (quản trị).
+12. Socket realtime (xem `02-realtime-and-env.md`): kết nối `path=/api/v1/realtime?token=<access_token>`, tham gia phòng project/analysis để nhận tiến độ.
 
-Chi tiet tung endpoint: xem `01-api-contract.md`. Realtime + bien moi truong + xu ly tunnel/CORS: xem `02-realtime-and-env.md`.
+Chi tiết từng điểm cuối: xem `01-api-contract.md`. Realtime + biến môi trường + xử lý tunnel/CORS: xem `02-realtime-and-env.md`.

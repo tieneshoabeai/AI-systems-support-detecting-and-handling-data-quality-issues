@@ -1,84 +1,84 @@
-# MODULE `analysis` - Phan tich chat luong du lieu & AI
+# MÔ-ĐUN `analysis` — Phân tích chất lượng dữ liệu & AI
 
-> **Module Specification & Documentation**
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-## 1. Thong tin Phien ban (Version Information)
+## 1. Thông tin phiên bản (Version Information)
 
-- **Current Version:** v1.1.0
-- **Last Updated:** 2026-11-21
-- **Module Path:** `src/backend/src/modules/analysis` (56 file TypeScript)
-- **Architecture Layer:** Clean Architecture 4 tang (`domain` -> `application` -> `infrastructure` -> `presentation`)
-- **Layer Rules:** CA1-CA14 - xem [`../README.md`](../README.md)
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/analysis` (56 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-## 2. Muc dich & Pham vi Nghiep vu (Scope & Responsibility)
+## 2. Mục đích & Phạm vi nghiệp vụ (Scope & Responsibility)
 
-Module loi cua he thong: chay **phan tich chat luong du lieu (DQ)** bang thong ke xac dinh, sau do giao cho **AI cuc bo** dien giai ket qua va sinh khuyen nghi.
+Mô-đun lõi của hệ thống: chạy **phân tích chất lượng dữ liệu (DQ)** bằng thống kê xác định, sau đó giao cho **AI cục bộ** diễn giải kết quả và sinh khuyến nghị.
 
 ```text
-Dataset ---> Run Analysis ---> DQ Rules (deterministic) ---> AI Grounding ---> AI Inference
+Dataset ---> Chạy phân tích ---> Quy tắc DQ (xác định) ---> AI Grounding ---> Suy luận AI
                   |                                                       |
-                  `------------------> Analysis Result <---------------- AI Job (queued)
+                    `------------------> Kết quả phân tích <---------------- Chuỗi AI Job
                                         |
-                                        |---> Report (PDF)
-                                        |---> Summary
-                                        `---> Feedback (Human-in-the-Loop)
+                                        |---> Báo cáo (PDF)
+                                        |---> Tóm tắt (Summary)
+                                        `---> Phản hồi (Human-in-the-Loop)
 ```
 
-### 2.1. Tinh nang thuoc pham vi
+### 2.1. Tính năng thuộc phạm vi
 
-| Chuc nang | Noi dung |
+| Chức năng | Nội dung |
 |---|---|
-| Chay phan tich | Thong ke DQ, tuong quan, VIF, trung lap, ngoai le |
-| AI job | Dua job vao hang doi, worker thuc thi, retry, lease, heartbeat |
-| Ket qua | Luu & doc analysis run, cell evidence |
-| Bao cao | Sinh PDF tu ket qua |
-| Tong ket | Tao & doc summary |
-| RAG few-shot | Thu thap phan hoi, chon vi du cho prompt toi lun |
+| Chạy phân tích | Thống kê DQ, tương quan, VIF, trùng lặp, ngoại lai |
+| AI Job | Đưa job vào hàng đợi, worker thực thi, retry, lease, heartbeat |
+| Kết quả | Lưu & đọc kết quả chạy phân tích, ô bằng chứng (cell evidence) |
+| Báo cáo | Sinh PDF từ kết quả |
+| Tóm tắt | Tạo & đọc bản tóm tắt |
+| RAG few-shot | Thu thập phản hồi, chọn ví dụ cho prompt tối ưu |
 
-### 2.2. Cau truc thu muc
+### 2.2. Cấu trúc thư mục
 
 ```text
 analysis/
-|-- domain/                            # Toan bo thuat toan thuan, khong framework
-|   |-- dq.util.ts                    # DQ-01/02: thieu, sai kieu, trung lap
-|   |-- stats.util.ts                 # Thong ke mo ta
+|-- domain/                            # Toàn bộ thuật toán thuần, không framework
+|   |-- dq.util.ts                    # DQ-01/02: thiếu, sai kiểu, trùng lặp
+|   |-- stats.util.ts                 # Thống kê mô tả
 |   |-- correlation.util.ts           # Pearson, Spearman, Cramer's V, Eta^2
-|   |-- vif.util.ts                   # VIF (da cung tuyen)
-|   |-- column-role.util.ts           # Phan vai tro cot
-|   |-- date-parse.util.ts            # Nhan dien thu tu ngay/thang
-|   |-- impact.util.ts                # Muc do anh huong cua finding
-|   |-- suspicion.util.ts             # Nghi van (rule dua tren pattern)
-|   |-- ai-grounding.util.ts          # Chu bi grounding cho AI
-|   |-- pii-mask.util.ts              # Che PII truoc khi gui AI
+|   |-- vif.util.ts                   # VIF (đa cộng tuyến)
+|   |-- column-role.util.ts           # Phân vai trò cột
+|   |-- date-parse.util.ts            # Nhận diện thứ tự ngày/tháng
+|   |-- impact.util.ts                # Mức độ ảnh hưởng của finding
+|   |-- suspicion.util.ts             # Nghi vấn (quy tắc dựa trên mẫu)
+|   |-- ai-grounding.util.ts          # Chuẩn bị grounding cho AI
+|   |-- pii-mask.util.ts              # Che PII trước khi gửi AI
 |   |-- top-n.util.ts                 # Top-N
-|   |-- input-fingerprint.util.ts     # Fingerprint dau vao
-|   |-- rag-few-shot.util.ts          # Chuan hoa & chon vi du few-shot
+|   |-- input-fingerprint.util.ts     # Dấu vân tay đầu vào
+|   |-- rag-few-shot.util.ts          # Chuẩn hoá & chọn ví dụ few-shot
 |   `-- ports/
 |       |-- analysis.repository.port.ts
 |       `-- rag-few-shot.port.ts
 |-- application/
 |   |-- commands/
-|   |   |-- run-analysis.handler.ts          # Chay phan tich
-|   |   |-- build-prompt-for-job.handler.ts  # Dung prompt
-|   |   |-- ingest-ai-result.handler.ts      # Nap ket qua AI
-|   |   |-- retry-job.handler.ts             # Thu lai job
-|   |   |-- request-report.handler.ts        # Yeu cau bao cao
-|   |   `-- create-summary.handler.ts        # Tao tong ket
+|   |   |-- run-analysis.handler.ts          # Chạy phân tích
+|   |   |-- build-prompt-for-job.handler.ts  # Dựng prompt
+|   |   |-- ingest-ai-result.handler.ts      # Nạp kết quả AI
+|   |   |-- retry-job.handler.ts             # Thử lại job
+|   |   |-- request-report.handler.ts        # Yêu cầu báo cáo
+|   |   `-- create-summary.handler.ts        # Tạo tóm tắt
 |   |-- queries/                     # 5 query handler
 |   |-- services/
 |   |   |-- ai-worker.service.ts            # Worker AI
 |   |   |-- rag-few-shot.service.ts
 |   |   `-- report-worker.service.ts
 |   |-- ports/
-|   |   |-- ai-inference.port.ts             # Port suy luan AI
-|   |   `-- resource-guard.port.ts           # Port bao ve tai nguyen
-|   |-- report-content.util.ts               # Noi dung bao cao (muc PDF)
-|   |-- pdf-builder.util.ts                  # Dung PDF
+|   |   |-- ai-inference.port.ts             # Cổng suy luận AI
+|   |   `-- resource-guard.port.ts           # Cổng bảo vệ tài nguyên
+|   |-- report-content.util.ts               # Nội dung báo cáo (mục PDF)
+|   |-- pdf-builder.util.ts                  # Dựng PDF
 |   `-- policy-loaders/                     # 2 loader
 |-- infrastructure/
 |   |-- ai/
 |   |   |-- local-inference.adapter.ts       # Ollama / vLLM
-|   |   `-- system-resource-guard.adapter.ts # Doc /proc/meminfo
+|   |   `-- system-resource-guard.adapter.ts # Đọc /proc/meminfo
 |   `-- persistence/                        # 7 schema
 `-- presentation/
     |-- controllers/analysis.controller.ts
@@ -87,151 +87,152 @@ analysis/
     `-- dtos/run-analysis.dto.ts
 ```
 
-## 3. Nhat ky Prompting & Quyet dinh Ky thuat (Prompting Log & Rationale)
+## 3. Nhật ký Prompting & Quyết định kỹ thuật (Prompting Log & Rationale)
 
-- **User Prompt / Business Intent:** Dua **quyet dinh chat luong du lieu** ve phia may (thong ke xac dinh, lặp lai duoc, kiem chung duoc) va chi dung **AI** cho phan **dien giai** va **khuyen nghi** - noi may khong the lam duoc. Ngoai ra, he thong phai **an toan tai nguyen** khi suy luan AI, va **khong bao gio** gui du lieu PII ra ngoai.
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Đưa **quyết định chất lượng dữ liệu** về phía máy (thống kê xác định, lặp lại được, kiểm chứng được) và chỉ dùng **AI** cho phần **diễn giải** và **khuyến nghị** — nơi máy không làm được. Ngoài ra, hệ thống phải **an toàn tài nguyên** khi suy luận AI, và **không bao giờ** gửi dữ liệu PII ra ngoài.
 
-- **Technical Reasoning & Decisions:**
+- **Lập luận kỹ thuật & Quyết định:**
 
-1. **Tach phan xac dinh khoi phan dien giai.** Thong ke DQ, tuong quan, VIF la **deterministic** - chay lai cho ket qua giong het, kiem chung duoc, giai thich duoc. AI dien giai, vi du: "cot `tuoi` thieu 42% du lieu, day la nguyen nhan chinh". Tach hai tang nay tranh hien tuong AI bao ket qua sai ma van co ve.
+1. **Tách phần xác định khỏi phần diễn giải.** Thống kê DQ, tương quan, VIF là **xác định (deterministic)** — chạy lại cho kết quả giống hệt, kiểm chứng được, giải thích được. AI chỉ diễn giải, ví dụ: "cột `tuổi` thiếu 42% dữ liệu, đây là nguyên nhân chính". Tách hai tầng này tránh hiện tượng AI báo kết quả sai mà vẫn có vẻ đúng.
 
-2. **Cramér's V dang sparse (GĐ8).** Ma tran contingency **day** voi 2 cot phan loai 20 gia tri x 20 gia tri x 100.000 dong tao ma tran 4 trieu o - vua cham vua ton bo nho. Cong thuc Cramer's V chi can `chi-square = sum((O-E)^2/E)` va `V = sqrt(chi2/(n*(min(r,c)-1)))`. `correlation.util.ts` duyet mot lan qua cac cap gia tri da **nen** (dem so lan xuat hien), tinh truc tiep tong khong can bang. Ket qua **giong het** cong thuc goc nhung chi dung O(distinct) bo nho.
+2. **Cramér's V dạng thưa (GĐ8).** Ma trận liên hợp **đặc** với 2 cột phân loại 20 giá trị × 20 giá trị × 100.000 dòng tạo ma trận 4 triệu ô — vừa chậm vừa tốn bộ nhớ. Công thức Cramer's V chỉ cần `chi-square = sum((O-E)^2/E)` và `V = sqrt(chi2/(n*(min(r,c)-1)))`. `correlation.util.ts` duyệt một lần qua các cặp giá trị đã **nén** (đếm số lần xuất hiện), tính trực tiếp tổng mà không cần bảng. Kết quả **giống hệt** công thức gốc nhưng chỉ dùng O(distinct) bộ nhớ.
 
-3. **VIF co canh bao mat mau.** VIF chi dung duoc tren cac dong du **du** du lieu cho tat ca cot. Neu chi 40% dong du, ket qua khong dang tin. Module tinh `commonNRate` va canh bao: >= 80% khong canh bao; 50-80% "can than trong"; < 50% canh bao nghiem trong. Ma tran ky hang (cot phu thuoc tuy bien) duoc danh dau `singular: true` va cac cot lien quan `computable: false` kem `reason`.
+3. **VIF có cảnh báo mất mẫu.** VIF chỉ dùng được trên các dòng có **đủ** dữ liệu cho tất cả các cột. Nếu chỉ 40% dòng đủ, kết quả không đáng tin. Mô-đun tính `commonNRate` và cảnh báo: ≥ 80% không cảnh báo; 50–80% "cần thận trọng"; < 50% cảnh báo nghiêm trọng. Ma trận kỳ dị (cột phụ thuộc tuyến tính) được đánh dấu `singular: true` và các cột liên quan `computable: false` kèm `reason`.
 
-4. **Quy uoc so hoc thong nhat (OPEN-10).** Moi he so tuong quan dung **phan ky mau** (`sampleStandardDeviation`), khong phai phan ky tong.
+4. **Quy ước số học thống nhất (OPEN-10).** Mọi hệ số tương quan dùng **phương sai mẫu** (sample standard deviation), không phải phương sai tổng thể.
 
-5. **Vai tro cot dung chung cho ca hai tang (GD7).** `column-role.util.ts` phan loai cot thanh `identifier | category | measure | text | datetime`. Cot `identifier` (gia tri gan nhu duy nhat) va cot `text` bi **loai** khoi tuong quan va VIF. Cột do nguoi dung chi dinh co `source: 'user'`; cot do he thong suy luan co `source: 'system'` + `uncertain: true` + `reason`. `run-analysis.handler.ts` va `build-prompt-for-job.handler.ts` **cung** dung logic nay - cot bi loai khoi phan tich toan hoc cung bi loai khoi prompt AI, tranh viec AI lua ve cot khong lien quan.
+5. **Vai trò cột dùng chung cho cả hai tầng (GĐ7).** `column-role.util.ts` phân loại cột thành `identifier | category | measure | text | datetime`. Cột `identifier` (giá trị gần như duy nhất) và cột `text` bị **loại** khỏi tương quan và VIF. Cột do người dùng chỉ định có `source: 'user'`; cột do hệ thống suy luận có `source: 'system'` + `uncertain: true` + `reason`. `run-analysis.handler.ts` và `build-prompt-for-job.handler.ts` **cùng** dùng logic này — cột bị loại khỏi phân tích toán học cũng bị loại khỏi prompt AI, tránh việc AI suy diễn về cột không liên quan.
 
-6. **Fingerprint phat hien du lieu stale.** `FINGERPRINT_VERSION = 2` bam fingerprint cua `dataset.id + file_checksum + row_count + columns[{key,name,data_type,is_pii}]`. Khi dataset hoac cot **thay doi**, ket qua cu bi danh dau loi thoi thay vi hien thi nhu con hieu luc. Cot tham chieu bang **key bat bien** `c{i}` khong phai ten - nguoi dung co the doi ten cot bat ky luc nao.
+6. **Dấu vân tay (fingerprint) phát hiện dữ liệu cũ (stale).** `FINGERPRINT_VERSION = 2` băm dấu vân tay của `dataset.id + file_checksum + row_count + columns[{key,name,data_type,is_pii}]`. Khi dataset hoặc cột **thay đổi**, kết quả cũ bị đánh dấu hết hạn thay vì hiển thị như còn hiệu lực. Cột tham chiếu bằng **khóa bất biến** `c{i}` chứ không phải tên — người dùng có thể đổi tên cột bất kỳ lúc nào.
 
-7. **Guard tai nguyen chong OOM.** `SystemResourceGuardAdapter` doc `/proc/meminfo` + RSS tien trinh. Khi RAM con < `AI_MIN_RAM_GB` (4 GB) hoac RAM da dung > `AI_RAM_GUARD_PERCENT` (90%), worker **tu choi** job moi. Job bi tu choi **khong bi mat** - no o lai hang doi va duoc thu lai o vong poll sau.
+7. **Bảo vệ tài nguyên chống OOM.** `SystemResourceGuardAdapter` đọc `/proc/meminfo` + RSS tiến trình. Khi RAM còn < `AI_MIN_RAM_GB` (4 GB) hoặc RAM đã dùng > `AI_RAM_GUARD_PERCENT` (90%), worker **từ chối** job mới. Job bị từ chối **không bị mất** — nó ở lại hàng đợi và được thử lại ở vòng poll sau.
 
-8. **Gioi han so dong dua vao prompt.** `ANALYSIS_MAX_ROWS` (mac dinh 100 000) va `run-analysis.handler.ts` **don gian hoa ban sao trung gian** de giam dinh RAM.
+8. **Giới hạn số dòng đưa vào prompt.** `ANALYSIS_MAX_ROWS` (mặc định 100.000) và `run-analysis.handler.ts` **đơn giản hoá bản sao trung gian** để giảm đỉnh RAM.
 
-9. **Che PII truoc khi gui AI.** `pii-mask.util.ts` che gia tri cua cot `is_pii` **truoc** khi gui sang mo hinh. Du mo hinh chay cuc bo, du lieu PII o dang ro cung khong nen duoc gui.
+9. **Che PII trước khi gửi AI.** `pii-mask.util.ts` che giá trị của cột `is_pii` **trước** khi gửi sang mô hình. Dù mô hình chạy cục bộ, dữ liệu PII ở dạng rõ cũng không nên được gửi đi.
 
-10. **RAG few-shot dong = AI hoc lai.** `rag-few-shot.util.ts` loc theo `trust_score` va `max_age_days`, chuan hoa, `stripIdentifiers` (loai dinh danh ca nhan), chon `top_k`. Day la co che hoc lai ma khong can huan luyen lai mo hinh.
+10. **RAG few-shot động = AI học lại.** `rag-few-shot.util.ts` lọc theo `trust_score` và `max_age_days`, chuẩn hoá, `stripIdentifiers` (loại định danh cá nhân), chọn `top_k`. Đây là cơ chế học lại mà không cần huấn luyện lại mô hình.
 
-11. **Bao cao PDF va tong ket dung chung bang noi dung.** `report-content.util.ts` dung cac muc bao cao; `pdf-builder.util.ts` render PDF. `create-summary.handler.ts` tao ban **Tong ket** dung chung bang noi dung voi bao cao - hai dau ra khong lech nhau.
+11. **Báo cáo PDF và bản tóm tắt dùng chung bảng nội dung.** `report-content.util.ts` dựng các mục báo cáo; `pdf-builder.util.ts` render PDF. `create-summary.handler.ts` tạo bản **Tóm tắt** dùng chung bảng nội dung với báo cáo — hai đầu ra không lệch nhau.
 
-- **Generated / Modified Artifacts:**
+- **Hiện vật đã tạo / đã sửa:**
 
-- `domain/dq.util.ts` - `isMissingCell`, `isMissingToken`, quy tac DQ-01/02.
-- `domain/correlation.util.ts` - 4 loai he so, Cramer's V sparse.
-- `domain/vif.util.ts` - VIF qua `ml-matrix`, `commonNRate`, canh bao mat mau.
-- `domain/column-role.util.ts` - 5 vai tro cot, nguon `user` / `system`.
-- `domain/input-fingerprint.util.ts` - `FINGERPRINT_VERSION = 2`.
-- `domain/pii-mask.util.ts` - che PII truoc khi gui AI.
-- `domain/rag-few-shot.util.ts` - chon vi du few-shot.
-- `infrastructure/ai/local-inference.adapter.ts` - Ollama / vLLM, `extractJsonObject`.
-- `infrastructure/ai/system-resource-guard.adapter.ts` - doc `/proc/meminfo`.
-- `application/services/ai-worker.service.ts` - vong doi job, lease, heartbeat, retry.
+- `domain/dq.util.ts` — `isMissingCell`, `isMissingToken`, quy tắc DQ-01/02.
+- `domain/correlation.util.ts` — 4 loại hệ số, Cramer's V dạng thưa.
+- `domain/vif.util.ts` — VIF qua `ml-matrix`, `commonNRate`, cảnh báo mất mẫu.
+- `domain/column-role.util.ts` — 5 vai trò cột, nguồn `user` / `system`.
+- `domain/input-fingerprint.util.ts` — `FINGERPRINT_VERSION = 2`.
+- `domain/pii-mask.util.ts` — che PII trước khi gửi AI.
+- `domain/rag-few-shot.util.ts` — chọn ví dụ few-shot.
+- `infrastructure/ai/local-inference.adapter.ts` — Ollama / vLLM, `extractJsonObject`.
+- `infrastructure/ai/system-resource-guard.adapter.ts` — đọc `/proc/meminfo`.
+- `application/services/ai-worker.service.ts` — vòng đời job, lease, heartbeat, retry.
 
-## 4. Dac ta Giao tiep Ky thuat (Technical Contracts & API Specifications)
+## 4. Đặc tả giao tiếp kỹ thuật (Technical Contracts & API Specifications)
 
-### 4.1. Endpoints
+### 4.1. Điểm cuối (Endpoints)
 
-| Method | Path | Chinh sach | Mo ta |
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
 |---|---|---|---|
-| `POST` | `/api/v1/projects/:projectId/analysis` | `Action.Execute` | Chay phan tich |
-| `GET` | `/api/v1/projects/:projectId/analysis/result` | `Action.Read` | Ket qua gan nhat |
-| `GET` | `/api/v1/analysis/jobs/:jobId` | `Action.Read` | Trang thai job AI |
-| `POST` | `/api/v1/analysis/jobs/:jobId/retry` | `Action.Execute` | Thu lai job |
-| `POST` | `/api/v1/analysis/jobs/:jobId/result` | Internal | Nap ket qua AI (worker) |
-| `POST` | `/api/v1/projects/:projectId/report` | `Action.Create` | Yeu cau bao cao PDF |
-| `GET` | `/api/v1/projects/:projectId/report/:reportId/file` | `Action.Read` | Tai bao cao |
-| `POST` | `/api/v1/projects/:projectId/summary` | `Action.Create` | Tao tong ket |
-| `GET` | `/api/v1/projects/:projectId/summary` | `Action.Read` | Doc tong ket |
+| `POST` | `/api/v1/projects/:projectId/analysis` | `Action.Execute` | Chạy phân tích |
+| `GET` | `/api/v1/projects/:projectId/analysis/result` | `Action.Read` | Kết quả gần nhất |
+| `GET` | `/api/v1/analysis/jobs/:jobId` | `Action.Read` | Trạng thái job AI |
+| `POST` | `/api/v1/analysis/jobs/:jobId/retry` | `Action.Execute` | Thử lại job |
+| `POST` | `/api/v1/analysis/jobs/:jobId/result` | Nội bộ | Nạp kết quả AI (worker) |
+| `POST` | `/api/v1/projects/:projectId/report` | `Action.Create` | Yêu cầu báo cáo PDF |
+| `GET` | `/api/v1/projects/:projectId/report/:reportId/file` | `Action.Read` | Tải báo cáo |
+| `POST` | `/api/v1/projects/:projectId/summary` | `Action.Create` | Tạo bản tóm tắt |
+| `GET` | `/api/v1/projects/:projectId/summary` | `Action.Read` | Đọc bản tóm tắt |
 
-### 4.2. Interfaces / Providers duoc export ra ngoai
+### 4.2. Giao diện / Provider được xuất ra ngoài
 
-`src/backend/src/modules/analysis/index.ts` export public contract:
+`src/backend/src/modules/analysis/index.ts` xuất hợp đồng công khai:
 
-| Export | Vai tro |
+| Tên xuất | Vai trò |
 |---|---|
-| `AnalysisModule` | Nest module |
-| `Analysis` entity, `Finding`, `CellEvidence` | Domain contract |
-| `ANALYSIS_REPOSITORY_PORT` | Port truy van ket qua |
-| `RAG_FEW_SHOT_PORT` | Port lay vi du few-shot |
+| `AnalysisModule` | Mô-đun Nest |
+| Thực thể `Analysis`, `Finding`, `CellEvidence` | Hợp đồng domain |
+| `ANALYSIS_REPOSITORY_PORT` | Cổng truy vấn kết quả |
+| `RAG_FEW_SHOT_PORT` | Cổng lấy ví dụ few-shot |
 
-> **Khong co `AI_INFERENCE_PORT` hay `RESOURCE_GUARD_PORT` trong public contract.**
-> - `AI_INFERENCE_PORT` **khong ton tai**: adapter suy luan AI (`LocalInferenceAdapter`)
->   doc cau hinh truc tiep qua `ConfigService` (`AI_INFERENCE_BASE_URL`,
->   `AI_INFERENCE_API_KEY`) va duoc inject noi bo trong `AnalysisModule`.
-> - `RESOURCE_GUARD_PORT` la port **noi bo cua module** (`application/ports/resource-guard.port.ts`),
->   hiện thực bởi `SystemResourceGuardAdapter`. Khong re-export ra ngoài `index.ts`.
+> **Không có `AI_INFERENCE_PORT` hay `RESOURCE_GUARD_PORT` trong hợp đồng công khai.**
+> - `AI_INFERENCE_PORT` **không tồn tại**: adapter suy luận AI (`LocalInferenceAdapter`)
+>   đọc cấu hình trực tiếp qua `ConfigService` (`AI_INFERENCE_BASE_URL`,
+>   `AI_INFERENCE_API_KEY`) và được inject nội bộ trong `AnalysisModule`.
+> - `RESOURCE_GUARD_PORT` là cổng **nội bộ của mô-đun** (`application/ports/resource-guard.port.ts`),
+>   được hiện thực bởi `SystemResourceGuardAdapter`. Không tái xuất ra ngoài `index.ts`.
 
-### 4.3. Su kien domain phat ra
+### 4.3. Sự kiện domain phát ra
 
-| Event | Khi nao | Muc dich |
+| Sự kiện | Khi nào | Mục đích |
 |---|---|---|
-| `analysis.completed` | Phan tich xong | Thong bao + realtime |
-| `analysis.failed` | Phan tich that bai | Thong bao + realtime |
-| `ai.job.queued` | Job AI vao hang doi | Realtime |
-| `ai.job.status` | Job doi trang thai | Realtime tiến độ |
-| `ai.quality.updated` | Ket qua AI co nhan xet | Realtime |
-| `report.ready` | Bao cao PDF san xong | Thong bao |
+| `analysis.completed` | Phân tích xong | Thông báo + realtime |
+| `analysis.failed` | Phân tích thất bại | Thông báo + realtime |
+| `ai.job.queued` | Job AI vào hàng đợi | Realtime |
+| `ai.job.status` | Job đổi trạng thái | Realtime tiến độ |
+| `ai.quality.updated` | Kết quả AI có nhận xét | Realtime |
+| `report.ready` | Báo cáo PDF xong | Thông báo |
 
-## 5. Rang buoc & Tieu chuan Bat bien (Invariants & Security Rules)
+## 5. Ràng buộc & Tiêu chuẩn bất biến (Invariants & Security Rules)
 
-### 5.1. Bat bien nghiep vu
+### 5.1. Bất biến nghiệp vụ
 
-- Ket qua phan tich **phai** kem `input_fingerprint`; ket qua co fingerprint lech voi dataset hien tai bi danh dau **stale**.
-- Cot bi loai khoi phan tich toan hoc **phai** bi loai khoi prompt AI (cung dung `column-role.util.ts`).
-- Moi bao cao phan tich phai noi ro **bao nhiu dong thuc su duoc kiem tra** (`checkedRows`, `excludedRows`, `method`, `reason`).
-- VIF khong duoc bao cao **khong kem** canh bao mat mau khi `commonNRate` < 80%.
-- He so tuong quan dung **phan ky mau**, khong dung phan ky tong.
-- Mot cot boolean **khong** duoc tinh histogram so.
-- Gia tri null khi sap xep theo so / ngay **phai** nam o cuoi danh sach.
-- Job AI **khong** duoc nhan khi `SystemResourceGuardAdapter` bao RAM khong du.
-- Job AI het lease **phai** co the bi worker khac claim lai - khong de ket.
-- `ANALYSIS_MAX_ROWS` **phai** duoc ton trong khi dung prompt.
+- Kết quả phân tích **phải** kèm `input_fingerprint`; kết quả có fingerprint lệch với dataset hiện tại bị đánh dấu **cũ (stale)**.
+- Cột bị loại khỏi phân tích toán học **phải** bị loại khỏi prompt AI (cùng dùng `column-role.util.ts`).
+- Mọi báo cáo phân tích phải nêu rõ **bao nhiêu dòng thực sự được kiểm tra** (`checkedRows`, `excludedRows`, `method`, `reason`).
+- VIF không được báo cáo mà **không kèm** cảnh báo mất mẫu khi `commonNRate` < 80%.
+- Hệ số tương quan dùng **phương sai mẫu**, không dùng phương sai tổng thể.
+- Một cột boolean **không** được tính histogram số.
+- Giá trị null khi sắp xếp theo số / ngày **phải** nằm ở cuối danh sách.
+- Job AI **không** được nhận khi `SystemResourceGuardAdapter` báo RAM không đủ.
+- Job AI hết lease **phải** có thể được worker khác nhận lại — không để kẹt.
+- `ANALYSIS_MAX_ROWS` **phải** được tôn trọng khi dựng prompt.
 
-### 5.2. Xoa mem (Soft Delete)
+### 5.2. Xoá mềm (Soft Delete)
 
-- **Chuan:** `deleted_at: Date | null` - truong nay **null** nghia la ban ghi dang hoat dong.
-- **Quy tac truy van:** moi truy van mac dinh luon loc `deleted_at: null`. Repository base (`shared/infrastructure/database/base-mongo.repository.ts`) ap dung dieu nay tu dong.
-- **Choi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` - cho phep tai khoan / ten / email da xoa mem duoc tao lai.
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
 
-### 5.3. Bao mat
+### 5.3. Bảo mật
 
-| Van de | Cach xu ly |
+| Vấn đề | Cách xử lý |
 |---|---|
-| PII lo ra khi suy luan AI | `pii-mask.util.ts` che gia tri cot `is_pii` truoc khi gui |
-| PII lo qua RAG few-shot | `stripIdentifiers` loai dinh danh ca nhan khoi vi du |
-| OOM khi suy luan | `SystemResourceGuardAdapter` + `ANALYSIS_MAX_ROWS` + don gian hoa ban sao |
-| Doc ket qua cua project khac | Policy loader kiem tra instance `projectId` |
-| Report cua nguoi khac | Policy loader tren `projectId` |
-| Ket qua AI gia mao | `ingest-ai-result.handler.ts` validate payload bang schema |
-| Prompt injection tu du lieu | Chi dua du lieu da che PII vao prompt, dinh dang ro rang |
+| PII lộ khi suy luận AI | `pii-mask.util.ts` che giá trị cột `is_pii` trước khi gửi |
+| PII lộ qua RAG few-shot | `stripIdentifiers` loại định danh cá nhân khỏi ví dụ |
+| OOM khi suy luận | `SystemResourceGuardAdapter` + `ANALYSIS_MAX_ROWS` + đơn giản hoá bản sao |
+| Đọc kết quả của project khác | Policy loader kiểm tra instance `projectId` |
+| Tải báo cáo của người khác | Policy loader trên `projectId` |
+| Kết quả AI giả mạo | `ingest-ai-result.handler.ts` validate payload bằng schema |
+| Prompt injection từ dữ liệu | Chỉ đưa dữ liệu đã che PII vào prompt, định dạng rõ ràng |
 
-### 5.4. Phan quyen
+### 5.4. Phân quyền
 
-| Route | Chinh sach |
+| Tuyến đường | Chính sách |
 |---|---|
-| `POST /projects/:projectId/analysis` | `Action.Execute` tren `Analysis` - PROJ-MEMBER tro len |
+| `POST /projects/:projectId/analysis` | `Action.Execute` trên `Analysis` — PROJ-MEMBER trở lên |
 | `GET /projects/:projectId/analysis/result` | `Action.Read` |
-| `GET /analysis/jobs/:jobId` | `Action.Read` + policy loader kiem tra job thuoc project cua toi |
+| `GET /analysis/jobs/:jobId` | `Action.Read` + policy loader kiểm tra job thuộc project của tôi |
 | `POST /analysis/jobs/:jobId/retry` | `Action.Execute` |
-| `POST /analysis/jobs/:jobId/result` | **Noi bo** - chi worker, khong phai route cong khai cho client |
+| `POST /analysis/jobs/:jobId/result` | **Nội bộ** — chỉ worker, không phải route công khai cho client |
 | `POST /projects/:projectId/report` | `Action.Create` |
-| `GET /projects/:projectId/report/:reportId/file` | `Action.Read` + kiem tra report thuoc project |
-| `POST/GET /projects/:projectId/summary` | `Action.Create` / `Action.Read` |
+| `GET /projects/:projectId/report/:reportId/file` | `Action.Read` + kiểm tra báo cáo thuộc project |
+| `POST /projects/:projectId/summary` | `Action.Create` |
+| `GET /projects/:projectId/summary` | `Action.Read` |
 
-## 6. Lich su Thay doi (Change Log & Version History)
+## 6. Lịch sử thay đổi (Change Log & Version History)
 
 ### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viet lai README module day du theo chuan 6 phan / Yeu cau tai doc / Tai lieu mau chuan
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
 
 ### 2026-11-XX
-- **v1.4.0** / 2026-11-XX / Bo sung `local-inference.adapter.ts` (Ollama / vLLM) va `system-resource-guard.adapter.ts` / Chuyen sang AI cuc bo, khong goi API ben ngoai; chong OOM / `modules/analysis`
-- **v1.3.0** / 2026-11-XX / Bo sung `column-role.util.ts` va wire vao ca `run-analysis` va `build-prompt-for-job` (GD7) / Loai cot khong lien quan khoi ca phan tich toan hoc va prompt / `modules/analysis`
-- **v1.2.0** / 2026-11-XX / Cramer's V dang sparse (GĐ8) + quy uoc so hoc OPEN-10 / Giam bo nho, chuan hoa phan ky mau / `modules/analysis`
-- **v1.1.0** / 2026-11-XX / Bo sung `input-fingerprint.util.ts` (`FINGERPRINT_VERSION = 2`) / Phat hien ket qua stale / `modules/analysis`
-- **v1.0.0** / 2026-11-XX / Bo sung VIF + canh bao mat mau + `ANALYSIS_MAX_ROWS` va don gian hoa ban sao (GĐ0) / Bao ve tai nguyen / `modules/analysis`
-- **v0.9.0** / 2026-11-XX / Bo sung `rag-few-shot.util.ts` va RAG port / Vong lap Human-in-the-Loop / `modules/analysis`, `modules/feedback`
-- **v0.8.0** / 2026-11-XX / Bo sung `report-content.util.ts` + `pdf-builder.util.ts` va report worker / Bao cao PDF, tong ket dung chung noi dung / `modules/analysis`
-- **v0.1.0** / 2026-11-XX / Tao module, tach thanh `analysis-config` thanh command rieng / Bo endpoint `/analysis/config`, cau hinh chuyen vao body / `modules/analysis`
+- **v1.4.0** / 2026-11-XX / Bổ sung `local-inference.adapter.ts` (Ollama / vLLM) và `system-resource-guard.adapter.ts` / Chuyển sang AI cục bộ, không gọi API bên ngoài; chống OOM / `modules/analysis`
+- **v1.3.0** / 2026-11-XX / Bổ sung `column-role.util.ts` và nối vào cả `run-analysis` và `build-prompt-for-job` (GĐ7) / Loại cột không liên quan khỏi cả phân tích toán học và prompt / `modules/analysis`
+- **v1.2.0** / 2026-11-XX / Cramer's V dạng thưa (GĐ8) + quy ước số học OPEN-10 / Giảm bộ nhớ, chuẩn hoá phương sai mẫu / `modules/analysis`
+- **v1.1.0** / 2026-11-XX / Bổ sung `input-fingerprint.util.ts` (`FINGERPRINT_VERSION = 2`) / Phát hiện kết quả cũ (stale) / `modules/analysis`
+- **v1.0.0** / 2026-11-XX / Bổ sung VIF + cảnh báo mất mẫu + `ANALYSIS_MAX_ROWS` và đơn giản hoá bản sao (GĐ0) / Bảo vệ tài nguyên / `modules/analysis`
+- **v0.9.0** / 2026-11-XX / Bổ sung `rag-few-shot.util.ts` và cổng RAG / Vòng lặp Human-in-the-Loop / `modules/analysis`, `modules/feedback`
+- **v0.8.0** / 2026-11-XX / Bổ sung `report-content.util.ts` + `pdf-builder.util.ts` và report worker / Báo cáo PDF, bản tóm tắt dùng chung nội dung / `modules/analysis`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun, tách `analysis-config` thành command riêng / Bỏ endpoint `/analysis/config`, cấu hình chuyển vào body / `modules/analysis`
 
-- **Dinh dang:** `[Version] / [Ngay] / [Thay doi gi] / [Ly do] / [Anh huong den dau]`
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`
