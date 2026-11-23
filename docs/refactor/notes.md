@@ -19,3 +19,4 @@
 | 2026-11-24 | Hybrid 6+7 (ADR-0002), revert về P1 `31cd2f3` | ép 1 template cho 13 module là sai |
 | P1 enforce (MM2+MM5/MM6+measure) | 340 | 31 505 | ESLint MM2 (chỉ chặn deep import tầng khác module), test/modular-monolith.spec.ts (MM5 chuyển tiếp + FINAL skip, MM6), scripts/measure-refactor.sh |
 | 2026-11-24 hybrid (viết lại kịch bản) | ~305 (mục tiêu) | ~28 500 (mục tiêu) | ADR-0002 + 00–11 viết lại, 12/13 cập nhật, chỉ flatten 6 Simple |
+| P2 audit (Simple) | 338 | 31 439 | file handler 107->106 (LogHandler gop thanh AuditService.log) | type-check 0, lint 0, arch+guard+contract xanh, api 84/84 |

@@ -1,3 +1,12 @@
+# MÔ-ĐUN `audit` — Nhật ký kiểm toán (Template: Simple)
+
+> **P2 (2026-11-24):** Flatten từ Hexagonal 4 tầng → Simple Monolith theo ADR-0002.
+> - Vì sao Simple: 1 cmd nội bộ best-effort, DB append-only mỏng, không invariant/transaction/policy.
+> - Bất biến: facade `AUDIT_LOGGER_PORT`, method `AuditService.log()` (gộp từ `LogHandler.execute()` + `AuditLoggerAdapter.log()`); giữ `RETENTION_DAYS=365` + TTL `expires_at` + `toOid/isObjectIdHex` slice + `resolveMongoSession` + `@Global()` + best-effort try/catch warn.
+> - Cấu trúc mới: `audit.service.ts + audit.repository.ts + audit.schema.ts + audit.types.ts + index.ts + audit.module.ts` (không có `routes.ts` vì không có HTTP route).
+> - Cấm: đổi Symbol port (TC-03), bỏ session (TC-05), đổi strict/best-effort (BC-02).
+
+---
 # MÔ-ĐUN `audit` — Nhật ký kiểm toán
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

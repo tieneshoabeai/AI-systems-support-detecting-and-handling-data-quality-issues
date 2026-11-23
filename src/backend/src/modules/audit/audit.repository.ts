@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { IAuditLog, IAuditChange } from './audit-log.schema';
+import { IAuditLog, IAuditChange } from './audit.schema';
 import {
   AUDIT_REPOSITORY_PORT,
   type AuditLogRecord,
   type AuditRepositoryPort,
   type CreateAuditLogInput,
   type AuditChangeInput,
-} from '../../domain/ports/audit.repository.port';
-import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
-import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
+} from './audit.types';
+import { isObjectIdHex } from '../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../shared/infrastructure/database/mongo-session-context';
 
 function toOid(v: string | null | undefined): Types.ObjectId | null {
   if (!v || !isObjectIdHex(v)) return null;

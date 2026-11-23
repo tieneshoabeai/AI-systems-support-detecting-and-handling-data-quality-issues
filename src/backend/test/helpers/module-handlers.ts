@@ -36,7 +36,7 @@ export const analysisHandlers = {
 } as const;
 
 // -------------------- audit --------------------
-import { LogHandler as AuditLogHandler } from '../../src/modules/audit/application/commands/log.handler';
+import { AuditService as AuditLogHandler } from '../../src/modules/audit/audit.service';
 
 export const auditHandlers = {
   log: AuditLogHandler,

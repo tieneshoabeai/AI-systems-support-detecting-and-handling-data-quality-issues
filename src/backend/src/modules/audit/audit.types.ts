@@ -1,5 +1,6 @@
 /**
- * AUDIT — Domain repository port (hexagonal chuan).
+ * AUDIT — Types + ports (Template Simple).
+ * Gop tu domain/ports/audit.repository.port.ts + audit-logger.port.ts — giu nguyen Symbol.
  * Append-only, khong co update/delete. Ghi log la tac dung phu (best-effort).
  */
 
@@ -64,4 +65,11 @@ export interface AuditLogRecord {
 
 export interface AuditRepositoryPort {
   createLog(input: CreateAuditLogInput, changes?: AuditChangeInput[]): Promise<AuditLogRecord>;
+}
+
+export const AUDIT_LOGGER_PORT = Symbol('AuditLoggerPort');
+
+export interface AuditLoggerPort {
+  /** Ghi một dòng audit log (best-effort — lỗi ghi log KHÔNG làm hỏng luồng chính). */
+  log(input: CreateAuditLogInput, changes?: AuditChangeInput[]): Promise<void>;
 }

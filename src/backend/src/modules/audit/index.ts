@@ -1,20 +1,14 @@
 /**
- * Public contract của module AUDIT.
+ * Public contract cua module AUDIT (Template Simple).
  *
- * Các module khác chỉ được import qua file này (quy tắc CA8 — cross-module
- * import phải đi qua public contract), không import sâu vào
- * `domain/ports/...` hay `application/...`.
- *
- * Module `audit` chỉ cung cấp khả năng GHI log (`AUDIT_LOGGER_PORT`).
- * Không mở repository — audit log là append-only, chỉ đọc qua màn hình quản trị.
+ * Cac module khac chi duoc import qua file nay (MM2) - khong import sau.
+ * Module `audit` chi cung cap kha nang GHI log (`AUDIT_LOGGER_PORT`).
+ * Khong mo repository - audit log la append-only.
  */
 
 export {
   AUDIT_LOGGER_PORT,
   type AuditLoggerPort,
-} from './domain/ports/audit-logger.port';
-
-export {
   AUDIT_REPOSITORY_PORT,
   type AuditAction,
   type AuditChangeInput,
@@ -22,8 +16,7 @@ export {
   type AuditRepositoryPort,
   type AuditTargetType,
   type CreateAuditLogInput,
-} from './domain/ports/audit.repository.port';
+} from './audit.types';
 
-// ── Handlers (Command/Query) ──────────────────────────
-// ── Commands (ghi) ─────────────────────────────────────────────
-export { LogHandler } from './application/commands/log.handler';
+export { AuditService } from './audit.service';
+export { AuditRepository } from './audit.repository';

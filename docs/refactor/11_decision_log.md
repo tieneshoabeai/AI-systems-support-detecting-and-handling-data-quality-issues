@@ -50,7 +50,7 @@
 | Module/Phase | File .ts | LOC | Thư mục con | Test | Route | Ghi chú |
 |---|---|---|---|---|---|---|
 | Baseline P1 (`31cd2f3`) | 340 | 31 505 | ~60 | 1 277 ✅ | 82+1 ✅ | — |
-| P2 audit | | | | | | |
+| P2 audit | 338 | 31 439 | -5 subdirs (audit phang) | xanh (arch+guard+contract) | 84/84 | LogHandler+adapter gop thanh AuditService.log() |
 | P3 overview | | | | | | |
 | P3 realtime | | | | | | |
 | P3 data-view | | | | | | |
