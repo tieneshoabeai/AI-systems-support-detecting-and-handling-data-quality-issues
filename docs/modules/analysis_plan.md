@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.8 (2026-11-18)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`)
+**Phiên bản:** v1.9 (2026-11-24)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g.
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -53,6 +53,7 @@
 - Phần 13 v8 mục 3.20 — test AN-01 → AN-10
 - Phần 14 v8 mục 3.16 — chia đợt thực hiện + kết quả nghiệm thu
 - Phần 10 v7 mục 3.16 — `REPORT_FONT_PATH`, sửa cờ `REPORT_WORKER_ENABLED`
+- **Từ 2026-11-24 (sau hợp nhất hai nhánh docs, mục 7g):** các mục trên nằm trong bản đang dùng **Phần 2 v15 · 6 v9 · 7 v12 · 8 v12 · 9 v5 · 10 v8 · 12 v13 · 13 v13 · 14 v12**. Tham chiếu "Phần 6 v7 mục 3.20/3.21" ở trên là bản trong `docs/restructures/_nhanh_vqd_be/`; ở Phần 6 v9 hai mục này thành **3.22 / 3.23** (mục 3.22 cũ → 3.24).
 
 ## 5. Thứ tự thực hiện
 - **Đợt A — sửa lỗi:** 1, 2, 3, 4, 5, 9, 11
@@ -163,12 +164,66 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 - **Đính chính báo cáo:** `module_analysis_report.md` + `module_analysis_presentation.md` sửa các điểm sai nêu trên và số test.
 - **Hướng dẫn chạy:** `local_VQD/report/README.md`.
 
+## 7g. Đồng bộ sau khi kéo nhánh `backend` (2026-11-24, chỉ tài liệu)
+- **Bối cảnh:** nhánh `backend` đã **chép tay** (commit `a7af214`, không merge git) logic đợt F–I từ `Vqd_BE`, rồi áp quyết định OPEN-01..10 (`docs/restructures/24_open_decisions_resolved.md`) và refactor modular monolith P1–P6 (`docs/refactor/`, ADR-0002 — analysis là module **Hexagonal**). Merge thường xung đột 42 file nên merge commit `131e14c` lấy **nguyên code của `backend`**, chỉ giữ thêm các docs riêng của `Vqd_BE`.
+- **Trạng thái:** tài liệu đã đồng bộ; code chưa đổi. Mốc test sau merge (Node 22 + pnpm): type-check 0, lint 0, `test:arch` 23/23, `arch:api-coverage` 84/84, `test:unit` 1049 pass (3 lỗi đều do môi trường: `/proc/meminfo` chỉ có trên Linux, thiếu `redis-server`), `test:integration` 135/138 (3 lỗi do thiếu image MinIO).
+
+**a) Hợp nhất docs hai nhánh phiên bản** — gộp 3 chiều từ bản gốc chung (`334040b`), giữ đủ mục của cả hai nhánh:
+
+| Phần | Nhánh `Vqd_BE` | Nhánh `backend` | Số trùng | Bản hợp nhất |
+|---|---|---|---|---|
+| 2 | v10–v14 | v10–v11 | v10, v11 | **v15** |
+| 6 | v7–v8 | v7 | v7 | **v9** (đổi số mục 3.20/3.21/3.22 của `Vqd_BE` → 3.22/3.23/3.24) |
+| 7 | v7–v11 | v7–v8 (v8.4) | v7, v8 | **v12** |
+| 8 | v7–v11 | v7 | v7 | **v12** |
+| 10 | v7 | v7 | v7 | **v8** |
+| 13 | v8–v12 | v8–v9 | v8, v9 | **v13** |
+| 9 · 12 · 14 | v5 · v9–v13 · v8–v12 | — | — | dùng thẳng v5 · v13 · v12 |
+
+File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng số của `Vqd_BE` lưu ở `docs/restructures/_nhanh_vqd_be/`. Chỗ hai nhánh mô tả khác nhau thì **mã nguồn hiện hành + bảng route Phần 7 §3.13 là chuẩn**.
+
+**b) Đối chiếu đường dẫn mã nguồn** (đường dẫn trong mục 2–7f là **trước** refactor):
+
+| Trước (`Vqd_BE` ≤ `8969ee3`) | Hiện hành (`src/backend/src/modules/analysis/…` nếu không ghi khác) |
+|---|---|
+| `application/analysis.service.ts` · `runAnalysis` | `application/commands/run-analysis.handler.ts` |
+| · `getResult` / `getJob` | `application/queries/get-result.handler.ts` / `get-job.handler.ts` |
+| · `retryJob` / `ingestAiResult` / `buildPromptForJob` | `application/commands/retry-job.handler.ts` / `ingest-ai-result.handler.ts` / `build-prompt-for-job.handler.ts` |
+| · `markAiFailed` | `application/services/ai-worker.service.ts` (hết lượt retry → `status: failed`, `AI_FAILED`) |
+| · `assertJobAccess` | `application/policy-loaders/analysis-job-policy.loader.ts` |
+| · `saveConfig` / `getConfig` | **Gỡ** (OPEN-06) |
+| `application/summary.service.ts` | `application/commands/create-summary.handler.ts` · `application/queries/get-summary.handler.ts` |
+| `application/report.service.ts` | `application/commands/request-report.handler.ts` · `application/queries/download-report-file.handler.ts` · `get-report-file-meta.handler.ts` |
+| `application/staleness.service.ts` (D2, `dataset_changed`) | **Gỡ** — dataset và cấu hình đều bất biến (OPEN-03/06); Tổng kết ghi `isStale: false` |
+| `application/project-access.service.ts` | `PROJECT_ACCESS_PORT` → module projects (`resolve-user-project-role.handler.ts`, `project-access.adapter.ts`) + `application/policy-loaders/analysis-run-policy.loader.ts` |
+| `domain/chart-data.util.ts` | `shared/domain/utils/chart-data.util.ts`, dùng ở `modules/data-view/data-view.service.ts` (`GET datasets/{id}/charts`) |
+| `infrastructure/http/{analysis,report,summary}.controller.ts` | `presentation/controllers/*.controller.ts` |
+| `infrastructure/http/dtos/run-analysis.dto.ts` · `analysis-config.dto.ts` | `presentation/dtos/run-analysis.dto.ts` · **gỡ** |
+| `infrastructure/persistence/analysis-config.schema.ts` | **Gỡ** — snapshot cấu hình nằm trong `analysis-run.schema.ts` (`config`) |
+| `modules/datasets/application/datasets.service.ts` · `infrastructure/http/datasets.controller.ts` | `modules/datasets/application/{commands,queries}/*.handler.ts` · `modules/datasets/presentation/controllers/` |
+| `shared/utils/missing-tokens.util.ts` | `shared/domain/utils/missing-tokens.util.ts` |
+| `test/analysis-completion.spec.ts`, `analysis-wave6…10.spec.ts` (96 test) | `test/analysis-wave6-10.spec.ts` (26 test, viết mới) — xem mục d |
+
+**c) Quyết định của nhánh `backend` làm đổi hành vi đợt A–I** (nguồn: `24_open_decisions_resolved.md`, Phần 7 v8.4):
+1. **OPEN-06 — không còn cấu hình phân tích:** gỡ `GET/POST projects/{id}/analysis/config`; `POST projects/{id}/analysis` nhận body rỗng; phân tích luôn toàn bộ cột, label/time/value tự suy. **`column_roles` (ghi đè vai trò cột — đợt F) bị bỏ**, vai trò chỉ còn tự suy (`domain/column-role.util.ts`).
+2. **OPEN-03/04 — dataset bất biến:** gỡ `PATCH datasets/{id}/columns` (gồm cờ `is_pii` của đợt F) và đổi tên cột; lỗi tên cột → mục **Phát hiện** (`findings`). Cờ PII **tự suy từ tên cột** (`modules/datasets/domain/services/pii-heuristic.util.ts`) — cần kiểm lại tồn đọng "chưa tự nhận cột họ tên là PII".
+3. **OPEN-05:** CSV chỉ nhận dấu phẩy; ngày giữ giá trị thô, ô nghi ngờ → mục Phát hiện.
+4. **D2 / `isStale`:** bỏ cơ chế phát hiện kết quả lỗi thời (xem bảng b).
+
+**d) Việc còn lại (giai đoạn 3 — làm sau khi duyệt):**
+- **Test bị rơi:** 95/96 test đợt A–I (`analysis-completion`, `analysis-wave6`…`10`) không còn theo tên trong bộ test hiện tại. Bên `backend` chỉ viết lại 26 test. Cần rà từng test cũ: test nào còn đúng với hành vi hiện hành thì port sang handler mới (chỉ **thêm** assert, không sửa assert cũ — ràng buộc TC-01); test nào thuộc tính năng đã gỡ (mục c) thì ghi lý do bỏ.
+- **Bộ test offline `local_VQD`:** `runner/engine.ts` còn gọi 5 service đã gỡ → dựng lại bằng handler + port bộ nhớ; tiêu chí đạt như sau đợt I (0 FAIL / 0 WARN / 0 bỏ sót trên cả hai bộ CSV). Kết quả lệch là chỗ bản chép tay làm rơi logic.
+- **Bộ trực quan `local_VQD/report`:** cập nhật `data-*.js`, `code-map.js`, `flow-data.js` theo bảng b; chạy `npm run build` tới khi `check-drift` sạch.
+- **Hạ tầng test (báo nhóm, không sửa trong module analysis):** `scripts/test-infra-up.sh` gọi `rs.initiate()` không truyền host → cần `TEST_MONGODB_URI='mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true'`; image `minio/minio` không còn trên Docker Hub.
+- **Lưu ý git:** `.gitignore` của nhóm bỏ qua `/docs/*` (trừ `restructures/`, `refactor/`, `frontend-handover/`). File này vẫn được theo dõi vì đã có từ trước; file mới trong `docs/modules/` phải `git add -f`.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.9 / 2026-11-24:** Thêm mục 7g — đồng bộ sau khi merge `origin/backend`: hợp nhất docs hai nhánh phiên bản (Phần 2 v15, 6 v9, 7 v12, 8 v12, 10 v8, 13 v13), bảng đối chiếu đường dẫn code trước/sau refactor, quyết định OPEN ảnh hưởng đợt A–I, việc còn lại cho giai đoạn 3; không đổi code.
 - **v1.8 / 2026-11-18:** Thêm đợt J (mục 7f) — bộ trực quan module analysis (viewer UML, walkthrough, code-flow) và đính chính báo cáo; không đổi code.
 - **v1.7 / 2026-11-18:** Thêm đợt I (mục 7e) — tự phát hiện mâu thuẫn dữ liệu dưới dạng Nghi vấn; không làm khai báo quy tắc DQ-05.
 - **v1.6 / 2026-11-18:** Thêm đợt H (mục 7d) — vá lỗi bỏ sót bộ edge-cases; DQ-05 vẫn để đợt sau.
