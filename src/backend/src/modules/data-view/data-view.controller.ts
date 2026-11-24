@@ -16,13 +16,14 @@ import { CheckPolicies } from '../../shared/interfaces/casl/check-policies.decor
 import { PolicyResource } from '../../shared/interfaces/casl/policy-resource.decorator';
 import { Action } from '../../shared/domain/security/action';
 import { ZodValidationPipe } from '../../shared/interfaces/pipes/zod-validation.pipe';
-import { ApiZodBody, ApiZodQuery } from '../../shared/interfaces/swagger/api-zod.decorator';
+import { ApiZodBody, ApiZodQuery, ApiZodResponse } from '../../shared/interfaces/swagger/api-zod.decorator';
 import { DataViewService } from './data-view.service';
 import { DatasetPolicyLoader } from '../datasets';
 import type { CursorPaginatedResponse } from '../../shared/domain/pagination/cursor-paginated.response';
 import type { RecordRow } from '../datasets';
 import type { ColumnStatsResult } from './data-view.types';
 import type { ChartDataResult } from './data-view.types';
+import { ChartDataPayloadSchema } from './data-view.chart.schema';
 
 import { z } from 'zod';
 
@@ -183,7 +184,64 @@ export class DataViewController {
   @ApiZodQuery(ChartDataSchema)
   @PolicyResource('Dataset', DatasetPolicyLoader, 'datasetId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Dataset'))
-  @ApiResponse({ status: 200, description: 'Thanh cong' })
+  // BE-07: công bố schema phản hồi đầy đủ (histogram / box_plot / category /
+  // masked / sampled_records / truncated) để frontend sinh type từ OpenAPI
+  // thay vì đoán shape. Xem `docs/frontend-handover/API_ANSWER_24-11.md`.
+  @ApiZodResponse(
+    ChartDataPayloadSchema,
+    200,
+    'Số liệu biểu đồ của từng cột (một phần tử cho mỗi cột được chọn)',
+    {
+      charts: [
+        {
+          column_key: 'c0',
+          column_name: 'amount',
+          data_type: 'number',
+          total_records: 78,
+          sampled_records: 78,
+          truncated: false,
+          missing_count: 0,
+          missing_ratio: 0,
+          histogram: {
+            column_key: 'c0',
+            column_name: 'amount',
+            method: 'freedman_diaconis',
+            bins: [{ from: 10, to: 15, count: 12 }],
+          },
+          box_plot: {
+            column_key: 'c0',
+            column_name: 'amount',
+            q1: 13.25,
+            median: 17,
+            q3: 21,
+            whisker_low: 10,
+            whisker_high: 25,
+            outside_count: 1,
+            n: 78,
+          },
+        },
+        {
+          column_key: 'c1',
+          column_name: 'nhom',
+          data_type: 'string',
+          total_records: 78,
+          sampled_records: 78,
+          truncated: false,
+          missing_count: 0,
+          missing_ratio: 0,
+          category: {
+            column_key: 'c1',
+            column_name: 'nhom',
+            top_n: 5,
+            items: [{ value: 'A', count: 13, rate: 0.1667 }],
+            other: { count: 13, rate: 0.1667 },
+            distinct_count: 6,
+          },
+        },
+      ],
+    },
+  )
+  @ApiResponse({ status: 404, description: 'Dataset khong ton tai hoac khong co cot nao khop `columns`' })
   async getChartData(
     @Param('datasetId') datasetId: string,
     @Query(new ZodValidationPipe(ChartDataSchema)) query: ChartDataDto,

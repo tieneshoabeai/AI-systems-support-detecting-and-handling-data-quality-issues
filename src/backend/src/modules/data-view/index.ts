@@ -30,6 +30,17 @@ export {
   toSnakeStats,
   resolveColumnKey,
 } from './data-view.utils';
+// BE-07 — Schema Zod của phản hồi biểu đồ (sinh OpenAPI cho Swagger).
+export {
+  ChartBoxPlotSchema,
+  ChartCategoryItemSchema,
+  ChartCategorySchema,
+  ChartDataEnvelopeSchema,
+  ChartDataPayloadSchema,
+  ChartDataResultSchema,
+  ChartHistogramBinSchema,
+  ChartHistogramSchema,
+} from './data-view.chart.schema';
 export {
   DEFAULT_CHART_TOP_N,
   MAX_HISTOGRAM_BINS,
