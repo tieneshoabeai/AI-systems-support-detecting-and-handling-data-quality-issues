@@ -21,6 +21,7 @@ Thu thập nhận xét của người dùng cho từng phát hiện và từng l
 | `feedback.types.ts` | Thực thể `Feedback`, `FEEDBACK_LABELS = [correct, partially_correct, false_positive, missed_issue, other]`, `FEEDBACK_SEVERITIES`, `LABELS_REQUIRING_REASON` (`false_positive`, `missed_issue`, `other` bắt buộc `reason`), `MAX_FEEDBACK_REASON_LENGTH`, sự kiện `FEEDBACK_EVENTS`. |
 | `feedback.mapper.ts` | Map Mongoose -> `Feedback` an toàn, ẩn trường nội bộ, đổi `_id` -> `id`. |
 | `feedback.utils.ts` | `requiresReason(label)`, chuẩn hóa truy vấn list, tính trust score, lọc theo ngôn ngữ tiếng Việt. |
+| `feedback-example-template.ts` | Hàm thuần khuôn mẫu RAG: làm sạch đặc tính cột, mô tả theo khuôn, nhóm nhãn mẫu, `buildFindingExampleDraft`, `isTemplatedDescription`. Dùng chung cho `syncFindingExample` và migration `scrub-few-shot`. |
 | `feedback.module.ts` | Khai báo controller/service/repository, import `AnalysisModule` để lấy `RAG_FEW_SHOT_PORT` (chiều `feedback -> analysis`, không ngược). |
 | `index.ts` | Public contract: PORT, kiểu, hằng, entity, service, repository, Zod schema. |
 
@@ -39,9 +40,9 @@ Thu thập nhận xét của người dùng cho từng phát hiện và từng l
 ## 4. Luồng RAG/few-shot (cơ chế T1)
 
 1. User tạo, sửa hoặc xoá nhận xét một phát hiện -> `FeedbackService` lưu DB rồi gọi `syncFindingExample`.
-2. Mô tả mẫu sinh **theo khuôn** từ loại lỗi (lấy từ `findingId`), đặc tính cột (đã làm sạch, ≤ 80 ký tự) và nhãn mẫu. **Không** dùng `reason` của người dùng, để văn bản tự do không vào prompt AI (chống prompt injection). Cùng (phát hiện, nhãn mẫu) luôn ra cùng mô tả nên tự gom trùng.
+2. Mô tả mẫu sinh **theo khuôn** (`feedback-example-template.ts`, dùng chung với migration `scrub-few-shot`) từ loại lỗi (lấy từ `findingId`), đặc tính cột (đã làm sạch, ≤ 80 ký tự) và nhãn mẫu. **Không** dùng `reason` của người dùng, để văn bản tự do không vào prompt AI (chống prompt injection). Cùng (phát hiện, nhãn mẫu) luôn ra cùng mô tả nên tự gom trùng.
 3. `correct` và `partially_correct` cùng ánh xạ nhãn mẫu `correct`. Số người đồng thuận được đếm trên cả nhóm nhãn đó (`countDistinctAuthors` với `labels`), rồi `computeTrustScore` tính trust. Mẫu chỉ vào kho khi **≥ 3 người và trust ≥ 0,6**; mẫu tụt dưới 3 người (do sửa/xoá) bị loại khi truy xuất. Embedding cục bộ qua `RAG_FEW_SHOT_PORT`.
-4. Kho tối đa 50000 mẫu (FIFO), `top_k=5`, `min_trust=0.6`, mẫu quá 180 ngày bị loại.
+4. Kho (collection `fewshotexamples`) tối đa 50000 mẫu (FIFO), `top_k=5`, `min_trust=0.6`, mẫu quá 180 ngày bị loại. Mẫu cũ trước khi có khuôn (mô tả là `reason`) được quét một lần bằng `pnpm db:migrate:scrub-few-shot` (dry-run mặc định; xoá mềm mẫu sai khuôn rồi dựng lại từ nhận xét — Phần 11 v5 mục 3.18).
 5. Lần phân tích sau, `BuildPromptForJobHandler` lấy top-k mẫu cùng loại lỗi để gắn vào prompt ("Các trường hợp đã biết"), giúp AI bớt ảo giác. Lỗi RAG không chặn luồng nhận xét.
 
 ## 5. Bất biến
@@ -55,4 +56,4 @@ Thu thập nhận xét của người dùng cho từng phát hiện và từng l
 
 ## 6. Test liên quan
 
-`test/unit/feedback/` (entity, wave7, `feedback-v14.spec.ts`: RAG theo khuôn, ngưỡng, quyền, trạng thái run, audit), `test/integration/repositories-domain.spec.ts` (`countDistinctAuthors` trên MongoDB thật), `test/e2e/feedback-notifications-overview.e2e-spec.ts` (luồng feedback -> metrics -> overview).
+`test/unit/feedback/` (entity, wave7, `feedback-v14.spec.ts`: RAG theo khuôn, ngưỡng, quyền, trạng thái run, audit; `feedback-example-template.spec.ts`: khuôn dùng chung), `test/integration/repositories-domain.spec.ts` (`countDistinctAuthors` trên MongoDB thật), `test/integration/few-shot-scrub.spec.ts` (migration quét mẫu cũ), `test/e2e/feedback-notifications-overview.e2e-spec.ts` (luồng feedback -> metrics -> overview).

@@ -31,6 +31,7 @@
     "db:bootstrap": "ts-node scripts/bootstrap-database.ts",
     "db:migrate:coerce": "ts-node scripts/migrate-coerce-and-orphans.ts",
     "db:migrate:storage": "ts-node scripts/migrate-coerce-and-orphans.ts --only=storage",
+    "db:migrate:scrub-few-shot": "ts-node scripts/migrate-scrub-few-shot-examples.ts",
     "db:reset:all": "TARGET=all ts-node scripts/bootstrap-database.ts",
     "db:reset:mongo": "TARGET=mongo ts-node scripts/bootstrap-database.ts",
     "db:reset:storage": "TARGET=storage ts-node scripts/bootstrap-database.ts",

@@ -27,6 +27,7 @@ Hạ tầng chưa sẵn sàng → `describe.skip` + in cảnh báo, **không fai
 | `redis-minio.spec.ts` | `B2.5 — Redis thật` + `B2.5 — MinIO thật (StorageService chế độ CLOUD)` + `B2.5 — cấu hình hạ tầng` (3 describe trong 1 file) | Cache/lease/rate-limit + upload MinIO thật |
 | `open09-transaction-rollback.spec.ts` | `B2.2 — OPEN-09: rollback THẬT trên MongoDB replica set` + `B2.2 — cấu hình hạ tầng` (2 describe trong 1 file) | Multi-document transaction rollback thật trên replica set (điều unit không làm được) |
 | `report-lease.spec.ts` | `AK-07 (K5) — claimPendingReport có lease trên MongoDB thật` | Job PDF `running` hết lease được nhận lại; đủ 3 lượt → `failed` `REPORT_LEASE_EXPIRED` (đợt K5) |
+| `few-shot-scrub.spec.ts` | `FST — migration scrub-few-shot trên MongoDB thật` | Quét mẫu RAG cũ: dry-run không ghi, xoá mềm mẫu sai khuôn, dựng lại mẫu theo khuôn từ nhận xét, chạy lại không đổi (OPEN-FB-01) |
 | `cascade-delete.spec.ts` | `B2.3 — cascade xóa Workspace → Project → Dataset → Records` | Xóa workspace → project/dataset/records thật biến mất |
 
 ## Khi nào viết integration mới?

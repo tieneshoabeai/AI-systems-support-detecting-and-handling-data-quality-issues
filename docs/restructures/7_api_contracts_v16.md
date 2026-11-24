@@ -1460,7 +1460,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 
 ### 3.26. Đóng việc còn mở của data-view, analysis, feedback (v16)
 
-- **Trạng thái:** Đề xuất 2026-11-25 (test: Phần 13 v18 mục 3.31).
+- **Trạng thái:** DL-1…DL-6 đã thực hiện 2026-11-25; NT-1…NT-7 đề xuất (test: Phần 13 v18 mục 3.31).
 - **Phạm vi:** `GET /datasets/{datasetId}/records`, `POST /datasets/{datasetId}/records/query` (DL-*); thông báo trong `GET /notifications` và realtime `notification.created` (NT-*). **Không** thêm/xoá route, **không** đổi shape response. Việc quét mẫu RAG cũ (OPEN-FB-01) không đổi API — xem Phần 12 v17 §3.24 và Phần 11 v5.
 
 **Data Views — cursor và ngày legacy:**

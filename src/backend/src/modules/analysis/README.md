@@ -6,7 +6,7 @@ Trung tâm phân tích chất lượng dữ liệu: thuật toán DQ/ thống k�
 
 - Đường dẫn: `src/backend/src/modules/analysis/`
 - Loại kiến trúc: CQRS đầy đủ + 2 worker service + 14 util domain.
-- Sở hữu: 7 collection (`analysis_runs`, `analysis_results`, `ai_jobs`, `cell_evidences`, `few_shot_examples`, `project_saves`, `report_jobs`).
+- Sở hữu: 7 collection (`analysis_runs`, `analysis_results`, `ai_jobs`, `cell_evidences`, `few_shot_examples` (tên collection thật `fewshotexamples`), `project_saves`, `report_jobs`).
 - Cung cấp: `ANALYSIS_REPOSITORY_PORT`, `RAG_FEW_SHOT_PORT` (cho `feedback`), 2 policy loader.
 - Phụ thuộc: `datasets` (quét bản ghi), `projects` (quyền), `realtime` (đẩy tiến độ), `shared` (Storage).
 

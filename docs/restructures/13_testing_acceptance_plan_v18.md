@@ -1526,7 +1526,7 @@ Nhóm A gồm ba loại:
 
 ### 3.31. Test đợt đóng việc còn mở của data-view, feedback, analysis (v18)
 
-- **Trạng thái:** Đề xuất 2026-11-25.
+- **Trạng thái:** DLT-01…DLT-08 và FST-01…FST-04 đã thực hiện 2026-11-25; NTT-01…NTT-06 đề xuất.
 - **Hợp đồng:** Phần 7 v16 mục 3.26 (DL-1…DL-5, NT-1…NT-7); Phần 12 v17 mục 3.24 (OPEN-FB-01); Phần 11 v5 (migration `scrub-few-shot`); Phần 9 v7 (người nhận thông báo phân tích).
 - **E2E có sẵn bên `backend`:** `test/e2e/feedback-notifications-overview.e2e-spec.ts`, `test/e2e/dataset-dataview.e2e-spec.ts` lỗi biên dịch TS18048 (mock khai `Record<string, jest.Mock>` khi bật `noUncheckedIndexedAccess`) → bỏ chú thích kiểu. Sau sửa: E2E 12/12 suite, 94/94 ca.
 

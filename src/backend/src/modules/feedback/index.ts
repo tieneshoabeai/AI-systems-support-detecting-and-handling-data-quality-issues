@@ -33,3 +33,14 @@ export {
   type UpdateFeedbackDto,
   type ListFeedbackQueryDto,
 } from './feedback.controller';
+export {
+  MAX_COLUMN_TRAITS_LENGTH,
+  EXAMPLE_LABEL_PHRASES,
+  sanitizeColumnTraits,
+  columnTraitsFromFindingId,
+  labelsForExampleLabel,
+  templateExampleDescription,
+  buildFindingExampleDraft,
+  isTemplatedDescription,
+  type FindingExampleDraft,
+} from './feedback-example-template';

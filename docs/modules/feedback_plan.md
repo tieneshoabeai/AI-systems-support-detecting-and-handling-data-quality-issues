@@ -2,10 +2,10 @@
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ  
 *(Full-Stack Data Management & Quality Assurance Platform with AI Assistance)*  
 **Tập tin:** `docs/modules/feedback_plan.md`  
-**Phiên bản:** v1.1 (2026-11-24 — mục 7.5: vá đồng thuận theo nhóm nhãn mẫu)  
+**Phiên bản:** v1.2 (2026-11-25 — mục 8: đóng OPEN-FB-01, migration `scrub-few-shot`)  
 **Giai đoạn:** Đợt 5 — Phân tích & AI: Nhận xét kết quả và học lại RAG T1 (`feedback`)  
 
-> Mục 1–6 mô tả module theo mã nguồn hiện hành (sau đợt sửa mục 7). Hợp đồng hiện hành: Phần 7 v14 mục 3.24 + v15 mục 3.25 (VA-4), Phần 12 v16 mục 3.24.
+> Mục 1–6 mô tả module theo mã nguồn hiện hành (sau đợt sửa mục 7, 8). Hợp đồng hiện hành: Phần 7 v14 mục 3.24 + v15 mục 3.25 (VA-4), Phần 12 v17 mục 3.24, Phần 11 v5 mục 3.18.
 
 ---
 
@@ -95,7 +95,7 @@ Phụ thuộc: `analysis` (`ANALYSIS_REPOSITORY_PORT`, `RAG_FEW_SHOT_PORT`, `rag
 
 | Rủi ro Kỹ thuật | Mức độ | Giải pháp phòng ngừa |
 | :--- | :---: | :--- |
-| **Prompt injection qua `reason`** | Cao | Mẫu sinh theo khuôn, không dùng `reason`; OPEN-FB-01: quét một lần các mẫu cũ còn chứa `reason`. |
+| **Prompt injection qua `reason`** | Cao | Mẫu sinh theo khuôn, không dùng `reason`; mẫu cũ còn chứa `reason` được quét một lần bằng migration `scrub-few-shot` (mục 8, đóng OPEN-FB-01). |
 | **Mẫu kém chất lượng vào kho** (ít người, nhãn lệch nhau) | Trung bình | Ngưỡng ≥ 3 người + trust ≥ 0,6; đếm lại khi sửa/xoá, mẫu tụt ngưỡng bị loại khi truy xuất. |
 | **Cựu thành viên vẫn thao tác nhận xét** | Trung bình | Kiểm lại quyền project ở mọi thao tác sửa/xoá. |
 | **Lỗi RAG làm hỏng luồng nhận xét** | Thấp | `syncFindingExample` bắt lỗi, không chặn phản hồi cho người dùng. |
@@ -145,7 +145,7 @@ Phụ thuộc: `analysis` (`ANALYSIS_REPOSITORY_PORT`, `RAG_FEW_SHOT_PORT`, `rag
 
 ### 7.3. Không làm trong đợt này
 
-- **OPEN-FB-01:** quét một lần các mẫu cũ trong `few_shot_examples` có `reason` nguyên văn.
+- **OPEN-FB-01:** quét một lần các mẫu cũ trong `few_shot_examples` có `reason` nguyên văn — đã làm ở mục 8.
 - Xoá cứng feedback khi xoá project. Hiện feedback đã bị chặn truy cập vì project trả NotFound, và TTL 365 ngày sẽ dọn.
 - Trường `is_anonymized` (Phần 8). Không thêm `finding_key`/`version` vào schema vì Phần 8 không có.
 - Đối chiếu `findingId` với kết quả phân tích (RISK `FB-006`), vì kết quả không sinh sẵn mã phát hiện.
@@ -168,7 +168,39 @@ Phụ thuộc: `analysis` (`ANALYSIS_REPOSITORY_PORT`, `RAG_FEW_SHOT_PORT`, `rag
 
 ---
 
-## 8. Lịch sử thay đổi
+## 8. Đợt 2026-11-25 — quét mẫu RAG cũ (đóng OPEN-FB-01)
 
+- **Trạng thái:** Đã thực hiện 2026-11-25.
+- **Hợp đồng:** Phần 12 v17 §3.24 (T1-7…T1-10), Phần 11 v5 mục 3.18. **Test:** Phần 13 v18 mục 3.31 (FST-01…FST-04).
+- **Quyết định của người dùng:** xoá mềm mẫu cũ **và** dựng lại mẫu theo khuôn từ nhận xét còn hiệu lực (để kho RAG không trống).
+
+### 8.1. Hiện trạng cần biết
+
+- Tên collection thật là **`fewshotexamples`** (model `FewShotExample` không đặt `collection:`); nhận xét ở `findingfeedbacks`. README analysis từng ghi `few_shot_examples`.
+- Schema mẫu không có `finding_id` / nguồn / phiên bản khuôn → không lần ngược từ mẫu về nhận xét; phải dựng lại từ `findingfeedbacks`.
+- Mẫu cũ (trước v15): mô tả = `reason` hoặc `"<nhãn thô> cho <findingId>"`, đặc tính cột chưa làm sạch, trust theo bảng cũ (2 người = 0,65 → lọt ngưỡng truy xuất 0,6).
+
+### 8.2. Hướng sửa
+
+- **Tách khuôn ra hàm thuần** `feedback/feedback-example-template.ts` (`sanitizeColumnTraits`, `columnTraitsFromFindingId`, `templateExampleDescription`, `labelsForExampleLabel`, `buildFindingExampleDraft`, `isTemplatedDescription`), export qua `feedback/index.ts`; `feedback.service.ts` re-export tên cũ. `syncFindingExample` và migration cùng dùng `buildFindingExampleDraft` → không lệch.
+- **Migration** `scripts/migrate-scrub-few-shot-examples.ts` + logic `scripts/lib/few-shot-scrub.ts` (`runFewShotScrub`), lệnh `pnpm db:migrate:scrub-few-shot` — dry-run mặc định, `--apply` cần `MIGRATION_CONFIRM=yes`/`NODE_ENV=production`, `--verify` exit 1 nếu còn mẫu sai khuôn; báo cáo JSON không in mô tả.
+- **Khác plan ban đầu:** chỉ xoá mềm mẫu **không theo khuôn**, không xoá mẫu theo khuôn đang dưới ngưỡng (mẫu đó cần giữ để hồi lại khi có thêm người đồng ý — T1-5). Mẫu cũ không bao giờ theo khuôn nên vẫn bị loại hết; trust của mẫu theo khuôn được tính lại ở bước dựng lại.
+
+### 8.3. Không làm trong đợt này
+
+- Thêm `finding_id` / phiên bản khuôn vào schema mẫu (Phần 8 không có).
+- Tự chạy migration khi deploy — người vận hành chạy tay theo Phần 11 v5 mục 3.18.
+
+### 8.4. Kết quả
+
+- Unit `feedback-example-template.spec.ts` 5/5; feedback cũ 64/64 sau khi tách khuôn (không đổi assert).
+- Integration `few-shot-scrub.spec.ts` 4/4 (dry-run không ghi; apply xoá mềm 3 mẫu cũ ở 2 workspace, giữ mẫu đúng khuôn dưới ngưỡng, tạo 2 mẫu; chạy lại 0 thay đổi; verify).
+- Chạy script thật bằng `ts-node` trên database thử riêng: dry-run / verify (exit 1) / apply thiếu xác nhận (bị chặn) / apply / apply lần 2 (0 thay đổi) / verify (0).
+
+---
+
+## 9. Lịch sử thay đổi
+
+- **v1.2 / 2026-11-25:** Mục 8 — đóng OPEN-FB-01 bằng migration `scrub-few-shot` (xoá mềm + dựng lại), tách khuôn mẫu RAG ra hàm thuần dùng chung / Người dùng nhận module feedback và duyệt plan.
 - **v1.1 / 2026-11-24:** Mục 7.5 (trước là 2.5) — vá hồi quy đồng thuận `correct`/`partially_correct` sau rà soát commit. Bổ sung 2026-11-25: đường dẫn test và README module sau khi kéo `origin/backend`; sắp lại tài liệu theo khuôn `datasets_plan.md` (mục 1–6 mới, đợt sửa thành mục 7).
 - **v1.0 / 2026-11-24:** Tạo kế hoạch module. Đợt sửa sau rà soát được người dùng yêu cầu (kèm plan Antigravity).

@@ -2,7 +2,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../realtime';
 import {
-  FEEDBACK_LABELS,
   FEEDBACK_REPOSITORY_PORT,
   type Feedback,
   type FeedbackRepositoryPort,
@@ -11,16 +10,14 @@ import {
   ANALYSIS_REPOSITORY_PORT,
   RAG_FEW_SHOT_PORT,
   computeTrustScore,
-  extractErrorType,
   isEligibleForStore,
   mapFeedbackLabelToExampleLabel,
   normalizeExample,
-  stripIdentifiers,
   type AnalysisRepositoryPort,
   type AnalysisRunRecord,
-  type FewShotExample,
   type RagFewShotPort,
 } from '../analysis';
+import { buildFindingExampleDraft } from './feedback-example-template';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../users';
@@ -43,53 +40,19 @@ type RunStatus = AnalysisRunRecord['status'];
 const FINDING_FEEDBACK_RUN_STATUSES: readonly RunStatus[] = ['succeeded'];
 const RUN_FEEDBACK_RUN_STATUSES: readonly RunStatus[] = ['succeeded', 'failed'];
 
-/** Độ dài tối đa của đặc tính cột trong mẫu RAG (Phần 12 v15 §3.24 T1-2). */
-const MAX_COLUMN_TRAITS_LENGTH = 80;
-
-/** Cụm mô tả theo nhãn mẫu (Phần 12 v15 §3.24 T1-1) — KHÔNG dùng `reason` người dùng. */
-const EXAMPLE_LABEL_PHRASES: Record<FewShotExample['label'], string> = {
-  correct: 'AI phát hiện đúng',
-  false_positive: 'AI báo nhầm, không phải lỗi',
-  missed_issue: 'AI bỏ sót vấn đề',
-};
-
 type Page = {
   items: Record<string, unknown>[];
   meta: { nextCursor: string | null; hasMore: boolean; limit: number };
   summary: Record<string, number>;
 };
 
-/**
- * Đặc tính cột từ `findingId` (`DQ-01:ten-cot` → `ten-cot`), đã làm sạch: bỏ PII,
- * ký tự điều khiển / xuống dòng, gộp khoảng trắng, tối đa 80 ký tự (T1-2).
- */
-export function columnTraitsFromFindingId(findingId: string): string {
-  const colPart = findingId.includes(':') ? findingId.split(':').slice(1).join(':') : findingId;
-  // eslint-disable-next-line no-control-regex
-  const cleaned = stripIdentifiers(colPart.replace(/[\u0000-\u001f\u007f]+/g, ' '))
-    .replace(/["`]/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-  return cleaned.slice(0, MAX_COLUMN_TRAITS_LENGTH).trim();
-}
-
-/**
- * Các nhãn nhận xét cùng ánh xạ một nhãn mẫu (Phần 12 v16 §3.24 T1-3): đồng thuận
- * phải đếm trên cả nhóm, vì các nhãn này dùng CHUNG một mẫu (cùng mô tả theo khuôn).
- */
-export function labelsForExampleLabel(exampleLabel: FewShotExample['label']): string[] {
-  return FEEDBACK_LABELS.filter((l) => mapFeedbackLabelToExampleLabel(l) === exampleLabel);
-}
-
-/** Mô tả mẫu theo khuôn (T1-1) — xác định theo (loại lỗi, đặc tính cột, nhãn) nên tự gom trùng. */
-export function templateExampleDescription(
-  exampleLabel: FewShotExample['label'],
-  errorType: string,
-  columnTraits: string,
-): string {
-  const where = columnTraits ? ` trên cột có đặc tính "${columnTraits}"` : '';
-  return `${EXAMPLE_LABEL_PHRASES[exampleLabel]} — ${errorType}${where}`;
-}
+// Khuôn mẫu RAG nằm ở `feedback-example-template.ts` (dùng chung với migration
+// `scrub-few-shot`, Phần 12 v17 §3.24); re-export để giữ đường import cũ.
+export {
+  columnTraitsFromFindingId,
+  labelsForExampleLabel,
+  templateExampleDescription,
+} from './feedback-example-template';
 
 @Injectable()
 export class FeedbackService {
@@ -206,28 +169,22 @@ export class FeedbackService {
     label: string;
   }): Promise<void> {
     try {
-      const fid = (scope.findingId ?? '').trim();
-      if (!fid) return;
-      const exampleLabel = mapFeedbackLabelToExampleLabel(scope.label);
-      if (!exampleLabel) return;
-      const errorType = extractErrorType(fid);
-      const columnTraits = columnTraitsFromFindingId(fid);
-      const description = templateExampleDescription(exampleLabel, errorType, columnTraits);
+      const draft = buildFindingExampleDraft(scope.findingId, scope.label);
+      if (!draft) return;
       const agreement = await this.repo.countDistinctAuthors({
         workspaceId: scope.workspaceId,
-        findingId: fid,
+        findingId: (scope.findingId ?? '').trim(),
         label: scope.label,
-        labels: labelsForExampleLabel(exampleLabel),
+        labels: draft.labels,
       });
       const trustScore = computeTrustScore(agreement);
-      const queryText = `${errorType} | ${columnTraits} | ${description}`;
-      const embedding = this.ragFewShot ? this.ragFewShot.embedQueryText(queryText) : [];
+      const embedding = this.ragFewShot ? this.ragFewShot.embedQueryText(draft.queryText) : [];
       if (!embedding || embedding.length === 0) return;
       const normalized = normalizeExample({
-        errorType,
-        columnTraits,
-        description,
-        label: exampleLabel,
+        errorType: draft.errorType,
+        columnTraits: draft.columnTraits,
+        description: draft.description,
+        label: draft.exampleLabel,
         embedding,
         trustScore,
         language: 'vi',

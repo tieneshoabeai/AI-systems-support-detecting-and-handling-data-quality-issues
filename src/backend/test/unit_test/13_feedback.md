@@ -6,6 +6,7 @@
 - Cô lập dependency: feedback/analysis/project/user/RAG ports, realtime, clock.
 - Mỗi dòng là một nhóm ca; dấu `/` hoặc danh sách giá trị phải triển khai thành các ca riêng, không chỉ chọn một đại diện.
 - Cập nhật 2026-11-24 (Phần 13 v16 mục 3.29): 13/14 nhóm đã phủ (`[x]`); còn mở FB-010 (metrics khi total = 0 chưa có ca riêng).
+- Cập nhật 2026-11-25 (Phần 13 v18 mục 3.31): thêm FB-015 (mẫu RAG cũ sai khuôn — migration `scrub-few-shot`), đã phủ. 14/15 nhóm đã phủ.
 - P0: quyền/dữ liệu/trạng thái cốt lõi; P1: logic và biên quan trọng. `RISK`/`GAP`/`OPEN` không phải khẳng định đã có lỗi được tái hiện.
 
 ## Các phần cần test
@@ -24,3 +25,4 @@
 - [x] **FB-012 [P1]** Feedback đủ điều kiện RAG → normalize và upsert đúng ví dụ; chưa đủ trust/thiếu description/embedding rỗng → không lưu ví dụ. — *Đã phủ (2026-11-24): test/unit/feedback/feedback-v14.spec.ts (FBT-06).*
 - [x] **FB-013 [P1]** Cập nhật feedback đã có → không nhân đôi contribution; RAG lỗi không được làm sai trạng thái feedback đã persist. — *Đã phủ (2026-11-24): test/unit/feedback/feedback-v14.spec.ts (FBT-06, FBT-07).*
 - [x] **FB-014 [P1]** Emit feedback.created → đúng project/run và metadata an toàn, không gửi reason/raw text vào realtime payload. — *Đã phủ (2026-11-24): test/unit/feedback/feedback-v14.spec.ts (FBT-11).*
+- [x] **FB-015 [P0]** Mẫu RAG lưu trước khi có khuôn (mô tả là `reason`, `"<nhãn> cho <findingId>"`, đặc tính cột chưa sạch) → migration xoá mềm, giữ mẫu đúng khuôn kể cả dưới ngưỡng, dựng lại mẫu theo khuôn từ nhận xét ≥ 3 người; dry-run không ghi; chạy lại không đổi. — *Đã phủ (2026-11-25): test/unit/feedback/feedback-example-template.spec.ts (FST-01), test/integration/few-shot-scrub.spec.ts (FST-02…04).*
