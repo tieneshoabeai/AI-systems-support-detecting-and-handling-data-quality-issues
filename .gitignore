@@ -65,6 +65,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Redis local snapshot (sinh ra khi chay redis-server test locally)
+dump.rdb
+*.rdb
+
 build_env.md
 .agent/
 remember/
