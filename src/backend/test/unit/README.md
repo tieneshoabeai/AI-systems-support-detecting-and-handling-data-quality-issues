@@ -20,14 +20,14 @@ Lưu ý: `pnpm test:arch` trong `package.json` chỉ chạy **5/9 file**: `zero-
 
 | Thư mục | Số file | Test cái gì |
 |---|---|---|
-| `analysis/` | 19 | Guard chống quá tải (GĐ0/GĐ8/GĐ9/GĐ10/GĐ12), GĐ2 missing-token (6 describe), GĐ7 vai trò cột, wave5 DQ-01→DQ-04, wave6-10 AN-14→AN-45, PDF, report-content, đợt K (AK-01→AK-07), route `/result` + audit (VAT-06/07); `vqd-port/` 6 file port đợt A–I |
+| `analysis/` | 20 | Guard chống quá tải (GĐ0/GĐ8/GĐ9/GĐ10/GĐ12), GĐ2 missing-token (6 describe), GĐ7 vai trò cột, wave5 DQ-01→DQ-04, wave6-10 AN-14→AN-45, PDF, report-content, đợt K (AK-01→AK-07), route `/result` + audit (VAT-06/07), thông báo K6 (NTT-02→NTT-06); `vqd-port/` 6 file port đợt A–I |
 | `arch/` | 9 | Luật kiến trúc CA1–CA14, MM5+MM6, guard-coverage, zero-any, contract-coverage, session, OPEN-09 (2 file), OPEN-10, zod-openapi |
 | `auth/` | 2 | Bootstrap admin OPEN-01 (+ RegisterSchema cấm `role`), Google OAuth PKCE+state |
 | `datasets/` | 10 | CSV delimiter, PII heuristic, findings, entity (7 describe), ingestion streaming, wave4, data-view, ép kiểu (2 describe), chart (2 describe), schema Swagger |
 | `feedback/` | 4 | Entity (5 describe) + wave7 FB-01→FB-06 + v14 FBT-01→FBT-11 (6 describe) + khuôn mẫu RAG FST-01 |
 | `infra/` | 8 | Event-dispatcher, storage dual-mode, storage-cleanup (3 describe), group1 Redis/Kafka/PDF, ai-worker (2 describe), ai-adapter+outbox (3 describe), report-worker, email-push (6 describe) |
 | `issues/` | 1 | Entity IssueReport (6 describe) |
-| `notifications/` | 1 | Entity Notification (4 describe) |
+| `notifications/` | 2 | Entity Notification (4 describe) + `dispatchNotificationViaPorts` (NTT-01) |
 | `projects/` | 2 | Entity (8 describe) + service (1 project = 1 dataset) |
 | `realtime/` | 3 | Gateway Socket.IO, revocation OPEN-08 (4 describe), envelope+room |
 | `shared/` | 8 | CASL, crypto, mask-pii, keyset cursor (6 describe), record-keyset-cursor, device-detector, domain-error (+error-mapping), policies-guard |

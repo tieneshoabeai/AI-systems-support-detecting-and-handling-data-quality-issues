@@ -14,6 +14,7 @@ import {
 import { groundAiAssessment, RawAiAssessment } from '../../domain/ai-grounding.util';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
+import { AnalysisNotifierService } from '../services/analysis-notifier.service';
 
 /** Người gọi qua HTTP (Phần 7 v15 §3.25 VA-2). Worker nội bộ gọi KHÔNG kèm actor → không ghi audit. */
 export interface AiJobActor {
@@ -32,6 +33,9 @@ export class IngestAiResultHandler {
     @Optional()
     @Inject(AUDIT_LOGGER_PORT)
     private readonly audit?: AuditLoggerPort,
+    /** K6 — `ai_analysis_ready` cho người chạy phân tích (Phần 9 v7 mục 3.14). */
+    @Optional()
+    private readonly notifier?: AnalysisNotifierService,
   ) {}
 
   async execute(
@@ -103,6 +107,14 @@ export class IngestAiResultHandler {
       // realtime không bao giờ làm hỏng luồng nghiệp vụ chính
     }
     await auditIngest(status);
+    // K6 (NT-3): thành công hoặc grounding không đạt đều báo; notifier tự nuốt lỗi.
+    await this.notifier?.aiFinished({
+      jobId,
+      runId: (job.analysisRunId as string).toString(),
+      attempt: job.attempt ?? 0,
+      outcome: status,
+      errorCode: status === 'failed' ? 'AI_GROUNDING_FAILED' : null,
+    });
     return {
       jobId,
       status,

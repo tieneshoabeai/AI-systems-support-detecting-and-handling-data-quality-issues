@@ -28,3 +28,7 @@ export {
   type ListNotificationsQueryDto,
   type UpdateNotificationPreferencesDto,
 } from './notifications.controller';
+export {
+  dispatchNotificationViaPorts,
+  type DispatchViaPortsInput,
+} from './notification-dispatch.util';

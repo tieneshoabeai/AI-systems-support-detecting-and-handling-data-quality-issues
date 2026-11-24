@@ -65,7 +65,7 @@ analysis/
 ## 3. Luồng chạy chi tiết
 
 1. `POST /projects/:projectId/analysis` -> `RunAnalysisHandler`: kiểm tra `ANALYSIS_MAX_ROWS` và guard RAM/CPU trước khi đọc Mongo; quét bản ghi qua `RECORD_QUERY_PORT`; tính DQ-01..DQ-04, stats, correlation, VIF, suspicion; lưu `analysis_run` + `analysis_result`; tạo `ai_job` corr-v1 (pending) và trả 201 ngay.
-2. `AiWorkerService` (poll): nhận job pending -> running (lease 10 phút), kiểm tra `ResourceGuard`, dựng prompt (`BuildPromptForJobHandler`: che PII, gắn few-shot từ `feedback`, cắt top_n), gọi `LocalInferenceAdapter` (vLLM/Ollama), tách JSON (`extractJsonObject`), grounding strict (`ai-grounding`), lưu qua `IngestAiResultHandler`. Job cũ bị retry sẽ thành `skipped`, kết quả trễ không ghi đè. Lỗi JSON khi còn lượt: chỉ trả job về `pending` để thử lại; hết `AI_MAX_RETRIES`: job `failed` mã `AI_FAILED` (đợt K1).
+2. `AiWorkerService` (poll): nhận job pending -> running (lease 10 phút), kiểm tra `ResourceGuard`, dựng prompt (`BuildPromptForJobHandler`: che PII, gắn few-shot từ `feedback`, cắt top_n), gọi `LocalInferenceAdapter` (vLLM/Ollama), tách JSON (`extractJsonObject`), grounding strict (`ai-grounding`), lưu qua `IngestAiResultHandler`. Job AI kết thúc (thành công, grounding không đạt, hoặc hết lượt) → thông báo `ai_analysis_ready` cho người chạy phân tích (K6). Job cũ bị retry sẽ thành `skipped`, kết quả trễ không ghi đè. Lỗi JSON khi còn lượt: chỉ trả job về `pending` để thử lại; hết `AI_MAX_RETRIES`: job `failed` mã `AI_FAILED` (đợt K1).
 3. `POST /projects/:projectId/summary` -> `CreateSummaryHandler`: lấy kết quả mới nhất, kiểm tra fingerprint (dữ liệu đổi thì đánh `is_stale`), sinh tóm tắt 5 mức ảnh hưởng + nghi vấn + cấu hình đã dùng.
 4. `POST /projects/:projectId/report` -> `RequestReportHandler`: tạo `report_job` 202. `ReportWorkerService` dựng PDF (`buildReportSections` thuần + `buildReportPdfAsync` PDFKit/DejaVuSans, tối đa 500 dòng bằng chứng), upload Storage, đánh `succeeded`. `report_job` có lease (`lease_expires_at`, `attempt`): job `running` hết lease được nhận lại, đủ 3 lượt → `failed` mã `REPORT_LEASE_EXPIRED` (đợt K5).
 
@@ -91,7 +91,8 @@ Tất cả đều JWT + `ProjectScopePolicyLoader`/`AnalysisJobPolicyLoader` + `
 - Controller không import pdfkit/puppeteer; PDF chỉ sinh ở worker rồi `uploadStream`.
 - Prompt không log (chứa dữ liệu nhạy cảm dù đã che); chỉ log độ dài + thời gian.
 - Fingerprint đổi khi PII/metadata đổi -> kết quả cũ đánh stale.
+- Thông báo cho người chạy phân tích (`analysis_completed` / `analysis_failed` / `ai_analysis_ready`, K6) đi qua `AnalysisNotifierService` → `dispatchNotificationViaPorts` của `notifications` (cách module `issues`, không email); lỗi thông báo không bao giờ làm hỏng luồng phân tích. Summary lỗi chỉ nêu mã lỗi.
 
 ## 6. Test liên quan
 
-`test/unit/analysis/` (11 tệp), `test/e2e/analysis-report-summary.e2e-spec.ts`, `test/k6/analysis-latency.js` (1 VU, p95 dưới 8000ms với 100k dòng).
+`test/unit/analysis/` (thêm `analysis-k6-notifications.spec.ts` cho K6), `test/e2e/analysis-report-summary.e2e-spec.ts`, `test/k6/analysis-latency.js` (1 VU, p95 dưới 8000ms với 100k dòng).

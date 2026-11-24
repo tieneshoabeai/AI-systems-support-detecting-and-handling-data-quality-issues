@@ -16,6 +16,7 @@ Test thuật toán **thuần** (không DB). Tất cả `describe` dưới đây 
 | `pdf-builder.spec.ts` | `PDF builder — giữ dấu tiếng Việt` |
 | `report-content.spec.ts` | `GĐ3 — buildReportSections` + 7 describe con (mục 2, GĐ2 riêng, mục 4, mục 5 VIF, phụ lục D, không kết quả, mục 2b) |
 | `analysis-dot-k.spec.ts` | `AK-01 / AK-02 (K1): worker AI thử lại khi AI trả không phải JSON` ; `AK-03 / AK-04 (K2): cột ngày trong DQ-01..04` ; `AK-05 (K3): mức DQ-04 trong Tổng kết theo outlierBreakdown` ; `AK-06 (K4): nhãn số vai trò phân loại` ; `AK-07 (K5): worker PDF nhận job kèm lease` (5 describe — Phần 13 v17 mục 3.27) |
+| `analysis-k6-notifications.spec.ts` | `NTT-02 / NTT-03 / NTT-04 — RunAnalysisHandler` ; `NTT-05 — IngestAiResultHandler` ; `NTT-06 — AiWorkerService` (3 describe — thông báo K6, Phần 13 v18 mục 3.31) |
 | `analysis-ai-result-guard.spec.ts` | `VAT-06 — POST /analysis/jobs/:jobId/result chỉ SYS-ADMIN (VA-1)` ; `VAT-07 — audit job AI (VA-2)` (Phần 13 v17 mục 3.30) |
 
 **`vqd-port/`** — 48 ca test đợt A–I của nhánh `Vqd_BE` port sang handler sau refactor P1–P6 (Phần 13 v17 mục 3.26). `legacy-analysis-facade.ts` giữ chữ ký service cũ và gọi handler mới; assert giữ nguyên. Ca không port ghi lý do ngay trong file.

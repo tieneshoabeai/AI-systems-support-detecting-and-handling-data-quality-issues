@@ -1460,7 +1460,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 
 ### 3.26. Đóng việc còn mở của data-view, analysis, feedback (v16)
 
-- **Trạng thái:** DL-1…DL-6 đã thực hiện 2026-11-25; NT-1…NT-7 đề xuất (test: Phần 13 v18 mục 3.31).
+- **Trạng thái:** Đã thực hiện 2026-11-25 (test: Phần 13 v18 mục 3.31).
 - **Phạm vi:** `GET /datasets/{datasetId}/records`, `POST /datasets/{datasetId}/records/query` (DL-*); thông báo trong `GET /notifications` và realtime `notification.created` (NT-*). **Không** thêm/xoá route, **không** đổi shape response. Việc quét mẫu RAG cũ (OPEN-FB-01) không đổi API — xem Phần 12 v17 §3.24 và Phần 11 v5.
 
 **Data Views — cursor và ngày legacy:**
@@ -1566,6 +1566,7 @@ Có API contract cùng ví dụ thành công/lỗi và liên kết tới tiêu c
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Thực hiện v16 / 2026-11-25:** Hoàn tất code + test mục 3.26 / Người dùng duyệt plan / Đổi trạng thái sang đã thực hiện; điều chỉnh khi cài: cursor bọc ở `DataViewService` (port không đổi), thêm DL-6 (so sánh thứ tự khớp ô trống — lỗi có sẵn phát hiện khi viết test DL-5).
 - **Đề xuất v16 / 2026-11-25:** Đóng việc còn mở của data-view, analysis, feedback (mục 3.26: DL-1…DL-6, NT-1…NT-7) / Người dùng nhận 3 module và duyệt plan; chốt thông báo theo khuôn `issues` (không email), AI lỗi vẫn gửi `ai_analysis_ready` kèm lỗi / Thêm mục 3.26 + ghi chú §3.7, §3.23; docs trước code.
 - **Làm rõ v15 / 2026-11-25:** FB-R6 ghi rõ "không còn quyền" nghĩa là không còn là thành viên project lẫn workspace / Chạy thử API thật trước khi push phát hiện mô tả cũ dễ hiểu nhầm thành "chỉ cần gỡ khỏi project" / Chỉ làm rõ câu chữ, không đổi hành vi.
 - **Thực hiện v15 / 2026-11-24:** Hoàn tất code + test mục 3.25 / Người dùng duyệt plan / Đổi trạng thái sang đã thực hiện; audit ghi ở handler (`RetryJobHandler`, `IngestAiResultHandler`) qua tham số `actor` tuỳ chọn — worker gọi không kèm `actor` nên không ghi.

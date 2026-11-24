@@ -1526,7 +1526,7 @@ Nhóm A gồm ba loại:
 
 ### 3.31. Test đợt đóng việc còn mở của data-view, feedback, analysis (v18)
 
-- **Trạng thái:** DLT-01…DLT-08 và FST-01…FST-04 đã thực hiện 2026-11-25; NTT-01…NTT-06 đề xuất.
+- **Trạng thái:** Đã thực hiện 2026-11-25 — `tsc` 0, `lint` 0, `test:arch` 23/23, `arch:api-coverage` 84/84; `test:unit` 77/77 suite (1232 đạt, 3 skip); integration 190/193 (3 lỗi MinIO — OPEN-T-01); E2E 12/12 suite (94 ca). **Chạy thử API thật** (server từ bản build, MongoDB/Redis thật, database riêng `dq_smoke`): 21/21 ca — cursor lệch bộ lọc / tìm kiếm / quá hạn / dạng cũ, duyệt hết trang có lọc + sort, `lessThan` bỏ ô trống, chuỗi ngày legacy, `analysis_completed` + `ai_analysis_ready` cho người chạy (không trùng khi nạp lại, không gửi khi đã tắt thông báo).
 - **Hợp đồng:** Phần 7 v16 mục 3.26 (DL-1…DL-5, NT-1…NT-7); Phần 12 v17 mục 3.24 (OPEN-FB-01); Phần 11 v5 (migration `scrub-few-shot`); Phần 9 v7 (người nhận thông báo phân tích).
 - **E2E có sẵn bên `backend`:** `test/e2e/feedback-notifications-overview.e2e-spec.ts`, `test/e2e/dataset-dataview.e2e-spec.ts` lỗi biên dịch TS18048 (mock khai `Record<string, jest.Mock>` khi bật `noUncheckedIndexedAccess`) → bỏ chú thích kiểu. Sau sửa: E2E 12/12 suite, 94/94 ca.
 
@@ -1655,6 +1655,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 | **Ghi nhận** | Câu hỏi mở #3 ở Phần 11 (số lượng `dataset_record` thực tế) vẫn còn — ảnh hưởng kịch bản k6 và thời gian chạy test import |
 
 ## 7. Prompting log và lịch sử thay đổi
+- **Thực hiện v18 / 2026-11-25:** Hoàn tất DLT-01…08, FST-01…04, NTT-01…06 / Người dùng duyệt plan / Đổi trạng thái sang đã thực hiện.
 - **Đề xuất v18 / 2026-11-25:** Test đợt đóng việc còn mở (mục 3.31: DLT-01…08, FST-01…04, NTT-01…06) + sửa 2 e2e lỗi biên dịch / Người dùng nhận 3 module data-view, feedback, analysis và duyệt plan / Thêm mục 3.31; docs trước code.
 - **Bổ sung v17 / 2026-11-25:** Kéo `origin/backend` (8 commit, gom test theo module) trước khi push / Người dùng yêu cầu kéo code `backend` về trước khi push / Bảng mục 3.30 đổi sang đường dẫn `test/unit/<module>/`; thêm ghi chú đối chiếu cho mục 3.20–3.29; VAT-06 thêm ca không có `ConfigService`.
 - **Thực hiện v17 / 2026-11-24:** Hoàn tất VAT-01…VAT-08 / Người dùng duyệt plan / Đổi trạng thái mục 3.30 sang đã thực hiện.

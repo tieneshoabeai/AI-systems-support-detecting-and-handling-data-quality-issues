@@ -1,10 +1,11 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ANALYSIS_REPOSITORY_PORT, type AnalysisRepositoryPort } from '../../domain/ports/analysis.repository.port';
 import { AiInferencePort, extractJsonObject } from '../ports/ai-inference.port';
 import { RESOURCE_GUARD_PORT, type ResourceGuardPort } from '../ports/resource-guard.port';
 import { BuildPromptForJobHandler } from '../commands/build-prompt-for-job.handler';
 import { IngestAiResultHandler } from '../commands/ingest-ai-result.handler';
+import { AnalysisNotifierService } from './analysis-notifier.service';
 
 const DEFAULT_MAX_ATTEMPTS = 2;
 /** Phan 10 v6: lease timeout 10 phut → job 'running' het han bi 'skipped' */
@@ -31,6 +32,9 @@ export class AiWorkerService implements OnModuleInit {
     private readonly config: ConfigService,
     @Inject(RESOURCE_GUARD_PORT)
     private readonly resourceGuard: ResourceGuardPort,
+    /** K6 — `ai_analysis_ready` khi hết lượt thử (Phần 9 v7 mục 3.14). Thêm cuối, `@Optional`. */
+    @Optional()
+    private readonly notifier?: AnalysisNotifierService,
   ) {}
 
   onModuleInit(): void {
@@ -158,6 +162,14 @@ export class AiWorkerService implements OnModuleInit {
         } catch {
           // bỏ qua — job đã đánh dấu failed
         }
+        // K6 (NT-3): chỉ báo khi hết lượt; còn lượt (`pending`) → không báo.
+        await this.notifier?.aiFinished({
+          jobId,
+          runId: String(job.analysisRunId),
+          attempt,
+          outcome: 'failed',
+          errorCode: 'AI_FAILED',
+        });
       }
       this.logger.warn(`AI job ${jobId} loi (attempt ${attempt}): ${message}`);
     } finally {

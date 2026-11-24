@@ -6,6 +6,7 @@
  * Dependency chỉ qua port token — không inject adapter cụ thể.
  */
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { AnalysisNotifierService } from '../services/analysis-notifier.service';
 import { REALTIME_PORT, type RealtimePort } from '../../../realtime';
 import {
   ANALYSIS_REPOSITORY_PORT,
@@ -84,6 +85,9 @@ export class RunAnalysisHandler {
     @Optional()
     @Inject(REALTIME_PORT)
     private readonly realtime: RealtimePort,
+    /** K6 — thông báo cho người chạy phân tích (Phần 9 v7 mục 3.14). Thêm cuối, `@Optional`. */
+    @Optional()
+    private readonly notifier?: AnalysisNotifierService,
   ) {
     this.concurrencyGuard = new AnalysisConcurrencyGuard(
       resolveAnalysisMaxConcurrency(this.configService.get('ANALYSIS_MAX_CONCURRENCY')),
@@ -807,6 +811,13 @@ export class RunAnalysisHandler {
       } catch {
         // realtime không bao giờ làm hỏng luồng nghiệp vụ chính
       }
+      // K6 (NT-1): notifier tự nuốt lỗi — không làm hỏng luồng phân tích.
+      await this.notifier?.runCompleted({
+        runId: run.id,
+        projectId,
+        startedBy: run.startedBy,
+        datasetName: dataset.name,
+      });
 
       return this.toApiShape(result.id, run.id, fp, job.id, promptPreview);
     } catch (err: unknown) {
@@ -831,6 +842,13 @@ export class RunAnalysisHandler {
       } catch {
         // bỏ qua lỗi realtime
       }
+      // K6 (NT-2): summary chỉ nêu mã lỗi; notifier tự nuốt lỗi rồi vẫn ném lỗi gốc.
+      await this.notifier?.runFailed({
+        runId: run.id,
+        projectId,
+        startedBy: run.startedBy,
+        datasetName: dataset.name,
+      });
       throw err;
     }
   }

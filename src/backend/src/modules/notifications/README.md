@@ -22,6 +22,7 @@ Trung tâm thông báo của người dùng: danh sách, số chưa đọc, chi 
 | `notification.mapper.ts` | Map DB -> API, chuẩn hóa thời gian. |
 | `notification-email.mapper.ts` | Dựng tiêu đề/nội dung email từ Notification (dùng `email-templates` của shared). |
 | `notifications.utils.ts` | Lọc theo tùy chọn, cắt ngắn title/summary (`MAX_TITLE_LENGTH/SUMMARY_LENGTH`). |
+| `notification-dispatch.util.ts` | `dispatchNotificationViaPorts` — cho module khác tạo thông báo qua port: kiểm công tắc → `createIfEventNotExists` (chống trùng theo `source_event_id`) → realtime `notification.created`. Không gửi email. `analysis` dùng cho `analysis_completed` / `analysis_failed` / `ai_analysis_ready`. |
 | `notifications.module.ts` | Khai báo controller/service/repository, đăng ký subscriber lắng nghe event bus, tiêm `PUSH_PORT/EMAIL_PORT`. |
 | `index.ts` | Public contract đầy đủ. |
 
@@ -41,6 +42,7 @@ Trung tâm thông báo của người dùng: danh sách, số chưa đọc, chi 
 2. Subscriber của notifications nhận, gọi `dispatch`: tạo bản ghi DB + kiểm tra `shouldDispatch`.
 3. Đẩy ntfy (`NtfyPushSenderAdapter`) và email (`SmtpEmailSenderAdapter`) — cả hai đều try/catch, lỗi chỉ log, không làm sập API.
 4. Realtime đẩy `notification.*` vào phòng `user:{id}` để frontend cập nhật tức thì.
+5. Đường thứ hai (không qua event bus, không email): module nghiệp vụ gọi thẳng `dispatchNotificationViaPorts` — `issues` (hàm riêng cùng logic) và `analysis` (K6, Phần 9 v7 mục 3.14).
 
 ## 5. Bất biến
 
@@ -50,4 +52,4 @@ Trung tâm thông báo của người dùng: danh sách, số chưa đọc, chi 
 
 ## 6. Test liên quan
 
-`test/unit/notifications/` (dispatch, prefs), `test/unit/workflows/notifications-issues-wave6.spec.ts`, `test/e2e/feedback-notifications-overview.e2e-spec.ts`.
+`test/unit/notifications/` (entity, `notification-dispatch.spec.ts`), `test/unit/workflows/notifications-issues-wave6.spec.ts`, `test/e2e/feedback-notifications-overview.e2e-spec.ts`.

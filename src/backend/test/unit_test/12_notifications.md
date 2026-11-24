@@ -5,11 +5,12 @@
 - Nguồn (tương đối với `src/backend/src/`): modules/notifications/application; modules/notifications/domain.
 - Cô lập dependency: notification/user repository, realtime, clock.
 - Mỗi dòng là một nhóm ca; dấu `/` hoặc danh sách giá trị phải triển khai thành các ca riêng, không chỉ chọn một đại diện. Tất cả chưa thực thi.
+- Cập nhật 2026-11-25 (Phần 13 v18 mục 3.31): thêm NOT-012 (thông báo phân tích K6), đã phủ; NOT-001 phủ cho đường `dispatchNotificationViaPorts`.
 - P0: quyền/dữ liệu/trạng thái cốt lõi; P1: logic và biên quan trọng. `RISK`/`GAP`/`OPEN` không phải khẳng định đã có lỗi được tái hiện.
 
 ## Các phần cần test
 
-- [ ] **NOT-001 [P1]** Dispatch optional với notifications_enabled true/false/undefined → theo policy, false không tạo bản ghi.
+- [x] **NOT-001 [P1]** Dispatch optional với notifications_enabled true/false/undefined → theo policy, false không tạo bản ghi. — *Đã phủ cho `dispatchNotificationViaPorts` (2026-11-25): test/unit/notifications/notification-dispatch.spec.ts (NTT-01); `NotificationsService.dispatch` chưa có ca riêng.*
 - [ ] **NOT-002 [P0]** Thông báo mandatory khi người dùng tắt thông báo → vẫn tạo; mandatory type và explicit flag được kết hợp đúng.
 - [ ] **NOT-003 [P1]** Notification entity title có khoảng trắng và quá 200 ký tự → normalize theo contract; không thay body ngoài ý muốn.
 - [ ] **NOT-004 [P1]** Dispatch hợp lệ → persist trước emit, gửi đúng user room; repository không tạo được → không emit thành công.
@@ -20,3 +21,4 @@
 - [ ] **NOT-009 [P1]** Count unread → đúng user và trạng thái readAt, 0 hợp lệ; không tính của user khác.
 - [ ] **NOT-010 [P1]** List có filter/cursor → đúng thứ tự/hasMore, empty list hợp lệ; cursor sai → validation.
 - [ ] **NOT-011 [P1]** Update preferences true/false → user port nhận đúng boolean; user không tồn tại → NotFound.
+- [x] **NOT-012 [P1]** Thông báo phân tích (K6): run `succeeded`/`failed` → `analysis_completed`/`analysis_failed` cho `started_by`; job AI kết thúc → `ai_analysis_ready` (thành công / grounding lỗi / hết lượt), còn lượt → không gửi; `started_by` null, tắt công tắc, lỗi tạo thông báo → không làm hỏng luồng; summary lỗi không lộ thông điệp nội bộ. — *Đã phủ (2026-11-25): test/unit/analysis/analysis-k6-notifications.spec.ts (NTT-02…06).*

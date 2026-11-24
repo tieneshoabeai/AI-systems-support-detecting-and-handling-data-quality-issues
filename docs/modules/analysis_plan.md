@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.13 (2026-11-25)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g. **2026-11-25:** kéo tiếp 8 commit của `origin/backend` trước khi push — mục 7k.
+**Phiên bản:** v1.14 (2026-11-25)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g. **2026-11-25:** kéo tiếp 8 commit của `origin/backend` trước khi push — mục 7k; làm K6 (thông báo phân tích) — mục 7l.
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -236,11 +236,11 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 | K4 | Chọn nhãn theo vai trò `category` nhưng `evaluateImbalance` xét kiểu `number` là liên tục | Không bao giờ đánh giá mất cân bằng với nhãn số (Survived, target, pclass) | `domain/stats.util.ts` + run handler | Phần 12 v14 mục 3.23 |
 | K5 | Job PDF không có lease (job AI có) | Worker dừng giữa chừng → báo cáo kẹt `running` mãi | `infrastructure/persistence/analysis.repository.ts`, `report-job.schema.ts`, `report-worker.service.ts` | Phần 9 v6 mục 3.13, Phần 8 v13 mục 3.20 |
 
-- **Ngoài phạm vi, báo nhóm:** K6 — loại thông báo `analysis_completed` / `ai_analysis_ready` có trong module notifications nhưng chưa nơi nào tạo (realtime `analysis.completed` vẫn chạy) → tính năng chưa làm, không phải lỗi. AN-08 / AN-11–13: kiểm quyền đã chuyển sang guard CASL — chưa đối chiếu lại ma trận quyền Phần 6 v9 mục 3.22–3.23.
+- **Ngoài phạm vi, báo nhóm:** K6 — loại thông báo `analysis_completed` / `ai_analysis_ready` có trong module notifications nhưng chưa nơi nào tạo (realtime `analysis.completed` vẫn chạy) → tính năng chưa làm, không phải lỗi *(đã làm ở mục 7l)*. AN-08 / AN-11–13: kiểm quyền đã chuyển sang guard CASL — chưa đối chiếu lại ma trận quyền Phần 6 v9 mục 3.22–3.23.
 - **Test:** Phần 13 v14 mục 3.27 (AK-01 → AK-08), file `src/backend/test/analysis-dot-k.spec.ts`.
 - **Trạng thái:** Đã thực hiện 2026-11-24. Kết quả: unit 1106 pass (2 lỗi `/proc/meminfo` có từ mốc), `test:arch` 23/23, integration 139/142 (3 lỗi MinIO thiếu image, có từ mốc), `arch:api-coverage` 84/84, type-check + lint sạch; `local_VQD` bộ mẫu 0 FAIL / 0 bỏ sót, edge-cases 28/28 bẫy.
 - **Thay đổi kèm theo:** `test/ai-worker.spec.ts` — ca "lỗi JSON ⇒ gọi ingest với payload rỗng" của nhánh `backend` kiểm đúng hành vi lỗi K1 (và mâu thuẫn với ca "vẫn retry" ngay sau) → đổi thành "lỗi JSON còn lượt ⇒ không gọi ingest, job vẫn pending". Test mới: `test/analysis-dot-k.spec.ts` (AK-01 → AK-06), `test/integration/report-lease.spec.ts` (AK-07, MongoDB thật). Xác nhận ngược: tạm gỡ phần sửa `src/` thì bộ test đợt K không đạt.
-- **Còn lại (báo nhóm):** K6 thông báo phân tích xong; đối chiếu ma trận quyền AN-08 / AN-11–13 với guard CASL. *(v1.12: trạng thái Phần 13 mục 3.27 đã ghi "Đã thực hiện" ở Phần 13 v17.)*
+- **Còn lại (báo nhóm):** K6 thông báo phân tích xong *(đã làm ở mục 7l)*; đối chiếu ma trận quyền AN-08 / AN-11–13 với guard CASL. *(v1.12: trạng thái Phần 13 mục 3.27 đã ghi "Đã thực hiện" ở Phần 13 v17.)*
 
 ## 7j. Vá sau rà soát commit (2026-11-24)
 
@@ -263,12 +263,28 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - **Kết quả:** `tsc` 0, `lint` 0, `test:arch` 23/23 (đủ 9 file arch: 64 đạt, 1 skip), `arch:api-coverage` 84/84; `test:unit` 74/74 suite (1197 đạt, 3 skip); integration 175/178 (3 lỗi MinIO — OPEN-T-01); E2E 10/12 suite, 87/87 ca.
 - **Báo nhóm `backend` (có sẵn trên `origin/backend`, không do merge):** 2 e2e mới `feedback-notifications-overview.e2e-spec.ts` và `dataset-dataview.e2e-spec.ts` không biên dịch được — TS18048 vì mock khai `Record<string, jest.Mock>` trong khi `tsconfig` bật `noUncheckedIndexedAccess`. Đã chạy lại trên worktree sạch của `origin/backend`: cùng 2 suite lỗi, cùng 87/87 ca.
 
+## 7l. K6 — thông báo phân tích xong / lỗi / AI xong (2026-11-25)
+
+- **Nguồn:** mục 9 "Việc còn mở" của báo cáo thay đổi nhánh `Vqd_BE`; người dùng nhận module analysis và duyệt plan.
+- **Hiện trạng:** đợt D/E (Phần 9 §3.12) từng gửi 3 loại thông báo qua `NotificationsService.dispatch` trong `AnalysisService`; refactor P1–P6 của `backend` tách service thành handler và phần thông báo bị mất → không nơi nào tạo `analysis_completed`, `analysis_failed`, `ai_analysis_ready`.
+- **Quyết định của người dùng:** làm theo cách module `issues` (port, không outbox, **không email**); job AI thất bại vẫn gửi `ai_analysis_ready` kèm summary báo lỗi (không thêm loại mới).
+- **Thay đổi:**
+  - `notifications/notification-dispatch.util.ts` — `dispatchNotificationViaPorts` (kiểm công tắc → `createIfEventNotExists` → realtime `notification.created`), public qua `notifications/index.ts`. Module `issues` giữ hàm riêng (có thể gộp sau).
+  - `analysis/application/services/analysis-notifier.service.ts` — `runCompleted`, `runFailed`, `aiFinished`; người nhận `analysis_run.started_by`; nuốt mọi lỗi.
+  - Gắn vào `RunAnalysisHandler` (thành công / nhánh lỗi), `IngestAiResultHandler` (sau grounding), `AiWorkerService` (chỉ nhánh hết lượt) — tham số **cuối** constructor, `@Optional()`, nên test cũ khởi tạo theo vị trí không đổi.
+  - `analysis.module.ts` import `NotificationsModule`, `UsersModule` (không tạo vòng — `test:arch` CA9 đạt).
+  - `source_event_id`: `analysis_completed:<runId>`, `analysis_failed:<runId>`, `ai_analysis_ready:<jobId>:<attempt>`; `payload.targetType = 'analysis_run'`; summary lỗi chỉ nêu mã.
+- **Hợp đồng / test:** Phần 9 v7 mục 3.14 (làm rõ quy tắc actor §3.6.1), Phần 7 v16 mục 3.26 NT-1…NT-7, Phần 13 v18 NTT-01…NTT-06 (`test/unit/analysis/analysis-k6-notifications.spec.ts`, `test/unit/notifications/notification-dispatch.spec.ts`).
+- **Còn mở:** OPEN-K6-EMAIL (không gửi email); khi worker AI chạy process riêng, realtime `notification.created` cần Redis adapter.
+- **Trạng thái:** Đã thực hiện 2026-11-25 — 18/18 ca mới; test analysis/notifications cũ giữ nguyên.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.14 / 2026-11-25:** Thêm mục 7l — K6 thông báo phân tích xong / lỗi / AI xong (theo cách module `issues`, không email); đánh dấu K6 đã làm ở mục 7i.
 - **v1.13 / 2026-11-25:** Thêm mục 7k — kéo 8 commit `origin/backend` (gom test theo module, viết lại README), giải quyết xung đột, sửa tương thích `ConfigService`; đổi mục 7j về cấp `##` cho đồng nhất.
 - **v1.12 / 2026-11-24:** Thêm mục 7j — vá sau rà soát commit (quyền `/result`, audit job AI); ghi nhận đã cập nhật trạng thái Phần 13 mục 3.27.
 - **v1.11 (thực hiện) / 2026-11-24:** Hoàn tất đợt K (K1–K5) — code + test; cập nhật trạng thái mục 7i.

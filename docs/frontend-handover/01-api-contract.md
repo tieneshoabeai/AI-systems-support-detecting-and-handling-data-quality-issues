@@ -341,6 +341,11 @@ Bat buoc `reason` khi `label` la `false_positive | missed_issue | other` (ca khi
   ```json
   { "notificationsEnabled": true }
   ```
+- **Thong bao phan tich (cap nhat 2026-11-25, Phan 7 v16 muc 3.26 NT-*):** nguoi chay phan tich nay nhan 3 loai thong bao trong `GET /notifications` (va realtime `notification.created` o phong `user:{userId}`):
+  - `analysis_completed` — lan phan tich xong; `analysis_failed` — lan phan tich loi (summary chi neu ma loi);
+  - `ai_analysis_ready` — phan nhan xet AI ket thuc: tieu de "Nhan xet AI da san sang" khi thanh cong, "Phan nhan xet AI that bai" khi loi (summary co ma loi `AI_GROUNDING_FAILED` / `AI_FAILED`).
+  - `payload`: `{ targetType: "analysis_run", targetId: <analysisRunId>, actionUrl: null }` — frontend tu dung duong dan toi man ket qua phan tich cua project.
+  - Ca 3 loai deu **khong bat buoc**: nguoi dung tat thong bao (`notificationsEnabled: false`) thi khong nhan. Chua gui email cho 3 loai nay.
 
 ## Issues (bao su co) — `@Controller()`
 

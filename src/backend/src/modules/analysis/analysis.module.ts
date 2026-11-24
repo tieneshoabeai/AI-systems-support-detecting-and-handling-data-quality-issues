@@ -25,6 +25,9 @@ import { AnalysisController } from './presentation/controllers/analysis.controll
 import { ProjectsModule } from '../projects/projects.module';
 import { StorageModule } from '../../shared/infrastructure/storage/storage.module';
 import { DatasetsModule } from '../datasets/datasets.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
+import { AnalysisNotifierService } from './application/services/analysis-notifier.service';
 import { BuildPromptForJobHandler } from './application/commands/build-prompt-for-job.handler';
 import { GetJobHandler } from './application/queries/get-job.handler';
 import { GetResultHandler } from './application/queries/get-result.handler';
@@ -57,6 +60,9 @@ import { RequestReportHandler } from './application/commands/request-report.hand
     ProjectsModule,
     DatasetsModule,
     StorageModule,
+    // K6 — thông báo phân tích (Phần 9 v7 mục 3.14), cùng cách module `issues`.
+    NotificationsModule,
+    UsersModule,
   ],
   controllers: [AnalysisController, SummaryController, ReportController],
   providers: [
@@ -80,6 +86,7 @@ import { RequestReportHandler } from './application/commands/request-report.hand
     AnalysisJobPolicyLoader,
     AnalysisRunPolicyLoader,
     AiWorkerService,
+    AnalysisNotifierService,
     RagFewShotService,
     { provide: RAG_FEW_SHOT_PORT, useExisting: RagFewShotService },
   ],
