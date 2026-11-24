@@ -1,6 +1,7 @@
 import { requireDefined } from '../../utils/required-value'
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { AuthContext } from '../../hooks/auth/auth-context'
 import { SettingsPreviewView } from '../../views/preview/settings-2d.view'
 import { settingsSections } from '../../views/preview/preview-data'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
@@ -41,6 +42,29 @@ it('Settings chỉ hiện Accounts và System, chưa mở các mục con', () =>
 
   // Ảnh 4.4: "Đăng xuất tất cả các phiên khác" CHỈ ở màn Phiên.
   expect(screen.queryByRole('button', { name: 'Đăng xuất tất cả các phiên khác' })).toBeNull()
+})
+
+it('Cài đặt có nút riêng để đăng xuất phiên hiện tại', async () => {
+  const signOut = vi.fn().mockRejectedValue(new Error('Không thể đăng xuất'))
+  renderFrame(<AuthContext.Provider value={{
+    snapshot: {
+      phase: 'authenticated', generation: 1, sessionEnded: false,
+      accountId: 'settings-test', expiresAtMs: 4_000_000_000_000,
+      user: { source: 'login', value: { id: 'settings-test', email: 'settings@example.test', role: 'analyst' } },
+      error: null, cleanupError: null,
+    },
+    configurationError: null,
+    signIn: () => Promise.resolve(),
+    signOut,
+    confirmRenewal: () => Promise.resolve(),
+  }}><SettingsPreviewView section={null} /></AuthContext.Provider>)
+
+  const nav = within(screen.getByRole('navigation', { name: 'Chuyên mục Cài đặt' }))
+  fireEvent.click(nav.getByRole('button', { name: 'Đăng xuất' }))
+  expect(signOut).toHaveBeenCalledTimes(1)
+  expect(nav.getByRole('button', { name: 'Đang đăng xuất…' })).toHaveProperty('disabled', true)
+  expect((await nav.findByRole('alert')).textContent).toContain('Vui lòng thử lại.')
+  expect(nav.getByRole('button', { name: 'Đăng xuất' })).toHaveProperty('disabled', false)
 })
 
 it('ấn nhóm "Cài đặt tài khoản" trên rail CHỈ gập/mở — không đổi hash, không chọn màn hộ ai', () => {

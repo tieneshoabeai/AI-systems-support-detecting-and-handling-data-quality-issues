@@ -74,7 +74,7 @@ export function LiveAnalysisPanel({ project, canExecute, onAnalysisRun }: {
       if (savedResult.status === 'rejected') {
         if (asRecord(savedResult.reason)?.['status'] !== 404) throw savedResult.reason
         setConfigurationAvailable(false)
-        setConfigurationNotice('Backend hiện tại chưa hỗ trợ lưu cấu hình phân tích; có thể chạy với tham số được hỗ trợ.')
+        setConfigurationNotice('Không tải được cấu hình phân tích của Project (HTTP 404). Bạn vẫn có thể dùng các tùy chọn đang khả dụng.')
         setError('')
         return
       }

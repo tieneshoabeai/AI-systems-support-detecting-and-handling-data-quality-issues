@@ -428,6 +428,23 @@ function NotificationPrefsSection() {
 const isGroupActive = (item: SettingsNavItem, active: SettingsSectionId | null): boolean =>
   isSettingsNavGroup(item) && item.children.some(child => child.id === active)
 
+function SettingsSignOut() {
+  const auth = useContext(AuthContext)
+  const [status, setStatus] = useState<'idle' | 'pending' | 'error'>('idle')
+  if (!auth) return null
+
+  return <div className="settings-sign-out">
+    <Button className="settings-nav-item" busy={status === 'pending'} onClick={() => {
+      setStatus('pending')
+      void auth.signOut().catch(() => setStatus('error'))
+    }}>
+      <span className="settings-nav-icon" aria-hidden="true"><PreviewIcon name="logout" /></span>
+      <span>{status === 'pending' ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
+    </Button>
+    {status === 'error' && <p className="account-error" role="alert">Không thể đăng xuất. Vui lòng thử lại.</p>}
+  </div>
+}
+
 // Rail KHÔNG có ô tìm kiếm: thanh tìm kiếm chung của topbar đã bị gỡ khỏi mọi trang (yêu cầu
 // 03/11) và Settings chỉ có bảy mục trong hai cấp — gập/mở bằng nút trên chính rail là đủ để
 // tìm thấy hết. Vì vậy không còn bộ lọc theo nhãn ở đây.
@@ -507,6 +524,7 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
             </div>}
           </Fragment>
         })}
+        <SettingsSignOut />
       </nav>
 
       <div className="settings-body">

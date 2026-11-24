@@ -5,6 +5,8 @@ import { ProjectResultActions, ProjectResultDownload } from '../../views/preview
 import { ResultReviewDialog } from '../../views/preview/components/result-review-dialog'
 import { validateResultReview } from '../../services/processing/result-review'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
+import { ManagementStoreContext } from '../../hooks/preview/use-preview-store'
+import { PreviewSessionProvider } from '../../views/preview/preview-session'
 import { renderFrame } from './preview-test-kit'
 vi.mock('../../views/dataset-3d/dataset-3d.view', () => ({
   Dataset3DView: ({ onFocusComplete }: { onFocusComplete: (theme: string) => void }) => <button onClick={() => onFocusComplete('orange')}>Focus hoàn tất</button>,
@@ -35,6 +37,44 @@ it('does not infer a confirmed result from a sample dataset status', () => {
   expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Đánh giá và lưu kết quả' })).disabled).toBe(true)
   expect(screen.getByText(/Chưa có kết quả xử lý được xác nhận/)).toBeDefined()
   expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+it('confirms project completion outside the Dataset toolbar and retains the dialog on failure', async () => {
+  const initial = previewMockStore.getState()
+  const state = { ...initial, projects: initial.projects.map(project => project.id === 'prj-sales'
+    ? { ...project, name: 'Dữ liệu bán hàng', status: 'processing' as const, canComplete: true }
+    : project) }
+  const completeProject = vi.fn().mockRejectedValueOnce(new Error('Không lưu được Project.')).mockResolvedValue({ message: 'Đã hoàn thành Project.' })
+  render(<ManagementStoreContext.Provider value={{ ...previewMockStore, getState: () => state, completeProject }}>
+    <PreviewSessionProvider routeIds={{}}><ProjectWorkspaceView projectId="prj-sales" /></PreviewSessionProvider>
+  </ManagementStoreContext.Provider>)
+
+  const detection = screen.getByRole('button', { name: 'Detection' })
+  fireEvent.click(detection)
+  fireEvent.click(screen.getByText('Focus hoàn tất'))
+  const trigger = screen.getByRole('button', { name: 'Hoàn thành Project' })
+  trigger.focus()
+  fireEvent.click(trigger)
+  const dialog = screen.getByRole('dialog', { name: 'Hoàn thành Project' })
+  expect(dialog.closest('.pj-dataset')).toBeNull()
+  expect(within(dialog).getByText('Dữ liệu bán hàng')).toBeDefined()
+  expect(within(dialog).getByText('Đã hoàn thành')).toBeDefined()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(detection.getAttribute('aria-current')).toBe('true')
+  expect(document.activeElement).toBe(trigger)
+  expect(completeProject).not.toHaveBeenCalled()
+
+  fireEvent.click(trigger)
+  const confirmation = within(screen.getByRole('dialog', { name: 'Hoàn thành Project' }))
+  fireEvent.click(confirmation.getByRole('button', { name: 'Xác nhận hoàn thành' }))
+  expect(confirmation.getByRole<HTMLButtonElement>('button', { name: 'Đang lưu…' }).disabled).toBe(true)
+  expect((await confirmation.findByRole('alert')).textContent).toBe('Không lưu được Project.')
+  fireEvent.click(confirmation.getByRole('button', { name: 'Xác nhận hoàn thành' }))
+  await screen.findByText('Đã hoàn thành Project.')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(completeProject).toHaveBeenCalledTimes(2)
+  expect(completeProject).toHaveBeenLastCalledWith('prj-sales')
 })
 
 it('downloads only a supplied processed result and exposes failure/retry', async () => {

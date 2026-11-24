@@ -1,6 +1,6 @@
 import { Button } from '../../../components/ui/controls'
 import { Icon } from '../../../components/ui/primitives/icon'
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
 import type { CubeFocus, NeonCubeThemeId } from '../../../types'
@@ -118,7 +118,10 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   useEffect(() => {
     if (!panelFocus) return
     const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { selectFocus(null, true); event.stopPropagation(); document.querySelector<HTMLButtonElement>('.pj-module.is-active')?.focus() }
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      selectFocus(null, true)
+      event.stopPropagation()
+      nav.current?.querySelector<HTMLButtonElement>('.pj-module.is-active')?.focus()
     }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
@@ -127,8 +130,11 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   const selected = projectModules.find(module => MODULE_CUBES[module.id] === focus?.theme)?.id ?? null
   const activeModule = projectModules.find(module => MODULE_CUBES[module.id] === panelFocus?.theme)
   const [uploading, setUploading] = useState(false)
+  const [completingProjectId, setCompletingProjectId] = useState<string | null>(null)
+  const datasetMenu = useRef<HTMLButtonElement>(null)
   const project = processing?.loading || processing?.error
     ? null : session.state.projects.find(item => item.id === projectId) ?? null
+  const completeProject = project?.status === 'processing' && project.canComplete ? store.completeProject : undefined
   const dataset = project?.dataset
   const datasetId = dataset?.id
   const [preview, setPreview] = useState<{ datasetId: string; value: DatasetPreview | null } | null>(null)
@@ -203,12 +209,9 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
             : 'Project chưa có tập dữ liệu.'}</span>
         </div>
         {!dataset && project.canUpload !== false && <Button type="button" className="button-primary" onClick={() => setUploading(true)}>Upload data</Button>}
-        {project.status === 'processing' && project.canComplete && store.completeProject &&
-          <CompleteProjectAction key={project.id} onComplete={async () => {
-            const response = await store.completeProject!(project.id)
-            session.notify(response.message, 'success')
-          }} />}
-        <Button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
+        {completeProject && <Button type="button" className="button-secondary" aria-haspopup="dialog"
+          onClick={() => setCompletingProjectId(project.id)}>Hoàn thành Project</Button>}
+        <Button ref={datasetMenu} type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
           aria-haspopup="menu" onClick={event => menuButton(event.currentTarget)}>
           <PreviewIcon name="more" />
         </Button>
@@ -294,6 +297,16 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
     </section>
 
     {uploading && project && !dataset && <ProjectUploadDialog onClose={() => setUploading(false)} />}
+    {project && completeProject && completingProjectId === project.id &&
+      <CompleteProjectDialog key={project.id} projectName={project.name} onClose={() => setCompletingProjectId(null)}
+        onComplete={async () => {
+          const nextFocus = datasetMenu.current
+          const response = await completeProject(project.id)
+          session.notify(response.message, 'success')
+          requestAnimationFrame(() => {
+            if (nextFocus?.isConnected) nextFocus.focus({ preventScroll: true })
+          })
+        }} />}
 
     {/* Trang không còn dải lý do cho "Quản lý thành viên" hay các control của trang Projects:
         mục đó đã BẬT THẬT và chính modal của nó mang ghi chú ở chân (id `projectMembersPage`).
@@ -301,26 +314,46 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   </PreviewShell>
 }
 
-function CompleteProjectAction({ onComplete }: { onComplete: () => Promise<void> }) {
-  const [open, setOpen] = useState(false)
+function CompleteProjectDialog({ projectName, onClose, onComplete }: {
+  projectName: string
+  onClose: () => void
+  onComplete: () => Promise<void>
+}) {
+  const id = useId()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
-  const close = () => { setOpen(false); setError('') }
-  return <>
-    <Button type="button" className="button-secondary" onClick={() => setOpen(true)}>Hoàn thành Project</Button>
-    <Dialog open={open} onClose={close} busy={pending} aria-labelledby="complete-project-title">
-      <h2 id="complete-project-title">Hoàn thành Project</h2>
-      <p>Lưu trạng thái hiện tại và đánh dấu Project là đã hoàn thành.</p>
-      {error && <p role="alert">{error}</p>}
-      <div className="form-actions">
-        <Button type="button" className="button-secondary" onClick={close} disabled={pending}>Hủy</Button>
-        <Button type="button" className="button-primary" disabled={pending} onClick={() => {
-          setPending(true); setError('')
-          void onComplete().then(close).catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : 'Không lưu được trạng thái Project.')
-          }).finally(() => setPending(false))
-        }}>Xác nhận hoàn thành</Button>
+  const confirm = async () => {
+    if (pending) return
+    setPending(true)
+    setError('')
+    try {
+      await onComplete()
+      onClose()
+    } catch (cause) {
+      setError(cause instanceof Error && cause.message ? cause.message : 'Không lưu được trạng thái Project. Vui lòng thử lại.')
+      setPending(false)
+    }
+  }
+
+  return <Dialog open onClose={onClose} busy={pending} className={styles['completionDialog']}
+    aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}>
+    <header className={styles['completionHeader']}>
+      <span className={styles['completionIcon']} aria-hidden="true"><Icon name="check-circle" /></span>
+      <div>
+        <h2 id={`${id}-title`}>Hoàn thành Project</h2>
+        <p id={`${id}-description`}>Lưu trạng thái hiện tại của Project.</p>
       </div>
-    </Dialog>
-  </>
+    </header>
+    <dl className={styles['completionSummary']}>
+      <div><dt>Project</dt><dd>{projectName}</dd></div>
+      <div><dt>Trạng thái sau khi lưu</dt><dd className={styles['completionStatus']}>Đã hoàn thành</dd></div>
+    </dl>
+    {error && <p className="dialog-error" role="alert">{error}</p>}
+    <div className="dialog-actions">
+      <Button type="button" className="button-secondary" onClick={onClose} disabled={pending}>Hủy</Button>
+      <Button type="button" className="button-primary" busy={pending} onClick={() => { void confirm() }}>
+        {pending ? 'Đang lưu…' : 'Xác nhận hoàn thành'}
+      </Button>
+    </div>
+  </Dialog>
 }

@@ -1704,6 +1704,11 @@
   transition: transform var(--pv-d-hover) var(--pv-ease-out); }
 [data-preview='2d'] .settings-nav-caret.is-open { transform: rotate(90deg); }
 
+[data-preview='2d'] .settings-sign-out { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pv-line); }
+[data-preview='2d'] .settings-sign-out .settings-nav-item { min-height: 44px; color: var(--pv-ink-rose); }
+[data-preview='2d'] .settings-sign-out .settings-nav-item:hover:not(:disabled) { background: rgba(255, 107, 107, .12); }
+[data-preview='2d'] .settings-sign-out .account-error { margin: 0; }
+
 [data-preview='2d'] .settings-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 [data-preview='2d'] .settings-crumb { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--pv-ink-eyebrow); }
 [data-preview='2d'] .settings-screen { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
