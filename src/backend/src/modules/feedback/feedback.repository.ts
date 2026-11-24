@@ -69,7 +69,9 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
     const raw = params as unknown as Record<string, unknown>;
     const analysisRunId = String(raw.analysisRunId ?? raw.analysis_run_id ?? params.analysisRunId);
     const findingId = (raw.findingId !== undefined ? raw.findingId : raw.finding_id) as string | null;
-    const limit = Number(raw.limit ?? params.limit ?? 20);
+    const rawLimit = Number(raw.limit ?? params.limit ?? 20);
+    // Chặn trần ở tầng repo (DTO đã giới hạn 1..100; nhánh summary dự phòng dùng 1000).
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.floor(rawLimit), 1), 1000) : 20;
     const label = (raw.label ?? params.label) as string | undefined;
     const sortOrder = String(raw.sortOrder ?? raw.sort_order ?? params.sortOrder ?? 'desc') as 'asc' | 'desc';
     const cursorCreatedAt = (raw.cursorCreatedAt ?? raw.cursor_created_at ?? params.cursorCreatedAt) as Date | undefined;

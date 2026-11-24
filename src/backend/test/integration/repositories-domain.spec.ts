@@ -619,5 +619,60 @@ describe('B2.4 — Mongoose repository trên MongoDB thật (nhóm 2)', () => {
 
       expect(await feedback.aggregateByProject('khong-hop-le')).toEqual([]);
     });
+
+    // ── Phần 13 v16 mục 3.29 — FBT-13 (Phần 7 v14 §3.24 FB-R2) ────────────
+
+    it('FBT-13: summaryByScope đếm theo phạm vi run / finding, bỏ bản ghi đã xoá', async () => {
+      const runId = oid();
+      await makeFeedback({ analysisRunId: runId, findingId: 'DQ-01:age', label: 'correct' });
+      await makeFeedback({ analysisRunId: runId, findingId: 'DQ-01:age', label: 'correct' });
+      await makeFeedback({ analysisRunId: runId, findingId: 'DQ-01:age', label: 'false_positive', reason: 'x' });
+      const gone = await makeFeedback({ analysisRunId: runId, findingId: 'DQ-01:age', label: 'missed_issue', reason: 'y' });
+      await feedback.softDelete(gone);
+      await makeFeedback({ analysisRunId: runId, findingId: 'DQ-02:name', label: 'correct' });
+      await makeFeedback({ analysisRunId: runId, findingId: null, label: 'other', reason: 'z' });
+
+      expect(await feedback.summaryByScope({ analysisRunId: runId, findingId: 'DQ-01:age' })).toEqual({
+        correct: 2,
+        false_positive: 1,
+      });
+      expect(await feedback.summaryByScope({ analysisRunId: runId, findingId: null })).toEqual({ other: 1 });
+      expect(await feedback.summaryByScope({ analysisRunId: 'khong-hop-le', findingId: null })).toEqual({});
+    });
+
+    it.each(['asc', 'desc'] as const)(
+      'FBT-13: listByScope cursor %s duyệt hết trang, không sót / lặp',
+      async (sortOrder) => {
+        const runId = oid();
+        for (let i = 0; i < 7; i++) {
+          await makeFeedback({ analysisRunId: runId, findingId: 'DQ-01:age', label: i % 2 === 0 ? 'correct' : 'other', reason: 'r' });
+        }
+        const once = (await feedback.listByScope({ analysisRunId: runId, findingId: 'DQ-01:age', limit: 100, sortOrder })).map(
+          (d) => d.id,
+        );
+        expect(once).toHaveLength(7);
+        const limit = 2;
+        const seen: string[] = [];
+        let cursor: { createdAt: Date; id: string } | undefined;
+        for (let guard = 0; guard < 20; guard++) {
+          const docs = await feedback.listByScope({
+            analysisRunId: runId,
+            findingId: 'DQ-01:age',
+            limit,
+            sortOrder,
+            cursorCreatedAt: cursor?.createdAt,
+            cursorId: cursor?.id,
+          });
+          const page = docs.slice(0, limit);
+          seen.push(...page.map((d) => d.id));
+          if (docs.length <= limit) break;
+          const last = page[page.length - 1];
+          if (!last) break;
+          cursor = { createdAt: last.createdAt, id: last.id };
+        }
+        expect(seen).toEqual(once);
+        expect(new Set(seen).size).toBe(7);
+      },
+    );
   });
 });

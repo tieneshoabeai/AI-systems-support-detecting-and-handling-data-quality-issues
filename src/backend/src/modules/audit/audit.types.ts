@@ -19,6 +19,10 @@ export type AuditAction =
   | 'DATASET_FILE_DOWNLOADED'
   | 'REPORT_FILE_DOWNLOADED'
   | 'ISSUE_ATTACHMENT_DOWNLOADED'
+  /** Chủ nhận xét sửa nhận xét — lịch sử nội bộ (Phần 7 v14 §3.24 FB-R9). */
+  | 'FEEDBACK_UPDATED'
+  /** Owner / SYS-ADMIN xoá nhận xét vi phạm của người khác (FB-R8). */
+  | 'FEEDBACK_MODERATION_DELETED'
   | 'ISSUE_ATTACHMENT_UPLOADED'
   | 'WORKSPACE_DELETED'
   | 'PROJECT_DELETED'
@@ -31,7 +35,8 @@ export type AuditTargetType =
   | 'user'
   | 'dataset'
   | 'project_save'
-  | 'report';
+  | 'report'
+  | 'finding_feedback';
 
 export interface CreateAuditLogInput {
   actorId: string | null;

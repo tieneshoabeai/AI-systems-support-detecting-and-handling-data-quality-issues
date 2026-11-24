@@ -35,7 +35,7 @@ export function requiresReason(label: string): boolean {
 
 export function assertReasonForLabel(label: string, reason: string | null | undefined): void {
   if (requiresReason(label) && !reason?.trim()) {
-    throw new Error(`Nhan "${label}" yeu cau ly do (reason)`);
+    throw new ValidationError(`Nhãn "${label}" yêu cầu lý do (reason)`);
   }
 }
 

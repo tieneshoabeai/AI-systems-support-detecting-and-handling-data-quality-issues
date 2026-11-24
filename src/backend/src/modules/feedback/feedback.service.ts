@@ -14,19 +14,73 @@ import {
   isEligibleForStore,
   mapFeedbackLabelToExampleLabel,
   normalizeExample,
+  stripIdentifiers,
   type AnalysisRepositoryPort,
   type AnalysisRunRecord,
+  type FewShotExample,
   type RagFewShotPort,
 } from '../analysis';
 import { PROJECT_ACCESS_PORT, type ProjectAccessPort } from '../projects';
 import { WORKSPACE_ACCESS_PORT, type WorkspaceAccessPort } from '../workspaces';
 import { USER_REPOSITORY_PORT, type UserRepositoryPort } from '../users';
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../audit';
 import { Feedback as FeedbackEntity } from './feedback.types';
 import type { CreateFeedbackInput, UpdateFeedbackInput, ListFeedbackQueryInput } from './feedback.types';
 import { isObjectIdHex, newObjectIdHex } from '../../shared/domain/utils/object-id.util';
 import { CursorCodec } from '../../shared/domain/pagination/cursor-codec';
 import { toPlain } from './feedback.utils';
-import { ForbiddenError, NotFoundError, ValidationError } from '../../shared/domain/errors';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../../shared/domain/errors';
+
+type RunStatus = AnalysisRunRecord['status'];
+
+/** Trạng thái lần phân tích được phép nhận nhận xét (Phần 7 v14 §3.24 FB-R4). */
+const FINDING_FEEDBACK_RUN_STATUSES: readonly RunStatus[] = ['succeeded'];
+const RUN_FEEDBACK_RUN_STATUSES: readonly RunStatus[] = ['succeeded', 'failed'];
+
+/** Độ dài tối đa của đặc tính cột trong mẫu RAG (Phần 12 v15 §3.24 T1-2). */
+const MAX_COLUMN_TRAITS_LENGTH = 80;
+
+/** Cụm mô tả theo nhãn mẫu (Phần 12 v15 §3.24 T1-1) — KHÔNG dùng `reason` người dùng. */
+const EXAMPLE_LABEL_PHRASES: Record<FewShotExample['label'], string> = {
+  correct: 'AI phát hiện đúng',
+  false_positive: 'AI báo nhầm, không phải lỗi',
+  missed_issue: 'AI bỏ sót vấn đề',
+};
+
+type Page = {
+  items: Record<string, unknown>[];
+  meta: { nextCursor: string | null; hasMore: boolean; limit: number };
+  summary: Record<string, number>;
+};
+
+/**
+ * Đặc tính cột từ `findingId` (`DQ-01:ten-cot` → `ten-cot`), đã làm sạch: bỏ PII,
+ * ký tự điều khiển / xuống dòng, gộp khoảng trắng, tối đa 80 ký tự (T1-2).
+ */
+export function columnTraitsFromFindingId(findingId: string): string {
+  const colPart = findingId.includes(':') ? findingId.split(':').slice(1).join(':') : findingId;
+  // eslint-disable-next-line no-control-regex
+  const cleaned = stripIdentifiers(colPart.replace(/[\u0000-\u001f\u007f]+/g, ' '))
+    .replace(/["`]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.slice(0, MAX_COLUMN_TRAITS_LENGTH).trim();
+}
+
+/** Mô tả mẫu theo khuôn (T1-1) — xác định theo (loại lỗi, đặc tính cột, nhãn) nên tự gom trùng. */
+export function templateExampleDescription(
+  exampleLabel: FewShotExample['label'],
+  errorType: string,
+  columnTraits: string,
+): string {
+  const where = columnTraits ? ` trên cột có đặc tính "${columnTraits}"` : '';
+  return `${EXAMPLE_LABEL_PHRASES[exampleLabel]} — ${errorType}${where}`;
+}
 
 @Injectable()
 export class FeedbackService {
@@ -48,23 +102,46 @@ export class FeedbackService {
     @Optional()
     @Inject(REALTIME_PORT)
     private readonly realtime: RealtimePort,
+    @Optional()
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit?: AuditLoggerPort,
   ) {}
 
-  private ensureNotAdmin(role: string): void {
+  private ensureNotAdmin(role: string | undefined): void {
     if (role === 'admin') {
       throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
     }
   }
 
+  private assertFeedbackId(id: string): void {
+    if (!isObjectIdHex(id)) throw new ValidationError('ID nhận xét không hợp lệ');
+  }
+
+  private normalizeFindingId(findingId: string): string {
+    const fid = (findingId ?? '').trim();
+    if (!fid) throw new ValidationError('findingId không được để trống');
+    if (fid.length > 200) throw new ValidationError('findingId tối đa 200 ký tự');
+    return fid;
+  }
+
+  /**
+   * Tìm lần phân tích + kiểm tra quyền xem project.
+   * `allowedStatuses` (khi tạo nhận xét): sai trạng thái → `ConflictError` (FB-R4).
+   */
   private async resolveRunProject(
     analysisId: string,
     userId: string,
+    allowedStatuses?: readonly RunStatus[],
   ): Promise<{ run: AnalysisRunRecord; projectRole: string; workspaceRole: string | null }> {
     if (!isObjectIdHex(analysisId)) throw new ValidationError('ID lần phân tích không hợp lệ');
     const run = await this.analysisRepository.findById(analysisId);
     if (!run) throw new NotFoundError('Không tìm thấy lần phân tích');
-    const projectId = run.projectId;
-    const { projectRole, workspaceRole } = await this.resolveProjectAccess(projectId, userId);
+    const { projectRole, workspaceRole } = await this.resolveProjectAccess(run.projectId, userId);
+    if (allowedStatuses && !allowedStatuses.includes(run.status)) {
+      throw new ConflictError(
+        `Lần phân tích chưa hoàn tất (trạng thái: ${run.status}) — chưa thể nhận xét`,
+      );
+    }
     return { run, projectRole, workspaceRole };
   }
 
@@ -86,27 +163,53 @@ export class FeedbackService {
     return { projectRole, workspaceRole, workspaceId };
   }
 
-  private async promoteFindingToStore(doc: Feedback): Promise<void> {
+  /** Ảnh chụp thông tin AI của lần phân tích tại thời điểm nhận xét (FB-R10). */
+  private async aiSnapshot(analysisId: string): Promise<{ modelId: string | null; promptVersion: string | null }> {
     try {
-      const fid = (doc.findingId ?? '').trim();
+      const result = await this.analysisRepository.findResultByRun(analysisId);
+      const assess = result?.aiCorrelationAssessment as
+        | { modelId?: unknown; promptVersion?: unknown }
+        | null
+        | undefined;
+      return {
+        modelId: typeof assess?.modelId === 'string' ? assess.modelId : null,
+        promptVersion: typeof assess?.promptVersion === 'string' ? assess.promptVersion : null,
+      };
+    } catch {
+      return { modelId: null, promptVersion: null };
+    }
+  }
+
+  /**
+   * Đồng bộ mẫu học lại T1 cho một (finding, nhãn) — Phần 12 v15 §3.24.
+   *
+   * - Mô tả mẫu theo khuôn, **không** dùng `reason` (T1-1) → không đưa nội dung
+   *   tự do của người dùng vào prompt AI, và cùng (finding, nhãn) luôn ra cùng mô tả
+   *   → tự gom trùng (T1-3).
+   * - Đếm lại số người khác nhau cùng nhãn → trust (T1-4). Gọi cả khi tạo, sửa, xoá
+   *   (T1-5): mẫu tụt dưới 3 người có trust < 0,6 → bị loại khi truy xuất.
+   * - Lỗi RAG không chặn luồng nhận xét (T1-6).
+   */
+  private async syncFindingExample(scope: {
+    workspaceId: string;
+    projectId: string;
+    findingId: string | null;
+    label: string;
+  }): Promise<void> {
+    try {
+      const fid = (scope.findingId ?? '').trim();
       if (!fid) return;
-      const exampleLabel = mapFeedbackLabelToExampleLabel(doc.label);
+      const exampleLabel = mapFeedbackLabelToExampleLabel(scope.label);
       if (!exampleLabel) return;
-      const ws = doc.workspaceId;
-      const projectId = doc.projectId;
       const errorType = extractErrorType(fid);
-      const colPart = fid.includes(':') ? fid.split(':').slice(1).join(':').trim() : '';
-      const columnTraits = (colPart || fid).slice(0, 300);
-      const reasonText = (doc.reason ?? '').trim();
-      const description = (reasonText || `${doc.label} cho ${fid}`).slice(0, 500);
-      if (!description) return;
+      const columnTraits = columnTraitsFromFindingId(fid);
+      const description = templateExampleDescription(exampleLabel, errorType, columnTraits);
       const agreement = await this.repo.countDistinctAuthors({
-        workspaceId: ws,
+        workspaceId: scope.workspaceId,
         findingId: fid,
-        label: doc.label,
+        label: scope.label,
       });
       const trustScore = computeTrustScore(agreement);
-      if (!isEligibleForStore(agreement, trustScore)) return;
       const queryText = `${errorType} | ${columnTraits} | ${description}`;
       const embedding = this.ragFewShot ? this.ragFewShot.embedQueryText(queryText) : [];
       if (!embedding || embedding.length === 0) return;
@@ -120,7 +223,7 @@ export class FeedbackService {
         language: 'vi',
       });
       const existing = await this.analysisRepository.findDuplicateExample({
-        workspaceId: ws,
+        workspaceId: scope.workspaceId,
         errorType: normalized.errorType,
         description: normalized.description,
         label: normalized.label,
@@ -133,9 +236,10 @@ export class FeedbackService {
         });
         return;
       }
+      if (!isEligibleForStore(agreement, trustScore)) return;
       await this.analysisRepository.saveFewShotExample({
-        workspaceId: ws,
-        projectId,
+        workspaceId: scope.workspaceId,
+        projectId: scope.projectId,
         errorType: normalized.errorType,
         columnTraits: normalized.columnTraits,
         description: normalized.description,
@@ -147,21 +251,21 @@ export class FeedbackService {
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`T1 promote feedback → kho mau bo qua (khong chan feedback): ${message}`);
+      this.logger.warn(`T1 dong bo kho mau bo qua (khong chan feedback): ${message}`);
     }
   }
 
   private async authorNames(docs: Feedback[]): Promise<Map<string, string | null>> {
     const map = new Map<string, string | null>();
     const ids = [...new Set(docs.map((d) => d.authorId))];
-    for (const id of ids) {
-      try {
-        const u = await this.users.findById(id);
-        if (u) map.set(id, `${u.firstName} ${u.lastName}`.trim());
-        else map.set(id, null);
-      } catch {
-        map.set(id, null);
-      }
+    for (const id of ids) map.set(id, null);
+    if (ids.length === 0) return map;
+    try {
+      // Một truy vấn cho cả trang (trước đây N+1 `findById`).
+      const users = await this.users.findByIds(ids);
+      for (const u of users) map.set(u.id, `${u.firstName} ${u.lastName}`.trim());
+    } catch {
+      // Không lấy được tên → hiển thị null, không làm hỏng danh sách.
     }
     return map;
   }
@@ -182,7 +286,7 @@ export class FeedbackService {
     limit: number,
     viewerId: string,
     names: Map<string, string | null>,
-  ): { items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean } } {
+  ): Omit<Page, 'summary'> {
     const hasMore = docs.length > limit;
     const page = hasMore ? docs.slice(0, limit) : docs;
     let nextCursor: string | null = null;
@@ -196,7 +300,101 @@ export class FeedbackService {
       }
     }
     const items = page.map((d) => toPlain(d, viewerId, names.get(d.authorId) ?? null));
-    return { items, meta: { nextCursor, hasMore } };
+    return { items, meta: { nextCursor, hasMore, limit } };
+  }
+
+  /** `summary` đếm MỌI nhãn của phạm vi — không theo `?label` (FB-R2). */
+  private async summaryFor(analysisRunId: string, findingId: string | null): Promise<Record<string, number>> {
+    if (typeof this.repo.summaryByScope === 'function') {
+      return this.repo.summaryByScope({ analysisRunId, findingId });
+    }
+    const summary: Record<string, number> = {};
+    const all = await this.repo.listByScope({ analysisRunId, findingId, limit: 1000, sortOrder: 'desc' });
+    for (const d of all) summary[d.label] = (summary[d.label] ?? 0) + 1;
+    return summary;
+  }
+
+  private async listScope(
+    userId: string,
+    analysisId: string,
+    findingId: string | null,
+    query: ListFeedbackQueryInput,
+  ): Promise<Page> {
+    await this.resolveRunProject(analysisId, userId);
+    const c = this.parseCursor(query.cursor);
+    const docs = await this.repo.listByScope({
+      analysisRunId: analysisId,
+      findingId,
+      limit: query.limit,
+      label: query.label,
+      sortOrder: query.sortOrder,
+      cursorCreatedAt: c.createdAt,
+      cursorId: c.id,
+    });
+    const names = await this.authorNames(docs.slice(0, query.limit));
+    const page = this.buildPage(docs, query.limit, userId, names);
+    const summary = await this.summaryFor(analysisId, findingId);
+    return { ...page, summary };
+  }
+
+  private emitCreated(run: AnalysisRunRecord, doc: Feedback): void {
+    // Không gửi `reason` / nội dung tự do qua socket (§3.17.2 quy tắc 2, FB-R12).
+    try {
+      this.realtime?.emitToProject(run.projectId, 'feedback.created', {
+        analysisId: run.id,
+        feedbackId: doc.id,
+        label: doc.label,
+      });
+      this.realtime?.emitToAnalysis(run.id, 'feedback.created', {
+        projectId: run.projectId,
+        feedbackId: doc.id,
+        label: doc.label,
+      });
+    } catch {
+      // realtime khong bao gio lam hong luong nghiep vu chinh
+    }
+  }
+
+  private async createFeedback(
+    userId: string,
+    run: AnalysisRunRecord,
+    role: { projectRole: string; workspaceRole: string | null },
+    findingId: string | null,
+    dto: CreateFeedbackInput,
+  ): Promise<Feedback> {
+    const ai = await this.aiSnapshot(run.id);
+    const entity = FeedbackEntity.create({
+      id: newObjectIdHex(),
+      analysisRunId: run.id,
+      findingId,
+      projectId: run.projectId,
+      workspaceId: run.workspaceId,
+      label: dto.label,
+      reason: dto.reason ?? null,
+      suggestedSeverity: dto.suggestedSeverity ?? null,
+      // Phát hiện DQ không có độ tin cậy AI → null (FB-R10).
+      aiConfidence: null,
+      aiRationale: null,
+      authorId: userId,
+      authorRoleAtTime: role.projectRole ?? role.workspaceRole ?? 'viewer',
+      modelId: ai.modelId,
+      promptVersion: ai.promptVersion,
+    });
+    return this.repo.create({
+      analysisRunId: entity.analysisRunId,
+      findingId: entity.findingId,
+      projectId: entity.projectId,
+      workspaceId: entity.workspaceId,
+      label: entity.label,
+      reason: entity.reason,
+      suggestedSeverity: entity.suggestedSeverity,
+      aiConfidence: entity.aiConfidence,
+      aiRationale: entity.aiRationale,
+      authorId: entity.authorId,
+      authorRoleAtTime: entity.authorRoleAtTime,
+      model_id: entity.modelId,
+      prompt_version: entity.promptVersion,
+    });
   }
 
   async createFindingFeedback(
@@ -207,74 +405,22 @@ export class FeedbackService {
     dto: CreateFeedbackInput,
   ): Promise<Record<string, unknown>> {
     this.ensureNotAdmin(role);
-    const fid = (findingId ?? '').trim();
-    if (!fid) throw new ValidationError('findingId không được để trống');
-    if (fid.length > 200) throw new ValidationError('findingId tối đa 200 ký tự');
-    const { run, projectRole, workspaceRole } = await this.resolveRunProject(analysisId, userId);
-
-    let modelId: string | null = null;
-    const aiConfidence: number | null = null;
-    const aiRationale: string | null = null;
-    try {
-      const result = await this.analysisRepository.findResultByRun(analysisId);
-      const assess = result?.aiCorrelationAssessment as unknown as {
-        modelId?: string | null;
-      } | null;
-      if (assess && typeof assess.modelId === 'string') modelId = assess.modelId;
-    } catch {
-      modelId = null;
-    }
-
-    const entity = FeedbackEntity.create({
-      id: newObjectIdHex(),
-      analysisRunId: run.id,
-      findingId: fid,
-      projectId: run.projectId,
-      workspaceId: run.workspaceId,
-      label: dto.label,
-      reason: dto.reason ?? null,
-      suggestedSeverity: dto.suggestedSeverity ?? null,
-      aiConfidence,
-      aiRationale,
-      authorId: userId,
-      authorRoleAtTime: projectRole ?? workspaceRole ?? 'viewer',
-      modelId,
-      promptVersion: 'corr-v1',
+    const fid = this.normalizeFindingId(findingId);
+    const { run, projectRole, workspaceRole } = await this.resolveRunProject(
+      analysisId,
+      userId,
+      FINDING_FEEDBACK_RUN_STATUSES,
+    );
+    const doc = await this.createFeedback(userId, run, { projectRole, workspaceRole }, fid, dto);
+    await this.syncFindingExample({
+      workspaceId: doc.workspaceId,
+      projectId: doc.projectId,
+      findingId: doc.findingId,
+      label: doc.label,
     });
-
-    const doc = await this.repo.create({
-      analysisRunId: entity.analysisRunId,
-      findingId: entity.findingId,
-      projectId: entity.projectId,
-      workspaceId: entity.workspaceId,
-      label: entity.label,
-      reason: entity.reason,
-      suggestedSeverity: entity.suggestedSeverity,
-      aiConfidence: entity.aiConfidence,
-      aiRationale: entity.aiRationale,
-      authorId: entity.authorId,
-      authorRoleAtTime: entity.authorRoleAtTime,
-      model_id: entity.modelId,
-      prompt_version: entity.promptVersion,
-    });
-    await this.promoteFindingToStore(doc);
     const names = await this.authorNames([doc]);
     const plain = toPlain(doc, userId, names.get(userId) ?? null);
-    try {
-      const projectId = run.projectId;
-      this.realtime?.emitToProject(projectId, 'feedback.created', {
-        analysisId: run.id,
-        feedbackId: doc.id,
-        label: doc.label,
-      });
-      this.realtime?.emitToAnalysis(run.id, 'feedback.created', {
-        projectId,
-        feedbackId: doc.id,
-        label: doc.label,
-      });
-    } catch {
-      // realtime khong bao gio lam hong luong nghiep vu chinh
-    }
+    this.emitCreated(run, doc);
     return plain;
   }
 
@@ -285,69 +431,15 @@ export class FeedbackService {
     dto: CreateFeedbackInput,
   ): Promise<Record<string, unknown>> {
     this.ensureNotAdmin(role);
-    const { run, projectRole, workspaceRole } = await this.resolveRunProject(analysisId, userId);
-
-    let modelId: string | null = null;
-    try {
-      const result = await this.analysisRepository.findResultByRun(analysisId);
-      const assess = result?.aiCorrelationAssessment as unknown as {
-        modelId?: string | null;
-      } | null;
-      if (assess && typeof assess.modelId === 'string') modelId = assess.modelId;
-    } catch {
-      modelId = null;
-    }
-
-    const entity = FeedbackEntity.create({
-      id: newObjectIdHex(),
-      analysisRunId: run.id,
-      findingId: null,
-      projectId: run.projectId,
-      workspaceId: run.workspaceId,
-      label: dto.label,
-      reason: dto.reason ?? null,
-      suggestedSeverity: dto.suggestedSeverity ?? null,
-      aiConfidence: null,
-      aiRationale: null,
-      authorId: userId,
-      authorRoleAtTime: projectRole ?? workspaceRole ?? 'viewer',
-      modelId,
-      promptVersion: 'corr-v1',
-    });
-
-    const doc = await this.repo.create({
-      analysisRunId: entity.analysisRunId,
-      findingId: entity.findingId,
-      projectId: entity.projectId,
-      workspaceId: entity.workspaceId,
-      label: entity.label,
-      reason: entity.reason,
-      suggestedSeverity: entity.suggestedSeverity,
-      aiConfidence: entity.aiConfidence,
-      aiRationale: entity.aiRationale,
-      authorId: entity.authorId,
-      authorRoleAtTime: entity.authorRoleAtTime,
-      model_id: entity.modelId,
-      prompt_version: entity.promptVersion,
-    });
+    const { run, projectRole, workspaceRole } = await this.resolveRunProject(
+      analysisId,
+      userId,
+      RUN_FEEDBACK_RUN_STATUSES,
+    );
+    const doc = await this.createFeedback(userId, run, { projectRole, workspaceRole }, null, dto);
     const names = await this.authorNames([doc]);
     const plain = toPlain(doc, userId, names.get(userId) ?? null);
-    try {
-      const projectId = run.projectId;
-      const runId = run.id;
-      this.realtime?.emitToProject(projectId, 'feedback.created', {
-        analysisId: runId,
-        feedbackId: doc.id,
-        label: doc.label,
-      });
-      this.realtime?.emitToAnalysis(runId, 'feedback.created', {
-        projectId,
-        feedbackId: doc.id,
-        label: doc.label,
-      });
-    } catch {
-      // realtime khong bao gio lam hong luong nghiep vu chinh
-    }
+    this.emitCreated(run, doc);
     return plain;
   }
 
@@ -369,11 +461,11 @@ export class FeedbackService {
       dto = idOrDto as UpdateFeedbackInput;
       role = typeof dtoOrRole === 'string' ? dtoOrRole : undefined;
     }
-    if (role === 'admin') {
-      throw new ForbiddenError('Quản trị viên hệ thống không có quyền với nhóm nhận xét (FB-*)',);
-    }
+    this.ensureNotAdmin(role);
+    this.assertFeedbackId(id);
     const existing = await this.repo.findByIdActive(id);
     if (!existing) throw new NotFoundError('Không tìm thấy nhận xét');
+    const before = { label: existing.label, reason: existing.reason, suggestedSeverity: existing.suggestedSeverity };
     existing.updateByAuthor(userId, {
       ...(dto.label !== undefined ? { label: dto.label } : {}),
       ...(dto.reason !== undefined ? { reason: dto.reason } : {}),
@@ -381,6 +473,8 @@ export class FeedbackService {
         ? { suggestedSeverity: dto.suggestedSeverity }
         : {}),
     });
+    // Chủ nhận xét phải CÒN quyền xem project (FB-R6): bị gỡ → 403, project đã xoá → 404.
+    const { projectRole, workspaceRole } = await this.resolveProjectAccess(existing.projectId, userId);
     const updated = await this.repo.updateById(id, {
       ...(dto.label !== undefined ? { label: dto.label } : {}),
       ...(dto.reason !== undefined
@@ -389,34 +483,70 @@ export class FeedbackService {
       ...(dto.suggestedSeverity !== undefined ? { suggestedSeverity: dto.suggestedSeverity } : {}),
     });
     if (!updated) throw new NotFoundError('Không tìm thấy nhận xét');
+
+    // Lịch sử nội bộ khi sửa (FB-R9, Phần 6 §3.5b "Lưu trữ").
+    const changes = (['label', 'reason', 'suggestedSeverity'] as const)
+      .filter((f) => before[f] !== updated[f])
+      .map((f) => ({ field: f, beforeValue: before[f], afterValue: updated[f] }));
+    if (changes.length > 0) {
+      await this.audit?.log(
+        {
+          actorId: userId,
+          actorRole: projectRole ?? workspaceRole,
+          action: 'FEEDBACK_UPDATED',
+          targetType: 'finding_feedback',
+          targetId: id,
+          workspaceId: updated.workspaceId,
+          projectId: updated.projectId,
+          metadata: { analysisRunId: updated.analysisRunId, findingId: updated.findingId },
+        },
+        changes,
+      );
+    }
+
+    // Đổi nhãn → đồng bộ mẫu RAG của cả nhãn cũ lẫn nhãn mới (T1-5).
+    if (before.label !== updated.label) {
+      for (const label of [before.label, updated.label]) {
+        await this.syncFindingExample({
+          workspaceId: updated.workspaceId,
+          projectId: updated.projectId,
+          findingId: updated.findingId,
+          label,
+        });
+      }
+    }
     const names = await this.authorNames([updated]);
     return toPlain(updated, userId, names.get(userId) ?? null);
   }
 
   async remove(userId: string, role: string, id: string): Promise<{ deleted: boolean }> {
+    this.assertFeedbackId(id);
     const existing = await this.repo.findByIdActive(id);
     if (!existing) throw new NotFoundError('Không tìm thấy nhận xét');
     const isMine = existing.authorId === userId;
-    if (isMine) {
-      if (role === 'admin') {
-        this.logger.warn(`SYS-ADMIN tu xoa nhan xet ${id} (ghi log kiem toan)`);
-      }
+
+    if (isMine && role !== 'admin') {
+      // Chủ nhận xét phải CÒN quyền xem project (FB-R6).
+      await this.resolveProjectAccess(existing.projectId, userId);
       await this.repo.softDelete(id);
+      await this.afterRemoved(existing);
       return { deleted: true };
     }
+
     if (role === 'admin') {
       this.logger.warn(
-        `SYS-ADMIN xoa nhan xet vi pham ${id} cua ${existing.authorId} (ghi log kiem toan)`,
+        `SYS-ADMIN xoa nhan xet ${id} cua ${existing.authorId} (ghi log kiem toan)`,
       );
       await this.repo.softDelete(id);
+      await this.auditModeration(existing, userId, 'admin');
+      await this.afterRemoved(existing);
       return { deleted: true };
     }
-    const projectId = existing.projectId;
-    const project = await this.projects.getProjectById(projectId);
-    const workspaceId = project.workspaceId;
-    const workspaceRole = await this.workspaces.resolveUserWorkspaceRole(workspaceId, userId);
+
+    const project = await this.projects.getProjectById(existing.projectId);
+    const workspaceRole = await this.workspaces.resolveUserWorkspaceRole(project.workspaceId, userId);
     const projectRole = await this.projects.resolveUserProjectRole(
-      projectId,
+      existing.projectId,
       userId,
       workspaceRole,
     );
@@ -428,7 +558,40 @@ export class FeedbackService {
       `Owner ${userId} (${projectRole}/${workspaceRole}) xoa nhan xet vi pham ${id} (ghi log kiem toan)`,
     );
     await this.repo.softDelete(id);
+    await this.auditModeration(existing, userId, projectRole === 'owner' ? 'project_owner' : 'workspace_owner');
+    await this.afterRemoved(existing);
     return { deleted: true };
+  }
+
+  /** Audit bắt buộc khi xoá nhận xét của người khác, kèm nội dung bị xoá (FB-R8). */
+  private async auditModeration(doc: Feedback, actorId: string, actorRole: string): Promise<void> {
+    await this.audit?.log({
+      actorId,
+      actorRole,
+      action: 'FEEDBACK_MODERATION_DELETED',
+      targetType: 'finding_feedback',
+      targetId: doc.id,
+      workspaceId: doc.workspaceId,
+      projectId: doc.projectId,
+      metadata: {
+        analysisRunId: doc.analysisRunId,
+        findingId: doc.findingId,
+        authorId: doc.authorId,
+        label: doc.label,
+        reason: doc.reason,
+        suggestedSeverity: doc.suggestedSeverity,
+      },
+    });
+  }
+
+  /** Xoá nhận xét → đếm lại đồng thuận cho nhãn cũ (T1-5). */
+  private async afterRemoved(doc: Feedback): Promise<void> {
+    await this.syncFindingExample({
+      workspaceId: doc.workspaceId,
+      projectId: doc.projectId,
+      findingId: doc.findingId,
+      label: doc.label,
+    });
   }
 
   async aiQualityMetrics(userId: string, role: string, projectId: string): Promise<Record<string, unknown>> {
@@ -467,47 +630,10 @@ export class FeedbackService {
     analysisId: string,
     findingId: string,
     query: ListFeedbackQueryInput,
-  ): Promise<{
-    items: Record<string, unknown>[];
-    meta: { nextCursor: string | null; hasMore: boolean };
-    summary: Record<string, number>;
-  }> {
+  ): Promise<Page> {
     this.ensureNotAdmin(role);
-    const fid = (findingId ?? '').trim();
-    if (!fid) throw new ValidationError('findingId không được để trống');
-    await this.resolveRunProject(analysisId, userId);
-    const c = this.parseCursor(query.cursor);
-    const docs = await this.repo.listByScope({
-      analysisRunId: analysisId,
-      findingId: fid,
-      limit: query.limit,
-      label: query.label,
-      sortOrder: query.sortOrder,
-      cursorCreatedAt: c.createdAt,
-      cursorId: c.id,
-    });
-    const names = await this.authorNames(docs.slice(0, query.limit));
-    const page = this.buildPage(docs, query.limit, userId, names);
-    const summaryRepo = this.repo as FeedbackRepositoryPort & {
-      summaryByScope?: (p: { analysisRunId: string; findingId?: string | null; label?: string }) => Promise<Record<string, number>>;
-    };
-    let summary: Record<string, number> = {};
-    if (typeof summaryRepo.summaryByScope === 'function') {
-      summary = await summaryRepo.summaryByScope({
-        analysisRunId: analysisId,
-        findingId: fid,
-        ...(query.label ? { label: query.label } : {}),
-      });
-    } else {
-      const all = await this.repo.listByScope({
-        analysisRunId: analysisId,
-        findingId: fid,
-        limit: 1000,
-        sortOrder: 'desc',
-      });
-      for (const d of all) summary[d.label] = (summary[d.label] ?? 0) + 1;
-    }
-    return { ...page, summary };
+    const fid = this.normalizeFindingId(findingId);
+    return this.listScope(userId, analysisId, fid, query);
   }
 
   async listRunFeedback(
@@ -515,44 +641,8 @@ export class FeedbackService {
     role: string,
     analysisId: string,
     query: ListFeedbackQueryInput,
-  ): Promise<{
-    items: Record<string, unknown>[];
-    meta: { nextCursor: string | null; hasMore: boolean };
-    summary: Record<string, number>;
-  }> {
+  ): Promise<Page> {
     this.ensureNotAdmin(role);
-    await this.resolveRunProject(analysisId, userId);
-    const c = this.parseCursor(query.cursor);
-    const docs = await this.repo.listByScope({
-      analysisRunId: analysisId,
-      findingId: null,
-      limit: query.limit,
-      label: query.label,
-      sortOrder: query.sortOrder,
-      cursorCreatedAt: c.createdAt,
-      cursorId: c.id,
-    });
-    const names = await this.authorNames(docs.slice(0, query.limit));
-    const page = this.buildPage(docs, query.limit, userId, names);
-    const summaryRepo = this.repo as FeedbackRepositoryPort & {
-      summaryByScope?: (p: { analysisRunId: string; findingId?: string | null; label?: string }) => Promise<Record<string, number>>;
-    };
-    let summary: Record<string, number> = {};
-    if (typeof summaryRepo.summaryByScope === 'function') {
-      summary = await summaryRepo.summaryByScope({
-        analysisRunId: analysisId,
-        findingId: null,
-        ...(query.label ? { label: query.label } : {}),
-      });
-    } else {
-      const all = await this.repo.listByScope({
-        analysisRunId: analysisId,
-        findingId: null,
-        limit: 1000,
-        sortOrder: 'desc',
-      });
-      for (const d of all) summary[d.label] = (summary[d.label] ?? 0) + 1;
-    }
-    return { ...page, summary };
+    return this.listScope(userId, analysisId, null, query);
   }
 }

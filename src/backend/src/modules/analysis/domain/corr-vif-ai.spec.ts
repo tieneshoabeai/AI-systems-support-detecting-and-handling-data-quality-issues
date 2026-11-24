@@ -311,12 +311,17 @@ describe('Full T1: chuan hoa + agreement + embedding', () : void => {
   it('computeTrustScore don dieu, >= 3 nguoi du dieu kien', () => {
     expect(computeTrustScore(0)).toBeLessThan(0.6);
     expect(computeTrustScore(1)).toBeLessThan(0.6);
-    expect(computeTrustScore(2)).toBeGreaterThanOrEqual(0.6);
+    // Phan 12 v15 §3.24 T1-4 (doi co chu dich): 2 nguoi CHUA du — hop dong yeu cau >= 3.
+    expect(computeTrustScore(2)).toBeLessThan(0.6);
+    expect(computeTrustScore(2)).toBeGreaterThan(computeTrustScore(1));
     expect(computeTrustScore(3)).toBeGreaterThanOrEqual(0.8);
     expect(computeTrustScore(5)).toBeGreaterThan(computeTrustScore(3));
-    expect(isEligibleForStore(3, 0.4)).toBe(true);
+    // Phan 12 v15 §3.24 T1-4: can CA >= 3 nguoi VA trust >= 0.6 (truoc day la HOAC).
+    expect(isEligibleForStore(3, computeTrustScore(3))).toBe(true);
+    expect(isEligibleForStore(3, 0.4)).toBe(false);
+    expect(isEligibleForStore(2, computeTrustScore(2))).toBe(false);
     expect(isEligibleForStore(1, 0.5)).toBe(false);
-    expect(isEligibleForStore(1, 0.7)).toBe(true);
+    expect(isEligibleForStore(1, 0.7)).toBe(false);
   });
 
   it('embedText xac dinh, chuan hoa L2, text rong → vector 0', () => {

@@ -13,8 +13,8 @@
 
 ## 1. Thông tin phiên bản
 
-- **Phiên bản hiện tại:** v1.1.0
-- **Cập nhật lần cuối:** 2026-11-21
+- **Phiên bản hiện tại:** v1.2.0
+- **Cập nhật lần cuối:** 2026-11-24
 - **Đường dẫn mô-đun:** `src/backend/src/modules/feedback` (21 tệp TypeScript)
 - **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
 - **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
@@ -39,6 +39,8 @@ Kết quả AI ---> Người dùng đánh giá ---> Phản hồi (bất biến) 
 | Chỉ số chất lượng AI | Tính tỉ lệ đúng / sai / bỏ qua theo project |
 
 ### 2.2. Cấu trúc thư mục
+
+> **v1.2.0:** sơ đồ dưới đây là cấu trúc trước khi gộp Template Simple. Hiện tại module gồm `feedback.controller.ts` (route + DTO Zod), `feedback.service.ts`, `feedback.types.ts` (entity `Feedback`, port, input), `feedback.repository.ts`, `feedback.mapper.ts`, `finding-feedback.schema.ts`, `feedback.utils.ts`, `feedback.module.ts`, `index.ts`.
 
 ```text
 feedback/
@@ -74,13 +76,13 @@ feedback/
 
 3. **Mức độ nghiêm trọng của người đánh giá tách khỏi mức độ nghiêm trọng do AI gắn.** Hai khái niệm khác nhau: "vấn đề này nghiêm trọng" (AI) so với "tôi nghĩ vấn đề này nghiêm trọng" (người dùng). Mức độ của người dùng tính `trust_score` cho RAG.
 
-4. **`trust_score` chuẩn hoá về [0, 1].** Điểm cộng theo nhãn: `correct` +1.0, `partially_correct` +0.5, `false_positive` -1.0, `missed_issue` -0.5, `other` 0.0. Phản hồi điểm thấp bị **loại bỏ** khi dựng prompt.
+4. **`trust_score` theo số người đồng thuận (v1.2.0).** `computeTrustScore(n)` với n = số tác giả khác nhau cùng nhãn trên cùng finding trong workspace: 0→0,4 · 1→0,5 · 2→0,55 · 3→0,8 · 4→0,9 · ≥5→0,95. Mẫu vào kho khi **≥ 3 người** và trust ≥ 0,6; trust < 0,6 bị loại khi truy xuất (Phần 12 v15 §3.24).
 
-5. **Phản hồi bất biến về nghiệp vụ.** `update-mine.handler.ts` chỉ cho phép sửa **phản hồi của chính người gọi**. Tài khoản System Admin bị cấm tạo/sửa phản hồi (`ensureNotAdmin`) nhưng được phép xoá kiểm duyệt. Lịch sử phản hồi được giữ để truy vết — dùng để tính lại `trust_score` khi đổi công thức.
+5. **Phản hồi bất biến về nghiệp vụ.** `updateMine` chỉ cho phép sửa **phản hồi của chính người gọi**, và người gọi phải **còn quyền xem project** (v1.2.0). Tài khoản System Admin bị cấm tạo/sửa phản hồi (`ensureNotAdmin`) nhưng được phép xoá kiểm duyệt. Lịch sử sửa được ghi vào audit log (`FEEDBACK_UPDATED`, trước/sau); xoá vi phạm ghi `FEEDBACK_MODERATION_DELETED` kèm nội dung.
 
 6. **RAG lọc theo `max_age_days`.** Phản hồi cũ không còn đúng với mô hình hiện tại. Lọc theo tuổi là chất lượng dữ liệu, không phải làm mất dữ liệu.
 
-7. **`stripIdentifiers` loại định danh cá nhân khỏi ví dụ.** Dù mô hình chạy cục bộ, không nên đưa PII vào prompt.
+7. **Mẫu học lại theo khuôn, không dùng `reason` (v1.2.0).** Mô tả mẫu sinh từ (loại lỗi, đặc tính cột, nhãn) — nội dung tự do của người dùng **không** vào prompt AI (Phần 6 §3.5b, Phần 12 §3.16.2; chặn prompt injection). Đặc tính cột lấy từ `findingId`, qua `stripIdentifiers` + bỏ ký tự điều khiển, ≤ 80 ký tự. Cùng (finding, nhãn) luôn ra cùng mô tả nên tự gom trùng; sửa/xoá nhận xét đếm lại đồng thuận.
 
 8. **Tổng hợp theo phạm vi thay vì giới hạn 1.000 bản ghi.** `summaryByScope` dùng aggregation `$group` theo nhãn nên đếm chính xác toàn bộ, không bị cắt cụt.
 
@@ -121,10 +123,9 @@ feedback/
 
 | Sự kiện | Khi nào | Mục đích |
 |---|---|---|
-| `feedback.created` | Tạo phản hồi | Realtime + cập nhật chỉ số |
-| `feedback.updated` | Sửa phản hồi | Realtime |
-| `feedback.deleted` | Xoá phản hồi | Realtime |
-| `ai.quality.updated` | Chỉ số chất lượng thay đổi | Realtime |
+| `feedback.created` | Tạo phản hồi | Realtime tới phòng `project:` và `analysis:` — payload chỉ `feedbackId`, `label`, id phạm vi (không `reason`) |
+
+> Entity `Feedback` có domain event `feedback.submitted` / `feedback.promoted` nhưng hiện **không** được dispatch (chưa có nơi tiêu thụ). Không phát `feedback.updated` / `feedback.deleted`.
 
 ## 5. Ràng buộc & Tiêu chuẩn bất biến
 
@@ -140,9 +141,10 @@ feedback/
 
 - Mức độ nghiêm trọng phải thuộc `{ low, medium, high, critical }`.
 - `trust_score` phải được chuẩn hoá về khoảng [0, 1].
-- Chỉ sửa / xoá **phản hồi của chính người gọi**; admin bị cấm tạo/sửa.
+- Chỉ sửa / xoá **phản hồi của chính người gọi**, khi còn quyền xem project; admin bị cấm tạo/sửa.
+- Nhận xét phát hiện chỉ khi lần phân tích `succeeded`; nhận xét cả lần chạy khi `succeeded` / `failed`; khác → `CONFLICT`.
 - Phản hồi có `trust_score` dưới ngưỡng hoặc quá `max_age_days` **không** được dùng làm few-shot.
-- Ví dụ đưa vào prompt **phải** qua `stripIdentifiers`.
+- Mẫu few-shot **không** chứa `reason` của người dùng; đặc tính cột phải qua `stripIdentifiers`.
 - Chỉ số chất lượng AI phải tính được trên **tập phản hồi đã lọc** cho project đó, dùng aggregation.
 
 ### 5.2. Xoá mềm (Soft Delete)
@@ -155,11 +157,12 @@ feedback/
 
 | Vấn đề | Cách xử lý |
 |---|---|
-| Sửa phản hồi của người khác | Policy loader kiểm tra `userId` khu vực + cấm admin |
-| Xoá phản hồi của người khác | Policy loader kiểm tra `userId` khu vực |
-| PII lộ qua ví dụ few-shot | `stripIdentifiers` loại định danh cá nhân |
+| Sửa phản hồi của người khác | Entity `updateByAuthor` kiểm tra tác giả + cấm admin |
+| Xoá phản hồi của người khác | Chỉ PROJ-OWNER / WS-OWNER / SYS-ADMIN (kiểm duyệt), bắt buộc audit log kèm nội dung |
+| Cựu thành viên sửa/xoá phản hồi cũ | `resolveProjectAccess` → 403 / 404 |
+| PII / prompt injection qua ví dụ few-shot | Mẫu theo khuôn, không dùng `reason`; đặc tính cột qua `stripIdentifiers` |
 | Thao túng `trust_score` để AI học sai | `trust_score` tính ở domain, client không truyền trực tiếp |
-| Đọc phản hồi của project khác | Policy loader kiểm tra `projectId` |
+| Đọc phản hồi của project khác | `resolveProjectAccess` (service) kiểm tra quyền project của lần phân tích |
 
 ### 5.4. Phân quyền
 
@@ -173,6 +176,9 @@ feedback/
 | `GET /projects/:projectId/ai-quality-metrics` | `Action.Read` trên `Project` |
 
 ## 6. Lịch sử thay đổi
+
+### 2026-11-24
+- **v1.2.0** / 2026-11-24 / Mẫu RAG theo khuôn (không dùng `reason`), ngưỡng ≥ 3 người, đồng bộ mẫu khi sửa/xoá; sửa/xoá cần còn quyền project; chặn tạo nhận xét theo trạng thái lần phân tích; audit log khi sửa và xoá vi phạm; `meta.limit`, `summary` toàn phạm vi, `findingId` ≤ 200 ở GET, tên tác giả bằng `findByIds`; `promptVersion` lấy từ đánh giá AI / Rà soát module (Phần 7 v14 §3.24, Phần 12 v15 §3.24, Phần 13 v16 §3.29) / `modules/feedback`, `modules/analysis` (`rag-few-shot.util.ts`), `modules/audit` (2 action mới)
 
 ### 2026-11-21
 - **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn

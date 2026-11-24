@@ -122,7 +122,7 @@ export class FeedbackController {
     @Param('analysisId') analysisId: string,
     @Param('findingId') findingId: string,
     @Query(new ZodValidationPipe(ListFeedbackQuerySchema)) query: ListFeedbackQueryDto,
-  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; summary: Record<string, number>; }> {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; limit: number; }; summary: Record<string, number>; }> {
     return this.feedbackService.listFindingFeedback(
       user.userId,
       user.role,
@@ -140,7 +140,7 @@ export class FeedbackController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('analysisId') analysisId: string,
     @Query(new ZodValidationPipe(ListFeedbackQuerySchema)) query: ListFeedbackQueryDto,
-  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; }; summary: Record<string, number>; }> {
+  ): Promise<{ items: Record<string, unknown>[]; meta: { nextCursor: string | null; hasMore: boolean; limit: number; }; summary: Record<string, number>; }> {
     return this.feedbackService.listRunFeedback(user.userId, user.role, analysisId, query);
   }
 

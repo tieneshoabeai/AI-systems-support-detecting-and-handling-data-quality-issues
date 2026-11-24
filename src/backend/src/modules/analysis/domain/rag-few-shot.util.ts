@@ -187,23 +187,28 @@ export function mapFeedbackLabelToExampleLabel(
   return null;
 }
 
+/** So nguoi khac nhau cung nhan toi thieu de mau vao kho (Phan 12 §3.16.4, Phan 8 §3.7.6). */
+export const MIN_AGREEMENT_FOR_STORE = 3;
+
 /**
  * Diem tin cay theo so nguoi dong y (agreement_count = so tac gia khac nhau cung nhan).
- * >= 3 nguoi → >= 0.8 (du dieu kien vao kho theo §3.16.4). Ham don dieu, bi chan 0..1.
+ * >= 3 nguoi → >= 0.8 (du dieu kien vao kho theo §3.16.4); < 3 nguoi → < 0.6, nen
+ * mau tut duoi 3 nguoi (sua/xoa nhan xet) tu bi `rankFewShot` loai khi truy xuat
+ * (Phan 12 v15 §3.24 T1-4). Ham don dieu, bi chan 0..1.
  */
 export function computeTrustScore(agreementCount: number): number {
   const n = Number.isFinite(agreementCount) ? Math.floor(agreementCount) : 0;
   if (n >= 5) return 0.95;
   if (n === 4) return 0.9;
   if (n === 3) return 0.8;
-  if (n === 2) return 0.65;
+  if (n === 2) return 0.55;
   if (n === 1) return 0.5;
   return 0.4;
 }
 
-/** Nguong du dieu kien vao kho: agreement >= 3 hoac trust >= 0.6. */
+/** Du dieu kien vao kho: >= 3 nguoi cung nhan **va** trust >= 0.6 (Phan 12 v15 §3.24 T1-4). */
 export function isEligibleForStore(agreementCount: number, trustScore: number): boolean {
-  return agreementCount >= 3 || trustScore >= DEFAULT_MIN_TRUST_SCORE;
+  return agreementCount >= MIN_AGREEMENT_FOR_STORE && trustScore >= DEFAULT_MIN_TRUST_SCORE;
 }
 
 /**
