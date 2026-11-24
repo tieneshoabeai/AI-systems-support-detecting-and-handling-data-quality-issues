@@ -29,7 +29,7 @@ import { z } from 'zod';
 // --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong controller) ---
 export const QueryRecordsSchema = z.object({
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
   sort_field: z.string().optional(),
   sort_order: z.enum(['asc', 'desc']).default('asc'),
 });
@@ -39,7 +39,8 @@ export type QueryRecordsDto = z.infer<typeof QueryRecordsSchema>;
 /**
  * Phần 7 v6 mục 3.7 — Bộ lọc Data Views.
  * Lọc + sắp xếp + tìm kiếm chạy phía server (MongoDB) để không tải toàn bộ
- * 200.000 bản ghi vào bộ nhớ/JS. Phân trang bằng cursor (keyset) theo row_index.
+ * 200.000 bản ghi vào bộ nhớ/JS. Phân trang bằng cursor keyset: không sort →
+ * theo row_index; có sort → theo giá trị sort + row_index (Phần 7 v13 mục 3.23).
  */
 
 export const RecordFilterOperatorSchema = z.enum([
@@ -61,11 +62,27 @@ export const RecordFilterOperatorSchema = z.enum([
 
 export type RecordFilterOperator = z.infer<typeof RecordFilterOperatorSchema>;
 
+/**
+ * Phần 7 v13 DV-6 — chống NoSQL operator injection: `value` chỉ nhận primitive
+ * (hoặc mảng primitive cho `between`/`in`). Object như `{ "$ne": null }` /
+ * `{ "$regex": "(a+)+$" }` bị từ chối trước khi tới MongoDB.
+ */
+export const RecordFilterPrimitiveSchema = z.union([
+  z.string().max(500),
+  z.number().finite(),
+  z.boolean(),
+]);
+
+export const RecordFilterValueSchema = z.union([
+  RecordFilterPrimitiveSchema,
+  z.array(RecordFilterPrimitiveSchema).max(1000),
+]);
+
 export const RecordFilterSchema = z
   .object({
     column: z.string().min(1).max(120),
     operator: RecordFilterOperatorSchema,
-    value: z.unknown().optional(),
+    value: RecordFilterValueSchema.optional(),
   })
   .refine(
     (f) : boolean =>
@@ -102,7 +119,7 @@ export const QueryRecordsBodySchema = z.object({
   sort: z.array(RecordSortSchema).max(5).optional().default([]),
   search: RecordSearchSchema.optional(),
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
 });
 
 export type QueryRecordsBodyDto = z.infer<typeof QueryRecordsBodySchema>;

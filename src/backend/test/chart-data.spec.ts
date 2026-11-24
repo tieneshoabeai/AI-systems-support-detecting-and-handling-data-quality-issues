@@ -259,6 +259,39 @@ describe('GĐ6 — DataViewService.getChartData', () => {
     expect(charts[0]!.sampled_records).toBe(3);
   });
 
+  // ── Phần 13 v15 mục 3.28 — DVT-12 (Phần 7 v13 DV-11, DV-15) ─────────────
+
+  it('DVT-12: missing_count tinh ca chuoi rong / toan khoang trang', async () => {
+    records.getColumnValues.mockResolvedValueOnce(columnValues('c1', ['A', '', '   ', null, 'B']));
+    const charts = await handler.getChartData(datasetId, { columns: ['c1'] });
+    const c = charts[0]!;
+    expect(c.missing_count).toBe(3);
+    expect(c.missing_ratio).toBeCloseTo(3 / 5, 5);
+    expect(c.category!.items.map((i) => i.value).sort()).toEqual(['A', 'B']);
+  });
+
+  it('DVT-12: cot boolean du lieu cu (True / 1 / yes / true) gop ve true / false', async () => {
+    records.getColumnValues.mockResolvedValueOnce(
+      columnValues('c2', [true, 'True', '1', 'yes', false, 'FALSE', 0, null]),
+    );
+    const charts = await handler.getChartData(datasetId, { columns: ['c2'] });
+    const items = charts[0]!.category!.items;
+    expect(items.map((i) => [i.value, i.count])).toEqual([
+      ['true', 4],
+      ['false', 3],
+    ]);
+    expect(charts[0]!.category!.distinct_count).toBe(2);
+  });
+
+  it('DVT-12: nhieu cot -> chi cot dau dem tong, cac cot sau nhan knownTotal', async () => {
+    const charts = await handler.getChartData(datasetId);
+    expect(charts.map((c) => c.column_key)).toEqual(['c0', 'c1', 'c2', 'c3']);
+    const calls = records.getColumnValues.mock.calls;
+    expect(calls).toHaveLength(4);
+    expect(calls[0]![4]).toBeUndefined();
+    for (const call of calls.slice(1)) expect(call[4]).toBe(6); // tổng của cột đầu (c0: 6 dòng)
+  });
+
   it('max_rows duoc gioi han o MAX_CHART_SAMPLE_ROWS', async () => {
     await handler.getChartData(datasetId, { columns: ['c0'], maxRows: 999_999 });
     const call = records.getColumnValues.mock.calls[0]!;

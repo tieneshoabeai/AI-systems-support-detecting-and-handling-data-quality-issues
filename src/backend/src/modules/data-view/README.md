@@ -62,11 +62,11 @@ data-view/
 
 - **Lập luận kỹ thuật & Quyết định:**
 
-1. **Phân trang keyset, không offset.** `offset=1000000` của MongoDB phải quét và bỏ qua 1.000.000 document. Với người dùng nhảy tới trang 500.000, offset mất nhiều giây; keyset nhảy thẳng tới vị trí cần đọc, dưới 50 ms. Cursor chứa giá trị sắp xếp cuối cùng + `_id` để phá thế hoà hoàn hảo khi nhiều giá trị bằng nhau.
+1. **Phân trang keyset, không offset.** `offset=1000000` của MongoDB phải quét và bỏ qua 1.000.000 document. Với người dùng nhảy tới trang 500.000, offset mất nhiều giây; keyset nhảy thẳng tới vị trí cần đọc, dưới 50 ms. Không sort: cursor `{ row_index }`. Có sort (v1.2.0): cursor chứa **chữ ký sort** + giá trị sort đã ép kiểu của dòng cuối + `row_index` để phá thế hoà; cursor hỏng hoặc sinh từ sort khác → `VALIDATION_ERROR` (`shared/domain/pagination/record-keyset-cursor.ts`).
 
 2. **Giới hạn trang 50 / 500.** `DEFAULT_RECORD_LIMIT = 50`, `MAX_RECORD_LIMIT = 500`. `normalizeRecordLimit` chuẩn hoá: giá trị không hữu hạn / ≤ 0 → 50; > 500 → 500. Client không thể ép server trả về một lúc toàn bộ dữ liệu.
 
-3. **Sắp xếp số & ngày: null ở cuối.** MongoDB sắp xếp `null` **trước** mọi giá trị khác khi tăng dần. Người dùng muốn xem "những người không cung cấp tuổi" ở **cuối** danh sách. Với hàng trăm nghìn dòng thiếu giá trị, đầu danh sách sẽ toàn dòng rỗng — vô dụng. `record-query.repository.ts` dùng aggregation **hai giai đoạn** với cờ `__sortnull_num` / `__sortnull_date` (0 = hợp lệ, 1 = null).
+3. **Sắp xếp: null ở cuối (mọi kiểu cột từ v1.2.0).** MongoDB sắp xếp `null` **trước** mọi giá trị khác khi tăng dần. Người dùng muốn xem "những người không cung cấp tuổi" ở **cuối** danh sách. Với hàng trăm nghìn dòng thiếu giá trị, đầu danh sách sẽ toàn dòng rỗng — vô dụng. `record-query.repository.ts` dùng aggregation với alias `__sort_i` (số/ngày ép kiểu; chuỗi trống → null; boolean legacy chuẩn hoá) và cờ `__sortnull_i` ở stage `$addFields` thứ hai (0 = hợp lệ, 1 = null / không ép được) — áp dụng cho **mọi** kiểu cột, cả `asc` lẫn `desc`.
 
 4. **Chuyển đổi kiểu an toàn.** Chỉ những giá trị thực sự là số mới được chuyển. Không có kiểm tra `$type`, MongoDB biến `false` → `0` và `true` → `1`, tạo ra **histogram giả** cho cột boolean. Điều kiện: `$type` thuộc `double | int | long | decimal | string`.
 
@@ -96,16 +96,17 @@ data-view/
 | `GET` | `/api/v1/datasets/:datasetId/columns/:columnKey/stats` | `Action.Read` | Thống kê cột |
 | `GET` | `/api/v1/datasets/:datasetId/charts` | `Action.Read` | Dữ liệu biểu đồ (histogram/boxPlot/categoryTopN) |
 
-**Tham số truy vấn `GET /records`:** `limit` (mặc định 50, tối đa 500), `cursor`, `sort`, `order` (`asc` | `desc`), `sort_field`, `sort_order`.
+**Tham số truy vấn `GET /records`:** `limit` (mặc định 50, tối đa 500), `cursor`, `sort_field`, `sort_order` (`asc` | `desc`).
 
 **Thân `POST /records/query`:**
 
 ```json
 {
   "filters": [
-    { "columnKey": "c2", "operator": "greaterThan", "value": 18 }
+    { "column": "c2", "operator": "greaterThan", "value": 18 }
   ],
-  "sort": { "columnKey": "c2", "order": "asc" },
+  "sort": [{ "column": "c2", "order": "asc" }],
+  "search": { "columns": ["c0"], "value": "an" },
   "limit": 50,
   "cursor": "..."
 }
@@ -131,9 +132,12 @@ data-view/
 
 - `limit` luôn nằm trong `[1, 500]`; giá trị không hợp lệ → 50.
 - Cursor **phải** được sinh ra từ chính API này — client không được tự chế.
-- Toán tử lọc phải thuộc `RECORD_FILTER_OPERATORS` — toán tử lạ được `isValidOperator` chặn.
+- Toán tử lọc phải thuộc `RECORD_FILTER_OPERATORS` — toán tử lạ được Zod enum chặn.
+- `value` của bộ lọc chỉ nhận chuỗi / số hữu hạn / boolean (hoặc mảng các giá trị đó) — object bị chặn ở Zod và ở repository.
+- Trống = `null` / thiếu / chuỗi toàn khoảng trắng — dùng chung cho `isEmpty`, `stats.null_count`, `charts.missing_count`.
 - Đường dẫn thuộc tính **luôn** nằm trong `props.c{i}` — không được truy cập trực tiếp field khác của `dataset_record`.
-- Giá trị **null** (hoặc không parse được) phải sắp xếp **cuối** danh sách khi sắp xếp theo số / ngày.
+- Giá trị **null** (hoặc không parse được / chuỗi trống) phải sắp xếp **cuối** danh sách với mọi kiểu cột.
+- Cursor có sort gắn chữ ký sort; **chưa** gắn bộ lọc / hạn 24 giờ (OPEN-DV-01, Phần 7 v13 mục 3.23).
 - Cột boolean **không** được tính histogram số.
 - Cột `is_pii` **không** được lộ chuỗi thô trong biểu đồ phân loại.
 - Mỗi trang **không vượt quá** `MAX_RECORD_LIMIT` dòng.
@@ -151,7 +155,8 @@ data-view/
 | Đọc dataset người khác | Policy loader của mô-đun `datasets` kiểm tra instance |
 | Ép server trả về dữ liệu lớn | `normalizeRecordLimit` chặn trên 500 dòng |
 | Injection qua tên cột | `resolveColumnKeyPure` chỉ nhận key có trong danh sách; đường dẫn dùng `propsPath` |
-| Toán tử lọc lạ | `isValidOperator` chặn trước khi build truy vấn |
+| Toán tử lọc lạ | Zod enum chặn trước khi build truy vấn |
+| NoSQL operator injection qua `value` (vd `{ "$regex": "(a+)+$" }`) | Zod chỉ nhận primitive; `assertFilterValue` ở repository là lớp thứ 2 |
 | Lộ dữ liệu qua phân trang | Chỉ trả dữ liệu thuộc dataset đã được cấp quyền |
 
 ### 5.4. Phân quyền
@@ -166,6 +171,9 @@ data-view/
 > Mô-đun này **không** định nghĩa policy loader riêng — nó tái sử dụng loader của mô-đun `datasets` để không nhân hai nơi suy xét về quyền.
 
 ## 6. Lịch sử thay đổi (Change Log & Version History)
+
+### 2026-11-24
+- **v1.2.0** / 2026-11-24 / Sửa phân trang khi sort (cursor keyset theo giá trị sort, gắn chữ ký sort), validate cursor ở `POST /records/query`, chặn `value` object, `limit` DTO 1–500, null cuối mọi kiểu khi sort, lọc OR cùng cột theo key, `date between/in` + `boolean in`, `contains`/`search` trên cột số/boolean, trống gồm whitespace, `stats` không `$push` (1 bucket khi cột hằng số), `charts` gộp boolean legacy + mẫu theo `row_index` + đếm tổng 1 lần / Rà soát module (Phần 7 v13 mục 3.23, Phần 13 v15 mục 3.28) / `modules/data-view`, `modules/datasets` (`record-query.repository.ts`, port chỉ thêm field), `shared/domain/pagination/record-keyset-cursor.ts`
 
 ### 2026-11-21
 - **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn

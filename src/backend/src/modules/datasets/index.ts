@@ -55,6 +55,9 @@ export {
   type ColumnDataType,
 } from './domain/value-objects/column-type.vo';
 
+// ── Quy tắc trống / ép boolean dùng chung (data-view: Phần 7 v13 DV-11, DV-15) ──
+export { coerceBoolean, isBlankValue } from './domain/value-objects/value-coercion.vo';
+
 // ── Policy loader (dùng cho `@PolicyResource` — tầng động chống IDOR) ─────
 export { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
 

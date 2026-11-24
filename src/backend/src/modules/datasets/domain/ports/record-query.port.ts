@@ -100,12 +100,28 @@ export interface RecordQueryPort {
     cursor: string | undefined,
     limit: number,
   ): Promise<{ items: RecordRow[]; hasMore: boolean }>;
+  /**
+   * Lọc + sắp xếp + phân trang keyset.
+   *
+   * `input.cursor` phải do chính hàm này sinh ra (`nextCursor`) với **cùng** `sort`;
+   * cursor hỏng / sinh từ sort khác → `ValidationError` (Phần 7 v13 mục 3.23).
+   * `nextCursor` (thêm ở v13) mang giá trị sort đã ép kiểu phía MongoDB của dòng cuối —
+   * `null` khi hết dữ liệu.
+   */
   queryRecords(
     datasetId: string,
     input: RecordQueryInput,
     columns: DatasetColumnRef[],
-  ): Promise<{ items: RecordRow[]; hasMore: boolean }>;
-  getColumnStats(datasetId: string, columnKey: string): Promise<ColumnStatsResult>;
+  ): Promise<{ items: RecordRow[]; hasMore: boolean; nextCursor?: string | null }>;
+  /**
+   * Thống kê một cột. `dataType` (thêm ở v13, tuỳ chọn): khi khác `number` thì
+   * bỏ qua phần thống kê số (min/max/average/histogram) để không tốn aggregation.
+   */
+  getColumnStats(
+    datasetId: string,
+    columnKey: string,
+    dataType?: ColumnDataType,
+  ): Promise<ColumnStatsResult>;
   /**
    * GĐ6 — đọc **giá trị của một cột** để dựng biểu đồ (histogram / box plot /
    * biểu đồ cột phân loại).
@@ -115,12 +131,16 @@ export interface RecordQueryPort {
    * **một** cột (`$project`), và có `limit` để chặn.
    *
    * Giá trị được ép kiểu theo `dataType` phía server (`$convert`) → cột `number`
-   * lưu chuỗi (dữ liệu cũ) vẫn tính đúng.
+   * lưu chuỗi (dữ liệu cũ) vẫn tính đúng. Mẫu đọc theo `row_index` tăng dần.
+   *
+   * `knownTotal` (thêm ở v13, tuỳ chọn): tổng số bản ghi đã biết — truyền vào để
+   * không `countDocuments` lặp lại khi đọc nhiều cột của cùng dataset.
    */
   getColumnValues(
     datasetId: string,
     columnKey: string,
     dataType: ColumnDataType,
     limit: number,
+    knownTotal?: number,
   ): Promise<ColumnValuesResult>;
 }

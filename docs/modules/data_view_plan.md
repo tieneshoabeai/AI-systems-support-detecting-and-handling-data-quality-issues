@@ -2,8 +2,14 @@
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ  
 *(Full-Stack Data Management & Quality Assurance Platform with AI Assistance)*  
 **Tập tin:** `docs/modules/data_view_plan.md`  
-**Phiên bản:** v1.0  
+**Phiên bản:** v1.1 (2026-11-24 — thêm mục 7: đợt sửa sau rà soát)  
 **Giai đoạn:** Sprint B2 — Module 4: Truy xuất Lưới Dữ liệu Ảo & Thống kê Phân phối (`data-view`)  
+
+> **Lưu ý v1.1 (2026-11-24):** mục 1–6 là thiết kế gốc v1.0 (Sprint B2), giữ để đối chiếu. Hiện trạng đã khác:
+> dữ liệu bất biến nên **không còn** cell edit (`PATCH /records/:rowIndex`, F5.2); module có 4 route
+> (`GET records`, `POST records/query`, `GET columns/:columnKey/stats`, `GET charts`); cấu trúc file theo Template Simple
+> (`data-view.{controller,service,types,utils}.ts`); bản ghi truy vấn qua `RECORD_QUERY_PORT` của module `datasets`.
+> Hợp đồng hiện hành: Phần 7 v13 §3.7 + mục 3.23. Đợt sửa mới nhất: mục 7.
 
 ---
 
@@ -92,3 +98,50 @@ src/backend/src/modules/data-view/
 | **Truy vấn phân trang bị chậm khi dữ liệu lớn** | Cao | Bắt buộc sử dụng Keyset Cursor kết hợp compound index `{ dataset_id: 1, row_index: 1, deleted_at: 1 }`. |
 | **Tràn RAM do aggregation cột không phải số** | Trung bình | Kiểm tra kiểu dữ liệu cột trong metadata `dataset.columns` trước khi thực thi pipeline tính toán. |
 | **Sửa sai dòng khi đồng thời có nhiều người thao tác** | Trung bình | Lọc theo cặp `{ dataset_id, row_index, deleted_at: null }` đảm bảo tính chính xác tuyệt đối của dòng. |
+
+---
+
+## 7. Đợt sửa 2026-11-24 — rà soát module data-view
+
+- **Trạng thái:** Đã thực hiện 2026-11-24.
+- **Hợp đồng:** Phần 7 v13 mục 3.23 (DV-1…DV-17). **Test:** Phần 13 v15 mục 3.28 (DVT-01…DVT-12).
+- **Quyết định của người dùng:** `limit` tối đa 500; cursor gắn chữ ký sort, **không** gắn bộ lọc, chưa có hạn 24 giờ (OPEN-DV-01); null xếp cuối mọi kiểu cột khi sort; `charts?columns=` giữ hành vi bỏ qua cột không khớp.
+
+### 7.1. Lỗi đã xác nhận từ mã nguồn
+
+| # | Mức | Lỗi | Vị trí (trước khi sửa) |
+|---|---|---|---|
+| L1 | Nghiêm trọng | Phân trang khi sort chỉ dùng `row_index > last` → trang 2 bỏ sót dòng | `record-query.repository.ts` `queryRecords`; `data-view.service.ts` nextCursor |
+| L2 | Cao | `POST /records/query` nuốt cursor hỏng, quay về trang 1 | `decodeRowIndex` trong repository |
+| L3 | Cao | `value` bộ lọc nhận object → MongoDB thực thi toán tử (vd `$regex` ReDoS). Phạm vi vẫn khoá trong `dataset_id` | `RecordFilterSchema.value = z.unknown()` + `buildOneCondition` |
+| L4 | Cao | `date between` là code chết; `date in` / `boolean in` không ép kiểu; ngày sai so sánh chuỗi thô | `buildOneCondition` nhánh date |
+| L5 | Cao | `getColumnStats` `$push` toàn bộ giá trị + `Math.min(...arr)` (RangeError ở ~120k+ dòng); cột hằng số sinh bucket đảo | `getColumnStats` |
+| L6 | Trung bình | Lọc cùng cột qua `c0` + tên hiển thị bị AND; lọc số sai bị bỏ qua; regex không khớp số/boolean đã ép kiểu; trống chưa tính whitespace | `buildFilterConditions`, `buildOneCondition` |
+| L7 | Thấp | `limit` DTO 200 vs 500; `missing_count` lệch; boolean legacy tách nhóm; mẫu biểu đồ không ổn định; `countDocuments` lặp theo cột; code thừa | controller, service `getChartData`, `getColumnValues` |
+
+### 7.2. Hướng sửa
+
+- **Cursor keyset** (`src/shared/domain/pagination/record-keyset-cursor.ts`, hàm thuần — tách khỏi `keyset-cursor.ts` có sẵn vốn chỉ hỗ trợ một trường chuỗi + `_id`): payload `{ v: 1, s: [[key, order]…], k: [[tag, value]…], r: rowIndex }`; không sort giữ `{ row_index }`. Service validate sớm; repository dựng điều kiện `$expr` theo thứ tự từ điển trên alias đã ép kiểu và trả `nextCursor` (port chỉ **thêm** field, không đổi field cũ; `analysis` chỉ dùng `listAllRecords`).
+- **Sort:** có `sort` → luôn chạy aggregation, mọi cột sort có alias + cờ null → null cuối mọi kiểu.
+- **Bộ lọc:** service quy đổi cột → `cN` trước khi gọi port; repository nhóm OR theo key, chặn object (lớp 2), ném `ValidationError` khi so sánh thứ tự với số/ngày sai (`equals`/`in` khớp chuỗi thô để tìm ô sai kiểu), sửa `between`/`in` cho date/boolean, regex trên `$toString` cho number/boolean, trống gồm whitespace.
+- **Stats:** `$min/$max/$avg` trong `$group`, histogram bằng `$bucket`; `min = max` → 1 bucket; chỉ chạy khi cột `number`.
+- **Charts:** `isBlankValue` cho `missing_count`, chuẩn hoá boolean bằng `coerceBoolean`, chỉ cột đầu `countDocuments` (các cột sau nhận `knownTotal`), đọc song song 4 cột, mẫu theo `row_index`.
+
+### 7.3. Không làm trong đợt này
+
+- Ràng buộc cursor theo bộ lọc + hạn 24 giờ (OPEN-DV-01).
+- Phân quyền CASL theo vai trò (đang do dev khác xử lý).
+- OPEN-DV-02: chuỗi ngày legacy được `$convert` đọc theo UTC, lệch 7 giờ so với quy tắc nạp UTC+7 (có từ trước, Phần 7 v13 mục 3.23).
+
+### 7.4. Kết quả
+
+- `tsc` 0 lỗi, `lint` 0 cảnh báo, `test:arch` 23/23, `arch:api-coverage` 84/84.
+- Unit `data-view` + `chart-data` + `record-keyset-cursor`: 84/84. Integration `record-query.spec.ts`: 56/56 (28 cũ giữ nguyên assert + 28 mới).
+- `test:unit` toàn bộ: chỉ 2 lỗi môi trường đã biết (`/proc/meminfo`). Integration toàn bộ: 167/170 (3 lỗi MinIO đã biết).
+
+---
+
+## 8. Lịch sử thay đổi
+
+- **v1.1 / 2026-11-24:** Thêm lưu ý hiện trạng + mục 7 (đợt sửa sau rà soát) / Người dùng yêu cầu rà soát module `data-view` và plan sửa.
+- **v1.0:** Thiết kế gốc Sprint B2.

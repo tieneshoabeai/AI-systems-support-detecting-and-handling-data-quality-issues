@@ -5,6 +5,7 @@ import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/da
 import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
 import { dataviewHandlers } from './helpers/module-handlers';
+import { QueryRecordsBodySchema, QueryRecordsSchema } from '../src/modules/data-view/data-view.controller';
 
 const mockDatasetId = new Types.ObjectId();
 const mockDatasetDoc = {
@@ -144,5 +145,131 @@ describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () 
 
   it('khong ton tai updateCell (S19/A13): service khong co phuong thuc ghi record', async () => {
     expect((service as unknown as Record<string, unknown>).updateCell).toBeUndefined();
+  });
+
+  // ── Phần 13 v15 mục 3.28 — đợt sửa data-view (Phần 7 v13 mục 3.23) ──────
+
+  it('DVT-02: queryRecords cursor hong -> VALIDATION_ERROR, khong goi port', async () => {
+    await expect(
+      service.queryRecords(mockDatasetId.toHexString(), {
+        filters: [],
+        sort: [],
+        cursor: '!!!not-base64!!!',
+        limit: 50,
+      } as never),
+    ).rejects.toThrow(/Cursor khong hop le/);
+    expect(records.queryRecords).not.toHaveBeenCalled();
+  });
+
+  it('DVT-03: cursor { row_index } dung cho truy van co sort -> VALIDATION_ERROR (ca 2 route)', async () => {
+    const legacy = CursorCodec.encode({ row_index: 3 });
+    await expect(
+      service.queryRecords(mockDatasetId.toHexString(), {
+        filters: [],
+        sort: [{ column: 'amount', order: 'asc' }],
+        cursor: legacy,
+        limit: 50,
+      } as never),
+    ).rejects.toThrow(/Cursor khong khop/);
+    await expect(
+      service.getRecords(mockDatasetId.toHexString(), {
+        limit: 10,
+        cursor: legacy,
+        sort_field: 'amount',
+        sort_order: 'asc',
+      } as never),
+    ).rejects.toThrow(/Cursor khong khop/);
+    expect(records.queryRecords).not.toHaveBeenCalled();
+  });
+
+  it('DVT-06: port nhan key cN da quy doi cho filters / sort / search', async () => {
+    await service.queryRecords(mockDatasetId.toHexString(), {
+      filters: [
+        { column: 'c0', operator: 'equals', value: 100 },
+        { column: 'amount', operator: 'equals', value: 200 },
+        { column: 'Customer', operator: 'contains', value: 'A' },
+      ],
+      sort: [{ column: 'Amount', order: 'desc' }],
+      search: { columns: ['customer', 'c0'], value: 'x' },
+      limit: 50,
+    } as never);
+    const input = records.queryRecords.mock.calls[0][1] as {
+      filters: { column: string }[];
+      sort: { column: string; order: string }[];
+      search: { columns: string[]; value: string };
+    };
+    expect(input.filters.map((f) => f.column)).toEqual(['c0', 'c0', 'c1']);
+    expect(input.sort).toEqual([{ column: 'c0', order: 'desc' }]);
+    expect(input.search).toEqual({ columns: ['c1', 'c0'], value: 'x' });
+  });
+
+  it('DV-2: co sort -> nextCursor lay tu port (gia tri sort cua dong cuoi), khong tu che { row_index }', async () => {
+    records.queryRecords.mockResolvedValueOnce({
+      items: [{ rowIndex: 9, props: {} }],
+      hasMore: true,
+      nextCursor: 'cursor-tu-port',
+    });
+    const res = await service.getRecords(mockDatasetId.toHexString(), {
+      limit: 1,
+      sort_field: 'amount',
+      sort_order: 'desc',
+    } as never);
+    expect(res.meta.nextCursor).toBe('cursor-tu-port');
+    expect(res.next_cursor).toBe('cursor-tu-port');
+    const input = records.queryRecords.mock.calls[0][1] as { sort: unknown };
+    expect(input.sort).toEqual([{ column: 'c0', order: 'desc' }]);
+  });
+
+  it('DV-2: het du lieu -> nextCursor null du port co tra cursor', async () => {
+    records.queryRecords.mockResolvedValueOnce({ items: [], hasMore: false, nextCursor: 'bo-qua' });
+    const res = await service.queryRecords(mockDatasetId.toHexString(), {
+      filters: [],
+      sort: [{ column: 'c1', order: 'asc' }],
+      limit: 50,
+    } as never);
+    expect(res.meta.nextCursor).toBeNull();
+    expect(res.meta.hasMore).toBe(false);
+  });
+
+  it('DV-14: getColumnStats truyen kieu cot xuong port', async () => {
+    await service.getColumnStats(mockDatasetId.toHexString(), 'customer');
+    expect(records.getColumnStats).toHaveBeenCalledWith(mockDatasetId.toHexString(), 'c1', 'string');
+  });
+});
+
+describe('DataView DTO (Zod) — Phần 7 v13 DV-1 / DV-6', () => {
+  it('DVT-05: value la object (NoSQL operator) -> bi tu choi', () => {
+    const bad = [
+      { column: 'c1', operator: 'equals', value: { $ne: null } },
+      { column: 'c1', operator: 'contains', value: { $regex: '(a+)+$' } },
+      { column: 'c1', operator: 'in', value: [{ $gt: '' }] },
+      { column: 'c1', operator: 'between', value: [1, { $gt: 0 }] },
+    ];
+    for (const f of bad) {
+      expect(QueryRecordsBodySchema.safeParse({ filters: [f] }).success).toBe(false);
+    }
+  });
+
+  it('DVT-05: value primitive / mang primitive -> hop le', () => {
+    const good = [
+      { column: 'c1', operator: 'equals', value: 'A' },
+      { column: 'c0', operator: 'greaterThan', value: 5 },
+      { column: 'c2', operator: 'equals', value: false },
+      { column: 'c0', operator: 'between', value: [1, 10] },
+      { column: 'c1', operator: 'in', value: ['a', 'b'] },
+      { column: 'c1', operator: 'isEmpty' },
+    ];
+    for (const f of good) {
+      expect(QueryRecordsBodySchema.safeParse({ filters: [f] }).success).toBe(true);
+    }
+  });
+
+  it('DVT-05 / VIEW-004: limit 500 nhan, 501 tu choi (ca GET va POST)', () => {
+    expect(QueryRecordsBodySchema.safeParse({ limit: 500 }).success).toBe(true);
+    expect(QueryRecordsBodySchema.safeParse({ limit: 501 }).success).toBe(false);
+    expect(QueryRecordsSchema.safeParse({ limit: '500' }).success).toBe(true);
+    expect(QueryRecordsSchema.safeParse({ limit: '501' }).success).toBe(false);
+    expect(QueryRecordsSchema.safeParse({ limit: '0' }).success).toBe(false);
+    expect(QueryRecordsSchema.safeParse({ limit: '2.5' }).success).toBe(false);
   });
 });
