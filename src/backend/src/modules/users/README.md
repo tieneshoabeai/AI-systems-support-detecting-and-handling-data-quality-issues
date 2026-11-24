@@ -1,170 +1,89 @@
-# `users` — Template: Hexagonal
-- Vì sao Hexagonal: password policy + revocation service + USER_BLOCKED/REMOVED dung boi realtime
-- Bất biến chính: session-policy.vo + password policy, 2 controller user/admin tach, user-access-revocation.service rieng (§12)
-- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+# Module `users` — Hồ Sơ, Phiên, Quản Trị
 
----
-# MÔ-ĐUN `users` — Tài khoản & Phiên đăng nhập
+Sở hữu danh tính người dùng và collection `user_sessions`. Là nguồn thật cho `auth` tra cứu. Cung cấp API hồ sơ cá nhân (`/users/me`) và API quản trị (`/admin/users`, phân trang keyset cursor).
 
-> **Đặc tả mô-đun & Tài liệu kỹ thuật**
+## 1. Vị trí và vai trò
 
-## 1. Thông tin phiên bản
+- Đường dẫn: `src/backend/src/modules/users/`
+- Loại kiến trúc: CQRS đầy đủ, 34 tệp `.ts`.
+- Sở hữu: collection `users` + `user_sessions`.
+- Được dùng bởi: `auth` (qua `AUTH_USER_LOOKUP_PORT`, `AUTH_SESSION_PORT`), `workspaces/projects` (lấy tên user), `overview` (đếm user).
 
-- **Phiên bản hiện tại:** v1.1.0
-- **Cập nhật lần cuối:** 2026-11-21
-- **Đường dẫn mô-đun:** `src/backend/src/modules/users` (34 tệp TypeScript)
-- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
-- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
-
-## 2. Mục đích & Phạm vi nghiệp vụ
-
-Mô-đun này sở hữu **danh tính người dùng** và **vòng đời phiên đăng nhập**. Đây là aggregate root mang tính bảo mật cao nhất trong hệ thống.
-
-Mô-đun `auth` sẽ **gọi vào** mô-đun này qua port để tạo phiên và kiểm tra user; mô-đun này **không** lo xác thực mật khẩu hay token (thuộc về `auth`).
-
-### 2.1. Tính năng thuộc phạm vi
-
-| Chức năng | Nội dung |
-|---|---|
-| Hồ sơ người dùng | Tạo, cập nhật, xoá mềm, chặn / bỏ chặn |
-| Phiên đăng nhập | Tạo phiên, chạm (touch), thu hồi theo id / toàn bộ / theo hash token |
-| Truy vấn | Tìm theo email, id, phân trang, tìm phiên theo hash token |
-| Thông báo | Cập nhật tùy chọn (preferences) của người dùng |
-| Sự kiện | Phát `user.created`, `user.blocked`, `user.unblocked`, `user.removed` |
-
-### 2.2. Cấu trúc thư mục
+## 2. Cây thư mục đầy đủ
 
 ```text
 users/
-|-- domain/
-|   |-- entities/
-|   |   |-- user.entity.ts            # Aggregate root User
-|   |   `-- user-session.entity.ts    # Aggregate root UserSession
-|   |-- value-objects/
-|   |   |-- user-role.vo.ts           # UserRole, UserStatus, normalizeEmail, canUserLogin
-|   |   `-- session-policy.vo.ts      # Chính sách hết hạn phiên
-|   |-- events/user-events.ts         # USER_EVENTS, USER_OUTBOX_EVENTS
-|   `-- ports/user.repository.port.ts
-|-- application/
-|   |-- commands/                     # 11 command handler
-|   |-- queries/                      # 6 query handler
-|   `-- services/user-access-revocation.service.ts
-|-- infrastructure/persistence/        # user.schema, user-session.schema, repository, mapper
-`-- presentation/
-    |-- controllers/users.controller.ts
-    |-- controllers/admin-users.controller.ts
-    |-- dtos/update-user.dto.ts
-    `-- responses/user.response.ts
+├── domain/
+│   ├── entities/user.entity.ts                    # User (email duy nhất, role, status, googleId)
+│   ├── entities/user-session.entity.ts            # UserSession (tokenHash, expiresAt, device, ip)
+│   ├── value-objects/user-role.vo.ts              # USER_ROLES, USER_STATUSES, canUserLogin, normalizeEmail
+│   ├── value-objects/session-policy.vo.ts         # TTL phiên, quy tắc remember_me
+│   ├── events/user-events.ts                      # USER_EVENTS, USER_OUTBOX_EVENTS
+│   └── ports/user.repository.port.ts              # USER_REPOSITORY_PORT + kiểu Create/Update/Query
+├── application/
+│   ├── commands/ (11)
+│   │   ├── create-user.handler.ts                 # Tạo user (dùng cho register + Google + bootstrap)
+│   │   ├── create-session.handler.ts              # Tạo phiên (lưu hash refresh token)
+│   │   ├── update-profile.handler.ts              # Đổi tên, số điện thoại, bio
+│   │   ├── update-notification-preferences.handler.ts # Bật/tắt nhận thông báo
+│   │   ├── touch-session.handler.ts               # Cập nhật lần hoạt động cuối
+│   │   ├── revoke-session.handler.ts              # Thu hồi phiên hiện tại
+│   │   ├── revoke-session-by-id.handler.ts       # Thu hồi một phiên theo id
+│   │   ├── revoke-all-user-sessions.handler.ts   # Thu hồi toàn bộ phiên (đổi/quên mật khẩu)
+│   │   ├── soft-delete-user.handler.ts            # Xóa mềm tài khoản
+│   │   ├── block-user.handler.ts / unblock-user.handler.ts # Khóa/mở khóa (admin)
+│   ├── queries/ (6)
+│   │   ├── find-by-id.handler.ts / find-by-email.handler.ts
+│   │   ├── find-paged.handler.ts                  # Phân trang keyset cho admin
+│   │   ├── find-active-sessions.handler.ts        # Phiên còn hiệu lực
+│   │   ├── find-session-by-id.handler.ts / find-session-by-token-hash.handler.ts
+│   └── services/user-access-revocation.service.ts # Thu hồi quyền truy cập khi block/xóa
+├── infrastructure/persistence/
+│   ├── user.schema.ts                             # Schema User (email unique, passwordHash select:false)
+│   ├── user-session.schema.ts                     # Schema UserSession (tokenHash index, expires_at)
+│   ├── user.mapper.ts                             # Map Mongoose <-> entity/record
+│   └── users.repository.ts                        # Hiện thực USER_REPOSITORY_PORT
+├── presentation/
+│   ├── controllers/users.controller.ts            # @Controller('users'), 3 route /me
+│   ├── controllers/admin-users.controller.ts      # @Controller('admin/users'), 2 route, cần role admin
+│   ├── dtos/update-user.dto.ts                    # UpdateUserSchema (Zod)
+│   └── responses/user.response.ts                 # toUserResponse (ẩn passwordHash/googleId)
+├── users.module.ts
+└── index.ts                                       # Public contract
 ```
 
-## 3. Nhật ký Prompting & Quyết định kỹ thuật
+## 3. Tầng domain chi tiết
 
-- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Làm `users` là nguồn sự thật duy nhất về danh tính người dùng và phiên đăng nhập, để mọi mô-đun khác đều có thể trích xuất `userId` một cách nhất quán, đồng thời bảo đảm mọi luồng đều có một `User` hợp lệ.
+- `user.entity.ts`: `User.create()` kiểm tra email hợp lệ, chuẩn hóa lowercase; `block()/unblock()/softDelete()` đổi trạng thái; `MAX_NAME_LENGTH`, `MAX_BIO_LENGTH`.
+- `user-session.entity.ts`: lưu `tokenHash` (SHA-256), `expiresAt`, `deviceName`, `ip`, `revokedAt`. `isExpired()` so với thời điểm hiện tại.
+- `user-role.vo.ts`: `USER_ROLES = ['admin','analyst']`, `USER_STATUSES = ['active','blocked','deleted']`, `canUserLogin()` chỉ cho `active`, `normalizeEmail()` lowercase + trim.
+- `user.repository.port.ts`: hợp đồng `create/findById/findByEmail/findPaged/createSession/revoke...`, kiểu `CreateUserInput`, `CreateSessionInput`, `UpdateProfileInput`.
+- `user-events.ts`: sự kiện tạo/khóa/xóa user để audit và gửi thông báo.
 
-- **Lập luận kỹ thuật & Quyết định:**
+## 4. Tầng application chi tiết
 
-1. **Tách danh tính ra khỏi xác thực.** `auth` lo bằng chứng (mật khẩu, token, OAuth); `users` lo danh tính (tài khoản, phiên). Hai mối lo khác nhau, tách ra để mở rộng đường đăng nhập OAuth mà không phải sửa lại mô hình người dùng.
+- Tạo user/session tách riêng để `auth` tái dùng mà không cần biết Mongoose.
+- `UpdateProfileHandler`: kiểm tra số điện thoại Việt Nam, khóa lạc quan nếu client gửi `If-Match`.
+- `UserAccessRevocationService`: khi block/xóa, thu hồi toàn bộ session và đẩy `session.revoked` qua realtime để client ngắt kết nối.
+- `FindPagedHandler`: phân trang keyset (`cursor`, `sortBy`), không dùng `page/total` để tránh quét O(n).
 
-2. **Gắn chặt invariant trong entity.** `canUserLogin` chặn tài khoản bị chặn / đã xoá **ngay trong domain**, thay vì để controller phải tự kiểm tra. `normalizeEmail` chuẩn hoá email một lần duy nhất, ở domain, nên mọi nơi đều dùng chung.
+## 5. Route đầy đủ
 
-3. **Chỉ lưu hash refresh token.** Session lưu SHA-256 hash, không lưu token thô. Nếu cơ sở dữ liệu bị lộ, kẻ tấn công không thể giả lập phiên.
-
-4. **Thu hồi realtime ngay lập tức (OPEN-08).** Khoá tài khoản nhưng socket vẫn sống là lỗ hổng IDOR qua WebSocket. `UserAccessRevocationService` ghi outbox event, mô-đun `realtime` bắt và đóng socket — tách mô-đun để tránh phụ thuộc vòng tròn.
-
-5. **Xoá mềm + partial unique index.** Cho phép đăng ký lại email đã xoá mà vẫn không trùng tên với tài khoản đang hoạt động.
-
-- **Hiện vật đã tạo / đã sửa:**
-
-- `domain/entities/user.entity.ts` — aggregate root `User` với 3 phương thức `create` / `reconstitute` / `restore`.
-- `domain/value-objects/user-role.vo.ts` — `UserRole`, `UserStatus`, `normalizeEmail`, `canUserLogin`.
-- `domain/events/user-events.ts` — `USER_EVENTS` (dạng `dot.case`) và `USER_OUTBOX_EVENTS` (dạng UPPER_SNAKE).
-- `application/services/user-access-revocation.service.ts` — phát `USER_BLOCKED` / `USER_REMOVED` khi khoá / xoá.
-- `application/commands/block-user.handler.ts`, `unblock-user.handler.ts`, `soft-delete-user.handler.ts`.
-- `presentation/controllers/admin-users.controller.ts` — các route quản trị có `@Roles('admin')`.
-
-## 4. Đặc tả giao tiếp kỹ thuật
-
-### 4.1. Điểm cuối (Endpoints)
-
-| Phương thức | Đường dẫn | Chính sách | Mô tả |
+| Phương thức | Đường dẫn đầy đủ | Bảo vệ | Mô tả |
 |---|---|---|---|
-| `GET` | `/api/v1/users/me` | Chủ tài khoản | Hồ sơ của tôi |
-| `PATCH` | `/api/v1/users/me` | Chủ tài khoản | Cập nhật hồ sơ |
-| `DELETE` | `/api/v1/users/me` | Chủ tài khoản | Xoá mềm tài khoản của tôi |
-| `GET` | `/api/v1/admin/users` | `admin` | Danh sách tài khoản |
-| `GET` | `/api/v1/admin/users/:id` | `admin` | Chi tiết tài khoản |
+| GET | `/api/v1/users/me` | JWT | Lấy hồ sơ hiện tại, không trả `passwordHash`/`googleId`. |
+| PATCH | `/api/v1/users/me` | JWT | Cập nhật tên, điện thoại, bio. |
+| DELETE | `/api/v1/users/me` | JWT | Xóa mềm tài khoản. |
+| GET | `/api/v1/admin/users` | JWT + `Roles('admin')` | Danh sách hồ sơ, keyset cursor (`cursor`, `sortBy`). Có audit log. |
+| GET | `/api/v1/admin/users/:id` | JWT + `Roles('admin')` | Chi tiết hồ sơ (chỉ đọc). Có audit log. |
 
-> Các command handler **không mở route REST** (gọi từ `auth`): `block-user`, `unblock-user`, `revoke-all-user-sessions`, `revoke-session-by-id`, `revoke-session`.
+## 6. Bất biến
 
-### 4.2. Giao diện / Provider được xuất ra ngoài
+- `email` duy nhất toàn hệ thống (unique index, chuẩn hóa lowercase).
+- `passwordHash`/`googleId` không bao giờ lộ qua API (`toUserResponse` đã lược bỏ).
+- Refresh token chỉ lưu hash; tra cứu bằng `find-session-by-token-hash`.
+- Block/soft-delete có hiệu lực ngay: `auth` kiểm tra `canUserLogin()` mỗi lần đăng nhập và mỗi lần xác thực JWT.
 
-`src/backend/src/modules/users/index.ts` xuất hợp đồng công khai:
+## 7. Test liên quan
 
-| Tên xuất | Vai trò |
-|---|---|
-| `UsersModule` | Mô-đun Nest |
-| Thực thể `User` + `UserRole` / `UserStatus` | Hợp đồng đọc của mô-đun khác |
-| `USER_REPOSITORY_PORT` | Cổng truy vấn tài khoản / phiên |
-| `UserAccessRevocationService` | Phát sự kiện thu hồi quyền |
-
-### 4.3. Sự kiện domain phát ra
-
-| Sự kiện | Khi nào | Định dạng |
-|---|---|---|
-| `user.created` | Đăng ký mới | `dot.case` — domain event của entity |
-| `user.blocked` | Admin khoá tài khoản | `dot.case` |
-| `user.unblocked` | Admin bỏ khoá | `dot.case` |
-| `user.removed` | Xoá mềm | `dot.case` |
-| `USER_BLOCKED` | Khoá — kích hoạt thu hồi realtime | UPPER_SNAKE — outbox event |
-| `USER_REMOVED` | Xoá mềm — kích hoạt thu hồi realtime | UPPER_SNAKE — outbox event |
-
-Hai nhóm tên cùng tồn tại có chủ đích: `dot.case` là **domain event** của entity; UPPER_SNAKE là **outbox event** mà `EventDispatcherService` và `DomainEventHandlerRegistry` khớp theo tên.
-
-## 5. Ràng buộc & Tiêu chuẩn bất biến
-
-### 5.1. Bất biến nghiệp vụ
-
-- Email chuẩn hoá (`lowercase` + `trim`) và **duy nhất** trong số tài khoản chưa xoá mềm.
-- Số điện thoại **duy nhất** nếu có giá trị.
-- `firstName` / `lastName` ≤ 50 ký tự; `bio` ≤ 500 ký tự.
-- Chỉ tài khoản `active` + chưa xoá mới đăng nhập được (`canUserLogin`).
-- Xoá mềm **phải** thu hồi toàn bộ phiên.
-- `passwordHash` là private + `select: false` — không bao giờ được lộ ra ngoài.
-
-### 5.2. Xoá mềm (Soft Delete)
-
-- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
-- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
-- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
-
-### 5.3. Bảo mật
-
-| Vấn đề | Cách xử lý |
-|---|---|
-| Lộ mật khẩu | `passwordHash` private + `select: false`; mapper không bao giờ map ra response |
-| Trùng email | Chuẩn hoá trước khi ghi + partial unique index |
-| Đăng nhập tài khoản bị khoá | `canUserLogin` chặn ở entity, không phải ở controller |
-| Đăng nhập tài khoản đã xoá | `canUserLogin` + truy vấn lọc `deleted_at: null` |
-| Token phiên bị lộ | Chỉ lưu SHA-256 hash |
-| Đặt lại mật khẩu bị lạm dụng | Bộ đệm cửa sổ thời gian + giới hạn số lần gửi |
-| Phiên còn sống sau khi khoá | `USER_BLOCKED` / `USER_REMOVED` đóng socket tức thời |
-
-### 5.4. Phân quyền
-
-| Tuyến đường | Chính sách |
-|---|---|
-| `GET/PATCH/DELETE /users/me` | Chủ tài khoản đang đăng nhập |
-| `GET /admin/users`, `GET /admin/users/:id` | `@Roles('admin')` |
-
-**Mô hình vai trò 3 tầng:** hệ thống (`admin`, `analyst`) → workspace (`owner`, `member`) → project (`owner`, `member`, `viewer`). Mô-đun này sở hữu tầng hệ thống.
-
-## 6. Lịch sử thay đổi
-
-### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
-- **v1.0.0** / 2026-11-XX / Bổ sung `UserAccessRevocationService` và `USER_BLOCKED` / `USER_REMOVED` để thu hồi realtime khi khoá / xoá tài khoản (OPEN-08) / Lỗ hổng IDOR qua WebSocket / `modules/users`, `modules/realtime`
-- **v0.9.0** / 2026-11-XX / Bổ sung `block-user` / `unblock-user` và thu hồi phiên toàn bộ / Chuẩn bị mật khẩu / `modules/users`
-- **v0.8.0** / 2026-11-XX / Bổ sung admin bootstrap (`admin-bootstrap.service.ts`) — tạo tài khoản admin **tự động** khi hệ thống chưa có admin nào / Yêu cầu quyết định OPEN-01 / `modules/users`, `modules/auth`
-- **v0.1.0** / 2026-11-XX / Tạo mô-đun, tách danh tính khỏi xác thực / Kiến trúc Clean Architecture / `modules/users`
-
-- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`
+`test/unit/users/` (entity, session), `test/e2e/users-me.e2e-spec.ts`, `test/e2e/security/authorization.e2e-spec.ts` (48 ca CASL).

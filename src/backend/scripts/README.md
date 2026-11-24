@@ -1,103 +1,72 @@
-# Kịch bản vận hành & Bảo trì
+# Scripts — Vận Hành, Kiểm Thử, Benchmark Và Bảo Trì
 
-Các kịch bản (script) phục vụ vận hành, kiểm thử, đo hiệu năng (benchmark) và bảo trì mã nguồn. Phần lớn là **codemod** — chạy một lần trong quá trình tái cấu trúc, không phải chạy hằng ngày.
+Thư mục `src/backend/scripts/` chứa khoảng 44 script và 2 thư mục (`benchmark/`, `lib/`). Tất cả chạy từ `src/backend/`. Phần lớn là **codemod chạy một lần** trong đợt tái cấu trúc — không phải chạy hằng ngày.
 
-> Mọi kịch bản đều nên chạy từ `src/backend` và dùng `pnpm exec tsx <tệp>` hoặc `node <tệp>` tùy loại.
+> Quy tắc: chạy trên nhánh riêng, xem `git diff` trước khi commit, xong chạy `pnpm type-check && pnpm lint && pnpm test`.
 
 ---
 
-## 1. Kiểm tra kiến trúc
+## 1. Kiểm tra kiến trúc (6 script, có lệnh `pnpm` bọc ngoài)
 
-| Kịch bản | Công dụng | Dùng khi nào |
+| Script | Lệnh `pnpm` | Công dụng thật |
 |---|---|---|
-| `check-api-coverage.cjs` | Đối chiếu hợp đồng API §3.13 với mã nguồn | Trước khi hợp nhất (merge), sau mỗi thay đổi tuyến đường |
-| `extract-routes.cjs` | Trích danh sách tuyến từ controller | Sinh tài liệu hợp đồng |
-| `list-cross-module-imports.ts` | Liệt kê import chéo giữa các mô-đun | Phát hiện vi phạm CA8 |
-| `generate-arch-baseline.ts` | Sinh đường cơ sở kiến trúc (`test/fixtures/arch-baseline.json`) | Sau khi tái cấu trúc có chủ đích |
-| `verify-di-graph.ts` | Xác nhận đồ thị phụ thuộc DI | Khi thêm mô-đun/provider |
-| `status-audit.cjs` | Tổng hợp trạng thái các mục trong danh sách kiểm tra | Theo dõi tiến độ |
+| `check-api-coverage.cjs` | `pnpm arch:api-coverage` | Đối chiếu hợp đồng API với mã nguồn (controller/routes) |
+| `extract-routes.cjs` | — | Trích danh sách route từ controller để sinh tài liệu hợp đồng |
+| `list-cross-module-imports.ts` | `pnpm arch:cross-imports` | Liệt kê import chéo giữa các module (phát hiện vi phạm CA8) |
+| `generate-arch-baseline.ts` | `pnpm arch:baseline` | Sinh `test/fixtures/arch-baseline.json` sau tái cấu trúc cố định |
+| `verify-di-graph.ts` | `pnpm arch:verify-di` | Xác nhận đồ thị phụ thuộc DI khi thêm module/provider |
+| `status-audit.cjs` | — | Tổng hợp trạng thái các mục checklist |
 
-Lệnh bao ngoài của các kịch bản này cũng được gọi qua `pnpm`:
+---
+
+## 2. Hạ tầng và dịch vụ (12 script, dùng hằng ngày)
+
+| Script | Công dụng thật |
+|---|---|
+| `test-infra-up.sh` | Bật hạ tầng test: Docker compose test nếu có daemon, không thì binary native (Mongo rs0 ở 27018, Redis ở 6380, MinIO ở 9002/9003) |
+| `test-infra-down.sh` | Tắt cả 2 chế độ và xóa `minio-data` |
+| `verify-external-services.ts` | Kiểm tra Mongo/Redis/S3 có sống không |
+| `bootstrap-database.ts` | Tạo collection và index (`pnpm db:bootstrap`, `db:reset:*`) |
+| `seed-initial-data.ts` | Nạp dữ liệu mẫu (`pnpm db:seed`) |
+| `migrate-coerce-and-orphans.ts` | Ép kiểu dữ liệu và dọn bản ghi mồ côi (`pnpm db:migrate:*`) |
+| `backup-mongo.sh` / `restore-mongo.sh` | Sao lưu / khôi phục MongoDB (`pnpm db:backup:mongo`, `db:restore:mongo`) |
+| `backup-storage.sh` | Sao lưu kho lưu trữ (`pnpm db:backup:storage`) |
+| `generate-ssl-certs.sh` | Sinh chứng thư SSL tự ký (`pnpm ssl:generate`) |
+| `install-cloudflared.sh` / `start-cloudflare-tunnel.sh` | Cài đặt / chạy Cloudflare Tunnel (`pnpm tunnel*`) |
+| `perf-report.sh` | Tổng hợp báo cáo hiệu năng staging (`pnpm test:perf:staging`) |
+
+---
+
+## 3. Codemod và tái cấu trúc (chạy một lần, không chạy lặp lại)
+
+| Nhóm | Script |
+|---|---|
+| Lỗi domain | `codemod-domain-error.mjs`, `normalize-domain-error-classes.mjs`, `cleanup-presentation-error-imports.mjs`, `cleanup-unused-error-code-imports.mjs`, `cleanup-nestjs-exception-imports.mjs`, `dedupe-test-error-imports.mjs` |
+| Test | `codemod-test-domain-error.mjs`, `codemod-test-assertions-multiline.mjs`, `fix-test-import-paths.mjs`, `fix-http-status-regression.mjs`, `fix-status-codemod.cjs` |
+| Handler CQRS | `split-commands-queries.ts`, `wire-handlers.ts`, `rebase-handler-imports.ts`, `map-handler-to-service.ts`, `generate-test-handlers.py`, `update-tests-for-handlers.py` |
+| Module | `update-module-index.py`, `fix-shared-app-files.ts`, `add-explicit-return-types.ts`, `cleanup-old-services.py`, `restore-step4-modules.py`, `_refactor_b1.py`, `measure-refactor.sh` |
+
+---
+
+## 4. Benchmark (`benchmark/` + `lib/`)
+
+| Đường dẫn | Nội dung thật |
+|---|---|
+| `scripts/benchmark/` | `run-models.ts`, `compare-models.ts`, `describe-gold-set.ts`, `pareto.ts`, `gold-set.ts`, `models.ts`, `judge.ts`, `scorer.ts`, `stats.ts`, `prompt.ts`, `ram-guard.ts`, `http-client.ts`, `infra-error.ts`, `benchmark.spec.ts` |
+| `scripts/lib/` | `cli-storage.ts`, `load-env.ts`, `ntfy-notifier.ts` (tiện ích dùng chung) |
 
 ```bash
-pnpm arch:api-coverage
-pnpm arch:cross-imports
-pnpm arch:baseline
-pnpm arch:verify-di
-```
-
----
-
-## 2. Codemod & Tái cấu trúc
-
-Các kịch bản này **tự động sửa mã nguồn**. Luôn xem lại bằng `git diff` trước khi chốt (commit), và chạy trên nhánh riêng trước.
-
-| Kịch bản | Tác dụng |
-|---|---|
-| `codemod-domain-error.mjs` | Chuyển `throw new Error` thành `DomainError` có mã lỗi |
-| `normalize-domain-error-classes.mjs` | Chuẩn hoá lớp lỗi domain |
-| `codemod-test-domain-error.mjs` | Sửa assertion trong kiểm thử theo lỗi mới |
-| `codemod-test-assertions-multiline.mjs` | Định dạng assertion kiểm thử xuống nhiều dòng |
-| `dedupe-test-error-imports.mjs` | Loại import trùng lặp trong kiểm thử |
-| `cleanup-nestjs-exception-imports.mjs` | Loại import `HttpException` thừa |
-| `cleanup-presentation-error-imports.mjs` | Dọn dẹp import lỗi ở tầng trình bày |
-| `cleanup-unused-error-code-imports.mjs` | Loại import mã lỗi không dùng |
-| `fix-http-status-regression.mjs` | Sửa hồi quy (regression) trạng thái HTTP |
-| `fix-test-import-paths.mjs` | Sửa đường dẫn import trong kiểm thử |
-| `split-commands-queries.ts` | Tách handler thành command / query |
-| `wire-handlers.ts` | Gắn provider + controller gọi handler |
-| `rebase-handler-imports.ts` | Chuẩn hoá import của handler |
-| `map-handler-to-service.ts` | Sinh bảng ánh xạ handler → service |
-| `add-explicit-return-types.ts` | Thêm kiểu trả về tường minh |
-| `fix-shared-app-files.ts` | Sửa tệp trong `shared/application` |
-| `update-module-index.py` | Cập nhật `modules/index.ts` (hợp đồng công khai) |
-| `update-tests-for-handlers.py` | Sinh/sửa kiểm thử theo handler mới |
-| `generate-test-handlers.py` | Sinh kiểm thử handler mẫu (boilerplate) |
-| `cleanup-old-services.py` | Xoá service đã thay thế |
-| `restore-step4-modules.py` | Khôi phục mô-đun ở bước 4 |
-| `_refactor_b1.py` | Tái cấu trúc B1 |
-
----
-
-## 3. Hạ tầng & Dịch vụ
-
-| Kịch bản | Công dụng |
-|---|---|
-| `test-infra-up.sh` | Khởi động MongoDB replica set + Redis + MinIO cho kiểm thử |
-| `test-infra-down.sh` | Tắt và dọn dẹp hạ tầng kiểm thử |
-| `verify-external-services.ts` | Kiểm tra dịch vụ bên ngoài (Mongo, Redis, S3) có hoạt động không |
-| `bootstrap-database.ts` | Tạo collection + chỉ mục cần thiết |
-| `seed-initial-data.ts` | Nạp dữ liệu mẫu |
-| `migrate-coerce-and-orphans.ts` | Ép kiểu dữ liệu & dọn bản ghi mồ côi |
-| `backup-mongo.sh` / `restore-mongo.sh` | Sao lưu / khôi phục MongoDB |
-| `backup-storage.sh` | Sao lưu kho lưu trữ |
-| `generate-ssl-certs.sh` | Sinh chứng thư SSL tự ký |
-| `install-cloudflared.sh` | Cài đặt cloudflared |
-| `start-cloudflare-tunnel.sh` | Khởi động Cloudflare Tunnel |
-| `perf-report.sh` | Tổng hợp báo cáo hiệu năng |
-
----
-
-## 4. Đo hiệu năng (Benchmark)
-
-| Kịch bản | Công dụng |
-|---|---|
-| `benchmark/` | Thư mục các kịch bản đo hiệu năng mô hình AI |
-| `lib/` | Tiện ích dùng chung cho benchmark |
-
-```bash
-pnpm bench:models    # Chạy đo hiệu năng mô hình
-pnpm bench:gold      # Mô tả bộ dữ liệu vàng
-pnpm bench:stats     # So sánh kết quả giữa các mô hình
-pnpm bench:pareto    # Phân tích đường Pareto
+pnpm bench:models    # chạy đo hiệu năng mô hình
+pnpm bench:gold      # mô tả bộ dữ liệu vàng
+pnpm bench:stats     # so sánh kết quả giữa các mô hình
+pnpm bench:pareto    # phân tích đường Pareto
 ```
 
 ---
 
 ## 5. Lưu ý khi chạy codemod
 
-1. **Làm việc trên nhánh riêng** — không chạy trực tiếp trên nhánh chính.
-2. **Chốt/sao lưu trước khi chạy** — để khôi phục (rollback) được.
-3. **Xem lại `git diff` sau khi chạy** — codemod có thể sửa sai chỗ.
-4. **Chạy `pnpm type-check && pnpm lint && pnpm test`** ngay sau đó.
-5. **Không chạy codemod lặp lại** trên mã nguồn đã qua codemod — dễ sinh thay đổi sai ở lần thứ hai.
+1. Làm trên nhánh riêng, commit/sao lưu trước.
+2. Xem `git diff` sau khi chạy — codemod có thể sửa sai chỗ.
+3. Chạy `pnpm type-check && pnpm lint && pnpm test` ngay sau đó.
+4. Không chạy lặp lại trên mã đã qua codemod.

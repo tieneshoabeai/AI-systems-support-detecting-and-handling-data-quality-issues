@@ -2,7 +2,7 @@
 
 - **Version:** v17
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-24 (v17)
+- **Cập nhật gần nhất:** 2026-11-25 (v17)
 - **Thay đổi v17 (2026-11-24):** mục 3.27 (đợt K) đổi trạng thái sang "Đã thực hiện" (v15/v16 chép sót); bổ sung mục 3.30 — Test đợt vá sau rà soát commit (VAT-01…VAT-08, ứng với Phần 7 v15 mục 3.25) + quy ước test phụ thuộc môi trường. Trạng thái: xem mục 3.30.
 - **Thay đổi v16 (2026-11-24):** bổ sung mục 3.29 — Test đợt sửa module `feedback` (ứng với Phần 7 v14 mục 3.24, Phần 12 v15 mục 3.24, checklist `src/backend/test/unit_test/13_feedback.md`). Trạng thái: xem mục 3.29.
 - **Thay đổi v15 (2026-11-24):** bổ sung mục 3.28 — Test đợt sửa module `data-view` (ứng với Phần 7 v13 mục 3.23, checklist `src/backend/test/unit_test/07_data_view.md`). Trạng thái: xem mục 3.28.
@@ -1506,19 +1506,20 @@ Nhóm A gồm ba loại:
 
 ### 3.30. Test đợt vá sau rà soát commit (v17)
 
-- **Trạng thái:** Đã thực hiện 2026-11-24 — `tsc` 0 lỗi, `lint` 0 cảnh báo, `test:arch` 23/23, `arch:api-coverage` 84/84; `test:unit` **không đặt biến môi trường** 73/73 suite (1180 đạt, 3 skip — gồm 2 test chỉ chạy trên Linux); integration **không đặt `TEST_MONGODB_URI`** 175/178 (3 lỗi MinIO — OPEN-T-01); E2E 70/70.
+- **Trạng thái:** Đã thực hiện 2026-11-24 — `tsc` 0 lỗi, `lint` 0 cảnh báo, `test:arch` 23/23, `arch:api-coverage` 84/84; `test:unit` **không đặt biến môi trường** 73/73 suite (1180 đạt, 3 skip — gồm 2 test chỉ chạy trên Linux); integration **không đặt `TEST_MONGODB_URI`** 175/178 (3 lỗi MinIO — OPEN-T-01); E2E 70/70. **Sau khi kéo `origin/backend` (2026-11-25):** `test:unit` 74/74 suite (1197 đạt, 3 skip); integration 175/178; E2E 10/12 suite, 87/87 ca — 2 suite e2e mới của `backend` lỗi biên dịch có sẵn từ `origin/backend` (`docs/modules/analysis_plan.md` mục 7k).
 - **Hợp đồng:** Phần 7 v15 mục 3.25 (VA-1…VA-4), Phần 12 v16 mục 3.24 (T1-3, T1-5).
+- **Đường dẫn test sau khi kéo `origin/backend` (2026-11-25):** nhánh `backend` gom test unit theo module (commit `cc3090a`): `test/<tên>.spec.ts` → `test/unit/<module>/<tên>.spec.ts`; bộ port đợt A–I `test/analysis-vqd-port/` → `test/unit/analysis/vqd-port/`. Bảng dưới dùng đường dẫn mới; các mục 3.20–3.29 giữ đường dẫn tại thời điểm thực hiện — tra theo tên file trong `src/backend/test/README.md`.
 
 | Mã | Ca kiểm thử | Tầng | File | Quy tắc |
 |---|---|---|---|---|
-| VAT-01 | 3 người `correct` + 1 người `partially_correct` → trust mẫu "đúng" **không** giảm; `countDistinctAuthors` nhận đủ nhóm nhãn `[correct, partially_correct]` | Unit | `test/feedback-v14.spec.ts` | VA-4, T1-3 |
-| VAT-02 | Đổi nhãn `correct` ↔ `partially_correct` → chỉ đồng bộ mẫu 1 lần | Unit | `test/feedback-v14.spec.ts` | T1-5 |
+| VAT-01 | 3 người `correct` + 1 người `partially_correct` → trust mẫu "đúng" **không** giảm; `countDistinctAuthors` nhận đủ nhóm nhãn `[correct, partially_correct]` | Unit | `test/unit/feedback/feedback-v14.spec.ts` | VA-4, T1-3 |
+| VAT-02 | Đổi nhãn `correct` ↔ `partially_correct` → chỉ đồng bộ mẫu 1 lần | Unit | `test/unit/feedback/feedback-v14.spec.ts` | T1-5 |
 | VAT-03 | `countDistinctAuthors` với `labels` đếm tác giả khác nhau trên cả nhóm nhãn; `findingId` null/rỗng → 0 | Integration (Mongo thật) | `test/integration/repositories-domain.spec.ts` | VA-4 |
-| VAT-04 | Tên tác giả thật qua `findByIds` ở bộ test cũ (mock bổ sung) | Unit | `test/feedback-wave7.spec.ts` | FB-009 |
+| VAT-04 | Tên tác giả thật qua `findByIds` ở bộ test cũ (mock bổ sung) | Unit | `test/unit/feedback/feedback-wave7.spec.ts` | FB-009 |
 | VAT-05 | `in: []` qua port trên cột number / boolean / date → 0 dòng | Integration (Mongo thật) | `test/integration/record-query.spec.ts` | VA-3 |
-| VAT-06 | Chỉ SYS-ADMIN có `can(Manage, 'all')` (WS-OWNER, PROJ-OWNER, PROJ-MEMBER đều `false`); `NODE_ENV=production` → `NOT_FOUND` | Unit | `test/analysis-ai-result-guard.spec.ts` | VA-1 |
-| VAT-07 | `retry` ghi audit `AI_JOB_RETRIED`, `result` ghi `AI_RESULT_INGESTED` | Unit | `test/analysis-ai-result-guard.spec.ts` | VA-2 |
-| VAT-08 | Test phụ thuộc môi trường chạy được ngoài Linux / không cần biến môi trường: 2 test `/proc/meminfo` chỉ chạy trên Linux; Redis multi-instance tự dùng `127.0.0.1:6380`, `redis-server` thiếu → bỏ qua ngay; URI Mongo test mặc định có `directConnection=true` | Unit + Integration | `test/ai-adapters-outbox.spec.ts`, `scripts/benchmark/benchmark.spec.ts`, `test/group1-infra.spec.ts`, `test/helpers/test-infra.ts` | — |
+| VAT-06 | Chỉ SYS-ADMIN có `can(Manage, 'all')` (WS-OWNER, PROJ-OWNER, PROJ-MEMBER đều `false`); `NODE_ENV=production` → `NOT_FOUND`, kể cả khi module không cung cấp `ConfigService` (đọc dự phòng `process.env.NODE_ENV`) | Unit | `test/unit/analysis/analysis-ai-result-guard.spec.ts` | VA-1 |
+| VAT-07 | `retry` ghi audit `AI_JOB_RETRIED`, `result` ghi `AI_RESULT_INGESTED` | Unit | `test/unit/analysis/analysis-ai-result-guard.spec.ts` | VA-2 |
+| VAT-08 | Test phụ thuộc môi trường chạy được ngoài Linux / không cần biến môi trường: 2 test `/proc/meminfo` chỉ chạy trên Linux; Redis multi-instance tự dùng `127.0.0.1:6380`, `redis-server` thiếu → bỏ qua ngay; URI Mongo test mặc định có `directConnection=true` | Unit + Integration | `test/unit/infra/ai-adapters-outbox.spec.ts`, `scripts/benchmark/benchmark.spec.ts`, `test/unit/infra/group1-infra.spec.ts`, `test/helpers/test-infra.ts` | — |
 
 **OPEN-T-01:** 3 ca `test/integration/redis-minio.spec.ts` cần MinIO — image `minio/minio` đã bị gỡ khỏi Docker Hub (và `quay.io` trả 401), chưa chọn image thay thế.
 
@@ -1614,6 +1615,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 | **Ghi nhận** | Câu hỏi mở #3 ở Phần 11 (số lượng `dataset_record` thực tế) vẫn còn — ảnh hưởng kịch bản k6 và thời gian chạy test import |
 
 ## 7. Prompting log và lịch sử thay đổi
+- **Bổ sung v17 / 2026-11-25:** Kéo `origin/backend` (8 commit, gom test theo module) trước khi push / Người dùng yêu cầu kéo code `backend` về trước khi push / Bảng mục 3.30 đổi sang đường dẫn `test/unit/<module>/`; thêm ghi chú đối chiếu cho mục 3.20–3.29; VAT-06 thêm ca không có `ConfigService`.
 - **Thực hiện v17 / 2026-11-24:** Hoàn tất VAT-01…VAT-08 / Người dùng duyệt plan / Đổi trạng thái mục 3.30 sang đã thực hiện.
 - **Đề xuất v17 / 2026-11-24:** Test đợt vá sau rà soát commit (mục 3.30, VAT-01…VAT-08) + sửa trạng thái mục 3.27 / Người dùng yêu cầu kiểm tra bản audit commit / Thêm mục 3.30; docs trước code.
 - **Thực hiện v16 / 2026-11-24:** Hoàn tất FBT-01…FBT-13 / Người dùng duyệt plan / Đổi trạng thái mục 3.29 sang đã thực hiện; ca FBT-01…FBT-11 đặt ở file mới `test/feedback-v14.spec.ts` (helper mock đầy đủ hơn, không sửa `build()` của `feedback-wave7.spec.ts`).

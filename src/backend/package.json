@@ -44,7 +44,7 @@
     "start:worker": "nest start --entryFile worker",
     "start:worker:dev": "nest start --watch --entryFile worker",
     "test:security": "jest --config ./test/jest-e2e.json --runInBand test/e2e/security",
-    "test:perf": "k6 run test/k6/smoke.js && k6 run test/k6/stress.js",
+    "test:perf": "k6 run test/k6/smoke.js && k6 run test/k6/full-journey.js && k6 run test/k6/load.js && k6 run test/k6/stress.js",
     "test:benchmark": "node test/benchmark/run-benchmark.mjs",
     "bench:models": "ts-node --transpile-only scripts/benchmark/run-models.ts",
     "bench:gold": "ts-node --transpile-only scripts/benchmark/describe-gold-set.ts",
@@ -60,7 +60,12 @@
     "test:e2e:full": "pnpm run test:infra:up && (pnpm run test:e2e; CODE=$?; pnpm run test:infra:down; exit $CODE)",
     "test:all": "pnpm run test:unit && pnpm run test:arch && pnpm run test:integration && pnpm run test:e2e",
     "test:all:infra": "pnpm run test:infra:up && (pnpm run test:all; CODE=$?; pnpm run test:infra:down; exit $CODE)",
-    "test:cov:all": "jest --coverage --runInBand --testPathIgnorePatterns \"/node_modules/\""
+    "test:cov:all": "jest --coverage --runInBand --testPathIgnorePatterns \"/node_modules/\"",
+    "test:perf:smoke": "k6 run test/k6/smoke.js",
+    "test:perf:journey": "k6 run test/k6/full-journey.js",
+    "test:perf:load": "k6 run test/k6/load.js",
+    "test:perf:stress": "k6 run test/k6/stress.js",
+    "test:perf:latency": "k6 run test/k6/analysis-latency.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.670.0",

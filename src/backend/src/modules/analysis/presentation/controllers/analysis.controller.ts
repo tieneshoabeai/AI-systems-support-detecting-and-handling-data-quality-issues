@@ -7,6 +7,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -42,7 +43,8 @@ export class AnalysisController {
     private readonly runAnalysisHandler: RunAnalysisHandler,
     private readonly getJobHandler: GetJobHandler,
     private readonly getResultHandler: GetResultHandler,
-    private readonly config: ConfigService,
+    // @Optional: test module tự khai provider (vd e2e analysis-report-summary) không cần ConfigService.
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   @Post('projects/:projectId/analysis')
@@ -118,7 +120,9 @@ export class AnalysisController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() body: { result: unknown; modelId?: string },
   ): Promise<Record<string, unknown>> {
-    if (this.config.get<string>('NODE_ENV') === 'production') {
+    // Thiếu ConfigService vẫn đọc NODE_ENV để không vô tình mở route ở production.
+    const nodeEnv = this.config?.get<string>('NODE_ENV') ?? process.env.NODE_ENV;
+    if (nodeEnv === 'production') {
       throw new NotFoundError('Không tìm thấy tài nguyên');
     }
     const raw = (body?.result ?? {}) as unknown;

@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.12 (2026-11-24)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g.
+**Phiên bản:** v1.13 (2026-11-25)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g. **2026-11-25:** kéo tiếp 8 commit của `origin/backend` trước khi push — mục 7k.
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -242,7 +242,7 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - **Thay đổi kèm theo:** `test/ai-worker.spec.ts` — ca "lỗi JSON ⇒ gọi ingest với payload rỗng" của nhánh `backend` kiểm đúng hành vi lỗi K1 (và mâu thuẫn với ca "vẫn retry" ngay sau) → đổi thành "lỗi JSON còn lượt ⇒ không gọi ingest, job vẫn pending". Test mới: `test/analysis-dot-k.spec.ts` (AK-01 → AK-06), `test/integration/report-lease.spec.ts` (AK-07, MongoDB thật). Xác nhận ngược: tạm gỡ phần sửa `src/` thì bộ test đợt K không đạt.
 - **Còn lại (báo nhóm):** K6 thông báo phân tích xong; đối chiếu ma trận quyền AN-08 / AN-11–13 với guard CASL. *(v1.12: trạng thái Phần 13 mục 3.27 đã ghi "Đã thực hiện" ở Phần 13 v17.)*
 
-### 7j. Vá sau rà soát commit (2026-11-24)
+## 7j. Vá sau rà soát commit (2026-11-24)
 
 - **Nguồn:** bản audit các commit `Vqd_BE` (Antigravity) — đối chiếu với code ở `9dff652`.
 - **AJ-1 (VA-1):** `POST /analysis/jobs/:jobId/result` chỉ SYS-ADMIN (`can(Manage, 'all')`), `NODE_ENV=production` → 404. Trước đó PROJ-MEMBER+ ghi đè được nhận xét AI. Worker không dùng route này.
@@ -251,12 +251,25 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - **Ngoài phạm vi:** CASL `admin → manage all` trên route chỉ kiểm CASL (dev khác xử lý); K6.
 - **Trạng thái:** Đã thực hiện 2026-11-24. Test `test/analysis-ai-result-guard.spec.ts` 11/11. `tsc` 0 lỗi, `lint` 0 cảnh báo, `test:arch` 23/23, `arch:api-coverage` 84/84; `test:unit` **không đặt biến môi trường** 73/73 suite (1180 đạt, 3 skip — gồm 2 test chỉ chạy trên Linux); integration **không đặt `TEST_MONGODB_URI`** 175/178 (3 lỗi MinIO — OPEN-T-01); E2E 70/70.
 
+## 7k. Kéo `origin/backend` lần 2 trước khi push (2026-11-25)
+
+- **Bối cảnh:** sau merge `131e14c`, nhánh `backend` có thêm 8 commit: `cc3090a` gom test unit theo module (`test/unit/<module>/`) + 7 e2e + k6; `48231b7` schema Swagger `GET /datasets/:id/charts` (BE-07); 6 commit viết lại README module/test. `backend` không đổi `docs/restructures/` nên không trùng số phiên bản.
+- **Xung đột (3 file):**
+  - `modules/data-view/README.md`, `modules/feedback/README.md`: lấy bản viết lại của `backend` làm khung, chỉ sửa chỗ code `Vqd_BE` đã đổi (cursor theo sort, null cuối, chặn `value` object, `in []`; RAG theo khuôn, ≥ 3 người, nhóm nhãn mẫu, chặn theo trạng thái run, quyền sửa/xoá, audit). Sửa luôn danh sách nhãn ghi sai so với `feedback.types.ts`.
+  - `test/unit/datasets/data-view.spec.ts`: chỉ dòng import.
+- **Theo bố cục test mới:** chuyển `analysis-dot-k`, `analysis-ai-result-guard` → `test/unit/analysis/`; `feedback-v14` → `test/unit/feedback/`; `record-keyset-cursor` → `test/unit/shared/`; `test/analysis-vqd-port/` → `test/unit/analysis/vqd-port/`. Cập nhật `test/README.md`, `test/unit/README.md`, README của `unit/analysis`, `unit/feedback`, `unit/shared`, `integration/README.md` (thêm `report-lease.spec.ts` của đợt K), đường dẫn trong checklist `unit_test/07`, `13`, `18`.
+- **README module:** `analysis` (quyền route `/result`, audit `/retry`, K1, K5), `audit` (action mới).
+- **Sửa tương thích:** e2e `analysis-report-summary.e2e-spec.ts` của `backend` tự khai provider, không có `ConfigService` → `AnalysisController` nhận `ConfigService` dạng `@Optional()`, thiếu thì đọc `process.env.NODE_ENV` (route `/result` vẫn trả 404 ở production). Thêm 1 ca VAT-06.
+- **Kết quả:** `tsc` 0, `lint` 0, `test:arch` 23/23 (đủ 9 file arch: 64 đạt, 1 skip), `arch:api-coverage` 84/84; `test:unit` 74/74 suite (1197 đạt, 3 skip); integration 175/178 (3 lỗi MinIO — OPEN-T-01); E2E 10/12 suite, 87/87 ca.
+- **Báo nhóm `backend` (có sẵn trên `origin/backend`, không do merge):** 2 e2e mới `feedback-notifications-overview.e2e-spec.ts` và `dataset-dataview.e2e-spec.ts` không biên dịch được — TS18048 vì mock khai `Record<string, jest.Mock>` trong khi `tsconfig` bật `noUncheckedIndexedAccess`. Đã chạy lại trên worktree sạch của `origin/backend`: cùng 2 suite lỗi, cùng 87/87 ca.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.13 / 2026-11-25:** Thêm mục 7k — kéo 8 commit `origin/backend` (gom test theo module, viết lại README), giải quyết xung đột, sửa tương thích `ConfigService`; đổi mục 7j về cấp `##` cho đồng nhất.
 - **v1.12 / 2026-11-24:** Thêm mục 7j — vá sau rà soát commit (quyền `/result`, audit job AI); ghi nhận đã cập nhật trạng thái Phần 13 mục 3.27.
 - **v1.11 (thực hiện) / 2026-11-24:** Hoàn tất đợt K (K1–K5) — code + test; cập nhật trạng thái mục 7i.
 - **v1.11 / 2026-11-24:** Viết lại mục 7h (bỏ nhóm "hồi quy" — người dùng chốt đánh giá tính đúng đắn thay vì khớp test cũ); thêm mục 7i — khác biệt thiết kế được chấp nhận + đợt K sửa 5 lỗi thật (K1–K5), K6 ngoài phạm vi. Docs: Phần 8 v13, 9 v6, 12 v14, 13 v14.
