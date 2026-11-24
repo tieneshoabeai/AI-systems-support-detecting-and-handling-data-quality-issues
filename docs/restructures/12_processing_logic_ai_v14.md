@@ -3,7 +3,7 @@
 - **Version:** v14
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-24 (v14)
-- **Thay đổi v14 (2026-11-24):** bổ sung mục 3.23 — Sửa lỗi đúng đắn trong phân tích sau merge (đợt K). Nguồn: đánh giá tính đúng đắn code sau merge `origin/backend` (`docs/modules/analysis_plan.md` v1.11 mục 7i). Trạng thái: Đề xuất — đã duyệt, đang thực hiện.
+- **Thay đổi v14 (2026-11-24):** bổ sung mục 3.23 — Sửa lỗi đúng đắn trong phân tích sau merge (đợt K). Nguồn: đánh giá tính đúng đắn code sau merge `origin/backend` (`docs/modules/analysis_plan.md` v1.11 mục 7i). Trạng thái: Đã thực hiện 2026-11-24.
 - **Thay đổi v13 (2026-11-18):** bổ sung mục 3.22 — Thuật toán Nghi vấn tự phát hiện mâu thuẫn (đợt I). Nguồn: file `local_VQD/MISSED_ERRORS*.md` sau đợt H (16 lỗi còn lại đều thuộc DQ-05) + `docs/modules/analysis_plan.md` v1.7. Trạng thái: Đã thực hiện 2026-11-18 (đợt I).
 - **Thay đổi v12 (2026-11-18):** bổ sung mục 3.21 — Nhãn theo vai trò, thiếu ở cột chữ và thuật toán Nghi vấn mới (đợt H). Nguồn: bộ edge-cases `local_VQD/edge-cases` (11 file có bẫy dựng sẵn, file `MISSED_ERRORS_edge-cases.md`) + `docs/modules/analysis_plan.md` v1.6. Trạng thái: Đã thực hiện 2026-11-18 (đợt H).
 - **Thay đổi v11 (2026-11-17):** bổ sung mục 3.20 — Cột ngày trong DQ, bộ đọc ngày chặt và Nghi vấn (đợt G). Nguồn: bộ test offline `local_VQD` (oracle độc lập + tiêm lỗi, file `MISSED_ERRORS.md`) + `docs/modules/analysis_plan.md` v1.5. Trạng thái: Đã thực hiện 2026-11-17 (đợt G).
@@ -605,7 +605,7 @@ AI cải thiện → người dùng nhận xét tiếp        ↺
 
 ### 3.23. Sửa lỗi đúng đắn trong phân tích sau merge (đợt K) (v14)
 
-- **Trạng thái:** Đề xuất 2026-11-24 — người dùng duyệt (đợt K, sửa lỗi đúng đắn sau merge). Chi tiết lỗi và bằng chứng: `docs/modules/analysis_plan.md` mục 7i.
+- **Trạng thái:** Đã thực hiện 2026-11-24 (đợt K, sửa lỗi đúng đắn sau merge). Kết quả: unit 1106 pass (2 lỗi `/proc/meminfo` có từ mốc), `test:arch` 23/23, integration 139/142 (3 lỗi MinIO thiếu image, có từ mốc), `arch:api-coverage` 84/84, type-check + lint sạch; `local_VQD` bộ mẫu 0 FAIL / 0 bỏ sót, edge-cases 28/28 bẫy. Chi tiết lỗi và bằng chứng: `docs/modules/analysis_plan.md` mục 7i.
 - **K2 — Cột ngày phải vào DQ-01..04.** Hiện trạng: `run-analysis.handler.ts` lọc cột đầu vào bằng `classifyColumn(dataType) !== "excluded"` (hàm dành cho tương quan) → cột `date` bị loại khỏi **mọi** nhóm DQ: ô ngày trống không vào DQ-01, hai dòng chỉ khác thời điểm bị DQ-02 báo **trùng giả**, nghi vấn trên cột ngày (`conditional_missing`…) mất.
   - **Quy tắc mới:** tập cột phân tích DQ = mọi cột kiểu `string` / `number` / `boolean` / `date`. Tương quan / VIF vẫn loại cột ngày kèm lý do `date_column_excluded_from_correlation_vif` (đã có sẵn trong code). Ngày giữ nguyên giá trị thô (OPEN-05) — DQ-03 chỉ đánh dấu ô không phải ngày hợp lệ.
 - **K3 — Mức ảnh hưởng DQ-04 trong Tổng kết.** Hiện trạng: `create-summary.handler.ts` gọi `outlierSeverity({ iqr: outlierCount, iqrExtreme: 0, zscore: 0, both: 0 })` → DQ-04 **luôn "Thấp"** dù `dq_summary.columns[].outlierBreakdown` đã có phân rã.
@@ -702,6 +702,7 @@ Logic, trường hợp biên và tiêu chí đánh giá được xác nhận; r�
 - **Nền tảng CPU:** engine suy luận cần hỗ trợ **AVX2/AVX512**. VPS hiện tại phải được kiểm tra; nếu thiếu AVX512 thì tốc độ giảm đáng kể và phải tính lại ngưỡng latency trong benchmark.
 
 ## 7. Prompting log và lịch sử thay đổi
+- **Thực hiện / 2026-11-24:** Hoàn tất code + test mục 3.23 (đợt K) / Người dùng duyệt đợt K / Đổi trạng thái sang đã thực hiện.
 - **Đề xuất v14 / 2026-11-24:** Sửa lỗi đúng đắn trong phân tích sau merge (đợt K) / Lỗi K2–K4 phát hiện khi đánh giá code sau merge, người dùng duyệt sửa / Thêm mục 3.23; docs trước code.
 
 - **Thực hiện đợt I / 2026-11-18:** Hoàn tất code + test / Người dùng duyệt plan đợt I / Đổi trạng thái sang đã thực hiện; điều chỉnh khi cài: kiểm tra dấu áp cho cả cột số vai trò phân loại (vd `passengers` 0–6), không chỉ cột định lượng.

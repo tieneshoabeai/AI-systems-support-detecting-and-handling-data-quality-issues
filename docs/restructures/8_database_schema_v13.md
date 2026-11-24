@@ -3,7 +3,7 @@
 - **Version:** v13
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-24 (v13)
-- **Thay đổi v13 (2026-11-24):** bổ sung mục 3.20 — Trường lease cho `report_job` (đợt K). Nguồn: đánh giá tính đúng đắn code sau merge `origin/backend` (`docs/modules/analysis_plan.md` v1.11 mục 7i). Trạng thái: Đề xuất — đã duyệt, đang thực hiện.
+- **Thay đổi v13 (2026-11-24):** bổ sung mục 3.20 — Trường lease cho `report_job` (đợt K). Nguồn: đánh giá tính đúng đắn code sau merge `origin/backend` (`docs/modules/analysis_plan.md` v1.11 mục 7i). Trạng thái: Đã thực hiện 2026-11-24.
 - **Thay đổi v12 (2026-11-24):** hợp nhất hai nhánh phiên bản sau khi merge `origin/backend` vào `Vqd_BE` (commit `131e14c`): nhánh `Vqd_BE` (tới v11 — module analysis đợt A–I) và nhánh `backend` (tới v7 — Bước 1–6, GĐ, OPEN-01..10, refactor P1–P6). Giữ đủ mục của cả hai nhánh, **không đổi nghiệp vụ**. Hai nhánh cùng dùng số v7: file cùng tên trong thư mục này là bản của `backend`, bản cùng số của `Vqd_BE` lưu ở [`_nhanh_vqd_be/`](_nhanh_vqd_be/). Đường dẫn mã nguồn trong các mục đợt A–I là trước refactor (vd `analysis.service.ts`, `project-access.service.ts`) — bảng đối chiếu sang handler mới ở `docs/modules/analysis_plan.md` v1.9 mục 7g. Chỗ hai nhánh mô tả khác nhau thì **mã nguồn hiện hành và bảng route Phần 7 §3.13 là chuẩn** — vd route `GET/POST projects/{id}/analysis/config` nêu trong các mục đợt A–E đã bị gỡ ở nhánh `backend` (OPEN-06, Phần 7 v8.4: cấu hình phân tích bất biến, `POST projects/{id}/analysis` nhận body rỗng).
 - **Thay đổi v11 (2026-11-18):** bổ sung mục 3.19 — Loại Nghi vấn mới trong `analysis_result.suspicions` (đợt I). Nguồn: file `local_VQD/MISSED_ERRORS*.md` sau đợt H (16 lỗi còn lại đều thuộc DQ-05) + `docs/modules/analysis_plan.md` v1.7. Trạng thái: Đã thực hiện 2026-11-18 (đợt I).
 - **Thay đổi v10 (2026-11-18):** bổ sung mục 3.18 — Trường mới trong `analysis_result` (đợt H). Nguồn: bộ edge-cases `local_VQD/edge-cases` (11 file có bẫy dựng sẵn, file `MISSED_ERRORS_edge-cases.md`) + `docs/modules/analysis_plan.md` v1.6. Trạng thái: Đã thực hiện 2026-11-18 (đợt H).
@@ -1467,7 +1467,7 @@ Không còn đường ghi nào khác. Điều này loại bỏ hẳn các nhóm 
 
 ### 3.20. Trường lease cho `report_job` (đợt K) (v13)
 
-- **Trạng thái:** Đề xuất 2026-11-24 — người dùng duyệt (đợt K, sửa lỗi đúng đắn sau merge). Chi tiết lỗi và bằng chứng: `docs/modules/analysis_plan.md` mục 7i.
+- **Trạng thái:** Đã thực hiện 2026-11-24 (đợt K, sửa lỗi đúng đắn sau merge). Kết quả: unit 1106 pass (2 lỗi `/proc/meminfo` có từ mốc), `test:arch` 23/23, integration 139/142 (3 lỗi MinIO thiếu image, có từ mốc), `arch:api-coverage` 84/84, type-check + lint sạch; `local_VQD` bộ mẫu 0 FAIL / 0 bỏ sót, edge-cases 28/28 bẫy. Chi tiết lỗi và bằng chứng: `docs/modules/analysis_plan.md` mục 7i.
 | Trường | Kiểu | Mặc định | Mục đích |
 |---|---|---|---|
 | `lease_expires_at` | Date \| null | `null` | Hạn giữ job PDF của worker; hết hạn mà vẫn `running` → worker khác được nhận lại (Phần 9 v6 mục 3.13, K5) |
@@ -1570,6 +1570,7 @@ Schema và invariant đáp ứng use case; các thay đổi so với dữ liệu
 ---
 
 ## 7. Prompting log và lịch sử thay đổi
+- **Thực hiện / 2026-11-24:** Hoàn tất code + test mục 3.20 (đợt K) / Người dùng duyệt đợt K / Đổi trạng thái sang đã thực hiện.
 - **Đề xuất v13 / 2026-11-24:** Trường lease cho `report_job` (đợt K) / Lỗi K5 (job PDF không có lease) cần thêm trường lưu trữ / Thêm mục 3.20; docs trước code.
 
 - **Hợp nhất v12 / 2026-11-24:** Hợp nhất nhánh `Vqd_BE` v11 với nhánh `backend` v7 / Merge `origin/backend` vào `Vqd_BE` (commit `131e14c`), người dùng yêu cầu đồng bộ docs (giai đoạn 2) / Gộp 3 chiều từ bản gốc chung; giữ mục của cả hai nhánh; dòng Trạng thái lấy của `backend`.

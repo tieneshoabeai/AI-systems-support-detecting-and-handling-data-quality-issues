@@ -238,7 +238,9 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 
 - **Ngoài phạm vi, báo nhóm:** K6 — loại thông báo `analysis_completed` / `ai_analysis_ready` có trong module notifications nhưng chưa nơi nào tạo (realtime `analysis.completed` vẫn chạy) → tính năng chưa làm, không phải lỗi. AN-08 / AN-11–13: kiểm quyền đã chuyển sang guard CASL — chưa đối chiếu lại ma trận quyền Phần 6 v9 mục 3.22–3.23.
 - **Test:** Phần 13 v14 mục 3.27 (AK-01 → AK-08), file `src/backend/test/analysis-dot-k.spec.ts`.
-- **Trạng thái:** Đề xuất 2026-11-24 — người dùng duyệt, đang thực hiện.
+- **Trạng thái:** Đã thực hiện 2026-11-24. Kết quả: unit 1106 pass (2 lỗi `/proc/meminfo` có từ mốc), `test:arch` 23/23, integration 139/142 (3 lỗi MinIO thiếu image, có từ mốc), `arch:api-coverage` 84/84, type-check + lint sạch; `local_VQD` bộ mẫu 0 FAIL / 0 bỏ sót, edge-cases 28/28 bẫy.
+- **Thay đổi kèm theo:** `test/ai-worker.spec.ts` — ca "lỗi JSON ⇒ gọi ingest với payload rỗng" của nhánh `backend` kiểm đúng hành vi lỗi K1 (và mâu thuẫn với ca "vẫn retry" ngay sau) → đổi thành "lỗi JSON còn lượt ⇒ không gọi ingest, job vẫn pending". Test mới: `test/analysis-dot-k.spec.ts` (AK-01 → AK-06), `test/integration/report-lease.spec.ts` (AK-07, MongoDB thật). Xác nhận ngược: tạm gỡ phần sửa `src/` thì bộ test đợt K không đạt.
+- **Còn lại (báo nhóm):** K6 thông báo phân tích xong; đối chiếu ma trận quyền AN-08 / AN-11–13 với guard CASL; Phần 13 mục 3.27 cần ghi trạng thái "Đã thực hiện" ở bản v15 (đang do phiên Data Views soạn).
 
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
@@ -246,6 +248,7 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.11 (thực hiện) / 2026-11-24:** Hoàn tất đợt K (K1–K5) — code + test; cập nhật trạng thái mục 7i.
 - **v1.11 / 2026-11-24:** Viết lại mục 7h (bỏ nhóm "hồi quy" — người dùng chốt đánh giá tính đúng đắn thay vì khớp test cũ); thêm mục 7i — khác biệt thiết kế được chấp nhận + đợt K sửa 5 lỗi thật (K1–K5), K6 ngoài phạm vi. Docs: Phần 8 v13, 9 v6, 12 v14, 13 v14.
 - **v1.10 / 2026-11-24:** Thêm mục 7h — giai đoạn 3: dựng lại `local_VQD` theo handler, port 100 ca test đợt A–I (B 48 · C 25 · A 27), ghi các hồi quy đã xác nhận; không đổi `src/`.
 - **v1.9 / 2026-11-24:** Thêm mục 7g — đồng bộ sau khi merge `origin/backend`: hợp nhất docs hai nhánh phiên bản (Phần 2 v15, 6 v9, 7 v12, 8 v12, 10 v8, 13 v13), bảng đối chiếu đường dẫn code trước/sau refactor, quyết định OPEN ảnh hưởng đợt A–I, việc còn lại cho giai đoạn 3; không đổi code.

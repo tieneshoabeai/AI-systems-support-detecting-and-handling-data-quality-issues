@@ -3,7 +3,7 @@
 - **Version:** v6
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-24 (v6)
-- **Thay đổi v6 (2026-11-24):** bổ sung mục 3.13 — Worker AI và worker PDF — sửa lỗi đúng đắn (đợt K). Nguồn: đánh giá tính đúng đắn code sau merge `origin/backend` (`docs/modules/analysis_plan.md` v1.11 mục 7i). Trạng thái: Đề xuất — đã duyệt, đang thực hiện.
+- **Thay đổi v6 (2026-11-24):** bổ sung mục 3.13 — Worker AI và worker PDF — sửa lỗi đúng đắn (đợt K). Nguồn: đánh giá tính đúng đắn code sau merge `origin/backend` (`docs/modules/analysis_plan.md` v1.11 mục 7i). Trạng thái: Đã thực hiện 2026-11-24.
 - **Thay đổi v5 (2026-11-17):** bổ sung mục 3.11 — Sửa hành vi worker AI corr-v1 và worker PDF. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.12 — Sự kiện outbox + thông báo cho analysis / AI (đã thực hiện).
 - **Thay đổi v3 (2026-11-05):** hạ tầng sự kiện chuyển từ **BullMQ/Redis** sang **Kafka** (5 topic, 6 consumer group, DLQ `dlq.dead-letter`); thêm **Socket.IO** làm kênh realtime tới client; AI chuyển sang **engine cục bộ** (`Qwen3-14B`/`Qwen3-8B`) qua `AiInferencePort`. Đồng bộ theo quyết định **dữ liệu bất biến (chỉ đọc)** — không có event nào phát sinh từ thao tác xoá dòng / sửa ô / clean-rules / rollback phiên bản; consumer **không được** ghi vào `dataset_record`.
 - **Trạng thái:** Đã chốt 8 quyết định hạ tầng (relay change stream + polling fallback, 1 hàng đợi, inbox pattern, at-least-once, SMTP, PDF ở worker, cleanup hằng ngày, chỉ worker chạy consumer) và thiết kế chi tiết **toàn bộ sự kiện, hàng đợi, consumer, adapter hạ tầng, chính sách retry và phục hồi lỗi**. Đã chốt toàn bộ mục 6.2 ở v4 (2026-11-07).
@@ -850,7 +850,7 @@ Domain → outbox_event → [Kafka: domain.events] → consumer xử lý
 
 ### 3.13. Worker AI và worker PDF — sửa lỗi đúng đắn (đợt K) (v6)
 
-- **Trạng thái:** Đề xuất 2026-11-24 — người dùng duyệt (đợt K, sửa lỗi đúng đắn sau merge). Chi tiết lỗi và bằng chứng: `docs/modules/analysis_plan.md` mục 7i.
+- **Trạng thái:** Đã thực hiện 2026-11-24 (đợt K, sửa lỗi đúng đắn sau merge). Kết quả: unit 1106 pass (2 lỗi `/proc/meminfo` có từ mốc), `test:arch` 23/23, integration 139/142 (3 lỗi MinIO thiếu image, có từ mốc), `arch:api-coverage` 84/84, type-check + lint sạch; `local_VQD` bộ mẫu 0 FAIL / 0 bỏ sót, edge-cases 28/28 bẫy. Chi tiết lỗi và bằng chứng: `docs/modules/analysis_plan.md` mục 7i.
 - **K1 — Worker AI thử lại khi AI trả không phải JSON.** Hiện trạng: `ai-worker.service.ts` đặt job về `pending` (còn lượt) rồi vẫn gọi `IngestAiResultHandler.execute(jobId, {})`; handler này ghi job thành `failed` → lượt thử lại không bao giờ chạy, `AI_MAX_RETRIES` vô tác dụng.
   - **Quy tắc mới:** còn lượt → chỉ đặt `pending` + `attempt+1` (`AI_RETRY`), **không** ghi đánh giá AI. Hết lượt → job `failed` (`AI_FAILED`) và ghi `analysis_result.aiCorrelationAssessment = { status: "failed", error }` trực tiếp qua repository (không đi qua grounding — grounding đầu vào rỗng không phải kết quả AI).
 - **K5 — Job PDF kẹt `running` khi worker dừng giữa chừng.** Hiện trạng: `claimPendingReport()` chỉ nhận `status = pending`; job AI có lease (`claimPendingJob` nhận lại job `running` hết hạn lease) nhưng job PDF thì không.
@@ -952,6 +952,7 @@ Hợp đồng tích hợp và trách nhiệm xử lý lỗi được xác nhận
 - `packages/contracts` — kiểu payload event dùng chung giữa `api` và `worker`.
 
 ## 7. Prompting log và lịch sử thay đổi
+- **Thực hiện / 2026-11-24:** Hoàn tất code + test mục 3.13 (đợt K) / Người dùng duyệt đợt K / Đổi trạng thái sang đã thực hiện.
 - **Đề xuất v6 / 2026-11-24:** Worker AI và worker PDF — sửa lỗi đúng đắn (đợt K) / Lỗi K1 + K5 phát hiện khi đánh giá code sau merge, người dùng duyệt sửa / Thêm mục 3.13; docs trước code.
 
 - **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.12 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.12 sang đã thực hiện.
