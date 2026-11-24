@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ProjectsModule } from '../projects/projects.module';
-import { OverviewController } from './overview.routes';
+import { OverviewController } from './overview.controller';
 import { OverviewService } from './overview.service';
 
 

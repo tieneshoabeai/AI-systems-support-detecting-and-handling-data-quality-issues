@@ -5,14 +5,14 @@ import { UsersController } from '../src/modules/users/presentation/controllers/u
 import { WorkspacesController } from '../src/modules/workspaces/presentation/controllers/workspaces.controller';
 import { ProjectsController } from '../src/modules/projects/presentation/controllers/projects.controller';
 import { DatasetsController } from '../src/modules/datasets/presentation/controllers/datasets.controller';
-import { DataViewController } from '../src/modules/data-view/data-view.routes';
+import { DataViewController } from '../src/modules/data-view/data-view.controller';
 import { AnalysisController } from '../src/modules/analysis/presentation/controllers/analysis.controller';
 import { SummaryController } from '../src/modules/analysis/presentation/controllers/summary.controller';
 import { ReportController } from '../src/modules/analysis/presentation/controllers/report.controller';
-import { NotificationsController } from '../src/modules/notifications/notifications.routes';
+import { NotificationsController } from '../src/modules/notifications/notifications.controller';
 import { IssuesController } from '../src/modules/issues/presentation/controllers/issues.controller';
-import { FeedbackController } from '../src/modules/feedback/feedback.routes';
-import { OverviewController } from '../src/modules/overview/overview.routes';
+import { FeedbackController } from '../src/modules/feedback/feedback.controller';
+import { OverviewController } from '../src/modules/overview/overview.controller';
 import { IS_PUBLIC_KEY } from '../src/shared/interfaces/decorators/public.decorator';
 import { JwtAuthGuard } from '../src/shared/interfaces/guards/jwt-auth.guard';
 

@@ -1,4 +1,4 @@
-/** FEEDBACK — Routes (Template Simple). Gop controller + DTO inline. Giu nguyen route + guard. */
+/** FEEDBACK — Controller (Template Simple). Gop controller + DTO inline. Giu nguyen route + guard. */
 import {
   Controller,
   Get,
@@ -21,7 +21,7 @@ import { ApiZodBody, ApiZodQuery } from '../../shared/interfaces/swagger/api-zod
 import { z } from 'zod';
 import { FeedbackService } from './feedback.service';
 
-// --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong routes) ---
+// --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong controller) ---
 
 export const FeedbackLabelSchema = z.enum([
   'correct',

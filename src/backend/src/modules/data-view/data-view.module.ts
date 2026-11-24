@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { DataViewController } from './data-view.routes';
+import { DataViewController } from './data-view.controller';
 import { DataViewService } from './data-view.service';
 import { DatasetsModule } from '../datasets/datasets.module';
 

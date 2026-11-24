@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { FindingFeedbackSchema } from './finding-feedback.schema';
 import { FeedbackRepository } from './feedback.repository';
 import { FEEDBACK_REPOSITORY_PORT } from './feedback.types';
-import { FeedbackController } from './feedback.routes';
+import { FeedbackController } from './feedback.controller';
 import { FeedbackService } from './feedback.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';

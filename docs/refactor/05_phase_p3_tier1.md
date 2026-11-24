@@ -26,7 +26,7 @@
 
 ```
 src/modules/overview/                       src/modules/overview/
-├── application/queries/*.handler.ts (2)    ├── overview.routes.ts      ← controller
+├── application/queries/*.handler.ts (2)    ├── overview.controller.ts      ← controller
 ├── presentation/controllers/*.ts          ├── overview.service.ts     ← 2 method
 ├── index.ts / overview.module.ts           ├── overview.types.ts       ← type dùng chung (nếu có)
                                             ├── index.ts / overview.module.ts / README.md
@@ -38,7 +38,7 @@ src/modules/overview/                       src/modules/overview/
 |---|---|
 | 1 | Đối chiếu `12_business_invariants.md` §overview: `GetUserOverview(userId)` + `GetWorkspaceOverview(workspaceId)`, giữ `Promise.all`, giữ 2 port `WORKSPACE_REPOSITORY_PORT` + `PROJECT_REPOSITORY_PORT` |
 | 2 | Tạo `overview.service.ts` (`OverviewService`, 2 method) — copy nguyên body handler, giữ thứ tự tham số |
-| 3 | Tạo `overview.routes.ts` từ controller — GIỮ `JwtAuthGuard + PoliciesGuard + WorkspacePolicyLoader + CheckPolicies`, GIỮ comment xung đột đường dẫn E3 (`overview/workspaces` tách khỏi `workspaces/:id`) + 2 path `overview/workspaces` và `workspaces/:id/overview` |
+| 3 | Tạo `overview.controller.ts` từ controller — GIỮ `JwtAuthGuard + PoliciesGuard + WorkspacePolicyLoader + CheckPolicies`, GIỮ comment xung đột đường dẫn E3 (`overview/workspaces` tách khỏi `workspaces/:id`) + 2 path `overview/workspaces` và `workspaces/:id/overview` |
 | 4 | Chuyển DI ở `overview.module.ts` — GIỮ `imports: [WorkspacesModule, ProjectsModule]` + 2 provider; export lại ở `index.ts` (giữ export 2 handler để tương thích) |
 | 5 | Xóa `application/ presentation/` rỗng sau khi type-check xanh |
 | 6 | Viết `README.md`: `Template: Simple`, lý do + bất biến |
@@ -81,7 +81,7 @@ src/modules/realtime/                      src/modules/realtime/
 
 ```
 src/modules/data-view/                     src/modules/data-view/
-├── application/queries/*.handler.ts (4)   ├── data-view.routes.ts   ← controller + 3 DTO
+├── application/queries/*.handler.ts (4)   ├── data-view.controller.ts   ← controller + 3 DTO
 ├── application/*.types.ts + *.utils.ts     ├── data-view.service.ts  ← 4 method
 ├── domain/entities + value-objects        ├── data-view.types.ts    ← types + entity/vo gộp
 ├── presentation/controllers + dtos       ├── data-view.utils.ts    ← giữ
@@ -93,7 +93,7 @@ src/modules/data-view/                     src/modules/data-view/
 | Bước | Hành động |
 |---|---|
 | 1 | Đối chiếu §data-view: giữ `RECORD_QUERY_PORT` của `datasets`, giữ `DEFAULT/MAX_RECORD_LIMIT` + `normalizeRecordLimit`, giữ tách route `records/query` (POST) vs `records` (GET) |
-| 2 | Gộp 3 DTO vào `data-view.routes.ts` (DTO 1 nơi) |
+| 2 | Gộp 3 DTO vào `data-view.controller.ts` (DTO 1 nơi) |
 | 3 | Gộp entity + vo vào `data-view.types.ts` (không tách `domain/`) |
 | 4 | Gộp 4 handler → `DataViewService` (4 method, giữ `execute()` + thứ tự tham số) |
 | 5 | Import chéo `datasets` **phải qua `../datasets`** (MM2) — 13 chỗ, kiểm tra kỹ; GIỮ `imports: [DatasetsModule]` trong module + `DatasetPolicyLoader` trong routes (2 resource `DataRecord`/`Dataset`) |
@@ -107,7 +107,7 @@ src/modules/data-view/                     src/modules/data-view/
 
 ```
 src/modules/notifications/                 src/modules/notifications/
-├── application/commands + queries (6)     ├── notifications.routes.ts     ← controller + 2 DTO
+├── application/commands + queries (6)     ├── notifications.controller.ts     ← controller + 2 DTO
 ├── application/*.mapper.ts + *.utils.ts   ├── notifications.service.ts    ← 6 method
 ├── domain/entities + events + ports + vo  ├── notifications.repository.ts ← giữ
 ├── infrastructure/*.schema.ts + *.repo.ts ├── notifications.schema.ts    ← giữ
@@ -134,7 +134,7 @@ src/modules/notifications/                 src/modules/notifications/
 
 ```
 src/modules/feedback/                     src/modules/feedback/
-├── application/commands + queries (7)    ├── feedback.routes.ts      ← controller + DTO
+├── application/commands + queries (7)    ├── feedback.controller.ts      ← controller + DTO
 ├── domain 2 entities + vo                ├── feedback.service.ts     ← 7 method
 ├── infrastructure 1 repo + schemas       ├── feedback.repository.ts  ← 1 repo (giữ, dùng 1 model `FindingFeedback`)
 ├── presentation controllers + dtos      ├── feedback.types.ts       ← 2 entity + vo + port token (giữ `Feedback.create/updateByAuthor`)

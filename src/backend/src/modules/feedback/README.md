@@ -3,7 +3,7 @@
 > **P3.5 (2026-11-24):** Flatten từ Hexagonal → Simple Monolith theo ADR-0002.
 > - Vì sao Simple: 7 use-case CRUD + thống kê, không transaction/outbox phức tạp.
 > - Bất biến: `ensureNotAdmin(role)` — admin bị `ForbiddenError` với FB-*; 2 entity (`Feedback` aggregate + `FindingFeedback` helper) chung 1 repo/model `FindingFeedback`; tương thích camel/snake/ObjectId + `deleted_at: null` mọi query; chữ ký 4 tham số quá tải của `updateMine` giữ nguyên; RAG/few-shot promote best-effort (try/catch, không chặn feedback).
-> - Cấu trúc mới: `feedback.service.ts (7 method) + feedback.routes.ts (controller + 3 DTO gộp) + feedback.types.ts (2 entity + VO + events + port + input) + feedback.utils.ts (toPlain) + feedback.mapper.ts + finding-feedback.schema.ts + feedback.repository.ts + index.ts + feedback.module.ts`.
+> - Cấu trúc mới: `feedback.service.ts (7 method) + feedback.controller.ts (controller + 3 DTO gộp) + feedback.types.ts (2 entity + VO + events + port + input) + feedback.utils.ts (toPlain) + feedback.mapper.ts + finding-feedback.schema.ts + feedback.repository.ts + index.ts + feedback.module.ts`.
 > - Cấm: đổi Symbol port (TC-03), đổi thứ tự/tham số method (BC), làm sạch nhánh camel/snake (TC-06/BC-04), bỏ `ensureNotAdmin`.
 
 ---

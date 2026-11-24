@@ -32,4 +32,4 @@ export {
   type CreateFeedbackDto,
   type UpdateFeedbackDto,
   type ListFeedbackQueryDto,
-} from './feedback.routes';
+} from './feedback.controller';

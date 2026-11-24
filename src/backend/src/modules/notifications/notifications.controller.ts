@@ -1,4 +1,4 @@
-/** NOTIFICATIONS — Routes (Template Simple). Gop controller + 2 DTO inline. Giu nguyen thu tu route + guard. */
+/** NOTIFICATIONS — Controller (Template Simple). Gop controller + 2 DTO inline. Giu nguyen thu tu route + guard. */
 import { Controller, Get, Patch, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/interfaces/guards/jwt-auth.guard';
@@ -11,7 +11,7 @@ import { ApiZodBody, ApiZodQuery } from '../../shared/interfaces/swagger/api-zod
 import { z } from 'zod';
 import { NotificationsService } from './notifications.service';
 
-// --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong routes) ---
+// --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong controller) ---
 export const ListNotificationsQuerySchema = z.object({
   cursor: z.string().min(1).max(2000).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(10),

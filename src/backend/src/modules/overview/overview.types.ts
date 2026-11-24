@@ -1,6 +1,6 @@
 /**
  * OVERVIEW — Types (Template Simple).
- * Return shapes cua 2 query E3/E4 (tach tu handler de routes/service dung chung).
+ * Return shapes cua 2 query E3/E4 (tach tu handler de controller/service dung chung).
  */
 
 export interface UserOverview {

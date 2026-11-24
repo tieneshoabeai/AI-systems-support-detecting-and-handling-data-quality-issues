@@ -30,7 +30,7 @@ Quy tắc dependency giữ nguyên MM1–MM4 (xem §1.4). **Bỏ MM5** kiểu c�
 
 ```
 src/modules/audit/                  ← ví dụ Simple sau refactor
-├── audit.routes.ts                 ← controller + DTO + Zod validation + guard dùng
+├── audit.controller.ts           ← controller + DTO + Zod validation + guard dùng
 ├── audit.service.ts                ← toàn bộ nghiệp vụ (handler gộp thành method)
 ├── audit.repository.ts             ← chỉ nếu có DB riêng (audit/notifications/feedback có; overview/data-view/realtime không)
 ├── audit.schema.ts                 ← chỉ nếu có DB riêng
@@ -117,10 +117,10 @@ Simple dùng tiền tố module; Hexagonal giữ tên cũ:
 
 | Template | Ví dụ |
 |---|---|
-| Simple | `<mod>.routes.ts`, `<mod>.service.ts`, `<mod>.repository.ts`, `<mod>.schema.ts`, `<mod>.types.ts`, `index.ts`, `<mod>.module.ts` |
+| Simple | `<mod>.controller.ts`, `<mod>.service.ts`, `<mod>.repository.ts`, `<mod>.schema.ts`, `<mod>.types.ts`, `index.ts`, `<mod>.module.ts` |
 | Hexagonal | giữ `application/commands/*.handler.ts`, `domain/entities/*.entity.ts`, ... chỉ chuẩn hóa export ở `index.ts` |
 
-> Không dùng tên generic (`service.ts`, `controller.ts`) ở Simple — phải có tiền tố module.
+> Không dùng tên generic (`service.ts`) ở Simple — phải có tiền tố module (ví dụ `notifications.controller.ts`, không dùng `controller.ts` chung chung).
 
 ## 1.6. `shared/` — giữ nguyên
 

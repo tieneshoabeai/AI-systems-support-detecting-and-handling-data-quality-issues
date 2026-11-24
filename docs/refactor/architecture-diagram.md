@@ -14,7 +14,7 @@ graph LR
 ```mermaid
 graph LR
     subgraph S["Simple × 6 (audit/overview/data-view/realtime/notifications/feedback)"]
-        R["*.routes.ts"] --> SVC["*.service.ts"]
+        R["*.controller.ts (Simple)"] --> SVC["*.service.ts"]
         SVC --> SCH["*.schema/repository (nếu có)"]
     end
     subgraph H["Hexagonal × 7 (analysis/auth/datasets/projects/workspaces/users/issues)"]

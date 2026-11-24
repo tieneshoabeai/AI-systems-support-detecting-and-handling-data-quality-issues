@@ -135,7 +135,7 @@ describe('Wave7 FB-01/FB-02: tao nhan xet', () => {
 
   it('FB-01 Zod chan reason qua 2000 ky tu', async () => {
     const { CreateFeedbackSchema } = await import(
-      '../src/modules/feedback/feedback.routes'
+      '../src/modules/feedback/feedback.controller'
     );
     expect(
       CreateFeedbackSchema.safeParse({ label: 'other', reason: 'x'.repeat(2001) }).success,

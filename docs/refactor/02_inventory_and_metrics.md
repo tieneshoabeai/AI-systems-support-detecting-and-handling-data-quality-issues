@@ -80,8 +80,8 @@
 
 | Tầng cũ | Đích | Quy tắc |
 |---|---|---|
-| `presentation/controllers/*.controller.ts` | `<mod>.routes.ts` | gộp controller + DTO 1 nơi |
-| `presentation/dtos/*.dto.ts` | `<mod>.routes.ts` hoặc `<mod>.types.ts` | DTO 1 nơi → nhúng vào routes |
+| `presentation/controllers/*.controller.ts` | `<mod>.controller.ts` | gộp controller + DTO 1 nơi |
+| `presentation/dtos/*.dto.ts` | `<mod>.controller.ts` hoặc `<mod>.types.ts` | DTO 1 nơi → nhúng vào controller |
 | `presentation/responses/*.response.ts` | `<mod>.types.ts` | type response |
 | `application/commands/*.handler.ts` | `<mod>.service.ts` | mỗi handler → 1 method, giữ `execute()` + thứ tự tham số |
 | `application/queries/*.handler.ts` | `<mod>.service.ts` | như trên |

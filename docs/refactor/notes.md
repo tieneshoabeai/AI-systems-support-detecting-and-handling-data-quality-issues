@@ -20,7 +20,7 @@
 | P1 enforce (MM2+MM5/MM6+measure) | 340 | 31 505 | ESLint MM2 (chỉ chặn deep import tầng khác module), test/modular-monolith.spec.ts (MM5 chuyển tiếp + FINAL skip, MM6), scripts/measure-refactor.sh |
 | 2026-11-24 hybrid (viết lại kịch bản) | ~305 (mục tiêu) | ~28 500 (mục tiêu) | ADR-0002 + 00–11 viết lại, 12/13 cập nhật, chỉ flatten 6 Simple |
 | P2 audit (Simple) | 338 | 31 439 | file handler 107->106 (LogHandler gop thanh AuditService.log) | type-check 0, lint 0, arch+guard+contract xanh, api 84/84 |
-| P3.1 overview (Simple) | 338 | 31 416 | handler 106->104, subdirs 150->146 | type-check 0, lint 0, step3 34/34, arch+guard+contract xanh, api 84/84 (tooling ho tro *.routes.ts) |
+| P3.1 overview (Simple) | 338 | 31 416 | handler 106->104, subdirs 150->146 | type-check 0, lint 0, step3 34/34, arch+guard+contract xanh, api 84/84 (tooling ho tro *.controller.ts) |
 | P3.2 realtime (Simple) | 338 | 31 416 | subdirs 146->139 | type-check 0, lint 0, realtime 47/47, arch+guard+contract xanh, api 84/84 |
 | P3.3 data-view (Simple) | 329 | 31 306 | handler 104->100, subdirs 139->131 | type-check 0, lint 0, data-view/chart/datasets 52+42 xanh, arch+guard+contract xanh, api 84/84 |
 | P3.4 notifications (Simple) | 320 | 31 200 | handler 100->94 (6 handler gop thanh NotificationsService), subdirs 131->127 | type-check 0, lint 0, notifications 48/48 + guard/step1 xanh, api 84/84 |

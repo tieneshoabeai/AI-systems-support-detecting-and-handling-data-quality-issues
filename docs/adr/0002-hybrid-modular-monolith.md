@@ -19,7 +19,7 @@ module phuc tap thi hexagonal dang ganh that (transaction/outbox/policy/AI worke
 - Vo giu strict: 1 deploy, 13 module, `index.ts` public contract, cam import sau (MM2), `shared/` khong doi
 - Ruot chia 2 loai template, ghi ro trong `README.md` moi module:
   - **Simple (monolith ben trong):** 6 module — `audit, overview, data-view, realtime, notifications, feedback-nhe`
-    - Cau truc dich: `<mod>.routes.ts + <mod>.service.ts (+ <mod>.repository.ts + <mod>.schema.ts neu co DB rieng) + <mod>.types.ts + index.ts + <mod>.module.ts`
+    - Cau truc dich: `<mod>.controller.ts + <mod>.service.ts (+ <mod>.repository.ts + <mod>.schema.ts neu co DB rieng) + <mod>.types.ts + index.ts + <mod>.module.ts`
     - Entity nhe (neu co) nam gon trong `<mod>.types.ts`, khong tach `domain/`
     - Handler gop thanh method service, giu nguyen chu ky `execute()` + thu tu tham so (TC-02)
   - **Hexagonal (giu 4 tang):** 7 module — `analysis, auth, datasets, projects, workspaces, users, issues`

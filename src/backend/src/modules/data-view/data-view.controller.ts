@@ -26,7 +26,7 @@ import type { ChartDataResult } from './data-view.types';
 
 import { z } from 'zod';
 
-// --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong routes) ---
+// --- DTO gop tu presentation/dtos (Template Simple: DTO 1 noi trong controller) ---
 export const QueryRecordsSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),

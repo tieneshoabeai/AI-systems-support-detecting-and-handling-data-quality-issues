@@ -2,7 +2,7 @@
  * Architectural Test: **Hợp đồng API khớp 1-1 với mã nguồn**.
  *
  * Đối chiếu route trong mã nguồn (decorator `@Get/@Post/@Put/@Patch/@Delete`
- * trong mọi `*.controller.ts` + `*.routes.ts` (Template Simple) với bảng route của hợp đồng
+ * trong mọi `*.controller.ts` (cả template Simple `<mod>.controller.ts` và Hexagonal `presentation/controllers/*.controller.ts`) với bảng route của hợp đồng
  * `docs/restructures/7_api_contracts_v8.md` §3.13.
  *
  * **Vì sao cần test này?** Trước đó, thêm một endpoint mới mà quên cập nhật

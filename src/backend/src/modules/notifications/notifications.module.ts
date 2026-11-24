@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationSchema } from './notifications.schema';
 import { NotificationsRepository } from './notifications.repository';
 import { NOTIFICATION_REPOSITORY_PORT } from './notifications.types';
-import { NotificationsController } from './notifications.routes';
+import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { UsersModule } from '../users/users.module';
 

@@ -27,7 +27,7 @@
 - **realtime**: WS gateway + 4 message `joinProject` · `joinAnalysis` · `leaveProject` · `leaveAnalysis` + handshake auth + `disconnectUser(userId, status)` — giữ nguyên.
 - **audit**: không có HTTP route — chỉ facade nội bộ `AUDIT_LOGGER_PORT.log()` (best-effort, không ném lỗi).
 
-**Bẫy thứ tự route (dễ vỡ khi gộp controller):** `auth/sessions/me` trước `sessions/:id`; `notifications/unread-count` trước `notifications/:id`. Khi viết lại `*.routes.ts` phải giữ đúng thứ tự khai báo.
+**Bẫy thứ tự route (dễ vỡ khi gộp controller):** `auth/sessions/me` trước `sessions/:id`; `notifications/unread-count` trước `notifications/:id`. Khi viết lại `*.controller.ts` (template Simple) phải giữ đúng thứ tự khai báo.
 
 ---
 
@@ -148,7 +148,7 @@
 ## 12.8. Cách dùng file này khi refactor (5 phút/module)
 
 1. Mở §12.2 tìm module → tick từng `execute()` khi chuyển thành method (giữ chữ ký).
-2. Mở §12.1 tick từng route khi chuyển controller → `*.routes.ts` (giữ prefix + thứ tự).
+2. Mở §12.1 tick từng route khi chuyển controller → `*.controller.ts` (giữ prefix + thứ tự).
 3. Mở §12.3–12.5 kiểm tra token/wiring/guard/transaction còn đủ.
 4. Chạy cổng kiểm soát P0–P1 rồi mới commit + tag.
 

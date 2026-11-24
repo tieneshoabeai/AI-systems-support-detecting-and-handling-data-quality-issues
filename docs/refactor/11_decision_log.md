@@ -51,7 +51,7 @@
 |---|---|---|---|---|---|---|
 | Baseline P1 (`31cd2f3`) | 340 | 31 505 | ~60 | 1 277 ✅ | 82+1 ✅ | — |
 | P2 audit | 338 | 31 439 | -5 subdirs (audit phang) | xanh (arch+guard+contract) | 84/84 | LogHandler+adapter gop thanh AuditService.log() |
-| P3 overview | 338 | 31 416 | subdirs 150->146 | xanh (step3 34/34 + arch/guard/contract) | 84/84 | 2 handler gop thanh OverviewService; tooling + guard ho tro *.routes.ts |
+| P3 overview | 338 | 31 416 | subdirs 150->146 | xanh (step3 34/34 + arch/guard/contract) | 84/84 | 2 handler gop thanh OverviewService; tooling + guard ho tro *.controller.ts |
 | P3 realtime | 338 | 31 416 | subdirs 146->139 | xanh (realtime 47/47 + arch/guard/contract) | 84/84 | git mv 6 file ra goc, giu @Global + gateway config + subscriber OnModuleInit |
 | P3 data-view | 329 | 31 306 | subdirs 139->131 | xanh (data-view/chart 52 + arch/guard/contract) | 84/84 | 4 handler gop thanh DataViewService; 3 DTO gop vao routes; VO/entity gop vao types |
 | P3 notifications | 320 | 31 200 | subdirs 131->127 | xanh (notifications 48/48 + guard/step1) | 84/84 | 6 handler gop thanh NotificationsService; 2 mapper GIU RIENG; 2 DTO gop vao routes |

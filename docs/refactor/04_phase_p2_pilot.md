@@ -21,7 +21,7 @@ src/modules/audit/
 └── audit.module.ts                              ← @Global(), 2 model forFeature, useExisting cho cả 2 port
 ```
 
-### Sau (Simple — KHÔNG tạo `routes.ts` vì không có HTTP route)
+### Sau (Simple — KHÔNG tạo `*.controller.ts` vì không có HTTP route)
 
 ```
 src/modules/audit/

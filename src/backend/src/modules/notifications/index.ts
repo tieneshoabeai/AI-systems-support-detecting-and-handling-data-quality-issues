@@ -27,4 +27,4 @@ export {
   UpdateNotificationPreferencesSchema,
   type ListNotificationsQueryDto,
   type UpdateNotificationPreferencesDto,
-} from './notifications.routes';
+} from './notifications.controller';

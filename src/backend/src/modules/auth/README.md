@@ -87,7 +87,7 @@ auth/
 
 5. **Thu hồi phiên khi đổi mật khẩu.** Đổi mật khẩu phải thu hồi **toàn bộ** phiên, không chỉ phiên hiện tại.
 
-6. **Chống spam quên mật khẩu.** Bộ đếm `password_reset_attempts` + `_sent_count` + `_sent_window_start`, tất cả `select: false`. Hai trường `remember_me` (`rememberMe`) và `rememberMe` trong DTO đăng nhập thực chất là một — giữ tương thích ngược với client cũ, logic chuẩn chỉ đọc `rememberMe`.
+6. **Chống spam quên mật khẩu.** Bộ đếm `password_reset_attempts` + `_sent_count` + `_sent_window_start`, tất cả `select: false`. Hai trường `remember_me` và `rememberMe` trong DTO đăng nhập thực chất là một — `remember_me` là chuẩn duy nhất, `rememberMe` chỉ là alias deprecated giữ tương thích ngược với client cũ; sau `transform` logic chuẩn chỉ đọc `remember_me`.
 
 - **Hiện vật đã tạo / đã sửa:**
 

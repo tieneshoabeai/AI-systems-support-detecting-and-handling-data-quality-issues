@@ -102,7 +102,7 @@ describe('Wave6 NOTIF-01: cursor + unreadCount + sort createdAt', () => {
 
   it('loc read khong hop le bi Zod chan (contract)', async () => {
     const { ListNotificationsQuerySchema } = await import(
-      '../src/modules/notifications/notifications.routes'
+      '../src/modules/notifications/notifications.controller'
     );
     expect(ListNotificationsQuerySchema.safeParse({ read: 'xyz' }).success).toBe(false);
     expect(ListNotificationsQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
