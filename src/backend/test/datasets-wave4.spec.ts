@@ -1,20 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Readable } from 'stream';
-import { DatasetsService } from '../src/modules/datasets/application/datasets.service';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
-import { STORAGE_PORT } from '../src/shared/ports/storage.port';
-import { OUTBOX_PORT } from '../src/shared/ports/outbox.port';
+import { STORAGE_PORT } from '../src/shared/application/ports/storage.port';
+import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
+import { TRANSACTION_PORT } from '../src/shared/application/ports/transaction.port';
+import { fakeTransaction } from './helpers/transaction';
 import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
+import { DatasetFindingService } from '../src/modules/datasets/application/services/dataset-finding.service';
 import { ConfigService } from '@nestjs/config';
-import { RECORD_QUERY_PORT } from '../src/modules/data-view/domain/ports/record-query.port';
+import { RECORD_QUERY_PORT } from '../src/modules/datasets/domain/ports/record-query.port';
 import { DATASET_REPOSITORY_PORT as DV_DATASET_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
-import { DataViewService } from '../src/modules/data-view/application/data-view.service';
+import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
+import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
+import { Dataset } from '../src/modules/datasets/domain/entities/dataset.entity';
+import { toDatasetResponse } from '../src/modules/datasets/presentation/responses/dataset.response';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { dataviewHandlers } from './helpers/module-handlers';
+import { datasetsHandlers } from './helpers/module-handlers';
 
 describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)', () => {
-  let service: DatasetsService;
+  let service: ProxyOf<typeof datasetsHandlers>;
   let datasetsRepository: Record<string, jest.Mock>;
   let projectsService: Record<string, jest.Mock>;
   let storageService: Record<string, jest.Mock>;
@@ -24,7 +30,7 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
   const mockWorkspaceId = new Types.ObjectId().toHexString();
   const mockDatasetId = new Types.ObjectId().toHexString();
   const mockProjectRecord = { id: mockProjectId, workspaceId: mockWorkspaceId, name: 'P', hasDataset: false };
-  const baseDataset = {
+  const baseDatasetProps = {
     id: mockDatasetId,
     projectId: mockProjectId,
     workspaceId: mockWorkspaceId,
@@ -33,6 +39,7 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     fileFormat: 'csv' as const,
     fileSizeBytes: 10,
     fileChecksum: 'sha256:abc',
+    storageKey: 'raw_files/x.csv',
     rowCount: 2,
     columnCount: 2,
     status: 'READY' as const,
@@ -46,13 +53,24 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     currentVersion: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
+    deletedAt: null,
+    version: 1,
   };
+  /**
+   * Bước 3 — Rich Domain Model: repository trả **entity** `Dataset`, không
+   * phải record trần → mock phải dựng entity thật để hành vi của entity
+   * (`renameColumns`, `resetColumnNames`, …) dùng được trong handler.
+   */
+  const buildDataset = (): Dataset => Dataset.reconstitute({ ...baseDatasetProps });
 
   beforeEach(async () => {
     datasetsRepository = {
-      create: jest.fn().mockResolvedValue(baseDataset),
-      updateById: jest.fn().mockImplementation(async (_id: unknown, u: Record<string, unknown>) => ({ ...baseDataset, ...u })),
-      findById: jest.fn().mockResolvedValue(baseDataset),
+      create: jest.fn().mockResolvedValue(buildDataset()),
+      updateById: jest.fn().mockImplementation(async (_id: unknown, u: Record<string, unknown>) => {
+        const merged = { ...baseDatasetProps, ...u } as typeof baseDatasetProps;
+        return Dataset.reconstitute(merged);
+      }),
+      findById: jest.fn().mockImplementation(async () => buildDataset()),
       findByProject: jest.fn().mockResolvedValue(null),
       bulkInsertRecords: jest.fn().mockResolvedValue(2),
       softDeleteDatasetWithRecords: jest.fn().mockResolvedValue(true),
@@ -66,17 +84,19 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     workspacesService = { checkWorkspaceUploadQuota: jest.fn().mockResolvedValue(undefined), incrementStorageUsed: jest.fn().mockResolvedValue(undefined) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        DatasetsService,
+        ...Object.values(datasetsHandlers),
         SchemaInferenceService,
+        DatasetFindingService,
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsRepository },
-        { provide: ProjectsService, useValue: projectsService },
+        { provide: PROJECT_ACCESS_PORT, useValue: projectsService },
         { provide: STORAGE_PORT, useValue: storageService },
         { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
-        { provide: WorkspacesService, useValue: workspacesService },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
+        { provide: WORKSPACE_ACCESS_PORT, useValue: workspacesService },
         { provide: ConfigService, useValue: { get: (k: string, d: unknown) => (k === 'WORKSPACE_STORAGE_QUOTA_BYTES' ? 2147483648 : d) } },
       ],
     }).compile();
-    service = module.get<DatasetsService>(DatasetsService);
+    service = createHandlerProxy(module, datasetsHandlers);
   });
 
   it('C13/O34: upload .xlsx -> 400 UNSUPPORTED_FILE_TYPE, khong tao rac', async () => {
@@ -87,7 +107,7 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
         fileName: 'data.xlsx',
         mimeType: 'application/vnd.ms-excel',
       }),
-    ).rejects.toMatchObject({ response: expect.objectContaining({ error: 'UNSUPPORTED_FILE_TYPE' }) });
+    ).rejects.toMatchObject({ code: 'UNSUPPORTED_FILE_TYPE' });
     expect(datasetsRepository.create).not.toHaveBeenCalled();
     expect(storageService.uploadStream).not.toHaveBeenCalled();
   });
@@ -102,7 +122,7 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
         fileName: 'wide.csv',
         mimeType: 'text/csv',
       }),
-    ).rejects.toMatchObject({ response: expect.objectContaining({ error: 'VALIDATION_ERROR' }) });
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
     expect(storageService.deleteFile).toHaveBeenCalled();
   });
 
@@ -126,35 +146,47 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
   });
 
   it('S14: storageKey khong lo ra response', async () => {
+    // Bước 3 — mapper `toDatasetResponse()` ở tầng presentation chịu trách
+    // nhiệm loại bỏ `storageKey` (S14) — entity/handler giữ trọn thông tin
+    // nội bộ, chỉ tầng HTTP mới quyết định trả gì ra ngoài.
     const got = await service.getDatasetById(mockDatasetId);
-    expect((got as unknown as Record<string, unknown>).storageKey).toBeUndefined();
-    expect((got as unknown as Record<string, unknown>).storage_key).toBeUndefined();
+    const response = toDatasetResponse(got);
+    expect((response as unknown as Record<string, unknown>).storageKey).toBeUndefined();
+    expect((response as unknown as Record<string, unknown>).storage_key).toBeUndefined();
+    expect((got as unknown as Record<string, unknown>).storageKey).toBe('raw_files/x.csv');
+
     const byProject = await service.getDatasetByProjectId(mockProjectId);
-    expect((byProject as unknown as Record<string, unknown>)?.storageKey).toBeUndefined();
+    const projectResponse = byProject ? toDatasetResponse(byProject) : null;
+    expect(
+      (projectResponse as unknown as Record<string, unknown> | null)?.storageKey,
+    ).toBeUndefined();
   });
 
-  it('Dot F AN-33: PATCH cot nhan is_pii, khong doi ten khi chi gui is_pii', async () => {
-    const before = (await service.getDatasetById(mockDatasetId)).columns.find((c) => c.key === 'c0')?.name;
-    const out = await service.renameColumns(mockDatasetId, { columns: [{ key: 'c0', is_pii: true }] });
-    const c0 = out.columns.find((c) => c.key === 'c0');
-    expect(c0?.isPii).toBe(true);
-    expect(c0?.name).toBe(before);
-  });
+  it('BẤT BIẾN: KHÔNG có handler nào thao tác/sửa dataset (OPEN-03) — chỉ ghep props theo ten goc', async () => {
+    // OPEN-03 (chốt 2026-11-19): hệ thống **chỉ nhận dataset và phân tích**.
+    // Toàn bộ method thao tác dataset đã bị gỡ khỏi module `datasets`:
+    //   - updateDatasetMetadata (đổi tên dataset)         → PATCH /datasets/:id
+    //   - updateColumnNames     (đổi tên hiển thị cột)    → PATCH /datasets/:id/columns
+    //   - resetColumnNames      (khôi phục tên cột gốc)   → POST  /datasets/:id/columns/reset
+    //   - updateColumnPii       (bật/tắt cờ PII thủ công)→ PATCH /datasets/:id/columns/pii
+    const svc = service as unknown as Record<string, unknown>;
+    for (const forbidden of [
+      'updateDataset',
+      'updateDatasetMetadata',
+      'updateColumnNames',
+      'resetColumnNames',
+      'updateColumnPii',
+    ]) {
+      expect(svc[forbidden]).toBeUndefined();
+    }
 
-  it('S21: rename doi name, giu key bat bien + tinh lai issues; M15 reset + dao nguoc props', async () => {
-    const renamed = await service.renameColumns(mockDatasetId, {
-      columns: [{ key: 'c0', name: 'Ho Ten' }],
-    });
-    const c0 = renamed.columns.find((c) => c.key === 'c0');
-    expect(c0?.name).toBe('Ho Ten');
-    expect(c0?.key).toBe('c0');
+    // Ghep props → tên gốc vẫn hoạt động (đây là phép đọc, không sửa dữ liệu).
+    const dataset = await service.getDatasetById(mockDatasetId);
     const back = service.mapPropsToOriginalNames(
-      renamed.columns.map((c) => ({ key: c.key, originalName: c.originalName })),
+      dataset.columns.map((c) => ({ key: c.key, originalName: c.originalName })),
       { c0: 'Nguyen Van A', c1: 30 },
     );
     expect(back).toEqual({ Ten: 'Nguyen Van A', Tuoi: 30 });
-    const reset = await service.resetColumnNames(mockDatasetId);
-    expect(reset.columns.find((c) => c.key === 'c0')?.name).toBe('Ten');
   });
 
   it('S19/A13: dataset_record insert-only - repository chi co bulkInsertRecords, khong updateOne/deleteMany', async () => {
@@ -185,13 +217,12 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     };
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
-        DataViewService,
+        ...Object.values(dataviewHandlers),
         { provide: RECORD_QUERY_PORT, useValue: recordsPort },
-        { provide: DV_DATASET_PORT, useValue: { findById: jest.fn().mockResolvedValue(baseDataset) } },
-        { provide: DatasetsService, useValue: {} },
+        { provide: DV_DATASET_PORT, useValue: { findById: jest.fn().mockResolvedValue(buildDataset()) } },
       ],
     }).compile();
-    const dv = mod.get<DataViewService>(DataViewService);
+    const dv = createHandlerProxy(mod, dataviewHandlers);
     const r = await dv.getRecords(mockDatasetId, { limit: 10, sort_order: 'asc' } as never);
     expect(r.meta).toBeDefined();
     expect('total' in (r as unknown as Record<string, unknown>)).toBe(false);

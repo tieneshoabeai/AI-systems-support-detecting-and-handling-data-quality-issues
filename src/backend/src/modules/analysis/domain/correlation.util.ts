@@ -1,5 +1,5 @@
 import * as ss from 'simple-statistics';
-import { isMissingToken } from '../../../shared/utils/missing-tokens.util';
+import { isMissingToken } from '../../../shared/domain/utils/missing-tokens.util';
 export type CorrelationKind = 'pearson' | 'spearman' | 'cramers_v' | 'eta_squared';
 export interface ICorrelationCell { colA: string; colB: string; coef: number | null; kind: CorrelationKind; n: number; totalScanned: number; missingAOnly: number; missingBOnly: number; missingBoth: number; computable: boolean; reason: string | null; }
 
@@ -9,11 +9,11 @@ export interface AnalyzableColumn {
   key: string;
   role: ColumnRole;
   reason: string | null;
-  /** Đợt H: cột kiểu chữ — ký hiệu NA/None… là một lớp, chỉ ô trống là thiếu (đồng bộ DQ-01). */
+  /** GĐ2: cột kiểu chữ — ký hiệu NA/None… là một lớp, chỉ ô trống là thiếu (đồng bộ DQ-01). */
   textColumn?: boolean;
 }
 
-/** Đợt G: ô rỗng hoặc ký hiệu thiếu trong danh sách dùng chung (`shared/utils/missing-tokens.util.ts`). */
+/** GĐ2: ô rỗng hoặc ký hiệu thiếu trong danh sách dùng chung (`shared/domain/utils/missing-tokens.util.ts`). */
 const isNullToken = (s: string): boolean => s.trim() === '' || isMissingToken(s);
 
 export function isMissingValue(val: unknown): boolean {
@@ -38,7 +38,7 @@ export function toFiniteNumber(val: unknown): number | null {
 
 /**
  * Chuyển ô thành nhãn lớp; null = thiếu/không hợp lệ.
- * Đợt H (Phần 12 v12 mục 3.21): `textColumn` = cột kiểu chữ → chỉ ô rỗng/khoảng trắng là thiếu;
+ * GĐ2: `textColumn` = cột kiểu chữ → chỉ ô rỗng/khoảng trắng là thiếu;
  * cột khác → thêm danh sách ký hiệu thiếu dùng chung.
  */
 export function toCategory(val: unknown, textColumn = false): string | null {
@@ -80,9 +80,18 @@ function rank(values: number[]): number[] {
   let i = 0;
   while (i < indexed.length) {
     let j = i;
-    while (j + 1 < indexed.length && indexed[j + 1].v === indexed[i].v) j++;
+    const current = indexed[i];
+    if (!current) break;
+    while (j + 1 < indexed.length) {
+      const next = indexed[j + 1];
+      if (!next || next.v !== current.v) break;
+      j++;
+    }
     const avg = (i + j) / 2 + 1;
-    for (let k = i; k <= j; k++) ranks[indexed[k].i] = avg;
+    for (let k = i; k <= j; k++) {
+      const entry = indexed[k];
+      if (entry) ranks[entry.i] = avg;
+    }
     i = j + 1;
   }
   return ranks;
@@ -90,8 +99,9 @@ function rank(values: number[]): number[] {
 
 function pearson(xs: number[], ys: number[]): number | null {
   if (xs.length < 3 || ys.length < 3 || xs.length !== ys.length) return null;
-  const sx = ss.standardDeviation(xs);
-  const sy = ss.standardDeviation(ys);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(xs);
+  const sy = ss.sampleStandardDeviation(ys);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(xs, ys);
   return Number.isFinite(c) ? c : null;
@@ -101,13 +111,35 @@ function spearman(xs: number[], ys: number[]): number | null {
   if (xs.length < 3 || xs.length !== ys.length) return null;
   const rx = rank(xs);
   const ry = rank(ys);
-  const sx = ss.standardDeviation(rx);
-  const sy = ss.standardDeviation(ry);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(rx);
+  const sy = ss.sampleStandardDeviation(ry);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(rx, ry);
   return Number.isFinite(c) ? c : null;
 }
 
+/**
+ * GĐ8 — Cramér V trên **bảng contingency thưa** (sparse), không dùng ma trận dense.
+ *
+ * Bối cảnh: bản dense (`number[][]` kích thước `r × c`) đã khiến V8 OOM
+ * (heap 4 GB) khi phân tích dataset chỉ 100.000 dòng — vì cột định danh
+ * (`review_id`, `order_id`) có ~99.000 giá trị khác nhau, nên `r × c ≈ 9,8 tỷ ô`
+ * ≈ 73 GB. Bảng thưa chỉ giữ các ô **thực sự có dữ liệu** (tối đa `n` ô),
+ * nên bộ nhớ là O(n) thay vì O(r × c).
+ *
+ * Công thức χ² **không đổi**:
+ *   χ² = Σ (O_ij − E_ij)² / E_ij,  E_ij = (rowSum_i × colSum_j) / n
+ * Trong bảng thưa, các ô bằng 0 không đóng góp vào χ² — vì E_ij > 0 khi
+ * rowSum_i > 0 và colSum_j > 0, và khi đó (0 − E)²/E = E > 0. Vì vậy phải cộng
+ * thêm `E_ij` cho **mọi** cặp (i, j) có rowSum_i > 0 và colSum_j > 0, kể cả cặp
+ * không có quan sát nào. Ta tính phần này bằng tổng tích phân:
+ *   Σ_{i,j: E>0} E_ij = (Σ_i rowSum_i) × (Σ_j colSum_j) / n = n × n / n = n
+ * nên phần "ô rỗng" đóng góp đúng `n − Σ_{ô có dữ liệu} E_ij`.
+ *
+ * Lưu ý về `r`, `c`: giữ nguyên **số giá trị khác nhau** để hợp đồng API
+ * (`CorrelationCell`) không đổi; chỉ thay đổi cách lưu bảng.
+ */
 function cramersV(aCats: string[], bCats: string[]): { v: number | null; r: number; c: number } {
   const aLevels = [...new Set(aCats)];
   const bLevels = [...new Set(bCats)];
@@ -115,26 +147,44 @@ function cramersV(aCats: string[], bCats: string[]): { v: number | null; r: numb
   const c = bLevels.length;
   const n = aCats.length;
   if (r < 2 || c < 2 || n < 4) return { v: null, r, c };
-  const aIdx = new Map(aLevels.map((v, i) => [v, i]));
-  const bIdx = new Map(bLevels.map((v, i) => [v, i]));
-  const obs: number[][] = Array.from({ length: r }, () => new Array<number>(c).fill(0));
+
+  const aIdx = new Map(aLevels.map((v, i) => [v, i] as const));
+  const bIdx = new Map(bLevels.map((v, i) => [v, i] as const));
+
+  // Bảng thưa: key = `i * c + j` (đóng gói 2 chỉ số vào 1 số) → tần suất quan sát.
+  const obs = new Map<number, number>();
+  const rowSum = new Map<number, number>();
+  const colSum = new Map<number, number>();
+  let counted = 0;
   for (let k = 0; k < n; k++) {
-    const i = aIdx.get(aCats[k]) ?? -1;
-    const j = bIdx.get(bCats[k]) ?? -1;
-    if (i >= 0 && j >= 0) obs[i][j] += 1;
+    const i = aIdx.get(aCats[k] ?? '');
+    const j = bIdx.get(bCats[k] ?? '');
+    if (i === undefined || j === undefined) continue;
+    const key = i * c + j;
+    obs.set(key, (obs.get(key) ?? 0) + 1);
+    rowSum.set(i, (rowSum.get(i) ?? 0) + 1);
+    colSum.set(j, (colSum.get(j) ?? 0) + 1);
+    counted++;
   }
-  const rowSum = obs.map((row) => row.reduce((s, v) => s + v, 0));
-  const colSum = bLevels.map((_, j) => obs.reduce((s, row) => s + row[j], 0));
+  if (counted < 4) return { v: null, r, c };
+
+  // χ² = Σ_{ô có dữ liệu} (O − E)²/E  +  Σ_{ô rỗng, E>0} E
+  // Phần thứ hai rút gọn = n − Σ_{ô có dữ liệu} E (vì Σ_{tất cả ô} E = n).
   let chi2 = 0;
-  for (let i = 0; i < r; i++) {
-    for (let j = 0; j < c; j++) {
-      const expected = (rowSum[i] * colSum[j]) / n;
-      if (expected <= 0) continue;
-      const d = obs[i][j] - expected;
-      chi2 += (d * d) / expected;
-    }
+  let expectedSum = 0;
+  for (const [key, observed] of obs) {
+    const i = Math.floor(key / c);
+    const j = key % c;
+    const expected = ((rowSum.get(i) ?? 0) * (colSum.get(j) ?? 0)) / counted;
+    if (!(expected > 0)) continue;
+    expectedSum += expected;
+    const d = observed - expected;
+    chi2 += (d * d) / expected;
   }
-  const denom = n * (Math.min(r, c) - 1);
+  const emptyCellsExpected = counted - expectedSum;
+  if (emptyCellsExpected > 0) chi2 += emptyCellsExpected;
+
+  const denom = counted * (Math.min(r, c) - 1);
   if (!(denom > 0) || !Number.isFinite(chi2)) return { v: null, r, c };
   const v = Math.sqrt(chi2 / denom);
   return { v: Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null, r, c };
@@ -144,9 +194,12 @@ function etaSquared(nums: number[], cats: string[]): { eta2: number | null; grou
   const groups = new Map<string, number[]>();
   for (let k = 0; k < nums.length; k++) {
     const g = cats[k];
+    if (g === undefined) continue;
+    const value = nums[k];
+    if (value === undefined) continue;
     const arr = groups.get(g);
-    if (arr) arr.push(nums[k]);
-    else groups.set(g, [nums[k]]);
+    if (arr) arr.push(value);
+    else groups.set(g, [value]);
   }
   if (groups.size < 2) return { eta2: null, groups: groups.size };
   for (const arr of groups.values()) {
@@ -170,7 +223,7 @@ export interface PairInput {
   colB: string;
   roleB: ColumnRole;
   rows: Record<string, unknown>[];
-  /** Đợt H: cột A/B là cột kiểu chữ (xem `toCategory`). */
+  /** GĐ2: cột A/B là cột kiểu chữ (xem `toCategory`). */
   textA?: boolean;
   textB?: boolean;
 }
@@ -290,12 +343,62 @@ export function buildCorrelationMatrix(
   columns: AnalyzableColumn[],
   rows: Record<string, unknown>[],
   method: 'pearson' | 'spearman',
+  options: { maxCells?: number } = {},
 ): { cells: ICorrelationCell[]; notes: string[] } {
+  const maxCells = options.maxCells ?? MAX_CORRELATION_CELLS;
   const active = columns.filter((c) => c.role !== 'excluded');
   const cells: ICorrelationCell[] = [];
+
+  // ── GĐ10 — đếm số mức (distinct) của từng cột phân loại ────────────────
+  // Chỉ cột `categorical` mới có "số mức"; cột `numeric` không dựng
+  // contingency nên không cần guard.
+  const distinctCountByKey = new Map<string, number>();
+  for (const col of active) {
+    if (col.role !== 'categorical') continue;
+    const levels = new Set<string>();
+    for (const row of rows) {
+      const cat = toCategory(row[col.key], Boolean(col.textColumn));
+      if (cat !== null) levels.add(cat);
+    }
+    distinctCountByKey.set(col.key, levels.size);
+  }
+
+  const guardedPairs: string[] = [];
+
   for (const a of active) {
     for (const b of active) {
-      cells.push(computePairCell({ colA: a.key, roleA: a.role, colB: b.key, roleB: b.role, rows, textA: a.textColumn, textB: b.textColumn }, method));
+      const pairInput: PairInput = {
+        colA: a.key, roleA: a.role, colB: b.key, roleB: b.role, rows,
+        textA: a.textColumn, textB: b.textColumn,
+      };
+      if (a.key === b.key) {
+        cells.push(computePairCell(pairInput, method));
+        continue;
+      }
+      // GĐ10 — chặn cặp có cardinality quá lớn TRƯỚC khi tính.
+      if (a.role === 'categorical' && b.role === 'categorical') {
+        const dA = distinctCountByKey.get(a.key) ?? 0;
+        const dB = distinctCountByKey.get(b.key) ?? 0;
+        const guardReason = exceedsCardinalityGuard(dA, dB, maxCells);
+        if (guardReason) {
+          guardedPairs.push(`${a.key} x ${b.key} (${guardReason})`);
+          cells.push({
+            colA: a.key,
+            colB: b.key,
+            coef: null,
+            kind: 'cramers_v',
+            n: 0,
+            totalScanned: rows.length,
+            missingAOnly: 0,
+            missingBOnly: 0,
+            missingBoth: 0,
+            computable: false,
+            reason: guardReason,
+          });
+          continue;
+        }
+      }
+      cells.push(computePairCell(pairInput, method));
     }
   }
   const excluded = columns.filter((c) => c.role === 'excluded');
@@ -303,6 +406,11 @@ export function buildCorrelationMatrix(
     'mỗi cặp dùng tập dòng hợp lệ riêng (pairwise), không điền thiếu',
     'không trộn thang diễn giải giữa pearson/spearman, cramers_v [0,1] và eta_squared [0,1]',
   ];
+  if (guardedPairs.length > 0) {
+    notes.push(
+      `${guardedPairs.length} cặp cột bị bỏ qua do vượt ngưỡng cardinality (${maxCells.toLocaleString('vi-VN')} ô): ${guardedPairs.join('; ')}`,
+    );
+  }
   if (excluded.length > 0) {
     const dateCols = excluded.filter((c) => (c.reason ?? '').includes('date')).map((c) => c.key);
     if (dateCols.length > 0) {
@@ -319,4 +427,39 @@ export function buildCorrelationMatrix(
 
 export function round4(v: number): number {
   return Number(v.toFixed(4));
+}
+
+// ── GĐ10 — Guard theo cardinality ────────────────────────────────────────
+
+/**
+ * Ngưỡng tối đa số ô contingency mà một cặp cột được phép "trả về".
+ *
+ * Lý do: ma trận contingency **dày** của một cặp có `r` mức A và `c` mức B cần
+ * `r × c` ô. Với cột định danh (`r ≈ c ≈ 99.000`) đó là ~9,8 tỷ ô ≈ 73 GB →
+ * OOM (đã xảy ra thật, xem `docs/restructures/21_cardinality_guard_gd8_gd9.md`).
+ *
+ * GĐ8 đã dùng bảng contingency **thưa** nên bộ nhớ là O(n) — nhưng đó là chiến
+ * lược bên trong `cramersV()`. GĐ10 là **lưới an toàn cuối** ở tầng ma trận:
+ * nếu một cặp vẫn lọt qua bộ lọc vai trò (GĐ9) mà có cardinality điên rồ,
+ * ta **không tính** cặp đó và báo rõ lý do thay vì để bộ nhớ tăng vô hạn.
+ *
+ * 10.000.000 ô × 8 byte ≈ 80 MB — ngân sách bộ nhớ hợp lý cho một cặp.
+ */
+export const MAX_CORRELATION_CELLS = 10_000_000;
+
+/**
+ * Kiểm tra `distinct(A) × distinct(B)` có vượt ngưỡng GĐ10 không.
+ *
+ * @returns `null` nếu cặp an toàn, hoặc chuỗi lý do nếu vượt ngưỡng.
+ */
+export function exceedsCardinalityGuard(
+  distinctA: number,
+  distinctB: number,
+  maxCells: number = MAX_CORRELATION_CELLS,
+): string | null {
+  if (!Number.isFinite(distinctA) || !Number.isFinite(distinctB)) return null;
+  if (distinctA < 2 || distinctB < 2) return null;
+  const cells = distinctA * distinctB;
+  if (cells <= maxCells) return null;
+  return `cardinality_guard_exceeded: distinct(A)=${distinctA} x distinct(B)=${distinctB} = ${cells.toLocaleString('vi-VN')} > ${maxCells.toLocaleString('vi-VN')} o`;
 }

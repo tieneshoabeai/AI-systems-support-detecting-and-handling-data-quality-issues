@@ -29,14 +29,17 @@ function withRate(commonN: number, totalScanned: number): { commonNRate: number 
 
 function isConstant(values: number[]): boolean {
   if (values.length === 0) return true;
-  const sd = ss.standardDeviation(values);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", **không** xuất ra API
+  // ⇒ dùng phân kỳ mẫu cho nhất quán với toàn hệ thống.
+  const sd = values.length >= 2 ? ss.sampleStandardDeviation(values) : 0;
   return !(sd > 0);
 }
 
 function pearsonOnCommon(xs: number[], ys: number[]): number | null {
   if (xs.length < 2) return null;
-  const sx = ss.standardDeviation(xs);
-  const sy = ss.standardDeviation(ys);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(xs);
+  const sy = ss.sampleStandardDeviation(ys);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(xs, ys);
   if (!Number.isFinite(c)) return null;
@@ -97,14 +100,16 @@ export function computeVif(
     };
   }
 
-  const byCol: number[][] = numericColumns.map((_, j) => matrix.map((r) => r[j]));
+  const byCol: number[][] = numericColumns.map((_, j) => matrix.map((r) => r[j] ?? 0));
   const usableCols: string[] = [];
   const usableIdx: number[] = [];
   byCol.forEach((vals, j) => {
+    const column = numericColumns[j];
+    if (column === undefined) return;
     if (isConstant(vals)) {
-      excluded.push({ column: numericColumns[j], reason: 'constant_column' });
+      excluded.push({ column, reason: 'constant_column' });
     } else {
-      usableCols.push(numericColumns[j]);
+      usableCols.push(column);
       usableIdx.push(j);
     }
   });
@@ -131,16 +136,18 @@ export function computeVif(
   const corr: number[][] = Array.from({ length: k }, () => new Array<number>(k).fill(0));
   for (let i = 0; i < k; i++) {
     for (let j = 0; j < k; j++) {
+      const rowI = corr[i];
+      if (!rowI) continue;
       if (i === j) {
-        corr[i][j] = 1;
+        rowI[j] = 1;
       } else if (j < i) {
-        corr[i][j] = corr[j][i];
+        rowI[j] = corr[j]?.[i] ?? 0;
       } else {
         const c = pearsonOnCommon(
-          usableIdx[i] !== undefined ? matrix.map((r) => r[usableIdx[i]]) : [],
-          usableIdx[j] !== undefined ? matrix.map((r) => r[usableIdx[j]]) : [],
+          usableIdx[i] !== undefined ? matrix.map((r) => r[usableIdx[i] as number] ?? 0) : [],
+          usableIdx[j] !== undefined ? matrix.map((r) => r[usableIdx[j] as number] ?? 0) : [],
         );
-        corr[i][j] = c === null ? NaN : c;
+        rowI[j] = c === null ? NaN : c;
       }
     }
   }
@@ -167,8 +174,9 @@ export function computeVif(
   let maxAbsOffDiag = 0;
   for (let i = 0; i < k; i++) {
     for (let j = 0; j < k; j++) {
-      if (i !== j && Number.isFinite(corr[i][j])) {
-        maxAbsOffDiag = Math.max(maxAbsOffDiag, Math.abs(corr[i][j]));
+      const value = corr[i]?.[j];
+      if (i !== j && value !== undefined && Number.isFinite(value)) {
+        maxAbsOffDiag = Math.max(maxAbsOffDiag, Math.abs(value));
       }
     }
   }
@@ -186,7 +194,7 @@ export function computeVif(
   try {
     const inv = inverse(new Matrix(corr));
     const arr = inv.to2DArray();
-    diag = arr.map((row, i) => row[i]);
+    diag = arr.map((row, i) => row[i] ?? 0);
   } catch {
     diag = null;
     inverseThrew = true;
@@ -223,7 +231,11 @@ export function computeVif(
       return { column, vif: null, flag: 'ok' as const, computable: false, reason: 'constant_column' };
     }
     const raw = diag as number[];
-    const vif = Number(raw[ui].toFixed(4));
+    const rawValue = raw[ui];
+    if (rawValue === undefined) {
+      return { column, vif: null, flag: 'ok' as const, computable: false, reason: 'invalid_vif_value' };
+    }
+    const vif = Number(rawValue.toFixed(4));
     if (!Number.isFinite(vif) || vif < 1) {
       return { column, vif: null, flag: 'ok' as const, computable: false, reason: 'invalid_vif_value' };
     }

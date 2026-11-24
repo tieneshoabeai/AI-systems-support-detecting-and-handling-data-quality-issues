@@ -132,7 +132,7 @@ flowchart TD
   pnpm run build
   ```
   Kỳ vọng: Nest CLI biên dịch thành công không cảnh báo (Exit code 0).
-- Cập nhật tài liệu tổng quan dự án [`docs/report_over_project.md`](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/report_over_project.md) phản ánh thông số kỹ thuật mới.
+- Cập nhật tài liệu tổng quan dự án [`docs/report_over_project.md`](./report_over_project.md) phản ánh thông số kỹ thuật mới.
 
 ---
 

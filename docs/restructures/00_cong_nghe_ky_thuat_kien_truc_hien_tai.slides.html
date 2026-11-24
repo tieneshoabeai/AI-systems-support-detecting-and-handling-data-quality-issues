@@ -30,25 +30,25 @@ button{background:linear-gradient(90deg,#0ea5e9,#8b5cf6);border:0;color:#fff;fon
 </style>
 </head>
 <body>
-<div class="topbar"><span class="badge">AI DATA QUALITY PLATFORM • v1.1.0 • 12/11/2026</span><div class="progress"><i id="bar"></i></div><span class="count" id="count"></span></div>
+<div class="topbar"><span class="badge">AI DATA QUALITY PLATFORM • v1.1.0 • 16/11/2026</span><div class="progress"><i id="bar"></i></div><span class="count" id="count"></span></div>
 <div class="deck">
 
 <!-- 1 COVER -->
-<section class="slide active"><div class="kicker">Báo cáo tổng thể • Rà soát 203 file backend + 17 spec test</div>
+<section class="slide active"><div class="kicker">Báo cáo hiện trạng • Rà soát 370 file backend + 25 file test</div>
 <div class="cover"><div>
 <h1 class="big">Công nghệ • Kỹ thuật • AI • Kiến trúc • Module • Kiểm thử</h1>
-<p>Nền tảng AI hỗ trợ phát hiện và xử lý vấn đề chất lượng dữ liệu. Hexagonal + Ports &amp; Adapters, suy luận AI cục bộ corr-v1 chống ảo giác, ingestion streaming 50MB, lưới ảo keyset, realtime an toàn.</p>
-<div><span class="tag">NestJS 11</span><span class="tag g">MongoDB Atlas</span><span class="tag v">Cloudflare R2</span><span class="tag">Qwen3-14B</span><span class="tag g">CASL</span><span class="tag v">Socket.IO</span><span class="tag y">Zod</span></div>
-<div class="stat"><div><b>203</b>file src</div><div><b>17</b>ports</div><div><b>11</b>modules</div><div><b>145</b>tests</div></div>
+<p>Nền tảng AI hỗ trợ phát hiện và xử lý vấn đề chất lượng dữ liệu. Hexagonal + Ports &amp; Adapters với <b>107 Command/Query Handler</b>, suy luận AI cục bộ corr-v1 chống ảo giác, Google OAuth 2.0 thật, remember-me 30 ngày, keyset pagination toàn hệ thống.</p>
+<div><span class="tag">NestJS 11</span><span class="tag g">MongoDB Atlas</span><span class="tag v">Cloudflare R2</span><span class="tag">Qwen3-14B</span><span class="tag g">CASL</span><span class="tag v">Socket.IO</span><span class="tag y">Zod</span><span class="tag g">Google OAuth 2.0</span></div>
+<div class="stat"><div><b>370</b>file src</div><div><b>22</b>ports</div><div><b>13</b>modules</div><div><b>1 277</b>tests PASS</div></div>
 </div>
 <div class="card"><h3>6 phần trình bày</h3><ul>
-<li><b>1.</b> Công nghệ sử dụng</li><li><b>2.</b> Kỹ thuật &amp; mẫu thiết kế</li><li><b>3.</b> AI corr-v1 + RAG</li><li><b>4.</b> Kiến trúc hệ thống</li><li><b>5.</b> 11 modules nghiệp vụ</li><li><b>6.</b> 17 suites kiểm thử</li></ul>
-<p style="font-size:13px">Nguồn: 00_cong_nghe_ky_thuat_kien_truc_hien_tai.md (424 dòng) • main.ts • app.module.ts • env.validation.ts • test/*.spec.ts</p></div></div></section>
+<li><b>1.</b> Công nghệ sử dụng</li><li><b>2.</b> Kỹ thuật &amp; mẫu thiết kế</li><li><b>3.</b> AI corr-v1 + RAG</li><li><b>4.</b> Kiến trúc hệ thống</li><li><b>5.</b> 13 modules nghiệp vụ</li><li><b>6.</b> 74 file test • 1 277 ca</li></ul>
+<p style="font-size:13px">Nguồn: 00_cong_nghe_ky_thuat_kien_truc_hien_tai.md • main.ts • app.module.ts • env.validation.ts • test/*.spec.ts • Đối chiếu đo thật 16/11/2026</p></div></div></section>
 
 <!-- 2 TECH 1 -->
 <section class="slide"><div class="kicker">1 • Công nghệ</div><h2>Nền tảng ngôn ngữ &amp; Framework</h2>
 <div class="grid"><div class="card"><h3>Ngôn ngữ &amp; Runtime</h3><ul>
-<li>TypeScript strict, target ES2022, alias @/*</li><li>Node.js 22, ts-node, tsconfig-paths</li><li>pnpm 11.3.0, prettier, eslint, husky</li><li>Build: <code>tsc</code> trước rồi <code>nest start</code></li><li><code>type-check: tsc --noEmit</code> 0 lỗi</li></ul></div>
+<li>TypeScript strict, target ES2022, alias @/*</li><li>Node.js 22, ts-node, tsconfig-paths</li><li>pnpm 11.3.0, prettier, eslint 9 flat config, husky</li><li>Build: <code>tsc</code> trước rồi <code>nest start</code></li><li><code>type-check: tsc --noEmit</code> → <b>0 lỗi</b></li></ul></div>
 <div class="card"><h3>NestJS 11 đầy đủ</h3><ul>
 <li>common / core / config / jwt / mongoose</li><li>passport / passport-jwt / platform-express</li><li>platform-socket.io / websockets / swagger</li><li>throttler (dự phòng), rxjs, reflect-metadata</li><li>AppModule: 13 khối + AppController health</li></ul></div></div>
 <div class="card full" style="margin-top:14px"><h3>main.ts — 7 việc khi boot</h3><p style="font-size:14px">SSL (nếu bật) → trust proxy=1 → Helmet HSTS 1 năm → CORS (dev/*, *.trycloudflare.com, CORS_ORIGIN) → prefix /api/v1 trừ /health → Filter + 2 Interceptor toàn cục → Swagger 3 servers + persistAuthorization, fallback 443→8443.</p></div></section>
@@ -56,23 +56,23 @@ button{background:linear-gradient(90deg,#0ea5e9,#8b5cf6);border:0;color:#fff;fon
 <!-- 3 TECH 2 -->
 <section class="slide"><div class="kicker">1 • Công nghệ (tiếp)</div><h2>Dữ liệu • Lưu trữ • Bảo mật</h2>
 <div class="grid"><div class="card"><h3>MongoDB Atlas</h3><ul>
-<li>DatabaseModule @Global, pool 20/5, timeout 10s/45s</li><li>19 collections: users, sessions, workspaces, projects, datasets, records, runs, results, configs, ai_jobs, few-shot, evidences, saves, reports, notifications, issues, feedbacks, outbox</li><li>ID domain = chuỗi hex 24, chỉ infra dùng ObjectId</li><li>TTL duy nhất: notifications expires_at</li></ul></div>
+<li>DatabaseModule @Global, pool 20/5, timeout 10s/45s</li><li><b>20 collection / 20 schema Mongoose</b>: users, user_sessions, workspaces, projects, datasets, dataset_records, analysis_runs, analysis_results, analysis_configs, ai_jobs, few_shot_examples, cell_evidences, project_saves, report_jobs, notifications, issue_reports, finding_feedbacks, audit_logs, outbox_events, processed_events</li><li>ID domain = chuỗi hex 24, chỉ infra dùng ObjectId</li><li>TTL: user_sessions, notifications, finding_feedback (365 ngày)</li></ul></div>
 <div class="card"><h3>R2 + Local + Quota</h3><ul>
 <li>AWS SDK v3 (S3Client, Upload, Head/List)</li><li>Đủ 3 biến S3 → CLOUD, thiếu → LOCAL storage/</li><li>6 API: upload/download/delete/exists/usage/quota</li><li>10GB toàn cục (warn 90%) + 2GB/workspace, vượt → 413</li></ul></div></div>
 <div class="grid"><div class="card"><h3>JWT + Crypto + CASL</h3><ul>
-<li>Access 15 phút, refresh 40 byte hex 7 ngày (SHA-256)</li><li>bcrypt 12 vòng; AES-256-GCM PBKDF2 100k</li><li>admin→manage all; owner→manage WS; member→read</li><li>JwtAuthGuard + PoliciesGuard 3 tầng + RolesGuard</li></ul></div>
+<li>Access 15 phút, refresh 40 byte hex (SHA-256): <b>7 ngày / 30 ngày remember-me</b></li><li>bcrypt 12 vòng; AES-256-GCM PBKDF2 100k</li><li>admin→manage all; owner→manage WS; member→read</li><li>JwtAuthGuard + PoliciesGuard 3 tầng + RolesGuard</li></ul></div>
 <div class="card"><h3>Validate + Tài liệu + Tính toán</h3><ul>
-<li>Zod 100% DTO, Pipe → 400 VALIDATION_ERROR</li><li>Swagger /api/v1/docs từ Zod, Bearer Auth</li><li>Busboy 50MB, fast-csv, simple-statistics, ml-matrix</li><li>Health ngoài prefix: /health, /health/ready</li></ul></div></div></section>
+<li>Zod 100% DTO, Pipe → 400 VALIDATION_ERROR</li><li>Swagger /api/v1/docs từ Zod, Bearer Auth</li><li>Busboy 50MB, fast-csv, simple-statistics, ml-matrix</li><li>73 biến env trong schema, kiểm tra lúc boot</li></ul></div></div></section>
 
 <!-- 4 TECHNIQUE 1 -->
-<section class="slide"><div class="kicker">2 • Kỹ thuật</div><h2>Hexagonal 3 tầng + Zero-Any</h2>
+<section class="slide"><div class="kicker">2 • Kỹ thuật</div><h2>Hexagonal 3 tầng + Command/Query Handler</h2>
 <div class="grid"><div class="card"><h3>Luật tách tầng</h3><ul>
-<li><b>Domain:</b> entity, VO, event, util, port Symbol — thuần TS</li><li><b>Application:</b> chỉ @Inject(PORT), input interface thuần</li><li><b>Infrastructure:</b> controller, Zod DTO, schema, repo, mapper, adapter, gateway</li><li>Wiring: { provide: PORT, useExisting: Repo }</li></ul></div>
+<li><b>Domain:</b> entity, VO, event, util, port Symbol — thuần TS</li><li><b>Application:</b> <b>61 command</b> + <b>46 query</b> = <b>107 handler</b>, không biết HTTP</li><li><b>Infrastructure:</b> controller gọi <code>handler.execute()</code>, Zod DTO, schema, repo, mapper, adapter</li><li>Wiring: { provide: PORT, useExisting: Repo }</li></ul></div>
 <div class="card"><h3>Chất lượng mã</h3><ul>
-<li>Cấm as any / : any toàn src/scripts/test</li><li>Mapper gõ chặt Parameters&lt;typeof find&gt;</li><li>zero-any.spec.ts quét từng dòng, vi phạm fail CI</li><li>16 ports Symbol + AiInferencePort, 12 controllers, 1 gateway</li></ul></div></div>
+<li>Cấm as any / : any toàn src/scripts/test</li><li>Mapper gõ chặt Parameters&lt;typeof find&gt;</li><li><b>ESLint --max-warnings 0</b> → 0 cảnh báo</li><li>22 port Symbol + AiInferencePort, 15 controllers, 1 gateway</li></ul></div></div>
 <div class="flow">Domain (entity/VO/event/util/port Symbol)
   ↑ phụ thuộc ngược qua port
-Application (11 services + 2 workers, chỉ @Inject PORT)
+Application (commands/ 61 + queries/ 45, chỉ @Inject PORT)
   ↑ gọi qua port
 Infrastructure (controller / DTO-Zod / schema / repo / mapper / adapter / gateway)
   ↑ wiring
@@ -84,7 +84,7 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
 <li>ZodValidationPipe safeParse → 400 {field,message,code}</li><li>OK: {success:true,data} (TransformInterceptor)</li><li>Lỗi: {success:false,error:{code,message,timestamp,path}}</li><li>Trùng key 11000 → 409 DUPLICATE_RESOURCE</li><li>CursorCodec base64url: {row_index}, {createdAt,id}</li></ul></div>
 <div class="card"><h3>Ingestion 3 nhánh song song</h3><ul>
 <li>PassThrough: SHA-256 + upload R2/local + parse CSV</li><li>Không nạp RAM, không file tạm, vượt 50MB hủy cả 3</li><li>Schema 100 dòng đầu, bulk 5000, props c0..cN</li><li>1 project = 1 dataset; lỗi → rollback + FAILED</li></ul></div></div>
-<div class="card full" style="margin-top:14px"><h3>Lưới ảo keyset + Auth đa phiên</h3><p style="font-size:14px">Lọc <code>dataset_id + row_index &gt; cursor</code>, lấy <code>limit+1</code> biết hasMore; 14 toán tử → $regex/$gt/$in/$exists; aggregate histogram 10 buckets. Login: bcrypt → refresh thô → SHA-256 → detectDevice → session(ip+UA) → access {sub,email,role,sessionId}. Issues khóa lạc quan expectedVersion.</p></div></section>
+<div class="card full" style="margin-top:14px"><h3>Lưới ảo keyset + Auth đa phiên</h3><p style="font-size:14px">Lọc <code>dataset_id + row_index &gt; cursor</code>, lấy <code>limit+1</code> biết hasMore; 14 toán tử → $regex/$gt/$in/$exists; aggregate histogram 10 buckets. <b>Keyset pagination áp dụng cho toàn bộ endpoint danh sách</b> (workspaces, projects, users, members, issues, notifications, feedback) với index <code>{created_at:-1,_id:-1}</code>. Login: bcrypt → refresh thô → SHA-256 → detectDevice → session(ip+UA) → access {sub,email,role,sessionId}. Issues khóa lạc quan expectedVersion.</p></div></section>
 
 <!-- 6 AI 1 -->
 <section class="slide"><div class="kicker">3 • AI sử dụng</div><h2>Engine cục bộ + Luồng corr-v1</h2>
@@ -107,30 +107,31 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
   → Cloudflare Tunnel → http://localhost:3000
   → NestJS prefix /api/v1 (trừ /health, /health/ready)
   → JwtAuthGuard → PoliciesGuard / RolesGuard
-  → Controller (Zod) → Service (Port)
-  → Repository / Adapter → MongoDB Atlas + R2/local
+  → Controller (Zod) → Handler.execute() (Command / Query)
+  → Port → Repository / Adapter → MongoDB Atlas + R2/local
   → Socket.IO → rooms user: / project: / analysis:
   → Worker setInterval (AI job + Report job)</div>
 <div class="grid"><div class="card"><h3>7 bước / request</h3><ul>
-<li>Helmet/CORS/prefix → Auth → CASL → Zod</li><li>Service: isObjectIdHex + kiểm quyền</li><li>Repo: Mongoose → mapper snake→camel</li><li>Interceptor bọc envelope / Filter bọc lỗi</li></ul></div>
+<li>Helmet/CORS/prefix → Auth → CASL → Zod</li><li>Handler: isObjectIdHex + kiểm quyền</li><li>Repo: Mongoose → mapper snake→camel</li><li>Interceptor bọc envelope / Filter bọc lỗi</li></ul></div>
 <div class="card"><h3>Luồng dữ liệu</h3><ul>
 <li>Upload → records + outbox DATASET_INGESTED</li><li>Data-View → config → run đồng bộ</li><li>AI job async → Summary → Report async</li><li>Feedback → RAG → Notify + Issue → Realtime</li></ul></div></div></section>
 
 <!-- 9 ARCH 2 -->
-<section class="slide"><div class="kicker">4 • Kiến trúc (tiếp)</div><h2>Ma trận 17 Ports</h2>
+<section class="slide"><div class="kicker">4 • Kiến trúc (tiếp)</div><h2>Ma trận 22 Ports</h2>
 <table><tr><th>Port</th><th>Cung cấp</th><th>Sử dụng</th></tr>
-<tr><td>ANALYSIS_REPOSITORY</td><td>AnalysisRepository</td><td>Analysis, Summary, Report, RAG, AiWorker</td></tr>
-<tr><td>DATASET_REPOSITORY</td><td>DatasetsRepository</td><td>Datasets, Analysis, DataView</td></tr>
-<tr><td>RECORD_QUERY</td><td>RecordQueryRepository</td><td>DataView, Analysis</td></tr>
-<tr><td>PROJECT / WORKSPACE / USER</td><td>Repo tương ứng</td><td>Hầu hết services + RealtimeAuth</td></tr>
-<tr><td>NOTIFICATION / ISSUE / FEEDBACK</td><td>Repo tương ứng</td><td>Notify, Issues, Feedback</td></tr>
-<tr><td>REALTIME / STORAGE / OUTBOX</td><td>Service @Global</td><td>Mọi module cần (@Optional realtime)</td></tr>
-<tr><td>AUTH ×4 + AiInference</td><td>Bcrypt/JWT/Lookup/Session, LocalInference</td><td>AuthService, AiWorker</td></tr></table></section>
+<tr><td>ANALYSIS_REPOSITORY / DATASET_REPOSITORY / RECORD_QUERY</td><td>AnalysisRepository, DatasetsRepository, RecordQueryRepository</td><td>Analysis, Datasets, DataView, Summary, Report, RAG</td></tr>
+<tr><td>PROJECT / WORKSPACE / USER / NOTIFICATION / ISSUE / FEEDBACK</td><td>Repo tương ứng</td><td>Mọi service + RealtimeAuth + Overview</td></tr>
+<tr><td>AUDIT_REPOSITORY / AUDIT_LOGGER (facade)</td><td>AuditRepository, AuditLoggerAdapter</td><td>Ghi audit log từ module khác</td></tr>
+<tr><td>PROJECT_ACCESS / WORKSPACE_ACCESS</td><td>Access adapter</td><td>Kiểm quyền project/workspace</td></tr>
+<tr><td>REALTIME / REALTIME_TRANSPORT / EVENT_PUBLISHER</td><td>RealtimeService, EventDispatcherService</td><td>Realtime, Outbox, module nghiệp vụ</td></tr>
+<tr><td>STORAGE / OUTBOX</td><td>Service @Global</td><td>Datasets, Report, Issues (attachment), Audit</td></tr>
+<tr><td>GOOGLE_OAUTH</td><td>GoogleOAuthAdapter</td><td>LoginWithGoogleHandler</td></tr>
+<tr><td>RAG_FEW_SHOT + AUTH ×4 + AiInference</td><td>RagFewShotService, Bcrypt/JWT/Lookup/Session, LocalInference</td><td>Auth, AiWorker</td></tr></table></section>
 
 <!-- 10 MOD 1 -->
-<section class="slide"><div class="kicker">5 • Các module (11)</div><h2>Auth • Users • Workspaces • Projects</h2>
+<section class="slide"><div class="kicker">5 • Các module (13)</div><h2>Auth • Users • Workspaces • Projects</h2>
 <div class="grid"><div class="card"><h3>Auth / Users</h3><ul>
-<li>POST register/login/refresh/logout, GET/DELETE sessions</li><li>Thiết bị suy từ user-agent, 4 ports + 4 adapters</li><li>Users: GET/PATCH/DELETE /users/me, xóa mềm</li><li>Cấp lookup cho Auth + Realtime</li></ul></div>
+<li>POST register/login/refresh/logout, GET/DELETE sessions</li><li><b>GET /auth/google + /auth/google/callback</b> (OAuth 2.0 Authorization Code)</li><li>POST forgot-password/reset-password/change-password</li><li>Users: GET/PATCH/DELETE /users/me + GET /admin/users (keyset)</li></ul></div>
 <div class="card"><h3>Workspaces / Projects</h3><ul>
 <li>WS: owner/member, add/remove/transfer/leave, quota 2GB</li><li>Sort: last_accessed/updated/name/joined</li><li>Project: owner/member/viewer, trùng tên → 409</li><li>1 project = 1 dataset; not_started→in_progress→completed</li></ul></div></div>
 <div class="card full" style="margin-top:14px"><h3>API chính</h3><p style="font-size:14px"><code>POST /auth/*</code> • <code>/users/me</code> • <code>/workspaces CRUD + :id/members + transfer-owner + leave</code> • <code>/workspaces/:wid/projects + /projects/:id (+members, transfer-owner)</code></p></div></section>
@@ -139,31 +140,46 @@ NestJS Module ({ provide: PORT_SYMBOL, useExisting: Concrete })</div></section>
 <section class="slide"><div class="kicker">5 • Modules (tiếp)</div><h2>Datasets • Data-View • Analysis</h2>
 <div class="grid"><div class="card"><h3>Datasets + Data-View</h3><ul>
 <li>POST upload multipart, GET theo project/id/schema</li><li>PATCH đổi tên, reset cột, DELETE xóa mềm</li><li>GET records keyset, POST query 14 toán tử</li><li>GET stats + histogram 10 buckets</li><li>Giải key cN / tên hiển thị / tên gốc</li></ul></div>
-<div class="card"><h3>Analysis — lớn nhất (9 schemas)</h3><ul>
+<div class="card"><h3>Analysis — lớn nhất (8 schemas)</h3><ul>
 <li>runAnalysis + fingerprint SHA-256 (dataset+checksum+rows+config)</li><li>summary: create/get, gom DQ top 50</li><li>report: request job → worker → download file</li><li>RAG service + AiWorker + LocalInferenceAdapter</li><li>run/result/config/job/few-shot/evidence/save/report</li></ul></div></div></section>
 
 <!-- 12 MOD 3 -->
 <section class="slide"><div class="kicker">5 • Modules (tiếp)</div><h2>Notifications • Issues • Feedback • Realtime</h2>
 <div class="grid"><div class="card"><h3>Notify + Issues</h3><ul>
-<li>10 loại; bắt buộc: issue_needs_info, security_alert</li><li>TTL expires_at, chống trùng sourceEventId</li><li>Tự mark-read khi xem chi tiết, realtime notification.created</li><li>Issues: new→in_progress→resolved→closed</li><li>expectedVersion sai → 409/412; /admin/* khóa admin</li></ul></div>
+<li>10 loại; bắt buộc: issue_needs_info, security_alert</li><li>TTL expires_at, chống trùng sourceEventId</li><li>Tự mark-read khi xem chi tiết, realtime notification.created</li><li>Issues: <b>new→needs_info→in_progress→resolved→closed</b></li><li>expectedVersion sai → 409/412; /admin/* khóa admin</li></ul></div>
 <div class="card"><h3>Feedback + Realtime</h3><ul>
 <li>POST feedback theo finding / theo run; PATCH/DELETE của tôi</li><li>GET ai-quality-metrics; cấm admin (FB-*)</li><li>Gateway /api/v1/realtime, websocket+polling</li><li>Rooms user/project/analysis; 7 events</li><li>Envelope chỉ id+trạng thái, cấm reason/email/value</li></ul></div></div></section>
 
-<!-- 13 TEST -->
-<section class="slide"><div class="kicker">6 • Kiểm thử</div><h2>17 suites • 145 tests • tsc 0 lỗi</h2>
-<div class="grid"><div class="card"><h3>Lệnh &amp; cách viết</h3><ul>
-<li>test:unit (trừ 3 spec kiến trúc), test:arch (chỉ 3), test:all</li><li>TestingModule + {provide: PORT, useValue: mock}</li><li>Không Mongo/S3 thật trong unit — mock qua port</li><li>e2e theo test/jest-e2e.json, supertest</li></ul></div>
-<div class="card"><h3>4 nhóm test</h3><ul>
-<li><b>Domain (5):</b> wave5 DQ, mask-pii, crypto, device, corr-vif-ai</li><li><b>Service (9):</b> ingestion, wave4, data-view, projects, workspaces, notify-issues, feedback, realtime, storage</li><li><b>Kiến trúc (4):</b> casl, guard-coverage, zero-any, zod-openapi</li></ul></div></div>
-<div class="card full" style="margin-top:14px"><h3>Đọc lỗi đỏ + mở rộng</h3><p style="font-size:14px">Thiếu provide(PORT) → Nest báo dependency (lỗi wiring). Sai mapper → rowIndex/camelCase lệch (lỗi infra). Module mới cần: test domain + test service mock port + bổ sung route vào guard-coverage.</p></div></section>
+<!-- 13 MOD 4 -->
+<section class="slide"><div class="kicker">5 • Modules (tiếp)</div><h2>Audit • Overview • Google OAuth</h2>
+<div class="grid"><div class="card"><h3>Audit + Overview</h3><ul>
+<li><b>Audit:</b> facade port <code>AUDIT_LOGGER_PORT</code> → <code>LogHandler</code> → <code>AuditRepository</code>; append-only, best-effort</li><li>audit_logs: 5 index (actor/target/workspace/action/created_at)</li><li><b>Overview:</b> GET /overview/workspaces + GET /workspaces/:id/overview</li><li>Dashboard: total/owned/shared workspace, số project theo trạng thái</li></ul></div>
+<div class="card"><h3>Google OAuth 2.0 (AUTH-03)</h3><ul>
+<li>Authorization Code flow, CSRF <code>state</code> kiểm lại khi callback</li><li>Verify RS256 qua JWKS của Google</li><li>Email đã tồn tại → <b>liên kết tự động</b> (email đã được Google xác minh)</li><li>Thiếu credential → <b>501 DEPENDENCY_UNAVAILABLE</b></li></ul></div></div></section>
 
-<!-- 14 CLOSE -->
+<!-- 14 TEST -->
+<section class="slide"><div class="kicker">6 • Kiểm thử</div><h2>74 file test • 1 277 ca PASS • lint 0 cảnh báo</h2>
+<div class="grid"><div class="card"><h3>Lệnh &amp; cách viết</h3><ul>
+<li><code>test:unit</code> 20 suite / 246 ca PASS</li><li><code>test:arch</code> 4 suite / 16 ca PASS</li><li>TestingModule + {provide: PORT, useValue: mock}</li><li>Không Mongo/S3 thật trong unit — mock qua port</li></ul></div>
+<div class="card"><h3>5 nhóm test</h3><ul>
+<li><b>Domain (5):</b> wave5 DQ, mask-pii, crypto, device, corr-vif-ai</li><li><b>Service (9):</b> ingestion, wave4, data-view, projects, workspaces, notify-issues, feedback, realtime, storage</li><li><b>Kiến trúc (5):</b> casl, guard-coverage, zero-any, zod-openapi, clean-architecture</li><li><b>Theo đợt (5):</b> step1 remember-me, step1 services, step3 EFGH, step6 OAuth, keyset pagination</li></ul></div></div>
+<div class="card full" style="margin-top:14px"><h3>Đọc lỗi đỏ + mở rộng</h3><p style="font-size:14px">Thiếu provide(PORT) → Nest báo dependency (lỗi wiring). Sai mapper → rowIndex/camelCase lệch (lỗi infra). Module mới cần: test domain + test service mock port + bổ sung route vào guard-coverage. Thêm 3 file E2E: health, authorization, google-oauth.</p></div></section>
+
+<!-- 15 CLOSE -->
 <section class="slide"><div class="kicker">Kết luận</div><h2>Điểm mạnh &amp; Hướng mở rộng</h2>
 <div class="grid"><div class="card"><h3><span class="num">✓</span> Đã đạt</h3><ul>
-<li>Hexagonal nghiêm, zero-any, Swagger sinh từ Zod</li><li>AI cục bộ có căn cứ, không rò PII/API ngoài</li><li>Streaming 50MB không nạp RAM, keyset 200k dòng</li><li>Quota 2 lớp, outbox retry 5, worker lease+heartbeat</li><li>145 tests xanh, tsc sạch, health ngoài prefix</li></ul></div>
+<li>Hexagonal nghiêm ngặt với <b>107 Command/Query Handler</b>, quy tắc tầng cưỡng chế bằng ESLint + test</li>
+<li><b>1 277 ca test PASS</b> (1 069 unit/arch + 138 integration + 70 e2e), tsc 0 lỗi, <b>eslint --max-warnings 0</b></li>
+<li>Google OAuth 2.0 thật, remember-me 30 ngày, keyset pagination toàn hệ thống, trạng thái <code>needs_info</code></li>
+<li>AI cục bộ có căn cứ (grounded), không rò PII, không gọi API công cộng</li>
+<li>Streaming 50MB không nạp RAM, quota 2 lớp, outbox retry 5, worker lease + heartbeat</li></ul></div>
 <div class="card"><h3><span class="num">→</span> Tiếp theo</h3><ul>
-<li>Bật Redis cache + rate-limit + Socket.IO adapter</li><li>Bật Throttler toàn cục, SMTP + ntfy cảnh báo</li><li>Vector DB riêng khi few-shot &gt; 50k</li><li>E2E tunnel + k6 tải ingestion/analysis</li><li>Tách worker ra tiến trình riêng khi tải cao</li></ul></div></div>
-<p style="margin-top:14px;font-size:13px">Nguồn: docs/restructures/00_cong_nghe_ky_thuat_kien_truc_hien_tai.md (424 dòng) • main.ts • app.module.ts • env.validation.ts • 17 ports • 11 services • test/*.spec.ts • scripts/* • deploy/*</p></section>
+<li>Bật Redis cache + rate-limit + Socket.IO adapter</li>
+<li>Bật Throttler toàn cục, SMTP + ntfy cảnh báo</li>
+<li>Vector DB riêng khi few-shot &gt; 50k</li>
+<li>E2E tunnel + k6 tải ingestion/analysis</li>
+<li>Tách worker ra tiến trình riêng khi tải cao</li></ul></div></div>
+<p style="margin-top:14px;font-size:13px">Nguồn: docs/restructures/00_cong_nghe_ky_thuat_kien_truc_hien_tai.md • main.ts • app.module.ts • env.validation.ts • 22 ports • 107 handlers • 15 controllers • 84 route HTTP • test/*.spec.ts • scripts/* • deploy/*</p></section>
 
 </div>
 <div class="nav"><button class="ghost" onclick="go(-1)">← Trước</button><span class="count" id="count2"></span><button onclick="go(1)">Tiếp →</button></div>

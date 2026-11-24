@@ -1,9 +1,8 @@
 # 8. Thiết kế dữ liệu và database schema
 
-- **Version:** v7
+- **Version:** v6
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.14 — Collection `report_job` (bổ sung mô tả + lease). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.15 — `analysis_config` theo key cột + `analysis_result.charts` (đã thực hiện).
+- **Cập nhật gần nhất:** 2026-11-07 (v6)
 - **Trạng thái:** Đã chốt 11 quyết định schema và thiết kế **21 collection** đầy đủ (trường, index, unique constraint, transaction boundary, TTL, retention, layout storage R2) cùng bảng migration từ schema hiện tại. **v4:** gộp `dataset_sheet` vào `dataset` (21 → 20), thêm `finding_feedback` + `feedback_example` (20 → **21**), cập nhật `ai_job` cho Kafka + model. **v5:** mở rộng `analysis_result` (breakdown thiếu pairwise, `commonNRate`/`lossWarning`, `excludedColumns`, lý do date riêng) + worker AI corr-v1 (`claimPendingJob`, `AiWorkerService`, biến môi trường `AI_*`). Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 8; sử dụng kết quả đã xác nhận của các phần trước.
@@ -171,6 +170,50 @@ Cả hai đều là collection log, append-only, dùng TTL index để dọn d�
 
 ---
 
+### 3.3b. Đối chiếu danh mục collection với model Mongoose thực tế (v7, 2026-11-16)
+
+Bảng 3.3 mô tả thiết kế. Bảng dưới đây đối chiếu với **mã nguồn thực thi** — đọc từ `MongooseModule.forFeature({ name: '...', schema })` trong từng module.
+
+| # | Collection (thiết kế) | Model Mongoose | Module sở hữu | File schema | Trạng thái |
+|---|---|---|---|---|---|
+| 1 | `user` | `User` | `users` | `users/infrastructure/persistence/user.schema.ts` | ✅ Có |
+| 2 | `user_session` | `UserSession` | `auth` | `users/infrastructure/persistence/user-session.schema.ts` | ✅ Có |
+| 3 | `audit_log` | `AuditLog` | `audit` | `audit/infrastructure/persistence/audit-log.schema.ts` | ✅ Có |
+| 4 | `audit_change` | `AuditChange` | `audit` | `audit/infrastructure/persistence/audit-log.schema.ts` | ✅ Có |
+| 5 | `workspace` | `Workspace` | `workspaces` | `workspaces/infrastructure/persistence/workspace.schema.ts` | ✅ Có (membership **nhúng** `members[]`, chưa tách `workspace_member`) |
+| 6 | `workspace_member` | *(nhúng)* | `workspaces` | — | ⚠️ **Chưa tách** — hiện là mảng `workspace.members[]` |
+| 7 | `project` | `Project` | `projects` | `projects/infrastructure/persistence/project.schema.ts` | ✅ Có (membership **nhúng** `members[]`) |
+| 8 | `project_member` | *(nhúng)* | `projects` | — | ⚠️ **Chưa tách** — hiện là mảng `project.members[]` |
+| 9 | `notification` | `Notification` | `notifications` | `notifications/infrastructure/persistence/notification.schema.ts` | ✅ Có |
+| 10 | `issue_report` | `IssueReport` | `issues` | `issues/infrastructure/persistence/issue-report.schema.ts` | ✅ Có |
+| 11 | `dataset` | `Dataset` | `datasets` | `datasets/infrastructure/persistence/dataset.schema.ts` | ✅ Có |
+| 13 | `dataset_record` | `DatasetRecord` | `datasets` | `datasets/infrastructure/persistence/dataset-record.schema.ts` | ✅ Có — **insert-only**, không `deleted_at`/`version` |
+| 14 | `analysis_run` | `AnalysisRun` | `analysis` | `analysis/infrastructure/persistence/analysis-run.schema.ts` | ✅ Có |
+| 15 | `analysis_result` | `AnalysisResult` | `analysis` | `analysis/infrastructure/persistence/analysis-result.schema.ts` | ✅ Có |
+| 16 | `cell_evidence` | `CellEvidence` | `analysis` | `analysis/infrastructure/persistence/cell-evidence.schema.ts` | ✅ Có |
+| 17 | `ai_job` | `AiJob` | `analysis` | `analysis/infrastructure/persistence/ai-job.schema.ts` | ✅ Có |
+| 17b | `finding_feedback` | `FindingFeedback` | `feedback` | `feedback/infrastructure/persistence/finding-feedback.schema.ts` | ✅ Có — TTL 365 ngày |
+| 17c | `feedback_example` | `FewShotExample` | `feedback` | `analysis/infrastructure/persistence/few-shot-example.schema.ts` | ✅ Có — tên collection `fewshotexamples` |
+| 18 | `project_save` | `ProjectSave` | `analysis` | `analysis/infrastructure/persistence/project-save.schema.ts` | ✅ Có |
+| — | *(bổ sung)* | `AnalysisConfig` | `analysis` | `analysis/infrastructure/persistence/analysis-config.schema.ts` | ✅ Có — **chưa có** trong danh mục v6 |
+| — | *(bổ sung)* | `ReportJob` | `analysis` | `analysis/infrastructure/persistence/report-job.schema.ts` | ✅ Có — **chưa có** trong danh mục v6 |
+| 20 | `outbox_event` | `OutboxEvent` | `shared` | `shared/application/outbox/outbox-event.schema.ts` | ✅ Có — **5** trạng thái (`PENDING`/`PUBLISHING`/`PUBLISHED`/`PROCESSED`/`FAILED`) |
+| 21 | `processed_event` | `ProcessedEvent` | `shared` | `shared/application/outbox/processed-event.schema.ts` | ✅ Có — chưa có TTL index |
+
+**Tổng model Mongoose đang đăng ký: 21** (`MongooseModule.forFeature`).
+
+**Khoảng cách so với thiết kế v6 (ghi nhận trung thực, chưa xử lý):**
+
+| # | Khoảng cách | Ảnh hưởng |
+|---|---|---|
+| 1 | `workspace_member` / `project_member` **chưa tách** — vẫn nhúng `members[]` | Không khớp quy tắc S13/S14; cần tách ở Bước 9 (migration) |
+| 2 | `_id` vẫn là `ObjectId` — **chưa** chuyển sang `usr_<ULID26>` | Bảng đối chiếu 3.12 mục #5 chưa áp dụng |
+| 3 | `outbox_event.status` có **5** giá trị (thêm `PROCESSED`) — thiết kế v6 ghi 4 | Cập nhật quy tắc S16 |
+| 4 | `processed_event` **chưa có TTL index** dù là collection log | Không tự dọn dẹp inbox |
+| 5 | `feedback_example` → collection `fewshotexamples` (tên model ≠ tên collection thiết kế) | Ghi nhận tên thực tế |
+
+---
+
 ### 3.4. Schema chi tiết — nhóm Identity
 
 #### 3.4.1. `user` (module `users`)
@@ -180,14 +223,15 @@ Cả hai đều là collection log, append-only, dùng TTL index để dọn d�
 | `_id` | String | `usr_<ULID26>` |
 | `email` | String | lowercase, trim, **unique partial** (chỉ khi `deleted_at: null`) |
 | `password_hash` | String | `select: false`; null nếu đăng nhập Google |
-| `google_id` | String | `select: false`, **unique sparse** |
+| `google_id` | String | **unique sparse**, index — **MỚI v7** (`AUTH-03`); KHÔNG dùng `select: false` — cần đọc khi khớp tài khoản |
 | `first_name` | String | max 50 |
 | `last_name` | String | max 50 |
-| `phone` | String | nullable, max 20 |
-| `bio` | String | nullable, max 500 |
+| `phone` | String | nullable, max 20 — **unique partial** (`partialFilterExpression: { phone: { $type: 'string' } }`) — **MỚI v7** |
+| `bio` | String | nullable, max 500 — **MỚI v7** (`USER-04`) |
 | `avatar_url` | String | nullable |
 | `role` | String | enum `admin` \| `analyst` — hệ thống, ngoài phân cấp workspace/project (Phần 2 mục 3.34.1) |
 | `status` | String | enum `active` \| `blocked`, mặc định `active` |
+| `auth_provider` | String | enum `local` \| `google`, mặc định `local` — **MỚI v7** (Google OAuth 2.0, `AUTH-03`) |
 | `notifications_enabled` | Boolean | mặc định `true` (Phần 2 mục 3.37) |
 | `password_reset_otp_hash` | String | `select: false`, nullable |
 | `password_reset_otp_expires_at` | Date | nullable |
@@ -201,7 +245,10 @@ Cả hai đều là collection log, append-only, dùng TTL index để dọn d�
 | Index | Loại | Phục vụ |
 |---|---|---|
 | `{ email: 1 }` | unique, partial `{ deleted_at: null }` | Đăng nhập, kiểm tra trùng email |
-| `{ google_id: 1 }` | unique, sparse | Đăng nhập Google |
+| `{ google_id: 1 }` | unique, sparse | Đăng nhập Google — **MỚI v7** |
+| `{ phone: 1 }` | unique, partial `{ phone: { $type: 'string' } }` | Số điện thoại phải duy nhất — **MỚI v7** |
+| `{ auth_provider: 1 }` | đơn | Lọc tài khoản theo nguồn đăng nhập — **MỚI v7** |
+| `{ created_at: -1, _id: -1 }` | compound | **Keyset cursor** danh sách tài khoản (Bước 10) — **MỚI v7** |
 | `{ role: 1, status: 1, deleted_at: 1 }` | compound | `ADMIN-01` lọc + sắp xếp |
 | `{ deleted_at: 1, created_at: -1 }` | compound | Danh sách admin mặc định `createdAt desc` |
 | `{ last_name: 1, first_name: 1 }` | compound | Sắp xếp theo tên |
@@ -210,6 +257,9 @@ Cả hai đều là collection log, append-only, dùng TTL index để dọn d�
 - `email` unique partial: sau khi soft delete một user, email được giải phóng — cho phép đăng ký lại cùng email. Quyết định này cần ghi vào tài liệu bàn giao (rủi ro: mất liên kết lịch sử với `workspace_member` cũ).
 - `role` chỉ có 2 giá trị ở **tầng hệ thống**. Vai trò `WS-OWNER`/`WS-MEMBER`/`PROJ-*` **không** nằm ở đây — chúng nằm ở `workspace_member.role` và `project_member.role` (Phần 6 v3).
 - `password_hash` và `google_id` không bao giờ trả ra API.
+- **`auth_provider` (MỚI v7):** nguồn đăng nhập. `local` = email + mật khẩu; `google` = Google OAuth 2.0 (tài khoản Google **không** có `password_hash`).
+- **`phone` unique partial (MỚI v7):** chỉ những tài khoản có `phone` kiểu string mới bị kiểm tra trùng — nhiều tài khoản không có số điện thoại vẫn hợp lệ.
+- **`google_id` unique sparse (MỚI v7):** tài khoản local không có `google_id` → không xung đột unique.
 
 #### 3.4.2. `user_session` (module `auth`)
 
@@ -221,8 +271,9 @@ Cả hai đều là collection log, append-only, dùng TTL index để dọn d�
 | `user_agent` | String | nullable, max 500 |
 | `ip_address` | String | nullable, max 45 (hỗ trợ IPv6) |
 | `device_label` | String | nullable, max 120 — nhãn hiển thị cho danh sách phiên |
-| `last_used_at` | Date | tự động |
-| `expires_at` | Date | TTL — 30 ngày (Phần 6 v3 mục 3.4) |
+| `last_used_at` | Date | **MỚI v7** — cập nhật khi refresh token được dùng (hiển thị "hoạt động gần nhất") |
+| `remember_me` | Boolean | **MỚI v7** — mặc định `false`; `true` ⇒ hạn phiên `JWT_REFRESH_REMEMBER_EXPIRATION` (mặc định `30d`) thay vì `JWT_REFRESH_EXPIRATION` (`7d`) — `AUTH-14` |
+| `expires_at` | Date | TTL — `7d` (thường) hoặc `30d` (remember-me) — Phần 6 v3 mục 3.4 |
 | `revoked_at` | Date | nullable |
 | `revoke_reason` | String | nullable, enum `logout` \| `logout_other` \| `rotated` \| `reused_detected` \| `admin_revoked` |
 | `created_at` / `updated_at` | Date | tự động |
@@ -232,13 +283,19 @@ Cả hai đều là collection log, append-only, dùng TTL index để dọn d�
 | Index | Loại | Phục vụ |
 |---|---|---|
 | `{ user_id: 1, revoked_at: 1, created_at: -1 }` | compound | `AUTH-08` danh sách phiên |
-| `{ expires_at: 1 }` | **TTL, `expireAfterSeconds: 0`** | Tự xoá phiên hết hạn |
+| `{ expires_at: 1 }` | **TTL, `expireAfterSeconds: 0`** | Tự xoá phiên hết hạn — **MỚI v7: đã sửa** (xem ghi chú bên dưới) |
 | `{ refresh_token_hash: 1 }` | unique | Tra cứu khi refresh |
+| `{ user_id: 1, is_revoked: 1 }` | compound | Lọc phiên còn hiệu lực của user — **MỚI v7** |
 
 **Quy tắc:**
 1. Refresh token lưu **chỉ dạng hash** — không lưu bản gốc.
 2. Phát hiện tái sử dụng refresh token đã rotate → đặt `revoked_at` cho **toàn bộ** phiên của user (Phần 7 mục 3.12).
 3. TTL index xoá vật lý sau `expires_at` — an toàn vì token đã hết hạn.
+
+> **⚠ Sửa lỗi TTL (MỚI v7, 2026-11-16).** Trước đây schema khai báo `index: { expires: '7d' }` trên `expires_at`, tức MongoDB cộng thêm **7 ngày** vào `expires_at` trước khi xoá. Hậu quả: phiên **remember-me** (hạn 30 ngày) bị xoá vật lý chỉ sau ~37 ngày kể từ lần refresh, và phiên thường (7 ngày) bị giữ 14 ngày — lệch với cam kết bảo mật.
+> Schema hiện tại dùng `{ expires_at: 1 }, { expireAfterSeconds: 0 }` ⇒ tài liệu bị xoá **đúng lúc** `expires_at` tới hạn. Đây là giá trị TTL **duy nhất** được chấp nhận cho `user_session`.
+>
+> **Quy tắc bổ sung (S19, MỚI v7):** `expires_at` **luôn được tính** từ `JWT_REFRESH_EXPIRATION` (7 ngày) hoặc `JWT_REFRESH_REMEMBER_EXPIRATION` (30 ngày) tại thời điểm phát hành token — **không** dựa vào TTL index để quyết định hạn.
 
 #### 3.4.3. `audit_log` + `audit_change` (module `audit`)
 
@@ -588,8 +645,7 @@ completed   ──(xoá dataset)────────────────
 | `correlation_method` | String | enum `pearson` \| `spearman` |
 | `outlier_method` | String | enum `iqr` \| `modified_zscore` \| `both` |
 | `time_granularity` | String | enum `day` \| `week` \| `month` \| `quarter` \| `year` |
-| `top_n` | Int | mặc định **50** (1–100); trước 2026-11-17 là 10 — đổi để khớp Phần 2 mục 6.6 (PDF top 50) |
-| `chart_top_n` | Int | mặc định 5 (1–20) — Top N biểu đồ cột phân loại (Phần 2 mục 3.21) |
+| `top_n` | Int | mặc định 10 |
 | `thresholds` | Object | ngưỡng ảnh hưởng đã chốt ở Phần 12 mục 3.11 |
 
 **Quy tắc:**
@@ -915,7 +971,7 @@ Lưu trạng thái làm việc của project (kết quả `PROJ-12`).
 | `issue_type` | String | enum `function_error` \| `display_error` \| `data_error` \| `feature_feedback` \| `other` |
 | `title` | String | bắt buộc, max 200 |
 | `description` | String | bắt buộc, max 5000 |
-| `status` | String | enum `new` \| `in_progress` \| `resolved` \| `closed`, mặc định `new` |
+| `status` | String | enum `new` \| **`needs_info`** \| `in_progress` \| `resolved` \| `closed`, mặc định `new` — **MỚI v7** (`ISSUE-05`) |
 | `attachments` | Array\<Object\> | tối đa 3 — xem bên dưới |
 | `context` | Object | ngữ cảnh lỗi — xem bên dưới |
 | `deleted_at` | Date | nullable |
@@ -952,6 +1008,8 @@ Lưu trạng thái làm việc của project (kết quả `PROJ-12`).
 2. Chuyển trạng thái hợp lệ: `new` → `in_progress` → `resolved` → `closed`, và `in_progress` → `new`.
 3. Mọi thay đổi trạng thái **ghi audit log** (`ISSUE_STATUS_CHANGED`).
 4. Chuyển sang `new` → phát thông báo `issue_needs_info` (bắt buộc) qua outbox.
+5. **Trạng thái `needs_info` (MỚI v7, `ISSUE-05`):** Admin chuyển báo cáo sang `needs_info` khi cần thêm thông tin. Người báo cáo **được quyền cập nhật** `title`/`description`/`attachments` khi trạng thái **đang** là `needs_info`; khi thoát `needs_info`, `title`/`description` bị **khoá lại** (read-only) — trừ khi Admin chuyển ngược về `new`.
+6. Vòng đời `needs_info`: `new` → `needs_info` → `in_progress` → `resolved` → `closed`; `needs_info` → `new` (Admin yêu cầu bổ sung xong) hoặc `needs_info` → `closed` (Admin đóng không cần thêm).
 5. File đính kèm kiểm tra mime thực bằng magic bytes, chặn file thực thi — không phục vụ file tĩnh trực tiếp.
 
 #### 3.8.5. `outbox_event` (module `shared`)
@@ -1297,6 +1355,12 @@ Xoá dataset (soft delete):
 | S16 | `outbox_event.status` chỉ nhận 4 giá trị `pending`/`publishing`/`published`/`failed`; không có đường chuyển trực tiếp `pending` → `published` |
 | S17 | Mọi consumer có inbox đều khai báo `consumer_name` trong danh mục; `processed_event` có unique `(consumer_name, event_id)` |
 | S18 | `notification.source_event_id` tham chiếu tới `outbox_event._id` tồn tại; unique partial `(user_id, source_event_id)` |
+| **S19** | **MỚI v7** — `user_session.expires_at` được tính từ `JWT_REFRESH_EXPIRATION` / `JWT_REFRESH_REMEMBER_EXPIRATION` tại thời điểm phát hành; TTL index của `user_session` **phải** là `{ expires_at: 1 }, { expireAfterSeconds: 0 }` — cấm `expireAfterSeconds > 0` |
+| **S20** | **MỚI v7** — `user.auth_provider` chỉ nhận `local` \| `google`; tài khoản `auth_provider = 'google'` **không được** có `password_hash`; `user.google_id` là **unique sparse** |
+| **S21** | **MỚI v7** — `user.phone` là **unique partial** (`partialFilterExpression: { phone: { $type: 'string' } }`); nhiều tài khoản `phone = null` được phép |
+| **S22** | **MỚI v7** — `issue_report.status` chỉ nhận 5 giá trị `new` \| `needs_info` \| `in_progress` \| `resolved` \| `closed`; chỉ khi `status = 'needs_info'` thì người báo cáo mới được sửa `title`/`description`/`attachments` |
+| **S23** | **MỚI v7** — mọi collection có trường trạng thái đều có index hỗ trợ **keyset cursor** `(trường_sắp_xếp, _id)`; cấm `skip`/`offset` cho danh sách phân trang |
+| **S24** | **MỚI v7** — mọi schema Mongoose đăng ký qua `MongooseModule.forFeature` phải có **ít nhất một** index khai báo tường minh (không tính `index: true` mặc định của Mongoose) — trừ collection log dùng TTL |
 
 ---
 
@@ -1339,25 +1403,6 @@ Upload → Storage (file gốc, bất biến)
 
 Không còn đường ghi nào khác. Điều này loại bỏ hẳn các nhóm lỗi: ghi đè dữ liệu, mất dữ liệu do transaction lỗi giữa chừng, race condition khi sửa ô đồng thời.
 
-### 3.14. Collection `report_job` (bổ sung mô tả + lease) (v7)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16). Collection đã có trong code (`report-job.schema.ts`) nhưng chưa được mô tả trong tài liệu schema.
-- Trường: `_id`, `project_id`, `workspace_id`, `project_save_id`, `status` (`pending|running|succeeded|failed`), `storage_key`, `file_size_bytes`, `error {code, message}`, `created_at`, `updated_at`, `deleted_at`.
-- **Bổ sung:** `attempt: number` (mặc định 0), `lease_expires_at: Date | null`, `heartbeat_at: Date | null`.
-- Index: `{ status: 1, created_at: 1 }` (claim), `{ project_id: 1, created_at: -1 }`, `{ status: 1, lease_expires_at: 1 }` (thu hồi job kẹt).
-- Migration: trường mới có giá trị mặc định, không cần backfill.
-- **Ghi chú triển khai:** đã thêm `attempt`, `lease_expires_at`, `heartbeat_at` và 2 index `{status, created_at}`, `{status, lease_expires_at}` vào `report-job.schema.ts`. Job cũ thiếu `attempt` vẫn được thu hồi (lọc `$not: {$gte}`).
-
-### 3.15. `analysis_config` theo key cột + `analysis_result.charts` (đợt D/E)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-- `analysis_config`: `selected_columns`, `label_column`, `time_column`, `value_column` lưu **key cột** (`c{i}`); thêm `chart_top_n: Number` (mặc định 5). Bản ghi cũ lưu theo tên được map sang key khi đọc, không cần script migration.
-- `analysis_result`: thêm `charts: Mixed` (cấu trúc theo Phần 7 v7 mục 3.18); `dq_summary.columns[]` thêm `outlierBreakdown: { iqrOnly, zOnly, both }` để tính mức ảnh hưởng DQ-04.
-- `input_fingerprint` tính lại theo cả metadata cột được dùng (key, tên, kiểu, PII), phục vụ phát hiện kết quả lỗi thời.
-- **`project_save.summary`:** `recommendations` giữ kiểu `string[]` (tương thích bản lưu cũ); thêm `recommendation_items: [{ priority, dq, column, severity, text }]`, `issues[].severity/priority/reason`, `config_used`, `thresholds`, `dq05`, `unassessable`, `severity_counts`. Bản lưu tạo trước 2026-11-17 không có các trường mới — trình sinh PDF đọc được cả hai dạng.
-- **Ghi chú triển khai:** `analysis_run.config` lưu thêm `fingerprint_version: 2`, `selected_column_keys` (key thật), `selected_column_names`, `label/time/value_column_key`, `chart_top_n`. Lần chạy cũ (không có `fingerprint_version`) chỉ dựa vào cờ `is_stale` đã lưu, không bị coi là lỗi thời hàng loạt. Sửa thêm: mapper `analysis_config` mặc định `topN` 10 → 50 (sót từ đợt C).
-
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -1381,13 +1426,14 @@ Không còn đường ghi nào khác. Điều này loại bỏ hẳn các nhóm 
 - Layout lưu trữ R2 + vòng đời file + retention.
 - Bảng retention cho 21 collection.
 - Đối chiếu schema hiện tại (7 collection tách/chuyển, 3 collection mới, 3 collection xoá).
-- 18 quy tắc kiểm thử schema S1–S18.
+- **24 quy tắc kiểm thử schema S1–S24** (v7: thêm S19–S24 — TTL session, Google OAuth, phone unique partial, `needs_info`, keyset cursor, index tường minh).
+- **Bảng đối chiếu 21 schema Mongoose thực tế** (mục 3.3b) — gồm 5 khoảng cách còn lại so với thiết kế.
 
 ## 5. Điều kiện hoàn tất phần này
 
 Schema và invariant đáp ứng use case; các thay đổi so với dữ liệu hiện tại được ghi rõ.
 
-**Trạng thái v3:** schema 21 collection, index, unique constraint, transaction boundary, retention và layout storage đã chốt. Bảng đối chiếu schema hiện tại đã ghi rõ 7 thay đổi cấu trúc cần xử lý ở Phần 11. Còn 4 câu hỏi mở tại mục 6.2.
+**Trạng thái v7 (2026-11-16):** schema 21 collection, index, unique constraint, transaction boundary, retention và layout storage đã chốt. Bảng đối chiếu schema hiện tại đã ghi rõ 7 thay đổi cấu trúc cần xử lý ở Phần 11. **v7 đã đồng bộ 21 schema Mongoose thực tế** (mục 3.3b) — bổ sung `phone`/`bio`/`google_id`/`auth_provider`, `remember_me`/`last_used_at`, sửa TTL session, trạng thái `needs_info`; quy tắc kiểm thử 18 → **24** (S19–S24). Còn 4 câu hỏi mở tại mục 6.2.
 
 **Thay đổi v1 → v2 (2026-11-05):** đồng bộ với **Phần 9 v1** (cơ chế outbox/inbox) và **Phần 4 v2** (ranh giới sở hữu):
 1. `outbox_event.status` mở rộng từ 3 → **4** giá trị: thêm `publishing`; thêm trường `lease_expires_at`; thêm index partial `{ status: 'publishing' }`.
@@ -1437,13 +1483,21 @@ Schema và invariant đáp ứng use case; các thay đổi so với dữ liệu
 - R2 / S3 — file gốc, tệp đính kèm, PDF.
 - Redis — cache, rate-limit và adapter Socket.IO (multi-instance).
 
-## 7. Prompting log và lịch sử thay đổi
+### 6.4. Đã chốt ở v7 (2026-11-16)
 
-- **Điều chỉnh / 2026-11-17:** Cập nhật bảng `analysis_config` (`top_n` mặc định 50, tối đa 100; thêm `chart_top_n`) và mô tả `project_save.summary` (`recommendations` giữ `string[]`, thêm `recommendation_items`) / Đồng bộ với commit `52df5b7` / Sửa mục 3.8 bảng `analysis_config` và mục 3.15.
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.15 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.15 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** `analysis_config` theo key cột + `analysis_result.charts` / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.15; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.14 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.14 sang đã thực hiện.
-- **Đề xuất v7 / 2026-11-17:** Collection `report_job` (bổ sung mô tả + lease) / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.14; chờ duyệt trước khi sửa code.
+| # | Câu hỏi / khoảng cách | Ảnh hưởng | Nơi xử lý |
+|---|---|---|---|
+| 1 | `workspace_member` / `project_member` **tách collection hay nhúng `members[]`?** | Quy tắc S13/S14; truy vấn "tôi thuộc workspace nào" | **Chốt v7: giữ nhúng `members[]`** ở đợt này (đã có index `{'members.user_id': 1, deleted_at: 1}`); tách riêng ở Bước 9 |
+| 2 | `_id` chuyển sang `usr_<ULID26>` hay giữ `ObjectId`? | Bảng map id ở Phần 11 | **Chốt v7: giữ `ObjectId`** — đổi `_id` là phép chuyển đổi rủi ro cao, ưu tiên ở Bước 9+ |
+| 3 | TTL của `user_session` | Remember-me bị xoá sớm | **ĐÃ CHỐT & ĐÃ SỬA:** `{ expires_at: 1 }, { expireAfterSeconds: 0 }` |
+| 4 | `phone` unique toàn cục hay theo workspace? | Quy tắc nghiệp vụ đăng ký | **Chốt v7: unique toàn cục** (partial theo `$type: 'string'`) |
+| 5 | `processed_event` có TTL không? | Dọn dẹp inbox | **Chốt v7: có TTL 7 ngày** — hiện **chưa** khai báo trong schema (nợ kỹ thuật, xem mục 3.3b #4) |
+
+---
+
+## 7. Prompting log và lịch sử thay đổi
+- **v7 / 2026-11-16 (Nhóm B/D/E/F/G/H — đồng bộ sau Bước 1–6):** đồng bộ schema với mã nguồn thực thi. (1) **`user`** — thêm `phone` (unique partial `$type: 'string'`), `bio` (max 500), `google_id` (unique sparse), `auth_provider` (`local`\|`google`); thêm index `{ created_at: -1, _id: -1 }` cho keyset cursor. (2) **`user_session`** — thêm `remember_me` (bool, mặc định `false`), `last_used_at` (Date); **sửa TTL index** từ `expireAfterSeconds: 7d` → `{ expires_at: 1 }, { expireAfterSeconds: 0 }` (lỗi xoá sớm phiên remember-me). (3) **`issue_report.status`** — thêm trạng thái `needs_info` (5 giá trị) kèm quy tắc người báo cáo được sửa nội dung khi ở `needs_info`. (4) **Mục 3.3b mới** — đối chiếu **21 schema Mongoose** thực tế với thiết kế, ghi nhận 5 khoảng cách còn lại. (5) **Quy tắc S19–S24** — tổng quy tắc kiểm thử schema 18 → **24**. (6) **Mục 6.4 mới** — 5 câu hỏi đã chốt ở v7. Nguồn: `edit/02_ke_hoach_thuc_thien.md` Bước 1–6 + mã nguồn `src/backend/src/**/persistence/*.schema.ts`.
+
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
 - **v4 / 2026-11-05:** Gộp collection `dataset_sheet` vào `dataset` (CSV 1 bảng); thêm `finding_feedback` (append-only, lưu nhận xét người dùng) và `feedback_example` (kho mẫu chuẩn hoá cho học lại T1); `ai_job` thêm `model_id`/`prompt_version`/`kafka_offset` và trạng thái `skipped`, timeout 60s → 180s; bỏ `sheet_id` khỏi `dataset_record` và `ai_job`; thêm index cursor theo `(dataset_id, row_index)` / Theo các quyết định 2026-11-05 / Bổ sung mục 3.6.2, 3.7.4, 3.7.5, 3.7.6.
 - **v3 / 2026-11-05:** Chuyển sang mô hình **dữ liệu bất biến**. Xoá collection `dataset_version` (22 → 21 collection); xoá `deleted_row_indexes` và `cell_overrides` khỏi `project_save`; bỏ luồng rollback phiên bản; bổ sung mục 3.11c — ràng buộc **insert-only** trên `dataset_record` (không `updateOne`/`deleteMany`/`findOneAndUpdate`, không soft-delete). Đóng câu hỏi mở #4 về `cell_overrides`.

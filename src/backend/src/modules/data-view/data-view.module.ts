@@ -1,23 +1,19 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { DatasetRecordSchema } from '../datasets/infrastructure/persistence/dataset-record.schema';
-import { DataViewService } from './application/data-view.service';
-import { DataViewController } from './infrastructure/http/data-view.controller';
+import { DataViewController } from './data-view.controller';
+import { DataViewService } from './data-view.service';
 import { DatasetsModule } from '../datasets/datasets.module';
-import { RecordQueryRepository } from './infrastructure/persistence/record-query.repository';
-import { RECORD_QUERY_PORT } from './domain/ports/record-query.port';
 
+/**
+ * DATA-VIEW — Module Virtual Grid (đọc bản ghi dataset).
+ *
+ * L2 (R3/CA6): module này KHÔNG khai báo schema Mongoose `DatasetRecord`
+ * và KHÔNG import schema của module khác. Nó đọc bản ghi qua `RECORD_QUERY_PORT`
+ * do module `datasets` (chủ sở hữu collection) export.
+ */
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: 'DatasetRecord', schema: DatasetRecordSchema }]),
-    DatasetsModule,
-  ],
+  imports: [DatasetsModule],
   controllers: [DataViewController],
-  providers: [
-    RecordQueryRepository,
-    { provide: RECORD_QUERY_PORT, useExisting: RecordQueryRepository },
-    DataViewService,
-  ],
-  exports: [DataViewService, RECORD_QUERY_PORT],
+  providers: [DataViewService],
+  exports: [],
 })
 export class DataViewModule {}

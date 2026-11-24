@@ -28,7 +28,7 @@ export type CorrV1Raw = z.infer<typeof CorrV1RawSchema>;
 export type CorrV1Strict = CorrV1Raw;
 
 export interface CorrV1Context {
-  columns: { key: string; role: string; analysisRole?: string; usedRows: number; excludedRows: number }[];
+  columns: { key: string; role: string; usedRows: number; excludedRows: number }[];
   cells: ICorrelationCell[];
   vif: {
     columns: string[];
@@ -70,10 +70,20 @@ function pairKey(a: string, b: string): string {
 }
 
 /**
- * Đợt F (Phần 12 v10 mục 3.19): tam giác trên của ma trận — mỗi cặp không thứ tự một lần, bỏ đường chéo.
- * Giữ thứ tự xuất hiện đầu tiên (ma trận dựng theo thứ tự cột nên đây là các ô i < j).
+ * AN-30 — chỉ giữ **tam giác trên**: mỗi cặp cột không thứ tự in một lần,
+ * bỏ đường chéo (`colA === colB`).
+ *
+ * Ma trận tương quan lưu cả `(A,B)` và `(B,A)` + đường chéo. Nếu gửi nguyên
+ * xiên vào prompt AI thì:
+ *   - tốn token gấp đôi;
+ *   - AI dễ "chọn" nhầm cặp bị trùng → bị grounding loại (mất thông tin).
+ *
+ * Vì vậy cả prompt (`buildCorrV1Prompt`) và PDF (`report-content.util.ts`) đều
+ * đi qua hàm này → **một nguồn sự thật duy nhất** cho quy tắc tam giác trên.
  */
-export function upperTriangleCells<T extends { colA: string; colB: string }>(cells: readonly T[]): T[] {
+export function upperTriangleCells<T extends { colA: string; colB: string }>(
+  cells: readonly T[],
+): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const c of cells) {
@@ -93,7 +103,10 @@ export function buildCorrV1Prompt(ctx: CorrV1Context): string {
   lines.push(`Phương pháp số–số: ${ctx.method}. Cramér's V và eta_squared nằm trong [0,1], không có dấu âm.`);
   lines.push('Mọi nhận định phải trích đúng ô ma trận / dòng VIF kèm n.');
   lines.push(`Cột: ${JSON.stringify(ctx.columns)}`);
-  lines.push(`Ma trận (cells, tam giác trên — mỗi cặp một lần, không có đường chéo): ${JSON.stringify(upperTriangleCells(ctx.cells))}`);
+  // AN-30/AN-31 — chỉ tam giác trên: mỗi cặp một lần, không đường chéo.
+  lines.push(
+    `Ma trận (cells, tam giác trên — mỗi cặp một lần, không có đường chéo): ${JSON.stringify(upperTriangleCells(ctx.cells))}`,
+  );
   lines.push(`VIF: ${JSON.stringify(ctx.vif)}`);
   if (ctx.vif?.lossWarning) {
     lines.push(`CANH BAO MAT MAU VIF: ${ctx.vif.lossWarning} (commonN=${ctx.vif.commonN}/${ctx.vif.totalScanned}).`);
@@ -102,7 +115,7 @@ export function buildCorrV1Prompt(ctx: CorrV1Context): string {
   if (ctx.excludedColumns.length > 0) {
     lines.push(`Cot bi loai khoi tuong quan/VIF (khong suy dien, khong dua vao DQ-05): ${JSON.stringify(ctx.excludedColumns)}. Cot date bi loai vi chua co dinh nghia tuong quan thoi gian duoc chot.`);
   }
-  lines.push(`Mẫu ô lỗi đã che PII (tối đa 20 ô/cột; *** = PII, a/A/d = dạng mẫu của cột định danh/văn bản): ${JSON.stringify(ctx.maskedSamples)}`);
+  lines.push(`Mẫu đã che PII (tối đa 20 ô/cột): ${JSON.stringify(ctx.maskedSamples)}`);
   if (ctx.fewShotBlock && ctx.fewShotBlock.trim().length > 0) {
     lines.push(ctx.fewShotBlock);
   }
@@ -121,8 +134,7 @@ export function groundAiAssessment(
   const dropped: string[] = [];
   const cellMap = new Map<string, ICorrelationCell>();
   for (const c of cells) {
-    // Đợt F: giữ ô đầu tiên của mỗi cặp (tam giác trên, cùng chiều với prompt)
-    if (c.computable && c.coef !== null && !cellMap.has(pairKey(c.colA, c.colB))) cellMap.set(pairKey(c.colA, c.colB), c);
+    if (c.computable && c.coef !== null) cellMap.set(pairKey(c.colA, c.colB), c);
   }
   const vifMap = new Map<string, IVifRow>();
   for (const r of vifRows) {
@@ -163,10 +175,6 @@ export function groundAiAssessment(
 
   const notablePairs: GroundedAssessment['notablePairs'] = [];
   for (const p of r.notablePairs) {
-    if (p.colA === p.colB) {
-      dropped.push(`cặp đường chéo ${p.colA}–${p.colB} (một cột với chính nó) không phải nhận định tương quan`);
-      continue;
-    }
     const cell = cellMap.get(pairKey(p.colA, p.colB));
     if (!cell || cell.coef === null || Math.abs(cell.coef - p.coef) > 0.01) {
       dropped.push(`cặp ${p.colA}–${p.colB} coef=${String(p.coef)} không tồn tại trong ma trận`);

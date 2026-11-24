@@ -2,12 +2,11 @@
 
 - **Version:** v10
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v10)
-- **Thay đổi v10 (2026-11-17):** bổ sung mục 3.41 — Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.42 — Hoàn thiện module analysis — đợt D/E (đã thực hiện).
-- **Trạng thái:** Đã chốt các câu hỏi còn mở của v1 (mục 3.25–3.31). Trạng thái chốt: **đối tượng sử dụng, nguồn dữ liệu, phạm vi phân tích, tiêu chí DQ-01..DQ-05, quyền theo vai trò, ngưỡng ảnh hưởng, mức chi tiết bằng chứng, phạm vi AI, lưu trữ file và cơ chế async AI đã xác nhận**. **v7 bổ sung: DQ-05 kích hoạt có điều kiện theo quy tắc được xác nhận + ma trận tương quan/VIF do AI đánh giá. **v8 bổ sung: breakdown thiếu pairwise từng ô, cảnh báo mất mẫu VIF, nêu rõ cột date bị loại, worker AI corr-v1 (2026-11-07).** Phần còn mở được liệt kê tại mục 6.
+- **Cập nhật gần nhất:** 2026-11-15 (v10)
+- **Trạng thái:** Đã chốt các câu hỏi còn mở của v1 (mục 3.25–3.31). Trạng thái chốt: **đối tượng sử dụng, nguồn dữ liệu, phạm vi phân tích, tiêu chí DQ-01..DQ-05, quyền theo vai trò, ngưỡng ảnh hưởng, mức chi tiết bằng chứng, phạm vi AI, lưu trữ file và cơ chế async AI đã xác nhận**. **v7 bổ sung: DQ-05 kích hoạt có điều kiện theo quy tắc được xác nhận + ma trận tương quan/VIF do AI đánh giá. **v8 bổ sung: breakdown thiếu pairwise từng ô, cảnh báo mất mẫu VIF, nêu rõ cột date bị loại, worker AI corr-v1 (2026-11-07).** Phần còn mở được liệt kê tại mục 6. **v10 (2026-11-15) — Nhóm A: `WS-02` và `PROJ-02` chuyển từ phân trang offset sang keyset cursor; xem mục 3.36b.**
 - **Giai đoạn:** Feature
 - **Thứ tự thực hiện:** Phần 2; sử dụng kết quả đã xác nhận của các phần trước.
-- **Quan hệ với v1/v2/v3:** v1, v2 và v3 được giữ nguyên để đối chiếu. **v4 áp dụng quyết định thu hẹp phạm vi nghiệp vụ ngày 2026-11-05: hệ thống chỉ đọc và phân tích dữ liệu, không bao giờ sửa/xóa/thay đổi bất kỳ dòng hay giá trị nào.** Xem mục 3.40. **v5/v6 chốt AI local + benchmark 5 model. v7 kích hoạt DQ-05 có điều kiện và AI đánh giá tương quan/VIF (2026-11-06). **v8 chi tiết hoá 4 hạn chế đã xử lý ở code (2026-11-07).**
+- **Quan hệ với v1/v2/v3:** v1, v2 và v3 được giữ nguyên để đối chiếu. **v4 áp dụng quyết định thu hẹp phạm vi nghiệp vụ ngày 2026-11-05: hệ thống chỉ đọc và phân tích dữ liệu, không bao giờ sửa/xóa/thay đổi bất kỳ dòng hay giá trị nào.** Xem mục 3.40. **v5/v6 chốt AI local + benchmark 5 model. v7 kích hoạt DQ-05 có điều kiện và AI đánh giá tương quan/VIF (2026-11-06). **v8 chi tiết hoá 4 hạn chế đã xử lý ở code (2026-11-07). **v10 hiện thực hoá keyset cursor cho danh sách workspace/project (2026-11-15).**
 
 > ## ⚠ 3.0. Quyết định nền tảng — hệ thống chỉ đọc, không sửa dữ liệu (2026-11-05)
 >
@@ -851,7 +850,7 @@ Module `workspaces` đã có: `POST /workspaces`, `GET /workspaces`, `GET /works
 
 - **Mô tả chuẩn hoá:** Liệt kê workspace người gọi tham gia, có phân trang, tìm kiếm, lọc theo vai trò và sắp xếp.
 - **Quy tắc nghiệp vụ:**
-  - Phân trang offset, mặc định 15 item/trang.
+  - **Phân trang keyset cursor** (v10, 2026-11-15 — đã hiện thực hoá): tham số `cursor` (opaque) + `limit` (mặc định 15, tối đa 100); response `{ items, meta: { nextCursor, hasMore, limit } }`; **không** còn `page`/`total`/`totalPages`. Cursor ràng buộc theo tham số `sort` — đổi `sort` thì phải bắt đầu lại từ trang đầu.
   - Tìm kiếm theo tên workspace (không phân biệt hoa/thường, chứa).
   - Lọc theo vai trò: `Owner` | `Member`. **Không có `Viewer`** ở cấp workspace — yêu cầu gốc (#43) có "Viewer" nhưng mô hình đã chốt không có vai trò này; đã sửa theo quyết định.
   - Sắp xếp: truy cập gần nhất (mặc định), tham gia gần nhất, cập nhật gần nhất, tên A→Z, tên Z→A.
@@ -860,6 +859,7 @@ Module `workspaces` đã có: `POST /workspaces`, `GET /workspaces`, `GET /works
 - **Rủi ro:** "Truy cập gần nhất" đòi hỏi ghi nhận thời điểm truy cập cuối → cần trường `last_accessed_at` trên workspace hoặc bảng riêng.
 - **Ưu tiên:** **Must**.
 - **Trùng với:** `GET /workspaces` hiện có nhưng chưa phân trang/tìm kiếm/lọc/sắp xếp.
+- **Trạng thái hiện thực hoá (v10, 2026-11-15):** `GET /workspaces` dùng keyset cursor — `list-workspaces-query.dto.ts` (bỏ `page`, thêm `cursor`), `workspaces.repository.ts` (`findByUserPaged` → keyset, bỏ `countDocuments`), `workspaces.service.ts` (`listWorkspaces` trả `{ items, meta }`). Xem Phần 7 v7 mục 3.5b.
 
 #### WS-03. Chi tiết Workspace
 
@@ -946,7 +946,7 @@ Module `projects` đã có: `POST /workspaces/:workspaceId/projects`, `GET /work
 
 - **Mô tả chuẩn hoá:** Liệt kê project theo workspace (hoặc project của tôi), có phân trang, tìm kiếm, lọc theo trạng thái và sắp xếp.
 - **Quy tắc nghiệp vụ:**
-  - Phân trang offset, mặc định 15 item/trang.
+  - **Phân trang keyset cursor** (v10, 2026-11-15 — đã hiện thực hoá): tham số `cursor` (opaque) + `limit` (mặc định 15, tối đa 100); response `{ items, meta: { nextCursor, hasMore, limit } }`; **không** còn `page`/`total`/`totalPages`. Cursor ràng buộc theo tham số `sort` — đổi `sort` thì phải bắt đầu lại từ trang đầu.
   - Tìm kiếm theo tên project.
   - Lọc theo `status`: `not_started` | `in_progress` | `completed`.
   - Sắp xếp: truy cập gần nhất (mặc định), tham gia gần nhất, cập nhật gần nhất, tên A→Z, tên Z→A.
@@ -954,6 +954,7 @@ Module `projects` đã có: `POST /workspaces/:workspaceId/projects`, `GET /work
 - **Module:** `projects`. **Phụ thuộc:** `workspaces`.
 - **Rủi ro:** Cần `last_accessed_at` và `status` trên project (mục 3.36.1).
 - **Ưu tiên:** **Must**.
+- **Trạng thái hiện thực hoá (v10, 2026-11-15):** `GET /workspaces/{workspaceId}/projects` dùng keyset cursor — `list-projects-query.dto.ts` (bỏ `page`, thêm `cursor`), `projects.repository.ts` (`findByWorkspacePaged` → keyset, bỏ `countDocuments`), `projects.service.ts` (`listProjectsByWorkspace` trả `{ items, meta }`). Xem Phần 7 v7 mục 3.5b.
 
 #### PROJ-03. Thông tin cơ bản Project
 
@@ -1064,6 +1065,29 @@ Yêu cầu #48 và #51 cần lọc project theo trạng thái "chưa xử lý / 
 3. Rollback dataset (`PROJ-08`) → phải hạ `completed` về `in_progress` nếu kết quả phân tích đã lưu trở thành stale.
 4. Trường `has_dataset` hiện tại **được bỏ** — suy ra từ `status !== 'not_started'` (quyết định v3 / 2026-11-05). Một nguồn sự thật duy nhất, tránh phải đồng bộ hai trường. Code hiện tại đọc `has_dataset` ở `projects.service.ts` (`setHasDataset`) phải được chuyển sang dùng `status`.
 5. Trạng thái phải hiển thị rõ trong `PROJ-02` và `PROJ-03`.
+
+### 3.36b. Phân trang keyset cursor cho danh sách (v10, 2026-11-15)
+
+**Quyết định (Q0.1 — `edit/02_ke_hoach_thuc_thien.md` Nhóm A):** phân trang **toàn hệ thống** dùng **keyset cursor** thay cho offset pagination.
+
+**Phạm vi hiện thực hoá ở v10:** `WS-02` (`GET /workspaces`) và `PROJ-02` (`GET /workspaces/{workspaceId}/projects`).
+
+**Quy tắc:**
+1. Tham số query: `cursor` (chuỗi opaque) + `limit` (1–100, mặc định 15). **Bỏ** `page`.
+2. Response: `{ items, meta: { nextCursor, hasMore, limit } }`. **Bỏ** `total`, `totalPages`, `page`, `offset`.
+3. Con trỏ mã hoá: mã sort + giá trị trường sort + cờ `null` + `_id` (tiebreaker).
+4. Con trỏ **ràng buộc theo `sort`**: sinh từ `sort=A` không dùng cho `sort=B` → `VALIDATION_ERROR` (HTTP 400).
+5. Không dùng `countDocuments` — `hasMore` suy ra bằng cách lấy `limit + 1` bản ghi.
+6. Trường ngày có thể `null` (`last_accessed_at`) — theo thứ tự so sánh BSON của MongoDB, `null` luôn nhỏ hơn mọi `Date`; với sort giảm dần, các bản ghi `null` nằm cuối.
+
+**Lợi ích:** phân trang ổn định — chèn/xoá bản ghi giữa 2 lần gọi không làm trôi hay trùng dữ liệu (đây là điểm yếu cố hữu của offset pagination).
+
+**Tác động lên Phần khác:**
+- Phần 7 v7 — mục 3.5 (quy tắc phân trang) + mục 3.5b mới (chi tiết đã hiện thực hoá).
+- Phần 13 v8 — quy tắc C14, C15 + bộ test `test/keyset-pagination.spec.ts`.
+- Phần 5 — port `WorkspaceRepositoryPort` / `ProjectRepositoryPort` dùng `ListCursor` (đã giải mã) thay cho `page`.
+
+**Việc còn lại (chưa làm ở v10):** các endpoint list khác (`GET /notifications`, `GET /issues`, `GET /admin/users`, `GET /workspaces/{id}/members`) đã dùng cursor ở tầng service nhưng **chưa** thống nhất `meta.limit` — sẽ chuẩn hoá ở đợt tinh chỉnh hợp đồng API tiếp theo.
 
 ### 3.37. Nhóm thông báo — `NOTIF-*`
 
@@ -1370,30 +1394,6 @@ Hệ thống **đo lường** chất lượng dữ liệu và **báo cáo** vấ
 
 Quyết định này được áp dụng đồng bộ sang: Phần 3 (use case), Phần 4 (ranh giới module), Phần 6 (ma trận quyền), Phần 7 (hợp đồng API), Phần 8 (schema), Phần 9 (sự kiện/worker), Phần 11 (migration), Phần 12 (logic xử lý AI), Phần 13 (kiểm thử), Phần 14 (kế hoạch triển khai), `tech.md` và các tài liệu công nghệ.
 
-### 3.41. Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01 (v10)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16). Nguồn: rà soát code `src/backend/src/modules/analysis/` ngày 2026-11-17.
-- **SUMMARY-01 — chặn kết quả lỗi thời (bổ sung ràng buộc đã có ở v9):** `createSummary` phải từ chối khi `analysis_result` mới nhất có `is_stale = true` (ví dụ sau khi đổi cấu hình phân tích). Trả lỗi `ANALYSIS_RESULT_STALE` (409) kèm `staleReason`; yêu cầu chạy lại phân tích. Hiện code chỉ kiểm `run.status`.
-- **AI-01 — điều kiện thử lại:** chỉ cho thử lại khi job ở trạng thái `failed` hoặc `skipped`; job `pending`/`running`/`succeeded` → `AI_JOB_NOT_RETRYABLE` (409). Nếu kết quả hệ thống của lần chạy đã stale → `ANALYSIS_RESULT_STALE` (409), không dùng kết quả lỗi thời (khớp mô tả AI-01 v9).
-- **AI-01 — lỗi định dạng JSON từ model vẫn được thử lại** trong giới hạn `AI_MAX_RETRIES`; chỉ ghi nhận đánh giá AI rỗng/`failed` khi đã hết lượt.
-- **REPORT-01 — đúng bản Tổng kết:** PDF sinh từ chính bản Tổng kết (`project_save_id`) tại thời điểm yêu cầu, không lấy bản mới nhất lúc worker chạy.
-- **REPORT-01 — nội dung PDF FULL (thực hiện mục 6.5–6.6 đã chốt v9):** Tổng kết + bảng ma trận tương quan + bảng VIF + thống kê mô tả + mất cân bằng + phân tích thời gian + top phát hiện + bằng chứng phân trang + phụ lục ngưỡng; tiếng Việt có dấu (font Unicode).
-- **`top_n`:** dùng làm số phát hiện tối đa hiển thị trong Tổng kết/PDF (mặc định 50 theo v9) thay cho hằng số cố định.
-- **Ngoài phạm vi đợt này:** DQ-05 rule engine (giữ `unassessed`), chuyển AI job sang Kafka, phân tích bất đồng bộ cho dataset lớn.
-- **Ghi chú triển khai:** mặc định `top_n` đổi từ 10 → **50** (DTO `run-analysis`/`analysis-config`, schema `analysis_config`), tối đa giữ 100 như cũ, để khớp mục 6.6 v9 (PDF top 50). Tổng kết dùng `top_n` của chính lần chạy.
-
-### 3.42. Hoàn thiện module analysis — đợt D/E
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-- **Phân quyền theo project (bổ sung 3.9, 3.19, 3.20):** mọi route `projects/{projectId}/analysis*`, `summary`, `report` kiểm vai trò người gọi trong project. Viewer: xem cấu hình, kết quả, Tổng kết; **được yêu cầu sinh và tải PDF** (quyết định 2026-11-17). Chạy phân tích, lưu cấu hình, tạo Tổng kết, thử lại AI: PROJ-MEMBER+. Người ngoài project → không thấy tài nguyên (404).
-- **Đổi đầu vào → phải chạy lại (làm rõ 3.18):** cấu hình phân tích tham chiếu cột bằng **key bất biến** (`c{i}`), không theo tên hiển thị. Đổi tên cột, đổi dataset hoặc metadata cột (kiểu, PII) làm kết quả hiện có thành lỗi thời (`dataset_changed`); Tổng kết mới và thử lại AI bị chặn cho tới khi chạy lại phân tích.
-- **ANALYSIS-03 / 3.21 — dữ liệu biểu đồ:** backend trả dữ liệu cho 5 loại biểu đồ đã đồng ý: cột tỷ lệ thiếu theo cột; histogram cột số; box plot (trung vị, tứ phân vị, râu 1,5×IQR, số điểm ngoài râu); thanh tần suất cột phân loại với **Top N + nhóm "Khác"** (N mặc định 5, người có quyền chỉnh 1–20, lưu trong cấu hình `chart_top_n`); số bản ghi theo thời gian. Quy tắc chia khoảng histogram dùng tạm Freedman–Diaconis (Phần 12 v9 mục 3.18).
-- **SUMMARY-01 — nội dung đầy đủ (3.9 + 3.29):** mỗi vấn đề có **mức ảnh hưởng** (thấp/trung bình/cao/không có dữ liệu) theo bảng ngưỡng 3.29 kèm lý do; sắp **theo thứ tự ưu tiên** (mức ảnh hưởng → tỷ lệ); đề xuất xử lý theo từng nhóm DQ và cột (mẫu cố định, không do AI sinh); kèm cấu hình phân tích đã dùng, bảng ngưỡng, trạng thái DQ-05.
-- **Thông báo:** khi phân tích hệ thống xong/lỗi và khi phần AI xong/lỗi, người chạy phân tích nhận thông báo (Phần 9 v5 mục 3.12).
-- **Giới hạn kích thước:** phân tích đồng bộ từ chối dataset vượt `ANALYSIS_MAX_ROWS` (mặc định 200.000 dòng) với thông báo rõ; phân tích bất đồng bộ cho dataset lớn để đợt sau.
-- **Để đợt sau:** lưu/khôi phục trạng thái project (3.19), phân tích bất đồng bộ + hủy khi đổi cấu hình, DQ-05 rule engine, tinh chỉnh kiểu/vai trò/PII cột (3.22).
-
 ## 4. Đầu vào và đầu ra
 
 - **Đầu vào:** Yêu cầu người dùng, kết quả các phần trước và mã nguồn/tài liệu hiện trạng liên quan.
@@ -1480,11 +1480,8 @@ Nếu phát hiện mâu thuẫn với phần trước, cần xác nhận lại v
 
 ## 7. Prompting log và lịch sử thay đổi
 
-- **Điều chỉnh trước khi push / 2026-11-17:** Giữ `top_n` tối đa 100 như hợp đồng cũ; giữ `summary.recommendations` là mảng chuỗi, cấu trúc chi tiết chuyển sang trường mới `summary.recommendation_items` / Người dùng hỏi lý do thay đổi hợp đồng, chọn phương án không phá tương thích / Sửa ghi chú triển khai.
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.42 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.42 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Hoàn thiện module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.42; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.41 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.41 sang đã thực hiện.
-- **Đề xuất v10 / 2026-11-17:** Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01 / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.41; chờ duyệt trước khi sửa code.
+- **Xác nhận v10 / 2026-11-15 (Nhóm A — keyset cursor):** `WS-02` và `PROJ-02` chuyển từ **phân trang offset** sang **keyset cursor** — tham số `cursor`/`limit` (bỏ `page`), response `{ items, meta: { nextCursor, hasMore, limit } }` (bỏ `total`/`totalPages`/`offset`); cursor ràng buộc theo `sort` → `VALIDATION_ERROR` / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Bổ sung mục 3.36b, cập nhật `WS-02` và `PROJ-02`.
+
 - **Xác nhận v5 / 2026-11-05:** Chỉ hỗ trợ file `.csv`; gỡ toàn bộ khái niệm sheet, gỡ `FILE-01`/`FILE-02`, gỡ collection `dataset_sheet` / Theo yêu cầu người dùng / Viết lại mục 3.2, 3.8, 3.25, 3.26, cập nhật mục 3.12, 3.19 và bảng đối chiếu 3.32.
 - **Xác nhận v5 / 2026-11-05:** Phân trang chuyển sang **cursor** cho toàn bộ danh sách / Theo lựa chọn người dùng / Đồng bộ Phần 5 v2 mục 3.8 và Phần 7 v3 mục 3.5.
 - **Xác nhận v5 / 2026-11-05:** Thêm tính năng **nhận xét kết quả** (`FB-01`→`FB-06`) và module `feedback`; AI chạy nội bộ bằng model cục bộ / Theo yêu cầu người dùng / Đồng bộ Phần 3 v4, Phần 12 v4 mục 3.15–3.16.

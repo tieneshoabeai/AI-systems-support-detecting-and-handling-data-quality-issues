@@ -61,12 +61,13 @@ export interface AnalysisResultRecord {
   /** alias cu cho temporal */
   timeAnalysis?: unknown;
   evidenceSummary?: unknown;
-  charts?: unknown;
-  columnRoles?: unknown;
-  aiSamples?: Record<string, string[]> | null;
-  /** Đợt G: nhóm Nghi vấn — không trả trong API kết quả phân tích. */
-  suspicions?: unknown[] | null;
   aiCorrelationAssessment?: unknown;
+  /** GĐ9 — vai trò cột suy ra được (identifier / text / datetime / measure…). */
+  columnRoles?: unknown;
+  /** Biểu đồ tần suất/phân phối theo cột (dùng cho phụ lục A của PDF). */
+  charts?: unknown;
+  /** GĐ2 — nhóm Nghi vấn (chỉ dùng nội bộ cho Tổng kết/PDF). */
+  suspicions?: unknown;
   isStale: boolean;
   staleReason?: string | null;
   createdAt: Date;
@@ -103,32 +104,6 @@ export interface AiJobRecord {
   updatedAt: Date;
 }
 
-export interface AnalysisConfigRecord {
-  projectId: string;
-  workspaceId: string;
-  selectedColumns: string[] | null;
-  labelColumn: string | null;
-  timeColumn: string | null;
-  timeGranularity: string;
-  valueColumn: string | null;
-  correlationMethod?: string;
-  outlierMethod?: string;
-  topN?: number;
-  chartTopN?: number;
-  columnRoles?: Record<string, string> | null;
-  // snake aliases cu
-  selected_columns?: string[] | null;
-  label_column?: string | null;
-  time_column?: string | null;
-  time_granularity?: string;
-  value_column?: string | null;
-  correlation_method?: string;
-  outlier_method?: string;
-  top_n?: number;
-  chart_top_n?: number;
-  column_roles?: Record<string, string> | null;
-}
-
 export interface ProjectSaveRecord {
   id: string;
   projectId: string;
@@ -151,9 +126,6 @@ export interface ReportJobRecord {
   storageKey?: string | null;
   fileSizeBytes?: number | null;
   error?: Record<string, unknown> | null;
-  attempt?: number;
-  leaseExpiresAt?: Date | null;
-  heartbeatAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -179,7 +151,9 @@ export interface CellEvidenceRecord {
   column: string;
   rowIndex: number;
   reason?: string | null;
+  /** Loại bằng chứng: missing / duplicate / invalid_type / outlier. */
   kind?: string;
+  /** Giá trị đã che PII (null với bằng chứng "thiếu"). */
   valueMasked?: string | null;
 }
 
@@ -202,19 +176,15 @@ export interface AnalysisRepositoryPort {
   insertEvidences(docs: Partial<CellEvidenceRecord>[]): Promise<number>;
   countEvidencesByRun(runId: string): Promise<number>;
   findEvidencesByRun(runId: string, limit?: number): Promise<CellEvidenceRecord[]>;
-  upsertConfig(projectId: string, workspaceId: string, doc: Record<string, unknown>): Promise<AnalysisConfigRecord>;
-  findConfigByProject(projectId: string): Promise<AnalysisConfigRecord | null>;
   createSave(doc: Partial<ProjectSaveRecord> & Record<string, unknown> & { projectId: string }): Promise<ProjectSaveRecord>;
   findLatestSaveByProject(projectId: string): Promise<ProjectSaveRecord | null>;
+  /** Tìm đúng bản Tổng kết theo id (worker PDF phải dùng bản đã yêu cầu). */
   findSaveById(id: string): Promise<ProjectSaveRecord | null>;
   markSavesStale(projectId: string, keepId: string): Promise<unknown>;
   createReportJob(doc: Partial<ReportJobRecord> & Record<string, unknown> & { projectId: string }): Promise<ReportJobRecord>;
   findReportById(id: string): Promise<ReportJobRecord | null>;
   updateReportById(id: string, update: Record<string, unknown>): Promise<ReportJobRecord | null>;
-  claimPendingReport(leaseMs?: number): Promise<ReportJobRecord | null>;
-  heartbeatReport(id: string, leaseMs?: number): Promise<ReportJobRecord | null>;
-  /** Thu hoi job PDF `running` qua lease: con luot -> pending, het luot -> failed. */
-  recoverStaleReports(maxAttempts: number): Promise<{ requeued: number; failed: number }>;
+  claimPendingReport(): Promise<ReportJobRecord | null>;
   saveFewShotExample(doc: Partial<FewShotExampleRecord> & Record<string, unknown>): Promise<FewShotExampleRecord>;
   enforceFewShotCap(cap?: number): Promise<number>;
   findFewShotCandidates(params: { workspaceId: string; errorType?: string; language?: string; minTrustScore: number; maxAgeDays: number; limit: number }): Promise<FewShotExampleRecord[]>;

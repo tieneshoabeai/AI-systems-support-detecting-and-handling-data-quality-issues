@@ -8,12 +8,9 @@ import { IFewShotExample } from './few-shot-example.schema';
 import { ICellEvidence } from './cell-evidence.schema';
 import { IProjectSave } from './project-save.schema';
 import { IReportJob } from './report-job.schema';
-import { IAnalysisConfig } from './analysis-config.schema';
 import { MAX_FEW_SHOT_STORE } from '../../domain/rag-few-shot.util';
 import {
-  ANALYSIS_REPOSITORY_PORT,
   type AiJobRecord,
-  type AnalysisConfigRecord,
   type AnalysisRepositoryPort,
   type AnalysisResultRecord,
   type AnalysisRunRecord,
@@ -24,7 +21,6 @@ import {
 } from '../../domain/ports/analysis.repository.port';
 import {
   toAiJobRecord,
-  toAnalysisConfigRecord,
   toAnalysisResultRecord,
   toAnalysisRunRecord,
   toAnalysisRunPersistence,
@@ -33,7 +29,8 @@ import {
   toProjectSaveRecord,
   toReportJobRecord,
 } from './analysis.mapper';
-import { isObjectIdHex } from '../../../../shared/utils/object-id.util';
+import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
@@ -95,7 +92,6 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     @InjectModel('CellEvidence') private readonly evidenceModel: Model<ICellEvidence>,
     @InjectModel('ProjectSave') private readonly saveModel: Model<IProjectSave>,
     @InjectModel('ReportJob') private readonly reportModel: Model<IReportJob>,
-    @InjectModel('AnalysisConfig') private readonly configModel: Model<IAnalysisConfig>,
   ) {}
 
   // ---- Run ----
@@ -120,7 +116,8 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
       }
     }
     const inst = new this.runModel({ ...persisted, ...extra, deleted_at: null });
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toAnalysisRunRecord(saved);
   }
 
@@ -133,7 +130,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
   async updateById(id: string, update: Partial<AnalysisRunRecord> & Record<string, unknown>): Promise<AnalysisRunRecord | null> {
     if (!isObjectIdHex(id)) return null;
     const set = toRunSet(update);
-    const doc = await this.runModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true }).exec();
+    const doc = await this.runModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toAnalysisRunRecord(doc) : null;
   }
 
@@ -159,7 +156,8 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (isObjectIdHex(projectId)) persistence.project_id = oid(projectId);
     if (isObjectIdHex(datasetId)) persistence.dataset_id = oid(datasetId);
     const inst = new this.resultModel(persistence);
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toAnalysisResultRecord(saved);
   }
 
@@ -174,7 +172,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const set = (update as Record<string, unknown>).$set && typeof (update as Record<string, unknown>).$set === 'object'
       ? (update as Record<string, unknown>).$set as Record<string, unknown>
       : update;
-    const doc = await this.resultModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true }).exec();
+    const doc = await this.resultModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toAnalysisResultRecord(doc) : null;
   }
 
@@ -182,7 +180,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (!isObjectIdHex(projectId)) return { modifiedCount: 0 };
     const filter: Record<string, unknown> = { project_id: oid(projectId), deleted_at: null, is_stale: false };
     if (isObjectIdHex(keepRunId)) filter.analysis_run_id = { $ne: oid(keepRunId) };
-    return this.resultModel.updateMany(filter, { $set: { is_stale: true, stale_reason: reason } }).exec();
+    return this.resultModel.updateMany(filter, { $set: { is_stale: true, stale_reason: reason } }, { session: resolveMongoSession(undefined) }).exec();
   }
 
   // ---- AI job ----
@@ -198,7 +196,8 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
       if (typeof v === 'string' && isObjectIdHex(v)) persistence[k] = oid(v);
     }
     const inst = new this.jobModel(persistence);
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toAiJobRecord(saved);
   }
 
@@ -213,7 +212,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const set = (update as Record<string, unknown>).$set && typeof (update as Record<string, unknown>).$set === 'object'
       ? (update as Record<string, unknown>).$set as Record<string, unknown>
       : update;
-    const doc = await this.jobModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true }).exec();
+    const doc = await this.jobModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toAiJobRecord(doc) : null;
   }
 
@@ -222,16 +221,25 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.jobModel.findOneAndUpdate(
       { deleted_at: null, $or: [{ status: 'pending' }, { status: 'running', lease_expires_at: { $lt: now } }] },
       { $set: { status: 'running', started_at: now, heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
-      { new: true, sort: { created_at: 1 } },
+      { returnDocument: 'after', sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toAiJobRecord(doc) : null;
   }
 
   async skipStaleJobs(leaseMs = 600000): Promise<unknown> {
     const now = new Date();
+    // Job bị co là stale khi: lease đã hết hạn, HOẶC không có lease nhưng heartbeat quá cũ.
     return this.jobModel.updateMany(
-      { status: 'running', deleted_at: null, lease_expires_at: { $lt: now } },
+      {
+        status: 'running',
+        deleted_at: null,
+        $or: [
+          { lease_expires_at: { $lt: now } },
+          { lease_expires_at: null, heartbeat_at: { $lt: new Date(now.getTime() - leaseMs) } },
+        ],
+      },
       { $set: { status: 'skipped', finished_at: now, error: { code: 'AI_LEASE_EXPIRED', message: 'Worker giu lease khong duoc cap nhat (timeout)', retryable: true } } },
+      { session: resolveMongoSession(undefined) },
     ).exec();
   }
 
@@ -241,7 +249,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.jobModel.findOneAndUpdate(
       { _id: oid(id), status: 'running', deleted_at: null },
       { $set: { heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
-      { new: true },
+      { returnDocument: 'after', session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toAiJobRecord(doc) : null;
   }
@@ -268,7 +276,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
       };
       return { insertOne: { document: persistence } };
     });
-    const res = await this.evidenceModel.bulkWrite(ops, { ordered: false });
+    const res = await this.evidenceModel.bulkWrite(ops, { ordered: false, session: resolveMongoSession(undefined) });
     return res.insertedCount ?? 0;
   }
 
@@ -281,33 +289,6 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (!isObjectIdHex(runId)) return [];
     const docs = await this.evidenceModel.find({ analysis_run_id: oid(runId), deleted_at: null }).sort({ column: 1, row_index: 1 }).limit(limit).exec();
     return docs.map(toCellEvidenceRecord);
-  }
-
-  // ---- Config ----
-  async upsertConfig(projectId: string, workspaceId: string, doc: Record<string, unknown>): Promise<AnalysisConfigRecord> {
-    const set: Record<string, unknown> = { ...doc };
-    // map camel -> snake neu service moi truyen camel
-    const camelMap: Record<string, string> = {
-      selectedColumns: 'selected_columns', labelColumn: 'label_column', timeColumn: 'time_column',
-      timeGranularity: 'time_granularity', valueColumn: 'value_column',
-      correlationMethod: 'correlation_method', outlierMethod: 'outlier_method', topN: 'top_n', chartTopN: 'chart_top_n', columnRoles: 'column_roles',
-    };
-    for (const [camel, snake] of Object.entries(camelMap)) {
-      if (set[camel] !== undefined && set[snake] === undefined) { set[snake] = set[camel]; delete set[camel]; }
-    }
-    if (isObjectIdHex(workspaceId)) set.workspace_id = oid(workspaceId);
-    const updated = await this.configModel.findOneAndUpdate(
-      { project_id: oid(projectId), deleted_at: null },
-      { $set: set },
-      { new: true, upsert: true },
-    ).exec();
-    return toAnalysisConfigRecord(updated);
-  }
-
-  async findConfigByProject(projectId: string): Promise<AnalysisConfigRecord | null> {
-    if (!isObjectIdHex(projectId)) return null;
-    const doc = await this.configModel.findOne({ project_id: oid(projectId), deleted_at: null }).exec();
-    return doc ? toAnalysisConfigRecord(doc) : null;
   }
 
   // ---- Project save ----
@@ -323,7 +304,8 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (analysisRunId && isObjectIdHex(analysisRunId)) persistence.analysis_run_id = oid(analysisRunId);
     if (analysisResultId && isObjectIdHex(analysisResultId)) persistence.analysis_result_id = oid(analysisResultId);
     const inst = new this.saveModel(persistence);
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toProjectSaveRecord(saved);
   }
 
@@ -343,7 +325,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (!isObjectIdHex(projectId)) return { modifiedCount: 0 };
     const filter: Record<string, unknown> = { project_id: oid(projectId), deleted_at: null, is_stale: false };
     if (isObjectIdHex(keepId)) filter._id = { $ne: oid(keepId) };
-    return this.saveModel.updateMany(filter, { $set: { is_stale: true } }).exec();
+    return this.saveModel.updateMany(filter, { $set: { is_stale: true } }, { session: resolveMongoSession(undefined) }).exec();
   }
 
   // ---- Report job ----
@@ -358,7 +340,8 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (projectSaveId && isObjectIdHex(projectSaveId)) persistence.project_save_id = oid(projectSaveId);
     else if (raw.project_save_id === null || raw.projectSaveId === null) persistence.project_save_id = null;
     const inst = new this.reportModel(persistence);
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toReportJobRecord(saved);
   }
 
@@ -374,48 +357,17 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const set: Record<string, unknown> = { ...raw };
     if (typeof set.storageKey === 'string' && set.storage_key === undefined) { set.storage_key = set.storageKey; delete set.storageKey; }
     if (typeof set.fileSizeBytes === 'number' && set.file_size_bytes === undefined) { set.file_size_bytes = set.fileSizeBytes; delete set.fileSizeBytes; }
-    const doc = await this.reportModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { new: true }).exec();
+    const doc = await this.reportModel.findOneAndUpdate({ _id: oid(id), deleted_at: null }, { $set: set }, { returnDocument: 'after', session: resolveMongoSession(undefined) }).exec();
     return doc ? toReportJobRecord(doc) : null;
   }
 
-  async claimPendingReport(leaseMs = 600000): Promise<ReportJobRecord | null> {
-    const now = new Date();
+  async claimPendingReport(): Promise<ReportJobRecord | null> {
     const doc = await this.reportModel.findOneAndUpdate(
       { status: 'pending', deleted_at: null },
-      { $set: { status: 'running', heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
-      { new: true, sort: { created_at: 1 } },
+      { $set: { status: 'running' } },
+      { returnDocument: 'after', sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toReportJobRecord(doc) : null;
-  }
-
-  async heartbeatReport(id: string, leaseMs = 600000): Promise<ReportJobRecord | null> {
-    if (!isObjectIdHex(id)) return null;
-    const now = new Date();
-    const doc = await this.reportModel.findOneAndUpdate(
-      { _id: oid(id), status: 'running', deleted_at: null },
-      { $set: { heartbeat_at: now, lease_expires_at: new Date(now.getTime() + leaseMs) } },
-      { new: true },
-    ).exec();
-    return doc ? toReportJobRecord(doc) : null;
-  }
-
-  async recoverStaleReports(maxAttempts: number): Promise<{ requeued: number; failed: number }> {
-    const now = new Date();
-    const base: Record<string, unknown> = { status: 'running', deleted_at: null, lease_expires_at: { $lt: now } };
-    const failedFilter: Record<string, unknown> = { ...base, attempt: { $gte: maxAttempts - 1 } };
-    const requeueFilter: Record<string, unknown> = { ...base, attempt: { $not: { $gte: maxAttempts - 1 } } }; // khop ca job cu chua co `attempt`
-    const failedRes = await this.reportModel.updateMany(
-      failedFilter,
-      {
-        $set: { status: 'failed', lease_expires_at: null, error: { code: 'REPORT_LEASE_EXPIRED', message: 'Worker PDF khong cap nhat lease (het luot thu lai)' } },
-        $inc: { attempt: 1 },
-      },
-    ).exec();
-    const requeuedRes = await this.reportModel.updateMany(
-      requeueFilter,
-      { $set: { status: 'pending', lease_expires_at: null }, $inc: { attempt: 1 } },
-    ).exec();
-    return { requeued: requeuedRes.modifiedCount ?? 0, failed: failedRes.modifiedCount ?? 0 };
   }
 
   // ---- Few-shot ----
@@ -431,7 +383,8 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (raw.trustScore !== undefined) persistence.trust_score = raw.trustScore;
     if (raw.agreementCount !== undefined) persistence.agreement_count = raw.agreementCount;
     const inst = new this.fewShotModel(persistence);
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     await this.enforceFewShotCap();
     return toFewShotRecord(saved);
   }
@@ -443,7 +396,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const oldest = await this.fewShotModel.find({ deleted_at: null }).sort({ created_at: 1 }).limit(excess).select('_id').lean().exec();
     if (oldest.length === 0) return 0;
     const ids = oldest.map((d) => d._id);
-    const res = await this.fewShotModel.updateMany({ _id: { $in: ids } }, { $set: { deleted_at: new Date() } }).exec();
+    const res = await this.fewShotModel.updateMany({ _id: { $in: ids } }, { $set: { deleted_at: new Date() } }, { session: resolveMongoSession(undefined) }).exec();
     return res.modifiedCount ?? 0;
   }
 
@@ -483,7 +436,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     const doc = await this.fewShotModel.findOneAndUpdate(
       { _id: oid(id), deleted_at: null },
       { $set: { agreement_count: update.agreementCount, trust_score: update.trustScore, embedding: update.embedding } },
-      { new: true },
+      { returnDocument: 'after', session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toFewShotRecord(doc as unknown as IFewShotExample) : null;
   }

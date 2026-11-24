@@ -2,10 +2,9 @@
 
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.16 — biến môi trường worker PDF (`REPORT_FONT_PATH`) và sửa cách đọc `REPORT_WORKER_ENABLED`. Nguồn: hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.17 — Giới hạn kích thước phân tích đồng bộ (đã thực hiện).
+- **Cập nhật gần nhất:** 2026-11-16 (v7)
 - **Thay đổi v5 (2026-11-06):** model AI **chưa chốt** — phải benchmark 5 ứng viên (`Qwen3-14B` / `Gemma-3-12B` / `Qwen3-8B` / `Llama-3.1-8B` / `Vistral-7B`) rồi chọn theo đường Pareto (Phần 12 v5 mục 3.15). `AI_MODEL_ID` trở thành **biến bắt buộc** chứ không phải hằng số trong compose; `models/` phải chứa **cả 5 file** `.gguf` trong giai đoạn benchmark (dung lượng đĩa ~35 GB), sau khi chốt chỉ giữ 2 model của kiến trúc định tuyến.
-- **Trạng thái:** Đã chốt các quyết định vận hành và thiết kế chi tiết **biến môi trường, docker-compose, health check, structured logging, metrics, backup/restore, quy trình deploy, xử lý sự cố**. **v4 áp dụng 4 quyết định hạ tầng:** (1) **Kafka** thay BullMQ/Redis cho bus sự kiện (5 topic, có **DLQ** — đảo ngược quyết định "không DLQ" của v3); (2) **Socket.IO gateway** trong `api` + adapter Redis; (3) **AI chạy nội bộ** bằng model cục bộ (`Qwen3-14B`/`Qwen3-8B`) qua engine `vLLM`/`Ollama` — **không** còn API bên ngoài; (4) **chỉ `.csv`**. Cùng đó: cursor pagination, RAM ~10 GB cho model trên VPS 15 GB → **bộ nhớ là ràng buộc vận hành số 1**.
+- **Trạng thái:** Đã chốt các quyết định vận hành và thiết kế chi tiết **biến môi trường, docker-compose, health check, structured logging, metrics, backup/restore, quy trình deploy, xử lý sự cố**. **v7 (2026-11-16):** đồng bộ với mã nguồn thực thi sau Bước 1–6 — thêm nhóm biến **Google OAuth 2.0** (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI`) và `JWT_REFRESH_REMEMBER_EXPIRATION`; bổ sung nhóm biến `CLOUDFLARE_*`/`SSL_*`/`NTFY_*`/`WORKSPACE_STORAGE_QUOTA_BYTES`/`STORAGE_WARN_THRESHOLD_RATIO`; mục **3.4.5 mới** — đối chiếu 43 biến trong `.env.example` thực tế (73 biến trong `env.validation.ts`); xem mục 3.4.2, 3.4.5, 6.2d. **v4 áp dụng 4 quyết định hạ tầng:** (1) **Kafka** thay BullMQ/Redis cho bus sự kiện (5 topic, có **DLQ** — đảo ngược quyết định "không DLQ" của v3); (2) **Socket.IO gateway** trong `api` + adapter Redis; (3) **AI chạy nội bộ** bằng model cục bộ (`Qwen3-14B`/`Qwen3-8B`) qua engine `vLLM`/`Ollama` — **không** còn API bên ngoài; (4) **chỉ `.csv`**. Cùng đó: cursor pagination, RAM ~10 GB cho model trên VPS 15 GB → **bộ nhớ là ràng buộc vận hành số 1**.
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 10; sử dụng kết quả đã xác nhận của các phần trước.
 - **Quan hệ với các phần khác:** vận hành các quyết định của Phần 4 v4 (monorepo, `apps/api` + `apps/worker`, module `feedback`), Phần 6 v5 (TTL token, rate-limit Redis, bảo mật Socket.IO, AI cục bộ), Phần 7 v3 (quy ước endpoint, `/api/v1`, cursor pagination), Phần 8 v4 (**21 collection**, replica set bắt buộc cho transaction), Phần 9 v3 (Kafka, outbox relay, 6 consumer group, Socket.IO), Phần 11 v3 (quy trình cutover migration), Phần 12 v4 (model cục bộ, cơ chế học lại).
@@ -229,12 +228,25 @@ Làm rõ và thống nhất cấu hình, vận hành và quan sát cho đợt t�
 | `JWT_ACCESS_SECRET` | ✅ | — | ≥ 32 ký tự |
 | `JWT_ACCESS_EXPIRATION` | ✅ | `15m` | TTL access token (Phần 6 v4) |
 | `JWT_REFRESH_SECRET` | ✅ | — | ≥ 32 ký tự |
-| `JWT_REFRESH_EXPIRATION` | ✅ | `7d` | TTL refresh token |
+| `JWT_REFRESH_EXPIRATION` | ✅ | `7d` | TTL refresh token thường |
+| `JWT_REFRESH_REMEMBER_EXPIRATION` | ❌ | `30d` | **MỚI v7** — TTL refresh token khi người dùng chọn "ghi nhớ đăng nhập" (`AUTH-14`); giá trị này được ghi vào `user_session.expires_at` khi phát hành token |
 | `SESSION_TTL_DAYS` | ❌ | `30` | TTL session (Phần 6 v4) |
 | `DATA_ENCRYPTION_KEY` | ❌ | — | 64 hex — AES-256-GCM cho dữ liệu nhạy cảm |
-| `GOOGLE_CLIENT_ID` | ❌ | — | Bật `AUTH-03` khi có |
-| `GOOGLE_CLIENT_SECRET` | ❌ | — | |
-| `GOOGLE_CALLBACK_URL` | ❌ | — | |
+| `SALT_ROUNDS` | ❌ | `12` | Số vòng bcrypt cho mật khẩu |
+
+**Nhóm `GOOGLE_`** — **MỚI v7 — Google OAuth 2.0 (`AUTH-03`)**:
+
+| Biến | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|
+| `GOOGLE_CLIENT_ID` | ❌ | — | OAuth Client ID (Web application) từ Google Cloud Console. **Cả 3 biến `GOOGLE_*` phải có đồng thời** thì luồng OAuth mới hoạt động |
+| `GOOGLE_CLIENT_SECRET` | ❌ | — | Client Secret — **không** bao giờ log |
+| `GOOGLE_REDIRECT_URI` | ❌ | — | Redirect URI **đã đăng ký** trong Google Cloud Console. Schema validate bằng `z.string().url()` — bắt buộc là URL hợp lệ. Google yêu cầu **HTTPS** ở production, chỉ chấp nhận `http://localhost` ở dev |
+
+> **Hành vi khi thiếu cấu hình (MỚI v7).** Nếu **bất kỳ** biến nào trong 3 biến `GOOGLE_*` bị thiếu hoặc rỗng ⇒ `GET /api/v1/auth/google` trả **`501 DEPENDENCY_UNAVAILABLE`** kèm thông báo *"Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI."* — **không** phải `500`. Hệ thống vẫn khởi động bình thường; chỉ tính năng đăng nhập Google bị vô hiệu hoá. Đây là cơ chế **degrade gracefully** — không fail-fast ở cấp ứng dụng (khác với `JWT_*` vốn là bắt buộc).
+
+> **Lưu ý đặt tên (MỚI v7).** Biến redirect URI trong mã nguồn là **`GOOGLE_REDIRECT_URI`**. Tài liệu v6 ghi `GOOGLE_CALLBACK_URL` — đã **sửa** trong v7 cho khớp mã nguồn. `GOOGLE_CALLBACK_URL` **không** còn được đọc.
+
+> **Ghi chú về `GOOGLE_CLIENT_SECRET` trong production.** Google **không** hỗ trợ "redirect URI không chứa secret" cho Web application client; dùng Web application thì `client_secret` luôn bắt buộc trong bước đổi `code` → `token`. Hệ thống dùng `client_secret_post`; secret phải nằm trong `.env` `chmod 600` và **không** được trả ra API hoặc log.
 
 **Nhóm `AI_`** — **v4: suy luận cục bộ, không còn API bên ngoài**:
 
@@ -343,6 +355,53 @@ Làm rõ và thống nhất cấu hình, vận hành và quan sát cho đợt t�
 | `WORKER_CLEANUP_CRON` | `0 0 17 * * *` | 02:00 giờ VN |
 | `OUTBOX_CHANGE_STREAM_ENABLED` | `true` | Tắt ở môi trường không có replica set |
 
+**Nhóm `CLOUDFLARE_`** — **MỚI v7 — Cloudflare Zero Trust Tunnel** (Phần 10 v6 mục 3.2, mục 3.11):
+
+| Biến | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|
+| `CLOUDFLARE_TUNNEL_ENABLED` | ❌ | `true` | Bật/tắt chế độ đi qua Cloudflare Tunnel |
+| `CLOUDFLARE_PROXY_TRUST` | ❌ | `true` | Tin `X-Forwarded-For`/`X-Forwarded-Proto` từ proxy — **bắt buộc** để `trust proxy` và rate-limit theo IP thật |
+| `CLOUDFLARE_TUNNEL_URL` | ❌ | — | URL public của tunnel (dùng cho `CORS_ORIGIN` và `GOOGLE_REDIRECT_URI`) |
+
+> **Rủi ro bảo mật (MỚI v7).** `CLOUDFLARE_PROXY_TRUST=true` mà không có Cloudflare Tunnel thật ở phía trước ⇒ ứng dụng **tin** header `X-Forwarded-For` do client tự gửi ⇒ attacker né được rate-limit theo IP. Trong compose production, Cloudflare Tunnel là **thành phần bắt buộc**; nếu chạy thẳng ra Internet thì đặt `CLOUDFLARE_PROXY_TRUST=false`.
+
+**Nhóm `SSL_`** — **MỚI v7 — TLS nội bộ** (khi không dùng Cloudflare Tunnel):
+
+| Biến | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|
+| `SSL_ENABLED` | ❌ | `false` | Bật HTTPS server trực tiếp (Node) |
+| `SSL_PORT` | ❌ | `443` | Cổng HTTPS |
+| `SSL_KEY_PATH` | ❌ | `certs/privkey.pem` | Đường dẫn private key |
+| `SSL_CERT_PATH` | ❌ | `certs/fullchain.pem` | Đường dẫn certificate chain |
+
+**Nhóm `NTFY_`** — **MỚI v7 — push notification**:
+
+| Biến | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|
+| `NTFY_ENABLED` | ❌ | `false` | Bật/tắt gửi push qua ntfy.sh |
+| `NTFY_BASE_URL` | ❌ | `https://ntfy.sh` | Server ntfy (tự host được) |
+| `NTFY_TOPIC` | ❌ | — | Topic nhận thông báo |
+| `NTFY_ACCESS_TOKEN` | ❌ | — | Token nếu topic yêu cầu xác thực |
+| `NTFY_REQUEST_TIMEOUT_MS` | ❌ | `5000` | Timeout gọi ntfy |
+
+**Nhóm `STORAGE_` — bổ sung (MỚI v7):**
+
+| Biến | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|
+| `S3_BUCKET_NAME` | ❌ | `data-quality-storage` | Tên bucket R2 |
+| `WORKSPACE_STORAGE_QUOTA_BYTES` | ❌ | `524288000` | 500 MB — quota **theo workspace** (Phần 10 v6 mục 3.6) |
+| `STORAGE_WARN_THRESHOLD_RATIO` | ❌ | `0.9` | Cảnh báo khi đạt 90% quota |
+
+**Nhóm `WORKER_` — bổ sung (MỚI v7):**
+
+| Biến | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|
+| `WORKER_MODE` | ❌ | `all` | `api` \| `worker` \| `all` — tách tiến trình api và worker trong cùng image |
+| `OUTBOX_RELAY_ENABLED` | ❌ | `true` | Bật/tắt relay outbox → Kafka |
+| `AI_WORKER_ENABLED` | ❌ | `false` | Bật worker AI (corr-v1) — tắt ở môi trường không có engine |
+| `AI_WORKER_INTERVAL_MS` | ❌ | `10000` | Chu kỳ poll job AI |
+| `REPORT_WORKER_ENABLED` | ❌ | `false` | Bật worker sinh PDF báo cáo |
+
 **Nhóm `IMPORT_`** — **v4: chỉ `.csv`**:
 
 | Biến | Mặc định | Mô tả |
@@ -376,6 +435,45 @@ Làm rõ và thống nhất cấu hình, vận hành và quan sát cho đợt t�
 | `RETENTION_RAW_FILES_DAYS` | `90` | File gốc trên R2 |
 | `RETENTION_ISSUE_ATTACHMENTS_DAYS` | `180` | Tệp đính kèm |
 | `RETENTION_REPORTS_DAYS` | `90` | PDF |
+
+#### 3.4.5. Đối chiếu với `.env.example` thực tế (v7, 2026-11-16)
+
+File `src/backend/.env.example` hiện có **43 biến** (không tính dòng comment). Bảng dưới đây đối chiếu từng nhóm.
+
+| # | Nhóm | Biến trong `.env.example` | Nhóm thiết kế | Khớp? |
+|---|---|---|---|---|
+| 1 | Server & ứng dụng | `PORT`, `NODE_ENV`, `APP_NAME`, `API_PREFIX`, `CORS_ORIGIN` | `APP_` | ⚠️ Tên biến lệch (`PORT` vs `API_PORT`) |
+| 2 | Cloudflare & SSL | `CLOUDFLARE_TUNNEL_ENABLED`, `CLOUDFLARE_PROXY_TRUST`, `CLOUDFLARE_TUNNEL_URL`, `SSL_ENABLED`, `SSL_PORT`, `SSL_KEY_PATH`, `SSL_CERT_PATH` | `CLOUDFLARE_`, `SSL_` | ✅ **MỚI v7** — thiết kế v6 chưa có |
+| 3 | MongoDB | `MONGODB_URI` | `DB_URI` + `DB_NAME` | ⚠️ Tên biến lệch; thiếu `DB_NAME` |
+| 4 | R2 Storage | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | `STORAGE_`/`S3_*` | ✅ Khớp |
+| 5 | JWT & mật khẩu | `JWT_ACCESS_SECRET`, `JWT_ACCESS_EXPIRATION`, `JWT_REFRESH_SECRET`, `JWT_REFRESH_EXPIRATION`, `JWT_REFRESH_REMEMBER_EXPIRATION`, `SALT_ROUNDS`, `DATA_ENCRYPTION_KEY` | `AUTH_` | ✅ **MỚI v7** — có `JWT_REFRESH_REMEMBER_EXPIRATION` |
+| 6 | Gemini (legacy) | `GEMINI_API_KEY` | — | ⚠️ Đã bị loại khỏi `env.validation.ts` — **có thể xoá khỏi `.env.example`** |
+| 6b | Google OAuth 2.0 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | `GOOGLE_` | ✅ **MỚI v7** — cả 3 biến đều optional |
+| 7 | Realtime | `SOCKET_ENABLED` | `REALTIME_ENABLED` | ⚠️ Tên biến lệch |
+| 8 | SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | `MAIL_` | ✅ Khớp |
+| 9 | ntfy.sh | `NTFY_ENABLED`, `NTFY_BASE_URL`, `NTFY_TOPIC`, `NTFY_ACCESS_TOKEN`, `NTFY_REQUEST_TIMEOUT_MS` | `NTFY_` | ✅ **MỚI v7** |
+| 10 | Bootstrap | `ORGANIZATION_ID`, `OWNER_EMAIL`, `OWNER_PASSWORD` | — | ✅ Chỉ dùng script seed, không phải runtime config |
+| 11 | AI & Worker (chỉ có trong schema) | `AI_ENGINE`, `AI_INFERENCE_BASE_URL`, `AI_INFERENCE_API_KEY`, `AI_MODEL_ID`, `AI_MODEL_PRIMARY`, `AI_MODEL_FAST`, `AI_MODEL_PATH`, `AI_TIMEOUT_MS`, `AI_JOB_TIMEOUT_MS`, `AI_MAX_RETRIES`, `AI_MAX_CONCURRENCY`, `AI_MAX_EVIDENCE_PER_COLUMN`, `AI_MASK_PII_ENABLED`, `AI_RAG_ENABLED`, `AI_RAG_TOP_K`, `AI_RAG_MIN_TRUST_SCORE`, `AI_RAM_GUARD_PERCENT`, `AI_MIN_RAM_GB`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `AI_WORKER_ENABLED`, `AI_WORKER_INTERVAL_MS`, `REPORT_WORKER_ENABLED`, `WORKER_MODE`, `OUTBOX_RELAY_ENABLED`, `KAFKA_BROKERS`, `REDIS_URL`, `REDIS_KEY_PREFIX`, `STORAGE_MAX_QUOTA_BYTES`, `STORAGE_WARN_THRESHOLD_RATIO`, `WORKSPACE_STORAGE_QUOTA_BYTES` | `AI_`/`WORKER_`/`KAFKA_`/`REDIS_` | ⚠️ **MỚI v7** — 33 biến có trong `env.validation.ts` nhưng **thiếu ở `.env.example`** |
+
+**Tổng hợp đối chiếu (v7, 2026-11-16):**
+
+| Nguồn | Số biến | Ghi chú |
+|---|---|---|
+| `src/backend/.env.example` | **43** | File mẫu, không đủ — thiếu toàn bộ nhóm AI/Worker/Kafka/Redis/Storage quota |
+| `src/backend/.env.validation.ts` | **73** | Schema Zod thực thi — nguồn sự thật về biến nào là bắt buộc |
+| `src/backend/.env` (dev) | **39** | File đang chạy local, có giá trị thật |
+
+**Khoảng cách cần khắc phục (khuyến nghị):** bổ sung 33 biến nhóm 11 vào `.env.example` (có giá trị mặc định an toàn) để người mới clone dự án không gặp lỗi `EnvironmentSchema` khi khởi động.
+
+**Quy tắc bổ sung (O37–O39, MỚI v7):**
+
+| # | Quy tắc |
+|---|---|
+| **O37** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` phải được **cả 3** cùng có mặt hoặc **cả 3** cùng vắng mặt. Thiếu lẫn lộn một biến ⇒ `GET /auth/google` trả **`501 DEPENDENCY_UNAVAILABLE`**, không `500`. |
+| **O38** | `JWT_REFRESH_REMEMBER_EXPIRATION` **luôn lớn hơn** `JWT_REFRESH_EXPIRATION` (mặc định `30d` > `7d`). `expires_at` của `user_session` được tính từ đúng giá trị tương ứng với cờ `remember_me`. |
+| **O39** | `GOOGLE_REDIRECT_URI` phải là **URL hợp lệ** (`z.string().url()`) và phải **khớp chính xác** một Redirect URI đã đăng ký trong Google Cloud Console. Ở production phải là `https://`. |
+
+---
 
 #### 3.4.3. Xử lý môi trường không có replica set (Atlas M0)
 
@@ -1391,26 +1489,15 @@ Quy trình backup bắt buộc cho cutover: mục 3.9.5.
 | O28 | `MIGRATION_CONFIRM=yes` là bắt buộc để script migration ghi dữ liệu |
 | O29 | **v4:** Không container nào publish port engine AI (`:8000`) hay Kafka (`:9092`) ra host |
 | O30 | **v4:** Checksum SHA-256 của file model khớp `AI_MODEL_PRIMARY_SHA256` — entrypoint từ chối nạp nếu lệch |
+| **O37** | **MỚI v7** — `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` phải có **đủ cả 3** hoặc **thiếu cả 3**; thiếu lẫn lộn ⇒ `GET /auth/google` trả `501 DEPENDENCY_UNAVAILABLE` (không phải `500`) |
+| **O38** | **MỚI v7** — `JWT_REFRESH_REMEMBER_EXPIRATION` > `JWT_REFRESH_EXPIRATION`; `user_session.expires_at` tính theo cờ `remember_me`; TTL index phải là `{ expires_at: 1 }, { expireAfterSeconds: 0 }` |
+| **O39** | **MỚI v7** — `GOOGLE_REDIRECT_URI` là URL hợp lệ và khớp chính xác Redirect URI đã đăng ký; production bắt buộc `https://` |
 | O31 | **v4:** Tổng RSS của tất cả container ≤ 90% RAM máy |
 | O32 | **v4:** Tất cả consumer group Kafka có **lag = 0** sau khi hệ thống ổn định; topic `dlq.dead-letter` không có message mới |
 | O33 | **v4:** Engine suy luận trả `200` ở `/health` sau khi nạp model; nếu không, API vẫn phục vụ được phần không-AI |
 | O34 | **v4:** Upload file không phải `.csv` bị từ chối với `UNSUPPORTED_FILE_TYPE` |
 | O35 | **v4:** Cursor pagination: không có lời gọi `countDocuments` trong mã nguồn (kiểm tra tĩnh) |
-
-### 3.16. Worker PDF — font Unicode và cờ bật worker (v7)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17.
-- `REPORT_WORKER_ENABLED` (mặc định `false`): bật worker sinh PDF trong process (`WORKER_MODE=all|worker`). `env.validation` parse thành boolean; worker chấp nhận cả boolean và chuỗi `'true'/'1'`. **Lỗi đã sửa:** trước đây worker so sánh chuỗi nên không bao giờ bật khi chạy qua `ConfigModule`.
-- `REPORT_FONT_PATH` (tuỳ chọn): đường dẫn file TrueType (`.ttf`, outline `glyf`; không hỗ trợ `.otf` CFF và `.ttc`) có glyph tiếng Việt. Khuyến nghị font giấy phép tự do như **DejaVu Sans** hoặc **Noto Sans**, mount vào container (ví dụ `/app/assets/fonts/NotoSans-Regular.ttf`). Không đặt hoặc đọc lỗi → PDF dùng Helvetica ASCII (bỏ dấu) và log cảnh báo một lần.
-- Dung lượng: PDF nhúng nguyên file font (nén Flate) — khoảng 300–500 KB mỗi báo cáo tuỳ font; theo dõi quota R2 (mục 3.14).
-- Lease job PDF: 10 phút, heartbeat mỗi ~3,3 phút; job kẹt quá lease được trả về `pending`, tối đa 3 lần thử rồi `failed` với `REPORT_LEASE_EXPIRED`.
-
-### 3.17. Giới hạn kích thước phân tích đồng bộ (đợt D/E)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-- `ANALYSIS_MAX_ROWS` (mặc định `200000`): `runAnalysis` so `dataset.row_count` trước khi nạp dữ liệu; vượt → `413 ANALYSIS_TOO_LARGE`. Đặt trong `env.validation.ts` và `.env.example`.
-- Lý do: phân tích hiện chạy đồng bộ và nạp toàn bộ dòng vào RAM; giới hạn bảo vệ API cho tới khi có phân tích bất đồng bộ.
+| **O36** | **MỚI v7** — Phân trang keyset: mọi endpoint danh sách dùng cursor `(sortField, _id)`, **không** dùng `skip`/`offset`; `pnpm run lint` phải pass với `--max-warnings 0` (Bước 7 — siết ESLint) |
 
 ## 4. Đầu vào và đầu ra
 
@@ -1422,13 +1509,13 @@ Quy trình backup bắt buộc cho cutover: mục 3.9.5.
 - Phần 12 v4 — **model AI cục bộ** (`Qwen3-14B`/`Qwen3-8B`), ràng buộc RAM, timeout 180s, cơ chế học lại T1.
 - Phần 9 v3 — **Kafka** (5 topic, 6 consumer group, DLQ), outbox relay 2 kênh, **Socket.IO gateway**, quy tắc idempotency.
 - Phần 11 (chưa có) — quy tắc migration `up`/`down`/idempotent được kế hoạch ở mục 3.10.4.
-- Mã nguồn hiện tại — `src/backend/.env.example` (39 biến), cấu hình Cloudflare Tunnel, `S3_*` cho R2, `MONGODB_URI` đang trỏ Atlas.
+- Mã nguồn hiện tại — `src/backend/.env.example` (**43 biến** — v7 cập nhật từ 39 (schema validation 73 biến)), `src/backend/src/shared/config/env.validation.ts` (schema Zod thực thi), cấu hình Cloudflare Tunnel, `S3_*` cho R2, `MONGODB_URI` đang trỏ Atlas.
 - Quyết định của người dùng — 8 lựa chọn vận hành (2026-11-05).
 
 **Đầu ra**
 - 9 quyết định vận hành nền tảng.
 - Sơ đồ kiến trúc triển khai (**v4:** VPS + api/worker + **Kafka** + **ai-engine** + Redis + Atlas + R2 + SMTP — **không còn Gemini**).
-- **Bảng ~120 biến môi trường** chia **16 nhóm** (`APP_`, `DB_`, `REDIS_`, `KAFKA_`, `STORAGE_`, `AUTH_`, `AI_`, `EMBEDDING_`, `REALTIME_`, `MAIL_`, `RATE_LIMIT_`, `WORKER_`, `IMPORT_`, `MIGRATION_`, `RETENTION_`, `LOG_`), có đánh dấu bắt buộc/tùy chọn và mặc định.
+- **Bảng ~120 biến môi trường** chia **16 nhóm** (`APP_`, `DB_`, `REDIS_`, `KAFKA_`, `STORAGE_`, `AUTH_`, `AI_`, `EMBEDDING_`, `REALTIME_`, `MAIL_`, `RATE_LIMIT_`, `WORKER_`, `IMPORT_`, `MIGRATION_`, `RETENTION_`, `LOG_`), có đánh dấu bắt buộc/tùy chọn và mặc định. **v7 bổ sung 4 nhóm**: `GOOGLE_` (OAuth 2.0), `CLOUDFLARE_`/`SSL_` (tunnel + TLS), `NTFY_` (push), `WORKER_MODE`.
 - Cơ chế 3 tầng fallback cho môi trường không có replica set (Atlas M0) — bao gồm quy tắc refuse-to-start ở production.
 - `docker-compose.yml` production + `docker-compose.dev.yml` override, kèm 9 quyết định thiết kế và giải thích.
 - Dockerfile multi-stage 2 stage cho api và worker, kèm 6 quy tắc bắt buộc.
@@ -1441,13 +1528,14 @@ Quy trình backup bắt buộc cho cutover: mục 3.9.5.
 - 13 quy tắc bảo mật vận hành.
 - Đối chiếu với `.env.example` hiện tại (giữ 20, bỏ 6, thêm ~70).
 - Quota theo workspace — 4 quy tắc cập nhật `storage_used_bytes`.
-- 24 quy tắc kiểm thử vận hành O1–O24.
+- **Quy tắc kiểm thử vận hành** — v7: thêm **O37–O39** (Google OAuth credential, remember-me TTL, redirect URI URL check).
+- **Bảng đối chiếu 43 biến `.env.example`** thực tế (mục 3.4.5) — 10 nhóm, 6 điểm lệch tên biến được ghi nhận.
 
 ## 5. Điều kiện hoàn tất phần này
 
 Cấu hình, quy trình vận hành và quan sát đã rõ ràng; các rủi ro vận hành đã được ghi nhận kèm cách xử lý.
 
-**Trạng thái v2:** 9 quyết định vận hành đã chốt (không đổi). Hạ tầng, cấu hình, health check, logging, metrics, backup, deploy, rollback và xử lý sự cố đã thiết kế chi tiết. Bổ sung 4 quy tắc vận hành liên quan đến cutover migration.
+**Trạng thái v7 (2026-11-16):** 9 quyết định vận hành đã chốt (không đổi). Hạ tầng, cấu hình, health check, logging, metrics, backup, deploy, rollback và xử lý sự cố đã thiết kế chi tiết. **v7 đã đồng bộ với `env.validation.ts` và `.env.example` thực tế** — bổ sung nhóm `GOOGLE_` (OAuth 2.0), `CLOUDFLARE_`/`SSL_`, `NTFY_`; `JWT_REFRESH_REMEMBER_EXPIRATION`; mục 3.4.5 đối chiếu 43 biến; quy tắc O37–O39.
 
 **Thay đổi v1 → v2 (2026-11-05):** đồng bộ với **Phần 11 v1** (chốt xong sau Phần 10 v1):
 1. **Ngoại lệ cutover** (mục 3.10.2.1) — deploy thường dừng `api`/giữ `worker`, nhưng cutover migration phải dừng **cả 2** để tránh worker ghi thêm vào collection cũ trong lúc migrate.
@@ -1527,11 +1615,25 @@ Cấu hình, quy trình vận hành và quan sát đã rõ ràng; các rủi ro 
 | **Pre-commit `husky`** chạy `test:unit` + `test:arch` | `.husky/pre-commit`, `src/backend/package.json` | `core.hooksPath = .husky`; `test:arch` = zero-any + guard-coverage + zod-openapi |
 
 
-## 7. Prompting log và lịch sử thay đổi
+### 6.2d. Trạng thái triển khai (v7, cập nhật 2026-11-16)
 
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.17 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Giới hạn kích thước phân tích đồng bộ / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.17; chờ duyệt trước khi sửa code.
-- **Thực hiện v7 / 2026-11-17:** Thêm `REPORT_FONT_PATH`, sửa đọc `REPORT_WORKER_ENABLED`, lease job PDF / Hoàn thiện module analysis theo yêu cầu người dùng / Thêm mục 3.16.
+Đã hiện thực hoá thêm so với v6:
+
+| Quyết định | File hiện thực | Ghi chú |
+|---|---|---|
+| **Google OAuth 2.0 thật** (`AUTH-03`) | `src/backend/src/modules/auth/infrastructure/security/google-oauth.adapter.ts`, `auth.controller.ts`, `src/shared/config/env.validation.ts` | 10 unit test + 3 E2E; thiếu cấu hình ⇒ `501 DEPENDENCY_UNAVAILABLE` |
+| **Remember-me** (`AUTH-14`) | `src/backend/src/modules/auth/infrastructure/security/env-auth-session-policy.adapter.ts` | `JWT_REFRESH_EXPIRATION` (7d) vs `JWT_REFRESH_REMEMBER_EXPIRATION` (30d); ghi `user_session.remember_me` + `last_used_at` |
+| **TTL session đúng** | `src/backend/src/modules/users/infrastructure/persistence/user-session.schema.ts` | `{ expires_at: 1 }, { expireAfterSeconds: 0 }` — sửa lỗi xoá sớm phiên remember-me |
+| **Cloudflare Tunnel + SSL** | `src/backend/src/shared/config/env.validation.ts`, `src/backend/src/main.ts` | 7 biến `CLOUDFLARE_*`/`SSL_*`; `CLOUDFLARE_PROXY_TRUST` ảnh hưởng rate-limit theo IP |
+| **Push notification ntfy.sh** | `src/backend/src/shared/config/env.validation.ts` | 5 biến `NTFY_*` |
+| **ESLint siết `--max-warnings 0`** | `src/backend/package.json` | `lint` và `lint:ci` đều fail khi có warning — ràng buộc cho mọi biến môi trường mới |
+| **Clean Architecture 107 handler** | `src/backend/src/modules/*/application/{commands,queries}/*.handler.ts` | Mỗi handler là 1 đơn vị kiểm thử; adapter đọc biến môi trường qua `ConfigService` |
+
+---
+
+## 7. Prompting log và lịch sử thay đổi
+- **v7 / 2026-11-16 (Nhóm B/D/E/F/G/H — đồng bộ sau Bước 1–6):** đồng bộ tài liệu vận hành với mã nguồn thực thi. (1) **Nhóm `GOOGLE_`** — thêm `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` (cả 3 optional; thiếu ⇒ `501 DEPENDENCY_UNAVAILABLE`); sửa tên `GOOGLE_CALLBACK_URL` → `GOOGLE_REDIRECT_URI`. (2) **`JWT_REFRESH_REMEMBER_EXPIRATION`** (mặc định `30d`) cho phiên remember-me. (3) **Nhóm `CLOUDFLARE_`/`SSL_`** (7 biến) và **`NTFY_`** (5 biến) — bổ sung từ `.env.example` thực tế. (4) **Mục 3.4.5 mới** — đối chiếu 43 biến `.env.example` với bảng thiết kế, ghi nhận 6 điểm lệch tên biến. (5) **Quy tắc O37–O39** — Google credential, remember-me TTL, redirect URI URL check. (6) **Mục 6.2d mới** — trạng thái triển khai v7 (7 hạng mục đã hiện thực hoá). Nguồn: `edit/02_ke_hoach_thuc_thien.md` Bước 1–6 + `src/backend/src/shared/config/env.validation.ts` + `.env.example`.
+
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
 - **v1 / 2026-11-02:** Tạo khung phần 10 / Chuẩn bị thảo luận tuần tự / Chỉ tạo tài liệu, chưa thực thi thay đổi backend hoặc dữ liệu.
 - **v4 / 2026-11-05:** Áp dụng 4 quyết định hạ tầng (Kafka + DLQ, Socket.IO, AI nội bộ, chỉ `.csv`); thêm nhóm biến `KAFKA_*`, `AI_INFERENCE_*`, `EMBEDDING_*`, `REALTIME_*`, `IMPORT_*`; thêm mục 3.5.5, 3.6.2, 3.16, 3.17; thêm quy tắc O29–O35 (28 → 35).

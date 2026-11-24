@@ -1,121 +1,279 @@
-# SHARED ARCHITECTURE & CROSS-CUTTING FOUNDATION
+# Shared Layer - Lớp Cross-Cutting
 
-## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
-Module `shared` là khung xương sống hạ tầng (Infrastructural Backbone) của toàn bộ hệ thống. Module này tập trung giải quyết các bài toán kỹ thuật dùng chung (Cross-cutting Concerns) theo chuẩn Enterprise, cung cấp các khối xây dựng cốt lõi (Building Blocks) cho toàn bộ các Feature Modules (`auth`, `users`, `workspaces`, `projects`, `datasets`, `data-view`, `analysis`, `notifications`, `issues`, `feedback`, `realtime`).
+Lớp `shared` chứa toàn bộ khái niệm **dùng chung cho nhiều module** nhưng **không thuộc về module nào**. Đây là nơi đặt các primitive mà cả 13 module nghiệp vụ đều cần: phân quyền, phân trang, event bus, lưu trữ, giao dịch, mã hoá, lỗi.
 
-- **Các Trụ cột Hạ tầng Chính:**
-  - **Phân quyền Thuộc tính Thực thể CASL (ABAC/PBAC):** Phân quyền động theo ngữ cảnh Workspace và giải quyết triệt để lỗi truy vấn CSDL 2 lần (Double Database Query).
-  - **Quản lý Giao dịch CSDL Ngầm (Ambient Mongo Transaction):** Tự động lan truyền phiên `ClientSession` qua `AsyncLocalStorage` mà không cần truyền biến thủ công qua từng tầng hàm.
-  - **Lưu trữ Đối tượng Đa chế độ (Object Storage):** Tích hợp Cloudflare R2 / AWS S3 tương thích S3 API kèm cơ chế kiểm soát hạn ngạch lưu trữ (Quota Guard 10GB).
-  - **Mật mã học & Bảo mật Thông tin Nhạy cảm (Crypto & PII):** Mã hóa luồng AES-256-GCM (PBKDF2 100.000 vòng lặp), băm SHA-256, che giấu dữ liệu PII trong nhật ký hệ thống.
-  - **Tự động hóa Swagger từ Zod (OpenAPI Bridge):** Tự động sinh tài liệu Swagger UI từ Zod Schema mà không cần `class-validator`.
+> **Quy tắc bất di bất dịch:** `shared` **không được** import từ `modules/` (quy tắc CA5). Nếu một thứ chỉ dùng cho một module, nó **không thuộc về shared** - hãy đặt vào `modules/<tên>/`.
 
 ---
 
-## 2. Kiến trúc Hạ tầng & Luồng Tương tác Trực quan (Architecture & Subsystems)
-Sơ đồ kết nối giữa các Feature Modules, Khung hạ tầng `shared` và các dịch vụ cơ sở hạ tầng bên ngoài:
+## 1. Bốn tầng trong `shared`
 
-```mermaid
-graph TD
-    subgraph Feature Modules ["Tầng Nghiệp vụ (Feature Modules)"]
-        FM1["Auth & Users"]
-        FM2["Workspaces & Projects"]
-        FM3["Datasets & Data View"]
-        FM4["Analysis & Feedback"]
-    end
-
-    subgraph Shared Layer ["Tầng Hạ tầng Dùng chung (SharedModule)"]
-        CASL["🛡️ CASL ABAC Engine<br/><i>PoliciesGuard & CurrentResource</i>"]
-        TX["🔄 Ambient Transaction<br/><i>AsyncLocalStorage & Mongoose</i>"]
-        STORE["☁️ Storage Service<br/><i>Cloudflare R2 S3 SDK</i>"]
-        CRYPTO["🔐 Crypto & PII Masking<br/><i>AES-256-GCM, PBKDF2, Bcrypt</i>"]
-        SWAGGER["📜 Zod-OpenAPI Bridge<br/><i>ApiZodBody & ApiZodQuery</i>"]
-        REPO["🗄️ BaseMongoRepository<br/><i>CRUD & Soft-delete Filter</i>"]
-    end
-
-    subgraph Infrastructure ["Hạ tầng Bên ngoài (Infrastructure)"]
-        Mongo[("MongoDB Atlas M0")]
-        R2[("Cloudflare R2 Bucket")]
-        Redis[("Redis Cache + Rate-limit")]
-        Kafka[("Kafka Event Bus")]
-    end
-
-    FM1 --> CASL & CRYPTO & REPO
-    FM2 --> CASL & REPO
-    FM3 --> STORE & TX & REPO & SWAGGER
-    FM4 --> TX & REPO
-
-    CASL -.->|"Kiểm tra quyền trên Document"| REPO
-    TX -->|"Tự động đính kèm ClientSession"| REPO
-    REPO -->|"Mongoose queries"| Mongo
-    STORE -->|"Stream Put/Get Object"| R2
-    REPO -->|"Outbox events"| Kafka
+```text
+shared/
+├── domain/           # Primitive thuần: không framework, không module
+├── application/      # Port (hợp đồng) mà infrastructure hiện thực
+├── infrastructure/   # Adapter kỹ thuật: MongoDB, Kafka, Redis, S3, config
+└── interfaces/       # Guard, decorator, pipe, filter, interceptor (framework-facing)
 ```
 
----
+Chiều phụ thuộc đi **một chiều**: `interfaces` → `application` → `domain`. `infrastructure` hiện thực các port trong `application`.
 
-## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Concepts & Patterns)
+Quy tắc bổ sung (được kiểm tra tự động):
 
-### 3.1. Phân quyền Thuộc tính Thực thể CASL (ABAC vs RBAC tĩnh)
-- **Hạn chế của RBAC tĩnh:** Không thể kiểm soát ngữ cảnh: *"Người dùng A có vai trò Editor ở Workspace 1 nhưng không có quyền can thiệp vào Project của Workspace 2"*.
-- **Giải pháp CASL Ability:** `CaslAbilityFactory` kết hợp với `PoliciesGuard` đánh giá quyền dựa trên điều kiện của thuộc tính thực thể `{ workspace_id: user.workspaceId }`.
-- **Khắc phục lỗi Double Database Query:** Bằng cách sử dụng `@PolicyResource()` và `@CurrentResource()`, thực thể sau khi được Guard nạp từ CSDL để kiểm tra quyền sẽ được đính kèm trực tiếp vào `request.resource`. Handler trong Controller chỉ việc lấy ra sử dụng, tiết kiệm 50% số lượng truy vấn CSDL.
-
-### 3.2. Quản lý Giao dịch Ngầm (Ambient Transaction via AsyncLocalStorage)
-- **Vấn đề truyền thống:** Bắt buộc phải truyền biến `session: ClientSession` qua 4-5 tầng hàm gọi nhau (`Service -> Repository -> Helper`), làm ô nhiễm signature của hàm và dễ gây quên session dẫn đến rò rỉ dữ liệu ngoài transaction.
-- **Giải pháp AsyncLocalStorage:** `MongooseTransactionService.runInTransaction(async () => { ... })` lưu trữ session trong ngữ cảnh luồng thực thi ngầm (`AsyncLocalStorage`). Mọi phương thức trong `BaseMongoRepository` tự động phát hiện và đính kèm session nếu đang chạy trong transaction.
-
-### 3.3. Bảo mật Thông tin Nhạy cảm (PII Masking & Log Sanitization)
-Tuân thủ nghiêm ngặt **WORKING RULE (Mục 6 - Bảo mật)**:
-- Không bao giờ in ra console email, số điện thoại hoặc token ở dạng thô.
-- `maskEmail('user@gmail.com')` $\rightarrow$ `us***@gmail.com`.
-- `maskPhone('0901234567')` $\rightarrow$ `090*****67`.
-- Hàm `sanitizeObjectForLog(obj)` đệ quy làm sạch object trước khi chuyển vào Logger.
+| Mã | Quy tắc |
+|---|---|
+| CA13 | `shared/domain` không import framework |
+| CA14 | `shared/domain` không import `shared/interfaces` |
 
 ---
 
-## 4. Ma trận Đường ống Bảo vệ (Zero-Trust Guarding Pipeline)
-Mỗi yêu cầu HTTP đi vào hệ thống đều phải đi qua chuỗi lọc bảo mật đa tầng:
+## 2. `shared/domain` - Primitive thuần
 
+### 2.1 `domain/security/` - Hợp đồng phân quyền
+
+| File | Nội dung |
+|---|---|
+| `action.ts` | Enum `Action`: `Manage`, `Create`, `Read`, `Update`, `Delete`, `Execute`, `Export` |
+| `subjects.ts` | Union `SubjectName`: `all`, `Workspace`, `Project`, `Dataset`, `DataRecord`, `Analysis`, `User`, `Session`, `Notification`, `IssueReport`, `FindingFeedback` |
+| `current-user.ts` | Kiểu ngữ cảnh người dùng hiện tại |
+| `current-user-payload.ts` | Payload JWT đã giải mã |
+| `policy-resource-loader.ts` | Interface nạp resource cho kiểm tra instance |
+
+**Vì sao nằm ở `domain`?** `@PolicyResource` (tầng Interfaces) và policy loader (tầng Application) đều cần biết tên subject. Hợp đồng phải nằm ở Domain để cả hai cùng import mà không vi phạm chiều phụ thuộc.
+
+### 2.2 `domain/pagination/` - Phân trang Keyset
+
+| File | Vai trò |
+|---|---|
+| `keyset-cursor.ts` | Định nghĩa cursor: giá trị sort + mốc `_id` |
+| `keyset-sort.util.ts` | Chuyển sort request → điều kiện lọc MongoDB |
+| `keyset-value.util.ts` | So sánh giá trị giữa hai bản ghi |
+| `keyset-filter.util.ts` | Lọc theo điều kiện đã dịch |
+| `keyset-memory.util.ts` | Phân trang keyset trên mảng in-memory |
+| `keyset-generic-memory.util.ts` | Biến thể generic của bản trên |
+| `cursor-codec.ts` | Encode/decode cursor sang base64url |
+| `cursor-paginated.response.ts` | DTO response chuẩn (items + nextCursor) |
+
+**Vì sao quan trọng:** `offset`/`skip` của MongoDB phải quét toàn bộ document bị bỏ qua - O(n) và càng chậm khi trang càng lớn. Keyset cursor chỉ nhảy trực tiếp tới vị trí cần đọc, giữ độ trễ ≤ 50 ms kể cả với hàng triệu dòng.
+
+### 2.3 `domain/crypto/` - Bảo mật dữ liệu
+
+| File | Vai trò |
+|---|---|
+| `crypto.util.ts` | Mã hoá/giải mã AES-256-GCM, hash SHA-256 |
+| `mask-pii.ts` | Che PII trong log (email, sđt, CCCD) |
+
+### 2.4 `domain/errors/` - Lỗi nghiệp vụ
+
+| File | Vai trò |
+|---|---|
+| `domain-error.ts` | Lớp base của lỗi nghiệp vụ (mã lỗi + message + context) |
+| `error-codes.ts` | Danh mục mã lỗi chuẩn hoá |
+| `index.ts` | Public contract |
+
+Lỗi domain **không** chứa HTTP status. Việc ánh xạ sang HTTP nằm ở `interfaces/errors/error-http-mapping.ts` - giữ domain độc lập với giao thức.
+
+### 2.5 `domain/entities/` - `BaseEntity`
+
+Base class cung cấp: `id`, `createdAt`, `updatedAt`, `deletedAt` và helper `isDeleted`.
+
+### 2.6 `domain/utils/` - Tiện ích dùng chung
+
+| File | Vai trò |
+|---|---|
+| `object-id.util.ts` | Validate `ObjectId` 24 hex |
+| `realtime-events.ts` | Hằng số tên phòng & sự kiện realtime |
+| `chart-data.util.ts` | Chuẩn hoá dữ liệu biểu đồ |
+| `device-detector.util.ts` | Nhận diện thiết bị từ User-Agent |
+| `duration.util.ts` | Định dạng thời lượng |
+| `email-templates.ts` | Template email dùng chung |
+| `missing-tokens.util.ts` | Phát hiện token thiếu trong chuỗi |
+| `list-cursor.ts` | Cursor cho danh sách dài hạn |
+
+### 2.7 `domain/validation/` - Schema Zod dùng chung
+
+`common-schemas.ts` chứa các schema tái sử dụng: `ObjectIdSchema`, `EmailSchema`, `PasswordSchema`, `PaginationSchema`...
+
+---
+
+## 3. `shared/application` - Port
+
+Port là **hợp đồng** (interface) mà tầng Infrastructure hiện thực. Tầng Application chỉ biết port, không biết MongoDB/Kafka/S3.
+
+| Port | Trách nhiệm | Hiện thực mặc định |
+|---|---|---|
+| `event-publisher.port.ts` | Phát domain event | `HybridEventPublisher` |
+| `domain-event-handler.port.ts` | Đăng ký handler cho event | `DomainEventHandlerRegistry` |
+| `outbox.port.ts` | Ghi/đọc outbox event | `OutboxService` + `OutboxRelayService` |
+| `storage.port.ts` | Lưu & tải file | `StorageService` (S3/R2 hoặc local) |
+| `push.port.ts` | Gửi push notification | `NtfyPushSenderAdapter` |
+| `email.port.ts` | Gửi email | `SmtpEmailSenderAdapter` |
+| `realtime.port.ts` | Đẩy sự kiện realtime | `SocketIoRealtimeTransport` |
+| `transaction.port.ts` | Chạy callback trong transaction | `MongooseTransactionService` |
+| `workspace-context.port.ts` | Resolve vai trò workspace của user | `WorkspaceContextAdapter` |
+| `project-context.port.ts` | Resolve vai trò project của user | `ProjectContextAdapter` |
+
+Hai context port là **fail-safe**: lỗi truy vấn trả về tập rỗng thay vì ném, để sự cố hạ tầng không chặn oan người dùng hợp lệ.
+## 4. `shared/infrastructure` - Adapter
+
+### 4.1 `infrastructure/config/env.validation.ts`
+
+Validate toàn bộ biến môi trường bằng Zod **lúc khởi động**. Sai cấu hình → ứng dụng **fail fast** thay vì chạy với giá trị mặc định sai. Ví dụ `DATA_ENCRYPTION_KEY` phải đúng 64 hex; `JWT_*_SECRET` phải ≥ 32 ký tự.
+
+### 4.2 `infrastructure/database/`
+
+| File | Vai trò |
+|---|---|
+| `database.module.ts` | Khai báo `MongooseModule.forRootAsync`, cấu hình connection pool |
+| `base-mongo.repository.ts` | Base repository: soft-delete filter, phân trang, mapping chung |
+| `mongoose-transaction.service.ts` | Hiện thực `TransactionPort` - `withTransaction(fn)` |
+| `mongo-session-context.ts` | Truyền session MongoDB qua `AsyncLocalStorage` cho repository |
+
+### 4.3 `infrastructure/events/` - Event Bus
+
+| File | Vai trò |
+|---|---|
+| `hybrid-event.publisher.ts` | Chọn publisher theo môi trường: có `KAFKA_BROKERS` → Kafka, không → in-process |
+| `in-process-event.publisher.ts` | Phát event đồng bộ trong tiến trình (mặc định, dev) |
+| `kafka-event.publisher.ts` | Phát event lên Kafka topic |
+| `kafka-consumer.service.ts` | Consumer Kafka cho worker |
+| `event-dispatcher.service.ts` | Định tuyến domain event → phòng WebSocket |
+| `domain-event-handler.registry.ts` | Registry handler theo tên event |
+
+**Điểm quan trọng:** `EventDispatcherService` **không được phá vỡ luồng nghiệp vụ lõi** khi realtime lỗi. Lỗi realtime được log và nuốt, không rollback transaction đã commit.
+
+### 4.4 `infrastructure/outbox/` - Outbox & Inbox
+
+| File | Vai trò |
+|---|---|
+| `outbox-event.schema.ts` | Schema MongoDB cho `outbox_events` |
+| `processed-event.schema.ts` | Schema MongoDB cho `processed_events` (inbox) |
+| `outbox.service.ts` | Ghi outbox event trong cùng transaction với entity |
+| `outbox-relay.service.ts` | Poll outbox (chu kỳ 30s), publish, cập nhật trạng thái |
+| `inbox.service.ts` | Idempotency at-least-once theo cặp `(consumer_name, event_id)` |
+
+**Vòng đời outbox event:**
+
+```text
+PENDING -> PROCESSING -> PUBLISHED
+                   |
+                   +-> FAILED (sau N lần retry)
 ```
-Request 
-  ──► JwtAuthGuard (Xác thực danh tính / Bỏ qua nếu có @Public)
-  ──► PoliciesGuard (Kiểm tra quyền CASL trên Resource)
-  ──► ZodValidationPipe (Kiểm thực và ép kiểu Schema)
-  ──► Controller Handler (Xử lý logic nghiệp vụ)
-  ──► LoggingInterceptor (Ghi log an toàn đã mask PII)
-  ──► Response
+
+### 4.5 `infrastructure/storage/`
+
+`StorageService` hiện thực `StoragePort` với hai chế độ:
+
+- **S3-compatible** (Cloudflare R2): khi có `S3_ENDPOINT` + `S3_BUCKET_NAME`.
+- **Local filesystem**: mặc định, lưu trong `storage/`.
+
+Cùng một interface nên module không cần biết backend lưu trữ nào đang dùng.
+
+### 4.6 `infrastructure/adapters/`
+
+| File | Vai trò |
+|---|---|
+| `ntfy-push-sender.adapter.ts` | Gửi push qua ntfy.sh |
+| `smtp-email-sender.adapter.ts` | Gửi email qua SMTP |
+
+---
+
+## 5. `shared/interfaces` - Tầng Framework
+
+### 5.1 `interfaces/casl/` - Phân quyền CASL
+
+| File | Vai trò |
+|---|---|
+| `casl-ability.factory.ts` | Tạo `PureAbility` từ subject + context |
+| `policies.guard.ts` | Guard thực thi kiểm tra 2 tầng |
+| `check-policies.decorator.ts` | `@CheckPolicies(...)` khai báo yêu cầu trên handler |
+| `policy-resource.decorator.ts` | `@PolicyResource(...)` khai báo cách nạp resource |
+| `current-resource.decorator.ts` | Inject resource đã nạp vào handler |
+| `subject.helper.ts` | Chuẩn hoá subject object → tên subject |
+
+**Kiểm tra 2 tầng trong `PoliciesGuard`:**
+
+1. **Static:** so khớp tên subject với hành động (không cần truy vấn DB).
+2. **Dynamic:** nạp resource thật qua policy loader rồi kiểm tra thuộc tính instance (`workspace_id`, `owner_id`...). Đây là lá chắn **IDOR**.
+
+**Xử lý subject dạng object:** nếu subject là object `{ __type: 'Project' }`, guard phải trích `__type` ra thành chuỗi trước khi `can()`. Nếu không, static check pass nhưng dynamic check fail - đây là lỗi đã được sửa và có test riêng trong `test/policies-guard.spec.ts`.
+
+### 5.2 `interfaces/guards/`
+
+| File | Vai trò |
+|---|---|
+| `jwt-auth.guard.ts` | Xác thực Bearer token, trừ route `@Public()` |
+| `roles.guard.ts` | Kiểm tra vai trò hệ thống (`admin`, `analyst`) |
+
+### 5.3 `interfaces/decorators/`
+
+| File | Vai trò |
+|---|---|
+| `current-user.decorator.ts` | Inject `CurrentUser` vào handler |
+| `public.decorator.ts` | `@Public()` - mở route không cần token |
+| `roles.decorator.ts` | `@Roles(...)` - yêu cầu vai trò hệ thống |
+| `if-match.decorator.ts` | `@IfMatch()` - header `If-Match` cho optimistic locking |
+
+### 5.4 `interfaces/pipes/zod-validation.pipe.ts`
+
+Validate body/query/param bằng Zod schema. Lỗi trả **400** với payload có cấu trúc (danh sách field + message), không phải stack trace.
+
+### 5.5 `interfaces/filters/all-exceptions.filter.ts`
+
+Chuyển mọi exception thành response thống nhất:
+
+```json
+{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "message": "...",
+  "errorCode": "DQ_VALIDATION_ERROR",
+  "requestId": "...",
+  "timestamp": "...",
+  "path": "/api/v1/..."
+}
 ```
 
+### 5.6 `interfaces/interceptors/`
+
+| File | Vai trò |
+|---|---|
+| `transform.interceptor.ts` | Bọc response vào envelope `{ data, meta }` |
+| `logging.interceptor.ts` | Log request kèm `requestId` và thời gian xử lý |
+
+### 5.7 `interfaces/middleware/request-id.middleware.ts`
+
+Sinh `requestId` cho mỗi request, gắn vào response header và log context.
+
+### 5.8 `interfaces/swagger/`
+
+`api-zod.decorator.ts` + `zod-openapi.ts` sinh OpenAPI schema **trực tiếp từ Zod schema** - không khai báo trùng lặp DTO cho Swagger.
+
 ---
 
-## 5. Danh mục Providers & Tiện ích Xuất bản (Exported Contracts)
+## 6. Quy ước đặt tên
 
-| Provider / Utility | Thư mục | Mục đích Nghiệp vụ |
-| :--- | :--- | :--- |
-| `CaslAbilityFactory` | `src/shared/casl/` | Tạo đối tượng `AppAbility` tương ứng với vai trò và ngữ cảnh người dùng |
-| `PoliciesGuard` | `src/shared/casl/` | Guard kiểm tra quyền hạn đa tầng (Static $\rightarrow$ Instance) |
-| `@CurrentResource()` | `src/shared/casl/` | Decorator inject thực thể đã nạp trong Guard vào Controller |
-| `MongooseTransactionService` | `src/shared/database/` | Dịch vụ bọc khối lệnh trong MongoDB Multi-document Transaction |
-| `BaseMongoRepository<T>` | `src/shared/database/` | Lớp cơ sở trừu tượng cho Repository, tự động lọc `deleted_at: null` |
-| `StorageService` | `src/shared/storage/` | Dịch vụ tải tệp, kiểm tra hạn mức Quota 10GB trên Cloudflare R2 |
-| `CryptoUtil` | `src/shared/crypto/` | Tiện ích băm Bcrypt, SHA-256, mã hóa dòng AES-256-GCM |
-| `sanitizeObjectForLog` | `src/shared/crypto/` | Làm sạch đối tượng trước khi log (ẩn password, token, PII) |
-| `@ApiZodBody()`, `@ApiZodQuery()` | `src/shared/swagger/` | Tự động sinh đặc tả OpenAPI 3.0 cho Swagger UI từ Zod Schema |
+| Tiền tố / hậu tố | Ý nghĩa |
+|---|---|
+| `*.port.ts` | Interface hợp đồng (tầng Application) |
+| `*.adapter.ts` | Hiện thực của port (tầng Infrastructure) |
+| `*.service.ts` | Lớp dịch vụ dùng chung |
+| `*.guard.ts` | Guard của NestJS |
+| `*.decorator.ts` | Decorator |
+| `*.util.ts` | Hàm thuần, không trạng thái |
+| `*.vo.ts` | Value Object bất biến |
+| `*.entity.ts` | Entity có hành vi |
+| `*.schema.ts` | Schema Mongoose |
 
 ---
 
-## 6. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+## 7. Kiểm thử liên quan
 
-### 6.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
-- **AsyncLocalStorage cho Transaction:** Mang lại kiến trúc code cực kỳ sạch sẽ và an toàn, nhưng phụ thuộc vào tính năng ngữ cảnh bất đồng bộ của Node.js runtime (tương thích hoàn toàn từ Node.js v16+).
-- **Zod-to-JSON-Schema thay cho Class-Validator:** Loại bỏ hoàn toàn sự phụ thuộc vào decorator reflection và cho phép suy diễn kiểu dữ liệu 100% tự nhiên (`z.infer<typeof Schema>`), đáp ứng tuyệt đối nguyên tắc **Zero Any**.
-
-### 6.2. Lịch sử Thay đổi (Change Log)
-- `v1.3.0` (2026-10-24):
-  - *Thay đổi gì:* Nâng cấp tài liệu sang chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid liên kết các phân hệ và mô tả chuỗi lọc bảo vệ Zero-Trust.
-  - *Lý do:* Giúp người xem nắm bắt nền tảng kỹ thuật của toàn bộ dự án mà không cần đọc code.
-- `v1.2.0` (2026-10-21):
-  - *Thay đổi gì:* Tích hợp CASL ABAC, Zod-OpenAPI Swagger Bridge, AsyncLocalStorage Mongo Transaction và PII Masking.
-- `v1.0.0` (2026-10-20):
-  - *Thay đổi gì:* Khởi tạo khung hạ tầng shared, CryptoUtil, StorageService và BaseMongoRepository.
+| File spec | Phạm vi |
+|---|---|
+| `test/policies-guard.spec.ts` | CASL 2 tầng, IDOR, context port |
+| `test/event-dispatcher.spec.ts` | Realtime routing, inbox idempotency, registry |
+| `test/realtime-gateway.spec.ts` | WebSocket handshake, phòng, quyền |
+| `test/ai-adapters-outbox.spec.ts` | LocalInferenceAdapter, ResourceGuard, OutboxRelay |
+| `test/integration/record-query.spec.ts` | Keyset pagination, null sorting |
+| `test/mongo-session-arch.spec.ts` | Truyền session MongoDB qua AsyncLocalStorage |

@@ -417,8 +417,8 @@ Lộ trình triển khai được chia thành **5 Giai đoạn tuần tự**, tu
 ## 7. Kết luận & Các bước Tiếp theo
 
 Tài liệu này là bản kim chỉ nam kỹ thuật chuẩn xác, kết nối chặt chẽ:
-- Đặc tả tính năng tại [feature_spec_v4.md](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/feature_spec_v4.md)
-- Giải pháp kỹ thuật tại [tech_solution_v2.md](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/tech_solution_v2.md)
-- Thiết kế AI tại [factors_design_AI_v2.md](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/factors_design_AI_v2.md)
+- Đặc tả tính năng tại [feature_spec_v4.md](./feature_spec_v4.md)
+- Giải pháp kỹ thuật tại [tech_solution_v2.md](./tech_solution_v2.md)
+- Thiết kế AI tại [factors_design_AI_v2.md](./factors_design_AI_v2.md)
 
 Khi bạn xem xét và phê duyệt bản kế hoạch này, chúng ta sẽ bắt đầu thực thi **Giai đoạn 1 (Sprint 1)**: Thiết lập file `docker-compose.yml`, tạo cấu trúc thư mục `src/backend` và `src/frontend`.

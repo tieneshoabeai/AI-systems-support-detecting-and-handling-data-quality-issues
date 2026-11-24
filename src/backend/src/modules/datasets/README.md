@@ -1,101 +1,205 @@
-# DATASETS INGESTION MODULE SPECIFICATION & OVERVIEW
-
-## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
-Module `datasets` là cổng tiếp nhận dữ liệu đầu vào (Ingestion Gateway) của toàn bộ nền tảng Data Quality. Module này chịu trách nhiệm tiếp nhận các tệp dữ liệu bảng thô (CSV/Excel) với kích thước từ vài chục đến hàng trăm megabytes, xác thực tính hợp lệ, tính toán tính toàn vẹn và phân phối dữ liệu an toàn vào hạ tầng lưu trữ mà không làm suy giảm hiệu năng hay tràn bộ nhớ máy chủ.
-
-- **Vị trí trong hệ thống:**
-  - **Đầu vào (Input):** Người dùng (`Editor` hoặc `Owner`) tải lên tệp CSV/Excel qua REST API Multipart Form.
-  - **Hạ tầng lưu trữ:** Tệp thô nguyên bản được lưu trữ trên **Cloudflare R2**; Từng dòng dữ liệu sau phân tách được lưu vào **MongoDB Atlas** (`dataset_records`).
-  - **Đầu ra (Output):** Phát sự kiện `DATASET_INGESTED` vào bảng `outbox_events` để ghi nhận nội bộ và phục vụ hiển thị trên **DataViewModule** (dữ liệu bất biến — không dựng đồ thị phả hệ).
+# `datasets` — Template: Hexagonal
+- Vì sao Hexagonal: 2 schema/2 repo + tx strict + policy + cascade OPEN-09
+- Bất biến chính: tx strict `resolveMongoSession`, INSERT-ONLY `dataset_records`, `RECORD_QUERY_PORT` cho data-view/analysis (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
 
 ---
+# MÔ-ĐUN `datasets` — Tiếp nhận & Lưu trữ dữ liệu
 
-## 2. Kiến trúc & Luồng Dữ liệu Trực quan (Architecture & Data Flow)
-Hệ thống sử dụng cơ chế **Truyền phát đa nhánh song song (Multiplexing Stream)**: tệp tải lên được đọc theo từng phân đoạn (chunk-by-chunk) qua `busboy`, nhân bản thành 3 nhánh xử lý độc lập đồng thời trong RAM (duy trì mức tiêu thụ RAM $\le 20\text{ MB}$):
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client as Người dùng (Editor/Owner)
-    participant Ctrl as DatasetsController
-    participant Svc as DatasetsService
-    participant R2 as Cloudflare R2
-    participant Mongo as MongoDB Atlas
-    participant Outbox as Outbox Queue
+## 1. Thông tin phiên bản
 
-    Client->>Ctrl: POST /projects/:id/datasets/upload (Multipart Stream)
-    Ctrl->>Svc: Điều phối luồng dữ liệu (Multiplexing Stream)
-    
-    par Nhánh 1: Tính toán Checksum
-        Svc->>Svc: SHA-256 on-the-fly (file_checksum)
-    and Nhánh 2: Lưu trữ tệp thô
-        Svc->>R2: Stream Upload raw_files/{id}_{name} (Kiểm tra Quota 10GB)
-    and Nhánh 3: Phân tích & Nạp CSDL
-        Svc->>Svc: Suy luận Schema (100 dòng đầu: type, null_count)
-        Svc->>Mongo: bulkWrite theo mẻ 1.000 dòng vào dataset_records
-    end
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/datasets` (33 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-    Svc->>Mongo: Ghi Metadata vào collection datasets
-    Svc->>Outbox: Ghi sự kiện DATASET_INGESTED (ghi nhận nội bộ)
-    Svc-->>Client: Trả về Metadata Dataset & Cấu trúc Schema
+## 2. Mục đích & Phạm vi nghiệp vụ
+
+Mô-đun chịu trách nhiệm **nhập dữ liệu CSV** và lưu trữ bất biến. Đây là nơi quyết định chất lượng dữ liệu đầu vào cho toàn hệ thống.
+
+> **Nguyên tắc bất di bất dịch:** dữ liệu dataset là **INSERT-ONLY**. Chỉ ghi một lần lúc nhập. Không có `deleted_at`, không có `version_number`, không cập nhật, không xoá từng dòng.
+
+### 2.1. Tính năng thuộc phạm vi
+
+| Chức năng | Nội dung |
+|---|---|
+| Nhập CSV | Streaming, phát hiện dấu phân cách, suy luận schema, ghi bản ghi theo lô |
+| Schema & cột | Suy luận kiểu dữ liệu, đếm giá trị thiếu, đánh dấu cột PII |
+| Phát hiện vấn đề | Phát hiện vấn đề ở mức dataset (cột) và mức dòng |
+| Truy vấn | Đọc bản ghi, schema, tải tệp gốc |
+| Xoá | Xoá mềm dataset + xoá tệp trên R2 |
+| Cascade | Xoá dataset khi project bị xoá |
+
+### 2.2. Cấu trúc thư mục
+
+```text
+datasets/
+|-- domain/
+|   |-- entities/dataset.entity.ts
+|   |-- value-objects/
+|   |   |-- column-type.vo.ts        # string | number | boolean | date
+|   |   |-- dataset-limits.vo.ts     # giới hạn & quy tắc nhập
+|   |   `-- value-coercion.vo.ts     # chuẩn hoá giá trị theo kiểu cột
+|   |-- events/dataset-events.ts
+|   |-- ports/
+|   |   |-- dataset.repository.port.ts
+|   |   `-- record-query.port.ts
+|   `-- services/
+|       |-- csv-delimiter.util.ts    # nhận diện dấu phân cách
+|       |-- finding.util.ts          # chuẩn hoá finding
+|       `-- pii-heuristic.util.ts    # suy luận cột PII
+|-- application/
+|   |-- commands/
+|   |   |-- ingest-dataset-stream.handler.ts   # handler nhập CSV
+|   |   |-- delete-dataset.handler.ts
+|   |   |-- cascade-project-datasets.handler.ts
+|   |   |-- cascade-dataset-event.subscriber.ts
+|   |   `-- map-props-to-original-names.handler.ts
+|   |-- queries/                     # 4 query handler
+|   |-- services/
+|   |   |-- schema-inference.service.ts
+|   |   `-- dataset-finding.service.ts
+|   `-- policy-loaders/dataset-policy.loader.ts
+|-- infrastructure/persistence/
+|   |-- dataset.schema.ts            # metadata + columns + findings
+|   |-- dataset-record.schema.ts     # dòng dữ liệu (INSERT-ONLY)
+|   |-- datasets.repository.ts
+|   |-- record-query.repository.ts   # phân trang keyset + aggregation
+|   `-- dataset.mapper.ts
+`-- presentation/
+    |-- controllers/datasets.controller.ts
+    `-- responses/dataset.response.ts
 ```
 
----
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Nhập dữ liệu CSV **một lần, không sửa, không xoá** và làm cho mọi thứ ở hạ nguồn đều có thể tin vào tuyến dữ liệu gốc. Đồng thời tự động phát hiện vấn đề chất lượng dữ liệu ngay khi nhập, thay vì để người dùng phải đối chiếu thủ công.
 
-### 3.1. Phân tách Thực thể Dữ liệu (Separation of Concerns)
-Nhằm tối ưu hóa hiệu năng đọc/ghi, cấu trúc dữ liệu được phân rã thành hai collection độc lập:
-- **`datasets` (Metadata):** Lưu thông tin mô tả, kích thước byte, số dòng, trạng thái kiểm tra tính toàn vẹn (`file_checksum`), cấu trúc lược đồ các cột (`columns`: tên cột, kiểu dữ liệu, số lượng null) và liên kết với Project.
-- **`dataset_records` (Data Rows):** Lưu từng dòng dữ liệu thô dạng JSON (`raw_data`) kèm chỉ số thứ tự `row_index` để phục vụ phân trang con trỏ (Keyset Pagination) tốc độ cao ở các module sau.
+- **Lập luận kỹ thuật & Quyết định:**
 
-### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
-- **Zero In-Memory Storage:** Không bao giờ nạp toàn bộ tệp vào RAM hoặc ghi tệp tạm vào ổ đĩa cục bộ của máy chủ (ngăn ngừa nguy cơ cạn kiệt tài nguyên hệ thống).
-- **Hạn mức Lưu trữ (Storage Quota):** Bắt buộc gọi `StorageService.checkUploadQuota()` trước và trong khi stream. Từ chối yêu cầu ngay lập tức với HTTP 413 nếu chạm ngưỡng 10GB của Cloudflare R2.
-- **Toàn vẹn Dữ liệu (Checksum Integrity):** `file_checksum` phải khớp chính xác với chuỗi băm SHA-256 tính trực tiếp từ luồng byte thô.
-- **Tính Bền vững & Dọn dẹp (Fault Tolerance Rollback):** Nếu việc upload lên R2 gặp sự cố hoặc tệp CSV hỏng cấu trúc giữa chừng, hệ thống tự động xóa sạch toàn bộ các bản ghi đã nạp dở dang trong `dataset_records` để tránh dữ liệu rác.
+1. **Streaming, không nạp toàn bộ tệp vào RAM.** Tệp 500 MB nạp vào RAM sẽ gây OOM. Streaming giữ mức tiêu thụ ổn định khoảng 20 MB bất kể tệp lớn bao nhiêu. Đây là cam kết hiệu năng có bằng chứng.
 
----
+2. **Chèn hàng loạt theo lô (`IMPORT_BATCH_SIZE = 5000`).** Một lệnh chèn cho 5.000 dòng nhanh hơn 5.000 lệnh chèn đơn. Kích thước lô cân bằng giữa hiệu năng và áp lực bộ nhớ.
 
-## 4. Ma trận Phân quyền & Bảo mật (Access Control & Security)
+3. **Khoá cột bất biến `c0`, `c1`, ... `cN`.** Khoá này **không bao giờ đổi**, kể cả khi người dùng đổi tên cột. Giá trị trong `dataset_record.props` lưu theo khoá này. `map-props-to-original-names.handler.ts` chuyển đổi props theo tên gốc khi xuất báo cáo, để người đọc thấy đúng tên cột trong tệp CSV gốc.
 
-| Hành động | Quyền tối thiểu | Cơ chế kiểm tra bảo mật |
-| :--- | :---: | :--- |
-| **Upload Dataset** | `Editor` | `JwtAuthGuard` + `PoliciesGuard` (Quyền sửa trên Workspace sở hữu Project) |
-| **Xem Chi tiết & Metadata** | `Viewer` | `JwtAuthGuard` + `PoliciesGuard` (Quyền đọc dữ liệu trong Workspace) |
-| **Đổi tên / Cập nhật mô tả** | `Editor` | `JwtAuthGuard` + `PoliciesGuard` (Chỉ cập nhật thông tin mô tả, không sửa file gốc) |
-| **Xóa Dataset (Soft Delete)** | `Editor` | `JwtAuthGuard` + `PoliciesGuard` (Cập nhật `deleted_at`, giải phóng cờ `has_dataset`) |
+4. **Nhận diện dấu phân cách thay vì giả định `,`.** Tệp CSV thực tế hay dùng `;` (châu Âu) hoặc `\t` (TSV). `csv-delimiter.util.ts` đếm số lần xuất hiện của mỗi dấu ứng viên **ngoài** dấu nháy kép, chọn dấu nhất quán nhất giữa các dòng. Dấu phân cách lưu vào `dataset.delimiter` và dùng lại khi tải tệp gốc.
 
----
+5. **Suy luận PII từ tên cột + mẫu giá trị.** Cột chứa PII được đánh dấu `is_pii: true` — frontend che giá trị mặc định, và `pii-mask.util.ts` của mô-đun `analysis` che PII trước khi gửi cho AI.
 
-## 5. Đặc tả Giao tiếp & Sự kiện (API & Event Contracts)
+6. **Chỉ lấy `SAMPLE_ROWS_CAP = 500` dòng để suy luận schema.** Đọc cả tệp để suy luận kiểu dữ liệu là dư thừa; 500 dòng vừa đủ chính xác vừa nhanh.
 
-### 5.1. REST API Endpoints
-| Method | Endpoint | Input | Output Chính | Mô tả Nghiệp vụ |
-| :---: | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/projects/:projectId/datasets/upload` | `multipart/form-data` | `IDataset` (JSON) | Tiếp nhận file stream, phân nhánh lưu trữ và nạp dữ liệu |
-| `GET` | `/api/v1/datasets/:id` | Route Param `id` | `IDataset` (JSON) | Trả về thông tin tệp, tổng số dòng và schema các cột |
-| `PATCH` | `/api/v1/datasets/:id` | `UpdateDatasetDto` | `IDataset` (JSON) | Chỉnh sửa tên hiển thị và mô tả nghiệp vụ |
-| `DELETE` | `/api/v1/datasets/:id` | Route Param `id` | `{ message: string }` | Đánh dấu xóa mềm, ẩn khỏi danh sách truy vấn |
+7. **Finding chuẩn hoá qua `finding.util.ts`.** Cùng một loại finding luôn có cùng hình dạng — quan trọng cho giao diện và cho AI đọc.
 
-### 5.2. Sự kiện Bất đồng bộ (Asynchronous Events)
-- **`DATASET_INGESTED`**: Phát sinh ngay sau khi nạp thành công.
-  - *Payload tóm tắt:* `{ dataset_id, project_id, file_checksum, row_count, storage_key }`.
-  - *Mục đích:* Báo hiệu cho `OutboxProcessorWorker` ghi nhận sự kiện nạp dataset (dữ liệu bất biến — không dựng đồ thị nguồn gốc, các module đồ thị cũ đã loại bỏ).
+8. **Ghi metadata dataset trong transaction trước, ghi bản ghi sau.** Nếu ghi bản ghi thất bại, metadata còn lại có thể dọn bằng xoá mềm dataset, chỉ tồn tại một bản ghi rác tạm thời.
 
----
+- **Hiện vật đã tạo / đã sửa:**
 
-## 6. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+- `domain/value-objects/dataset-limits.vo.ts` — `MAX_FILE_BYTES` (50 MB), `MAX_COLUMNS` (1000), `IMPORT_BATCH_SIZE` (5000), `SAMPLE_ROWS_CAP` (500), `assertCsvFile`, `assertFileSize`, `assertColumnLimit`, `storageKeyForDataset`.
+- `domain/services/csv-delimiter.util.ts` — nhận diện dấu phân cách.
+- `domain/services/pii-heuristic.util.ts` — suy luận cột PII từ tên + mẫu giá trị.
+- `domain/value-objects/value-coercion.vo.ts` — chuẩn hoá giá trị theo kiểu cột.
+- `application/services/schema-inference.service.ts` — suy luận kiểu cột, đếm thiếu, suy luận PII.
+- `application/commands/ingest-dataset-stream.handler.ts` — luồng nhập chính.
+- `infrastructure/persistence/record-query.repository.ts` — phân trang keyset + aggregation (2 giai đoạn, sắp xếp null).
 
-### 6.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
-- **Suy luận Schema trên 100 dòng đầu:** Thay vì quét toàn bộ hàng triệu dòng (gây nghẽn CPU và tăng độ trễ lên hàng chục giây), hệ thống chỉ lấy mẫu 100 dòng đầu tiên để suy luận kiểu dữ liệu (`number`, `string`, `date`, `boolean`). Đánh đổi: Có xác suất nhỏ suy luận sai nếu 100 dòng đầu toàn giá trị rỗng.
-- **BulkWrite 1.000 bản ghi/mẻ:** Cân bằng tối ưu giữa kích thước gói tin gửi qua mạng tới MongoDB Atlas và mức tiêu thụ bộ nhớ đệm Node.js.
+## 4. Đặc tả giao tiếp kỹ thuật
 
-### 6.2. Lịch sử Thay đổi (Change Log)
-- `v1.1.0` (2026-10-24):
-  - *Thay đổi gì:* Tái cấu trúc tài liệu theo chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid và ma trận bảo mật.
-  - *Lý do:* Nâng cao chất lượng tài liệu giúp người xem hiểu toàn diện luồng hoạt động mà không cần đọc code.
-  - *Ảnh hưởng:* Cập nhật tài liệu kỹ thuật, không ảnh hưởng đến mã nguồn thực thi.
-- `v1.0.0` (2026-10-23):
-  - *Thay đổi gì:* Hoàn thành triển khai Ingestion Multiplexing Stream, Schema Inference và kiểm thử.
-  - *Lý do:* Hiện thực hóa Sprint B2 theo yêu cầu kỹ thuật.
+### 4.1. Điểm cuối (Endpoints)
+
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/v1/projects/:projectId/datasets/upload` | `Action.Create` | Tải lên CSV (multipart) |
+| `GET` | `/api/v1/projects/:projectId/datasets` | `Action.Read` | Danh sách dataset của project |
+| `GET` | `/api/v1/datasets/:id` | `Action.Read` | Chi tiết dataset |
+| `DELETE` | `/api/v1/datasets/:id` | `Action.Delete` | Xoá mềm dataset + tệp |
+| `GET` | `/api/v1/datasets/:id/file` | `Action.Read` | Tải tệp CSV gốc |
+| `GET` | `/api/v1/datasets/:id/schema` | `Action.Read` | Schema & thống kê cột |
+
+> **Không có route cập nhật cột.** Dataset là **bất biến** sau khi nạp: không có `PATCH /datasets/:id`, `PATCH /datasets/:id/columns`, `POST /datasets/:id/columns/reset` hay `PATCH /datasets/:id/columns/pii`. Cờ PII được **tự suy** từ tên cột bởi `pii-heuristic.util.ts` (không bật/tắt tay).
+
+> **Xoá dataset — route duy nhất là `DELETE /datasets/:id`.**
+> Không tồn tại `DELETE /projects/:projectId/datasets`. Lý do: xoá dataset sẽ **gỡ cờ `hasDataset` của project** và **trừ dung lượng đã dùng của workspace** (cả hai trong cùng một transaction — OPEN-09), nên đặt route ở gốc hợp lý hơn.
+>
+> Luồng gọi phía frontend:
+> 1. `GET /api/v1/projects/:projectId/datasets` → lấy `dataset.id`
+> 2. `DELETE /api/v1/datasets/:id` → xoá mềm dataset + giải phóng dung lượng
+
+### 4.2. Giao diện / Provider được xuất ra ngoài
+
+`src/backend/src/modules/datasets/index.ts` xuất hợp đồng công khai:
+
+| Tên xuất | Vai trò |
+|---|---|
+| `DatasetsModule` | Mô-đun Nest |
+| Thực thể `Dataset`, `ColumnDefinition` | Hợp đồng domain |
+| `DATASET_REPOSITORY_PORT` | Cổng truy vấn metadata dataset |
+| `RECORD_QUERY_PORT` | Cổng truy vấn bản ghi (keyset + aggregation) |
+
+### 4.3. Sự kiện domain phát ra
+
+| Sự kiện | Khi nào | Mục đích |
+|---|---|---|
+| `dataset.created` | Nhập thành công | Thông báo + audit log |
+| `dataset.imported` | Hoàn tất ghi bản ghi | Thông báo + audit log |
+| `DATASET_DELETED` | Xoá dataset | Kích hoạt xoá tệp và cascade |
+
+## 5. Ràng buộc & Tiêu chuẩn bất biến
+
+### 5.1. Bất biến nghiệp vụ
+
+- Chỉ chấp nhận đuôi `.csv` (`assertCsvFile`).
+- Tệp vượt `MAX_FILE_BYTES` (50 MB) bị từ chối **trước** khi đọc bất kỳ byte nào.
+- Số cột vượt `MAX_COLUMNS` (1000) bị từ chối.
+- **Không bao giờ** `update` hoặc `delete` một `dataset_record` — collection này là INSERT-ONLY.
+- Mỗi dòng gốc có **đúng một** bản ghi: unique index `{ dataset_id: 1, row_index: 1 }`.
+- Khoá cột bất biến `c{i}` không đổi theo thời gian, kể cả khi đổi tên cột.
+- `row_count` và `column_count` phải khớp với số dòng / số cột thực tế sau khi nhập.
+- Khoá lưu trữ luôn theo mẫu `raw_files/{datasetId}.csv`.
+
+### 5.2. Xoá mềm (Soft Delete)
+
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
+
+### 5.3. Bảo mật
+
+| Vấn đề | Cách xử lý |
+|---|---|
+| Tệp không phải CSV | `assertCsvFile` — chỉ chấp nhận `.csv` |
+| Tệp quá lớn gây OOM | `assertFileSize` + streaming + `ANALYSIS_MAX_ROWS` |
+| Đọc tệp của dataset người khác | Policy loader nạp instance + kiểm tra `projectId` |
+| Lộ PII | Đánh dấu `is_pii`, che giá trị mặc định, che trước khi gửi AI |
+| Truy cập trực tiếp tệp gốc | Chỉ qua route có policy, không lộ tệp trực tiếp ra bucket công khai |
+| Xoá tệp gốc còn sót | Cascade xoá tệp trong transaction |
+
+### 5.4. Phân quyền
+
+| Tuyến đường | Chính sách |
+|---|---|
+| `POST /projects/:projectId/datasets/upload` | `Action.Create` trên `Dataset` |
+| `GET /projects/:projectId/datasets` | `Action.Read` |
+| `GET /datasets/:id`, `/file`, `/schema` | `Action.Read` + policy loader kiểm tra instance |
+| `DELETE /datasets/:id` | `Action.Delete` |
+
+> Dataset **không** có vai trò riêng. Quyền trên dataset suy ra từ quyền trên project chứa nó (qua `projectId`).
+> Dataset bất biến sau khi nạp → không có route cập nhật metadata cột (chỉ đọc + xoá mềm + tải tệp).
+
+## 6. Lịch sử thay đổi
+
+### 2026-11-21
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
+
+### 2026-11-XX
+- **v1.0.0** / 2026-11-XX / Bổ sung `csv-delimiter.util.ts` nhận diện `;` và `\t` / CSV thực tế không phải luôn dùng dấu phẩy / `modules/datasets`
+- **v0.9.5** / 2026-11-XX / Bổ sung `pii-heuristic.util.ts` tự suy cột PII từ tên cột / Route `PATCH /datasets/:id/columns/pii` bị gỡ (OPEN-03/04) / `modules/datasets`
+- **v0.9.0** / 2026-11-XX / Bổ sung `dataset-finding.service.ts` sinh finding mức cột và mức dòng / Tự động phát hiện vấn đề ngay khi nhập / `modules/datasets`
+- **v0.8.0** / 2026-11-XX / Chuyển sang nhập streaming + chèn hàng loạt theo lô 5000 dòng / Giữ mức tiêu thụ RAM khoảng 20 MB / `modules/datasets`
+- **v0.7.0** / 2026-11-XX / Bổ sung cascade xoá dataset khi project bị xoá, bọc transaction / Bảo đảm nhất quán / `modules/datasets`, `modules/projects`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun, bỏ các lệnh đổi tên cột / Làm dataset hoàn toàn chỉ đọc / `modules/datasets`
+
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

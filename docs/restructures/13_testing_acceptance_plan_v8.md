@@ -2,14 +2,14 @@
 
 - **Version:** v8
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v8)
-- **Thay đổi v8 (2026-11-17):** bổ sung mục 3.20 — Test bổ sung cho hoàn thiện module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.21 — Test bổ sung đợt D/E module analysis (đã thực hiện).
+- **Cập nhật gần nhất:** 2026-11-15 (v8)
 - **Trạng thái:** Đã chốt 17 quyết định kiểm thử và thiết kế chi tiết **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**), ma trận truy xuết ngược **120 quy tắc kiểm thử** (S/C/I/O/M) + 79 tính năng + 66 use case + 85 endpoint, ngưỡng coverage theo tầng, checker kiến trúc tự động, `k6` cho hiệu năng, factory + seed cho dữ liệu test, **48** tình huống phân quyền tự động, và quy trình nghiệm thu 3 bước.
 - **Thay đổi v2 (2026-11-05):** đồng bộ theo quyết định **dữ liệu bất biến (chỉ đọc)** — bỏ toàn bộ test cho xoá dòng, sửa ô, clean-rules, rollback phiên bản, lineage; bổ sung test **insert-only** cho `dataset_record`; số liệu toàn tài liệu cập nhật (93 quy tắc / 77 tính năng / 62 use case / 80 endpoint / 21 collection / 34 tình huống phân quyền).
 - **Thay đổi v4 (2026-11-05):** áp dụng 4 quyết định kiến trúc. (1) **Cursor pagination** — thêm bộ test phân trang keyset (C9–C13) + quy tắc kiến trúc A15. (2) **Kafka + Socket.IO** — thêm container Kafka vào môi trường test, bộ test luồng sự kiện (I15–I21) và test realtime. (3) **AI cục bộ** — quyết định 8 viết lại (mock adapter, không bao giờ gọi network ra ngoài), thêm **Tầng 9 — Benchmark AI & học lại** (quyết định 15–17). (4) **Chỉ `.csv`** — test từ chối `.xlsx` (C13) + quy tắc A16. Ngoài ra: số liệu cập nhật (120 quy tắc / 79 tính năng / 66 use case / 85 endpoint / 48 tình huống phân quyền).
 - **Giai đoạn:** Chuẩn bị implementation/evaluation
 - **Thứ tự thực hiện:** Phần 13; sử dụng kết quả đã xác nhận của các phần trước.
-- **Quan hệ với các phần khác:** gom và kiểm chứng toàn bộ quy tắc đã chốt ở Phần 5 v2 (ports/adapters), Phần 6 v5 (phân quyền), Phần 7 v3 (contract), Phần 8 v4 (schema), Phần 9 v3 (integration), Phần 10 v4 (vận hành), Phần 11 v4 (migration), Phần 12 v6 (logic AI + DQ-05 có điều kiện + AI đánh giá tương quan/VIF); là điều kiện tiên quyết cho Phần 14.
+- **Quan hệ với các phần khác:** gom và kiểm chứng toàn bộ quy tắc đã chốt ở Phần 5 v2 (ports/adapters), Phần 6 v5 (phân quyền), Phần 7 v7 (contract), Phần 8 v4 (schema), Phần 9 v3 (integration), Phần 10 v4 (vận hành), Phần 11 v4 (migration), Phần 12 v6 (logic AI + DQ-05 có điều kiện + AI đánh giá tương quan/VIF); là điều kiện tiên quyết cho Phần 14.
+- **Thay đổi v8 (2026-11-15):** đồng bộ với Phần 7 v7 — `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` đã hiện thực hoá **keyset cursor** (bỏ `page`/`total`, thêm `cursor`/`limit`, `meta` có `nextCursor`+`hasMore`+`limit`). Bổ sung quy tắc **C14** (cursor ràng buộc theo `sort`) và **C15** (quy tắc kiến trúc A15 mở rộng: cấm `countDocuments`/`skip` cho endpoint list workspace/project); cập nhật ma trận 120 → **122 quy tắc**. Xem mục 3.11.2b.
 
 ## 1. Mục tiêu
 
@@ -657,7 +657,7 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | S22 | **v4** `finding_feedback` là **append-only** — không có `deleted_at` xoá cứng; `author_role_at_time` không bị ghi lại | 2, 4 | `feedback-immutable.spec.ts` | ☐ |
 | S23 | **v4** `feedback_example.trust_score < 0,6` → `is_active = false`; `expires_at` TTL 180 ngày | 4 | `feedback-example.spec.ts` | ☐ |
 
-#### 3.11.2. Quy tắc contract — C1–C8 (Phần 7 v2)
+#### 3.11.2. Quy tắc contract — C1–C15 (Phần 7 v7)
 
 | Mã | Nội dung rút gọn | Tầng | File test | Trạng thái |
 |---|---|---|---|---|
@@ -674,6 +674,26 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | C11 | **v4** Duyệt trang bằng cursor → **không trùng, không thiếu, không lệch thứ tự** so với offset (đối chiếu offline) | 5 | `api-cursor-pagination.spec.ts` | ☐ |
 | C12 | **v4** Chèn/xoá bản ghi giữa 2 lần đọc → cursor cũ vẫn đọc được dữ liệu **không bị bỏ sót** (tính chất keyset) | 5 | `api-cursor-pagination.spec.ts` | ☐ |
 | C13 | **v4** Upload file không phải `.csv` → `400` `UNSUPPORTED_FILE_TYPE` | 5 | `api-upload.spec.ts` | ☐ |
+| C14 | **v8** Cursor **ràng buộc theo `sort`** — sinh từ `sort=A` không dùng được cho `sort=B` → `VALIDATION_ERROR` (HTTP 400) | 1, 5 | `keyset-pagination.spec.ts`, `api-cursor-pagination.spec.ts` | ☑ |
+| C15 | **v8** Endpoint list workspace/project **không** dùng `countDocuments`/`skip` — `hasMore` suy ra từ `limit + 1` (tính chất keyset) | 1 | `clean-architecture.spec.ts` (A15) | ☑ |
+
+#### 3.11.2b. Bộ test keyset cursor — hiện thực hoá (v8, 2026-11-15)
+
+**Bộ test đã viết:** `test/keyset-pagination.spec.ts` (18 ca) + cập nhật `test/workspaces.spec.ts` (+2 ca) và `test/projects.spec.ts` (+2 ca).
+
+| Nhóm | Ca test | Phủ quy tắc |
+|---|---|---|
+| Encode / decode con trỏ | round-trip payload; cursor hỏng → `null`; cursor là base64url thuần (không lộ JSON) | C10 |
+| Parse con trỏ | `undefined` → trang đầu; cursor hợp lệ; cursor hỏng → `InvalidCursorError`; cursor sai `sort` → `InvalidCursorError` | C10, C14 |
+| Điều kiện MongoDB | sort ngày tăng/giảm dần xử lý đúng `null`; sort chuỗi dùng `$gt`/`$lt` + tiebreaker `_id`; `buildKeysetSort` luôn kèm `_id` | C11, C12 |
+| Trích giá trị sort | Date → ISO-8601; `null` → cờ `isNull`; chuỗi giữ nguyên | C11 |
+| Ánh xạ sort | mã hợp lệ → đặc tả; mã lạ → fallback mặc định | C14 |
+| In-memory (đường admin) | so sánh theo `name_asc`/`last_accessed`; `null` nằm cuối khi sort giảm dần; `isAfterCursor` lọc đúng; tiebreaker `_id` | C11, C12 |
+| Service layer | `meta` có `nextCursor`/`hasMore`/`limit`; **không** có `total`; cursor sai `sort` → `BadRequestException`; cursor hỏng → `BadRequestException` | C4, C9, C14 |
+
+**Kết quả chạy (2026-11-15):** 218 unit test + 52 E2E test + 16 test kiến trúc — tất cả PASS. ESLint: 0 error.
+
+**Kết quả thực thi trên MongoDB thật (cần chạy tay):** ma trận C11/C12 ở tầng 5 yêu cầu dữ liệu ≥ 3 trang để đối chiếu. Xem "Quy trình kiểm thử thủ công" trong `edit/06_buoc_2_a_bao_cao.md`.
 
 #### 3.11.3. Quy tắc integration — I1–I14 (Phần 9 v2)
 
@@ -777,16 +797,16 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | M28 | **v4** Mọi `dataset.file_format` = `csv` — dataset Excel cũ bị bỏ qua kèm cảnh báo | 5 | `migration-verify.spec.ts` | ☐ |
 | M29 | **v4** `finding_feedback` + `feedback_example` tồn tại và có đủ index (kể cả vector index) | 5 | `migration-verify.spec.ts` | ☐ |
 
-**Tổng kết ma trận (v4):**
+**Tổng kết ma trận (v8):**
 
 | Nhóm | Tổng | Tự động | Thủ công | Ghi chú |
 |---|---|---|---|---|
 | S (schema) | 23 | 23 | 0 | +S20…S23 (CSV, feedback) |
-| C (contract) | 13 | 13 | 0 | +C9…C13 (cursor, CSV) |
+| C (contract) | 15 | 15 | 0 | +C14…C15 (cursor ràng buộc sort, cấm countDocuments/skip) |
 | I (integration) | 21 | 21 | 0 | +I15…I21 (Kafka, realtime) |
 | O (operations) | 35 | 30 | 5 | +O29…O35 (AI nội bộ) |
 | M (migration) | 29 | 26 | 3 | +M27…M29, M21 5→7 collection |
-| **Tổng** | **120** | **112** | **8** | |
+| **Tổng** | **122** | **114** | **8** | |
 
 **Quy tắc bắt buộc:**
 1. 112 quy tắc tự động phải có **file test cụ thể** — không có ngoại lệ "test sau".
@@ -1160,41 +1180,6 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 
 **Trạng thái v4:** 17 quyết định kiểm thử đã chốt. **9 tầng test** với ngưỡng coverage riêng; ma trận **120 quy tắc** (112 tự động + 8 thủ công); bảng mapping 79 tính năng / 66 use case / 85 endpoint; quy trình 3 bước với gate chặn; báo cáo tự động 6 mục + kết luận của người; 18 quy tắc kiểm thử T1–T18; ước tính ~930 test / ~46 ngày công. Còn 2 câu hỏi mở tại mục 6.2.
 
-### 3.20. Test bổ sung cho hoàn thiện module analysis (v8)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16). Các test thêm vào `src/backend/test/analysis-*.spec.ts` / spec cạnh service.
-
-| Mã | Mô tả | Kỳ vọng |
-|---|---|---|
-| AN-01 | Đổi config sau khi phân tích → `createSummary` | `409 ANALYSIS_RESULT_STALE` |
-| AN-02 | `getResult` sau khi đổi config | `isStale = true`, `staleReason = config_changed` |
-| AN-03 | Report job với save A, sau đó tạo save B → worker dựng PDF | PDF dùng save A |
-| AN-04 | Model trả text không phải JSON, còn lượt | job về `pending`, `attempt+1`, không `failed` |
-| AN-05 | Hết lượt retry | job `failed`, assessment `failed` |
-| AN-06 | Retry job `succeeded`/`running` | `409 AI_JOB_NOT_RETRYABLE` |
-| AN-07 | Retry khi kết quả stale | `409 ANALYSIS_RESULT_STALE` |
-| AN-08 | User workspace khác gọi `GET /analysis/jobs/{id}` | `404` |
-| AN-09 | Report job `running` quá lease | trả về `pending` / `failed` sau 2 lần |
-| AN-10 | `top_n = 5` | Tổng kết/PDF tối đa 5 phát hiện |
-
-### 3.21. Test bổ sung đợt D/E module analysis
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-| Mã | Mô tả | Kỳ vọng |
-|---|---|---|
-| AN-11 | Người ngoài project gọi các route `projects/{id}/analysis*`, `summary`, `report` | 404 |
-| AN-12 | Viewer: GET config/result/summary, POST report, GET file | thành công |
-| AN-13 | Viewer: POST config/analysis/summary | 403 |
-| AN-14 | Đổi tên cột sau khi lưu cấu hình | cấu hình vẫn đúng cột (theo key) |
-| AN-15 | Đổi tên cột sau khi phân tích → GET result / tạo Tổng kết | `isStale`, `dataset_changed` / 409 |
-| AN-16 | Histogram, box plot, Top N + "Khác", `chart_top_n` ngoài 1–20 | đúng số liệu / 400 |
-| AN-17 | Mức ảnh hưởng tại biên 1%, 10%, 0,5%, 5% và cột 0 dòng | đúng mức / `no_data` |
-| AN-18 | Thứ tự ưu tiên trong Tổng kết | cao → trung bình → thấp, cùng mức theo tỷ lệ |
-| AN-19 | Phân tích thành công/lỗi, AI xong/hết lượt | ghi đúng sự kiện outbox |
-| AN-20 | `rowCount > ANALYSIS_MAX_ROWS` | 413 `ANALYSIS_TOO_LARGE`, không nạp dữ liệu |
-| AN-21 | Tương thích hợp đồng: `top_n` = 101; `summary.recommendations` | 400 (tối đa 100, mặc định 50); `recommendations` là `string[]` đã sắp ưu tiên, cấu trúc ở `recommendation_items` |
-
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
@@ -1286,11 +1271,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 
 ## 7. Prompting log và lịch sử thay đổi
 
-- **Điều chỉnh / 2026-11-17:** Thêm AN-21 (tương thích hợp đồng `top_n` tối đa 100, `recommendations` giữ `string[]`) / Đồng bộ với commit `52df5b7` / Bổ sung bảng mục 3.21.
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.21 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.21 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Test bổ sung đợt D/E module analysis / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.21; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.20 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.20 sang đã thực hiện.
-- **Đề xuất v8 / 2026-11-17:** Test bổ sung cho hoàn thiện module analysis / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.20; chờ duyệt trước khi sửa code.
+- **v8 / 2026-11-15 (Nhóm A — keyset cursor):** `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` chuyển sang keyset cursor (bỏ `page`/`total`, thêm `cursor`/`limit`, `meta` có `nextCursor`+`hasMore`+`limit`); thêm quy tắc **C14** (cursor ràng buộc theo `sort`) và **C15** (cấm `countDocuments`/`skip` cho list workspace/project); ma trận 120 → **122 quy tắc**; bộ test `test/keyset-pagination.spec.ts` (18 ca) / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Cập nhật mục 3.11.2, thêm mục 3.11.2b, quy tắc 4 (bảng mapping), bảng tổng kết ma trận.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
 - **v1 / 2026-11-02:** Tạo khung phần 13 / Chuẩn bị thảo luận tuần tự / Chỉ tạo tài liệu, chưa thực thi thay đổi backend hoặc dữ liệu.
 - **v5 / 2026-11-06:** Tầng 9 nâng từ **4 model / 9 chỉ số rời** thành **5 model theo giả thuyết + 9 chỉ số trên 5 nhóm** có ngưỡng tuyệt đối, trọng số 100, kiểm định thống kê (McNemar/Wilcoxon), đường Pareto và 11 quy tắc quyết định; bỏ judge `Qwen3-32B` (vượt RAM) → chấm chéo; quyết định benchmark chọn **cặp model** cho kiến trúc định tuyến hai tầng (Phần 12 v5 mục 3.15.6) / Theo yêu cầu người dùng ngày 2026-11-06 / Cập nhật mục 3.10b.1–3.10b.2 và quyết định 15.

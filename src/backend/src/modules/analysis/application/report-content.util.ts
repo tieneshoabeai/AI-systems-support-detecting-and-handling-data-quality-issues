@@ -1,8 +1,33 @@
 /**
- * REPORT-01 — dung noi dung "PDF FULL" (Phan 2 v9 muc 6.5–6.6, Phan 2 v10 muc 3.41):
- * Tong ket + top phat hien (toi da top_n) + khuyen nghi + ma tran tuong quan + VIF + nhan xet AI
- * + phu luc thong ke mo ta / mat can bang / thoi gian / bang chung (che PII) / nguong ap dung.
- * Ham thuan (khong I/O) de test duoc doc lap voi worker.
+ * REPORT-01 — dựng nội dung "PDF FULL" cho báo cáo Tổng kết chất lượng dữ liệu.
+ *
+ * ## Vì sao tách riêng khỏi worker?
+ *
+ * `buildReportSections()` là hàm **thuần** (không I/O, không phụ thuộc
+ * NestJS/Mongoose) → test được độc lập với worker, và worker chỉ lo:
+ * lấy dữ liệu → gọi hàm này → dựng PDF → upload.
+ *
+ * ## Cấu trúc báo cáo
+ *
+ *   1. Tổng quan
+ *   2. Top phát hiện (tối đa `top_n`)
+ *   2b. Cấu hình phân tích đã dùng
+ *   3. Khuyến nghị xử lý tại nguồn
+ *   3b. Cần xác nhận với nguồn (nghi vấn)   ← GĐ2
+ *   4. Ma trận tương quan
+ *   5. Đa cộng tuyến (VIF)
+ *   6. Nhận xét AI về tương quan / VIF
+ *   Phụ lục A — Thống kê mô tả (+ tần suất từng cột phân loại)
+ *   Phụ lục B — Mất cân bằng lớp
+ *   Phụ lục C — Phân tích theo thời gian
+ *   Phụ lục D — Bằng chứng (đã che PII)
+ *   Phụ lục E — Ngưỡng và quy tắc áp dụng
+ *
+ * ## Ranh giới dữ liệu
+ *
+ * - **Nghi vấn** (GĐ2) KHÔNG phải lỗi đã xác nhận → tách riêng mục 3b, không
+ *   tính vào "Top phát hiện", không có mức ảnh hưởng.
+ * - Bằng chứng đã che PII ở tầng ghi (`value_masked`) → hàm này chỉ in lại.
  */
 import type { PdfSection } from './pdf-builder.util';
 import { upperTriangleCells } from '../domain/ai-grounding.util';
@@ -20,16 +45,22 @@ export interface ReportContentInput {
   topN: number;
 }
 
+/** Định dạng số (mất cắt chữ thừa). */
 const fmt = (v: unknown, digits = 4): string => {
   if (v === null || v === undefined) return '-';
   if (typeof v === 'number') return Number.isFinite(v) ? String(Number(v.toFixed(digits))) : '-';
   return String(v);
 };
-const pct = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : '-');
+/** Định dạng phần trăm (0..1 → %). */
+const pct = (v: unknown): string =>
+  typeof v === 'number' && Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : '-';
+/** Ép về mảng (an toàn với dữ liệu `Mixed` từ MongoDB). */
 const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+/** Ép về object (loại trừ mảng). */
 const obj = (v: unknown): Record<string, unknown> | null =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 
+/** Nhãn tiếng Việt cho loại bằng chứng ô. */
 const KIND_LABEL: Record<string, string> = {
   missing: 'Thiếu (DQ-01)',
   duplicate: 'Trùng (DQ-02)',
@@ -37,21 +68,61 @@ const KIND_LABEL: Record<string, string> = {
   outlier: 'Ngoại lệ (DQ-04)',
 };
 
+/** Nhãn tiếng Việt cho 15 loại nghi vấn (GĐ2). */
+const SUSPICION_LABEL: Record<string, string> = {
+  missing_token: 'Ký hiệu thiếu',
+  case_variant: 'Nhiều cách viết',
+  whitespace: 'Khoảng trắng thừa',
+  sentinel: 'Mã sentinel',
+  constant_column: 'Cột hằng',
+  ambiguous_date_format: 'Ngày mơ hồ',
+  identifier_not_unique: 'Mã định danh lặp',
+  duplicate_key: 'Trùng theo khóa',
+  locale_number_format: 'Số theo vùng',
+  conditional_missing: 'Thiếu theo nhóm',
+  leading_zero_numeric: 'Số 0 đầu',
+  negative_in_positive: 'Giá trị âm bất thường',
+  zero_in_positive: 'Giá trị 0 bất thường',
+  row_all_measures_missing: 'Dòng thiếu toàn bộ số đo',
+  missing_in_filled_group: 'Thiếu trong nhóm thường có',
+};
+
+/**
+ * Chỉ giữ mỗi cặp cột **một lần** (bỏ đường chéo).
+ *
+ * Dùng chung `upperTriangleCells()` từ `domain/ai-grounding.util.ts` → prompt
+ * AI và PDF cùng một quy tắc tam giác trên (AN-30/AN-31).
+ */
+
+/** Nhãn mức ảnh hưởng. */
+const severityLabel = (s: unknown): string =>
+  s === 'high'
+    ? 'Cao'
+    : s === 'medium'
+      ? 'Trung bình'
+      : s === 'low'
+        ? 'Thấp'
+        : s === 'no_data'
+          ? 'Không có dữ liệu'
+          : '-';
+
+/** Dựng toàn bộ section của báo cáo PDF. */
 export function buildReportSections(input: ReportContentInput): PdfSection[] {
   const { save, result, evidences, topN } = input;
   const summary = (save.summary ?? {}) as Record<string, unknown>;
   const issues = arr<Record<string, unknown>>(summary.issues);
-  // recommendations la string[]; van chap nhan object (ban Tong ket luu truoc khi doi lai ve chuoi)
+  // `recommendations` là `string[]`; vẫn chấp nhận object (bản Tổng kết lưu
+  // trước khi đổi lại về chuỗi).
   const recommendations = arr<unknown>(summary.recommendations).map((r) => {
     const o = obj(r);
     if (!o) return String(r);
     return `[${o.priority ?? '-'}] ${o.dq ?? ''}${o.column ? ` · ${o.column}` : ''}: ${o.text ?? ''}`;
   });
-  const severityLabel = (s: unknown): string =>
-    s === 'high' ? 'Cao' : s === 'medium' ? 'Trung bình' : s === 'low' ? 'Thấp' : s === 'no_data' ? 'Không có dữ liệu' : '-';
-  const overview = typeof summary.overview === 'string' ? summary.overview : 'Tổng kết chất lượng dữ liệu.';
+  const overview =
+    typeof summary.overview === 'string' ? summary.overview : 'Tổng kết chất lượng dữ liệu.';
   const sections: PdfSection[] = [];
 
+  // ── 1. Tổng quan ─────────────────────────────────────────────────────────
   sections.push({
     heading: '1. Tổng quan',
     lines: [
@@ -65,8 +136,10 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     ],
   });
 
+  // ── 2. Top phát hiện ─────────────────────────────────────────────────────
   sections.push({
     heading: `2. Top phát hiện (tối đa ${topN})`,
+    lines: [],
     table: {
       headers: ['Ưu tiên', 'Nhóm', 'Cột', 'Mức ảnh hưởng', 'Số lượng', 'Tỷ lệ'],
       widths: [0.09, 0.1, 0.36, 0.17, 0.14, 0.14],
@@ -81,9 +154,12 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     },
   });
 
+  // ── 2b. Cấu hình phân tích đã dùng ───────────────────────────────────────
   const cfgUsed = obj(summary.config_used);
   if (cfgUsed) {
-    const sel = Array.isArray(cfgUsed.selected_columns) ? (cfgUsed.selected_columns as unknown[]).join(', ') : '(tất cả cột suy luận được)';
+    const sel = Array.isArray(cfgUsed.selected_columns)
+      ? (cfgUsed.selected_columns as unknown[]).join(', ')
+      : '(tất cả cột suy luận được)';
     sections.push({
       heading: '2b. Cấu hình phân tích đã dùng',
       lines: [
@@ -97,81 +173,92 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     recommendations.push(`Cột ${u.column}: ${u.reason}`);
   }
 
+  // ── 3. Khuyến nghị ───────────────────────────────────────────────────────
   sections.push({
     heading: '3. Khuyến nghị xử lý tại nguồn (theo thứ tự ưu tiên)',
-    lines: recommendations.length > 0 ? recommendations.slice(0, Math.max(20, topN)).map((r) => `• ${r}`) : ['(chưa có khuyến nghị)'],
+    lines:
+      recommendations.length > 0
+        ? recommendations
+            .slice(0, Math.max(20, topN))
+            .map((r) => `• ${r}`)
+        : ['(chưa có khuyến nghị)'],
   });
 
-  // Dot G (Phan 2 v12 muc 3.44): nhom Nghi van — khong phai loi da xac nhan, khong co muc anh huong
+  // ── 3b. Nghi vấn (GĐ2) ───────────────────────────────────────────────────
+  // Nghi vấn KHÔNG phải lỗi đã xác nhận: không có mức ảnh hưởng, không tính
+  // vào Top phát hiện, hệ thống không tự sửa.
   const suspicions = arr<Record<string, unknown>>(summary.suspicions);
-  const SUSPICION_LABEL: Record<string, string> = {
-    missing_token: 'Ký hiệu thiếu',
-    case_variant: 'Nhiều cách viết',
-    whitespace: 'Khoảng trắng thừa',
-    sentinel: 'Mã sentinel',
-    constant_column: 'Cột hằng',
-    ambiguous_date_format: 'Ngày mơ hồ',
-    // Đợt H (Phần 2 v13 mục 3.45)
-    identifier_not_unique: 'Mã định danh lặp',
-    duplicate_key: 'Trùng theo khóa',
-    locale_number_format: 'Số theo vùng',
-    conditional_missing: 'Thiếu theo nhóm',
-    leading_zero_numeric: 'Số 0 đầu',
-    // Đợt I (Phần 2 v14 mục 3.46)
-    negative_in_positive: 'Giá trị âm bất thường',
-    zero_in_positive: 'Giá trị 0 bất thường',
-    row_all_measures_missing: 'Dòng thiếu toàn bộ số đo',
-    missing_in_filled_group: 'Thiếu trong nhóm thường có',
-  };
   sections.push({
     heading: '3b. Cần xác nhận với nguồn (nghi vấn)',
-    lines: suspicions.length > 0
-      ? [
-          'Các điểm dưới đây CHƯA phải lỗi đã xác nhận: không có mức ảnh hưởng, không tính vào Top phát hiện, hệ thống không tự sửa.',
-          ...suspicions.map((s) => `• ${String(s.message ?? '')} → ${String(s.recommendation ?? '')}`),
-        ]
-      : ['Không có điểm nghi vấn.'],
-    table: suspicions.length > 0
-      ? {
-          headers: ['Loại', 'Cột', 'Số ô', 'Tỷ lệ', 'Ví dụ'],
-          widths: [0.17, 0.18, 0.09, 0.09, 0.47],
-          rows: suspicions.map((s) => [
-            SUSPICION_LABEL[String(s.kind)] ?? String(s.kind),
-            String(s.column ?? ''),
-            fmt(s.count, 0),
-            typeof s.rate === 'number' ? `${(s.rate * 100).toFixed(2)}%` : '-',
-            arr<string>(s.examples).join('; '),
-          ]),
-        }
-      : undefined,
+    lines:
+      suspicions.length > 0
+        ? [
+            'Các điểm dưới đây CHƯA phải lỗi đã xác nhận: không có mức ảnh hưởng, không tính vào Top phát hiện, hệ thống không tự sửa.',
+            ...suspicions.map((s) => `• ${String(s.message ?? '')} → ${String(s.recommendation ?? '')}`),
+          ]
+        : ['Không có điểm nghi vấn.'],
+    table:
+      suspicions.length > 0
+        ? {
+            headers: ['Loại', 'Cột', 'Số ô', 'Tỷ lệ', 'Ví dụ'],
+            widths: [0.17, 0.18, 0.09, 0.09, 0.47],
+            rows: suspicions.map((s) => [
+              SUSPICION_LABEL[String(s.kind)] ?? String(s.kind),
+              String(s.column ?? ''),
+              fmt(s.count, 0),
+              typeof s.rate === 'number' ? `${(s.rate * 100).toFixed(2)}%` : '-',
+              arr<string>(s.examples).join('; '),
+            ]),
+          }
+        : undefined,
   });
 
+  // ── 4. Kết quả phân tích chi tiết ───────────────────────────────────────
   if (!result) {
     sections.push({
       heading: '4. Kết quả phân tích chi tiết',
-      lines: ['Không tìm thấy kết quả phân tích gắn với bản Tổng kết này — chỉ in phần Tổng kết.'],
+      lines: [
+        'Không tìm thấy kết quả phân tích gắn với bản Tổng kết này — chỉ in phần Tổng kết.',
+      ],
     });
     return sections;
   }
 
+  // ── 5. Ma trận tương quan ───────────────────────────────────────────────
   const corr = result.correlationMatrix ?? result.correlation ?? null;
   const corrLines: string[] = [];
-  // Đợt F (Phần 12 v10 mục 3.19): mỗi cặp không thứ tự in một lần, bỏ đường chéo, xếp theo |hệ số| giảm dần
+  // Mỗi cặp không thứ tự in một lần, bỏ đường chéo, xếp theo |hệ số| giảm dần.
   const pairCells = corr
-    ? upperTriangleCells(arr<Record<string, unknown> & { colA: string; colB: string }>(corr.cells)).sort((a, b) => {
+    ? upperTriangleCells(
+        arr<Record<string, unknown> & { colA: string; colB: string }>(corr.cells),
+      ).sort((a, b) => {
         const ca = typeof a.coef === 'number' && a.computable !== false ? Math.abs(a.coef) : -1;
         const cb = typeof b.coef === 'number' && b.computable !== false ? Math.abs(b.coef) : -1;
         return cb - ca;
       })
     : [];
   if (corr) {
-    corrLines.push(`Phương pháp số–số: ${corr.method}; số–phân loại: η²; phân loại–phân loại: Cramér's V.`);
-    corrLines.push(`Tổng dòng quét: ${fmt(corr.totalScanned, 0)}. ${pairCells.length} cặp cột (mỗi cặp một lần, bỏ đường chéo), xếp theo |hệ số| giảm dần.`);
-    const roles = arr<{ name?: string; role?: string; source?: string; uncertain?: boolean }>(result.columnRoles);
+    corrLines.push(
+      `Phương pháp số–số: ${corr.method}; số–phân loại: η²; phân loại–phân loại: Cramér's V.`,
+    );
+    corrLines.push(
+      `Tổng dòng quét: ${fmt(corr.totalScanned, 0)}. ${pairCells.length} cặp cột (mỗi cặp một lần, bỏ đường chéo), xếp theo |hệ số| giảm dần.`,
+    );
+    const roles = arr<{
+      name?: string;
+      role?: string;
+      source?: string;
+      uncertain?: boolean;
+    }>((result as unknown as { columnRoles?: unknown }).columnRoles);
     if (roles.length > 0) {
       corrLines.push(
         `Vai trò cột: ${roles
-          .map((r) => `${String(r.name)} = ${String(r.role)}${r.source === 'user' ? ' (người dùng)' : r.uncertain ? ' (chưa chắc chắn)' : ''}`)
+          .map(
+            (r) =>
+              `${String(r.name)} = ${String(r.role)}${
+                r.source === 'user' ? ' (người dùng)' : r.uncertain ? ' (chưa chắc chắn)' : ''
+              }`,
+          )
           .join('; ')}.`,
       );
     }
@@ -198,6 +285,7 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
       : undefined,
   });
 
+  // ── 6. Đa cộng tuyến (VIF) ──────────────────────────────────────────────
   const vif = result.vif ?? null;
   sections.push({
     heading: '5. Đa cộng tuyến (VIF)',
@@ -205,7 +293,9 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
       ? [
           `Số quan sát chung: ${vif.commonN} / ${vif.totalScanned} (${pct(vif.commonNRate)}).`,
           ...(vif.lossWarning ? [`Cảnh báo mất mẫu: ${vif.lossWarning}`] : []),
-          ...arr<{ column: string; reason: string }>(vif.excluded).map((e) => `Cột bị loại: ${e.column} — ${e.reason}`),
+          ...arr<{ column: string; reason: string }>(vif.excluded).map(
+            (e) => `Cột bị loại: ${e.column} — ${e.reason}`,
+          ),
         ]
       : ['(không có dữ liệu VIF)'],
     table: vif
@@ -222,24 +312,33 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
       : undefined,
   });
 
+  // ── 7. Nhận xét AI ──────────────────────────────────────────────────────
   const ai = obj(result.aiCorrelationAssessment);
   const aiLines: string[] = [];
   if (ai && ai.status === 'succeeded') {
     for (const p of arr<Record<string, unknown>>(ai.notablePairs)) {
-      aiLines.push(`Cặp đáng chú ý: ${p.colA} – ${p.colB}: ${fmt(p.coef)} (${p.kind ?? ''}, n=${fmt(p.n, 0)})`);
+      aiLines.push(
+        `Cặp đáng chú ý: ${p.colA} – ${p.colB}: ${fmt(p.coef)} (${p.kind ?? ''}, n=${fmt(p.n, 0)})`,
+      );
     }
     for (const c of arr<string>(ai.highVif)) aiLines.push(`VIF cao: ${c}`);
     for (const l of arr<string>(ai.limits)) aiLines.push(`Giới hạn: ${l}`);
     for (const s of arr<string>(ai.nextSteps)) aiLines.push(`Bước tiếp theo: ${s}`);
-    aiLines.push(`Model: ${ai.modelId ?? '-'} · prompt ${ai.promptVersion ?? 'corr-v1'}. AI không kết luận nhân quả và không kết luận vi phạm DQ-05.`);
+    aiLines.push(
+      `Model: ${ai.modelId ?? '-'} · prompt ${ai.promptVersion ?? 'corr-v1'}. AI không kết luận nhân quả và không kết luận vi phạm DQ-05.`,
+    );
   } else {
-    aiLines.push(`Không có nhận xét AI (trạng thái: ${ai?.status ?? 'không có'}). Lỗi AI không chặn kết quả hệ thống.`);
+    aiLines.push(
+      `Không có nhận xét AI (trạng thái: ${ai?.status ?? 'không có'}). Lỗi AI không chặn kết quả hệ thống.`,
+    );
   }
   sections.push({ heading: '6. Nhận xét AI về tương quan / VIF', lines: aiLines });
 
+  // ── Phụ lục A — Thống kê mô tả ──────────────────────────────────────────
   const descriptive = arr<Record<string, unknown>>(result.descriptive);
   sections.push({
     heading: 'Phụ lục A — Thống kê mô tả',
+    lines: [],
     table: {
       headers: ['Cột', 'Kiểu', 'Hợp lệ', 'Thiếu', 'Sai kiểu', 'TB', 'Trung vị', 'Min', 'Max', 'Độ lệch'],
       widths: [0.2, 0.08, 0.08, 0.07, 0.08, 0.1, 0.1, 0.1, 0.1, 0.09],
@@ -258,22 +357,29 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     },
   });
 
-  const charts = obj(result.charts);
+  // Tần suất từng cột phân loại (nằm trong phụ lục A).
+  const charts = obj((result as unknown as { charts?: unknown }).charts);
   for (const cat of arr<Record<string, unknown>>(charts?.categories)) {
     const other = obj(cat.other);
     sections.push({
       heading: `Phụ lục A · Tần suất cột "${cat.column}" (Top ${cat.topN} + Khác)`,
+      lines: [],
       table: {
         headers: ['Giá trị', 'Số lượng', 'Tỷ lệ'],
         widths: [0.6, 0.2, 0.2],
         rows: [
-          ...arr<Record<string, unknown>>(cat.items).map((i) => [String(i.value), fmt(i.count, 0), pct(i.rate)]),
+          ...arr<Record<string, unknown>>(cat.items).map((i) => [
+            String(i.value),
+            fmt(i.count, 0),
+            pct(i.rate),
+          ]),
           ...(other ? [['Khác', fmt(other.count, 0), pct(other.rate)]] : []),
         ],
       },
     });
   }
 
+  // ── Phụ lục B — Mất cân bằng lớp ────────────────────────────────────────
   const imb = obj(result.imbalance);
   sections.push({
     heading: 'Phụ lục B — Mất cân bằng lớp',
@@ -284,15 +390,21 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
           `Dòng có nhãn hợp lệ: ${fmt(imb.validRows, 0)}; thiếu nhãn: ${fmt(imb.missingLabelRows, 0)}`,
         ]
       : ['(không có dữ liệu)'],
-    table: imb && arr(imb.classes).length > 0
-      ? {
-          headers: ['Lớp', 'Số dòng', 'Tỷ lệ'],
-          widths: [0.6, 0.2, 0.2],
-          rows: arr<Record<string, unknown>>(imb.classes).map((c) => [String(c.value), fmt(c.count, 0), pct(c.rate)]),
-        }
-      : undefined,
+    table:
+      imb && arr(imb.classes).length > 0
+        ? {
+            headers: ['Lớp', 'Số dòng', 'Tỷ lệ'],
+            widths: [0.6, 0.2, 0.2],
+            rows: arr<Record<string, unknown>>(imb.classes).map((c) => [
+              String(c.value),
+              fmt(c.count, 0),
+              pct(c.rate),
+            ]),
+          }
+        : undefined,
   });
 
+  // ── Phụ lục C — Phân tích theo thời gian ────────────────────────────────
   const time = obj(result.timeAnalysis ?? result.temporal);
   sections.push({
     heading: 'Phụ lục C — Phân tích theo thời gian',
@@ -300,39 +412,48 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
       ? [
           `Cột thời gian: ${time.timeColumn ?? '(không có)'} · mức tổng hợp: ${time.granularity} · trạng thái: ${time.status}`,
           ...(obj(time.timePartColumns)
-            ? [`Dữ liệu có cột năm "${String(obj(time.timePartColumns)?.year)}"${obj(time.timePartColumns)?.month ? ` và cột tháng "${String(obj(time.timePartColumns)?.month)}"` : ''} nhưng không có cột ngày — hệ thống không tự dựng trục thời gian; cần cột ngày để phân tích theo thời gian.`]
+            ? [
+                `Dữ liệu có cột năm "${String(obj(time.timePartColumns)?.year)}"${obj(time.timePartColumns)?.month ? ` và cột tháng "${String(obj(time.timePartColumns)?.month)}"` : ''} nhưng không có cột ngày — hệ thống không tự dựng trục thời gian; cần cột ngày để phân tích theo thời gian.`,
+              ]
             : []),
-          // Đợt H: thứ tự ngày/tháng đã dùng + cột giá trị bị bỏ
+          // Cảnh báo thứ tự ngày/tháng chưa xác định (GĐ2 — `dateOrderOf`).
           ...(time.dateOrderAmbiguous === true
-            ? [`Cảnh báo: không phân định được cột "${String(time.timeColumn)}" là DD/MM hay MM/DD — hệ thống đọc theo ${time.dateOrder === 'mdy' ? 'MM/DD' : 'DD/MM (nếu hợp lệ, nếu không thì MM/DD)'}; các kỳ dưới đây có thể sai nếu nguồn dùng cách viết kia. Xác nhận định dạng ngày với nguồn.`]
+            ? [
+                `Cảnh báo: không phân định được cột "${String(time.timeColumn)}" là DD/MM hay MM/DD — hệ thống đọc theo ${time.dateOrder === 'mdy' ? 'MM/DD' : 'DD/MM (nếu hợp lệ, nếu không thì MM/DD)'}; các kỳ dưới đây có thể sai nếu nguồn dùng cách viết kia. Xác nhận định dạng ngày với nguồn.`,
+              ]
             : []),
           ...(time.valueColumnIgnoredReason
-            ? [`Cột giá trị đã cấu hình là cột ${time.valueColumnIgnoredReason === 'value_column_is_identifier' ? 'mã định danh' : 'văn bản'} — không tính trung bình/tổng theo kỳ, chỉ đếm số dòng.`]
+            ? [
+                `Cột giá trị đã cấu hình là cột ${time.valueColumnIgnoredReason === 'value_column_is_identifier' ? 'mã định danh' : 'văn bản'} — không tính trung bình/tổng theo kỳ, chỉ đếm số dòng.`,
+              ]
             : []),
           `Kỳ trống: ${arr(time.emptyBuckets).length} (chuỗi trống dài nhất: ${fmt(time.longestEmptyRun, 0)}); kỳ biến động: ${arr<string>(time.volatilePeriods).join(', ') || '-'}`,
           'Khoảng trống hoặc biến động không mặc định là lỗi.',
         ]
       : ['(không có dữ liệu)'],
-    table: time && arr(time.buckets).length > 0
-      ? {
-          headers: ['Kỳ', 'Số dòng', 'Hợp lệ', 'Thiếu', 'Sai kiểu', 'TB', 'Trung vị', 'Tổng'],
-          widths: [0.2, 0.1, 0.1, 0.1, 0.1, 0.13, 0.13, 0.14],
-          rows: arr<Record<string, unknown>>(time.buckets).map((b) => [
-            String(b.period),
-            fmt(b.recordCount, 0),
-            fmt(b.validCount, 0),
-            fmt(b.missingCount, 0),
-            fmt(b.invalidCount, 0),
-            fmt(b.mean, 3),
-            fmt(b.median, 3),
-            fmt(b.sum, 3),
-          ]),
-        }
-      : undefined,
+    table:
+      time && arr(time.buckets).length > 0
+        ? {
+            headers: ['Kỳ', 'Số dòng', 'Hợp lệ', 'Thiếu', 'Sai kiểu', 'TB', 'Trung vị', 'Tổng'],
+            widths: [0.2, 0.1, 0.1, 0.1, 0.1, 0.13, 0.13, 0.14],
+            rows: arr<Record<string, unknown>>(time.buckets).map((b) => [
+              String(b.period),
+              fmt(b.recordCount, 0),
+              fmt(b.validCount, 0),
+              fmt(b.missingCount, 0),
+              fmt(b.invalidCount, 0),
+              fmt(b.mean, 3),
+              fmt(b.median, 3),
+              fmt(b.sum, 3),
+            ]),
+          }
+        : undefined,
   });
 
+  // ── Phụ lục D — Bằng chứng (đã che PII) ─────────────────────────────────
   sections.push({
     heading: 'Phụ lục D — Bằng chứng (tối đa 20 ô/cột, đã che PII)',
+    lines: [],
     table: {
       headers: ['Cột', 'Dòng gốc', 'Loại', 'Lý do', 'Giá trị (đã che)'],
       widths: [0.22, 0.1, 0.16, 0.3, 0.22],
@@ -346,6 +467,7 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
     },
   });
 
+  // ── Phụ lục E — Ngưỡng và quy tắc áp dụng ───────────────────────────────
   const dq05 = obj(result.dq05);
   const thresholds = arr<Record<string, unknown>>(summary.thresholds);
   sections.push({
@@ -357,9 +479,10 @@ export function buildReportSections(input: ReportContentInput): PdfSection[] {
       'DQ-03 sai kiểu/định dạng: theo kiểu cột đã suy luận/tinh chỉnh.',
       'DQ-04 ngoại lệ: IQR hàng rào 1.5×IQR; Modified Z-score |z| > 3.5. Ngoại lệ không mặc định là lỗi cần xóa.',
       `DQ-05 mâu thuẫn giữa các cột: ${dq05?.status === 'assessed' ? 'đã đánh giá theo quy tắc được xác nhận' : 'Chưa đánh giá (chưa có quy tắc được xác nhận)'}.`,
-      'Tương quan: Pearson/Spearman, Cramér\'s V, η². VIF > 5 cần xem lại, VIF > 10 đa cộng tuyến cao.',
+      "Tương quan: Pearson/Spearman, Cramér's V, η². VIF > 5 cần xem lại, VIF > 10 đa cộng tuyến cao.",
       'Mất mẫu VIF ≥ 20% cảnh báo thận trọng, ≥ 50% VIF kém tin cậy (quy ước dự án).',
       'IR ≥ 3 cảnh báo mất cân bằng (quy ước dự án, không phải chuẩn chung).',
+      'Nghi vấn (mục 3b) là điểm cần xác nhận với nguồn — chưa phải lỗi đã xác nhận.',
     ],
   });
 

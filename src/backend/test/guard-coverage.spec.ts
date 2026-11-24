@@ -1,19 +1,20 @@
 import { Reflector } from '@nestjs/core';
 import { AppController } from '../src/app.controller';
-import { AuthController } from '../src/modules/auth/infrastructure/http/auth.controller';
-import { UsersController } from '../src/modules/users/infrastructure/http/users.controller';
-import { WorkspacesController } from '../src/modules/workspaces/infrastructure/http/workspaces.controller';
-import { ProjectsController } from '../src/modules/projects/infrastructure/http/projects.controller';
-import { DatasetsController } from '../src/modules/datasets/infrastructure/http/datasets.controller';
-import { DataViewController } from '../src/modules/data-view/infrastructure/http/data-view.controller';
-import { AnalysisController } from '../src/modules/analysis/infrastructure/http/analysis.controller';
-import { SummaryController } from '../src/modules/analysis/infrastructure/http/summary.controller';
-import { ReportController } from '../src/modules/analysis/infrastructure/http/report.controller';
-import { NotificationsController } from '../src/modules/notifications/infrastructure/http/notifications.controller';
-import { IssuesController } from '../src/modules/issues/infrastructure/http/issues.controller';
-import { FeedbackController } from '../src/modules/feedback/infrastructure/http/feedback.controller';
-import { IS_PUBLIC_KEY } from '../src/shared/decorators/public.decorator';
-import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
+import { AuthController } from '../src/modules/auth/presentation/controllers/auth.controller';
+import { UsersController } from '../src/modules/users/presentation/controllers/users.controller';
+import { WorkspacesController } from '../src/modules/workspaces/presentation/controllers/workspaces.controller';
+import { ProjectsController } from '../src/modules/projects/presentation/controllers/projects.controller';
+import { DatasetsController } from '../src/modules/datasets/presentation/controllers/datasets.controller';
+import { DataViewController } from '../src/modules/data-view/data-view.controller';
+import { AnalysisController } from '../src/modules/analysis/presentation/controllers/analysis.controller';
+import { SummaryController } from '../src/modules/analysis/presentation/controllers/summary.controller';
+import { ReportController } from '../src/modules/analysis/presentation/controllers/report.controller';
+import { NotificationsController } from '../src/modules/notifications/notifications.controller';
+import { IssuesController } from '../src/modules/issues/presentation/controllers/issues.controller';
+import { FeedbackController } from '../src/modules/feedback/feedback.controller';
+import { OverviewController } from '../src/modules/overview/overview.controller';
+import { IS_PUBLIC_KEY } from '../src/shared/interfaces/decorators/public.decorator';
+import { JwtAuthGuard } from '../src/shared/interfaces/guards/jwt-auth.guard';
 
 describe('Architectural Guard Coverage (Zero-Trust Security)', () => {
   const reflector = new Reflector();
@@ -31,6 +32,7 @@ describe('Architectural Guard Coverage (Zero-Trust Security)', () => {
     NotificationsController,
     IssuesController,
     FeedbackController,
+    OverviewController,
   ];
 
   it('every endpoint across all controllers must be explicitly guarded by JwtAuthGuard or decorated with @Public()', () => {

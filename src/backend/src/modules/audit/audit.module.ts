@@ -1,9 +1,10 @@
 import { Module, Global } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AuditLogSchema, AuditChangeSchema } from './infrastructure/persistence/audit-log.schema';
-import { AuditRepository } from './infrastructure/persistence/audit.repository';
-import { AUDIT_REPOSITORY_PORT } from './domain/ports/audit.repository.port';
-import { AuditService } from './application/audit.service';
+import { AuditLogSchema, AuditChangeSchema } from './audit.schema';
+import { AuditRepository } from './audit.repository';
+import { AUDIT_REPOSITORY_PORT } from './audit.types';
+import { AUDIT_LOGGER_PORT } from './audit.types';
+import { AuditService } from './audit.service';
 
 @Global()
 @Module({
@@ -13,7 +14,12 @@ import { AuditService } from './application/audit.service';
       { name: 'AuditChange', schema: AuditChangeSchema },
     ]),
   ],
-  providers: [AuditRepository, { provide: AUDIT_REPOSITORY_PORT, useExisting: AuditRepository }, AuditService],
-  exports: [AuditService, AuditRepository, AUDIT_REPOSITORY_PORT],
+  providers: [
+    AuditRepository,
+    { provide: AUDIT_REPOSITORY_PORT, useExisting: AuditRepository },
+    AuditService,
+    { provide: AUDIT_LOGGER_PORT, useExisting: AuditService },
+  ],
+  exports: [AuditRepository, AUDIT_REPOSITORY_PORT, AUDIT_LOGGER_PORT],
 })
 export class AuditModule {}

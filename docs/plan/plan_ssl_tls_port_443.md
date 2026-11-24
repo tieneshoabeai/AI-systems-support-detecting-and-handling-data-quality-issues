@@ -17,7 +17,7 @@
 1. **Đang làm gì?**
    - Triển khai giải pháp **Cloudflare Zero Trust Tunnel** kết nối từ máy chủ backend NestJS tới mạng lưới Cloudflare Edge để phát hành giao thức **HTTPS TLS 1.3 Cổng 443 thực tế** ra Internet.
    - Nâng cấp mã nguồn `main.ts` để tối ưu cho Cloudflare: kích hoạt `trust proxy`, nhận diện `CF-Connecting-IP`, `CF-Ray`, cấu hình CORS cho các tên miền Cloudflare (`*.trycloudflare.com`), và động hóa cấu hình máy chủ trong tài liệu Swagger OpenAPI.
-   - Soạn thảo tài liệu hướng dẫn vận hành chi tiết [`docs/cloudflare_tunnel_setup.md`](file:///home/hoa/Documents/UTH/Lập%20trình%20JS%20&%20TS/AI%20systems%20support%20detecting%20and%20handling%20data%20quality%20issues%20/docs/cloudflare_tunnel_setup.md) và kịch bản khởi chạy tự động.
+   - Soạn thảo tài liệu hướng dẫn vận hành chi tiết [`docs/cloudflare_tunnel_setup.md`](./cloudflare_tunnel_setup.md) và kịch bản khởi chạy tự động.
 2. **Cho ai?**
    - Dành cho Người dùng (để demo trực tiếp bằng URL HTTPS 443 thực tế), Giảng viên / Hội đồng chấm điểm UTH (có thể truy cập trực tiếp từ xa mà không cần cài đặt mạng LAN).
 3. **Để làm gì?**

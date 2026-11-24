@@ -99,9 +99,9 @@ export function computeDq0102(
 
 /**
  * DQ-03: sai kieu/dinh dang theo data_type da chot. Khong dem o thieu thanh loi kieu.
- * Dot G: cot `date` doc bang bo doc CHAT (`date-parse.util.ts`); cot `string` moi gia tri khong rong deu hop le
- * (ky hieu NA/?... o cot chu la chuoi hop le, duoc bao o nhom Nghi van).
- * @param dateOrder thu tu ngay/thang cua cot (tinh 1 lan bang `dateOrderOf`), mac dinh 'either'
+ * GĐ2: cột `date` đọc bằng bộ đọc CHẶT (`date-parse.util.ts`); cột `string` mọi giá trị
+ * không rỗng đều hợp lệ (ký hiệu NA/?… ở cột chữ là chuỗi hợp lệ, được báo ở nhóm Nghi vấn).
+ * @param dateOrder thứ tự ngày/tháng của cột (tính 1 lần bằng `dateOrderOf`), mặc định 'either'
  */
 export function isValidByType(
   val: unknown,
@@ -131,7 +131,7 @@ export function isValidByType(
   return c === null ? { valid: false, reason: 'invalid_string' } : { valid: true, reason: null };
 }
 
-/** Dot G: che do doc ngay cua mot cot (phan dinh DD/MM hay MM/DD theo toan bo gia tri). */
+/** GĐ2: chế độ đọc ngày của một cột (phân định DD/MM hay MM/DD theo toàn bộ giá trị). */
 export function dateOrderOf(values: unknown[]): DayMonthOrder | 'either' {
   return orderModeFor(detectDayMonthOrder(values));
 }
@@ -148,7 +148,7 @@ export function computeDq03(
     const reasons: Record<string, number> = {};
     for (const r of rows) {
       const v = r.values[column];
-      // Dot G: o cot chu, ky hieu NA/?... la chuoi hop le (bao o Nghi van), khong dem DQ-03
+      // GĐ2: ở cột chữ, ký hiệu NA/?… là chuỗi hợp lệ (báo ở Nghi vấn), không đếm DQ-03
       if (isMissingCell(v) || (dataType !== 'string' && isMissingValue(v))) {
         if (isMissingCell(v)) missing++;
         else {
@@ -211,8 +211,8 @@ export function detectOutliers(
   const nums = values.map((v) => v.value).sort((a, b) => a - b);
   const useIqr = method === 'iqr' || method === 'both';
   const useZ = method === 'modified_zscore' || method === 'both';
-  let iqrSet = new Set<number>();
-  let extremeSet = new Set<number>();
+  const iqrSet = new Set<number>();
+  const extremeSet = new Set<number>();
   if (useIqr) {
     const q1 = quantileSorted(nums, 0.25);
     const q3 = quantileSorted(nums, 0.75);
@@ -231,7 +231,7 @@ export function detectOutliers(
       }
     }
   }
-  let zSet = new Set<number>();
+  const zSet = new Set<number>();
   if (useZ) {
     const med = ss.median(nums);
     const deviations = nums.map((v) => Math.abs(v - med)).sort((a, b) => a - b);

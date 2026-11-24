@@ -2,13 +2,11 @@
 
 - **Version:** v11
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v11)
-- **Thay đổi v11 (2026-11-17):** bổ sung mục 3.43 — Vai trò cột phân tích và chính sách che mẫu gửi AI (đợt F). Nguồn: demo offline Titanic 2026-11-17 + `docs/modules/analysis_plan.md` v1.4. Trạng thái: Đã thực hiện 2026-11-17 (đợt F).
-- **Thay đổi v10 (2026-11-17):** bổ sung mục 3.41 — Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.42 — Hoàn thiện module analysis — đợt D/E (đã thực hiện).
-- **Trạng thái:** Đã chốt các câu hỏi còn mở của v1 (mục 3.25–3.31). Trạng thái chốt: **đối tượng sử dụng, nguồn dữ liệu, phạm vi phân tích, tiêu chí DQ-01..DQ-05, quyền theo vai trò, ngưỡng ảnh hưởng, mức chi tiết bằng chứng, phạm vi AI, lưu trữ file và cơ chế async AI đã xác nhận**. **v7 bổ sung: DQ-05 kích hoạt có điều kiện theo quy tắc được xác nhận + ma trận tương quan/VIF do AI đánh giá. **v8 bổ sung: breakdown thiếu pairwise từng ô, cảnh báo mất mẫu VIF, nêu rõ cột date bị loại, worker AI corr-v1 (2026-11-07).** Phần còn mở được liệt kê tại mục 6.
+- **Cập nhật gần nhất:** 2026-11-16 (v11)
+- **Trạng thái:** Đã chốt các câu hỏi còn mở của v1 (mục 3.25–3.31). Trạng thái chốt: **đối tượng sử dụng, nguồn dữ liệu, phạm vi phân tích, tiêu chí DQ-01..DQ-05, quyền theo vai trò, ngưỡng ảnh hưởng, mức chi tiết bằng chứng, phạm vi AI, lưu trữ file và cơ chế async AI đã xác nhận**. **v7 bổ sung: DQ-05 kích hoạt có điều kiện theo quy tắc được xác nhận + ma trận tương quan/VIF do AI đánh giá. **v8 bổ sung: breakdown thiếu pairwise từng ô, cảnh báo mất mẫu VIF, nêu rõ cột date bị loại, worker AI corr-v1 (2026-11-07).** Phần còn mở được liệt kê tại mục 6. **v10 (2026-11-15) — Nhóm A: `WS-02` và `PROJ-02` chuyển từ phân trang offset sang keyset cursor; xem mục 3.36b. **v11 (2026-11-16) — Nhóm B/D/E/F/G/H: cập nhật trạng thái hiện thực hoá của 11 tính năng, cấp 6 mã tính năng mới (`AUTH-14`, `USER-03`, `USER-04`, `WS-11`, `PROJ-13`, `PROJ-14`, `PROJ-15`, `ISSUE-05`, `FILE-03`, `FB-07`); danh mục 79 → **85 tính năng**; xem mục 3.36c.**
 - **Giai đoạn:** Feature
 - **Thứ tự thực hiện:** Phần 2; sử dụng kết quả đã xác nhận của các phần trước.
-- **Quan hệ với v1/v2/v3:** v1, v2 và v3 được giữ nguyên để đối chiếu. **v4 áp dụng quyết định thu hẹp phạm vi nghiệp vụ ngày 2026-11-05: hệ thống chỉ đọc và phân tích dữ liệu, không bao giờ sửa/xóa/thay đổi bất kỳ dòng hay giá trị nào.** Xem mục 3.40. **v5/v6 chốt AI local + benchmark 5 model. v7 kích hoạt DQ-05 có điều kiện và AI đánh giá tương quan/VIF (2026-11-06). **v8 chi tiết hoá 4 hạn chế đã xử lý ở code (2026-11-07).**
+- **Quan hệ với v1/v2/v3:** v1, v2 và v3 được giữ nguyên để đối chiếu. **v4 áp dụng quyết định thu hẹp phạm vi nghiệp vụ ngày 2026-11-05: hệ thống chỉ đọc và phân tích dữ liệu, không bao giờ sửa/xóa/thay đổi bất kỳ dòng hay giá trị nào.** Xem mục 3.40. **v5/v6 chốt AI local + benchmark 5 model. v7 kích hoạt DQ-05 có điều kiện và AI đánh giá tương quan/VIF (2026-11-06). **v8 chi tiết hoá 4 hạn chế đã xử lý ở code (2026-11-07). **v10 hiện thực hoá keyset cursor cho danh sách workspace/project (2026-11-15). **v11 cập nhật trạng thái thực thi sau Bước 1–6 (2026-11-16).**
 
 > ## ⚠ 3.0. Quyết định nền tảng — hệ thống chỉ đọc, không sửa dữ liệu (2026-11-05)
 >
@@ -173,7 +171,7 @@ Trạng thái: người dùng đã đồng ý phạm vi 5 nhóm và tiêu chí b
 - Backend tính toán kết quả phân tích, chuẩn bị đầu vào có cấu trúc gồm kết quả thống kê tổng hợp và **tối đa 20 ô lỗi cho mỗi cột, đã che PII**. AI đảm nhiệm 4 vai trò: phát hiện vấn đề bổ sung, giải thích, đề xuất và nhận xét chất lượng dữ liệu. Backend kiểm tra cấu trúc phản hồi, đối chiếu số liệu và tham chiếu bằng chứng trước khi hiển thị. Phản hồi đúng cấu trúc không đồng nghĩa với kết luận đúng.
 - Tích hợp qua port AI và adapter nhà cung cấp theo Ports and Adapters đã chọn. Chi tiết hợp đồng, schema phản hồi và cơ chế kiểm chứng sẽ được thiết kế ở các bước sau.
 - Phạm vi gửi ra ngoài đã chốt ở v2: thống kê tổng hợp **và** mẫu ô lỗi tối đa 20 ô/cột đã che PII. Không gửi file gốc, không gửi toàn bộ tập bản ghi, không gửi ảnh chụp màn hình lỗi. Mẫu ô lỗi là **bổ sung** so với quyết định "chỉ nhận thống kê tổng hợp" ở v1; mọi câu chữ "không nhận mẫu dòng/giá trị ô" trong v1 phải được hiểu là không nhận **toàn bộ** mẫu dòng/giá trị ô, chỉ nhận mẫu giới hạn 20 ô/cột đã che PII. Chi tiết định danh cột và cách biểu diễn nhãn nhóm trong thống kê còn cần thiết kế, không mặc nhiên cho phép gửi các giá trị gốc qua nhãn nhóm. Giữ quy tắc AI lỗi không chặn kết quả hệ thống và tính năng Thử lại AI. Cơ chế bất đồng bộ tại mục 3.31.4.
-- Che PII là điều kiện bắt buộc trước khi gọi API ngoài. Ô lỗi không che được thì chỉ gửi thống kê tổng hợp thuần túy. **(v11: thay bằng chính sách che theo vai trò cột, mục 3.43 — mọi ô đều che được nên không còn loại ô.)**
+- Che PII là điều kiện bắt buộc trước khi gọi API ngoài. Ô lỗi không che được thì chỉ gửi thống kê tổng hợp thuần túy.
 
 - Cấu trúc nội dung mỗi phát hiện AI đã được xác nhận: vấn đề, cột liên quan, bằng chứng thống kê, mức độ ảnh hưởng, giải thích và đề xuất xử lý. Phải phân biệt nghi vấn cần kiểm tra thêm với vấn đề hệ thống đã xác nhận. Schema kỹ thuật chưa chốt.
 - Backend xác định mức độ ảnh hưởng bằng quy tắc: **Thấp** (ảnh hưởng hạn chế đến phép phân tích), **Trung bình** (có khả năng làm sai lệch kết quả, cần kiểm tra), **Cao** (ảnh hưởng lớn đến độ tin cậy hoặc khiến một phép phân tích không thực hiện được). Thêm trạng thái **Chưa đủ cơ sở** khi thiếu quy tắc/ngữ cảnh, không mặc định là Thấp. Mỗi đánh giá cần lý do, phạm vi bị ảnh hưởng và quy tắc áp dụng; hiện đánh giá ảnh hưởng đến phân tích, chưa khẳng định thiệt hại nghiệp vụ. Ngưỡng riêng theo loại vấn đề sẽ bàn sau, không dùng một ngưỡng chung cho mọi loại.
@@ -844,15 +842,17 @@ Module `workspaces` đã có: `POST /workspaces`, `GET /workspaces`, `GET /works
 
 - **Mô tả chuẩn hoá:** Tạo workspace mới kèm tên, mô tả và danh sách email thành viên được mời.
 - **Quy tắc nghiệp vụ:** Người tạo là Workspace Owner duy nhất. Thành viên được mời trở thành `member` (mặc định `PROJ-VIEWER` trong mọi project). Nếu email chưa có tài khoản → gửi lời mời (cần `EMAIL`).
+- **Giới hạn chống spam (phương án B — đã chốt 2026-11-17, đã hiện thực hoá):** tối đa **20 workspace** do một tài khoản thường làm chủ sở hữu (`MAX_WORKSPACES_PER_USER`); vượt trần → `429 Too Many Requests` với `error: 'LIMIT_EXCEEDED'` và `details: { currentCount, max }`. Quản trị viên hệ thống (`role === 'admin'`) **không** bị giới hạn. Workspace user chỉ là **thành viên** không tính vào trần.
 - **Trùng với:** UC-01 và UC-03 của Phần 3; `POST /workspaces` hiện có nhưng chưa có phần mời email.
 - **Module:** `workspaces`. **Phụ thuộc:** `users`, `EMAIL` (cho lời mời).
 - **Ưu tiên:** **Must** (đã có phần lõi).
+- **Trạng thái hiện thực hoá (v11, 2026-11-17):** `CreateWorkspaceHandler.execute()` kiểm tra quota qua `WORKSPACE_REPOSITORY_PORT.countOwnedByUser(userId)`; value object `workspace-quota.vo.ts`. Test: `test/workspace-invitation-email.spec.ts` (3 ca quota). Chi tiết quyền theo vai trò: Phần 6 v7 mục 3.10b.
 
 #### WS-02. Lấy danh sách Workspace
 
 - **Mô tả chuẩn hoá:** Liệt kê workspace người gọi tham gia, có phân trang, tìm kiếm, lọc theo vai trò và sắp xếp.
 - **Quy tắc nghiệp vụ:**
-  - Phân trang offset, mặc định 15 item/trang.
+  - **Phân trang keyset cursor** (v10, 2026-11-15 — đã hiện thực hoá): tham số `cursor` (opaque) + `limit` (mặc định 15, tối đa 100); response `{ items, meta: { nextCursor, hasMore, limit } }`; **không** còn `page`/`total`/`totalPages`. Cursor ràng buộc theo tham số `sort` — đổi `sort` thì phải bắt đầu lại từ trang đầu.
   - Tìm kiếm theo tên workspace (không phân biệt hoa/thường, chứa).
   - Lọc theo vai trò: `Owner` | `Member`. **Không có `Viewer`** ở cấp workspace — yêu cầu gốc (#43) có "Viewer" nhưng mô hình đã chốt không có vai trò này; đã sửa theo quyết định.
   - Sắp xếp: truy cập gần nhất (mặc định), tham gia gần nhất, cập nhật gần nhất, tên A→Z, tên Z→A.
@@ -861,6 +861,7 @@ Module `workspaces` đã có: `POST /workspaces`, `GET /workspaces`, `GET /works
 - **Rủi ro:** "Truy cập gần nhất" đòi hỏi ghi nhận thời điểm truy cập cuối → cần trường `last_accessed_at` trên workspace hoặc bảng riêng.
 - **Ưu tiên:** **Must**.
 - **Trùng với:** `GET /workspaces` hiện có nhưng chưa phân trang/tìm kiếm/lọc/sắp xếp.
+- **Trạng thái hiện thực hoá (v10, 2026-11-15):** `GET /workspaces` dùng keyset cursor — `list-workspaces-query.dto.ts` (bỏ `page`, thêm `cursor`), `workspaces.repository.ts` (`findByUserPaged` → keyset, bỏ `countDocuments`), `workspaces.service.ts` (`listWorkspaces` trả `{ items, meta }`). Xem Phần 7 v7 mục 3.5b.
 
 #### WS-03. Chi tiết Workspace
 
@@ -947,7 +948,7 @@ Module `projects` đã có: `POST /workspaces/:workspaceId/projects`, `GET /work
 
 - **Mô tả chuẩn hoá:** Liệt kê project theo workspace (hoặc project của tôi), có phân trang, tìm kiếm, lọc theo trạng thái và sắp xếp.
 - **Quy tắc nghiệp vụ:**
-  - Phân trang offset, mặc định 15 item/trang.
+  - **Phân trang keyset cursor** (v10, 2026-11-15 — đã hiện thực hoá): tham số `cursor` (opaque) + `limit` (mặc định 15, tối đa 100); response `{ items, meta: { nextCursor, hasMore, limit } }`; **không** còn `page`/`total`/`totalPages`. Cursor ràng buộc theo tham số `sort` — đổi `sort` thì phải bắt đầu lại từ trang đầu.
   - Tìm kiếm theo tên project.
   - Lọc theo `status`: `not_started` | `in_progress` | `completed`.
   - Sắp xếp: truy cập gần nhất (mặc định), tham gia gần nhất, cập nhật gần nhất, tên A→Z, tên Z→A.
@@ -955,6 +956,7 @@ Module `projects` đã có: `POST /workspaces/:workspaceId/projects`, `GET /work
 - **Module:** `projects`. **Phụ thuộc:** `workspaces`.
 - **Rủi ro:** Cần `last_accessed_at` và `status` trên project (mục 3.36.1).
 - **Ưu tiên:** **Must**.
+- **Trạng thái hiện thực hoá (v10, 2026-11-15):** `GET /workspaces/{workspaceId}/projects` dùng keyset cursor — `list-projects-query.dto.ts` (bỏ `page`, thêm `cursor`), `projects.repository.ts` (`findByWorkspacePaged` → keyset, bỏ `countDocuments`), `projects.service.ts` (`listProjectsByWorkspace` trả `{ items, meta }`). Xem Phần 7 v7 mục 3.5b.
 
 #### PROJ-03. Thông tin cơ bản Project
 
@@ -1065,6 +1067,173 @@ Yêu cầu #48 và #51 cần lọc project theo trạng thái "chưa xử lý / 
 3. Rollback dataset (`PROJ-08`) → phải hạ `completed` về `in_progress` nếu kết quả phân tích đã lưu trở thành stale.
 4. Trường `has_dataset` hiện tại **được bỏ** — suy ra từ `status !== 'not_started'` (quyết định v3 / 2026-11-05). Một nguồn sự thật duy nhất, tránh phải đồng bộ hai trường. Code hiện tại đọc `has_dataset` ở `projects.service.ts` (`setHasDataset`) phải được chuyển sang dùng `status`.
 5. Trạng thái phải hiển thị rõ trong `PROJ-02` và `PROJ-03`.
+
+### 3.36b. Phân trang keyset cursor cho danh sách (v10, 2026-11-15)
+
+**Quyết định (Q0.1 — `edit/02_ke_hoach_thuc_thien.md` Nhóm A):** phân trang **toàn hệ thống** dùng **keyset cursor** thay cho offset pagination.
+
+**Phạm vi hiện thực hoá ở v10:** `WS-02` (`GET /workspaces`) và `PROJ-02` (`GET /workspaces/{workspaceId}/projects`).
+
+**Quy tắc:**
+1. Tham số query: `cursor` (chuỗi opaque) + `limit` (1–100, mặc định 15). **Bỏ** `page`.
+2. Response: `{ items, meta: { nextCursor, hasMore, limit } }`. **Bỏ** `total`, `totalPages`, `page`, `offset`.
+3. Con trỏ mã hoá: mã sort + giá trị trường sort + cờ `null` + `_id` (tiebreaker).
+4. Con trỏ **ràng buộc theo `sort`**: sinh từ `sort=A` không dùng cho `sort=B` → `VALIDATION_ERROR` (HTTP 400).
+5. Không dùng `countDocuments` — `hasMore` suy ra bằng cách lấy `limit + 1` bản ghi.
+6. Trường ngày có thể `null` (`last_accessed_at`) — theo thứ tự so sánh BSON của MongoDB, `null` luôn nhỏ hơn mọi `Date`; với sort giảm dần, các bản ghi `null` nằm cuối.
+
+**Lợi ích:** phân trang ổn định — chèn/xoá bản ghi giữa 2 lần gọi không làm trôi hay trùng dữ liệu (đây là điểm yếu cố hữu của offset pagination).
+
+**Tác động lên Phần khác:**
+- Phần 7 v7 — mục 3.5 (quy tắc phân trang) + mục 3.5b mới (chi tiết đã hiện thực hoá).
+- Phần 13 v8 — quy tắc C14, C15 + bộ test `test/keyset-pagination.spec.ts`.
+- Phần 5 — port `WorkspaceRepositoryPort` / `ProjectRepositoryPort` dùng `ListCursor` (đã giải mã) thay cho `page`.
+
+**Việc còn lại (chưa làm ở v10):** các endpoint list khác (`GET /notifications`, `GET /issues`, `GET /admin/users`, `GET /workspaces/{id}/members`) đã dùng cursor ở tầng service nhưng **chưa** thống nhất `meta.limit` — sẽ chuẩn hoá ở đợt tinh chỉnh hợp đồng API tiếp theo.
+
+### 3.36c. Các tính năng mới hiện thực hoá — Nhóm B/D/E/F/G/H (v11, 2026-11-16)
+
+**Bối cảnh.** Trong Bước 2 → Bước 6 (`edit/02_ke_hoach_thuc_thien.md`), mã nguồn backend đã hiện thực hoá thêm các tính năng mà v10 chỉ mô tả trong thiết kế. Mục này ghi nhận **trạng thái thực thi** và bổ sung các mã tính năng mới.
+
+**Quyết định.** Danh mục tính năng được nâng từ **79 → 85 tính năng**. Mỗi tính năng mới đều có **mã riêng** và **endpoint thật** đã hiện thực hoá.
+
+#### AUTH-03 (cập nhật). Đăng nhập bằng Google — **đã hiện thực hoá (Bước 6)**
+
+- **Trạng thái v10:** thiết kế, ưu tiên **Could**.
+- **Trạng thái v11:** **đã hiện thực hoá** — commit `8cbe173`, 10 unit test + 3 E2E test.
+- **Mô tả chuẩn hoá:** Đăng nhập/đăng ký liền mạch qua **Google OAuth 2.0 — Authorization Code flow**, không cần tạo mật khẩu.
+- **Phạm vi:** Chỉ Google. Không thêm Microsoft/Apple/GitHub trong đợt này.
+- **Quy tắc nghiệp vụ (đã hiện thực hoá, khớp hoàn toàn với thiết kế v10):**
+  1. **Bắt buộc** `email_verified === true` trong id_token → nếu false trả `401 VALIDATION_ERROR`. Không xác minh → **không** tạo tài khoản.
+  2. `google_id` **đã gắn** → đăng nhập thẳng, **không** hỏi mật khẩu.
+  3. `google_id` **chưa gắn** nhưng email **đã tồn tại** → **liên kết tự động**: gắn `google_id` vào tài khoản đó rồi đăng nhập. *(Quyết định sản phẩm 2026-11-17 — thay đổi so với v10/v11 cũ.)* Lý do an toàn: email đã được Google **xác minh** (`email_verified === true`) → đã là chốt chặn đủ mạnh; thêm nữa `google_id` là **duy nhất** (unique sparse index) nên không thể chiếm đoạt tài khoản khác. Nếu `google_id` đã bị tài khoản khác chiếm → `409 CONFLICT`. Mật khẩu hiện có (nếu có) **giữ nguyên** — người dùng vẫn đăng nhập được bằng cả hai cách.
+  4. Cả hai đều mới → tạo tài khoản: `role = 'analyst'`, `status = 'active'`, `auth_provider = 'google'`, **không** có `password_hash`.
+  5. Tài khoản `status = 'blocked'` → `403 FORBIDDEN`.
+- **Chống CSRF:** cookie HttpOnly `google_oauth_state` (SameSite=Lax, maxAge 10 phút) sinh ở `GET /auth/google`, đối chiếu ở `GET /auth/google/callback`. Cookie phải được xoá sau khi dùng (kể cả khi lỗi).
+- **Thiếu cấu hình:** khi thiếu `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` → `501 DEPENDENCY_UNAVAILABLE` — coi là "tính năng chưa bật", không phải lỗi hạ tầng.
+- **Module:** `auth`. **Phụ thuộc:** `users` (qua `AUTH_USER_LOOKUP_PORT` — module `auth` **không** truy vấn thẳng collection `users`).
+- **Kiến trúc:** `GOOGLE_OAUTH_PORT` (driving port, `modules/auth/domain/ports/google-oauth.port.ts`) + `GoogleOAuthAdapter` (`modules/auth/infrastructure/security/google-oauth.adapter.ts`). Adapter xác thực chữ ký **RS256** bằng JWK công khai từ `https://www.googleapis.com/oauth2/v3/certs` — **không** dùng thư viện OAuth bên thứ ba.
+- **Ưu tiên:** **Must** (nâng từ Could — đã triển khai).
+
+#### AUTH-14. Ghi nhớ đăng nhập (remember-me) — **đã hiện thực hoá (Nhóm C)**
+
+- **Mô tả chuẩn hoá:** Người dùng chọn "ghi nhớ đăng nhập" → phiên sống lâu hơn (**30 ngày** thay vì **7 ngày**).
+- **Phạm vi:** Chỉ kéo dài hạn **refresh token**. Access token vẫn **15 phút** — không đổi.
+- **Quy tắc nghiệp vụ:**
+  - `POST /auth/login` nhận `remember_me: boolean` (mặc định `false`).
+  - TTL lấy từ env `JWT_REFRESH_REMEMBER_EXPIRATION` (mặc định `30d`); TTL thường từ `JWT_REFRESH_EXPIRATION` (mặc định `7d`).
+  - `user_session` lưu `remember_me: boolean` — dùng để hiển thị trong `GET /auth/sessions`.
+  - `user_session.last_used_at` được cập nhật mỗi lần refresh — dùng để hiển thị "hoạt động gần nhất".
+  - TTL index của `user_session` phải theo `expires_at` thật (`expireAfterSeconds: 0`), **không** dùng `index: { expires: '7d' }` — nếu không phiên 30 ngày sẽ bị xoá sớm.
+- **Module:** `auth`. **Phụ thuộc:** `AUTH-02`, `AUTH-12`.
+- **Ưu tiên:** **Should**.
+
+#### USER-03. Xoá tài khoản của chính mình — **đã hiện thực hoá (Nhóm A)**
+
+- **Mô tả chuẩn hoá:** Người dùng tự xoá tài khoản của mình (soft-delete).
+- **Quy tắc nghiệp vụ:** `deleted_at` được đặt; `email` được giải phóng để tái đăng ký được (partial unique index trên `email` chỉ áp dụng khi `deleted_at === null`).
+- **Phạm vi:** **Chỉ** tài khoản của chính người gọi. Không có endpoint xoá tài khoản người khác.
+- **Module:** `users`. **Phụ thuộc:** `auth`.
+- **Ghi chú:** v7 từng ghi "Bỏ" — nhưng mã nguồn thực tế **vẫn có** `DELETE /users/me`. Xem Phần 7 v8 mục 3.14.
+- **Ưu tiên:** **Should**.
+
+#### WS-11. Tổng quan workspace của người dùng — **đã hiện thực hoá (Nhóm E)**
+
+- **Mô tả chuẩn hoá:** Trả 5 chỉ số tổng quan: `totalWorkspaces`, `totalProjects`, `ownedWorkspaces`, `sharedWorkspaces`, `myProjects`.
+- **Endpoint:** `GET /overview/workspaces`.
+- **Vì sao không dùng `/workspaces/overview`:** `WorkspacesController` đã có `@Get(':id')` → chuỗi `overview` có thể bị phân giải thành `:id`. Tiền tố `/overview` tách khỏi namespace `workspaces`.
+- **Module:** `overview`. **Phụ thuộc:** `workspaces`, `projects`.
+- **Ưu tiên:** **Should**.
+
+#### PROJ-13. Tổng quan một workspace — **đã hiện thực hoá (Nhóm E)**
+
+- **Mô tả chuẩn hoá:** Trả 7 chỉ số: `projectCount`, `notStartedCount`, `inProgressCount`, `completedCount`, `memberCount`, `storageUsedBytes`, `lastAccessedAt`.
+- **Endpoint:** `GET /workspaces/{workspaceId}/overview`.
+- **Quyền:** thành viên (đọc). Không phải thành viên → `403 FORBIDDEN`.
+- **Module:** `overview`. **Phụ thuộc:** `workspaces`, `projects`, `datasets`.
+- **Ưu tiên:** **Should**.
+
+#### PROJ-14. Tìm kiếm & quản lý thành viên project — **đã hiện thực hoá (Nhóm E)**
+
+- **Mô tả chuẩn hoá:** Một endpoint duy nhất `GET /projects/{projectId}/members` vừa **tìm kiếm** (theo tên/email) vừa **phân trang keyset** (cursor) vừa **lọc theo vai trò** (`owner`/`member`/`viewer`).
+- **Sửa lệch so với thiết kế v10:** thiết kế ghi `GET /workspaces/{workspaceId}/members/search` — mã nguồn dùng **`GET /projects/{projectId}/members`** (đúng ngữ cảnh hơn: thành viên project nằm trong project, không phải workspace).
+- **Quy tắc bổ sung:** trả về `{ items, meta: { nextCursor, hasMore, limit } }` — không có `total`.
+- **Module:** `projects`. **Phụ thuộc:** `users`.
+- **Ưu tiên:** **Must**.
+
+#### PROJ-15. Chỉ định Project Owner khi tạo project — **đã hiện thực hoá (Nhóm F)**
+
+- **Mô tả chuẩn hoá:** `POST /workspaces/{workspaceId}/projects` nhận `ownerId?: string` (ObjectId hex) để chỉ định Project Owner khác người tạo.
+- **Quy tắc nghiệp vụ:**
+  1. Bỏ trống → Workspace Owner làm Project Owner (mặc định, giữ nguyên hành vi cũ).
+  2. `ownerId` phải là **thành viên của workspace** → nếu không `400 VALIDATION_ERROR`.
+  3. Người gọi phải là **Workspace Owner** — quy tắc quyền không đổi.
+  4. `memberIds` **không** làm trong phạm vi này — thêm thành viên qua `POST /projects/{projectId}/members`.
+  5. Import dataset **không** gộp vào request tạo project — tách 2 bước (upload là streaming 50MB).
+- **Module:** `projects`. **Phụ thuộc:** `workspaces`.
+- **Ưu tiên:** **Should**.
+
+#### USER-04. Số điện thoại và giới thiệu — **đã hiện thực hoá (Nhóm G)**
+
+- **Mô tả chuẩn hoá:** Bổ sung `phone` (E.164-ish, unique sparse) và `bio` (tối đa 500 ký tự) vào hồ sơ.
+- **Quy tắc nghiệp vụ:**
+  - `phone` **duy nhất** nếu có giá trị (partial unique index `{ phone: 1 }` với `partialFilterExpression: { phone: { $type: 'string' } }`).
+  - `bio` tối đa 500 ký tự.
+  - `PATCH /users/me` cho phép sửa `phone`/`bio` nhưng **không** cho sửa `role`/`status`.
+  - `GET /users/me` và `GET /admin/users/{userId}` đều trả `phone`/`bio`.
+- **Module:** `users`. **Phụ thuộc:** `USER-01`, `USER-02`.
+- **Ưu tiên:** **Should**.
+
+#### ISSUE-05. Sửa báo cáo của chính mình — **đã hiện thực hoá (Nhóm D)**
+
+- **Mô tả chuẩn hoá:** Khi quản trị viên chuyển trạng thái báo cáo sang `needs_info`, người báo cáo được sửa lại báo cáo đó.
+- **Endpoint:** `PATCH /issues/{issueId}`.
+- **Quy tắc nghiệp vài:**
+  1. Chỉ chủ báo cáo được sửa. Người khác → `403 FORBIDDEN`.
+  2. Chỉ sửa được khi `status === 'needs_info'`. Trạng thái khác → `409 CONFLICT`.
+  3. Body cho phép: `title`, `description`, `removeAttachmentIds[]`, `expectedVersion` (optimistic locking — bắt buộc nếu báo cáo có version).
+  4. Mọi lần sửa đều ghi **audit log** (`action = ISSUE_REPORT_UPDATED`) với metadata: title mới, cờ `descriptionChanged`, số tệp đính kèm đã gỡ.
+  5. **Vòng đời trạng thái báo cáo (v11):** `new → needs_info → in_progress → resolved → closed`, kèm nhánh `new → in_progress`. Điều kiện chuyển trạng thái được kiểm tra ở domain (`ALLOWED_ISSUE_TRANSITIONS`).
+- **Module:** `issues`. **Phụ thuộc:** `ISSUE-01`, `ISSUE-04`.
+- **Ưu tiên:** **Should**.
+
+#### FILE-03. Quản lý metadata dataset — **đã hiện thực hoá (Nhóm A)**
+
+- **Mô tả chuẩn hoá:** Các thao tác quản lý **metadata** dataset (không đụng tới giá trị dữ liệu — giữ nguyên nguyên tắc dữ liệu bất biến ở mục 3.0).
+- **Endpoint:**
+  - `PATCH /datasets/{datasetId}` — cập nhật tên/mô tả dataset.
+  - `PATCH /datasets/{datasetId}/columns` — đổi tên **nhiều cột trong 1 lần** (body là mảng cột).
+  - `POST /datasets/{datasetId}/columns/reset` — reset tên cột về đúng tên trong file gốc.
+  - `DELETE /datasets/{datasetId}` — xoá dataset.
+- **Quy tắc bắt buộc:** các thao tác này **chỉ** đổi metadata. Không có đường ghi nào sửa giá trị ô dữ liệu.
+- **Module:** `datasets`. **Phụ thuộc:** `PROJ-13`.
+- **Ưu tiên:** **Should**.
+
+#### FB-07. Xoá nhận xét của chính mình — **đã hiện thực hoá**
+
+- **Mô tả chuẩn hoá:** Người viết nhận xét có thể xoá nhận xét của chính mình.
+- **Endpoint:** `DELETE /feedback/{feedbackId}`.
+- **Quy tắc nghiệp vụ:** chỉ chủ nhận xét được xoá; người khác → `403 FORBIDDEN`. Xoá nhận xét **không** làm thay đổi `analysis_result` hay `dataset_record`.
+- **Module:** `feedback`. **Phụ thuộc:** `FB-05`.
+- **Ưu tiên:** **Could**.
+
+#### Bảng tổng hợp — trạng thái hiện thực hoá (v11)
+
+| Nhóm | Mã | Tính năng | Trạng thái | Bước |
+|---|---|---|---|---|
+| AUTH | `AUTH-03` | Đăng nhập Google OAuth 2.0 | ✅ Thực thi | 6 |
+| AUTH | `AUTH-14` | Remember-me (30 ngày) | ✅ Thực thi | 1 |
+| USER | `USER-03` | Xoá tài khoản của tôi | ✅ Thực thi | 1 |
+| USER | `USER-04` | `phone` + `bio` | ✅ Thực thi | 3 |
+| WS | `WS-11` | Tổng quan workspace của người dùng | ✅ Thực thi | 3 |
+| PROJ | `PROJ-13` | Tổng quan 1 workspace | ✅ Thực thi | 3 |
+| PROJ | `PROJ-14` | Tìm kiếm & quản lý thành viên project | ✅ Thực thi | 3 |
+| PROJ | `PROJ-15` | Chỉ định Project Owner khi tạo project | ✅ Thực thi | 3 |
+| ISSUE | `ISSUE-05` | Sửa báo cáo của chính mình (`needs_info`) | ✅ Thực thi | 1 |
+| FILE | `FILE-03` | Quản lý metadata dataset | ✅ Thực thi | 1 |
+| FB | `FB-07` | Xoá nhận xét của chính mình | ✅ Thực thi | 1 |
+
+**Số liệu v11:** **85 tính năng** (79 ở v10 + 6 mã mới) · **84 route HTTP thực thi** (Phần 7 v8.4) · **66 use case** (Phần 3 v6).
 
 ### 3.37. Nhóm thông báo — `NOTIF-*`
 
@@ -1371,67 +1540,6 @@ Hệ thống **đo lường** chất lượng dữ liệu và **báo cáo** vấ
 
 Quyết định này được áp dụng đồng bộ sang: Phần 3 (use case), Phần 4 (ranh giới module), Phần 6 (ma trận quyền), Phần 7 (hợp đồng API), Phần 8 (schema), Phần 9 (sự kiện/worker), Phần 11 (migration), Phần 12 (logic xử lý AI), Phần 13 (kiểm thử), Phần 14 (kế hoạch triển khai), `tech.md` và các tài liệu công nghệ.
 
-### 3.41. Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01 (v10)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16). Nguồn: rà soát code `src/backend/src/modules/analysis/` ngày 2026-11-17.
-- **SUMMARY-01 — chặn kết quả lỗi thời (bổ sung ràng buộc đã có ở v9):** `createSummary` phải từ chối khi `analysis_result` mới nhất có `is_stale = true` (ví dụ sau khi đổi cấu hình phân tích). Trả lỗi `ANALYSIS_RESULT_STALE` (409) kèm `staleReason`; yêu cầu chạy lại phân tích. Hiện code chỉ kiểm `run.status`.
-- **AI-01 — điều kiện thử lại:** chỉ cho thử lại khi job ở trạng thái `failed` hoặc `skipped`; job `pending`/`running`/`succeeded` → `AI_JOB_NOT_RETRYABLE` (409). Nếu kết quả hệ thống của lần chạy đã stale → `ANALYSIS_RESULT_STALE` (409), không dùng kết quả lỗi thời (khớp mô tả AI-01 v9).
-- **AI-01 — lỗi định dạng JSON từ model vẫn được thử lại** trong giới hạn `AI_MAX_RETRIES`; chỉ ghi nhận đánh giá AI rỗng/`failed` khi đã hết lượt.
-- **REPORT-01 — đúng bản Tổng kết:** PDF sinh từ chính bản Tổng kết (`project_save_id`) tại thời điểm yêu cầu, không lấy bản mới nhất lúc worker chạy.
-- **REPORT-01 — nội dung PDF FULL (thực hiện mục 6.5–6.6 đã chốt v9):** Tổng kết + bảng ma trận tương quan + bảng VIF + thống kê mô tả + mất cân bằng + phân tích thời gian + top phát hiện + bằng chứng phân trang + phụ lục ngưỡng; tiếng Việt có dấu (font Unicode).
-- **`top_n`:** dùng làm số phát hiện tối đa hiển thị trong Tổng kết/PDF (mặc định 50 theo v9) thay cho hằng số cố định.
-- **Ngoài phạm vi đợt này:** DQ-05 rule engine (giữ `unassessed`), chuyển AI job sang Kafka, phân tích bất đồng bộ cho dataset lớn.
-- **Ghi chú triển khai:** mặc định `top_n` đổi từ 10 → **50** (DTO `run-analysis`/`analysis-config`, schema `analysis_config`), tối đa giữ 100 như cũ, để khớp mục 6.6 v9 (PDF top 50). Tổng kết dùng `top_n` của chính lần chạy.
-
-### 3.42. Hoàn thiện module analysis — đợt D/E
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-- **Phân quyền theo project (bổ sung 3.9, 3.19, 3.20):** mọi route `projects/{projectId}/analysis*`, `summary`, `report` kiểm vai trò người gọi trong project. Viewer: xem cấu hình, kết quả, Tổng kết; **được yêu cầu sinh và tải PDF** (quyết định 2026-11-17). Chạy phân tích, lưu cấu hình, tạo Tổng kết, thử lại AI: PROJ-MEMBER+. Người ngoài project → không thấy tài nguyên (404).
-- **Đổi đầu vào → phải chạy lại (làm rõ 3.18):** cấu hình phân tích tham chiếu cột bằng **key bất biến** (`c{i}`), không theo tên hiển thị. Đổi tên cột, đổi dataset hoặc metadata cột (kiểu, PII) làm kết quả hiện có thành lỗi thời (`dataset_changed`); Tổng kết mới và thử lại AI bị chặn cho tới khi chạy lại phân tích.
-- **ANALYSIS-03 / 3.21 — dữ liệu biểu đồ:** backend trả dữ liệu cho 5 loại biểu đồ đã đồng ý: cột tỷ lệ thiếu theo cột; histogram cột số; box plot (trung vị, tứ phân vị, râu 1,5×IQR, số điểm ngoài râu); thanh tần suất cột phân loại với **Top N + nhóm "Khác"** (N mặc định 5, người có quyền chỉnh 1–20, lưu trong cấu hình `chart_top_n`); số bản ghi theo thời gian. Quy tắc chia khoảng histogram dùng tạm Freedman–Diaconis (Phần 12 v9 mục 3.18).
-- **SUMMARY-01 — nội dung đầy đủ (3.9 + 3.29):** mỗi vấn đề có **mức ảnh hưởng** (thấp/trung bình/cao/không có dữ liệu) theo bảng ngưỡng 3.29 kèm lý do; sắp **theo thứ tự ưu tiên** (mức ảnh hưởng → tỷ lệ); đề xuất xử lý theo từng nhóm DQ và cột (mẫu cố định, không do AI sinh); kèm cấu hình phân tích đã dùng, bảng ngưỡng, trạng thái DQ-05.
-- **Thông báo:** khi phân tích hệ thống xong/lỗi và khi phần AI xong/lỗi, người chạy phân tích nhận thông báo (Phần 9 v5 mục 3.12).
-- **Giới hạn kích thước:** phân tích đồng bộ từ chối dataset vượt `ANALYSIS_MAX_ROWS` (mặc định 200.000 dòng) với thông báo rõ; phân tích bất đồng bộ cho dataset lớn để đợt sau.
-- **Để đợt sau:** lưu/khôi phục trạng thái project (3.19), phân tích bất đồng bộ + hủy khi đổi cấu hình, DQ-05 rule engine, tinh chỉnh kiểu/vai trò/PII cột (3.22).
-
-### 3.43. Vai trò cột phân tích và chính sách che mẫu gửi AI (đợt F)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt F). Nguồn: demo offline Titanic 2026-11-17 + `docs/modules/analysis_plan.md` v1.4.
-- **Kết quả 2026-11-17:** tsc/nest build sạch; unit 208/208 (thêm 20 test cho đợt F), kiến trúc 3/3, e2e 52/52; demo Titanic: tương quan còn 8 cột / 28 cặp (loại PassengerId, Name, Ticket, Cabin), VIF chỉ Age/Fare, prompt có mẫu ô lỗi, cặp đường chéo bị loại, PDF 7 → 4 trang.
-- **Vấn đề (demo Titanic):** cột định danh/văn bản (`PassengerId`, `Name`, `Ticket`, `Cabin`) cho Cramér's V ≈ 1 chiếm đầu bảng tương quan và `PassengerId` lọt vào VIF, trái ANALYSIS-05 ("không đưa mã định danh vào"); prompt AI không có mẫu nào vì mọi ô không khớp mẫu PII đều bị loại; tên người được in nguyên văn.
-- **Vai trò cột phân tích** (tách khỏi kiểu dữ liệu, đúng yêu cầu DQ-03 "tách kiểu khỏi vai trò"):
-
-| Vai trò | Ý nghĩa | Tương quan | VIF | DQ-04 (ngoại lệ) |
-|---|---|---|---|---|
-| `measure` | Số định lượng | Pearson/Spearman (số–số), η² (với phân loại) | Có (trừ cột nhãn) | Có |
-| `category` | Phân loại, kể cả số mã hóa ít giá trị (`Survived`, `Pclass`) | Cramér's V / η² | Không | Không |
-| `identifier` | Mã định danh (`PassengerId`) | Loại — `identifier_column_excluded` | Không | Không |
-| `text` | Văn bản tự do, gần như mỗi dòng một giá trị (`Name`, `Ticket`) | Loại — `free_text_column_excluded` | Không | Không |
-| `datetime` | Cột ngày | Loại — `date_column_excluded_from_correlation_vif` (giữ như cũ) | Không | Không |
-
-- **Hệ thống tự nhận diện, người dùng sửa được, ghi rõ khi chưa chắc chắn:**
-- Đầu vào: kiểu cột đã chốt ở dataset (`number`/`string`/`boolean`/`date`) và **toàn bộ dòng** dùng phân tích. Đếm số giá trị khác nhau trên các ô không thiếu.
-- Tên kiểu mã: tách tên cột theo `snake_case`, `camelCase`, khoảng trắng; có token `id`, `code`, `zip`, `phone` (ví dụ `PassengerId` → `passenger`, `id`).
-- `date` → `datetime`; `boolean` → `category`; cột không có ô hợp lệ → `text`.
-- `number`: là số nguyên + tên kiểu mã + khác nhau ≥ 95% → `identifier`; ≤ 20 giá trị khác nhau **và** khác nhau ≤ 50% số ô hợp lệ → `category`; còn lại → `measure`.
-- `string`: tên kiểu mã + khác nhau ≥ 95% → `identifier`; khác nhau > 50% số ô hợp lệ → `text`; ≤ 20 giá trị khác nhau hoặc ≤ 5% số dòng → `category`; còn lại → `text`.
-- **Không suy định danh chỉ từ tên cột** (yêu cầu DQ-03): luôn cần thêm điều kiện tỷ lệ khác nhau.
-- Đánh dấu `uncertain = true` khi (a) tên kiểu mã nhưng không đạt điều kiện định danh, hoặc (b) cột số được xếp `category`. Kết quả ghi rõ nguồn `system`/`user`.
-- Người dùng ghi đè qua `column_roles` trong cấu hình phân tích; `measure` chỉ hợp lệ với cột `number`, `datetime` chỉ với cột `date` (sai → 400 `invalid_column_role`).
-- **Che mẫu gửi AI theo vai trò cột** (thay câu "Ô lỗi không che được thì chỉ gửi thống kê tổng hợp thuần túy" ở mục 3.5–3.6):
-1. Cột người dùng đánh dấu PII (`is_pii = true`) → `***`.
-2. Giá trị khớp mẫu email / số điện thoại / CCCD → `***`.
-3. Cột vai trò `identifier` hoặc `text` → **dạng mẫu**: chữ thường → `a`, chữ hoa → `A`, chữ số → `d`, giữ dấu câu và khoảng trắng (`Braund, Mr. Owen Harris` → `Aaaaaa, Aa. Aaaa Aaaaaa`).
-4. Các cột còn lại (`category`, `measure`, `datetime`) → giá trị thật.
-- Mọi giá trị cắt ≤ 40 ký tự. Không còn trường hợp "không che được", nên bỏ cơ chế loại ô (`dropUnmaskable`).
-- Mẫu gửi AI chỉ gồm **ô lỗi** của lần chạy: sai kiểu (DQ-03), ngoại lệ (DQ-04), dòng trùng (DQ-02); ô thiếu không có giá trị nên không gửi. Tối đa 20 ô/cột; cột không có ô lỗi thì không có mẫu.
-- `cell_evidence.value_masked` dùng cùng chính sách (trước đây luôn là `***`).
-- **Đánh dấu cột PII:** người dùng đặt `is_pii` qua `PATCH datasets/{id}/columns`; đổi cờ làm kết quả phân tích cũ lỗi thời.
-- **Biểu đồ theo vai trò cột:** `measure` → histogram/box plot; `category` → Top N + "Khác"; `identifier`/`text`/`datetime` và cột `is_pii` → không vẽ Top N (không in giá trị định danh/họ tên ra Tổng kết/PDF).
-- **Ma trận tương quan trong prompt và PDF:** chỉ tam giác trên (mỗi cặp không thứ tự một lần, bỏ đường chéo); AI nêu cặp một cột với chính nó bị loại khi đối chiếu.
-- **Ngoài phạm vi:** tự nhận diện cột họ tên là PII (vẫn cần người dùng đánh dấu; vai trò `text` đã che bằng dạng mẫu).
-
 ## 4. Đầu vào và đầu ra
 
 - **Đầu vào:** Yêu cầu người dùng, kết quả các phần trước và mã nguồn/tài liệu hiện trạng liên quan.
@@ -1441,7 +1549,9 @@ Quyết định này được áp dụng đồng bộ sang: Phần 3 (use case),
 
 Danh sách tính năng được người dùng xác nhận, không mặc định giữ nguyên các module cũ.
 
-**Trạng thái v5:** danh mục gồm **79 tính năng** (v3 có 84, bỏ 7 theo mục 3.40, thêm 6 theo mục 3.38b): **27 tính năng lõi Data Quality** (đã chốt ở v1–v2, trừ `DATA-01` xoá dòng) và **56 tính năng** mới (mục 3.32–3.38b, trừ `PROJ-06`/`PROJ-07`/`PROJ-08`), chia thành 7 nhóm: `AUTH-*` (13), `USER-*` (2), `ADMIN-*` (1), `WS-*` (10), `PROJ-*` (10), `NOTIF-*` (3), `ISSUE-*` (4), `FB-*` (6). Trong 56 tính năng mới: **13** đã có sẵn trong mã nguồn hiện tại, **13** đã có use case ở Phần 3, **30** cần thiết kế mới hoàn toàn. Chia đợt giao hàng tại mục 3.39 (Đợt 3 đã bị bỏ — mục 3.40.7). Phần lớn câu hỏi mở của v1 đã được chốt. Các câu hỏi còn mở được liệt kê tại mục 6.2 và cần chốt trước khi thiết kế chi tiết ở phần 8 (data model) và phần 9 (API).
+**Trạng thái v11:** danh mục gồm **85 tính năng** (v10 có 79, thêm 6 mã mới theo mục 3.36c) — **27 tính năng lõi Data Quality** (đã chốt ở v1–v2, trừ `DATA-01` xoá dòng) và **58 tính năng** mới, chia thành các nhóm: `AUTH-*` (14), `USER-*` (4), `ADMIN-*` (1), `WS-*` (11), `PROJ-*` (15), `NOTIF-*` (3), `ISSUE-*` (5), `FB-*` (7), `FILE-*`/`DATA-*` (bổ sung). Trong đó **11 tính năng** ở mục 3.36c đã **hiện thực hoá** trong mã nguồn (Bước 1–6). Tổng số route HTTP thực thi: **86** (Phần 7 v8).
+
+**Trạng thái v5 (lịch sử):** danh mục gồm **79 tính năng** (v3 có 84, bỏ 7 theo mục 3.40, thêm 6 theo mục 3.38b): **27 tính năng lõi Data Quality** (đã chốt ở v1–v2, trừ `DATA-01` xoá dòng) và **56 tính năng** mới (mục 3.32–3.38b, trừ `PROJ-06`/`PROJ-07`/`PROJ-08`), chia thành 7 nhóm: `AUTH-*` (13), `USER-*` (2), `ADMIN-*` (1), `WS-*` (10), `PROJ-*` (10), `NOTIF-*` (3), `ISSUE-*` (4), `FB-*` (6). Trong 56 tính năng mới: **13** đã có sẵn trong mã nguồn hiện tại, **13** đã có use case ở Phần 3, **30** cần thiết kế mới hoàn toàn. Chia đợt giao hàng tại mục 3.39 (Đợt 3 đã bị bỏ — mục 3.40.7). Phần lớn câu hỏi mở của v1 đã được chốt. Các câu hỏi còn mở được liệt kê tại mục 6.2 và cần chốt trước khi thiết kế chi tiết ở phần 8 (data model) và phần 9 (API).
 
 **Việc cần làm ở các phần sau, do v3 sinh ra:**
 - **Phần 3 (use case):** bổ sung UC cho 35 tính năng mới hoàn toàn. 10 tính năng đã có UC sẵn (dòng #27, #29, #37, #38, #39, #42, #47, #49, #50 và nhóm LEGACY) — không cần viết lại. Cần viết mới khoảng **30 UC** cho: `AUTH-01`→`AUTH-13`, `USER-01`, `USER-02`, `ADMIN-01`, `WS-02`, `WS-03`, `WS-06`, `WS-08`, `WS-09`, `PROJ-02`, `PROJ-03`, `PROJ-04`, `PROJ-05`, `PROJ-09`, `NOTIF-01`→`NOTIF-03`, `ISSUE-01`→`ISSUE-04`.
@@ -1476,6 +1586,20 @@ Danh sách tính năng được người dùng xác nhận, không mặc định
 10. ~~**Cơ chế bảo trì cấu trúc vai trò workspace**~~ **Đã chốt v9: CHẠY MIGRATION — map `editor`/`viewer` → `member`, `workspace_member` tách collection (Phần 11 v1 §3.6.3).**
 11. ~~**Vị trí vai trò `admin` hệ thống:**~~ **Đã chốt v9: thuộc module `users` (không tách module admin riêng).**
 12. ~~**Chia nhỏ Đợt 1 thành 1a/1b:**~~ **Đã chốt v9: GIỮ Đợt 1 một khối (không tách 1a/1b).**
+
+### 6.2d. Đã chốt ở v11 (2026-11-16)
+
+| # | Câu hỏi / quyết định | Kết quả | Nơi xử lý |
+|---|---|---|---|
+| 1 | ~~**Google OAuth có nên dùng thư viện bên thứ ba?**~~ | **Đã chốt v11: KHÔNG** — tự gọi HTTP endpoint của Google, xác thực chữ ký RS256 bằng JWK công khai từ `https://www.googleapis.com/oauth2/v3/certs`. Lý do: tránh thêm dependency, kiểm soát chặt chẽ việc dịch lỗi sang mã lỗi nội bộ. | Mục 3.36c, Phần 5 v3 mục 3.6 |
+| 2 | ~~**Thiếu credential Google thì trả lỗi gì?**~~ | **Đã chốt v11: `501 DEPENDENCY_UNAVAILABLE`** — coi là "tính năng chưa bật", **không** phải lỗi hạ tầng (`503`). | Mục 3.36c, Phần 7 v8 mục 3.5c |
+| 3 | ~~**Có tự động liên kết tài khoản Google với tài khoản local cùng email không?**~~ | **Đã chốt v11: KHÔNG** — trả `409 CONFLICT`. Đây là ranh giới chống chiếm đoạt tài khoản. | Mục 3.36c, Phần 6 v7 mục 3.7 |
+| 4 | ~~**Hạn refresh token khi "ghi nhớ đăng nhập"?**~~ | **Đã chốt v11: 30 ngày** (thay vì 7 ngày), cấu hình qua `JWT_REFRESH_REMEMBER_EXPIRATION`. Access token **không** đổi (15 phút). | Mục 3.36c, Phần 10 v7 |
+| 5 | ~~**TTL index của `user_session` có cần sửa cho remember-me?**~~ | **Đã chốt v11: CÓ** — dùng `expireAfterSeconds: 0` trên `expires_at` thật. Dùng `index: { expires: '7d' }` sẽ xoá phiên 30 ngày sớm. | Mục 3.36c, Phần 8 v7 |
+| 6 | ~~**Tìm kiếm thành viên project dùng endpoint riêng hay chung?**~~ | **Đã chốt v11: CHUNG** — `GET /projects/{projectId}/members` với query `search`/`role`/`cursor`/`limit`/`sort`. Bỏ thiết kế `GET /workspaces/{workspaceId}/members/search`. | Mục 3.36c, Phần 7 v8 mục 3.13 |
+| 7 | ~~**Endpoint tổng quan của người dùng đặt ở đâu?**~~ | **Đã chốt v11: `GET /overview/workspaces`** — không dùng `/workspaces/overview` vì xung đột với `@Get(':id')` của `WorkspacesController`. | Mục 3.36c, Phần 7 v8 mục 3.5d |
+| 8 | ~~**Ai được sửa báo cáo của chính mình?**~~ | **Đã chốt v11: CÓ, chỉ khi `status = needs_info`** — có optimistic locking (`expectedVersion`) và audit log. | Mục 3.36c, Phần 6 v7 mục 3.8 |
+| 9 | ~~**`DELETE /users/me` và `DELETE /datasets/{id}` có thực sự bị bỏ?**~~ | **Đã chốt v11: KHÔNG** — mã nguồn thực tế **vẫn có** cả hai route. Tài liệu v7 ghi "Bỏ" là **sai** → đã sửa ở Phần 7 v8. | Phần 7 v8 mục 3.14 |
 
 ### 6.2c. Đã chốt ở v3 (bổ sung 2026-11-05)
 
@@ -1518,13 +1642,9 @@ Nếu phát hiện mâu thuẫn với phần trước, cần xác nhận lại v
 
 ## 7. Prompting log và lịch sử thay đổi
 
-- **Thực hiện đợt F / 2026-11-17:** Hoàn tất code + test / Người dùng duyệt và yêu cầu thực thi đợt F / Đổi trạng thái sang đã thực hiện.
-- **Đề xuất v11 / 2026-11-17:** Vai trò cột phân tích và chính sách che mẫu gửi AI (đợt F) / Người dùng duyệt plan đợt F (sửa 6 lỗi phát hiện khi demo Titanic) / Thêm mục 3.43; docs trước code.
-- **Điều chỉnh trước khi push / 2026-11-17:** Giữ `top_n` tối đa 100 như hợp đồng cũ; giữ `summary.recommendations` là mảng chuỗi, cấu trúc chi tiết chuyển sang trường mới `summary.recommendation_items` / Người dùng hỏi lý do thay đổi hợp đồng, chọn phương án không phá tương thích / Sửa ghi chú triển khai.
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.42 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.42 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Hoàn thiện module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.42; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.41 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.41 sang đã thực hiện.
-- **Đề xuất v10 / 2026-11-17:** Hoàn thiện module analysis — SUMMARY-01 / AI-01 / REPORT-01 / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.41; chờ duyệt trước khi sửa code.
+- **Xác nhận v11 / 2026-11-16 (Nhóm B/D/E/F/G/H — cập nhật trạng thái thực thi):** thêm mục **3.36c** ghi nhận 11 tính năng đã hiện thực hoá trong Bước 1–6, cấp mã tính năng mới (`AUTH-14` remember-me, `USER-03` xoá tài khoản, `USER-04` phone+bio, `WS-11` tổng quan người dùng, `PROJ-13` tổng quan workspace, `PROJ-14` tìm kiếm thành viên, `PROJ-15` chỉ định Project Owner, `ISSUE-05` sửa báo cáo, `FILE-03` quản lý metadata dataset, `FB-07` xoá nhận xét); danh mục 79 → **85 tính năng** / **84 route HTTP** / Cập nhật mục 3.36c, mục 5.
+- **Xác nhận v10 / 2026-11-15 (Nhóm A — keyset cursor):** `WS-02` và `PROJ-02` chuyển từ **phân trang offset** sang **keyset cursor** — tham số `cursor`/`limit` (bỏ `page`), response `{ items, meta: { nextCursor, hasMore, limit } }` (bỏ `total`/`totalPages`/`offset`); cursor ràng buộc theo `sort` → `VALIDATION_ERROR` / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Bổ sung mục 3.36b, cập nhật `WS-02` và `PROJ-02`.
+
 - **Xác nhận v5 / 2026-11-05:** Chỉ hỗ trợ file `.csv`; gỡ toàn bộ khái niệm sheet, gỡ `FILE-01`/`FILE-02`, gỡ collection `dataset_sheet` / Theo yêu cầu người dùng / Viết lại mục 3.2, 3.8, 3.25, 3.26, cập nhật mục 3.12, 3.19 và bảng đối chiếu 3.32.
 - **Xác nhận v5 / 2026-11-05:** Phân trang chuyển sang **cursor** cho toàn bộ danh sách / Theo lựa chọn người dùng / Đồng bộ Phần 5 v2 mục 3.8 và Phần 7 v3 mục 3.5.
 - **Xác nhận v5 / 2026-11-05:** Thêm tính năng **nhận xét kết quả** (`FB-01`→`FB-06`) và module `feedback`; AI chạy nội bộ bằng model cục bộ / Theo yêu cầu người dùng / Đồng bộ Phần 3 v4, Phần 12 v4 mục 3.15–3.16.

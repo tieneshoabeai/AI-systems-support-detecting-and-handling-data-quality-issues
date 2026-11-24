@@ -2,12 +2,11 @@
 
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.17 — Bổ sung hợp đồng module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.18 — Bổ sung hợp đồng module analysis — đợt D/E (đã thực hiện).
-- **Trạng thái:** Đã chốt quy ước hợp đồng (response, error, **cursor pagination**, URL, upload, bất đồng bộ, download) và **bảng đầy đủ 79 tính năng → 85 endpoint**. **v4 bổ sung: DQ-05 kích hoạt có điều kiện trong kết quả phân tích + ma trận tương quan/VIF và nhận xét AI (theo Phần 2 v7, Phần 12 v6).** **v5 bổ sung: breakdown thiếu pairwise, cảnh báo mất mẫu VIF, excludedColumns/date, worker AI (theo Phần 2 v8, Phần 12 v7).** **v6 chốt nhóm B (2026-11-07): không ETag, list project theo workspace mẫu, /health + /health/ready ngoài /api/v1, version mọi resource, lọc server-side, đính kèm 10MB×3 png/jpg/pdf.** Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
+- **Cập nhật gần nhất:** 2026-11-15 (v7)
+- **Trạng thái:** Đã chốt quy ước hợp đồng (response, error, **cursor pagination**, URL, upload, bất đồng bộ, download) và **bảng đầy đủ 79 tính năng → 85 endpoint**. **v4 bổ sung: DQ-05 kích hoạt có điều kiện trong kết quả phân tích + ma trận tương quan/VIF và nhận xét AI (theo Phần 2 v7, Phần 12 v6).** **v5 bổ sung: breakdown thiếu pairwise, cảnh báo mất mẫu VIF, excludedColumns/date, worker AI (theo Phần 2 v8, Phần 12 v7).** **v6 chốt nhóm B (2026-11-07): không ETag, list project theo workspace mẫu, /health + /health/ready ngoài /api/v1, version mọi resource, lọc server-side, đính kèm 10MB×3 png/jpg/pdf.** **v7 (2026-11-15) — Nhóm A đã hiện thực hoá cursor pagination cho `GET /workspaces` và `GET /workspaces/{workspaceId}/projects`: bỏ `page`, thêm `cursor` opaque, response `{ items, meta: { nextCursor, hasMore, limit } }`, bỏ `total`/`page`/`totalPages` (mục 3.5).** Đã chốt toàn bộ mục 6.2 ở v6 (2026-11-07).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 7; sử dụng kết quả đã xác nhận của các phần trước.
-- **Quan hệ với các phần khác:** ánh xạ 1-1 với Phần 2 v8 (79 tính năng) và Phần 3 v5 (66 use case + DQ-05 có điều kiện). Quyền mỗi endpoint lấy từ ma trận quyền Phần 6 v5 mục 3.5.
+- **Quan hệ với các phần khác:** ánh xạ 1-1 với Phần 2 v10 (79 tính năng) và Phần 3 v5 (66 use case + DQ-05 có điều kiện). Quyền mỗi endpoint lấy từ ma trận quyền Phần 6 v5 mục 3.5.
 
 ## 1. Mục tiêu
 
@@ -64,12 +63,15 @@ Làm rõ và thống nhất thiết kế hợp đồng API cho đợt tái cấu
   ],
   "meta": {
     "nextCursor": "eyJzb3J0SjoiQ3JlYXRlZEF0Iiwi...==",
-    "hasMore": true
+    "hasMore": true,
+    "limit": 15
   }
 }
 ```
 
 > **v3 — cursor thay offset.** Không còn `page`, `total`, `totalPages`. Client dùng `nextCursor` để lấy trang kế tiếp và `hasMore` để quyết định có tải tiếp không. Cursor là **opaque string** — không được parse hoặc tự chế.
+>
+> **v7 — `meta.limit` đã hiện thực hoá** (2026-11-15): `meta` luôn gồm đủ 3 trường `nextCursor` (`string | null`), `hasMore` (`boolean`), `limit` (`number`, echo lại giá trị `limit` của request). Việc này áp dụng cho **mọi** endpoint trả danh sách có phân trang — bao gồm cả `data-view`, `notifications`, `issues`, `feedback` (đã chuyển trong các đợt trước).
 
 **Thành công — thao tác không trả nội dung:**
 
@@ -94,7 +96,7 @@ HTTP/1.1 204 No Content
 | 1 | **Không** có key `message` trong response thành công — thông báo lỗi mới cần message |
 | 2 | **Không** có key bọc dữ liệu (`{ workspace: {...} }`) — trả thẳng object |
 | 3 | Danh sách luôn trả `{ items, meta }` — kể cả khi `items` rỗng (không trả `null`) |
-| 3b | `meta` của danh sách có phân trang luôn gồm `nextCursor` (`string \| null`) và `hasMore` (`boolean`) — **không có** `page`/`total`/`totalPages` |
+| 3b | `meta` của danh sách có phân trang luôn gồm `nextCursor` (`string \| null`), `hasMore` (`boolean`) và `limit` (`number`) — **không có** `page`/`total`/`totalPages` |
 | 4 | Mọi response có `Content-Type: application/json` trừ khi tải file |
 | 5 | Response **không** chứa trường nội bộ: `deletedAt` (trừ khi API trả trạng thái xoá), `_id`, `__v`, `passwordHash`, `refreshTokenHash`, `googleId` |
 
@@ -209,6 +211,56 @@ HTTP/1.1 204 No Content
 2. Lọc `role`/`status` không hợp lệ → `VALIDATION_ERROR` tương tự.
 3. `search` tìm theo **substring, không phân biệt hoa/thường** (đã chốt ở Phần 2 mục 3.27).
 4. Lọc bộ lọc trong Data Views dùng cơ chế riêng (`filters` param) — xem mục 3.7.
+
+#### 3.5b. Hiện thực hoá cursor pagination — `GET /workspaces` & `GET /workspaces/{workspaceId}/projects` (v7, 2026-11-15)
+
+Hai endpoint này đã chuyển từ **offset pagination** (`page`/`limit` + `total`) sang **keyset cursor pagination** theo quyết định Q0.1 (Phần 2 v10, `edit/02_ke_hoach_thuc_thien.md` Nhóm A).
+
+**Query parameter thực tế (đã hiện thực hoá):**
+
+| Tham số | Kiểu | Mặc định | Ràng buộc |
+|---|---|---|---|
+| `cursor` | chuỗi (opaque, base64url) | — | Không tự chế; sai định dạng hoặc sinh từ `sort` khác → `VALIDATION_ERROR` |
+| `limit` | số nguyên | `15` | 1–100, vượt → `VALIDATION_ERROR` |
+| `sort` | chuỗi | `last_accessed` | `last_accessed`, `updated`, `name_asc`, `name_desc`, `joined` — giá trị khác → `VALIDATION_ERROR` |
+| `search` | chuỗi | — | trim, không phân biệt hoa/thường |
+| `role` (workspaces) | `owner` \| `member` | — | Giá trị khác → `VALIDATION_ERROR` |
+| `status` (projects) | `not_started` \| `in_progress` \| `completed` | — | Giá trị khác → `VALIDATION_ERROR` |
+
+> **Lưu ý tên tham số:** hai endpoint này dùng tham số **`sort`** (một giá trị từ danh sách kết hợp cả chiều) chứ không phải cặp `sortBy`/`sortOrder` như bảng quy ước chung ở trên. Đây là điểm lệch **đã biết** — sẽ được chuẩn hoá về `sortBy`/`sortOrder` ở đợt tinh chỉnh hợp đồng API tiếp theo (Bước 3–4), khi đã có frontend sử dụng.
+
+**Response thực tế:**
+
+```json
+{
+  "items": [ /* ... */ ],
+  "meta": {
+    "nextCursor": "eyJzIjoibGFzdF9hY2Nlc3NlZCIsImsiOiIyMDI2LTAxLTAxVDAwOjAwOjAwLjAwMFoiLCJuIjowLCJpZCI6IjUwN2YxZjc3YmNmODZjNzk5NDM5MDExIn0",
+    "hasMore": true,
+    "limit": 15
+  }
+}
+```
+
+**Không còn** `total`, `totalPages`, `page`, `offset` trong bất kỳ response nào của hai endpoint này.
+
+**Ràng buộc cursor đã hiện thực hoá:**
+1. Cursor **ràng buộc theo tham số `sort`**: sinh từ `sort=name_asc` không dùng được cho `sort=updated` → `VALIDATION_ERROR` (HTTP 400, `error.code = 'VALIDATION_ERROR'`). Client phải bắt đầu lại từ trang đầu (không truyền `cursor`).
+2. Cursor hỏng (không giải mã được) → `VALIDATION_ERROR`.
+3. Client **không được** parse cursor, không được tự chế, không được lưu lâu dài.
+
+**Cơ chế kỹ thuật (keyset):**
+- Con trỏ mã hoá 4 thành phần: mã sort (`s`), giá trị trường sort (`k`, ISO-8601 nếu là ngày), cờ `null` (`n`), và `_id` hex (`id`) làm tiebreaker.
+- Truy vấn MongoDB dùng `sort({ <field>: <dir>, _id: <dir> })` kèm điều kiện `$or` so sánh theo trường sort rồi tới `_id`.
+- Trường ngày có thể `null` (`last_accessed_at`): theo thứ tự so sánh BSON của MongoDB, `null` luôn nhỏ hơn mọi `Date` — nên với sort giảm dần, các bản ghi `null` nằm cuối cùng.
+- Không dùng `countDocuments` — `hasMore` suy ra bằng cách lấy `limit + 1` bản ghi.
+- Đường admin (`role === 'admin'`, xem toàn bộ workspace) phân trang keyset trong bộ nhớ, dùng cùng bộ mã hoá/giải mã nên con trỏ tương thích.
+
+**Index phục vụ keyset (đã có sẵn trong schema):**
+| Collection | Index |
+|---|---|
+| `workspaces` | `{ last_accessed_at: -1, deleted_at: 1 }`, `{ name: 1 }` |
+| `projects` | `{ workspace_id: 1, deleted_at: 1, last_accessed_at: -1 }`, `{ workspace_id: 1, name: 1, deleted_at: 1 }` |
 
 ### 3.6. Quy ước URL
 
@@ -849,37 +901,13 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 | C1 | Mọi route khai báo trong controller đều có `@ApiOperation` với `summary` và `operationId` |
 | C2 | Mọi endpoint có request body đều dùng schema Zod từ `packages/contracts` — không viết DTO thủ công |
 | C3 | Mọi endpoint có path param đều validate định dạng id |
-| C4 | Mọi endpoint trả danh sách đều có `cursor`/`limit` và trả `{ items, meta: { nextCursor, hasMore } }` |
+| C4 | Mọi endpoint trả danh sách đều có `cursor`/`limit` và trả `{ items, meta: { nextCursor, hasMore, limit } }` |
 | C5 | Mọi lỗi đều theo cấu trúc `{ error: { code, message } }` — không có response lỗi tự do |
 | C6 | Không response nào chứa `passwordHash`, `refreshTokenHash`, `googleId`, `__v` |
 | C7 | Endpoint nào có `expectedVersion` bắt buộc thì DTO **không** cho phép thiếu |
 | C8 | OpenAPI sinh từ schema Zod khớp 100% với route thực tế |
 
 **Kết quả C8 là tiêu chí nghiệm thu của Phần 7** — hợp đồng API được mô tả đúng như thực thi.
-
-### 3.17. Bổ sung hợp đồng module analysis (v7)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16).
-- `GET /projects/{projectId}/analysis/result` → thêm trường `isStale: boolean`, `staleReason: string | null`.
-- `POST /projects/{projectId}/summary` → `409 ANALYSIS_RESULT_STALE` khi kết quả phân tích mới nhất đã lỗi thời.
-- `POST /analysis/jobs/{jobId}/retry` → `409 AI_JOB_NOT_RETRYABLE` khi job không ở `failed`/`skipped`; `409 ANALYSIS_RESULT_STALE` khi kết quả hệ thống của run đã stale.
-- `GET|POST /analysis/jobs/{jobId}*` → kiểm quyền theo project của job (`ai_job.project_id`); job thuộc project người gọi không có quyền → `404` (không lộ sự tồn tại).
-- **Endpoint chưa có trong bảng 85 endpoint:** `POST /analysis/jobs/{jobId}/result` (gắn kết quả AI đã grounding — dùng nội bộ/thử nghiệm). Đề xuất: giới hạn cho `SYS-ADMIN` hoặc tắt khi `NODE_ENV=production`; ghi vào bảng endpoint khi chốt.
-- `GET /projects/{projectId}/report/{reportId}/file` giữ nguyên; báo cáo luôn dựng từ `projectSaveId` đã ghi lúc yêu cầu.
-- Ví dụ lỗi: `{ "error": { "code": "ANALYSIS_RESULT_STALE", "message": "Kết quả phân tích đã lỗi thời — hãy chạy lại phân tích", "details": { "staleReason": "config_changed" } } }`
-- **Ghi chú triển khai:** `top_n` mặc định **50** (trước: 10) để khớp mục 6.6 v9 (PDF top 50) và giữ đúng số phát hiện Tổng kết đã trả trước đây; tối đa giữ **100** như cũ, ở `POST analysis` và `POST analysis/config`. Tổng kết trả thêm `summary.top_n`. Viewer gọi `POST analysis/jobs/{jobId}/retry` → `403`. Audit mới: `AI_JOB_RETRIED`, `AI_RESULT_INGESTED`.
-
-### 3.18. Bổ sung hợp đồng module analysis — đợt D/E (đợt D/E)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-- **Cấu hình:** `POST /projects/{id}/analysis/config` nhận `selected_columns`, `label_column`, `time_column`, `value_column` theo tên hiện tại, key (`c{i}`) hoặc tên gốc; lưu theo key. Thêm `chart_top_n` (int 1–20, mặc định 5). `GET` trả `selectedColumns: [{ key, name }]` và tương tự cho nhãn/thời gian/giá trị.
-- **Kết quả:** `GET /projects/{id}/analysis/result` thêm khối `charts`:
-  `{ missingRate: [{ column, missingRate }], histograms: [{ column, bins: [{ from, to, count }], method }], boxPlots: [{ column, q1, median, q3, whiskerLow, whiskerHigh, outsideCount }], categories: [{ column, topN, items: [{ value, count, rate }], other: { count, rate } }], timeSeries: [{ period, recordCount }] | null }`.
-  `staleReason` thêm giá trị `dataset_changed`.
-- **Tổng kết:** `summary.issues[]` thêm `severity` (`low|medium|high|no_data`), `priority` (1..n), `reason`; thêm `summary.config_used`, `summary.thresholds[]`, `summary.dq05`; `recommendations` **giữ là `string[]`** (tương thích ngược, đã sắp theo ưu tiên, dạng `"[1] DQ-01 · cột: …"`); thêm trường mới `recommendation_items: [{ priority, dq, column, severity, text }]`.
-- **Lỗi mới:** `413 ANALYSIS_TOO_LARGE` (`details: { rowCount, maxRows }`) khi chạy phân tích; `403` khi Viewer gọi route ghi; `404` khi người ngoài project.
-- **Ghi chú triển khai (lệch so với đề xuất):** để tương thích ngược, `selectedColumns`/`labelColumn`/`timeColumn`/`valueColumn` **vẫn là tên** cột hiện tại; thêm trường mới `selectedColumnRefs: [{ key, name }]`, `labelColumnRef`, `timeColumnRef`, `valueColumnRef`, `chartTopN`. `selected_columns`/`label_column`... có tham chiếu không khớp cột nào → `400` (trước: lọc âm thầm rồi phân tích toàn bộ cột). Policy tĩnh của `POST projects/{id}/report` hạ từ `Execute` xuống `Read` để Viewer gọi được.
 
 ## 4. Đầu vào và đầu ra
 
@@ -951,11 +979,7 @@ Có API contract cùng ví dụ thành công/lỗi và liên kết tới tiêu c
 
 ## 7. Prompting log và lịch sử thay đổi
 
-- **Điều chỉnh trước khi push / 2026-11-17:** Giữ `top_n` tối đa 100 như hợp đồng cũ; giữ `summary.recommendations` là mảng chuỗi, cấu trúc chi tiết chuyển sang trường mới `summary.recommendation_items` / Người dùng hỏi lý do thay đổi hợp đồng, chọn phương án không phá tương thích / Sửa ghi chú triển khai.
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.18 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.18 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Bổ sung hợp đồng module analysis — đợt D/E / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.18; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.17 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.17 sang đã thực hiện.
-- **Đề xuất v7 / 2026-11-17:** Bổ sung hợp đồng module analysis / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.17; chờ duyệt trước khi sửa code.
+- **Xác nhận v7 / 2026-11-15 (Nhóm A — keyset cursor):** `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` chuyển từ offset (`page`/`total`) sang **keyset cursor** (`cursor`/`limit`); response `{ items, meta: { nextCursor, hasMore, limit } }`, bỏ `total`/`page`/`totalPages`; cursor ràng buộc theo `sort` → `VALIDATION_ERROR` / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Cập nhật mục 3.1 (quyết định 5), 3.2 (rule 3b), 3.5 + thêm mục 3.5b, quy tắc C4.
 - **Xác nhận v3 / 2026-11-05:** Phân trang chuyển từ offset sang **cursor** — response `{ items, meta: { nextCursor, hasMore } }`, bỏ `page`/`total`/`totalPages`; thêm ràng buộc cursor theo truy vấn và theo điều kiện lọc / Theo lựa chọn người dùng / Cập nhật mục 3.1 (quyết định 5), 3.2, 3.5, quy tắc C4.
 - **Xác nhận v3 / 2026-11-05:** Thêm 6 endpoint nhóm FEEDBACK (`FB-01`→`FB-06`) cho nhận xét người dùng và thống kê chất lượng AI / Theo yêu cầu người dùng / Bổ sung mục 3.17.1, bảng endpoint lên 86.
 - **Xác nhận v3 / 2026-11-05:** Thêm kênh **Socket.IO** để đẩy trạng thái realtime tới giao diện / Theo yêu cầu người dùng / Bổ sung mục 3.17.2.

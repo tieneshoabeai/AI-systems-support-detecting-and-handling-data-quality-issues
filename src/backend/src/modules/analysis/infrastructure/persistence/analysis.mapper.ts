@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 import type { IAnalysisRun } from './analysis-run.schema';
 import type { IAnalysisResult } from './analysis-result.schema';
 import type { IAiJob } from './ai-job.schema';
-import type { IAnalysisConfig } from './analysis-config.schema';
 import type { IProjectSave } from './project-save.schema';
 import type { IReportJob } from './report-job.schema';
 import type { IFewShotExample } from './few-shot-example.schema';
@@ -11,7 +10,6 @@ import type {
   CorrelationMatrixShape,
   VifShape,
   AiJobRecord,
-  AnalysisConfigRecord,
   AnalysisResultRecord,
   AnalysisRunRecord,
   CellEvidenceRecord,
@@ -85,11 +83,10 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     temporal: (raw.timeAnalysis ?? null) as unknown,
     timeAnalysis: (raw.timeAnalysis ?? null) as unknown,
     evidenceSummary: (raw.evidenceSummary ?? null) as unknown,
-    charts: (raw.charts ?? null) as unknown,
-    columnRoles: (raw.column_roles ?? null) as unknown,
-    aiSamples: (raw.ai_samples ?? null) as Record<string, string[]> | null,
-    suspicions: (raw.suspicions ?? null) as unknown[] | null,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
+    suspicions: (raw.suspicions ?? null) as unknown,
+    columnRoles: (raw.columnRoles ?? null) as unknown,
+    charts: (raw.charts ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,
     createdAt: doc.created_at,
@@ -121,23 +118,6 @@ export function toAiJobRecord(doc: IAiJob): AiJobRecord {
   };
 }
 
-export function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigRecord {
-  return {
-    projectId: oid(doc.project_id),
-    workspaceId: oid(doc.workspace_id),
-    selectedColumns: doc.selected_columns ?? null,
-    labelColumn: doc.label_column ?? null,
-    timeColumn: doc.time_column ?? null,
-    timeGranularity: String(doc.time_granularity ?? 'day'),
-    valueColumn: doc.value_column ?? null,
-    correlationMethod: doc.correlation_method ?? 'pearson',
-    outlierMethod: doc.outlier_method ?? 'iqr',
-    topN: doc.top_n ?? 50,
-    chartTopN: doc.chart_top_n ?? 5,
-    columnRoles: (doc.column_roles ?? null) as Record<string, string> | null,
-  };
-}
-
 export function toProjectSaveRecord(doc: IProjectSave): ProjectSaveRecord {
   return {
     id: oid(doc._id),
@@ -163,9 +143,6 @@ export function toReportJobRecord(doc: IReportJob): ReportJobRecord {
     storageKey: doc.storage_key ?? null,
     fileSizeBytes: doc.file_size_bytes ?? null,
     error: (doc.error ?? null) as Record<string, unknown> | null,
-    attempt: doc.attempt ?? 0,
-    leaseExpiresAt: doc.lease_expires_at ?? null,
-    heartbeatAt: doc.heartbeat_at ?? null,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
   };

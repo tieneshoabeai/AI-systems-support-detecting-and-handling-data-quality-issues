@@ -1,13 +1,22 @@
 import { Types } from 'mongoose';
 import type { IDataset } from './dataset.schema';
 import type {
-  CreateDatasetRecord,
-  DatasetColumnRecord,
-  DatasetRecord,
+  CreateDatasetInput,
+  DatasetColumn,
 } from '../../domain/ports/dataset.repository.port';
+import { Dataset } from '../../domain/entities/dataset.entity';
+import type { DatasetFinding } from '../../domain/entities/dataset.entity';
 import type { IColumnDefinition } from './dataset.schema';
 
-function toColumnRecord(c: IColumnDefinition): DatasetColumnRecord {
+/**
+ * DATASET — Mapper infrastructure ↔ domain entity.
+ *
+ * **Bước 3 — Rich Domain Model:** chiều document → entity dùng
+ * `Dataset.reconstitute()` (không phát domain event), chiều entity → document
+ * dùng `toDatasetPersistence()`.
+ */
+
+function toColumn(c: IColumnDefinition): DatasetColumn {
   return {
     key: c.key,
     index: c.index,
@@ -19,7 +28,7 @@ function toColumnRecord(c: IColumnDefinition): DatasetColumnRecord {
   };
 }
 
-function toColumnPersistence(c: DatasetColumnRecord): IColumnDefinition {
+function toColumnPersistence(c: DatasetColumn): IColumnDefinition {
   return {
     key: c.key,
     index: c.index,
@@ -31,8 +40,41 @@ function toColumnPersistence(c: DatasetColumnRecord): IColumnDefinition {
   };
 }
 
-export function toDatasetRecord(doc: IDataset): DatasetRecord {
+function toFindingPersistence(f: DatasetFinding): Record<string, unknown> {
   return {
+    type: f.type,
+    severity: f.severity,
+    column_key: f.columnKey,
+    column_name: f.columnName,
+    row_index: f.rowIndex,
+    message: f.message,
+    ...(f.details ? { details: f.details } : {}),
+  };
+}
+
+function toFindingEntity(f: {
+  type: string;
+  severity: string;
+  column_key?: string | null;
+  column_name?: string | null;
+  row_index?: number | null;
+  message: string;
+  details?: Record<string, unknown>;
+}): DatasetFinding {
+  return {
+    type: f.type as DatasetFinding['type'],
+    severity: f.severity as DatasetFinding['severity'],
+    columnKey: f.column_key ?? null,
+    columnName: f.column_name ?? null,
+    rowIndex: f.row_index ?? null,
+    message: f.message,
+    ...(f.details ? { details: f.details } : {}),
+  };
+}
+
+/** Document Mongoose → entity domain. */
+export function toDatasetEntity(doc: IDataset): Dataset {
+  return Dataset.reconstitute({
     id: doc._id.toString(),
     projectId: doc.project_id.toString(),
     workspaceId: doc.workspace_id.toString(),
@@ -44,22 +86,26 @@ export function toDatasetRecord(doc: IDataset): DatasetRecord {
     storageKey: (doc as unknown as Record<string, unknown>).storage_key as string ?? '',
     rowCount: doc.row_count ?? 0,
     columnCount: doc.column_count ?? 0,
-    columns: (doc.columns ?? []).map(toColumnRecord),
+    columns: (doc.columns ?? []).map(toColumn),
     columnIssues: (doc.column_issues ?? []).map((i) => ({
       columnKey: i.column_key ?? null,
       issue: i.issue,
       message: i.message,
     })),
+    findings: (doc.findings ?? []).map(toFindingEntity),
     hasHeader: doc.has_header ?? true,
     delimiter: doc.delimiter ?? ',',
     currentVersion: doc.current_version ?? 1,
     status: doc.status,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
-  };
+    deletedAt: doc.deleted_at ?? null,
+    version: 1,
+  });
 }
 
-export function toDatasetPersistence(data: CreateDatasetRecord & { id?: string }): Record<string, unknown> {
+/** Entity domain → document Mongoose. */
+export function toDatasetPersistence(data: CreateDatasetInput & { id?: string }): Record<string, unknown> {
   const out: Record<string, unknown> = {
     project_id: new Types.ObjectId(data.projectId),
     workspace_id: new Types.ObjectId(data.workspaceId),
@@ -77,6 +123,7 @@ export function toDatasetPersistence(data: CreateDatasetRecord & { id?: string }
       issue: i.issue,
       message: i.message,
     })),
+    findings: (data.findings ?? []).map(toFindingPersistence),
     has_header: data.hasHeader,
     delimiter: data.delimiter,
     status: data.status,
@@ -86,7 +133,9 @@ export function toDatasetPersistence(data: CreateDatasetRecord & { id?: string }
   return out;
 }
 
-export function toDatasetUpdate(update: Partial<CreateDatasetRecord> & Record<string, unknown>): Record<string, unknown> {
+export function toDatasetUpdate(
+  update: Partial<CreateDatasetInput> & Record<string, unknown>,
+): Record<string, unknown> {
   const set: Record<string, unknown> = {};
   const map: Record<string, string> = {
     name: 'name',
@@ -99,6 +148,7 @@ export function toDatasetUpdate(update: Partial<CreateDatasetRecord> & Record<st
     columnCount: 'column_count',
     columns: 'columns',
     columnIssues: 'column_issues',
+    findings: 'findings',
     hasHeader: 'has_header',
     delimiter: 'delimiter',
     currentVersion: 'current_version',
@@ -110,13 +160,15 @@ export function toDatasetUpdate(update: Partial<CreateDatasetRecord> & Record<st
       const conv: Record<string, unknown> = {};
       for (const [ik, iv] of Object.entries(inner)) {
         const mapped = map[ik] ?? ik;
-        if (ik === 'columns' && Array.isArray(iv)) conv[mapped] = (iv as DatasetColumnRecord[]).map(toColumnPersistence);
+        if (ik === 'columns' && Array.isArray(iv)) conv[mapped] = (iv as DatasetColumn[]).map(toColumnPersistence);
         else if (ik === 'columnIssues' && Array.isArray(iv)) conv[mapped] = iv;
+        else if (ik === 'findings' && Array.isArray(iv)) conv[mapped] = (iv as DatasetFinding[]).map(toFindingPersistence);
         else conv[mapped] = iv;
       }
       Object.assign(set, conv);
     } else if (map[k]) {
-      if (k === 'columns' && Array.isArray(v)) set[map[k]] = (v as DatasetColumnRecord[]).map(toColumnPersistence);
+      if (k === 'columns' && Array.isArray(v)) set[map[k]] = (v as DatasetColumn[]).map(toColumnPersistence);
+      else if (k === 'findings' && Array.isArray(v)) set[map[k]] = (v as DatasetFinding[]).map(toFindingPersistence);
       else set[map[k]] = v;
     } else if (!k.startsWith('$')) {
       set[k] = v;

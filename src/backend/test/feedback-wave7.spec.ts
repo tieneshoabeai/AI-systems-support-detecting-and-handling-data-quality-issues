@@ -1,12 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { FeedbackService } from '../src/modules/feedback/application/feedback.service';
-import { FEEDBACK_REPOSITORY_PORT } from '../src/modules/feedback/domain/ports/feedback.repository.port';
+import { FEEDBACK_REPOSITORY_PORT } from '../src/modules/feedback/feedback.types';
+import { Feedback as FeedbackEntity } from '../src/modules/feedback/feedback.types';
 import { ANALYSIS_REPOSITORY_PORT } from '../src/modules/analysis/domain/ports/analysis.repository.port';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
-import { WorkspacesService } from '../src/modules/workspaces/application/workspaces.service';
-import { UsersService } from '../src/modules/users/application/users.service';
-import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
+import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
+import { USER_REPOSITORY_PORT } from '../src/modules/users';
+import { createHandlerProxy } from './helpers/handler-proxy';
+import { feedbackHandlers } from './helpers/module-handlers';
+import { ForbiddenError, NotFoundError, ValidationError } from '../src/shared/domain/errors';
+
+
 
 const runId = new Types.ObjectId();
 const projectId = new Types.ObjectId();
@@ -14,11 +18,16 @@ const workspaceId = new Types.ObjectId();
 const userId = new Types.ObjectId().toHexString();
 const otherId = new Types.ObjectId().toHexString();
 
+/**
+ * Bước 3 — Rich Domain Model: repository trả **entity** `Feedback`,
+ * nên mock phải dựng entity thật để hành vi của entity dùng được.
+ */
 function docOf(over: Record<string, unknown> = {}) {
-  const d = {
+  return FeedbackEntity.reconstitute({
     id: new Types.ObjectId().toHexString(),
     analysisRunId: runId.toHexString(),
     findingId: 'DQ-01:colA',
+    findingKey: null,
     projectId: projectId.toHexString(),
     workspaceId: workspaceId.toHexString(),
     label: 'correct',
@@ -28,11 +37,14 @@ function docOf(over: Record<string, unknown> = {}) {
     aiRationale: null,
     authorId: userId,
     authorRoleAtTime: 'viewer',
+    modelId: null,
+    promptVersion: null,
+    version: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
+    deletedAt: null,
     ...over,
-  };
-  return d;
+  } as Parameters<typeof FeedbackEntity.reconstitute>[0]);
 }
 
 async function build(deps: {
@@ -60,7 +72,7 @@ async function build(deps: {
   };
   const m: TestingModule = await Test.createTestingModule({
     providers: [
-      FeedbackService,
+      ...Object.values(feedbackHandlers),
       { provide: FEEDBACK_REPOSITORY_PORT, useValue: repoVal },
       {
         provide: ANALYSIS_REPOSITORY_PORT,
@@ -73,7 +85,7 @@ async function build(deps: {
         },
       },
       {
-        provide: ProjectsService,
+        provide: PROJECT_ACCESS_PORT,
         useValue: {
           getProjectById: jest.fn().mockResolvedValue({
             id: projectId.toHexString(),
@@ -83,13 +95,13 @@ async function build(deps: {
         },
       },
       {
-        provide: WorkspacesService,
+        provide: WORKSPACE_ACCESS_PORT,
         useValue: {
           resolveUserWorkspaceRole: jest.fn().mockResolvedValue(deps.workspaceRole ?? 'member'),
         },
       },
       {
-        provide: UsersService,
+        provide: USER_REPOSITORY_PORT,
         useValue: {
           findById: jest.fn().mockResolvedValue({
             firstName: deps.meFirst ?? 'A',
@@ -99,7 +111,7 @@ async function build(deps: {
       },
     ],
   }).compile();
-  return { service: m.get<FeedbackService>(FeedbackService), repoVal };
+  return { service: createHandlerProxy(m, feedbackHandlers), repoVal };
 }
 
 describe('Wave7 FB-01/FB-02: tao nhan xet', () => {
@@ -118,12 +130,12 @@ describe('Wave7 FB-01/FB-02: tao nhan xet', () => {
       service.createFindingFeedback(userId, 'analyst', runId.toHexString(), 'DQ-01:age', {
         label: 'false_positive',
       }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('FB-01 Zod chan reason qua 2000 ky tu', async () => {
     const { CreateFeedbackSchema } = await import(
-      '../src/modules/feedback/infrastructure/http/dtos/feedback.dto'
+      '../src/modules/feedback/feedback.controller'
     );
     expect(
       CreateFeedbackSchema.safeParse({ label: 'other', reason: 'x'.repeat(2001) }).success,
@@ -139,7 +151,7 @@ describe('Wave7 FB-01/FB-02: tao nhan xet', () => {
       service.createFindingFeedback(userId, 'admin', runId.toHexString(), 'DQ-01:age', {
         label: 'correct',
       }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('FB-02 tao nhan xet cap run (finding_id null)', async () => {
@@ -187,7 +199,7 @@ describe('Wave7 FB-03/FB-04: xem + tong hop + an danh', () => {
         sortOrder: 'desc',
         cursor: 'sai',
       }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 });
 
@@ -197,10 +209,9 @@ describe('Wave7 FB-05: sua/xoa', () => {
     const { service } = await build({
       repo: {
         findByIdActive: jest.fn().mockResolvedValue(existing),
-        updateById: jest.fn().mockImplementation(async (_id: string, _u: unknown) => ({
-          ...existing,
-          label: 'partially_correct',
-        })),
+        updateById: jest.fn().mockImplementation(async (_id: string, u: Record<string, unknown>) =>
+          docOf({ ...u, label: (u.label as string) ?? 'partially_correct' }),
+        ),
       },
     });
     const r = (await service.updateMine(userId, existing.id, {
@@ -214,7 +225,7 @@ describe('Wave7 FB-05: sua/xoa', () => {
     ).service;
     await expect(
       s2.updateMine(otherId, existing.id, { label: 'correct' }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('sua sang false_positive ma thieu reason -> 400', async () => {
@@ -224,7 +235,7 @@ describe('Wave7 FB-05: sua/xoa', () => {
     });
     await expect(
       service.updateMine(userId, existing.id, { label: 'false_positive' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('owner duoc xoa vi pham (ghi log), nguoi la -> 403', async () => {
@@ -235,7 +246,7 @@ describe('Wave7 FB-05: sua/xoa', () => {
       repo: { findByIdActive: jest.fn().mockResolvedValue(existing), softDelete: jest.fn() },
     });
     await expect(b.service.remove(userId, 'analyst', existing.id)).rejects.toBeInstanceOf(
-      ForbiddenException,
+      ForbiddenError,
     );
     const b2 = await build({
       projectRole: 'owner',
@@ -249,7 +260,7 @@ describe('Wave7 FB-05: sua/xoa', () => {
   it('khong tim thay -> 404', async () => {
     const { service } = await build({});
     await expect(service.remove(userId, 'analyst', new Types.ObjectId().toHexString())).rejects.toBeInstanceOf(
-      NotFoundException,
+      NotFoundError,
     );
   });
 });
@@ -274,12 +285,12 @@ describe('Wave7 FB-06 + append-only/TTL', () => {
     const denied = await build({ projectRole: 'viewer' });
     await expect(
       denied.service.aiQualityMetrics(userId, 'analyst', projectId.toHexString()),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('schema append-only: TTL 365 ngay + index scope', async () => {
     const { FindingFeedbackSchema } = await import(
-      '../src/modules/feedback/infrastructure/persistence/finding-feedback.schema'
+      '../src/modules/feedback/finding-feedback.schema'
     );
     const idx = FindingFeedbackSchema.indexes() as Array<[Record<string, unknown>, Record<string, unknown>?]>;
     const hasScope = idx.some(([k]) => 'analysis_run_id' in k && 'finding_id' in k);

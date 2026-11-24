@@ -1,5 +1,6 @@
-import { Schema, Document, Types } from 'mongoose';
-import { BaseEntity } from '../../../../shared/database/base-mongo.repository';
+import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
+import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
 
 export type CorrelationKind = 'pearson' | 'spearman' | 'cramers_v' | 'eta_squared';
 export type VifFlag = 'ok' | 'review' | 'high';
@@ -99,13 +100,12 @@ export interface IAnalysisResult extends Document, BaseEntity {
   imbalance: unknown | null;
   timeAnalysis: unknown | null;
   evidenceSummary: { total: number; byKind: Record<string, number>; byColumn: Record<string, number>; capped: boolean } | null;
-  charts: unknown | null;
-  /** Đợt F: vai trò cột của lần chạy. */
-  column_roles: unknown | null;
-  /** Đợt F: mẫu ô lỗi đã che gửi AI (≤ 20/cột). */
-  ai_samples: Record<string, string[]> | null;
-  /** Đợt G: nhóm Nghi vấn (nội bộ, chỉ dùng cho Tổng kết/PDF). */
+  /** GĐ2 — nhóm Nghi vấn ("Cần xác nhận với nguồn"); không có mức ảnh hưởng, chỉ hiển thị ở Tổng kết/PDF. */
   suspicions: unknown[] | null;
+  /** GĐ9 — vai trò cột suy ra được (identifier / text / datetime / measure…). */
+  columnRoles: unknown[] | null;
+  /** Biểu đồ tần suất/phân phối theo cột (phụ lục A của PDF). */
+  charts: unknown | null;
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -128,10 +128,9 @@ export const AnalysisResultSchema = new Schema<IAnalysisResult>(
     imbalance: { type: Schema.Types.Mixed, default: null },
     timeAnalysis: { type: Schema.Types.Mixed, default: null },
     evidenceSummary: { type: Schema.Types.Mixed, default: null },
-    charts: { type: Schema.Types.Mixed, default: null },
-    column_roles: { type: Schema.Types.Mixed, default: null },
-    ai_samples: { type: Schema.Types.Mixed, default: null },
     suspicions: { type: Schema.Types.Mixed, default: null },
+    columnRoles: { type: Schema.Types.Mixed, default: null },
+    charts: { type: Schema.Types.Mixed, default: null },
     deleted_at: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },

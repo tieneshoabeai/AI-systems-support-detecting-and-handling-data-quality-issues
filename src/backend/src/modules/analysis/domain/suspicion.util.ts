@@ -1,9 +1,10 @@
 /**
- * Đợt G (Phần 2 v12 mục 3.44, Phần 12 v11 mục 3.20) — nhóm NGHI VẤN ("Cần xác nhận với nguồn").
- * Không phải lỗi đã xác nhận: không có mức ảnh hưởng, không vào danh sách vấn đề, không tự sửa dữ liệu,
- * không gửi AI. Chỉ hiển thị ở Tổng kết và PDF.
+ * Nhóm NGHI VẤN ("Cần xác nhận với nguồn") — port từ `Vqd_BE` (GĐ2).
+ *
+ * Không phải lỗi đã xác nhận: không có mức ảnh hưởng, không vào danh sách vấn đề,
+ * không tự sửa dữ liệu, không gửi AI. Chỉ hiển thị ở Tổng kết và PDF.
  */
-import { isMissingToken } from '../../../shared/utils/missing-tokens.util';
+import { isMissingToken } from '../../../shared/domain/utils/missing-tokens.util';
 import { isMissingCell } from './dq.util';
 import { toFiniteNumber } from './correlation.util';
 import { detectDayMonthOrder } from './date-parse.util';
@@ -17,13 +18,11 @@ export type SuspicionKind =
   | 'sentinel'
   | 'constant_column'
   | 'ambiguous_date_format'
-  // Đợt H (Phần 2 v13 mục 3.45)
   | 'identifier_not_unique'
   | 'duplicate_key'
   | 'locale_number_format'
   | 'conditional_missing'
   | 'leading_zero_numeric'
-  // Đợt I (Phần 2 v14 mục 3.46): tự phát hiện mâu thuẫn — chỉ Nghi vấn, DQ-05 vẫn chưa đánh giá
   | 'negative_in_positive'
   | 'zero_in_positive'
   | 'row_all_measures_missing'
@@ -46,7 +45,9 @@ export interface SuspicionColumn {
   isPii: boolean;
 }
 
-export const SENTINEL_VALUES: ReadonlySet<number> = new Set([-1, -9, -99, -999, -9999, 9999, 99999, 999999]);
+export const SENTINEL_VALUES: ReadonlySet<number> = new Set([
+  -1, -9, -99, -999, -9999, 9999, 99999, 999999,
+]);
 const MAX_EXAMPLES = 5;
 /** Cột chữ có quá nhiều giá trị khác nhau thì không gom biến thể (tốn bộ nhớ, ít ý nghĩa). */
 const CASE_VARIANT_MAX_DISTINCT = 200;
@@ -61,7 +62,9 @@ function quantile(sorted: number[], q: number): number {
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;
 
 /** Đợt H: token tên cột gợi ý khóa nghiệp vụ (dùng cho `duplicate_key`). */
-export const BUSINESS_KEY_NAME_TOKENS: readonly string[] = ['email', 'mail', 'phone', 'mobile', 'tel', 'tax', 'mst', 'cccd', 'cmnd', 'passport'];
+export const BUSINESS_KEY_NAME_TOKENS: readonly string[] = [
+  'email', 'mail', 'phone', 'mobile', 'tel', 'tax', 'mst', 'cccd', 'cmnd', 'passport',
+];
 /** Đợt H: dạng số theo vùng / tiền tệ (ô chuỗi không đọc được bằng Number). */
 const LOCALE_NUMBER_RES: readonly RegExp[] = [
   /^[+-]?\d{1,3}(\.\d{3})+(,\d+)?$/, // 1.200,50 · 1.200.000
@@ -87,15 +90,20 @@ const CONDITIONAL_MISSING_MIN_RATE = 0.1;
 const CONDITIONAL_GROUP_MIN_ROWS = 5;
 const CONDITIONAL_MAX_CATEGORY_COLUMNS = 10;
 const CONDITIONAL_MAX_CATEGORY_DISTINCT = 20;
+
 const normKey = (v: unknown): string => String(v).trim().toLowerCase().replace(/\s+/g, ' ');
 
-export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string, unknown>[]): Suspicion[] {
+export function detectSuspicions(
+  columns: SuspicionColumn[],
+  rows: Record<string, unknown>[],
+): Suspicion[] {
   const out: Suspicion[] = [];
   const total = rows.length;
   const rate = (n: number): number | null => (total > 0 ? r4(n / total) : null);
 
   for (const col of columns) {
-    const mask = (v: unknown): string => maskForAi(v, { markedPii: col.isPii, role: col.role })?.value ?? '';
+    const mask = (v: unknown): string =>
+      maskForAi(v, { markedPii: col.isPii, role: col.role })?.value ?? '';
     const present = rows.map((r) => r[col.name]).filter((v) => !isMissingCell(v));
 
     // ---- cột hằng
@@ -165,7 +173,12 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
     if (col.dataType === 'string') {
       // ---- ký hiệu thiếu ở cột chữ
       const tokens = new Map<string, number>();
-      for (const v of present) if (isMissingToken(v)) tokens.set(String(v).trim(), (tokens.get(String(v).trim()) ?? 0) + 1);
+      for (const v of present) {
+        if (isMissingToken(v)) {
+          const k = String(v).trim();
+          tokens.set(k, (tokens.get(k) ?? 0) + 1);
+        }
+      }
       const tokenCount = [...tokens.values()].reduce((a, b) => a + b, 0);
       if (tokenCount > 0) {
         out.push({
@@ -199,15 +212,22 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
           const groups = new Map<string, [string, number][]>();
           for (const [v, n] of counts) {
             const k = v.toLowerCase().replace(/\s+/g, ' ');
-            (groups.get(k) ?? groups.set(k, []).get(k)!).push([v, n]);
+            const arr = groups.get(k) ?? [];
+            arr.push([v, n]);
+            groups.set(k, arr);
           }
           const variantGroups = [...groups.values()].filter((g) => g.length > 1);
           if (variantGroups.length > 0) {
             // số ô thuộc các cách viết ít gặp hơn trong mỗi nhóm
-            const minority = variantGroups.reduce((s, g) => s + g.reduce((a, [, n]) => a + n, 0) - Math.max(...g.map(([, n]) => n)), 0);
+            const minority = variantGroups.reduce(
+              (s, g) => s + g.reduce((a, [, n]) => a + n, 0) - Math.max(...g.map(([, n]) => n)),
+              0,
+            );
             out.push({
               kind: 'case_variant', column: col.name, count: minority, rate: rate(minority),
-              examples: variantGroups.slice(0, MAX_EXAMPLES).map((g) => g.sort((a, b) => b[1] - a[1]).map(([v, n]) => `${mask(v)} ×${n}`).join(' / ')),
+              examples: variantGroups
+                .slice(0, MAX_EXAMPLES)
+                .map((g) => g.sort((a, b) => b[1] - a[1]).map(([v, n]) => `${mask(v)} ×${n}`).join(' / ')),
               message: `"${col.name}" có ${variantGroups.length} giá trị được viết theo nhiều cách (khác hoa/thường hoặc khoảng trắng bên trong); ${minority} ô dùng cách viết ít gặp hơn.`,
               recommendation: 'Xác nhận các cách viết có cùng nghĩa không; hệ thống không tự gộp (spec 3.5.3).',
             });
@@ -232,7 +252,8 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
         // ≥ 2 lần và ngoài hàng rào 3×IQR; Đợt H: hoặc sentinel ÂM xuất hiện đúng 1 lần ở cột không có giá trị âm nào khác
         // (cột dải rộng có thể chứa -999 trong hàng rào, dấu âm đơn lẻ mới là tín hiệu)
         const kept = [...occ.entries()].filter(([v, c]) =>
-          (c >= 2 && (v < lo || v > hi)) || (c === 1 && v < 0 && !nums.some((n) => n < 0 && n !== v)));
+          (c >= 2 && (v < lo || v > hi)) || (c === 1 && v < 0 && !nums.some((n) => n < 0 && n !== v)),
+        );
         for (const [v] of kept) sentinelVals.add(v);
         const cnt = kept.reduce((a, [, c]) => a + c, 0);
         if (cnt > 0) {
@@ -260,7 +281,10 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
           }
           const zero = xs.filter((n) => n === 0);
           const others = xs.filter((n) => n !== 0 && n >= 0);
-          if (zero.length > 0 && zero.length / xs.length <= ZERO_MAX_RATE && others.length > 0 && others.length + zero.length + neg.length === xs.length) {
+          if (
+            zero.length > 0 && zero.length / xs.length <= ZERO_MAX_RATE && others.length > 0 &&
+            others.length + zero.length + neg.length === xs.length
+          ) {
             out.push({
               kind: 'zero_in_positive', column: col.name, count: zero.length, rate: rate(zero.length),
               examples: [`0 ×${zero.length}`],
@@ -276,7 +300,9 @@ export function detectSuspicions(columns: SuspicionColumn[], rows: Record<string
     if (col.dataType === 'date') {
       const det = detectDayMonthOrder(present);
       if (det === 'ambiguous' || det === 'conflict') {
-        const slash = present.filter((v) => typeof v === 'string' && /^\d{1,2}[/.-]\d{1,2}[/.-]\d{4}/.test(v.trim()));
+        const slash = present.filter(
+          (v) => typeof v === 'string' && /^\d{1,2}[/.-]\d{1,2}[/.-]\d{4}/.test(v.trim()),
+        );
         out.push({
           kind: 'ambiguous_date_format', column: col.name, count: slash.length, rate: rate(slash.length),
           examples: slash.slice(0, MAX_EXAMPLES).map(mask),
@@ -313,15 +339,19 @@ function detectDuplicateKeys(
   rows.forEach((r, i) => {
     if (keyCols.some((c) => isMissingCell(r[c.name]))) return;
     const k = keyCols.map((c) => normKey(r[c.name])).join('\u0001');
-    (groups.get(k) ?? groups.set(k, []).get(k)!).push(i);
+    const arr = groups.get(k) ?? [];
+    arr.push(i);
+    groups.set(k, arr);
   });
   const full = (i: number): string => JSON.stringify(columns.map((c) => rows[i]?.[c.name] ?? null));
   const hit = [...groups.values()].filter((idx) => idx.length > 1 && new Set(idx.map(full)).size > 1);
   if (hit.length === 0) return [];
   const cnt = hit.reduce((a, g) => a + g.length, 0);
   const names = keyCols.map((c) => c.name).join(' + ');
-  const maskKey = (i: number): string => keyCols
-    .map((c) => maskForAi(rows[i]?.[c.name], { markedPii: c.isPii, role: c.role })?.value ?? '').join(' | ');
+  const maskKey = (i: number): string =>
+    keyCols
+      .map((c) => maskForAi(rows[i]?.[c.name], { markedPii: c.isPii, role: c.role })?.value ?? '')
+      .join(' | ');
   return [{
     kind: 'duplicate_key', column: names, count: cnt, rate: rate(cnt),
     examples: hit.slice(0, MAX_EXAMPLES).map((g) => `${maskKey(g[0] as number)} ×${g.length}`),
@@ -360,16 +390,24 @@ function detectConditionalMissing(
 ): Suspicion[] {
   const total = rows.length;
   if (total === 0) return [];
-  const cats = columns.filter((c) => c.role === 'category').filter((c) => {
-    const d = new Set<string>();
-    for (const r of rows) if (!isMissingCell(r[c.name])) d.add(String(r[c.name]).trim());
-    return d.size >= 2 && d.size <= CONDITIONAL_MAX_CATEGORY_DISTINCT;
-  }).slice(0, CONDITIONAL_MAX_CATEGORY_COLUMNS);
+  const cats = columns
+    .filter((c) => c.role === 'category')
+    .filter((c) => {
+      const d = new Set<string>();
+      for (const r of rows) if (!isMissingCell(r[c.name])) d.add(String(r[c.name]).trim());
+      return d.size >= 2 && d.size <= CONDITIONAL_MAX_CATEGORY_DISTINCT;
+    })
+    .slice(0, CONDITIONAL_MAX_CATEGORY_COLUMNS);
   const out: Suspicion[] = [];
   for (const x of columns) {
     const missIdx = rows.map((r, i) => (isMissingCell(r[x.name]) ? i : -1)).filter((i) => i >= 0);
     if (missIdx.length === 0 || missIdx.length / total < CONDITIONAL_MISSING_MIN_RATE) continue;
-    let best: { c: SuspicionColumn; values: string[]; covered: number; filled: [string, { n: number; miss: number }][] } | null = null;
+    let best: {
+      c: SuspicionColumn;
+      values: string[];
+      covered: number;
+      filled: [string, { n: number; miss: number }][];
+    } | null = null;
     for (const c of cats) {
       if (c.name === x.name) continue;
       const stat = new Map<string, { n: number; miss: number }>();
@@ -392,17 +430,22 @@ function detectConditionalMissing(
       if (!best || covered > best.covered) best = { c, values: high.map(([v]) => v), covered, filled };
     }
     if (!best) continue;
-    const vals = best.values.map((v) => maskForAi(v, { markedPii: best!.c.isPii, role: best!.c.role })?.value ?? '');
+    const bestCol = best.c;
+    const vals = best.values.map(
+      (v) => maskForAi(v, { markedPii: bestCol.isPii, role: bestCol.role })?.value ?? '',
+    );
     out.push({
       kind: 'conditional_missing', column: x.name, count: missIdx.length, rate: rate(missIdx.length),
-      examples: [`${best.c.name} = ${vals.slice(0, MAX_EXAMPLES).join(' / ')}: ${best.covered}/${missIdx.length} ô trống`],
-      message: `${best.covered}/${missIdx.length} ô trống của "${x.name}" nằm ở các dòng "${best.c.name}" = ${vals.slice(0, MAX_EXAMPLES).join(', ')} (gần như luôn trống ở các nhóm này) — thiếu có cấu trúc, có thể là hợp lệ. Mức ảnh hưởng DQ-01 không đổi.`,
-      recommendation: `Xác nhận "${x.name}" có chỉ áp dụng cho một số giá trị của "${best.c.name}" không; nếu có, các ô trống còn lại mới là thiếu thật.`,
+      examples: [`${bestCol.name} = ${vals.slice(0, MAX_EXAMPLES).join(' / ')}: ${best.covered}/${missIdx.length} ô trống`],
+      message: `${best.covered}/${missIdx.length} ô trống của "${x.name}" nằm ở các dòng "${bestCol.name}" = ${vals.slice(0, MAX_EXAMPLES).join(', ')} (gần như luôn trống ở các nhóm này) — thiếu có cấu trúc, có thể là hợp lệ. Mức ảnh hưởng DQ-01 không đổi.`,
+      recommendation: `Xác nhận "${x.name}" có chỉ áp dụng cho một số giá trị của "${bestCol.name}" không; nếu có, các ô trống còn lại mới là thiếu thật.`,
     });
     // Đợt I: các ô trống trong nhóm "gần như luôn có giá trị" — nghi là thiếu thật
     if (best.filled.length > 0) {
-      const c = best.c;
-      const fv = best.filled.map(([v, st]) => [maskForAi(v, { markedPii: c.isPii, role: c.role })?.value ?? '', st] as const);
+      const c = bestCol;
+      const fv = best.filled.map(
+        ([v, st]) => [maskForAi(v, { markedPii: c.isPii, role: c.role })?.value ?? '', st] as const,
+      );
       const cnt = best.filled.reduce((a, [, st]) => a + st.miss, 0);
       out.push({
         kind: 'missing_in_filled_group', column: x.name, count: cnt, rate: rate(cnt),

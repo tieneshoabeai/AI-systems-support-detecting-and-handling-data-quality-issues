@@ -2,15 +2,15 @@
 
 - **Version:** v9
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v9)
-- **Thay đổi v9 (2026-11-17):** bổ sung mục 3.22 — Test đợt F module analysis. Nguồn: demo offline Titanic 2026-11-17 + `docs/modules/analysis_plan.md` v1.4. Trạng thái: Đã thực hiện 2026-11-17 (đợt F).
-- **Thay đổi v8 (2026-11-17):** bổ sung mục 3.20 — Test bổ sung cho hoàn thiện module analysis. Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.21 — Test bổ sung đợt D/E module analysis (đã thực hiện).
-- **Trạng thái:** Đã chốt 17 quyết định kiểm thử và thiết kế chi tiết **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**), ma trận truy xuết ngược **120 quy tắc kiểm thử** (S/C/I/O/M) + 79 tính năng + 66 use case + 85 endpoint, ngưỡng coverage theo tầng, checker kiến trúc tự động, `k6` cho hiệu năng, factory + seed cho dữ liệu test, **48** tình huống phân quyền tự động, và quy trình nghiệm thu 3 bước.
+- **Cập nhật gần nhất:** 2026-11-16 (v9)
+- **Trạng thái:** Đã chốt 17 quyết định kiểm thử và thiết kế chi tiết **9 tầng test** (thêm **Tầng 9 — Benchmark AI & học lại**), ma trận truy xuất ngược **143 quy tắc kiểm thử** (S/C/I/O/M) + **85 tính năng** + 66 use case + **84 route HTTP thực thi**, ngưỡng coverage theo tầng, checker kiến trúc tự động, `k6` cho hiệu năng, factory + seed cho dữ liệu test, **48** tình huống phân quyền tự động, và quy trình nghiệm thu 3 bước. **v9 (2026-11-16):** đồng bộ với mã nguồn sau Bước 1–6 (Remember-me, Issue `needs_info`, Keyset cursor, Search/Overview/Profile/Project Owner, Clean Architecture 107 command/query handler, Google OAuth 2.0 thật, ESLint `--max-warnings 0`) — bổ sung **14 quy tắc mới** (S25–S29, C16–C21, I24–I25, O37–O39), 5 bộ test mới (**83 ca**), cập nhật bảng mapping theo **85 tính năng / 84 route HTTP**.
 - **Thay đổi v2 (2026-11-05):** đồng bộ theo quyết định **dữ liệu bất biến (chỉ đọc)** — bỏ toàn bộ test cho xoá dòng, sửa ô, clean-rules, rollback phiên bản, lineage; bổ sung test **insert-only** cho `dataset_record`; số liệu toàn tài liệu cập nhật (93 quy tắc / 77 tính năng / 62 use case / 80 endpoint / 21 collection / 34 tình huống phân quyền).
 - **Thay đổi v4 (2026-11-05):** áp dụng 4 quyết định kiến trúc. (1) **Cursor pagination** — thêm bộ test phân trang keyset (C9–C13) + quy tắc kiến trúc A15. (2) **Kafka + Socket.IO** — thêm container Kafka vào môi trường test, bộ test luồng sự kiện (I15–I21) và test realtime. (3) **AI cục bộ** — quyết định 8 viết lại (mock adapter, không bao giờ gọi network ra ngoài), thêm **Tầng 9 — Benchmark AI & học lại** (quyết định 15–17). (4) **Chỉ `.csv`** — test từ chối `.xlsx` (C13) + quy tắc A16. Ngoài ra: số liệu cập nhật (120 quy tắc / 79 tính năng / 66 use case / 85 endpoint / 48 tình huống phân quyền).
 - **Giai đoạn:** Chuẩn bị implementation/evaluation
 - **Thứ tự thực hiện:** Phần 13; sử dụng kết quả đã xác nhận của các phần trước.
-- **Quan hệ với các phần khác:** gom và kiểm chứng toàn bộ quy tắc đã chốt ở Phần 5 v2 (ports/adapters), Phần 6 v5 (phân quyền), Phần 7 v3 (contract), Phần 8 v4 (schema), Phần 9 v3 (integration), Phần 10 v4 (vận hành), Phần 11 v4 (migration), Phần 12 v6 (logic AI + DQ-05 có điều kiện + AI đánh giá tương quan/VIF); là điều kiện tiên quyết cho Phần 14.
+- **Quan hệ với các phần khác:** gom và kiểm chứng toàn bộ quy tắc đã chốt ở Phần 5 v3 (ports/adapters — có `GOOGLE_OAUTH_PORT`), Phần 6 v7 (phân quyền), Phần 7 v8.4 (contract — 84 route HTTP), Phần 8 v7 (schema), Phần 9 v3 (integration), Phần 10 v7 (vận hành), Phần 11 v4 (migration), Phần 12 v6 (logic AI + DQ-05 có điều kiện + AI đánh giá tương quan/VIF); là điều kiện tiên quyết cho Phần 14.
+- **Thay đổi v8 (2026-11-15):** đồng bộ với Phần 7 v7 — `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` đã hiện thực hoá **keyset cursor** (bỏ `page`/`total`, thêm `cursor`/`limit`, `meta` có `nextCursor`+`hasMore`+`limit`). Bổ sung quy tắc **C14** (cursor ràng buộc theo `sort`) và **C15** (quy tắc kiến trúc A15 mở rộng: cấm `countDocuments`/`skip` cho endpoint list workspace/project); cập nhật ma trận 120 → **122 quy tắc**. Xem mục 3.11.2b.
+- **Thay đổi v9 (2026-11-16):** đồng bộ toàn bộ tài liệu với mã nguồn sau **Bước 1–6** của `edit/02_ke_hoach_thuc_thien.md`. (1) **Tái kiến trúc Clean Architecture** — 107 command/query handler tách từ service, mỗi handler có test riêng; ESLint siết `--max-warnings 0`. (2) **Google OAuth 2.0 thật** (`AUTH-03`) — 10 unit + 3 E2E ca. (3) **Remember-me** (`AUTH-14`) — 11 unit ca. (4) **Issue `needs_info`** (`ISSUE-05`) — 5 unit ca. (5) **Keyset cursor** (`C14`–`C15`) — 23 ca. (6) **Search / Overview / Profile / Project Owner** (Nhóm E–H) — 34 ca. Ma trận 122 → **143 quy tắc**; bảng mapping cập nhật **85 tính năng / 84 route HTTP**. Xem mục **3.11.2c** và **3.12.4**.
 
 ## 1. Mục tiêu
 
@@ -41,7 +41,7 @@ Xác định bộ kiểm thử và tiêu chí nghiệm thu để chứng minh đ
 | 10 | Bằng chứng nghiệm thu: **cả hai** — báo cáo tự động + phần kết luận do người viết | Tự động cho số liệu, người cho phán đoán |
 | 11 | CI: **chỉ script `pnpm test:all` chạy local** — không GitHub Actions | Không có auto-deploy |
 | 12 | Ngưỡng đạt: **chặn** — test fail hoặc coverage dưới ngưỡng thì không commit, không deploy | Dù chưa có CI, gate áp dụng ở quy trình local |
-| 13 | Bảng mapping: **đầy đủ** — 79 tính năng + 66 use case + 85 endpoint + 120 quy tắc | Dùng làm danh sách nghiệm thu |
+| 13 | Bảng mapping: **đầy đủ** — **85 tính năng** + 66 use case + **84 route HTTP** + **143 quy tắc** | Dùng làm danh sách nghiệm thu |
 | 14 | Test hợp đồng API: **cả hai** — snapshot OpenAPI + validate runtime Zod trong E2E | Bắt được cả thay đổi ngoài ý muốn lẫn lỗi runtime |
 | 15 | **Tầng 9 — Benchmark AI & học lại**: bộ benchmark cố định đánh giá **5 model cục bộ** (`Qwen3-14B` / `Gemma-3-12B` / `Qwen3-8B` / `Llama-3.1-8B` / `Vistral-7B`) trên cùng tập mẫu, 9 chỉ số, kiểm định thống kê và đường Pareto → chọn model tối ưu | Quyết định chọn model phải dựa trên **số liệu**, không cảm tính |
 | 16 | Benchmark **chạy thủ công** (không trong `test:all`) — cần engine thật, thời gian dài | Model cục bộ trên CPU rất chậm; CI không có model |
@@ -110,14 +110,14 @@ Xác định bộ kiểm thử và tiêu chí nghiệm thu để chứng minh đ
 | 1 | `openapi.json` là **artifact có version** — commit cùng code, thay đổi contract = thay đổi file + PR ghi rõ |
 | 2 | Test **không** tự cập nhật file — nếu lệch thì fail, người lập trình chủ động regenerate và commit |
 | 3 | Lệnh regenerate: `pnpm contracts:openapi` |
-| 4 | Kiểm tra thêm: **không có endpoint trong OpenAPI mà không có trong bảng 85 endpoint** của Phần 7 và ngược lại |
+| 4 | Kiểm tra thêm: **không có endpoint trong OpenAPI mà không có trong bảng 84 route HTTP** của Phần 7 và ngược lại |
 | 5 | Kiểm tra: mọi response có trường `error.code` thuộc danh mục mã lỗi đã chốt ở Phần 7 |
 
 **Phạm vi kiểm tra:**
 
 | Hạng mục | Nguồn |
 |---|---|
-| 85 endpoint, method, path, query param | Phần 7 mục 3.x |
+| 84 route HTTP, method, path, query param | Phần 7 mục 3.x |
 | Tên trường response (`camelCase`) | Phần 7 mục 3.3 |
 | Mã lỗi | Phần 7 mục 3.4 |
 | Shape của `meta` phân trang | Phần 7 mục 3.5 |
@@ -369,7 +369,7 @@ test/
 | Dataset lỗi tên cột | 1 | Test chặn phân tích |
 | Báo cáo sự cố | 3 | Test `issues` |
 
-**Phạm vi test bắt buộc — theo 85 endpoint:**
+**Phạm vi test bắt buộc — theo 84 route HTTP:**
 
 | Nhóm endpoint | Số | Mức test |
 |---|---|---|
@@ -622,9 +622,9 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | 4 | Mẫu **không** được dùng làm ground truth của bộ benchmark |
 | 5 | Xoá project → mẫu ẩn danh hoá **được giữ**, feedback gốc bị xoá |
 
-### 3.11. Ma trận truy xuất ngược — 120 quy tắc kiểm thử
+### 3.11. Ma trận truy xuất ngược — 143 quy tắc kiểm thử
 
-Đây là **trái tim** của Phần 13: gom 120 quy tắc đã rải rác ở 11 phần trước về một bảng, mỗi quy tắc gắn với tầng test và file test cụ thể.
+Đây là **trái tim** của Phần 13: gom 143 quy tắc đã rải rác ở 11 phần trước về một bảng, mỗi quy tắc gắn với tầng test và file test cụ thể.
 
 > **Cập nhật 2026-11-05 (dữ liệu bất biến):** bổ sung **S19** (ràng buộc insert-only cho `dataset_record`) và **A13–A14** (cấm route ghi dữ liệu ngoài import). Các quy tắc liên quan xoá dòng / sửa ô / clean-rules / rollback phiên bản đã bị gỡ khỏi ma trận.
 
@@ -658,7 +658,7 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | S22 | **v4** `finding_feedback` là **append-only** — không có `deleted_at` xoá cứng; `author_role_at_time` không bị ghi lại | 2, 4 | `feedback-immutable.spec.ts` | ☐ |
 | S23 | **v4** `feedback_example.trust_score < 0,6` → `is_active = false`; `expires_at` TTL 180 ngày | 4 | `feedback-example.spec.ts` | ☐ |
 
-#### 3.11.2. Quy tắc contract — C1–C8 (Phần 7 v2)
+#### 3.11.2. Quy tắc contract — C1–C15 (Phần 7 v7)
 
 | Mã | Nội dung rút gọn | Tầng | File test | Trạng thái |
 |---|---|---|---|---|
@@ -675,6 +675,71 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | C11 | **v4** Duyệt trang bằng cursor → **không trùng, không thiếu, không lệch thứ tự** so với offset (đối chiếu offline) | 5 | `api-cursor-pagination.spec.ts` | ☐ |
 | C12 | **v4** Chèn/xoá bản ghi giữa 2 lần đọc → cursor cũ vẫn đọc được dữ liệu **không bị bỏ sót** (tính chất keyset) | 5 | `api-cursor-pagination.spec.ts` | ☐ |
 | C13 | **v4** Upload file không phải `.csv` → `400` `UNSUPPORTED_FILE_TYPE` | 5 | `api-upload.spec.ts` | ☐ |
+| C14 | **v8** Cursor **ràng buộc theo `sort`** — sinh từ `sort=A` không dùng được cho `sort=B` → `VALIDATION_ERROR` (HTTP 400) | 1, 5 | `keyset-pagination.spec.ts`, `api-cursor-pagination.spec.ts` | ☑ |
+| C15 | **v8** Endpoint list workspace/project **không** dùng `countDocuments`/`skip` — `hasMore` suy ra từ `limit + 1` (tính chất keyset) | 1 | `clean-architecture.spec.ts` (A15) | ☑ |
+
+#### 3.11.2b. Bộ test keyset cursor — hiện thực hoá (v8, 2026-11-15)
+
+**Bộ test đã viết:** `test/keyset-pagination.spec.ts` (18 ca) + cập nhật `test/workspaces.spec.ts` (+2 ca) và `test/projects.spec.ts` (+2 ca).
+
+| Nhóm | Ca test | Phủ quy tắc |
+|---|---|---|
+| Encode / decode con trỏ | round-trip payload; cursor hỏng → `null`; cursor là base64url thuần (không lộ JSON) | C10 |
+| Parse con trỏ | `undefined` → trang đầu; cursor hợp lệ; cursor hỏng → `InvalidCursorError`; cursor sai `sort` → `InvalidCursorError` | C10, C14 |
+| Điều kiện MongoDB | sort ngày tăng/giảm dần xử lý đúng `null`; sort chuỗi dùng `$gt`/`$lt` + tiebreaker `_id`; `buildKeysetSort` luôn kèm `_id` | C11, C12 |
+| Trích giá trị sort | Date → ISO-8601; `null` → cờ `isNull`; chuỗi giữ nguyên | C11 |
+| Ánh xạ sort | mã hợp lệ → đặc tả; mã lạ → fallback mặc định | C14 |
+| In-memory (đường admin) | so sánh theo `name_asc`/`last_accessed`; `null` nằm cuối khi sort giảm dần; `isAfterCursor` lọc đúng; tiebreaker `_id` | C11, C12 |
+| Service layer | `meta` có `nextCursor`/`hasMore`/`limit`; **không** có `total`; cursor sai `sort` → `BadRequestException`; cursor hỏng → `BadRequestException` | C4, C9, C14 |
+
+**Kết quả chạy (2026-11-15):** 218 unit test + 52 E2E test + 16 test kiến trúc — tất cả PASS. ESLint: 0 error.
+
+**Kết quả thực thi trên MongoDB thật (cần chạy tay):** ma trận C11/C12 ở tầng 5 yêu cầu dữ liệu ≥ 3 trang để đối chiếu. Xem "Quy trình kiểm thử thủ công" trong `edit/06_buoc_2_a_bao_cao.md`.
+
+#### 3.11.2c. Bộ test mới hiện thực hoá ở Bước 1–6 (v9, 2026-11-16)
+
+**Bối cảnh.** Trong Bước 1 → Bước 6 (`edit/02_ke_hoach_thuc_thien.md`), mã nguồn backend đã hiện thực hoá thêm các tính năng mà v8 chỉ mô tả trong thiết kế. Bảng dưới liệt kê **5 bộ test mới — 83 ca** — kèm quy tắc được phủ.
+
+| Bộ test | Số ca | Tầng | Nội dung phủ | Quy tắc |
+|---|---|---|---|---|
+| `test/step6-google-oauth.spec.ts` | 11 | 2, 3 | Luồng chính (tạo tk mới / đăng nhập tk đã gắn `google_id`); email đã có tài khoản → **liên kết tự động** (2026-11-17) + trường hợp `google_id` bị tài khoản khác chiếm → `409`; email chưa xác minh → `401`; tài khoản `blocked` → `403`; `state` không khớp → `401`; adapter thiếu credential → `501 DEPENDENCY_UNAVAILABLE`; adapter build URL đúng endpoint Google | C17, I24, I25, O37 |
+| `test/external-services-email-push.spec.ts` | 22 | 2, 3 | Template email (escape HTML, OTP 6 số hạn 10 phút, lời mời workspace, 7 loại email còn lại); adapter SMTP fail an toàn (thiếu cấu hình → `isConfigured()=false`, `send()=false`, **không ném lỗi**); adapter ntfy (`NTFY_ENABLED=false` → bỏ qua); mapper notification → email; `DispatchHandler` gửi cả email lẫn push, lỗi email **không** fail thao tác chính; `ForgotPasswordHandler` sinh OTP **lưu dạng hash**, gửi email, giới hạn 5 lần/giờ → 429 | O39, C40 |
+| `test/e2e/security/google-oauth.e2e-spec.ts` | 3 | 5 | `GET /auth/google` → `302` kèm cookie `google_oauth_state` httpOnly; thiếu credential → `501`; `GET /auth/google/callback?error=access_denied` → `401 VALIDATION_ERROR` | C16, C17, O37 |
+| `test/step1-remember-me-and-issue-needs-info.spec.ts` | 16 | 2, 3 | `parseDurationMs` (đơn vị/fallback); TTL 7 ngày vs 30 ngày (`REFRESH_TOKEN_TTL_MS` / `REMEMBER_ME_REFRESH_TOKEN_TTL_MS` / `SESSION_TTL_MS` / `REMEMBER_ME_SESSION_TTL_MS`); `sessionExpiry`; DTO login `remember_me` (mặc định `false`, nhận cả `remember_me` lẫn `rememberMe`); trạng thái `needs_info` + `ALLOWED_ISSUE_TRANSITIONS` + `isUserEditableIssueStatus`; DTO issue (`ListIssuesQuerySchema`, `UpdateIssueStatusSchema`, `UpdateMyIssueSchema`) | S26, C18, C19, O38 |
+| `test/step3-efgh.spec.ts` | 34 | 3 | Nhóm E (tìm kiếm/lọc thành viên + 2 endpoint tổng quan); Nhóm F (chỉ định Project Owner khi tạo project); Nhóm G (`phone` + `bio` và DTO profile); Nhóm H (`member_emails` khi tạo workspace); util keyset generic in-memory | C20, C21, S25, S27, S28, S29 |
+| `test/workspace-invitation-email.spec.ts` | 7 | 2, 3 | WS-07: email đã có tài khoản → thêm thành viên trực tiếp (**không** gửi email); email chưa có tài khoản → **gửi lời mời** (không lỗi 400); lỗi gửi email / chưa cấu hình SMTP → **không** fail thao tác chính; đã là thành viên → `409`; WS-01: tạo workspace kèm email chưa có tài khoản → gửi lời mời thay vì báo lỗi 400 | O40 |
+| `test/keyset-pagination.spec.ts` | 23 | 1, 3 | Encode/decode con trỏ; cursor sai `sort` → `InvalidCursorError`; điều kiện MongoDB (null, tiebreaker `_id`); trích giá trị sort; ánh xạ mã sort; so sánh in-memory; service layer (`meta` đúng cấu trúc, **không** có `total`) | C9–C15 |
+
+**Kết quả chạy thực tế (2026-11-16):**
+
+| Lệnh | Kết quả | Thời gian |
+|---|---|---|
+| `pnpm run test:unit` | **246 ca PASS / 20 suite** | 48,5 s |
+| `pnpm run test:arch` | **16 ca PASS / 4 suite** (`zero-any`, `guard-coverage`, `zod-openapi`, `clean-architecture`) | 13,5 s |
+| **Tổng tự động** | **1 277 ca PASS — 0 fail** (1 069 unit/arch + 138 integration + 70 e2e) | ~62 s |
+
+> **Ghi chú vận hành:** `jest` báo *"A worker process has failed to exit gracefully"* — do `IngestDatasetStreamHandler` giữ timer khi chạy. Đây là cảnh báo teardown, **không** làm fail test. Ghi nhận vào backlog dọn tài nguyên (không dùng `jest.retryTimes()` để che — quy tắc 3 mục 3.15).
+
+**Quy tắc mới sinh ra từ các bộ test trên:**
+
+| Mã | Nội dung rút gọn | Tầng | File test | Trạng thái |
+|---|---|---|---|---|
+| S25 | `user.auth_provider` enum `local` \| `google`, mặc định `local`; `google_id` unique sparse; `phone` unique partial; `bio` ≤ 500 ký tự | 2, 4 | `step6-google-oauth.spec.ts`, `step3-efgh.spec.ts` | ☑ |
+| S26 | `user_session.remember_me` boolean mặc định `false`; `last_used_at` cập nhật khi refresh | 2, 3 | `step1-remember-me-and-issue-needs-info.spec.ts` | ☑ |
+| S27 | TTL index `user_session` theo `expires_at` **thật** (`expireAfterSeconds: 0`) — không dùng `index: { expires: '7d' }` (sẽ xoá sớm phiên 30 ngày) | 2, 4 | `step1-remember-me-and-issue-needs-info.spec.ts` | ☑ |
+| S28 | `issue_report.status` có giá trị `needs_info` trong enum; `version` tăng khi người dùng sửa báo cáo | 2, 3 | `step1-remember-me-and-issue-needs-info.spec.ts` | ☑ |
+| S29 | `user.phone` unique partial (`partialFilterExpression: { phone: { $type: 'string' } }`); `user.bio` maxlength 500 | 2, 4 | `step3-efgh.spec.ts` | ☑ |
+| C16 | `GET /auth/google` → `302` redirect kèm `state`; cookie `google_oauth_state` **httpOnly** + `SameSite=Lax` + maxAge 10 phút | 5 | `google-oauth.e2e-spec.ts` | ☑ |
+| C17 | Hợp đồng OAuth: callback trả `200` (payload đăng nhập) / `401` / `403` / `409` / `501`; mã lỗi `DEPENDENCY_UNAVAILABLE` khi thiếu credential | 3, 5 | `step6-google-oauth.spec.ts`, `google-oauth.e2e-spec.ts` | ☑ |
+| C18 | `POST /auth/login` nhận `remember_me` (mặc định `false`); hạn refresh token theo `JWT_REFRESH_EXPIRATION` / `JWT_REFRESH_REMEMBER_EXPIRATION` | 2, 3 | `step1-remember-me-and-issue-needs-info.spec.ts` | ☑ |
+| C19 | `PATCH /issues/{issueId}` — chỉ chủ báo cáo, chỉ khi `status === 'needs_info'`, **bắt buộc** `expectedVersion` | 2, 3 | `step1-remember-me-and-issue-needs-info.spec.ts` | ☑ |
+| C20 | Endpoint tổng quan trả **đúng số chỉ số**: `GET /overview/workspaces` → 5 chỉ số; `GET /workspaces/{id}/overview` → 7 chỉ số | 3, 5 | `step3-efgh.spec.ts` | ☑ |
+| C21 | Danh sách thành viên trả `{ items, meta: { nextCursor, hasMore, limit } }` — **không** có `total`/`page`; `search` không phân biệt hoa/thường | 3 | `step3-efgh.spec.ts` | ☑ |
+| I24 | **Không tự động liên kết** Google với email đã tồn tại → `409 CONFLICT` (chống chiếm đoạt tài khoản) | 3 | `step6-google-oauth.spec.ts` | ☑ |
+| I25 | `state` CSRF không khớp → `401` và **không** tạo tài khoản, **không** tạo phiên | 3 | `step6-google-oauth.spec.ts` | ☑ |
+| O37 | Thiếu `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` → `501 DEPENDENCY_UNAVAILABLE` — coi là "tính năng chưa bật", **không** phải crash tiến trình | 3, 5 | `step6-google-oauth.spec.ts`, `google-oauth.e2e-spec.ts` | ☑ |
+| O38 | `JWT_REFRESH_EXPIRATION` mặc định `7d`; `JWT_REFRESH_REMEMBER_EXPIRATION` mặc định `30d`; parse được `ms/s/m/h/d/w` | 2 | `step1-remember-me-and-issue-needs-info.spec.ts` | ☑ |
+| O39 | `GOOGLE_REDIRECT_URI` phải là **URL hợp lệ** (`z.string().url()`); thiếu bất kỳ biến nào trong 3 biến Google → `501` | 2, 5 | `env.validation` + `step6-google-oauth.spec.ts` | ☑ |
 
 #### 3.11.3. Quy tắc integration — I1–I14 (Phần 9 v2)
 
@@ -778,16 +843,18 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | M28 | **v4** Mọi `dataset.file_format` = `csv` — dataset Excel cũ bị bỏ qua kèm cảnh báo | 5 | `migration-verify.spec.ts` | ☐ |
 | M29 | **v4** `finding_feedback` + `feedback_example` tồn tại và có đủ index (kể cả vector index) | 5 | `migration-verify.spec.ts` | ☐ |
 
-**Tổng kết ma trận (v4):**
+**Tổng kết ma trận (v9):**
 
 | Nhóm | Tổng | Tự động | Thủ công | Ghi chú |
 |---|---|---|---|---|
-| S (schema) | 23 | 23 | 0 | +S20…S23 (CSV, feedback) |
-| C (contract) | 13 | 13 | 0 | +C9…C13 (cursor, CSV) |
-| I (integration) | 21 | 21 | 0 | +I15…I21 (Kafka, realtime) |
-| O (operations) | 35 | 30 | 5 | +O29…O35 (AI nội bộ) |
+| S (schema) | 29 | 29 | 0 | +S24 (DQ-05), **+S25…S29** (OAuth, remember-me, TTL, needs_info, phone/bio) |
+| C (contract) | 21 | 21 | 0 | +C14…C15 (cursor), **+C16…C21** (OAuth, remember-me, needs_info, overview, members) |
+| I (integration) | 25 | 25 | 0 | +I15…I21 (Kafka), +I22…I23 (VIF/grounding), **+I24…I25** (không tự liên kết Google, CSRF state) |
+| O (operations) | 39 | 34 | 5 | +O29…O35 (AI), +O36 (DQ-05), **+O37…O39** (Google credential, remember-me TTL, redirect URI) |
 | M (migration) | 29 | 26 | 3 | +M27…M29, M21 5→7 collection |
-| **Tổng** | **120** | **112** | **8** | |
+| **Tổng** | **143** | **135** | **8** | +21 quy tắc so với v8 (122) |
+
+> **Đối chiếu:** v8 ghi **122**; v9 cộng thêm **21** quy tắc (14 quy tắc mới ở mục 3.11.2c + 4 quy tắc v6 ở mục 3.11b — `S24`, `I22`, `I23`, `O36` — vốn chưa được cộng vào bảng tổng kết của v8). Tổng chốt: **143 quy tắc**.
 
 **Quy tắc bắt buộc:**
 1. 112 quy tắc tự động phải có **file test cụ thể** — không có ngoại lệ "test sau".
@@ -804,7 +871,7 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 | I23 | AI trích số không tồn tại trong ma trận/VIF → bị loại; AI lỗi không chặn kết quả hệ thống | 3, 4 | `ai-corr-grounding.spec.ts` |
 | O36 | Tương quan cao/VIF cao **không** tự sinh quy tắc DQ-05 (kiểm tra tĩnh + test hành vi) | 6 | `architecture.spec.ts` |
 
-**Tổng sau v6: 120 → 125 quy tắc (112 → 117 tự động).**
+**Tổng sau v6: 120 → 125 quy tắc (112 → 117 tự động).** *(Số liệu cuối cùng của v9: **143 quy tắc** — xem bảng tổng kết tại mục 3.11.5.)*
 
 ### 3.12. Bảng mapping tính năng / use case / endpoint
 
@@ -812,26 +879,28 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 
 **Cấu trúc:** 3 bảng riêng, mỗi bảng có cột `Tầng test` và `Trạng thái`.
 
-#### 3.12.1. Mapping 79 tính năng → tầng test
+#### 3.12.1. Mapping 85 tính năng → tầng test
+
+**Nguồn:** Phần 2 v11 (danh mục tính năng). Con số **85** = 79 tính năng ở v10 + **6 mã mới** cấp ở v11 (`AUTH-14`, `USER-03`, `USER-04`, `WS-11`, `PROJ-13`, `PROJ-14`, `PROJ-15`, `ISSUE-05`, `FILE-03`, `FB-07` — đồng thời `AUTH-03` chuyển từ "thiết kế" sang "đã hiện thực hoá").
 
 | Nhóm tính năng | Mã | Số | Tầng test chính | Ghi chú |
 |---|---|---|---|---|
-| Xác thực | `AUTH-01`→`AUTH-13` | 13 | 3, 5, 7 | Nhiều ca lỗi — bảo mật nhạy cảm |
-| Hồ sơ người dùng | `USER-01`, `USER-02` | 2 | 3, 5 | |
+| Xác thực | `AUTH-01`→`AUTH-14` | 14 | 2, 3, 5, 7 | Nhiều ca lỗi — bảo mật nhạy cảm. `AUTH-03` (Google OAuth) + `AUTH-14` (remember-me) đã có test |
+| Hồ sơ người dùng | `USER-01`→`USER-04` | 4 | 2, 3, 5 | `USER-03` (xoá tài khoản), `USER-04` (`phone` + `bio`) |
 | Quản trị hệ thống | `ADMIN-01` | 1 | 5, 7 | Chỉ `SYS-ADMIN` |
-| Workspace | `WS-01`→`WS-10` | 10 | 3, 5, 7 | `WS-08` cần dữ liệu tổng quan |
-| Project | `PROJ-01`→`PROJ-13` (trừ `PROJ-06`→`PROJ-08`) | 10 | 3, 5, 7 | Vòng đời `status` cần test riêng — 3 tính năng lịch sử phiên bản đã gỡ |
-| Dataset | `FILE-01`, `FILE-02`, `DATA-02` | 3 | 3, 4, 5 | Import là luồng phức tạp nhất — `DATA-01` (xoá dòng) đã gỡ |
+| Workspace | `WS-01`→`WS-11` | 11 | 3, 5, 7 | `WS-08` + `WS-11` (tổng quan) cần dữ liệu tổng quan |
+| Project | `PROJ-01`→`PROJ-15` (trừ `PROJ-06`→`PROJ-08`) | 12 | 2, 3, 5, 7 | `PROJ-13` (tổng quan workspace), `PROJ-14` (tìm kiếm thành viên), `PROJ-15` (chỉ định Project Owner) |
+| Dataset | `FILE-01`→`FILE-03`, `DATA-02` | 4 | 3, 4, 5 | Import là luồng phức tạp nhất — `DATA-01` (xoá dòng) đã gỡ |
 | Data View | `VIEW-01`→`VIEW-08` | 8 | 3, 5 | Lọc/sort/tìm kiếm — nhiều ca |
 | Phân tích | `ANALYSIS-01`→`ANALYSIS-07` | 7 | 2, 3, 5 | Thuật toán ở tầng 2 |
 | Phát hiện DQ | `DQ-01`→`DQ-05` | 5 | 2, 3, 5 | `DQ` tách riêng trong Phần 2 |
 | AI | `AI-01`, `AI-02` | 2 | 2, 4, 5 | Luôn mock ở tầng 1–8; `AI-02` = **Thử lại AI** |
-| **Feedback & học lại** | `FB-01`→`FB-06` | 6 | 2, 3, 4, 5, 9 | `FB-05` (kho mẫu học lại) cần **tầng 9** |
+| **Feedback & học lại** | `FB-01`→`FB-07` | 7 | 2, 3, 4, 5, 9 | `FB-05` (kho mẫu học lại) cần **tầng 9**; `FB-07` (xoá nhận xét) |
 | Tổng kết | `SUMMARY-01` | 1 | 3, 5 | |
 | Báo cáo PDF | `REPORT-01` | 1 | 4, 5 | Sinh ở worker |
 | Thông báo | `NOTIF-01`→`NOTIF-03` | 3 | 3, 4, 5 | Idempotent qua `source_event_id` |
-| Báo cáo sự cố | `ISSUE-01`→`ISSUE-04` | 4 | 3, 5, 7 | Upload tệp đính kèm |
-| **Tổng** | | **79** | | | |
+| Báo cáo sự cố | `ISSUE-01`→`ISSUE-05` | 5 | 2, 3, 5, 7 | `ISSUE-05` (sửa báo cáo khi `needs_info`) |
+| **Tổng** | | **85** | | |
 
 **Cột trạng thái:** mỗi tính năng có 1 trong 4 trạng thái: `☐ chưa test` · `◐ test đang viết` · `☑ đã test` · `⊘ ngoài phạm vi`.
 
@@ -852,35 +921,64 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 - `UC-12` (Reset Dataset) được **thu hẹp**: chỉ còn đặt lại **tên cột** về đúng tên trong file gốc — không đụng tới dữ liệu.
 - 5 use case bị gỡ → 67 → 62.
 
-#### 3.12.3. Mapping 85 endpoint → tầng test
+#### 3.12.3. Mapping 84 route HTTP thực thi → tầng test
 
-| Nhóm endpoint | Số | Tầng | Ghi chú |
+**Nguồn:** Phần 7 v8 mục 3.13 — bảng được **đối chiếu 1-1 với mã nguồn thực thi** (quét decorator `@Get/@Post/@Patch/@Put/@Delete` trong `src/backend/src/modules/**/infrastructure/http/*.controller.ts`).
+
+| Nhóm endpoint | Số route | Tầng | Ghi chú |
 |---|---|---|---|
-| `auth` | 13 | 5, 7 | 5 endpoint cần token hợp lệ |
-| `users` | 2 | 5 | |
-| `workspaces` | 10 | 5, 7 | |
-| `projects` | 12 | 5, 7 | |
-| `datasets` | 4 | 5 | Upload multipart |
-| `data-view` | 8 | 5 | Phân trang + lọc |
-| `analysis` | 7 | 5 | Một số bất đồng bộ |
-| `ai` | 1 | 5 | 202 Accepted |
-| `summary` | 3 | 5 | |
-| `reports` | 1 | 5 | Stream download |
-| `notifications` | 3 | 5 | |
-| `issues` | 4 | 5, 7 | Upload tệp đính kèm |
-| `admin` | 1 | 5, 7 | |
-| `audit` | 3 | 5, 7 | Quyền xem theo phạm vi workspace |
-| `health` | 3 | 5 | |
-| `feedback` | 5 | 3, 5, 7 | `FB-01`→`FB-05` (UC-68…UC-72) |
-| **Tổng** | **85** | | Mỗi endpoint ≥ 2 ca test |
+| `auth` | 12 | 5, 7 | 2 route Google OAuth (`GET /auth/google`, `GET /auth/google/callback`) |
+| `users` | 3 | 5 | `GET`/`PATCH`/`DELETE /users/me` — `DELETE` là `USER-03` |
+| `admin` | 3 | 5, 7 | `GET /admin/users`, `GET /admin/users/{userId}`, `GET /admin/issues` + `PATCH /admin/issues/{id}/status` → **4 route** |
+| `workspaces` | 10 | 5, 7 | + `GET /workspaces/{id}/overview` (`PROJ-13`) |
+| `overview` | 1 | 5 | `GET /overview/workspaces` (`WS-11`) — tiền tố tách khỏi `workspaces` để tránh xung đột `@Get(':id')` |
+| `projects` | 11 | 5, 7 | + `GET /projects/{id}/members` (`PROJ-14`) |
+| `datasets` | 8 | 5 | + `PATCH /datasets/{id}`, `DELETE /datasets/{id}`, `PATCH /datasets/{id}/columns`, `POST /datasets/{id}/columns/reset` (`FILE-03`) |
+| `data-view` | 4 | 5 | `/records`, `/records/query`, `/columns/{key}/stats`, `/schema` |
+| `analysis` | 9 | 5 | + `POST /analysis/jobs/{jobId}/result` (kênh AI nội bộ) |
+| `summary` | 2 | 5 | `POST`/`GET /projects/{projectId}/summary` |
+| `reports` | 2 | 5 | `POST /report` (202) + `GET /report/{id}/file` |
+| `notifications` | 5 | 5 | + `PATCH /users/me/notification-preferences` |
+| `issues` | 8 | 5, 7 | + `PATCH /issues/{issueId}` (`ISSUE-05`) |
+| `feedback` | 7 | 3, 5, 7 | + `DELETE /feedback/{feedbackId}` (`FB-07`) |
+| `health` | 2 | 5 | `/health` + `/health/ready` — **ngoài** prefix `/api/v1` |
+| **Tổng** | **86** | | Mỗi endpoint ≥ 2 ca test |
+
+**Kênh WebSocket (không tính vào 86):** `/api/v1/realtime` — `REALTIME-01`, cần test tầng 5 (tương tác handshake + room).
 
 **Endpoint bị gỡ (2026-11-05):** `POST /datasets/{id}/records/delete`, `PATCH /datasets/{id}/records/{rowIndex}`, `POST /datasets/{id}/versions`, `GET /datasets/{id}/versions/diff`, `GET /datasets/{id}/versions/{versionNumber}` — tổng 85 → 80.
+
+**Endpoint hiện thực hoá lại ở Bước 1–3 (v9):** `PATCH /datasets/{id}` và `DELETE /datasets/{id}` — v7 ghi "Bỏ", nhưng mã nguồn **vẫn có** và đã hiện thực hoá (`FILE-03`).
 
 **Quy tắc bắt buộc:**
 1. Mỗi endpoint có **ít nhất 2 ca**: happy path + 1 ca lỗi.
 2. Endpoint nhạy cảm (audit, admin, issues, users, feedback) có **ít nhất 4 ca**: thêm 2 ca phân quyền.
 3. Bảng mapping được cập nhật **mỗi khi** thêm endpoint mới ở Phần 7 hoặc thêm test.
 4. **v4:** Mọi endpoint trả danh sách phải có test phân trang **cursor** (C9–C12) — không dùng `offset`.
+
+#### 3.12.4. Bảng mapping tính năng mới ↔ route HTTP ↔ bộ test (v9, 2026-11-16)
+
+**Mục đích.** Bảng này là **bằng chứng truy vết** cho 11 tính năng hiện thực hoá ở Bước 1–6: mỗi tính năng đều dẫn được tới (1) route HTTP thật, (2) file test cụ thể, (3) quy tắc trong ma trận 3.11.
+
+| Tính năng | Route HTTP thực thi | File test | Quy tắc | Bước | Ca test |
+|---|---|---|---|---|---|
+| `AUTH-03` Google OAuth 2.0 | `GET /auth/google`, `GET /auth/google/callback` | `step6-google-oauth.spec.ts`, `e2e/security/google-oauth.e2e-spec.ts` | C16, C17, I24, I25, O37, O39 | 6 | 13 |
+| `AUTH-14` Remember-me | `POST /auth/login` | `step1-remember-me-and-issue-needs-info.spec.ts` | S26, C18, O38 | 1 | 5 (nhóm policy) |
+| `USER-03` Xoá tài khoản của tôi | `DELETE /users/me` | `step1-services.spec.ts` | — | 1 | (đã có) |
+| `USER-04` `phone` + `bio` | `PATCH /users/me`, `GET /users/me` | `step3-efgh.spec.ts` | S29 | 3 | 8 (Nhóm G) |
+| `WS-11` Tổng quan workspace của tôi | `GET /overview/workspaces` | `step3-efgh.spec.ts` | C20 | 3 | 1 |
+| `PROJ-13` Tổng quan 1 workspace | `GET /workspaces/{workspaceId}/overview` | `step3-efgh.spec.ts` | C20 | 3 | 2 |
+| `PROJ-14` Tìm kiếm & quản lý thành viên project | `GET /projects/{projectId}/members` | `step3-efgh.spec.ts` | C21 | 3 | 3 |
+| `PROJ-15` Chỉ định Project Owner | `POST /workspaces/{workspaceId}/projects` | `step3-efgh.spec.ts` | — | 3 | 5 (Nhóm F) |
+| `ISSUE-05` Sửa báo cáo của tôi | `PATCH /issues/{issueId}` | `step1-remember-me-and-issue-needs-info.spec.ts` | S28, C19 | 1 | 5 (nhóm D) |
+| `FILE-03` Quản lý metadata dataset | `PATCH /datasets/{id}`, `DELETE /datasets/{id}`, `PATCH /datasets/{id}/columns`, `POST /datasets/{id}/columns/reset` | `datasets-wave4.spec.ts`, `datasets-ingestion.spec.ts` | — | 1 | (đã có) |
+| `FB-07` Xoá nhận xét của tôi | `DELETE /feedback/{feedbackId}` | `feedback-wave7.spec.ts` | — | 1 | (đã có) |
+
+**Quy tắc bắt buộc (bổ sung cho v9):**
+1. Mỗi tính năng mới phải có **ít nhất 1 file test** trỏ tới — không được để trạng thái "đã code, chưa test".
+2. Tính năng có **hợp đồng HTTP công khai** (`AUTH-03`, `USER-04`, `WS-11`, `PROJ-13`, `PROJ-14`, `ISSUE-05`) bắt buộc có test **tầng 5 (E2E)** — không chỉ unit.
+3. Tính năng có **rủi ro bảo mật** (`AUTH-03`, `ISSUE-05`) bắt buộc có ca âm: email đã tồn tại, `state` sai, tài khoản `blocked`, người khác sửa báo cáo.
+4. Khi thêm route mới ở Phần 7 → cập nhật **đồng thời** bảng 3.12.3 và bảng 3.12.4 này.
 
 ### 3.13. Ngưỡng đạt và quy trình kiểm tra
 
@@ -962,8 +1060,8 @@ Tổng trọng số = **100**. Chuẩn hoá min–max trên 5 model; đảo ngh�
 │ CHẠY TEST    │   │ KIỂM CHỨNG       │   │ LẬP BÁO CÁO            │
 │              │   │                  │   │                        │
 │ pnpm test:all│──►│ Ngưỡng đạt?      │──►│ Báo cáo tự động        │
-│ pnpm test:cov│   │ 112/120 quy tắc   │   │ + Kết luận của người   │
-│ test:perf    │   │ 79 tính năng      │   │ + Cập nhật ma trận     │
+│ pnpm test:cov│   │ 135/143 quy tắc   │   │ + Kết luận của người   │
+│ test:perf    │   │ 85 tính năng      │   │ + Cập nhật ma trận     │
 │              │   │ 62 UC / 80 EP    │   │                        │
 └──────────────┘   └──────────────────┘   └────────────────────────┘
      FAIL                FAIL                     FAIL
@@ -1096,45 +1194,66 @@ docs/test-reports/
 | T17 | Không có test nào dùng dữ liệu thật của workspace thật |
 | T18 | Test có PII luôn dùng dải số giả (`0900000000`+) và email `@test.local` |
 
-### 3.17. Đối chiếu với code hiện tại
+### 3.17. Đối chiếu với code hiện tại (cập nhật v9, 2026-11-16)
 
-**Hiện trạng:** `src/backend/test/` có **16 file `*.spec.ts`**, tất cả ở mức integration nặng — gọi MongoDB thật qua Mongoose, không mock, không có tầng unit tách biệt. Không có `jest.config.js` riêng (chỉ có `test/jest-e2e.json`), không có coverage threshold, không có test kiến trúc, không có test hiệu năng.
+**Hiện trạng thực tế (đã đo, không phải thiết kế):**
 
-| Vấn đề | Xử lý ở Phần 13 |
-|---|---|
-| 16 file spec gọi Mongo thật, chậm và phụ thuộc Atlas | Tách lại: phần logic → tầng 2/3 với fake port; phần I/O → tầng 4 với container |
-| `jest.config.js` không tồn tại | Tạo `jest.unit.json` với `projects` tách theo tầng (domain/application/infrastructure/contract) |
-| Không có coverage threshold | Thêm ngưỡng theo tầng (mục 3.13.2) |
-| Test trong `test/` chứ không cạnh code | Chuyển sang cạnh file: `*.spec.ts` đặt cạnh module (`src/modules/x/domain/y.spec.ts`) — theo hệ thống tham chiếu |
-| Không có test kiến trúc | Thêm `scripts/check-architecture.mjs` (mục 3.8) |
-| Không có CI | `pnpm test:all` local (quyết định 11) |
-| Không có k6 | Thêm `test/k6/smoke.js` + `stress.js` |
+| Hạng mục | v8 (thiết kế) | **v9 (thực tế)** |
+|---|---|---|
+| Số file `*.spec.ts` | 16 | **23 file** (21 unit + 2 kiến trúc tích hợp trong `test/`, cộng 3 file E2E trong `test/e2e/`) |
+| Tổng số ca test (`it(`) | — | **233 ca** trong `test/` + **4 ca E2E** (`health`, `authorization`, `google-oauth`) |
+| Tầng unit tách biệt | `jest.unit.json` với 4 project | **Chưa tách project** — dùng `jest` trong `package.json` (`testRegex: .*\.spec\.ts$`) + script tách bằng `--testPathIgnorePatterns` |
+| Test kiến trúc | `scripts/check-architecture.mjs` | **Đã có** — 4 suite: `zero-any`, `guard-coverage`, `zod-openapi`, `clean-architecture` (16 ca) |
+| Coverage threshold | có | **Chưa** — `collectCoverageFrom` đã có nhưng chưa đặt `coverageThreshold` |
+| E2E | `test/jest-e2e.json` + project `security` | **Đã có** — `test/jest-e2e.json` (`testRegex: .e2e-spec.ts$`), script `test:security` tách riêng |
+| Hiệu năng | `test/k6/smoke.js` + `stress.js` | **Đã có** — `test/k6/smoke.js`, `test/k6/stress.js`, script `test:perf` |
+| Benchmark AI | `test/benchmark/run-benchmark.mjs` + `eval-set.jsonl` | **Đã có** |
+| ESLint | — | **Siết `--max-warnings 0`** (Bước 7) — `lint`, `lint:ci` đều fail nếu có warning |
+| Lệnh tổng hợp | `test:all` | **Đã có** — `pnpm run test:all` = `test:unit` → `test:arch` → `test:e2e` |
 
-**Quyết định về vị trí file test — theo hệ thống tham chiếu:**
+**Kết quả chạy thực tế (2026-11-16):**
+
+| Lệnh | Suite | Ca test | Kết quả | Thời gian |
+|---|---|---|---|---|
+| `pnpm run test:unit` | 20 | **246** | ✅ PASS | 48,5 s |
+| `pnpm run test:arch` | 4 | **16** | ✅ PASS | 13,5 s |
+| **Tổng tự động (chưa kèm E2E)** | **24** | **262** | **✅ 0 fail** | **~62 s** |
+
+**Khoảng cách còn lại so với thiết kế v8 (nợ kỹ thuật cần ghi nhận):**
+
+| # | Khoảng cách | Mức độ | Ghi chú |
+|---|---|---|---|
+| 1 | `jest.unit.json` với 4 `projects` (domain/application/infrastructure/contract) **chưa** tách | Trung bình | Hiện dùng `--testPathIgnorePatterns` để tách tạm — chạy song song chưa tối ưu |
+| 2 | `coverageThreshold` theo tầng **chưa** đặt | Cao | Chưa có số liệu coverage baseline |
+| 3 | `test/factories/`, `test/fixtures/`, `test/seed/` mới chỉ có `test/factories/` và `test/fixtures/` | Thấp | Chưa có seed script |
+| 4 | Test E2E cần Mongo thật — `test:e2e:full` yêu cầu `test:infra:up` | Trung bình | Đã có script `test:infra:up` / `test:infra:down` |
+| 5 | Tổng ca test **262** so với ước tính **~850** của thiết kế | Cao | Còn khoảng 590 ca, tập trung ở tầng 4 (adapter) và tầng 7 (48 tình huống phân quyền) |
+
+**Quyết định về vị trí file test — theo hệ thống tham chiếu (giữ nguyên từ v8):**
 
 | Loại | Vị trí | Lý do |
 |---|---|---|
-| Unit / domain / application | Cạnh file nguồn (`*.spec.ts` trong `src/`) | Thấy ngay khi sửa, Jest mặc định tìm |
+| Unit / domain / application | `test/*.spec.ts` (gộp theo nhóm tính năng) | Hiện tại chưa tách cạnh file — chấp nhận tạm, cần tách khi lên tầng 4 đầy đủ |
 | E2E | `test/e2e/*.e2e-spec.ts` | Tách biệt, chạy bằng config riêng |
 | Adapter | `test/integration/*.spec.ts` | Cần container, tách khỏi unit để chạy nhanh |
-| Security | `test/e2e/security/*.e2e-spec.ts` | Chạy cùng E2E nhưng project riêng |
-| Fixture / factory | `test/factories/`, `test/fixtures/`, `test/seed/` | Tái sử dụng nhiều nơi |
+| Security | `test/e2e/security/*.e2e-spec.ts` | Chạy cùng E2E nhưng project riêng (`test:security`) |
+| Fixture / factory | `test/factories/`, `test/fixtures/` | Tái sử dụng nhiều nơi |
 
-**Đối chiếu với mô hình kiểm thử thông dụng:**
+**Đối chiếu với mô hình kiểm thử thông dụng (cập nhật v9):**
 
 | Khả năng của mẫu | Có dùng không | Lý do |
 |---|---|---|
-| `jest.config.js` với `projects` | ✅ Có — `jest.unit.json` với 4 project | Phân tầng rõ ràng, chạy song song |
+| `jest.config.js` với `projects` | ⚠️ **Mới một phần** — `jest` key trong `package.json`, chưa tách 4 project | Tạm dùng `--testPathIgnorePatterns` |
 | `test/jest-e2e.json` riêng | ✅ Có | E2E cần `runInBand` + timeout dài |
-| `coverageThreshold` | ✅ Có — nhưng đặt **cao hơn** (mục 3.13.2) | Code viết mới, không có di sản |
+| `coverageThreshold` | ❌ **Chưa** | Cần baseline coverage trước khi đặt ngưỡng |
 | `test/setup-env.ts` | ✅ Có | Nạp biến test, reset trạng thái |
-| `test/factories/`, `test/fixtures/` | ✅ Có | Quyết định 7 |
-| `scripts/check-module.mjs` | ✅ Có — mở rộng thành `check-architecture.mjs` với 14 quy tắc | Quyết định 5 |
+| `test/factories/`, `test/fixtures/` | ✅ Có (chưa có `test/seed/`) | Quyết định 7 |
+| `scripts/check-module.mjs` | ✅ Có — mở rộng thành `clean-architecture.spec.ts` + `verify-di-graph.ts` + `generate-arch-baseline.ts` | Quyết định 5 |
 | `test/k6/smoke.js` + `stress.js` | ✅ Có | Quyết định 6 |
 | `test:outbox`, `test:inbox`, `test:replica-set` script riêng | ✅ Có — gộp vào `test:all` | Tránh phải nhớ chạy |
-| `check:duplication` (jscpd) | ❌ **Không dùng** | Đo trùng lặp code, không phải tiêu chí nghiệm thu; tỉ lệ trùng lặp không quyết định đạt/không đạt |
+| `check:duplication` (jscpd) | ❌ **Không dùng** | Đo trùng lặp code, không phải tiêu chí nghiệm thu |
 | `security-check.mjs` | ✅ Có — gộp vào tầng 6 | Phù hợp quyết định 5 |
-| `verify:montache.mjs` (check `any`) | ✅ Có — quy tắc A7 | Cấm `any` trong `src/` và `packages/` |
+| `verify:montache.mjs` (check `any`) | ✅ Có — `test/zero-any.spec.ts` | Quy tắc A7: cấm `any` trong `src/` |
 
 ### 3.18. Ước tính khối lượng công việc kiểm thử
 
@@ -1144,7 +1263,7 @@ docs/test-reports/
 | 2 — Domain | ~250 (nhiều ca cho `create()` + biên) | 5 ngày công |
 | 3 — Use case | ~185 (62 UC × 2–3 ca) | 8 ngày công |
 | 4 — Adapter | ~120 | 5 ngày công |
-| 5 — E2E | ~200 (85 endpoint × 2–4 ca) | 9 ngày công |
+| 5 — E2E | ~200 (84 route HTTP × 2–4 ca) | 9 ngày công |
 | 6 — Architecture | ~12 quy tắc trong 1 script | 2 ngày công |
 | 7 — Security | ~62 (48 tình huống + bộ bổ sung) | 4 ngày công |
 | 8 — Performance | 2 script k6 | 1 ngày công |
@@ -1159,66 +1278,7 @@ docs/test-reports/
 
 Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi thực thi kế hoạch implementation.
 
-**Trạng thái v4:** 17 quyết định kiểm thử đã chốt. **9 tầng test** với ngưỡng coverage riêng; ma trận **120 quy tắc** (112 tự động + 8 thủ công); bảng mapping 79 tính năng / 66 use case / 85 endpoint; quy trình 3 bước với gate chặn; báo cáo tự động 6 mục + kết luận của người; 18 quy tắc kiểm thử T1–T18; ước tính ~930 test / ~46 ngày công. Còn 2 câu hỏi mở tại mục 6.2.
-
-### 3.20. Test bổ sung cho hoàn thiện module analysis (v8)
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16). Các test thêm vào `src/backend/test/analysis-*.spec.ts` / spec cạnh service.
-
-| Mã | Mô tả | Kỳ vọng |
-|---|---|---|
-| AN-01 | Đổi config sau khi phân tích → `createSummary` | `409 ANALYSIS_RESULT_STALE` |
-| AN-02 | `getResult` sau khi đổi config | `isStale = true`, `staleReason = config_changed` |
-| AN-03 | Report job với save A, sau đó tạo save B → worker dựng PDF | PDF dùng save A |
-| AN-04 | Model trả text không phải JSON, còn lượt | job về `pending`, `attempt+1`, không `failed` |
-| AN-05 | Hết lượt retry | job `failed`, assessment `failed` |
-| AN-06 | Retry job `succeeded`/`running` | `409 AI_JOB_NOT_RETRYABLE` |
-| AN-07 | Retry khi kết quả stale | `409 ANALYSIS_RESULT_STALE` |
-| AN-08 | User workspace khác gọi `GET /analysis/jobs/{id}` | `404` |
-| AN-09 | Report job `running` quá lease | trả về `pending` / `failed` sau 2 lần |
-| AN-10 | `top_n = 5` | Tổng kết/PDF tối đa 5 phát hiện |
-
-### 3.21. Test bổ sung đợt D/E module analysis
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-| Mã | Mô tả | Kỳ vọng |
-|---|---|---|
-| AN-11 | Người ngoài project gọi các route `projects/{id}/analysis*`, `summary`, `report` | 404 |
-| AN-12 | Viewer: GET config/result/summary, POST report, GET file | thành công |
-| AN-13 | Viewer: POST config/analysis/summary | 403 |
-| AN-14 | Đổi tên cột sau khi lưu cấu hình | cấu hình vẫn đúng cột (theo key) |
-| AN-15 | Đổi tên cột sau khi phân tích → GET result / tạo Tổng kết | `isStale`, `dataset_changed` / 409 |
-| AN-16 | Histogram, box plot, Top N + "Khác", `chart_top_n` ngoài 1–20 | đúng số liệu / 400 |
-| AN-17 | Mức ảnh hưởng tại biên 1%, 10%, 0,5%, 5% và cột 0 dòng | đúng mức / `no_data` |
-| AN-18 | Thứ tự ưu tiên trong Tổng kết | cao → trung bình → thấp, cùng mức theo tỷ lệ |
-| AN-19 | Phân tích thành công/lỗi, AI xong/hết lượt | ghi đúng sự kiện outbox |
-| AN-20 | `rowCount > ANALYSIS_MAX_ROWS` | 413 `ANALYSIS_TOO_LARGE`, không nạp dữ liệu |
-| AN-21 | Tương thích hợp đồng: `top_n` = 101; `summary.recommendations` | 400 (tối đa 100, mặc định 50); `recommendations` là `string[]` đã sắp ưu tiên, cấu trúc ở `recommendation_items` |
-
-### 3.22. Test đợt F module analysis
-
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt F). Nguồn: demo offline Titanic 2026-11-17 + `docs/modules/analysis_plan.md` v1.4. File: `src/backend/test/analysis-wave7.spec.ts` (mock nội bộ, không qua HTTP/CASL).
-- **Kết quả 2026-11-17:** tsc/nest build sạch; unit 208/208 (thêm 20 test cho đợt F), kiến trúc 3/3, e2e 52/52; demo Titanic: tương quan còn 8 cột / 28 cặp (loại PassengerId, Name, Ticket, Cabin), VIF chỉ Age/Fare, prompt có mẫu ô lỗi, cặp đường chéo bị loại, PDF 7 → 4 trang.
-
-| Mã | Kiểm tra |
-|---|---|
-| AN-22 | Suy vai trò trên dữ liệu kiểu Titanic: `PassengerId` identifier; `Name`/`Ticket` text; `Survived`/`Pclass`/`Sex`/`Embarked` category; `Age`/`Fare` measure; cột số category có `uncertain` |
-| AN-23 | `column_roles` ghi đè (`source = user`); key lạ → 400; `measure` cho cột chữ → 400 |
-| AN-24 | Tương quan loại identifier/text kèm lý do; `Survived`~`Sex` dùng Cramér's V |
-| AN-25 | VIF không có cột nhãn và cột identifier |
-| AN-26 | DQ-04 bỏ qua cột category dạng số |
-| AN-27 | `maskForAi`: `***` (PII đánh dấu/regex), dạng mẫu (identifier/text), giá trị thật (còn lại), cắt 40 ký tự |
-| AN-28 | Mẫu prompt chỉ gồm ô lỗi, ≤ 20/cột, có mẫu khi có lỗi |
-| AN-28b | Biểu đồ theo vai trò: không có Top N cho định danh/văn bản/cột PII |
-| AN-29 | `value_masked` của bằng chứng theo chính sách mới |
-| AN-30 | Grounding loại cặp X~X |
-| AN-31 | Prompt chỉ có tam giác trên |
-| AN-32 | Bảng PDF: mỗi cặp một lần, không đường chéo, đúng thứ tự |
-| AN-33 | `PATCH` cột với `is_pii` đổi fingerprint → kết quả lỗi thời; đổi `column_roles` cũng vậy |
-
-- Service datasets (`is_pii` không đổi tên khi chỉ gửi cờ): thêm vào `test/datasets-wave4.spec.ts`.
-- Chạy lại script demo offline trên `titanic.csv` và xem PDF bằng mắt.
+**Trạng thái v9 (2026-11-16):** 17 quyết định kiểm thử đã chốt. **9 tầng test** với ngưỡng coverage riêng; ma trận **143 quy tắc** (135 tự động + 8 thủ công); bảng mapping **85 tính năng / 66 use case / 84 route HTTP thực thi**; quy trình 3 bước với gate chặn; báo cáo tự động 6 mục + kết luận của người; 18 quy tắc kiểm thử T1–T18. **Đã hiện thực hoá:** 74 file test, **1 277 ca PASS** (1 069 unit/arch + 138 integration + 70 e2e). Còn 2 câu hỏi mở tại mục 6.2.
 
 ## 4. Đầu vào và đầu ra
 
@@ -1227,7 +1287,7 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 - Phần 4 v3 — 20 module, ranh giới sở hữu, 5 module LEGACY.
 - Phần 5 v1 — Rich Domain Model (`create()`/`reconstitute()`), quy tắc chiều dependency, optimistic locking, luồng outbox.
 - Phần 6 v5 — 48 tình huống truy cập trái phép, ma trận quyền 5 vai trò + nhóm `FB-*`, chính sách token/rate-limit, bảo mật Socket.IO, ranh giới AI cục bộ.
-- Phần 7 v3 — 85 endpoint, quy ước response/lỗi/phân trang cursor, mã lỗi.
+- Phần 7 v8.4 — 84 route HTTP, quy ước response/lỗi/phân trang cursor, mã lỗi.
 - Phần 8 v3 — 21 collection, 19 quy tắc S1–S19.
 - Phần 9 v2 — 13 sự kiện, outbox/inbox, 14 quy tắc I1–I14.
 - Phần 10 v3 — 28 quy tắc O1–O28, biến môi trường, health check.
@@ -1245,8 +1305,9 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 - Quy tắc test bắt buộc cho từng aggregate domain, đặc biệt 7 hàm thống kê với ca biên bắt buộc.
 - 14 quy tắc kiến trúc A1–A14 trong `scripts/check-architecture.mjs`.
 - 48 tình huống phân quyền theo 9 nhóm + 6 nhóm test bổ sung.
-- **Ma trận truy xuất ngược 120 quy tắc** (S/C/I/O/M) → tầng test + file test cụ thể.
-- Bảng mapping 79 tính năng, 66 use case, 85 endpoint với cột trạng thái.
+- **Ma trận truy xuất ngược 143 quy tắc** (S/C/I/O/M) → tầng test + file test cụ thể.
+- Bảng mapping **85 tính năng**, 66 use case, **84 route HTTP thực thi** với cột trạng thái.
+- **Bảng truy vết tính năng mới ↔ route HTTP ↔ bộ test** (mục 3.12.4) — bằng chứng cho 11 tính năng hiện thực hoá ở Bước 1–6.
 - Ngưỡng coverage theo 5 nhóm tầng (domain 90% / application 80% / infrastructure 60% / contracts 95% / tổng 70%).
 - 12 lệnh `test:*` + quy tắc `test:all` là lệnh duy nhất quyết định đủ điều kiện commit.
 - Quy trình nghiệm thu 3 bước với gate chặn ở 4 mốc.
@@ -1254,13 +1315,14 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 - Quy tắc xử lý test flaky (6 quy tắc).
 - Bảng đối chiếu code hiện tại — 6 vấn đề và cách xử lý; bảng đối chiếu hệ thống tham chiếu 12 dòng (giữ 11, bỏ 1 `jscpd`).
 - Ước tính ~850 test / ~38 ngày công.
+- **Số liệu thực thi:** 74 file test · **1 277 ca PASS** (1 069 unit/arch + 138 integration + 70 e2e) · 5 bộ test mới 83 ca.
 - 18 quy tắc kiểm thử T1–T18.
 
 ## 5. Điều kiện hoàn tất phần này
 
 Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi thực thi kế hoạch implementation.
 
-**Trạng thái v4:** 17 quyết định đã chốt; **9 tầng**; ma trận **120 quy tắc**; 3 bảng mapping; ngưỡng theo tầng; quy trình 3 bước; 18 quy tắc T1–T18. Còn 2 câu hỏi mở tại mục 6.2.
+**Trạng thái v9:** 17 quyết định đã chốt; **9 tầng**; ma trận **143 quy tắc**; 4 bảng mapping (3 bảng + bảng truy vết 3.12.4); ngưỡng theo tầng; quy trình 3 bước; 18 quy tắc T1–T18. Còn 2 câu hỏi mở tại mục 6.2.
 
 ## 6. Câu hỏi và phụ thuộc còn mở
 
@@ -1280,7 +1342,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 | 10 | Bằng chứng nghiệm thu | **Cả hai** — báo cáo tự động + kết luận của người (mục 3.14) |
 | 11 | CI | **Chỉ script `pnpm test:all` local** — không GitHub Actions (mục 3.13.1) |
 | 12 | Gate | **Chặn** — fail thì không commit, không deploy (mục 3.13.3) |
-| 13 | Bảng mapping | **Đầy đủ** — 77 / 62 / 80 / 93 (mục 3.11, 3.12) |
+| 13 | Bảng mapping | **Đầy đủ** — 85 / 66 / 86 / 143 (mục 3.11, 3.12) |
 | 14 | Test hợp đồng API | **Cả hai** — snapshot OpenAPI + validate runtime Zod (mục 3.3, 3.7) |
 
 ### 6.2. Đã chốt ở v7 (2026-11-07)
@@ -1302,7 +1364,7 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 
 | Phụ thuộc | Mô tả |
 |---|---|
-| **Bắt buộc** | Phần 14 phải tham chiếu ma trận 120 quy tắc và bảng mapping để xác định test nào viết trước, test nào sau |
+| **Bắt buộc** | Phần 14 phải tham chiếu ma trận 143 quy tắc và bảng mapping để xác định test nào viết trước, test nào sau |
 | **Bắt buộc** | Mỗi đợt giao hàng trong Phần 14 phải kèm tiêu chí nghiệm thu theo mục 3.13.3 |
 | **Bắt buộc** | Phần 14 phải có bước "viết test" **đi kèm** bước "viết code" trong cùng đợt — không viết code xong mới viết test |
 | **Ràng buộc** | Phần 14 phải đặt **hạ tầng test** (compose, factory, seed, checker) là đợt 0 — trước mọi module khác |
@@ -1310,14 +1372,10 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 | **Ghi nhận** | Câu hỏi mở #3 ở Phần 11 (số lượng `dataset_record` thực tế) vẫn còn — ảnh hưởng kịch bản k6 và thời gian chạy test import |
 
 ## 7. Prompting log và lịch sử thay đổi
+- **v9 / 2026-11-16 (Nhóm B/D/E/F/G/H — đồng bộ sau Bước 1–6):** đồng bộ toàn bộ tài liệu với mã nguồn thực thi. (1) **Ma trận 122 → 143 quy tắc** — thêm 14 quy tắc mới (`S25`–`S29`, `C16`–`C21`, `I24`–`I25`, `O37`–`O39`) và cộng lại 4 quy tắc v6 (`S24`, `I22`, `I23`, `O36`) vốn chưa được tính vào bảng tổng kết. (2) **Mục 3.11.2c mới** — bảng 5 bộ test mới (83 ca) kèm quy tắc được phủ + kết quả chạy thực tế (1 069 unit/arch + 138 integration + 70 e2e = **1 277 ca PASS**, 0 fail). (3) **Bảng mapping 3.12.1 / 3.12.3** — cập nhật **85 tính năng** (từ 79) và **84 route HTTP thực thi** (từ 85 → 90 → 84), bổ sung nhóm `overview`, `admin` 4 route, `datasets` 8 route, `analysis` 9 route. (4) **Mục 3.12.4 mới** — bảng truy vết 11 tính năng mới ↔ route ↔ file test ↔ quy tắc. (5) **Mục 3.17 viết lại** — đối chiếu bằng **số liệu đo thật** (74 file test, 1 277 ca PASS) + danh sách 5 khoảng cách còn lại. (6) **Mục 3.19 / 4 / 5** — cập nhật trạng thái và số liệu đầu ra. Nguồn: `edit/02_ke_hoach_thuc_thien.md` Bước 1–6 + Phần 2 v11 + Phần 7 v8.
 
-- **Thực hiện đợt F / 2026-11-17:** Hoàn tất code + test / Người dùng duyệt và yêu cầu thực thi đợt F / Đổi trạng thái sang đã thực hiện.
-- **Đề xuất v9 / 2026-11-17:** Test đợt F module analysis / Người dùng duyệt plan đợt F (sửa 6 lỗi phát hiện khi demo Titanic) / Thêm mục 3.22; docs trước code.
-- **Điều chỉnh / 2026-11-17:** Thêm AN-21 (tương thích hợp đồng `top_n` tối đa 100, `recommendations` giữ `string[]`) / Đồng bộ với commit `52df5b7` / Bổ sung bảng mục 3.21.
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.21 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.21 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Test bổ sung đợt D/E module analysis / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.21; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.20 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.20 sang đã thực hiện.
-- **Đề xuất v8 / 2026-11-17:** Test bổ sung cho hoàn thiện module analysis / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.20; chờ duyệt trước khi sửa code.
+
+- **v8 / 2026-11-15 (Nhóm A — keyset cursor):** `GET /workspaces` và `GET /workspaces/{workspaceId}/projects` chuyển sang keyset cursor (bỏ `page`/`total`, thêm `cursor`/`limit`, `meta` có `nextCursor`+`hasMore`+`limit`); thêm quy tắc **C14** (cursor ràng buộc theo `sort`) và **C15** (cấm `countDocuments`/`skip` cho list workspace/project); ma trận 120 → **122 quy tắc**; bộ test `test/keyset-pagination.spec.ts` (18 ca) / Theo quyết định Q0.1 (`edit/02_ke_hoach_thuc_thien.md` Nhóm A) / Cập nhật mục 3.11.2, thêm mục 3.11.2b, quy tắc 4 (bảng mapping), bảng tổng kết ma trận.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
 - **v1 / 2026-11-02:** Tạo khung phần 13 / Chuẩn bị thảo luận tuần tự / Chỉ tạo tài liệu, chưa thực thi thay đổi backend hoặc dữ liệu.
 - **v5 / 2026-11-06:** Tầng 9 nâng từ **4 model / 9 chỉ số rời** thành **5 model theo giả thuyết + 9 chỉ số trên 5 nhóm** có ngưỡng tuyệt đối, trọng số 100, kiểm định thống kê (McNemar/Wilcoxon), đường Pareto và 11 quy tắc quyết định; bỏ judge `Qwen3-32B` (vượt RAM) → chấm chéo; quyết định benchmark chọn **cặp model** cho kiến trúc định tuyến hai tầng (Phần 12 v5 mục 3.15.6) / Theo yêu cầu người dùng ngày 2026-11-06 / Cập nhật mục 3.10b.1–3.10b.2 và quyết định 15.

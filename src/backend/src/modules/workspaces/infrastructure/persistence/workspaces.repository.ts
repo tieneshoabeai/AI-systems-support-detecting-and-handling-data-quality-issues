@@ -2,18 +2,30 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IWorkspace } from './workspace.schema';
-import { resolveMongoSession } from '../../../../shared/database/mongo-session-context';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 import {
-  WORKSPACE_REPOSITORY_PORT,
   type CreateWorkspaceRecord,
   type WorkspaceListQuery as DomainListQuery,
   type WorkspaceMemberRecord,
-  type WorkspaceRecord,
   type WorkspaceRepositoryPort,
 } from '../../domain/ports/workspace.repository.port';
-import { toMemberPersistence, toWorkspaceRecord } from './workspace.mapper';
+import type { Workspace } from '../../domain/entities/workspace.entity';
+import { toMemberPersistence, toWorkspaceEntity } from './workspace.mapper';
+import {
+  buildKeysetCondition,
+  buildKeysetSort,
+} from '../../../../shared/domain/pagination/keyset-filter.util';
+import { encodeKeysetCursor } from '../../../../shared/domain/pagination/keyset-cursor';
+import { extractSortValue } from '../../../../shared/domain/pagination/keyset-value.util';
+import {
+  COMMON_SORT_SPECS,
+  resolveSortSpec,
+} from '../../../../shared/domain/pagination/keyset-sort.util';
 
-export interface WorkspaceListQuery extends DomainListQuery {}
+export type WorkspaceListQuery = DomainListQuery;
+
+/** Số bản ghi mặc định cho mỗi trang. */
+const DEFAULT_LIMIT = 15;
 
 /**
  * WORKSPACES — Infrastructure adapter (driven).
@@ -24,11 +36,11 @@ export interface WorkspaceListQuery extends DomainListQuery {}
 export class WorkspacesRepository implements WorkspaceRepositoryPort {
   constructor(@InjectModel('Workspace') private readonly workspaceModel: Model<IWorkspace>) {}
 
-  private toRecord(doc: IWorkspace): WorkspaceRecord {
-    return toWorkspaceRecord(doc);
+  private toEntity(doc: IWorkspace): Workspace {
+    return toWorkspaceEntity(doc);
   }
 
-  async create(data: CreateWorkspaceRecord): Promise<WorkspaceRecord> {
+  async create(data: CreateWorkspaceRecord): Promise<Workspace> {
     const userObjectId = new Types.ObjectId(data.ownerId);
     const inst = new this.workspaceModel({
       name: data.name,
@@ -39,76 +51,155 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
       last_accessed_at: new Date(),
       deleted_at: null,
     });
-    const saved = await inst.save();
-    return this.toRecord(saved);
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
+    return this.toEntity(saved);
   }
 
-  async findById(id: string): Promise<WorkspaceRecord | null> {
+  async findById(id: string): Promise<Workspace | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await this.workspaceModel.findOne({ _id: new Types.ObjectId(id), deleted_at: null }).exec();
-    return doc ? this.toRecord(doc) : null;
+    return doc ? this.toEntity(doc) : null;
   }
 
   async updateById(
     id: string,
     update: { name?: string; description?: string },
     expectedVersion?: number,
-  ): Promise<WorkspaceRecord | null> {
+  ): Promise<Workspace | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const filter: Record<string, unknown> =
       expectedVersion !== undefined
         ? { _id: new Types.ObjectId(id), deleted_at: null, version: expectedVersion }
         : { _id: new Types.ObjectId(id), deleted_at: null };
+    const s = resolveMongoSession(undefined);
     const doc = await this.workspaceModel
-      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { new: true })
+      .findOneAndUpdate(filter, { $set: update, $inc: { version: 1 } }, { returnDocument: 'after', session: s })
       .exec();
-    return doc ? this.toRecord(doc) : null;
+    return doc ? this.toEntity(doc) : null;
   }
 
   async softDelete(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) return false;
+    const s = resolveMongoSession(undefined);
     const r = await this.workspaceModel.updateOne(
       { _id: new Types.ObjectId(id), deleted_at: null },
       { $set: { deleted_at: new Date() } },
+      { session: s },
     );
     return r.modifiedCount > 0;
   }
 
-  async findByUser(userId: string): Promise<WorkspaceRecord[]> {
+  async findByUser(userId: string): Promise<Workspace[]> {
     const s = resolveMongoSession(undefined);
     const userObjectId = new Types.ObjectId(userId);
     const docs = await this.workspaceModel
       .find({ deleted_at: null, $or: [{ owner_id: userObjectId }, { 'members.user_id': userObjectId }] }, null, { session: s })
       .sort({ updated_at: -1 })
       .exec();
-    return docs.map((d) => this.toRecord(d));
+    return docs.map((d) => this.toEntity(d));
   }
 
-  async findAllActive(): Promise<WorkspaceRecord[]> {
+  async findAllActive(): Promise<Workspace[]> {
     const s = resolveMongoSession(undefined);
     const docs = await this.workspaceModel.find({ deleted_at: null }, null, { session: s }).sort({ updated_at: -1 }).exec();
-    return docs.map((d) => this.toRecord(d));
+    return docs.map((d) => this.toEntity(d));
   }
 
-  async findByUserPaged(userId: string, opts: DomainListQuery = {}): Promise<{ items: WorkspaceRecord[]; total: number }> {
+  /** Id các workspace đã bị xóa mềm — dùng lọc phòng thủ ở tầng query. */
+  async findDeletedIds(): Promise<string[]> {
+    const s = resolveMongoSession(undefined);
+    const docs = await this.workspaceModel
+      .find({ deleted_at: { $ne: null } }, null, { session: s })
+      .select('_id')
+      .lean()
+      .exec();
+    return docs.map((d) => String(d._id));
+  }
+
+  async countActive(): Promise<number> {
+    const s = resolveMongoSession(undefined);
+    return this.workspaceModel.countDocuments({ deleted_at: null }, { session: s }).exec();
+  }
+
+  async countOwnedByUser(userId: string): Promise<number> {
+    const s = resolveMongoSession(undefined);
+    return this.workspaceModel
+      .countDocuments({ deleted_at: null, owner_id: new Types.ObjectId(userId) }, { session: s })
+      .exec();
+  }
+
+  async countSharedByUser(userId: string): Promise<number> {
+    const s = resolveMongoSession(undefined);
+    return this.workspaceModel
+      .countDocuments(
+        { deleted_at: null, owner_id: { $ne: new Types.ObjectId(userId) }, 'members.user_id': new Types.ObjectId(userId) },
+        { session: s },
+      )
+      .exec();
+  }
+
+  async findByUserPaged(
+    userId: string,
+    opts: DomainListQuery = {},
+  ): Promise<{ items: Workspace[]; nextCursor: string | null; hasMore: boolean }> {
     const s = resolveMongoSession(undefined);
     const userObjectId = new Types.ObjectId(userId);
-    const filter: Record<string, unknown> = { deleted_at: null, $or: [{ owner_id: userObjectId }, { 'members.user_id': userObjectId }] };
-    if (opts.search?.trim()) filter.name = { $regex: opts.search.trim(), $options: 'i' };
-    if (opts.role === 'owner') filter.owner_id = userObjectId;
-    else if (opts.role === 'member') { filter['members.user_id'] = userObjectId; filter['members.role'] = 'member'; }
-    const page = Math.max(1, Number(opts.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(opts.limit) || 15));
-    const sortMap: Record<string, Record<string, 1 | -1>> = {
-      last_accessed: { last_accessed_at: -1 }, updated: { updated_at: -1 },
-      name_asc: { name: 1 }, name_desc: { name: -1 }, joined: { created_at: -1 },
-    };
-    const sort = sortMap[opts.sort || 'last_accessed'] ?? { last_accessed_at: -1 };
-    const [items, total] = await Promise.all([
-      this.workspaceModel.find(filter, null, { session: s }).sort(sort).skip((page - 1) * limit).limit(limit).exec(),
-      this.workspaceModel.countDocuments(filter).exec(),
-    ]);
-    return { items: items.map((d) => this.toRecord(d)), total };
+    const conditions: Record<string, unknown>[] = [
+      { deleted_at: null },
+      { $or: [{ owner_id: userObjectId }, { 'members.user_id': userObjectId }] },
+    ];
+    if (opts.search?.trim()) {
+      conditions.push({ name: { $regex: opts.search.trim(), $options: 'i' } });
+    }
+    if (opts.role === 'owner') {
+      conditions.push({ owner_id: userObjectId });
+    } else if (opts.role === 'member') {
+      conditions.push({ 'members.user_id': userObjectId, 'members.role': 'member' });
+    }
+
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || DEFAULT_LIMIT));
+    const { code, spec } = resolveSortSpec(COMMON_SORT_SPECS, opts.sort);
+
+    // Điều kiện keyset: chỉ áp dụng khi có con trỏ hợp lệ.
+    const cursor = opts.cursor;
+    if (cursor) {
+      conditions.push(
+        buildKeysetCondition(spec, {
+          value: cursor.value,
+          isNull: cursor.isNull,
+          id: cursor.id,
+        }),
+      );
+    }
+
+    // Lấy limit + 1 để biết còn dữ liệu hay không (không cần countDocuments).
+    const docs = await this.workspaceModel
+      .find({ $and: conditions }, null, { session: s })
+      .sort(buildKeysetSort(spec))
+      .limit(limit + 1)
+      .exec();
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+    const items = page.map((d) => this.toEntity(d));
+
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = page[page.length - 1];
+      if (last) {
+        const raw = last as unknown as Record<string, unknown>;
+        const sortValue = extractSortValue(spec, raw);
+        nextCursor = encodeKeysetCursor({
+          s: code,
+          k: sortValue.value,
+          n: sortValue.isNull ? 1 : 0,
+          id: last._id.toString(),
+        });
+      }
+    }
+
+    return { items, nextCursor, hasMore };
   }
 
   async addMember(workspaceId: string, member: WorkspaceMemberRecord): Promise<boolean> {

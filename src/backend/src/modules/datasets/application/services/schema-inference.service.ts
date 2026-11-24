@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { isMissingToken } from '../../../../shared/utils/missing-tokens.util';
-import type {
-  DatasetColumnIssueRecord,
-  DatasetColumnRecord,
-} from '../../domain/ports/dataset.repository.port';
+import {
+  detectColumnIssues,
+  type DatasetColumn,
+  type DatasetColumnIssue,
+} from '../../domain/entities/dataset.entity';
+import { inferPiiFlags } from '../../domain/services/pii-heuristic.util';
 
 export interface InferredSchema {
-  columns: DatasetColumnRecord[];
-  issues: DatasetColumnIssueRecord[];
+  columns: DatasetColumn[];
+  issues: DatasetColumnIssue[];
 }
 
 /**
@@ -20,12 +21,12 @@ export interface InferredSchema {
  */
 @Injectable()
 export class SchemaInferenceService {
-  inferSchema(headers: string[], sampleRows: Record<string, unknown>[]): DatasetColumnRecord[] {
+  inferSchema(headers: string[], sampleRows: Record<string, unknown>[]): DatasetColumn[] {
     return this.inferSchemaWithIssues(headers, sampleRows).columns;
   }
 
   inferSchemaWithIssues(headers: string[], sampleRows: Record<string, unknown>[]): InferredSchema {
-    const columns: DatasetColumnRecord[] = headers.map((header, i) => {
+    const rawColumns: DatasetColumn[] = headers.map((header, i) => {
       const values = sampleRows
         .map((row) => row[header])
         .filter((val) => val !== undefined);
@@ -51,40 +52,39 @@ export class SchemaInferenceService {
         isPii: false,
       };
     });
+
+    // OPEN-04: cờ PII **tự động** theo heuristic tên cột (không có route bật/tắt
+    // thủ công — hệ thống chỉ nhận dataset và phân tích).
+    const columns = inferPiiFlags(rawColumns);
+
     return { columns, issues: this.detectColumnIssues(headers) };
   }
 
   /** Phat hien ten cot rong / chi whitespace / trung (so sanh chinh xac, case-sensitive). */
-  detectColumnIssues(headers: string[]): DatasetColumnIssueRecord[] {
-    const issues: DatasetColumnIssueRecord[] = [];
-    const seen = new Map<string, number>();
-    headers.forEach((h, i) => {
-      const key = `c${i}`;
-      if (h === '') {
-        issues.push({ columnKey: key, issue: 'empty_name', message: `Cot ${key} co ten rong` });
-      } else if (/^\s+$/.test(h)) {
-        issues.push({ columnKey: key, issue: 'whitespace_only', message: `Cot ${key} chi chua khoang trang` });
-      }
-      const first = seen.get(h);
-      if (first !== undefined && h !== '') {
-        issues.push({ columnKey: key, issue: 'duplicate_name', message: `Ten cot "${h}" bi trung (cot c${first} va ${key})` });
-      } else if (first === undefined) {
-        seen.set(h, i);
-      }
-    });
-    return issues;
+  detectColumnIssues(headers: string[]): DatasetColumnIssue[] {
+    return detectColumnIssues(
+      headers.map((h, i) => ({
+        key: `c${i}`,
+        index: i,
+        name: h,
+        originalName: h,
+        dataType: 'string' as const,
+        missingCount: 0,
+        isPii: false,
+      })),
+    );
   }
 
   private isNullOrEmpty(val: unknown): boolean {
     if (val === null || val === undefined) return true;
     if (typeof val === 'string') {
-      // Dot F/G: danh sach ky hieu thieu dung chung (shared/utils/missing-tokens.util.ts)
-      return val.trim() === '' || isMissingToken(val);
+      const str = val.trim().toLowerCase();
+      return str === '' || str === 'null' || str === 'undefined' || str === 'na' || str === 'n/a';
     }
     return false;
   }
 
-  private detectDataType(values: unknown[]): DatasetColumnRecord['dataType'] {
+  private detectDataType(values: unknown[]): DatasetColumn['dataType'] {
     if (values.length === 0) return 'string';
 
     let booleanCount = 0;

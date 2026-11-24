@@ -1,13 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { ProjectsService } from '../src/modules/projects/application/projects.service';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
+import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
+import { TRANSACTION_PORT } from '../src/shared/application/ports/transaction.port';
+import { fakeTransaction } from './helpers/transaction';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { NotFoundException } from '@nestjs/common';
+import { Project } from '../src/modules/projects/domain/entities/project.entity';
+import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
+import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
+import { projectsHandlers } from './helpers/module-handlers';
+import { NotFoundError, ValidationError } from '../src/shared/domain/errors';
+
 
 describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Dataset)', () => {
-  let service: ProjectsService;
+  let service: ProxyOf<typeof projectsHandlers>;
   let repository: Record<string, jest.Mock>;
   let workspacesPort: Record<string, jest.Mock>;
 
@@ -15,20 +22,34 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
   const mockUserId = new Types.ObjectId().toHexString();
   const mockProjectId = new Types.ObjectId().toHexString();
 
-  const mockProjectRecord = {
-    id: mockProjectId,
-    workspaceId: mockWorkspaceId,
-    name: 'Customer Profiling Project',
-    description: 'Data profiling for customers',
-    hasDataset: false,
-    status: 'not_started' as const,
-    members: [{ userId: mockUserId, role: 'owner' as const, joinedAt: new Date() }],
-    version: 3,
-    lastAccessedAt: null,
-    createdBy: mockUserId,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  /**
+   * Bước 3 — Rich Domain Model: handler làm việc với **entity** `Project`,
+   * nên mock của repository phải trả về entity thật (qua `reconstitute`),
+   * không phải object trần.
+   */
+  const buildProject = (overrides: {
+    status?: 'not_started' | 'in_progress' | 'completed';
+    hasDataset?: boolean;
+    members?: Array<{ userId: string; role: 'owner' | 'member' | 'viewer'; joinedAt: Date }>;
+    version?: number;
+  } = {}): Project =>
+    Project.reconstitute({
+      id: mockProjectId,
+      workspaceId: mockWorkspaceId,
+      name: 'Customer Profiling Project',
+      description: 'Data profiling for customers',
+      hasDataset: overrides.hasDataset ?? false,
+      status: overrides.status ?? 'not_started',
+      members: overrides.members ?? [{ userId: mockUserId, role: 'owner', joinedAt: new Date() }],
+      version: overrides.version ?? 3,
+      lastAccessedAt: null,
+      createdBy: mockUserId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    });
+
+  const mockProjectRecord = buildProject();
 
   beforeEach(async () => {
     repository = {
@@ -38,7 +59,11 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
         return Promise.resolve(null);
       }),
       findByWorkspace: jest.fn().mockResolvedValue([mockProjectRecord]),
-      findByWorkspacePaged: jest.fn().mockResolvedValue({ items: [mockProjectRecord], total: 1 }),
+      findByWorkspacePaged: jest.fn().mockResolvedValue({
+        items: [mockProjectRecord],
+        nextCursor: null,
+        hasMore: false,
+      }),
       findOneByWorkspaceAndName: jest.fn().mockResolvedValue(null),
       updateById: jest.fn().mockResolvedValue(mockProjectRecord),
       softDelete: jest.fn().mockResolvedValue(true),
@@ -58,14 +83,16 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ProjectsService,
+        ...Object.values(projectsHandlers),
         { provide: PROJECT_REPOSITORY_PORT, useValue: repository },
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: workspacesPort },
         { provide: USER_REPOSITORY_PORT, useValue: { findByEmail: jest.fn(), findById: jest.fn() } },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
       ],
     }).compile();
 
-    service = module.get<ProjectsService>(ProjectsService);
+    service = createHandlerProxy(module, projectsHandlers);
   });
 
   it('createProject should initialize hasDataset to false', async () => {
@@ -100,7 +127,7 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
 
   it('getProjectById should throw NotFoundException when project not found', async () => {
     const randomId = new Types.ObjectId().toHexString();
-    await expect(service.getProjectById(randomId)).rejects.toThrow(NotFoundException);
+    await expect(service.getProjectById(randomId)).rejects.toThrow(NotFoundError);
   });
 
   it('createProject should reject duplicate name in workspace (PROJ-01)', async () => {
@@ -111,17 +138,33 @@ describe('ProjectsService (Quản lý Project & Ràng buộc 1 Project = 1 Datas
   });
 
   it('setHasDataset(true) should move status not_started -> in_progress', async () => {
-    (repository.findById as jest.Mock).mockResolvedValue({ ...mockProjectRecord, status: 'not_started' });
+    (repository.findById as jest.Mock).mockResolvedValue(buildProject({ status: 'not_started' }));
     await service.setHasDataset(mockProjectId, true);
     expect(repository.setStatus).toHaveBeenCalledWith(mockProjectId, 'in_progress');
   });
 
   it('markCompleted should require in_progress status', async () => {
-    (repository.findById as jest.Mock).mockResolvedValue({ ...mockProjectRecord, status: 'not_started' });
+    (repository.findById as jest.Mock).mockResolvedValue(buildProject({ status: 'not_started' }));
     await expect(service.markCompleted(mockProjectId)).rejects.toThrow();
     await expect(service.markCompleted(mockProjectId, 3)).rejects.toThrow();
-    (repository.findById as jest.Mock).mockResolvedValue({ ...mockProjectRecord, status: 'in_progress' });
+    (repository.findById as jest.Mock).mockResolvedValue(buildProject({ status: 'in_progress' }));
     await service.markCompleted(mockProjectId, 3);
     expect(repository.markCompleted).toHaveBeenCalledWith(mockProjectId, 3);
+  });
+
+  it('listProjectsByWorkspace should return cursor meta and no total (PROJ-02)', async () => {
+    const r = await service.listProjectsByWorkspace(mockWorkspaceId, { limit: 10 } as never);
+    expect(r.items).toHaveLength(1);
+    expect(r.meta.hasMore).toBe(false);
+    expect(r.meta.nextCursor).toBeNull();
+    expect(r.meta.limit).toBe(10);
+    expect('total' in (r as unknown as Record<string, unknown>)).toBe(false);
+  });
+
+  it('listProjectsByWorkspace should reject a cursor that does not match the current sort', async () => {
+    const cursor = CursorCodec.encode({ s: 'name_asc', k: 'A', n: 0, id: '507f1f77bcf86cd799439011' });
+    await expect(
+      service.listProjectsByWorkspace(mockWorkspaceId, { limit: 10, sort: 'updated', cursor } as never),
+    ).rejects.toThrow(ValidationError);
   });
 });

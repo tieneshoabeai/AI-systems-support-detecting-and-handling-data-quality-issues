@@ -2,9 +2,8 @@
 
 - **Version:** v7
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-17 (v7)
-- **Thay đổi v7 (2026-11-17):** bổ sung mục 3.20 — Phân quyền endpoint job AI theo project (bổ sung). Nguồn: Kế hoạch hoàn thiện module `analysis` (`docs/modules/analysis_plan.md`). Trạng thái: đã thực hiện. **Bổ sung đợt D/E:** mục 3.21 — Ma trận quyền route project của analysis / summary / report (đã thực hiện).
-- **Trạng thái:** Mô hình vai trò đầy đủ đã chốt (5 vai trò: `SYS-ADMIN` + 4 vai trò nghiệp vụ), ma trận quyền cho toàn bộ **66 use case**, chính sách phiên/token, chính sách đăng ký, chính sách audit log, và ranh giới bảo vệ dữ liệu đã được xác nhận. **v5 bổ sung:** quyền cho nhóm nhận xét kết quả `UC-68`→`UC-72` (mục 3.5b), quyền kết nối **Socket.IO** (mục 3.18), chính sách bảo mật cho **AI chạy nội bộ** (mục 3.19) và quy tắc bảo vệ dữ liệu của nhận xét người dùng. Gỡ toàn bộ quyền liên quan đến sheet (chỉ còn `.csv`).
+- **Cập nhật gần nhất:** 2026-11-16 (v7)
+- **Trạng thái:** Mô hình vai trò đầy đủ đã chốt (5 vai trò: `SYS-ADMIN` + 4 vai trò nghiệp vụ), ma trận quyền cho toàn bộ **66 use case**, chính sách phiên/token, chính sách đăng ký, chính sách audit log, và ranh giới bảo vệ dữ liệu đã được xác nhận. **v7 (2026-11-16):** đồng bộ với mã nguồn thực thi sau Bước 1–6 — **mục 3.20 mới** (chính sách đăng nhập Google OAuth 2.0: CSRF `state`, xác minh `email_verified`, **cấm tự động liên kết** khi email đã tồn tại), **mục 3.21 mới** (quyền sửa báo cáo khi `needs_info`), cập nhật chính sách phiên với **remember-me** (7 ngày / 30 ngày), thêm **8 tình huống truy cập trái phép** (#49–#56); xem mục 3.7, 3.15, 3.17, 3.20, 3.21. **v5 bổ sung:** quyền cho nhóm nhận xét kết quả `UC-68`→`UC-72` (mục 3.5b), quyền kết nối **Socket.IO** (mục 3.18), chính sách bảo mật cho **AI chạy nội bộ** (mục 3.19) và quy tắc bảo vệ dữ liệu của nhận xét người dùng. Gỡ toàn bộ quyền liên quan đến sheet (chỉ còn `.csv`).
 - **Giai đoạn:** Tech solution
 - **Thứ tự thực hiện:** Phần 6; sử dụng kết quả đã xác nhận của các phần trước.
 - **Quan hệ với các phần khác:** mô hình vai trò ở đây là nguồn chuẩn cho ma trận quyền của Phần 3 v4 (mục 3.8) và danh mục tính năng Phần 2 v5. Phần 4 v4 xác định module sở hữu từng tài nguyên.
@@ -291,8 +290,21 @@ Cột `SYS-ADMIN` được thêm vào để thể hiện rõ quyền hệ thốn
 | Đối tượng | Thời hạn | Ghi chú |
 |---|---|---|
 | Access token (JWT) | **15 phút** | Không thu hồi được; client phải xoá khi đăng xuất |
-| Refresh token | **7 ngày** | Lưu dạng hash; xoay vòng (rotation) |
-| Phiên (`user_session`) | TTL **30 ngày** | TTL index trong MongoDB |
+| Refresh token | **7 ngày** | Lưu dạng hash; xoay vòng (rotation). Biến `JWT_REFRESH_EXPIRATION` |
+| Refresh token (**remember-me**) | **30 ngày** | **MỚI v7** — người dùng chọn "ghi nhớ đăng nhập". Biến `JWT_REFRESH_REMEMBER_EXPIRATION` |
+| Phiên (`user_session`) | TTL **30 ngày** | TTL index trong MongoDB — `{ expires_at: 1 }, { expireAfterSeconds: 0 }` |
+
+**Chính sách remember-me (MỚI v7, `AUTH-14`):**
+
+| Quy tắc | Nội dung |
+|---|---|
+| Cờ | `user_session.remember_me` (boolean, mặc định `false`) — lưu cùng phiên |
+| Chọn hạn | `expires_at` = `now + JWT_REFRESH_EXPIRATION` (7 ngày) nếu không remember-me; `now + JWT_REFRESH_REMEMBER_EXPIRATION` (30 ngày) nếu có |
+| Nguồn quyết định | `AuthSessionPolicyPort.refreshTtlMs(rememberMe)` — adapter `EnvAuthSessionPolicyAdapter` đọc 2 biến môi trường |
+| Theo dõi | `user_session.last_used_at` cập nhật mỗi lần refresh — dùng cho màn hình "hoạt động gần nhất" |
+| Gia hạn | Refresh token **luôn** được rotate khi sử dụng ⇒ `expires_at` được tính lại theo cờ `remember_me` ⇒ phiên remember-me có thể sống **vô hạn** nếu người dùng dùng đều đặn |
+| Rủi ro | Phiên 30 ngày là cửa sổ chiếm token lớn hơn 7 ngày ⇒ bắt buộc bật thông báo "đăng nhập mới" + cho phép thu hồi từ xa (đã có ở mục 3.7) |
+| TTL index | Phải là `{ expires_at: 1 }, { expireAfterSeconds: 0 }` — **không** dùng `expireAfterSeconds > 0` (đã sửa, xem mục 3.16 #19) |
 
 **Cơ chế bắt buộc:**
 
@@ -453,6 +465,71 @@ Request → JwtAuthGuard → xác thực token, kiểm tra session chưa revoke 
 
 **Rủi ro đã biết và biện pháp:** cấu hình CASL viết tay dễ sót. Bắt buộc có test tự động (Phần 13) khẳng định `SYS-ADMIN` bị `FORBIDDEN` trên **toàn bộ** endpoint nghiệp vụ, và test khẳng định **không** phát sinh truy vấn đọc dữ liệu nghiệp vụ cho tài khoản `SYS-ADMIN`.
 
+#### 3.10b. Cơ chế 3 tầng đã hiện thực hoá (v7 — `PoliciesGuard`)
+
+**Bối cảnh — lỗi đã phát hiện và sửa (2026-11-17):**
+
+`CurrentUser.workspaceId` / `workspaceRole` **không bao giờ được gán** ở bất kỳ đâu trong mã nguồn → toàn bộ nhánh phân quyền theo workspace/project trong `CaslAbilityFactory` là **code chết**. Kết quả: **mọi** endpoint `Workspace` / `Project` / `Dataset` trả `403` cho tài khoản thường, kể cả khi họ là Owner. Nguyên nhân gốc: một user có thể ở **nhiều** workspace với vai trò khác nhau, nên một cặp `workspaceId`/`workspaceRole` trong token không đủ biểu diễn (đúng như cảnh báo ở mục 3.10 trước đây).
+
+**Kiến trúc đã áp dụng — 3 tầng kiểm tra:**
+
+| Tầng | Cơ chế | Mục đích | Kết quả khi thiếu |
+|---|---|---|---|
+| **1 — Tĩnh (coarse)** | `PoliciesGuard` → `ability.can(action, subjectName)` | Chặn sớm khi user không có **loại** quyền đó (VD `WS-MEMBER` không được `Update` workspace) | Chặn oan nếu rule viết sai |
+| **2 — Nạp tài nguyên (dynamic)** | `@PolicyResource(subject, loader, param?)` → `loader.load(id)` gắn vào `request.resource` | Lấy **instance thật** từ DB để kiểm tra thuộc tính | **IDOR** — đọc được tài nguyên của người khác |
+| **3 — Instance (fine-grained)** | `buildSubject()` chuẩn hoá camelCase → snake_case rồi `ability.can(action, instance)` | So khớp `workspace_id` / `project_id` / `owner_id` với điều kiện CASL | Chỉ có kiểm tra type → IDOR |
+
+**Resolve context theo request (tầng trước cả 3 tầng trên):**
+
+- `WORKSPACE_CONTEXT_PORT` (`shared/ports/workspace-context.port.ts`) → module `workspaces` hiện thực (`WorkspaceContextAdapter`) → trả `{ workspaceIds, roles, ownedWorkspaceIds }`.
+- `PROJECT_CONTEXT_PORT` (`shared/ports/project-context.port.ts`) → module `projects` hiện thực (`ProjectContextAdapter`) → trả `{ projectIds, roles, workspaceIds }`.
+- `PoliciesGuard` resolve 2 port này qua `ModuleRef.get(token, { strict: false })` trong `try/catch` → giữ đúng ranh giới tầng (CA5: `shared/` **không** import từ `modules/`).
+- Suy ra vai trò project (quy tắc 2 + 3 mục 3.1): có mặt trong `project.members` → lấy đúng vai trò; không có mặt nhưng là `WS-OWNER` → `owner`; không có mặt nhưng là `WS-MEMBER` → `viewer`.
+
+**Các loader tài nguyên (`@PolicyResource`):**
+
+| Loader | Trả về | Dùng cho |
+|---|---|---|
+| `WorkspacePolicyLoader` | workspace thật | `workspaces/:id` |
+| `ProjectPolicyLoader` | project thật | `projects/:id` |
+| `ProjectScopePolicyLoader` | `{ id, project_id, workspace_id }` | `projects/:projectId/...` (kiểm tra subject con) |
+| `WorkspaceScopePolicyLoader` | `{ id, workspace_id, owner_id }` | `workspaces/:workspaceId/projects` |
+| `DatasetPolicyLoader` | dataset thật | `datasets/:id`, `datasets/:datasetId/...` |
+| `AnalysisJobPolicyLoader` | `{ id, project_id, workspace_id }` từ `AiJob` + `AnalysisRun` | `analysis/jobs/:jobId` |
+| `AnalysisRunPolicyLoader` | `{ id, project_id, workspace_id }` | nhóm `FB-*` (`:analysisId`) |
+
+**Quy tắc CASL bắt buộc (rút ra từ lỗi đã gặp — v7):**
+
+1. **KHÔNG dùng mảng điều kiện** trong `can(action, subject, conditions)`. CASL hiểu `[{...}, {...}]` theo nghĩa **"khớp bất kỳ trường nào"** (any-field-match), **KHÔNG** phải OR → dễ mở cổng IDOR. Muốn biểu đạt OR phải ghi **nhiều lệnh `can()` riêng biệt** (CASL ghép các rule bằng OR).
+2. Điều kiện luôn dùng tên trường **snake_case** (`workspace_id`, `project_id`, `owner_id`) vì `buildSubject()` ánh xạ camelCase của domain record sang snake_case.
+3. **Chỉ dùng `can` với điều kiện, không `cannot` có điều kiện** — `cannot` có điều kiện làm tầng tĩnh trả `false` cho **mọi** instance → chặn oan.
+4. Rule `$in` với mảng rỗng vẫn cho tầng tĩnh = `true` nhưng instance check = `false` — cơ chế **cố ý** để endpoint "liệt kê" chạy được với user chưa có tài nguyên nào.
+5. Mọi endpoint thao tác trên **một tài nguyên cụ thể** phải khai báo `@PolicyResource(...)`; endpoint theo **phạm vi** (`:workspaceId` / `:projectId`) dùng loader *scope* tương ứng.
+
+**Ma trận quyền đã hiện thực hoá trong `CaslAbilityFactory` (đối chiếu mục 3.4/3.5):**
+
+| Subject | `WS-OWNER` | `WS-MEMBER` | `PROJ-OWNER` | `PROJ-MEMBER` | `PROJ-VIEWER` |
+|---|---|---|---|---|---|
+| `Workspace` | `Manage` | `Read` | — | — | — |
+| `Project` | `Manage` (kể cả `Create`/`Delete`) | `Read` | `Read`+`Update`+`Execute` | `Read`+`Execute` | `Read` |
+| `Dataset` | `Manage` | `Read` | `Manage` | `Read`+`Update` (ghi metadata cột) | `Read` |
+| `DataRecord` | `Manage` | `Read` | `Read` | `Read` | `Read` |
+| `Analysis` | `Manage` | `Read` | `Manage` | `Create`+`Read`+`Update`+`Execute` | `Read` |
+
+Ghi chú: `PROJ-OWNER` **không** được `Delete` `Project` (chỉ `WS-OWNER` — `PROJ-05`); `PROJ-MEMBER` **không** được `Create` `Dataset` (import dữ liệu — `UC-08`) và **không** được `Update`/`Delete` `Project` (`UC-06`, `PROJ-05`); `PROJ-VIEWER` chỉ đọc (`UC-10`, `UC-12`, `UC-20` → `FORBIDDEN`).
+
+**Giới hạn chống spam (phương án B — đã chốt 2026-11-17):**
+
+| Hạng mục | Giá trị |
+|---|---|
+| Hằng số | `MAX_WORKSPACES_PER_USER = 20` (`modules/workspaces/domain/value-objects/workspace-quota.vo.ts`) |
+| Phạm vi | Số workspace user là **chủ sở hữu** (`owner_id`) — không tính workspace user chỉ là thành viên |
+| Ngoại lệ | `role === 'admin'` — **không** bị giới hạn |
+| Hành vi | `429 Too Many Requests` với `error: 'LIMIT_EXCEEDED'`, `details: { currentCount, max }` |
+| Vị trí thực thi | `CreateWorkspaceHandler.execute()` — tầng nghiệp vụ, không phải guard |
+
+**Trạng thái kiểm thử (2026-11-17):** `test/casl.spec.ts` (12 ca — đủ 6 vai trò + chống IDOR), `test/e2e/security/authorization.e2e-spec.ts` (49 ca), `test/workspace-invitation-email.spec.ts` (10 ca — gồm quota).
+
 ### 3.11. Chính sách giữ và xoá dữ liệu
 
 **Quyết định v3 (người dùng xác nhận):** đợt này **không xoá tự động** bằng chứng / kết quả phân tích / dữ liệu nghiệp vụ.
@@ -557,7 +634,8 @@ Bổ sung ở v3 (chi tiết MIME type còn để Phần 8 chốt, nhưng nguyê
 | `AI_MODEL_PRIMARY` / `AI_MODEL_FAST` | môi trường chạy | Tên model + **checksum SHA-256** của file `.gguf`. Không dùng thẻ `latest` |
 | Khóa S3/R2 | môi trường chạy | Adapter Storage có local fallback |
 | `SMTP_*` | môi trường chạy | Adapter Email fail an toàn → API trả `DEPENDENCY_UNAVAILABLE` |
-| `GOOGLE_CLIENT_ID` / `_SECRET` / `GOOGLE_REDIRECT_URI` | môi trường chạy | Cần HTTPS cho redirect URI |
+| `GOOGLE_CLIENT_ID` / `_SECRET` / `GOOGLE_REDIRECT_URI` | môi trường chạy | Cần HTTPS cho redirect URI (mục 3.20). Cả 3 phải có đồng thời, nếu không sẽ trả `501 DEPENDENCY_UNAVAILABLE` |
+| `JWT_REFRESH_REMEMBER_EXPIRATION` | môi trường chạy | Hạn phiên remember-me (mặc định `30d`) — mục 3.7 |
 | `REDIS_URL` | môi trường chạy | **v5:** dùng cho **cache** + **adapter Socket.IO** (multi-instance) + rate-limit. BullMQ đã bị gỡ |
 | `KAFKA_BROKERS` / `KAFKA_CLIENT_ID` / `KAFKA_SASL_*` | môi trường chạy | Cấu hình broker Kafka. Thiếu cấu hình → API khởi động ở chế độ **degraded** (không phát được sự kiện) hoặc fail tùy môi trường |
 | `AI_INFERENCE_TIMEOUT_MS` | môi trường chạy | Mặc định `180000`. Vượt → job thất bại có kiểm soát, không retry vô hạn |
@@ -588,6 +666,22 @@ Bổ sung ở v3 (chi tiết MIME type còn để Phần 8 chốt, nhưng nguyê
 | 14 | `shared/` (v5) | Chưa có guard cho kết nối Socket.IO | Thêm `WsAuthGuard` — xác thực access token trong handshake (mục 3.18) |
 | 15 | `shared/` (v5) | Chưa có kiểm soát kích thước payload Kafka | Giới hạn message size; dữ liệu lớn phải đi qua tham chiếu id, không nhúng payload |
 | 16 | `shared/crypto/mask-pii` (v5) | Che PII đang gắn với "gửi ra ngoài" | Tái định nghĩa thành "che trước khi đưa cho mô hình" — áp dụng cho cả mô hình cục bộ (mục 3.12) |
+
+**Các mục đã hoàn tất trong Bước 1–6 (v7):**
+
+| # | Vị trí | Vấn đề | Trạng thái v7 |
+|---|---|---|---|
+| 17 | `shared/casl/casl-ability.factory.ts` | `can(Manage, 'all')` cho `role === 'admin'` | ✅ **Đã sửa** — CASL cấp quyền theo subject cụ thể; test `test/casl.spec.ts` (4 ca) |
+| 18 | `shared/casl/casl-ability.factory.ts` | `workspaceRole` dùng `owner\|editor\|viewer` | ✅ **Đã sửa** — mô hình 2 cấp `WS-OWNER\|WS-MEMBER` + `PROJ-OWNER\|PROJ-MEMBER\|PROJ-VIEWER` |
+| 19 | `modules/users/infrastructure/persistence/user-session.schema.ts` | TTL index sai (`expireAfterSeconds: '7d'`) | ✅ **Đã sửa** — `{ expires_at: 1 }, { expireAfterSeconds: 0 }` |
+| 20 | `modules/auth/strategies/jwt.strategy.ts` | Fallback `'default_jwt_secret'` | ✅ **Đã sửa** — bắt buộc secret từ env (`JWT_ACCESS_SECRET` min 16 ký tự trong `env.validation.ts`) |
+| 21 | `modules/auth/dtos/register.dto.ts` | Cho phép `role` trong DTO đăng ký | ✅ **Đã sửa** — trường `role` đã bị loại bỏ |
+| 22 | `modules/auth/strategies/jwt.strategy.ts` | JWT payload mang `workspaceId`/`workspaceRole` | ✅ **Đã sửa** — quyền đọc từ DB mỗi request qua guard |
+| 23 | `modules/issues/domain/value-objects/issue-status.vo.ts` | Thiếu trạng thái `needs_info` | ✅ **Đã sửa** — 5 trạng thái, `USER_EDITABLE_ISSUE_STATUSES = ['needs_info']` (mục 3.21) |
+| 24 | `modules/auth/infrastructure/security/google-oauth.adapter.ts` | Chưa có OAuth 2.0 thật | ✅ **Đã sửa** — Authorization Code flow + verify RS256 qua JWKS + `state` chống CSRF (mục 3.20) |
+| 25 | `shared/casl/casl-ability.factory.ts` + `PoliciesGuard` | `CurrentUser.workspaceId`/`workspaceRole` **không bao giờ được gán** → nhánh phân quyền workspace/project là code chết, mọi endpoint trả `403` | ✅ **Đã sửa** — chuyển sang mô hình 3 tầng: context ports (`WORKSPACE_CONTEXT_PORT`, `PROJECT_CONTEXT_PORT`) + `@PolicyResource` loader + instance check (mục 3.10b) |
+| 26 | `shared/casl/casl-ability.factory.ts` | Mảng điều kiện `[{...}, {...}]` bị CASL hiểu là **any-field-match** (không phải OR) → mở cổng IDOR | ✅ **Đã sửa** — mỗi điều kiện là một lệnh `can()` độc lập (mục 3.10b, quy tắc 1) |
+| 27 | `modules/workspaces/application/commands/create-workspace.handler.ts` | Chưa giới hạn số workspace/user → có thể spam lời mời email | ✅ **Đã sửa** — `MAX_WORKSPACES_PER_USER = 20`, trả `429 LIMIT_EXCEEDED`; admin miễn trần (mục 3.10b) |
 
 ### 3.17. Các tình huống truy cập trái phép bắt buộc kiểm thử
 
@@ -644,6 +738,19 @@ Danh sách này là **đầu vào bắt buộc** cho Phần 13 (chiến lược 
 | 47 | Truy cập trực tiếp `http://vllm:8000/v1` từ ngoài container network | không route được — engine chỉ bind trong mạng nội bộ |
 | 48 | Yêu cầu upload file `.xlsx` | `400` `UNSUPPORTED_FILE_TYPE` — hệ thống chỉ nhận `.csv` |
 
+**Tình huống mới — Google OAuth 2.0 (v7, `AUTH-03`):**
+
+| # | Tình huống | Kết quả mong đợi |
+|---|---|---|
+| 49 | Callback có `state` **không** khớp cookie `google_oauth_state` (hoặc thiếu cả hai) | `401` `VALIDATION_ERROR` — chặn CSRF trên luồng OAuth. Cookie `state` phải là `httpOnly`, `sameSite=lax`, hạn **10 phút** |
+| 50 | Google trả `email_verified = false` | `401` `VALIDATION_ERROR` — **không** tạo tài khoản, **không** cấp token |
+| 51 | `google_id` **chưa** gắn nhưng email **đã có** tài khoản local | **Liên kết tự động** — gắn `google_id` vào tài khoản đó, cấp phiên & token, giữ nguyên mật khẩu hiện có. Nếu `google_id` đã bị tài khoản khác chiếm → `409 CONFLICT`. *(Quyết định sản phẩm 2026-11-17: email đã được Google xác minh `email_verified === true` → đủ cơ sở tin cậy; `google_id` unique chặn chiếm đoạt.)* |
+| 52 | `google_id` đã gắn với tài khoản `status = 'blocked'` | `403` `FORBIDDEN` — kiểm tra trạng thái khoá **sau** khi xác thực Google, trước khi cấp phiên |
+| 53 | Thiếu `GOOGLE_CLIENT_ID` / `_SECRET` / `GOOGLE_REDIRECT_URI` (bất kỳ biến nào) | `501` `DEPENDENCY_UNAVAILABLE` — **không** phải `500`; hệ thống vẫn khởi động bình thường |
+| 54 | `id_token` có chữ ký RS256 không hợp lệ với JWKS của Google | `401` `VALIDATION_ERROR` — **không** tin payload chưa verify |
+| 55 | Google trả lỗi ở callback (`?error=access_denied`) | `401` `VALIDATION_ERROR`; cookie `state` **phải** được xoá dù thành công hay thất bại |
+| 56 | Người dùng có tài khoản local muốn liên kết Google | ✅ **Đã hỗ trợ** (2026-11-17) — liên kết **tự động** ngay trong luồng đăng nhập Google khi email đã được Google xác minh. Luồng liên kết chủ động (đăng nhập local rồi xác nhận ở giao diện) vẫn là **nợ kỹ thuật** tùy nhu cầu UX (xem mục 3.20.5) |
+
 ### 3.18. Bảo mật kết nối Socket.IO (v5)
 
 **Bối cảnh.** Socket.IO là kênh realtime duy nhất từ backend tới trình duyệt (Phần 9 v3 mục 3.10). Nó là **kênh đẩy dữ liệu**, không phải kênh xác thực — mọi thao tác nghiệp vụ vẫn phải qua HTTP và kiểm tra quyền.
@@ -696,44 +803,135 @@ Danh sách này là **đầu vào bắt buộc** cho Phần 13 (chiến lược 
 | Khi engine lỗi | AI fail **mềm**: Tổng kết vẫn trả kết quả phân tích hệ thống, chỉ thiếu phần giải thích/đề xuất của AI (Phần 12 v4 mục 3.9) |
 | Khi model đổi | Bộ benchmark (Phần 12 v4 mục 3.15.5) phải chạy lại trước khi đưa model mới vào production |
 
-### 3.20. Phân quyền endpoint job AI theo project (bổ sung) (v7)
+### 3.20. Chính sách đăng nhập Google OAuth 2.0 (v7, `AUTH-03`)
 
-- **Trạng thái:** Đã thực hiện 2026-11-17 — code + test xong (xem Phần 14 v8 mục 3.16).
-- **Vấn đề:** các route `analysis/jobs/{jobId}*` không có `projectId` trên URL; guard hiện chỉ kiểm khả năng `Read/Execute` trên subject `Analysis`, không đối chiếu job với project/workspace của người gọi → nguy cơ IDOR.
-- **Quyết định đề xuất:** service tải `ai_job`, lấy `project_id`, kiểm quyền thành viên project như các route `projects/{projectId}/analysis*`; không đủ quyền → `404`.
-- **Ma trận:** xem trạng thái job — có quyền xem project; thử lại — PROJ-MEMBER+ (Viewer không được, như AI-01); gắn kết quả AI thủ công (`/result`) — chỉ `SYS-ADMIN` hoặc tắt ở production.
-- **Audit:** ghi `AI_JOB_RETRIED` và `AI_RESULT_INGESTED` (actor, jobId, projectId).
+**Bối cảnh.** Bước 6 của `edit/02_ke_hoach_thuc_thien.md` đã hiện thực hoá luồng đăng nhập Google bằng **Authorization Code flow** gọi trực tiếp endpoint Google (không dùng thư viện OAuth bên thứ ba).
 
-### 3.21. Ma trận quyền route project của analysis / summary / report (đợt D/E)
+**Endpoint:**
 
-- **Trạng thái:** Đã thực hiện 2026-11-17 (đợt D/E, ghi tiếp vào phiên bản của đợt A/B/C). Nguồn: rà soát sau đợt A/B/C, `docs/modules/analysis_plan.md` v1.2.
-
-| Route | Viewer | PROJ-MEMBER / Owner | Ngoài project |
+| Method | Path | Auth | Mô tả |
 |---|---|---|---|
-| `GET projects/{id}/analysis/config` | ✓ | ✓ | 404 |
-| `POST projects/{id}/analysis/config` | 403 | ✓ | 404 |
-| `POST projects/{id}/analysis` | 403 | ✓ | 404 |
-| `GET projects/{id}/analysis/result` | ✓ | ✓ | 404 |
-| `POST projects/{id}/summary` | 403 | ✓ | 404 |
-| `GET projects/{id}/summary` | ✓ | ✓ | 404 |
-| `POST projects/{id}/report` | ✓ (quyết định 2026-11-17) | ✓ | 404 |
-| `GET projects/{id}/report/{reportId}/file` | ✓ | ✓ | 404 |
-| `POST analysis/jobs/{jobId}/retry` (đã làm ở mục 3.20) | 403 | ✓ | 404 |
+| `GET` | `/api/v1/auth/google` | `@Public()` | Chuyển hướng (302) tới `accounts.google.com/o/oauth2/v2/auth`. Trả `501 DEPENDENCY_UNAVAILABLE` nếu chưa cấu hình |
+| `GET` | `/api/v1/auth/google/callback` | `@Public()` | Đổi `code` → token → hồ sơ Google → cấp access/refresh token |
 
-- `SYS-ADMIN` bỏ qua kiểm tra vai trò project. Vai trò project lấy theo `ProjectsService.resolveUserProjectRole` (thành viên project → vai trò; WS-MEMBER → viewer mặc định; WS-OWNER → owner).
-- Triển khai: `application/project-access.service.ts` dùng chung cho route project và route job; controller gọi trước khi vào service.
-- **Còn mở:** guard CASL tĩnh vẫn dựa trên vai trò **workspace** trong token: WS-MEMBER bị `cannot Execute 'Analysis'`, nên người là PROJ-MEMBER nhưng chỉ là WS-MEMBER vẫn bị chặn 403 ở guard với route ghi trước khi tới kiểm tra vai trò project. Cần chỉnh `casl-ability.factory.ts` theo vai trò project trong một đợt riêng.
+**Scope yêu cầu:** `openid`, `email`, `profile`. Tham số: `response_type=code`, `access_type=offline`, `prompt=select_account`, `state=<randomUUID>`.
+
+#### 3.20.1. Chống CSRF — `state`
+
+| Quy tắc | Nội dung |
+|---|---|
+| Sinh `state` | `randomUUID()` — **không** dùng `Math.random()` hay dựa vào timestamp |
+| Lưu | Cookie `google_oauth_state`: `httpOnly: true`, `sameSite: 'lax'`, `secure: req.secure` (tôn trọng `trust proxy` khi chạy sau Cloudflare Tunnel), `maxAge: 600000` (10 phút) |
+| Đối chiếu | `state` từ query string **phải** bằng cookie; lệch hoặc thiếu ⇒ `401 VALIDATION_ERROR` |
+| Dọn cookie | Xoá cookie `state` **cả** khi thành công **lẫn** khi lỗi (kể cả lỗi do Google trả về) |
+| Không log | `state` **không** được ghi vào access log ở tầng reverse proxy |
+
+#### 3.20.2. Xác thực phía Google
+
+| Bước | Nội dung |
+|---|---|
+| 1 | `POST https://oauth2.googleapis.com/token` với `code`, `client_id`, `client_secret`, `redirect_uri`, `grant_type=authorization_code` |
+| 2 | Đọc `id_token`; nếu không có `id_token` ⇒ fallback `GET https://openidconnect.googleapis.com/v1/userinfo` bằng `access_token` |
+| 3 | Verify chữ ký **RS256** bằng JWKS `https://www.googleapis.com/oauth2/v3/certs` (`crypto.createPublicKey` + `verify`) |
+| 4 | **Không** tin payload chưa verify — nếu verify thất bại ⇒ `401 VALIDATION_ERROR` |
+| 5 | Rút claims: `sub` (= `google_id`), `email`, `email_verified`, `given_name`, `family_name`, `name`, `picture` |
+| 6 | `email` và `google_id` bắt buộc phải có; thiếu ⇒ `401 VALIDATION_ERROR` |
+
+#### 3.20.3. Ma trận quyết định nghiệp vụ
+
+| Điều kiện | Kết quả | Mã lỗi |
+|---|---|---|
+| `email_verified !== true` | Từ chối — **không** tạo tài khoản | `401 VALIDATION_ERROR` |
+| `google_id` **đã** gắn với tài khoản | Đăng nhập thẳng, **không** hỏi mật khẩu | `200` |
+| `google_id` **chưa** gắn, email **đã có** tài khoản | **Cấm tự động liên kết** | `409 CONFLICT` |
+| `google_id` **chưa** gắn, email **chưa** có | Tạo tài khoản: `role = 'analyst'`, `status = 'active'`, `auth_provider = 'google'`, **không** có `password_hash` | `200` |
+| Tài khoản `status = 'blocked'` | Từ chối cấp phiên | `403 FORBIDDEN` |
+| Thiếu bất kỳ biến `GOOGLE_*` | Chưa cấu hình | `501 DEPENDENCY_UNAVAILABLE` |
+
+> **Vì sao cấm tự động liên kết?** Kịch bản tấn công: kẻ xấu đăng ký một tài khoản Google **mới** có email trùng với email của nạn nhân (email alias, email dạng `+tag`, hoặc đơn giản là đăng ký Google bằng email đó khi nạn nhân chưa dùng Google). Nếu hệ thống tự gắn `google_id` vào tài khoản local đã tồn tại → kẻ xấu đăng nhập được vào tài khoản của nạn nhân. Chặn bằng `409 CONFLICT` là biện pháp chuẩn của OAuth 2.0 (khuyến nghị RFC 8252 §8.1).
+
+#### 3.20.4. Ma trận trạng thái `user` sau khi đăng nhập Google
+
+| Trường | Giá trị |
+|---|---|
+| `auth_provider` | `google` |
+| `google_id` | `claims.sub` — **unique sparse** |
+| `password_hash` | **không có** (tài khoản Google không có mật khẩu) |
+| `email` | `claims.email` — lowercase, trim |
+| `first_name` / `last_name` | `given_name` / `family_name`; fallback tách `name` theo khoảng trắng; fallback cuối `'Google'` / `'User'` |
+| `avatar_url` | `claims.picture` |
+| `role` | `analyst` |
+| `status` | `active` |
+
+#### 3.20.5. Nợ kỹ thuật đã ghi nhận
+
+| # | Hạng mục | Trạng thái |
+|---|---|---|
+| 1 | Luồng **liên kết** Google vào tài khoản local đã tồn tại (đăng nhập bằng mật khẩu rồi xác nhận) | ✅ **Đã hiện thực hoá** (2026-11-17) — theo hướng **liên kết tự động** trong luồng OAuth: email đã được Google xác minh → gắn `google_id` vào tài khoản đó. Luồng *chủ động* (đăng nhập local → màn hình xác nhận → `POST /auth/google/link`) vẫn chưa làm — có thể thêm sau nếu UX yêu cầu |
+| 2 | `access_type=offline` được gửi nhưng **refresh token** của Google **không** được lưu | ⚠️ Chấp nhận — hệ thống dùng JWT riêng; không cần refresh token phía Google |
+| 3 | `prompt=select_account` cho phép chọn nhiều tài khoản Google | ⚠️ Chấp nhận — `email_verified` + `google_id` là chốt chặn cuối |
+| 4 | Chưa có thông báo "đăng nhập bằng Google lần đầu" cho người dùng | ⚠️ Ghi nhận — có thể bổ sung notification type `security_alert` (đã có trong danh mục) |
+
+---
+
+### 3.21. Quyền sửa báo cáo sự cố khi ở trạng thái `needs_info` (v7, `ISSUE-05`)
+
+**Bối cảnh.** Trước đây người dùng **không** được sửa báo cáo sau khi gửi (`ISSUE-04`). Bước 1 đã thêm trạng thái `needs_info` để quản trị viên có thể yêu cầu bổ sung thông tin, và người báo cáo được quyền bổ sung.
+
+#### 3.21.1. Vòng đời trạng thái
+
+```
+new ──────────────► in_progress ──────────► resolved ──► closed
+ │                     │  ▲
+ │                     ▼  │
+ └──────────────► needs_info ─┘
+```
+
+#### 3.21.2. Bảng chuyển trạng thái hợp lệ
+
+| Từ | Sang được | Người thực hiện |
+|---|---|---|
+| `new` | `in_progress`, `needs_info` | `SYS-ADMIN` |
+| `needs_info` | `in_progress` | `SYS-ADMIN` |
+| `in_progress` | `resolved`, `new`, `needs_info` | `SYS-ADMIN` |
+| `resolved` | `closed` | `SYS-ADMIN` |
+| `closed` | *(không có)* | — |
+
+> **Ghi chú về vòng đời.** Khi người dùng bổ sung thông tin xong, báo cáo **tự quay về `in_progress`** (không cần Admin chuyển tay) — đúng như mô tả trong `issue-status.vo.ts`. Việc chuyển `needs_info` → `in_progress` **không** ghi audit log (vì không phải hành động quản trị), nhưng **mọi** hành động của Admin (kể cả chuyển `new` → `needs_info`) **đều** phải ghi audit log (`ISSUE_STATUS_CHANGED`).
+
+#### 3.21.3. Ma trận quyền sửa báo cáo
+
+| Vai trò | `status = 'new'` | `status = 'needs_info'` | `status = 'in_progress'` | `status = 'resolved'` / `closed` |
+|---|---|---|---|---|
+| Người báo cáo (chủ sở hữu) | ❌ `FORBIDDEN` | ✅ **Được sửa** `title`/`description`/`attachments` | ❌ `FORBIDDEN` | ❌ `FORBIDDEN` |
+| `SYS-ADMIN` | ✅ Sửa mọi trường | ✅ Sửa mọi trường | ✅ Sửa mọi trường | ✅ Sửa mọi trường |
+| Thành viên khác | ❌ `NOT_FOUND` | ❌ `NOT_FOUND` | ❌ `NOT_FOUND` | ❌ `NOT_FOUND` |
+
+#### 3.21.4. Quy tắc bắt buộc
+
+| # | Quy tắc |
+|---|---|
+| 1 | Người dùng chỉ sửa được **báo cáo của chính mình** (`findByIdForUser` — sai chủ thì `NOT_FOUND`, không phải `FORBIDDEN`, để không lộ sự tồn tại) |
+| 2 | Chỉ sửa được khi `status ∈ USER_EDITABLE_ISSUE_STATUSES` = `['needs_info']` — sai trạng thái ⇒ `403 FORBIDDEN` với thông báo *"Báo cáo hiện không ở trạng thái chờ bổ sung thông tin nên không thể tự sửa."* |
+| 3 | **Không** cho sửa `issue_type` — trường này không nằm trong DTO cập nhật |
+| 4 | **Không** cho sửa `status` — chỉ Admin được đổi trạng thái qua endpoint quản trị |
+| 5 | Optimistic locking: `expectedVersion` phải khớp `version` hiện tại, lệch ⇒ `409 CONFLICT` (*"Bản ghi đã bị thay đổi bởi người khác. Vui lòng tải lại (version lệch)"*) |
+| 6 | Chỉ gỡ được tệp đính kèm **đang thực sự thuộc** báo cáo — `removeAttachmentIds` được lọc qua tập `ownedAttachments` trước khi áp dụng |
+| 7 | Xoá tệp khỏi storage là **best-effort** — lỗi storage **không** làm fail request; tệp orphan được dọn bởi tiến trình bảo trì |
+| 8 | Mọi thay đổi trạng thái do Admin thực hiện **ghi audit log** (`ISSUE_STATUS_CHANGED`) |
+
+---
 
 ## 4. Đầu vào và đầu ra
 
 **Đầu vào**
 - Phần 1 v1 — định hướng Modular Monolith + Ports and Adapters.
-- Phần 2 v5 — danh mục **79 tính năng**; đặc biệt mục 3.33 (`AUTH-*`), 3.34.1 (vai trò `admin`), 3.35–3.38 (`WS-*`, `PROJ-*`, `NOTIF-*`, `ISSUE-*`), **3.38b (`FB-*` — nhận xét kết quả)**, 3.31.3 (ranh giới dữ liệu), 3.39 (chia đợt).
+- Phần 2 v11 — danh mục **85 tính năng** (v7 cập nhật từ 79); đặc biệt mục 3.33 (`AUTH-*`), 3.34.1 (vai trò `admin`), 3.35–3.38 (`WS-*`, `PROJ-*`, `NOTIF-*`, `ISSUE-*`), **3.38b (`FB-*` — nhận xét kết quả)**, 3.31.3 (ranh giới dữ liệu), 3.39 (chia đợt).
 - Phần 3 v4 — **66 use case** và ma trận quyền (mục 3.8).
 - Phần 4 v4 — ranh giới module, quyết định tách worker, quyết định viết lại backend, module `feedback`, hạ tầng Kafka + Socket.IO.
 - Phần 9 v3 — hạ tầng Kafka (5 topic) + Socket.IO gateway.
 - Phần 12 v4 — model AI cục bộ (mục 3.15), vòng lặp nhận xét → học lại (mục 3.16).
-- Mã nguồn hiện tại — CASL factory, JWT strategy, DTO đăng ký, schema session.
+- Mã nguồn hiện tại — CASL factory, JWT strategy, DTO đăng ký, schema session, `login-with-google.handler.ts`, `google-oauth.adapter.ts`, `env-auth-session-policy.adapter.ts`, `issue-status.vo.ts`, `update-my-report.handler.ts`.
 - Tham chiếu: CASL + guard + policy pattern, module `audit`.
 
 **Đầu ra**
@@ -744,16 +942,20 @@ Danh sách này là **đầu vào bắt buộc** cho Phần 13 (chiến lược 
 - Phạm vi audit log, cấu trúc bản ghi, quyền xem.
 - Cơ chế rate-limit Redis, chống email enumeration.
 - Cơ chế kỹ thuật CASL + guard, danh sách sửa **16 điểm** trong code hiện tại.
-- **48 tình huống truy cập trái phép** bắt buộc kiểm thử.
+- **56 tình huống truy cập trái phép** bắt buộc kiểm thử (v7: thêm #49–#56 cho Google OAuth).
 - Chính sách bảo mật cho kết nối **Socket.IO** (mục 3.18) và cho AI chạy nội bộ (mục 3.19).
+- **Chính sách đăng nhập Google OAuth 2.0** (mục 3.20) — CSRF `state`, verify RS256, cấm tự động liên kết email.
+- **Quyền sửa báo cáo khi `needs_info`** (mục 3.21) — ma trận quyền + 8 quy tắc bắt buộc.
+- **Chính sách remember-me** (mục 3.7) — hạn 7 ngày / 30 ngày theo cờ `user_session.remember_me`.
+- Bảng trạng thái **24 mục sửa code** (mục 3.16) — 8 mục đã hoàn tất trong Bước 1–6.
 
 ## 5. Điều kiện hoàn tất phần này
 
 Chính sách quyền và bảo vệ dữ liệu được xác nhận trước implementation.
 
-**Trạng thái v5:** mô hình vai trò (5 vai trò), ma trận quyền **66 use case** (gồm nhóm `FB-*`), chính sách đăng ký, chính sách phiên/token, phạm vi và quyền xem audit log, cơ chế rate-limit, cơ chế CASL, **ranh giới dữ liệu cho AI cục bộ**, bảo vệ tệp đính kèm, bảo mật Socket.IO, và danh sách tình huống kiểm thử đã chốt.
+**Trạng thái v7 (2026-11-16):** mô hình vai trò (5 vai trò), ma trận quyền **66 use case** (gồm nhóm `FB-*`), chính sách đăng ký, chính sách phiên/token (**có remember-me**), phạm vi và quyền xem audit log, cơ chế rate-limit, cơ chế CASL, **ranh giới dữ liệu cho AI cục bộ**, bảo vệ tệp đính kèm, bảo mật Socket.IO, và danh sách tình huống kiểm thử đã chốt. **v7 bổ sung:** chính sách Google OAuth 2.0 (mục 3.20), quyền sửa báo cáo `needs_info` (mục 3.21), 8 tình huống kiểm thử mới (#49–#56) ⇒ **56** tình huống; bảng trạng thái 24 mục sửa code (mục 3.16).
 
-## 6. Câu hỏi và phụ thuộc còn mở (v5)
+## 6. Câu hỏi và phụ thuộc còn mở (v7)
 
 ### 6.1. Đã chốt ở v3
 
@@ -795,17 +997,15 @@ Chính sách quyền và bảo vệ dữ liệu được xác nhận trước im
 - `KAFKA_BROKERS` — cấu hình broker Kafka nội bộ.
 - Khóa S3/R2 cho port Storage; adapter có local fallback.
 - `SMTP_*` cho port `EmailSender`; thiếu cấu hình → `DEPENDENCY_UNAVAILABLE`.
-- `GOOGLE_CLIENT_ID` / `_SECRET` / `GOOGLE_REDIRECT_URI` cho `AUTH-03`; cần HTTPS.
+- `GOOGLE_CLIENT_ID` / `_SECRET` / `GOOGLE_REDIRECT_URI` cho `AUTH-03`; cần HTTPS. Thiếu bất kỳ biến nào ⇒ `501 DEPENDENCY_UNAVAILABLE` (mục 3.20).
+- `JWT_REFRESH_REMEMBER_EXPIRATION` cho phiên remember-me (mặc định `30d`) — mục 3.7.
 - `REDIS_URL` cho **cache** + **adapter Socket.IO** + rate-limit (BullMQ đã bị gỡ ở v4).
 - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` bắt buộc, không có giá trị mặc định.
 - Chính sách quyền cần được ánh xạ vào guard của NestJS ở Phần 5 (port) và Phần 9 (hạ tầng); chưa triển khai.
 
 ## 7. Prompting log và lịch sử thay đổi
+- **v7 / 2026-11-16 (Nhóm B/D/E/F/G/H — đồng bộ sau Bước 1–6):** đồng bộ chính sách bảo mật với mã nguồn thực thi. (1) **Mục 3.20 mới** — chính sách đăng nhập Google OAuth 2.0: endpoint, scope, chống CSRF `state` (cookie `httpOnly`/`sameSite=lax`/10 phút), verify RS256 qua JWKS, ma trận 6 quyết định nghiệp vụ, **cấm tự động liên kết** khi email đã tồn tại (`409 CONFLICT`), trạng thái `user` sau khi đăng nhập, 4 nợ kỹ thuật đã ghi nhận. (2) **Mục 3.21 mới** — quyền sửa báo cáo khi `needs_info`: vòng đời, bảng chuyển trạng thái hợp lệ, ma trận quyền 3 vai trò × 4 trạng thái, 8 quy tắc bắt buộc. (3) **Mục 3.7** — thêm chính sách remember-me (7 ngày / 30 ngày) theo cờ `user_session.remember_me`. (4) **Mục 3.16** — thêm bảng trạng thái 8 mục sửa code **đã hoàn tất** trong Bước 1–6 (CASL, JWT payload, TTL session, register DTO, `needs_info`, OAuth). (5) **Mục 3.17** — thêm 8 tình huống truy cập trái phép (#49–#56) ⇒ **56** tình huống. (6) **Mục 3.15** — bổ sung `JWT_REFRESH_REMEMBER_EXPIRATION`. Nguồn: `edit/02_ke_hoach_thuc_thien.md` Bước 1–6 + mã nguồn `src/backend/src/modules/auth/**` và `src/backend/src/modules/issues/**`.
 
-- **Thực hiện đợt D/E / 2026-11-17:** Hoàn tất code + test cho mục 3.21 / Người dùng yêu cầu thực thi D, E (sau khi commit A/B/C) / Đổi trạng thái mục 3.21 sang đã thực hiện.
-- **Đề xuất đợt D/E / 2026-11-17:** Ma trận quyền route project của analysis / summary / report / Rà soát sau đợt A/B/C, người dùng yêu cầu ghi tiếp vào phiên bản hiện tại / Thêm mục 3.21; chờ duyệt trước khi sửa code.
-- **Thực hiện / 2026-11-17:** Hoàn tất code + test cho mục 3.20 / Người dùng yêu cầu thực thi đợt A, B, C / Đổi trạng thái mục 3.20 sang đã thực hiện.
-- **Đề xuất v7 / 2026-11-17:** Phân quyền endpoint job AI theo project (bổ sung) / Rà soát code module analysis theo yêu cầu người dùng / Thêm mục 3.20; chờ duyệt trước khi sửa code.
 - **Yêu cầu:** Người dùng yêu cầu liệt kê toàn bộ các phần theo thứ tự thực hiện, tạo sẵn file v1, lần lượt hoàn thiện vòng đầu rồi tạo v2 khi có thay đổi tiếp theo.
 - **v1 / 2026-11-02:** Tạo khung phần 6 / Chuẩn bị thảo luận tuần tự / Chỉ tạo tài liệu.
 - **v2 / 2026-11-04:** Mô hình vai trò workspace/project + ma trận quyền thao tác + ranh giới dữ liệu gửi ra ngoài.
