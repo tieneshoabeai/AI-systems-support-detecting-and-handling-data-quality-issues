@@ -56,8 +56,8 @@
 | P3 data-view | 329 | 31 306 | subdirs 139->131 | xanh (data-view/chart 52 + arch/guard/contract) | 84/84 | 4 handler gop thanh DataViewService; 3 DTO gop vao routes; VO/entity gop vao types |
 | P3 notifications | 320 | 31 200 | subdirs 131->127 | xanh (notifications 48/48 + guard/step1) | 84/84 | 6 handler gop thanh NotificationsService; 2 mapper GIU RIENG; 2 DTO gop vao routes |
 | P3 feedback | 311 | ~31 000 | subdirs 127->123 | xanh (feedback 33/33 + guard/contract) | 84/84 | 7 handler gop thanh FeedbackService; 2 entity chung 1 repo/model; 3 DTO gop vao routes |
-| P4 (4 H) | | | | | | file không đổi |
-| P5 (3 H) | | | | | | file không đổi |
+| P4 (4 H) | 311 | ~31 000 | khong doi | xanh (type-check 0 + api 84/84) | 84/84 | chuan hoa README Template H, khong gop |
+| P5 (3 H) | 311 | ~31 000 | khong doi | xanh (type-check 0 + api 84/84) | 84/84 | chuan hoa README Template H (issues D14) |
 
 ## 11.6. Tự đánh giá (điền cuối)
 

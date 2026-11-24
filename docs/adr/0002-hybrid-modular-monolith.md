@@ -56,3 +56,11 @@ Nguoc lai -> Simple. `feedback` duoc Simple voi dieu kien giu `Feedback.create/u
 - 7 module Hexagonal: khong gop, chi chuan hoa + viet tai lieu
 - So lieu muc tieu moi: 340 file -> ~305 file (thay vi ~180); LOC -~3000; thu muc con -~30
 - `12_business_invariants.md` + `13_refactor_constraints.md` giu nguyen hieu luc cho ca 2 template
+
+## Phu luc P6 — so lieu thuc te sau P2–P5 (2026-11-24)
+- Baseline P1: 340 file / 31 505 LOC / ~60 subdirs (tag v1.2.0-p1)
+- Thuc te P7: 306 file / 30 567 LOC / 105 subdirs tong (dem `find src/backend/src/modules`)
+  - Giam ~34 file / ~938 LOC: chu yeu tu 6 Simple (audit/overview/realtime/data-view/notifications/feedback)
+  - 7 Hexagonal giu nguyen file/LOC, chi chuan hoa README Template
+  - Route: 84/84 khop §3.13 (khong them/bot); test: type-check 0, lint 0
+- Duong cat: khong kich hoat — ca 6 Simple deu flatten xong, khong cat `feedback` sang P6.

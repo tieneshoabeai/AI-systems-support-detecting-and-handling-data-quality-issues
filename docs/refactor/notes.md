@@ -25,3 +25,6 @@
 | P3.3 data-view (Simple) | 329 | 31 306 | handler 104->100, subdirs 139->131 | type-check 0, lint 0, data-view/chart/datasets 52+42 xanh, arch+guard+contract xanh, api 84/84 |
 | P3.4 notifications (Simple) | 320 | 31 200 | handler 100->94 (6 handler gop thanh NotificationsService), subdirs 131->127 | type-check 0, lint 0, notifications 48/48 + guard/step1 xanh, api 84/84 |
 | P3.5 feedback (Simple) | 311 | ~31 000 | handler 94->87 (7 handler gop thanh FeedbackService), subdirs 127->123 | type-check 0, lint 0, feedback 33/33 + guard/contract xanh, api 84/84 |
+| P4 Hexagonal (datasets/projects/workspaces/users) | 311 | ~31 000 | file khong doi, chi them 4 dong Template Hexagonal vao README | type-check 0, api 84/84 | tag v1.2.0-p4 |
+| P5 Hexagonal (issues/analysis/auth) | 311 | ~31 000 | file khong doi, chi them 3 dong Template Hexagonal vao README | type-check 0, api 84/84 | tag v1.2.0-p5 |
+| P6/P7 thuc te (2026-11-24) | 306 | 30 567 | subdirs modules 105 (tong), 13 README du Template S/H, diagram vo/ruot co san | type-check 0, lint 0, api 84/84 | chuan bi tag v1.2.0-final |
