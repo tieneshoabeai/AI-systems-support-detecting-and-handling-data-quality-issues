@@ -3,7 +3,7 @@
 - **Version:** v14
 - **Ngày tạo:** 2026-11-02
 - **Cập nhật gần nhất:** 2026-11-24 (v14)
-- **Thay đổi v14 (2026-11-24):** bổ sung mục 3.26 — Port test đợt A–I module analysis sau refactor P1–P6 (merge `origin/backend`). Nguồn: `docs/modules/analysis_plan.md` v1.10 mục 7h + bộ test offline `local_VQD` chạy lại trên code sau merge. Trạng thái: xem mục 3.26.
+- **Thay đổi v14 (2026-11-24):** bổ sung mục 3.26 — Port test đợt A–I module analysis sau refactor P1–P6 (merge `origin/backend`) và mục 3.27 — Test đợt K (sửa lỗi đúng đắn sau merge). Nguồn: `docs/modules/analysis_plan.md` v1.10 mục 7h + bộ test offline `local_VQD` chạy lại trên code sau merge. Trạng thái: xem mục 3.26.
 - **Thay đổi v13 (2026-11-24):** hợp nhất hai nhánh phiên bản sau khi merge `origin/backend` vào `Vqd_BE` (commit `131e14c`): nhánh `Vqd_BE` (tới v12 — module analysis đợt A–I) và nhánh `backend` (tới v9 — Bước 1–6, GĐ, OPEN-01..10, refactor P1–P6). Giữ đủ mục của cả hai nhánh, **không đổi nghiệp vụ**. Hai nhánh cùng dùng số v8–v9: file cùng tên trong thư mục này là bản của `backend`, bản cùng số của `Vqd_BE` lưu ở [`_nhanh_vqd_be/`](_nhanh_vqd_be/). Đường dẫn mã nguồn trong các mục đợt A–I là trước refactor (vd `analysis.service.ts`, `project-access.service.ts`) — bảng đối chiếu sang handler mới ở `docs/modules/analysis_plan.md` v1.9 mục 7g. Chỗ hai nhánh mô tả khác nhau thì **mã nguồn hiện hành và bảng route Phần 7 §3.13 là chuẩn** — vd route `GET/POST projects/{id}/analysis/config` nêu trong các mục đợt A–E đã bị gỡ ở nhánh `backend` (OPEN-06, Phần 7 v8.4: cấu hình phân tích bất biến, `POST projects/{id}/analysis` nhận body rỗng).
 - **Thay đổi v12 (2026-11-18):** bổ sung mục 3.25 — Test đợt I module analysis. Nguồn: file `local_VQD/MISSED_ERRORS*.md` sau đợt H (16 lỗi còn lại đều thuộc DQ-05) + `docs/modules/analysis_plan.md` v1.7. Trạng thái: Đã thực hiện 2026-11-18 (đợt I).
 - **Thay đổi v11 (2026-11-18):** bổ sung mục 3.24 — Test đợt H module analysis. Nguồn: bộ edge-cases `local_VQD/edge-cases` (11 file có bẫy dựng sẵn, file `MISSED_ERRORS_edge-cases.md`) + `docs/modules/analysis_plan.md` v1.6. Trạng thái: Đã thực hiện 2026-11-18 (đợt H).
@@ -1421,43 +1421,41 @@ Bộ kiểm thử và tiêu chí nghiệm thu đã thống nhất trước khi t
 | Nhóm | Nghĩa | Cách ghi trong file test |
 |---|---|---|
 | **B — còn hiệu lực** | Hành vi vẫn có ở code hiện hành | `it(...)` — phải đạt |
-| **C — hồi quy** | Hành vi đợt A–I đã duyệt nhưng bị rơi khi chép tay; không có quyết định OPEN nào gỡ | `it.failing(...)` kèm chú thích `HỒI QUY` — vẫn chạy mỗi lần; khi logic được khôi phục, jest báo đỏ để đổi lại thành `it` |
+| ~~C — hồi quy~~ | **Đã bỏ 2026-11-24** — người dùng chốt đánh giá tính đúng đắn của code mới thay vì ép theo logic cũ; 25 ca chuyển sang A (xem Kết quả) | — |
 | **A — lỗi thời** | Tính năng đã gỡ theo quyết định OPEN (`24_open_decisions_resolved.md`) | Không port; ghi mã AN-xx + lý do trong bảng kết quả bên dưới |
 
-- **Không đổi `src/` ở mục này.** Khôi phục hành vi nhóm C là một đợt riêng (đợt K), cần người dùng duyệt.
-- **Bộ test offline `local_VQD`:** `runner/engine.ts` dựng lại bằng handler + port bộ nhớ (bản cũ ở `local_VQD/archive/`). Kết quả lệch so với sau đợt I (0 FAIL / 0 WARN / 0 bỏ sót, 28/28 bẫy) dùng làm bằng chứng cho nhóm C.
-- **Kết quả 2026-11-24:** 6 file cũ = 98 định nghĩa test = **100 ca** (mở rộng `it.each`).
+- **Không đổi `src/` ở mục này.** Lỗi thật phát hiện được sửa ở đợt K (mục 3.27).
+- **Bộ test offline `local_VQD`:** `runner/engine.ts` dựng lại bằng handler + port bộ nhớ (bản cũ ở `local_VQD/archive/`). Kết quả dùng làm bằng chứng khi đánh giá từng khác biệt (lỗi thật hay thay đổi thiết kế).
+- **Kết quả 2026-11-24 (sau khi người dùng chốt cách đánh giá):** 6 file cũ = 98 định nghĩa test = **100 ca** (mở rộng `it.each`). Nguyên tắc chốt: **code sau merge là chuẩn**; test cũ chỉ giữ khi còn đúng với hành vi hiện hành — **không** dùng test cũ để ép code quay về logic cũ.
 
-| Nhóm | Số ca | Ghi chú |
+| Nhóm | Số ca | Xử lý |
 |---|---|---|
-| B — còn hiệu lực | **48** | Đạt trên code hiện hành |
-| C — hồi quy | **25** | `it.failing` — xem bảng dưới |
-| A — lỗi thời theo OPEN | **27** | Không port, lý do ghi tại chỗ trong file |
+| B — còn hiệu lực | **48** | `it`, đạt trên code hiện hành |
+| A — không port | **52** | Ghi lý do tại chỗ (`[Nhóm A — không port]`) |
 
-- Toàn bộ: type-check 0, lint 0, `test:arch` 23/23, `test:unit` 1123 pass (trước 1049; 2 lỗi còn lại là `/proc/meminfo` chỉ có trên Linux, có từ mốc ban đầu).
-- `local_VQD` sau khi dựng lại: lỗi còn lại trùng khớp nhóm C (mẫu ô lỗi cho AI, grounding đường chéo, cột ngày trong DQ, phân tích thời gian); bộ edge-cases **17/28** bẫy (sau đợt I: 28/28 tính cả 5 lỗi đã chấp nhận).
+Nhóm A gồm ba loại:
+1. **Đã gỡ theo quyết định OPEN / refactor (27 ca):** D2 "lỗi thời", `column_roles`, chọn cột, `PATCH is_pii` (OPEN-03/06); kiểm quyền chuyển sang guard CASL + policy loader (AN-08, AN-11–13 — chưa đối chiếu lại ma trận quyền); `markAiFailed`; trình dựng PDF thay bằng pdfkit.
+2. **Thay đổi thiết kế của nhánh `backend`, chấp nhận (14 ca):** retry tạo job mới thay vì từ chối (AN-06 ×3); `top_n` mặc định 10; DQ-04 không ghi `outlierSkippedReason`; mẫu gửi AI là giá trị bất kỳ đã che PII (AN-28, AN-29, AN-31b); grounding không lọc thêm đường chéo (AN-30); không còn gợi ý năm + tháng, `excluded_invalid_dates_N`, `dateOrder` (AN-43, AN-43b, AN-57); `describeColumn` không theo vai trò (AN-60); `valueColumnIgnoredReason` (AN-61). Danh sách đầy đủ: `docs/modules/analysis_plan.md` mục 7i.
+3. **Lỗi thật K1–K5, assert cũ gắn cơ chế đã đổi (11 ca):** AN-04 (K1), AN-34 / AN-35 / AN-62 (K2), AN-18 / AN-58 (K3), AN-47 (K4), AN-09 (K5), AN-19a–c (K6 — ngoài phạm vi). Test mới viết theo hành vi hiện hành ở mục 3.27.
 
-**Nhóm C — hồi quy cần quyết định ở đợt K:**
+- Toàn bộ: type-check 0, lint 0, `test:arch` 23/23, `test:unit` 2 lỗi `/proc/meminfo` (chỉ có trên Linux, có từ mốc ban đầu).
+- **`local_VQD` — mốc mới:** oracle / bẫy gắn logic cũ thuộc loại 2 được đánh dấu "đã chấp nhận" (không tính lỗi). Còn lại đúng các lỗi thật: bộ mẫu 5 bỏ sót RC-14 (K2, taxis); edge-cases 23/28 bẫy — thiếu E15, E16 (K2), E11, E12, E25 (K4).
 
-| Đợt gốc | Mã | Hành vi bị rơi | Bằng chứng `local_VQD` |
-|---|---|---|---|
-| A | AN-06 (3 ca) | `RetryJobHandler` không kiểm trạng thái job — job succeeded/running/pending vẫn thử lại; mất mã `AI_JOB_NOT_RETRYABLE` | — |
-| A | AN-04 | Worker AI gọi ingest({}) ngay khi lỗi JSON dù còn lượt → ghi đánh giá AI failed sớm | — |
-| A | AN-09 | `ReportWorkerService.tick()` không thu hồi job PDF treo (`recoverStaleReports`), không truyền lease | — |
-| A | top_n | `top_n` mặc định 10 thay vì 50 | — |
-| D/E | AN-18, AN-58 | Tổng kết không dùng `outlierBreakdown` (DQ-04 mất mức "Cao" + lý do độ lệch); thiếu `recommendation_items`, `unassessable`, `severity_counts`, `issue_total`, `dq05` | E21, E24 |
-| D/E | AN-19a/b/c | Không còn outbox `ANALYSIS_COMPLETED/FAILED`, `AI_JOB_SUCCEEDED/FAILED` + thông báo người chạy | — |
-| F | AN-26 | DQ-04 không ghi `outlierSkippedReason: not_measure_column` | — |
-| F | AN-28, AN-29, AN-31b | Mẫu gửi AI không còn là **ô lỗi** (`ai_samples`) — lấy 20 giá trị đầu bất kỳ | 12 FAIL "Prompt AI có mẫu ô lỗi" |
-| F | AN-30 | Grounding không loại cặp đường chéo X~X | 9 FAIL "Grounding" |
-| G | AN-34, AN-35, AN-62 | Cột ngày bị loại khỏi DQ-01..04 → báo trùng giả, mất `conditional_missing` trên cột ngày | 4 FAIL "Mọi cột vào DQ", 1 FAIL DQ-02, E15, E16 |
-| G | AN-43, AN-43b | Mất `detectTimePartColumns` (năm + tháng) và lý do `excluded_invalid_dates_N` | 3 WARN thời gian |
-| H | AN-47 | Nhãn số 0/1 vai trò category bị coi là liên tục → không đánh giá mất cân bằng | E11, E12, E25 |
-| H | AN-57 | `timeAnalysis` mất `dateOrder` / `dateOrderAmbiguous` | E01, E02 |
-| H | AN-60 | `describeColumn` mất tham số vai trò — cột định danh vẫn có trung bình/trung vị | E28 |
-| H | AN-61 | Mất `valueColumnIgnoredReason`; theo OPEN-06 hệ thống **tự chọn** `customer_id` làm cột giá trị | E10 |
 
-**Nhóm A — không port (27 ca):** AN-01, AN-02, AN-07, AN-14, AN-14b, AN-15, AN-15b (D2 "lỗi thời" gỡ — OPEN-03/06); AN-23, AN-23b, AN-33b, AN-46, AN-48 và 1 assert của AN-29 (`column_roles` / chọn cột — OPEN-06); PATCH `is_pii` (OPEN-03); AN-08 (4 ca), AN-11/12/13 + kiểm controller (4 ca) — kiểm quyền chuyển sang guard CASL + policy loader (refactor P5), **chưa đối chiếu lại ma trận quyền**; AN-05, AN-19e (`markAiFailed` gỡ, cơ chế mới); 4 ca PDF ASCII/Unicode (trình dựng PDF thay bằng pdfkit).
+### 3.27. Test đợt K — sửa lỗi đúng đắn sau merge (v14)
+
+- **Trạng thái:** Đề xuất 2026-11-24 — đã duyệt, đang thực hiện. File `src/backend/test/analysis-dot-k.spec.ts`. Quy tắc: Phần 9 v6 mục 3.13, Phần 12 v14 mục 3.23, Phần 8 v13 mục 3.20.
+
+| Mã | Kiểm tra |
+|---|---|
+| AK-01 | K1 — AI trả không phải JSON, còn lượt → job `pending`, `attempt+1`, **không** gọi ingest, không ghi đánh giá AI |
+| AK-02 | K1 — hết lượt → job `failed` `AI_FAILED`; `aiCorrelationAssessment.status = failed` kèm lỗi; không đi qua grounding |
+| AK-03 | K2 — cột ngày có trong `dq_summary.columns`: ô trống → DQ-01, ngày không tồn tại → DQ-03; vẫn loại khỏi tương quan (`date_column_excluded_from_correlation_vif`) |
+| AK-04 | K2 — hai dòng chỉ khác cột ngày → `duplicateRowCount = 0` |
+| AK-05 | K3 — Tổng kết: `outlierBreakdown.both > 0` → DQ-04 "Cao"; chỉ IQR 1,5× → "Thấp"; không có phân rã → "Thấp" |
+| AK-06 | K4 — nhãn số 0/1 vai trò `category` → `imbalance.status = evaluated`, đủ lớp + IR; cột số vai trò khác → `not_applicable_continuous` |
+| AK-07 | K5 — `tick()` nhận job qua `claimPendingReport(600000)`; repository nhận lại job `running` hết lease (`attempt < 3`), đặt lease mới, `attempt+1`; đủ 3 lượt → `failed` `REPORT_LEASE_EXPIRED` |
+| AK-08 | Hồi quy toàn bộ: `local_VQD` bộ mẫu 0 bỏ sót; edge-cases bắt E11, E12, E15, E16, E25 |
 
 
 ## 4. Đầu vào và đầu ra
@@ -1552,6 +1550,8 @@ Bộ kiểm thử và tiêu chí đạt được thống nhất trước khi th�
 | **Ghi nhận** | Câu hỏi mở #3 ở Phần 11 (số lượng `dataset_record` thực tế) vẫn còn — ảnh hưởng kịch bản k6 và thời gian chạy test import |
 
 ## 7. Prompting log và lịch sử thay đổi
+- **Đề xuất v14 (bổ sung) / 2026-11-24:** Test đợt K (mục 3.27) / Người dùng duyệt sửa lỗi K1–K5 / Thêm mục 3.27; docs trước code.
+- **Điều chỉnh v14 / 2026-11-24:** Bỏ nhóm C (`it.failing`) — 25 ca chuyển sang nhóm A (14 thay đổi thiết kế được chấp nhận + 11 lỗi thật viết lại test ở mục 3.27); đặt lại mốc `local_VQD` / Người dùng chốt: đánh giá tính đúng đắn của code mới, không ép theo test logic cũ / Viết lại kết quả mục 3.26.
 - **Thực hiện v14 / 2026-11-24:** Port xong 100 ca — B 48 đạt, C 25 `it.failing`, A 27 không port; `local_VQD` dựng lại bằng handler / Người dùng yêu cầu giai đoạn 3 / Điền kết quả mục 3.26.
 - **Đề xuất v14 / 2026-11-24:** Port test đợt A–I module analysis sau refactor / Merge `origin/backend` làm mất 95/96 test của `Vqd_BE`; người dùng yêu cầu giai đoạn 3 (dựng lại `local_VQD` + rà test) / Thêm mục 3.26; docs trước code.
 
