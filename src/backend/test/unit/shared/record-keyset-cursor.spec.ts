@@ -1,10 +1,16 @@
 /**
  * Phần 13 v15 mục 3.28 — DVT-03 / DVT-04: cursor keyset cho bản ghi dataset
  * (Phần 7 v13 mục 3.23, DV-2 / DV-3).
+ * Phần 13 v18 mục 3.31 — DLT-01…DLT-04: ràng buộc cursor theo truy vấn + hạn 24 giờ
+ * (Phần 7 v16 mục 3.26, DL-1…DL-4).
  */
 import { CursorCodec } from '../../../src/shared/domain/pagination/cursor-codec';
 import {
+  bindRecordCursor,
+  computeRecordQueryHash,
   decodeRecordCursor,
+  RECORD_CURSOR_TTL_MS,
+  unbindRecordCursor,
   encodeRecordCursor,
   type RecordSortSignature,
 } from '../../../src/shared/domain/pagination/record-keyset-cursor';
@@ -87,5 +93,120 @@ describe('record-keyset-cursor', () => {
   it('DVT-03: cursor { row_index } (không sort) dùng cho truy vấn có sort ⇒ "khong khop"', () => {
     const legacy = CursorCodec.encode({ row_index: 5 });
     expect(() => decodeRecordCursor(legacy, [['c1', 'asc']])).toThrow(/Cursor khong khop/);
+  });
+});
+
+describe('record-keyset-cursor — ràng buộc truy vấn + hạn 24 giờ (v16 DL-1…DL-4)', () => {
+  const T0 = Date.UTC(2026, 10, 25, 8, 0, 0);
+  const filters = [
+    { column: 'c0', operator: 'greaterThan', value: 10 },
+    { column: 'c1', operator: 'in', value: ['A', 'B'] },
+    { column: 'c2', operator: 'isEmpty' },
+  ];
+  const q = computeRecordQueryHash(filters, { columns: ['c1', 'c3'], value: 'x' });
+  const inner = encodeRecordCursor([['c0', 'asc']], { values: [5], rowIndex: 9 });
+
+  const reasonOf = (fn: () => unknown): unknown => {
+    try {
+      fn();
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError);
+      return (err as ValidationError).details;
+    }
+    throw new Error('không ném lỗi');
+  };
+
+  it('DLT-01: mã băm không phụ thuộc thứ tự filters / search.columns', () => {
+    const shuffled = computeRecordQueryHash([filters[2]!, filters[0]!, filters[1]!], {
+      columns: ['c3', 'c1'],
+      value: 'x',
+    });
+    expect(shuffled).toBe(q);
+    expect(q).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it('DLT-01: đổi toán tử / giá trị / cột / search.value ⇒ mã băm khác', () => {
+    const variants = [
+      computeRecordQueryHash([{ ...filters[0]!, operator: 'greaterThanOrEqual' }, filters[1]!, filters[2]!], {
+        columns: ['c1', 'c3'],
+        value: 'x',
+      }),
+      computeRecordQueryHash([{ ...filters[0]!, value: 11 }, filters[1]!, filters[2]!], {
+        columns: ['c1', 'c3'],
+        value: 'x',
+      }),
+      computeRecordQueryHash([{ ...filters[0]!, column: 'c4' }, filters[1]!, filters[2]!], {
+        columns: ['c1', 'c3'],
+        value: 'x',
+      }),
+      computeRecordQueryHash(filters, { columns: ['c1', 'c3'], value: 'y' }),
+      computeRecordQueryHash(filters),
+    ];
+    for (const v of variants) expect(v).not.toBe(q);
+  });
+
+  it('DLT-01: search rỗng / toàn khoảng trắng = không tìm (DV-12)', () => {
+    expect(computeRecordQueryHash([], { columns: ['c1'], value: '   ' })).toBe(computeRecordQueryHash([]));
+    expect(computeRecordQueryHash([], { columns: ['c1'], value: ' a' })).not.toBe(
+      computeRecordQueryHash([], { columns: ['c1'], value: 'a' }),
+    );
+  });
+
+  it('DLT-02: bọc rồi gỡ cùng truy vấn trong 24 giờ ⇒ trả lại cursor trong', () => {
+    const outer = bindRecordCursor(inner, { queryHash: q, now: T0 }) as string;
+    expect(outer).not.toBe(inner);
+    expect(unbindRecordCursor(outer, { queryHash: q, now: T0 + RECORD_CURSOR_TTL_MS })).toBe(inner);
+    expect(decodeRecordCursor(unbindRecordCursor(outer, { queryHash: q, now: T0 }), [['c0', 'asc']])).toEqual({
+      values: [5],
+      rowIndex: 9,
+    });
+  });
+
+  it('DLT-02: không có cursor trong ⇒ null; không có cursor ⇒ undefined', () => {
+    expect(bindRecordCursor(null, { queryHash: q })).toBeNull();
+    expect(bindRecordCursor(undefined, { queryHash: q })).toBeNull();
+    expect(unbindRecordCursor(undefined, { queryHash: q })).toBeUndefined();
+    expect(unbindRecordCursor('', { queryHash: q })).toBeUndefined();
+  });
+
+  it('DLT-03: quá 24 giờ ⇒ cursor_expired', () => {
+    const outer = bindRecordCursor(inner, { queryHash: q, now: T0 }) as string;
+    expect(reasonOf(() => unbindRecordCursor(outer, { queryHash: q, now: T0 + RECORD_CURSOR_TTL_MS + 1 }))).toEqual({
+      reason: 'cursor_expired',
+    });
+  });
+
+  it('DLT-03: cursor dạng cũ (cấp trước v16) ⇒ cursor_expired', () => {
+    expect(reasonOf(() => unbindRecordCursor(CursorCodec.encode({ row_index: 3 }), { queryHash: q }))).toEqual({
+      reason: 'cursor_expired',
+    });
+    expect(reasonOf(() => unbindRecordCursor(inner, { queryHash: q }))).toEqual({ reason: 'cursor_expired' });
+  });
+
+  it('DLT-03: lớp bọc sai kiểu / thời điểm cấp ở tương lai xa ⇒ không hợp lệ (không có reason)', () => {
+    const bad = [
+      '!!!not-base64!!!',
+      CursorCodec.encode({ foo: 1 }),
+      CursorCodec.encode({ b: 2, c: inner, q, t: T0 }),
+      CursorCodec.encode({ b: 1, c: '', q, t: T0 }),
+      CursorCodec.encode({ b: 1, c: inner, q: 5, t: T0 }),
+      CursorCodec.encode({ b: 1, c: inner, q, t: 'hom-qua' }),
+      CursorCodec.encode({ b: 1, c: inner, q, t: T0 + 60 * 60 * 1000 }),
+    ];
+    for (const c of bad) {
+      expect(() => unbindRecordCursor(c, { queryHash: q, now: T0 })).toThrow(/Cursor khong hop le/);
+      expect(reasonOf(() => unbindRecordCursor(c, { queryHash: q, now: T0 }))).toBeUndefined();
+    }
+  });
+
+  it('DLT-04: lệch truy vấn ⇒ cursor_query_mismatch; hết hạn được kiểm tra trước', () => {
+    const outer = bindRecordCursor(inner, { queryHash: q, now: T0 }) as string;
+    const other = computeRecordQueryHash([]);
+    expect(reasonOf(() => unbindRecordCursor(outer, { queryHash: other, now: T0 }))).toEqual({
+      reason: 'cursor_query_mismatch',
+    });
+    expect(
+      reasonOf(() => unbindRecordCursor(outer, { queryHash: other, now: T0 + RECORD_CURSOR_TTL_MS + 1 })),
+    ).toEqual({ reason: 'cursor_expired' });
   });
 });

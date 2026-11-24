@@ -12,11 +12,17 @@ import {
   type RecordRow,
 } from '../datasets';
 import { CursorCodec } from '../../shared/domain/pagination/cursor-codec';
-import { decodeRecordCursor } from '../../shared/domain/pagination/record-keyset-cursor';
+import {
+  bindRecordCursor,
+  computeRecordQueryHash,
+  decodeRecordCursor,
+  unbindRecordCursor,
+  type RecordCursorBinding,
+} from '../../shared/domain/pagination/record-keyset-cursor';
 import type { CursorPaginatedResponse } from '../../shared/domain/pagination/cursor-paginated.response';
 import { normalizeRecordLimit } from './data-view.types';
 import type { GetRecordsInput, QueryRecordsBodyInput, ColumnStatsResult, ChartDataResult } from './data-view.types';
-import { isObjectIdHex, decodeRowCursor, toSnakeStats, resolveColumnKey } from './data-view.utils';
+import { isObjectIdHex, toSnakeStats, resolveColumnKey } from './data-view.utils';
 import { NotFoundError, ValidationError } from '../../shared/domain/errors';
 import {
   boxPlot,
@@ -91,6 +97,10 @@ export class DataViewService {
   ): Promise<CursorPaginatedResponse<RecordRow>> {
     const dataset = await this.loadDataset(datasetId);
     const limit = normalizeRecordLimit(query.limit);
+    // GET không có bộ lọc/tìm kiếm → mã băm của truy vấn rỗng (v16 DL-1). Gỡ lớp bọc
+    // trước: cursor quá hạn / của truy vấn khác → VALIDATION_ERROR (v16 DL-2, DL-4).
+    const binding: RecordCursorBinding = { queryHash: computeRecordQueryHash([]), now: Date.now() };
+    const inner = unbindRecordCursor(query.cursor, binding);
     // GET /records hỗ trợ sort đơn cột (sort_field/sort_order) → uỷ thác
     // `queryRecords` của port (Mongo sort phía server + keyset theo giá trị sort).
     if (query.sort_field) {
@@ -98,20 +108,22 @@ export class DataViewService {
       const sortKey = resolveColumnKey(query.sort_field, byKey, byName);
       const order = query.sort_order ?? 'asc';
       // Validate sớm: cursor hỏng / sinh từ sort khác → VALIDATION_ERROR (v13 DV-3).
-      decodeRecordCursor(query.cursor, [[sortKey, order]]);
+      decodeRecordCursor(inner, [[sortKey, order]]);
       const { items, hasMore, nextCursor } = await this.records.queryRecords(
         datasetId,
-        { filters: [], sort: [{ column: sortKey, order }], cursor: query.cursor, limit },
+        { filters: [], sort: [{ column: sortKey, order }], cursor: inner, limit },
         columnRefs(dataset.columns),
       );
-      return page(items, hasMore, nextCursor ?? null, limit);
+      return page(items, hasMore, bindRecordCursor(nextCursor, binding), limit);
     }
-    const lastRowIndex = decodeRowCursor(query.cursor);
+    const lastRowIndex = decodeRecordCursor(inner, [])?.rowIndex;
     const cursorForPort =
       lastRowIndex !== undefined ? CursorCodec.encode({ row_index: lastRowIndex }) : undefined;
     const { items, hasMore } = await this.records.listRecords(datasetId, cursorForPort, limit);
     const last = items[items.length - 1];
-    const nextCursor = last ? CursorCodec.encode({ row_index: last.rowIndex }) : null;
+    const nextCursor = last
+      ? bindRecordCursor(CursorCodec.encode({ row_index: last.rowIndex }), binding)
+      : null;
     return page(items, hasMore, nextCursor, limit);
   }
 
@@ -136,12 +148,18 @@ export class DataViewService {
       search: body.search
         ? { columns: body.search.columns.map(resolveKey), value: body.search.value }
         : undefined,
-      cursor: body.cursor,
       limit,
     };
+    // Cursor gắn bộ lọc + tìm kiếm (sau khi quy về `cN`) và hết hạn sau 24 giờ (v16 DL-1…DL-4).
+    const binding: RecordCursorBinding = {
+      queryHash: computeRecordQueryHash(queryInput.filters, queryInput.search),
+      now: Date.now(),
+    };
+    const inner = unbindRecordCursor(body.cursor, binding);
+    queryInput.cursor = inner;
     // Validate sớm: không để cursor hỏng âm thầm quay về trang 1 (v13 DV-3, VIEW-005).
     decodeRecordCursor(
-      body.cursor,
+      inner,
       sort.map((s) => [s.column, s.order] as const),
     );
     const { items, hasMore, nextCursor } = await this.records.queryRecords(
@@ -155,7 +173,7 @@ export class DataViewService {
       const last = items[items.length - 1];
       if (last) cursor = CursorCodec.encode({ row_index: last.rowIndex });
     }
-    return page(items, hasMore, cursor, limit);
+    return page(items, hasMore, bindRecordCursor(cursor, binding), limit);
   }
 
   async getColumnStats(datasetId: string, columnRef: string): Promise<ColumnStatsResult> {

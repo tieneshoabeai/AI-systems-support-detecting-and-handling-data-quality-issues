@@ -181,6 +181,7 @@ Thu hoi 1 phien tu xa.
   - Gui lai **nguyen van** `meta.nextCursor` vao `cursor`; khong tu tao hay sua cursor.
   - Khi co sort, cursor nho ca gia tri dang sort cua dong cuoi trang (truoc day chi nho `rowIndex` nen trang sau bi sot dong).
   - Cursor hong, hoac sinh tu mot kieu sort khac (doi `sort_field` / `sort_order` ma van gui cursor cu) -> `400 VALIDATION_ERROR`. Frontend: khi doi sort thi **bo cursor, tai lai tu trang dau**.
+  - **Cursor gan voi bo loc + het han 24 gio (cap nhat 2026-11-25, Phan 7 v16 muc 3.26):** cursor chi dung duoc voi dung truy van da sinh ra no. Gui cursor voi `filters` / `search` khac -> `400`, `error.details.reason = "cursor_query_mismatch"`. Cursor qua 24 gio (hoac cursor cap truoc ban nay) -> `400`, `error.details.reason = "cursor_expired"`. Frontend: gap 2 `reason` nay thi **bo cursor, tai lai trang dau** (co the lam tu dong, khong can bao loi cho nguoi dung). Doi `limit` giua hai trang van hop le.
 - O trong (null, thieu, hoac khong doc duoc thanh so/ngay) luon xep **cuoi**, ca `asc` lan `desc`, voi moi kieu cot.
 
 ### POST `/datasets/:datasetId/records/query`
@@ -200,7 +201,8 @@ Thu hoi 1 phien tu xa.
 - **So sanh thu tu** (`greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `between`) tren cot so / cot ngay voi gia tri khong phai so / ngay hop le -> `400` kem `message` ro rang (truoc day bo loc bi bo qua im lang). Nen hien `error.message` cho nguoi dung. `equals` / `in` van nhan gia tri tho de tim o nhap sai kieu.
 - Nhieu dieu kien tren **cung mot cot** (gui bang `c{i}` hay ten hien thi deu duoc) ket hop **OR**; cac cot khac nhau ket hop **AND**.
 - `isEmpty` / `isNotEmpty`: chuoi chi co khoang trang cung tinh la o trong. `contains` / `startsWith` / `endsWith` / `search` dung duoc tren cot so va boolean (so khop theo dang chu, vd `"19"` khop `1990`).
-- `cursor`: quy tac nhu `GET records`. Cursor **chua gan voi bo loc**: khi doi `filters` / `search` / `sort` thi frontend phai bo cursor va tai lai tu trang dau (doi bo loc ma giu cursor cu se khong bao loi nhung ket qua co the lech).
+- `cursor`: quy tac nhu `GET records`. *(cap nhat 2026-11-25)* Cursor **da gan voi bo loc va tim kiem**: doi `filters` / `search` / `sort` ma van gui cursor cu -> `400` (xem `details.reason` o tren). Frontend van bo cursor va tai lai tu trang dau khi doi bat ky dieu kien nao.
+- **Cot ngay (cap nhat 2026-11-25):** du lieu ngay cu luu dang chuoi (vd `"2024-01-01"`) nay duoc loc / sap xep theo gio Viet Nam, khop voi du lieu ngay nap moi (truoc lech 7 gio). `lessThan` / `lessThanOrEqual` tren cot so / ngay khong con tra o trong.
 
 ### GET `/datasets/:datasetId/columns/:columnKey/stats`
 - `:columnKey` chap nhan ca key `c{i}` lan ten hien thi. -> `{ stats }`.

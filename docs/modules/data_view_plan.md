@@ -2,14 +2,14 @@
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ  
 *(Full-Stack Data Management & Quality Assurance Platform with AI Assistance)*  
 **Tập tin:** `docs/modules/data_view_plan.md`  
-**Phiên bản:** v1.2 (2026-11-24 — mục 7.5: vá `in: []` qua port)  
+**Phiên bản:** v1.3 (2026-11-25 — mục 8: đóng OPEN-DV-01, OPEN-DV-02 + sửa so sánh thứ tự khớp ô trống)  
 **Giai đoạn:** Sprint B2 — Module 4: Truy xuất Lưới Dữ liệu Ảo & Thống kê Phân phối (`data-view`)  
 
 > **Lưu ý v1.1 (2026-11-24):** mục 1–6 là thiết kế gốc v1.0 (Sprint B2), giữ để đối chiếu. Hiện trạng đã khác:
 > dữ liệu bất biến nên **không còn** cell edit (`PATCH /records/:rowIndex`, F5.2); module có 4 route
 > (`GET records`, `POST records/query`, `GET columns/:columnKey/stats`, `GET charts`); cấu trúc file theo Template Simple
 > (`data-view.{controller,service,types,utils}.ts`); bản ghi truy vấn qua `RECORD_QUERY_PORT` của module `datasets`.
-> Hợp đồng hiện hành: Phần 7 v13 §3.7 + mục 3.23. Đợt sửa mới nhất: mục 7.
+> Hợp đồng hiện hành: Phần 7 v13 §3.7 + mục 3.23, bổ sung v16 mục 3.26. Đợt sửa mới nhất: mục 8.
 
 ---
 
@@ -105,7 +105,7 @@ src/backend/src/modules/data-view/
 
 - **Trạng thái:** Đã thực hiện 2026-11-24.
 - **Hợp đồng:** Phần 7 v13 mục 3.23 (DV-1…DV-17). **Test:** Phần 13 v15 mục 3.28 (DVT-01…DVT-12).
-- **Quyết định của người dùng:** `limit` tối đa 500; cursor gắn chữ ký sort, **không** gắn bộ lọc, chưa có hạn 24 giờ (OPEN-DV-01); null xếp cuối mọi kiểu cột khi sort; `charts?columns=` giữ hành vi bỏ qua cột không khớp.
+- **Quyết định của người dùng:** `limit` tối đa 500; cursor gắn chữ ký sort, **không** gắn bộ lọc, chưa có hạn 24 giờ (OPEN-DV-01 — đã làm ở mục 8); null xếp cuối mọi kiểu cột khi sort; `charts?columns=` giữ hành vi bỏ qua cột không khớp.
 
 ### 7.1. Lỗi đã xác nhận từ mã nguồn
 
@@ -129,9 +129,9 @@ src/backend/src/modules/data-view/
 
 ### 7.3. Không làm trong đợt này
 
-- Ràng buộc cursor theo bộ lọc + hạn 24 giờ (OPEN-DV-01).
+- Ràng buộc cursor theo bộ lọc + hạn 24 giờ (OPEN-DV-01) — đã làm ở mục 8.
 - Phân quyền CASL theo vai trò (đang do dev khác xử lý).
-- OPEN-DV-02: chuỗi ngày legacy được `$convert` đọc theo UTC, lệch 7 giờ so với quy tắc nạp UTC+7 (có từ trước, Phần 7 v13 mục 3.23).
+- OPEN-DV-02: chuỗi ngày legacy được `$convert` đọc theo UTC, lệch 7 giờ so với quy tắc nạp UTC+7 (có từ trước, Phần 7 v13 mục 3.23) — đã làm ở mục 8.
 
 ### 7.4. Kết quả
 
@@ -146,8 +146,42 @@ src/backend/src/modules/data-view/
 
 ---
 
-## 8. Lịch sử thay đổi
+## 8. Đợt 2026-11-25 — đóng việc còn mở (OPEN-DV-01, OPEN-DV-02)
 
+- **Trạng thái:** Đã thực hiện 2026-11-25.
+- **Hợp đồng:** Phần 7 v16 mục 3.26 (DL-1…DL-6); §3.7 quy tắc 2, 3 nay đã thực thi. **Test:** Phần 13 v18 mục 3.31 (DLT-01…DLT-08).
+- **Nguồn:** mục 9 "Việc còn mở" của báo cáo thay đổi nhánh `Vqd_BE` (2026-11-25). Người dùng nhận module và duyệt plan; đảo quyết định hoãn OPEN-DV-01 của mục 7.
+
+### 8.1. Lỗi / thiếu sót
+
+| # | Mức | Nội dung | Vị trí (trước khi sửa) |
+|---|---|---|---|
+| L8 | Trung bình | Cursor không gắn `filters`/`search`: đổi bộ lọc mà giữ cursor cũ → trang sau tiếp từ vị trí của truy vấn khác, không báo lỗi (lệch §3.7 quy tắc 2) | `DataViewService.getRecords` / `queryRecords` |
+| L9 | Thấp | Cursor không có hạn (lệch §3.7 quy tắc 3) | như trên |
+| L10 | Trung bình | Chuỗi ngày legacy không múi giờ được `$convert` đọc theo UTC, trong khi `coerceDate` hiểu là UTC+7 → `equals`/`in`/so sánh/sort lệch 7 giờ (OPEN-DV-02) | `dateExpr` trong `record-query.repository.ts` |
+| L11 | Trung bình | `lessThan`/`lessThanOrEqual` trên cột số/ngày trả cả ô trống và ô không đọc được (trong aggregation `null` nhỏ hơn mọi số/ngày). Phát hiện khi viết test cho L10 | nhánh `cmp` của cột số và cột ngày trong `buildOneCondition` |
+
+### 8.2. Hướng sửa
+
+- **Bọc cursor ở tầng service** (`record-keyset-cursor.ts`, hàm thuần): `bindRecordCursor` / `unbindRecordCursor` bọc cursor của port thành `{ b: 1, c, q, t }`; `computeRecordQueryHash` băm `filters` (sau khi quy về `cN`, sắp xếp để không phụ thuộc thứ tự) + `search` (rỗng/toàn khoảng trắng = không tìm). Kiểm theo thứ tự: sai định dạng → hết hạn 24 giờ (`cursor_expired`, cả cursor dạng cũ) → lệch truy vấn (`cursor_query_mismatch`) → lệch sort (như v13). **Port `RECORD_QUERY_PORT` và repository không đổi** — khác plan ban đầu (luồn `cursorBinding` qua port), gọn hơn và không chạm module khác.
+- **`dateExpr`**: `$switch` theo `$type` — `date` giữ nguyên; `string` → `$dateFromString` (không múi giờ: `timezone: DEFAULT_TIMEZONE`, dấu cách → `T`; có múi giờ: không truyền `timezone`); kiểu khác → `$convert` như cũ. Regex múi giờ `EXPLICIT_ZONE_SUFFIX` xuất từ `value-coercion.vo.ts`, dùng chung với `coerceDate`.
+- **`compareExpr`**: so sánh thứ tự kèm `$ne: [expr, null]`.
+
+### 8.3. Không làm trong đợt này
+
+- OPEN-DV-03: `search`/`contains` trên cột ngày so khớp dạng chuỗi ISO **UTC** của `Date` (Phần 7 v16 mục 3.26).
+- `decodeRowCursor` trong `data-view.utils.ts` không còn được service dùng, giữ lại vì nằm trong public contract `index.ts`.
+
+### 8.4. Kết quả
+
+- Unit: `record-keyset-cursor.spec.ts` 29/29, `data-view.spec.ts` 21/21 (3 ca cũ đổi **có chủ đích** theo DL-3: cursor trả ra là cursor đã bọc; DVT-03 dùng cursor không sort đã bọc để giữ ý định "lệch sort").
+- Integration `record-query.spec.ts`: 71/71 (thêm DLT-06…08). Xác nhận ngược: bỏ phần sửa ở repository thì 7 ca DLT-07/08 không đạt.
+
+---
+
+## 9. Lịch sử thay đổi
+
+- **v1.3 / 2026-11-25:** Mục 8 — đóng OPEN-DV-01 (cursor gắn bộ lọc + hạn 24 giờ), OPEN-DV-02 (chuỗi ngày legacy theo UTC+7), sửa so sánh thứ tự khớp ô trống / Người dùng nhận module data-view và duyệt plan đóng việc còn mở.
 - **v1.2 / 2026-11-24:** Mục 7.5 — vá `in: []` qua port.
 - **v1.1 / 2026-11-24:** Thêm lưu ý hiện trạng + mục 7 (đợt sửa sau rà soát) / Người dùng yêu cầu rà soát module `data-view` và plan sửa.
 - **v1.0:** Thiết kế gốc Sprint B2.

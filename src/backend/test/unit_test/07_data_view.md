@@ -6,6 +6,7 @@
 - Cô lập dependency: record-query/dataset ports; model stub khi kiểm tra query builder.
 - Mỗi dòng là một nhóm ca; dấu `/` hoặc danh sách giá trị phải triển khai thành các ca riêng, không chỉ chọn một đại diện.
 - Cập nhật 2026-11-24 (Phần 13 v15 mục 3.28): 12/21 nhóm đã phủ (`[x]`); còn mở VIEW-002, 003, 008, 009, 011, 014, 016, 019, 020.
+- Cập nhật 2026-11-25 (Phần 13 v18 mục 3.31): thêm VIEW-022 (cursor gắn truy vấn + hạn 24 giờ), VIEW-023 (chuỗi ngày legacy UTC+7); VIEW-014 đã phủ. 15/23 nhóm đã phủ.
 - P0: quyền/dữ liệu/trạng thái cốt lõi; P1: logic và biên quan trọng. `RISK`/`GAP`/`OPEN` không phải khẳng định đã có lỗi được tái hiện.
 
 ## Các phần cần test
@@ -23,7 +24,7 @@
 - [ ] **VIEW-011 [P1]** between với hai đầu bằng nhau/đảo thứ tự/thiếu đầu; in với rỗng/nhiều giá trị → hành vi rõ theo validator.
 - [x] **VIEW-012 [P1]** isEmpty/isNotEmpty cho null/undefined/''/whitespace/0/false → bám định nghĩa đã duyệt; ghi khác biệt với DQ nếu có. — *Đã phủ (2026-11-24): test/integration/record-query.spec.ts (DVT-10).*
 - [x] **VIEW-013 [P1]** AND/OR gồm điều kiện cùng cột/khác cột → đúng giao/hợp; operator lạ → từ chối. — *Đã phủ (2026-11-24): test/integration/record-query.spec.ts (DVT-06).*
-- [ ] **VIEW-014 [P1]** Search kết hợp filter và cursor → đúng thứ tự xử lý, không bỏ filter khi sang trang mới.
+- [x] **VIEW-014 [P1]** Search kết hợp filter và cursor → đúng thứ tự xử lý, không bỏ filter khi sang trang mới. — *Đã phủ (2026-11-25): test/integration/record-query.spec.ts (DLT-06), test/unit/datasets/data-view.spec.ts (DLT-05).*
 - [x] **VIEW-015 [P1]** Sort tăng/giảm, giá trị trùng/null → ổn định; cursor row_index khi sort cột khác cần ca bắt bỏ sót/lặp dòng. — *Đã phủ (2026-11-24): test/integration/record-query.spec.ts (DVT-01, DV-5).*
 - [ ] **VIEW-016 [P0]** Lọc/sort/search → chỉ gọi query, không update records/dataset hoặc tự chạy analysis.
 - [x] **VIEW-017 [P1]** Stats cột số theo key hoặc tên → cùng kết quả; cột không tồn tại → NotFound; không phải số → đúng response contract. — *Đã phủ (2026-11-24): test/unit/datasets/data-view.spec.ts, test/integration/record-query.spec.ts (DV-14).*
@@ -31,3 +32,5 @@
 - [ ] **VIEW-019 [P0]** Dữ liệu hai dataset có cùng rowIndex → query luôn scope datasetId; không trộn records.
 - [ ] **VIEW-020 [P1]** Tên cột đổi sau import → Data Views trả tên mới nhưng giá trị từng key giữ nguyên; tên trùng phải còn phân biệt key.
 - [x] **VIEW-021 [P0]** Không có use case updateCell trong phạm vi hiện tại → không tạo test giả cho endpoint không tồn tại; yêu cầu xóa dòng cũ ghi GAP-005. — *Đã phủ (2026-11-24): test/unit/datasets/data-view.spec.ts (không có updateCell).*
+- [x] **VIEW-022 [P1]** Cursor dùng lại với `filters`/`search` khác, quá 24 giờ, dạng cũ (cấp trước v16), thời điểm cấp ở tương lai → `VALIDATION_ERROR` với `details.reason` đúng (`cursor_query_mismatch` / `cursor_expired`); đổi thứ tự filter hoặc `limit` vẫn hợp lệ. — *Đã phủ (2026-11-25): test/unit/shared/record-keyset-cursor.spec.ts (DLT-01…04), test/unit/datasets/data-view.spec.ts (DLT-05), test/integration/record-query.spec.ts (DLT-06).*
+- [x] **VIEW-023 [P1]** Chuỗi ngày legacy không múi giờ / có `Z` / có dấu cách / rác → khớp `equals`/`in`/`between`/so sánh và sort như `Date` nạp qua `coerceDate` (UTC+7); so sánh thứ tự không khớp ô trống. — *Đã phủ (2026-11-25): test/integration/record-query.spec.ts (DLT-07, DLT-08).*

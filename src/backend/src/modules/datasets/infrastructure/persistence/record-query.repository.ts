@@ -14,6 +14,8 @@ import {
   coerceDate,
   coerceNumber,
   coerceValue,
+  DEFAULT_TIMEZONE,
+  EXPLICIT_ZONE_SUFFIX,
   type ColumnDataType,
 } from '../../domain/value-objects/value-coercion.vo';
 import { ValidationError } from '../../../../shared/domain/errors';
@@ -117,9 +119,61 @@ function numberExpr(path: string): Record<string, unknown> {
   return { $convert: { input: `$${path}`, to: 'double', onError: null, onNull: null } };
 }
 
-/** Biểu thức ép giá trị cột ngày về `Date` phía server (khớp cả chuỗi legacy). */
+/**
+ * Biểu thức ép giá trị cột ngày về `Date` phía server (khớp cả chuỗi legacy).
+ *
+ * Chuỗi ngày **legacy** (lưu dạng chuỗi, nạp trước khi ép kiểu) được đọc theo
+ * đúng quy tắc nạp `coerceDate` (Phần 7 v16 DL-5, đóng OPEN-DV-02):
+ *  - không có múi giờ → giờ Việt Nam (`DEFAULT_TIMEZONE`); dấu cách giữa ngày và
+ *    giờ hiểu như `T`; `YYYY-MM-DD` → nửa đêm giờ Việt Nam;
+ *  - có múi giờ (`Z`, `±hh:mm`) → giữ múi giờ của chuỗi (MongoDB báo lỗi nếu
+ *    truyền thêm `timezone`, nên tách nhánh).
+ * `$convert` (trước v16) không có tham số múi giờ nên đọc mọi chuỗi theo UTC.
+ * Giá trị `Date` giữ nguyên; kiểu khác (số epoch…) vẫn qua `$convert` như cũ.
+ */
 function dateExpr(path: string): Record<string, unknown> {
-  return { $convert: { input: `$${path}`, to: 'date', onError: null, onNull: null } };
+  const input = `$${path}`;
+  const trimmed = { $trim: { input } };
+  return {
+    $switch: {
+      branches: [
+        { case: { $eq: [{ $type: input }, 'date'] }, then: input },
+        {
+          case: { $eq: [{ $type: input }, 'string'] },
+          then: {
+            $cond: [
+              { $regexMatch: { input: trimmed, regex: EXPLICIT_ZONE_SUFFIX } },
+              { $dateFromString: { dateString: trimmed, onError: null, onNull: null } },
+              {
+                $dateFromString: {
+                  dateString: { $replaceOne: { input: trimmed, find: ' ', replacement: 'T' } },
+                  timezone: DEFAULT_TIMEZONE,
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            ],
+          },
+        },
+      ],
+      default: { $convert: { input, to: 'date', onError: null, onNull: null } },
+    },
+  };
+}
+
+/**
+ * So sánh thứ tự trên giá trị đã ép kiểu, **loại ô trống / không đọc được**.
+ *
+ * Trong biểu thức aggregation, `null` nhỏ hơn mọi số và mọi ngày (thứ tự BSON),
+ * nên `{ $lt: [null, 15] }` là `true` → `lessThan`/`lessThanOrEqual` từng trả cả
+ * ô trống (Phần 7 v16 DL-6). `$gt`/`$gte` vốn đã loại `null`, kiểm thêm cho nhất quán.
+ */
+function compareExpr(
+  expr: Record<string, unknown>,
+  cmp: '$gt' | '$gte' | '$lt' | '$lte',
+  value: number | Date,
+): Record<string, unknown> {
+  return { $and: [{ $ne: [expr, null] }, { [cmp]: [expr, value] }] };
 }
 
 /** Dạng chuỗi của giá trị (số / boolean / ngày) — để `contains`/`search` khớp được. */
@@ -644,7 +698,7 @@ export class RecordQueryRepository implements RecordQueryPort {
         // Mảng rỗng (gọi thẳng qua port, bỏ qua DTO) ⇒ khớp 0 dòng như cột chuỗi (v15 VA-3).
         return { [path]: { $in: candidates } };
       }
-      if (cmp) return { $expr: { [cmp]: [numberExpr(path), requireNumber(column, value)] } };
+      if (cmp) return { $expr: compareExpr(numberExpr(path), cmp, requireNumber(column, value)) };
       if (operator === 'between') {
         const arr = asArray(value);
         const lo = requireNumber(column, arr[0]);
@@ -670,7 +724,7 @@ export class RecordQueryRepository implements RecordQueryPort {
     // ── Cột ngày ───────────────────────────────────────────────────────
     // `$expr` + `$convert` để khớp **cả** Date native lẫn chuỗi ngày legacy.
     if (dataType === 'date') {
-      if (cmp) return { $expr: { [cmp]: [dateExpr(path), requireDate(column, value)] } };
+      if (cmp) return { $expr: compareExpr(dateExpr(path), cmp, requireDate(column, value)) };
       if (operator === 'between') {
         const arr = asArray(value);
         const lo = requireDate(column, arr[0]);

@@ -3,6 +3,16 @@ import { Types } from 'mongoose';
 import { RECORD_QUERY_PORT } from '../../../src/modules/datasets/domain/ports/record-query.port';
 import { DATASET_REPOSITORY_PORT } from '../../../src/modules/datasets/domain/ports/dataset.repository.port';
 import { CursorCodec } from '../../../src/shared/domain/pagination/cursor-codec';
+import {
+  bindRecordCursor,
+  computeRecordQueryHash,
+  unbindRecordCursor,
+} from '../../../src/shared/domain/pagination/record-keyset-cursor';
+
+/** Mã băm của truy vấn không lọc/không tìm (GET /records, POST không filters) — v16 DL-1. */
+const EMPTY_QUERY = { queryHash: computeRecordQueryHash([]) };
+/** Cursor trong (của port) bọc theo truy vấn rỗng, như service trả ra — v16 DL-3. */
+const wrapEmpty = (inner: string): string => bindRecordCursor(inner, EMPTY_QUERY) as string;
 import { createHandlerProxy, type ProxyOf } from '../../helpers/handler-proxy';
 import { dataviewHandlers } from '../../helpers/module-handlers';
 import { QueryRecordsBodySchema, QueryRecordsSchema } from '../../../src/modules/data-view/data-view.controller';
@@ -138,7 +148,9 @@ describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () 
     expect(p1.items.map((x) => x.rowIndex)).toEqual([0, 1]);
     expect(p1.meta.hasMore).toBe(true);
     expect(p1.meta.nextCursor).toBeTruthy();
-    const decoded = CursorCodec.decode<{ row_index: number }>(p1.meta.nextCursor as string);
+    // v16 DL-3 (đổi có chủ đích): nextCursor được bọc `{ b, c, q, t }` — gỡ lớp bọc rồi mới thấy `{ row_index }`.
+    const inner = unbindRecordCursor(p1.meta.nextCursor as string, EMPTY_QUERY) as string;
+    const decoded = CursorCodec.decode<{ row_index: number }>(inner);
     expect(decoded?.row_index).toBe(1);
     expect(records.listRecords).toHaveBeenCalled();
   });
@@ -162,7 +174,9 @@ describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () 
   });
 
   it('DVT-03: cursor { row_index } dung cho truy van co sort -> VALIDATION_ERROR (ca 2 route)', async () => {
-    const legacy = CursorCodec.encode({ row_index: 3 });
+    // v16 DL-2 (đổi có chủ đích): `{ row_index }` trần nay là cursor dạng cũ → `cursor_expired`
+    // (ca riêng DLT-05 bên dưới). Ca này giữ ý định cũ: cursor **không sort** (đã bọc) dùng cho truy vấn có sort.
+    const legacy = wrapEmpty(CursorCodec.encode({ row_index: 3 }));
     await expect(
       service.queryRecords(mockDatasetId.toHexString(), {
         filters: [],
@@ -214,8 +228,9 @@ describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () 
       sort_field: 'amount',
       sort_order: 'desc',
     } as never);
-    expect(res.meta.nextCursor).toBe('cursor-tu-port');
-    expect(res.next_cursor).toBe('cursor-tu-port');
+    // v16 DL-3 (đổi có chủ đích): service bọc cursor của port, không trả nguyên văn.
+    expect(unbindRecordCursor(res.meta.nextCursor as string, EMPTY_QUERY)).toBe('cursor-tu-port');
+    expect(res.next_cursor).toBe(res.meta.nextCursor);
     const input = records.queryRecords.mock.calls[0][1] as { sort: unknown };
     expect(input.sort).toEqual([{ column: 'c0', order: 'desc' }]);
   });
@@ -229,6 +244,83 @@ describe('DataViewService Wave4 (keyset props.cN, meta nextCursor/hasMore)', () 
     } as never);
     expect(res.meta.nextCursor).toBeNull();
     expect(res.meta.hasMore).toBe(false);
+  });
+
+  // ── Phần 13 v18 mục 3.31 — DLT-05 (Phần 7 v16 mục 3.26 DL-1…DL-4) ─────
+
+  it('DLT-05: POST — trang 2 gui cursor trong xuong port; doi bo loc / tim kiem -> cursor_query_mismatch', async () => {
+    const body = {
+      filters: [{ column: 'amount', operator: 'greaterThan', value: 100 }],
+      sort: [],
+      limit: 1,
+    };
+    records.queryRecords.mockResolvedValueOnce({
+      items: [{ rowIndex: 4, props: {} }],
+      hasMore: true,
+      nextCursor: CursorCodec.encode({ row_index: 4 }),
+    });
+    const p1 = await service.queryRecords(mockDatasetId.toHexString(), body as never);
+    const cursor = p1.meta.nextCursor as string;
+    expect(CursorCodec.decode<Record<string, unknown>>(cursor)).toEqual(
+      expect.objectContaining({ b: 1, q: expect.any(String), t: expect.any(Number) }),
+    );
+
+    // Cùng bộ lọc, ghi bằng tên hiển thị thay cho `c0` → cùng truy vấn → hợp lệ.
+    await service.queryRecords(mockDatasetId.toHexString(), {
+      ...body,
+      filters: [{ column: 'Amount', operator: 'greaterThan', value: 100 }],
+      cursor,
+    } as never);
+    const input2 = records.queryRecords.mock.calls[1][1] as { cursor?: string };
+    expect(input2.cursor).toBe(CursorCodec.encode({ row_index: 4 }));
+
+    const calls = records.queryRecords.mock.calls.length;
+    for (const changed of [
+      { ...body, filters: [{ column: 'amount', operator: 'greaterThan', value: 200 }] },
+      { ...body, filters: [] },
+      { ...body, search: { columns: ['customer'], value: 'A' } },
+    ]) {
+      await expect(
+        service.queryRecords(mockDatasetId.toHexString(), { ...changed, cursor } as never),
+      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', details: { reason: 'cursor_query_mismatch' } });
+    }
+    expect(records.queryRecords.mock.calls.length).toBe(calls);
+  });
+
+  it('DLT-05: GET — cursor cua POST co bo loc -> cursor_query_mismatch; cursor dang cu -> cursor_expired', async () => {
+    records.queryRecords.mockResolvedValueOnce({
+      items: [{ rowIndex: 1, props: {} }],
+      hasMore: true,
+      nextCursor: CursorCodec.encode({ row_index: 1 }),
+    });
+    const p1 = await service.queryRecords(mockDatasetId.toHexString(), {
+      filters: [{ column: 'customer', operator: 'isEmpty' }],
+      sort: [],
+      limit: 1,
+    } as never);
+    await expect(
+      service.getRecords(mockDatasetId.toHexString(), { limit: 1, cursor: p1.meta.nextCursor } as never),
+    ).rejects.toMatchObject({ details: { reason: 'cursor_query_mismatch' } });
+    await expect(
+      service.getRecords(mockDatasetId.toHexString(), {
+        limit: 1,
+        cursor: CursorCodec.encode({ row_index: 3 }),
+      } as never),
+    ).rejects.toMatchObject({ details: { reason: 'cursor_expired' } });
+    expect(records.listRecords).not.toHaveBeenCalled();
+  });
+
+  it('DLT-05: GET khong sort — trang 2 doc tiep tu row_index cua cursor da boc', async () => {
+    records.listRecords.mockResolvedValueOnce({ items: [{ rowIndex: 8, props: {} }], hasMore: false });
+    await service.getRecords(mockDatasetId.toHexString(), {
+      limit: 1,
+      cursor: wrapEmpty(CursorCodec.encode({ row_index: 7 })),
+    } as never);
+    expect(records.listRecords).toHaveBeenCalledWith(
+      mockDatasetId.toHexString(),
+      CursorCodec.encode({ row_index: 7 }),
+      1,
+    );
   });
 
   it('DV-14: getColumnStats truyen kieu cot xuong port', async () => {

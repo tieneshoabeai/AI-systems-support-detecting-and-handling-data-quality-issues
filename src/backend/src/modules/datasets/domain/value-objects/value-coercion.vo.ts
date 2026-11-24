@@ -113,6 +113,13 @@ export function coerceBoolean(value: unknown): unknown {
  *  - Chuỗi có múi giờ (`Z`, `+07:00`) → giữ nguyên, `Date` tự xử lý.
  *  - Không chuyển được → giữ nguyên bản gốc.
  */
+/**
+ * Chuỗi ngày giờ **có múi giờ** tường minh ở cuối (`Z`, `+07:00`, `-0500`).
+ * Dùng chung cho `coerceDate` và biểu thức đọc chuỗi ngày legacy phía MongoDB
+ * (`RecordQueryRepository`) để hai nơi hiểu múi giờ giống nhau (Phần 7 v16 DL-5).
+ */
+export const EXPLICIT_ZONE_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
 export function coerceDate(value: unknown): unknown {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? value : value;
   if (typeof value !== 'string') return value;
@@ -130,7 +137,7 @@ export function coerceDate(value: unknown): unknown {
     return Number.isNaN(dt.getTime()) ? value : dt;
   }
 
-  const hasExplicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  const hasExplicitZone = EXPLICIT_ZONE_SUFFIX.test(trimmed);
   const normalized = hasExplicitZone ? trimmed : `${trimmed.replace(' ', 'T')}+07:00`;
   const dt = new Date(normalized);
   if (Number.isNaN(dt.getTime())) return value;

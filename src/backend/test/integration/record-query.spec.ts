@@ -25,6 +25,8 @@ import type {
   DatasetColumnRef,
   RecordQueryInput,
 } from '../../src/modules/datasets/domain/ports/record-query.port';
+import { DataViewService } from '../../src/modules/data-view/data-view.service';
+import type { DatasetRepositoryPort } from '../../src/modules/datasets';
 import { detectInfra, openTestConnection } from '../helpers/test-infra';
 
 describe('B2.6 — RecordQueryRepository trên MongoDB thật', () => {
@@ -600,6 +602,157 @@ describe('B2.6 — RecordQueryRepository trên MongoDB thật', () => {
       expect(res.values).toEqual(['r0', 'r1', 'r2']);
       expect(res.totalRecords).toBe(999);
       expect(res.truncated).toBe(true);
+    });
+  });
+
+  // ─── v16 — chuỗi ngày legacy đọc theo UTC+7 (Phần 13 v18 DLT-07) ───────
+
+  describe('v16 — chuỗi ngày legacy đọc theo UTC+7 như coerceDate (DLT-07)', () => {
+    const query = (input: Partial<RecordQueryInput>): Promise<{ items: { rowIndex: number }[] }> =>
+      repo.queryRecords(
+        datasetId.toHexString(),
+        { filters: [], sort: [], ...input } as RecordQueryInput,
+        columns,
+      );
+    const rows = (res: { items: { rowIndex: number }[] }): number[] => res.items.map((r) => r.rowIndex);
+
+    beforeEach(async () => {
+      await recordModel.deleteMany({});
+      // Cặp (legacy chuỗi, Date nạp chuẩn qua coerceDate) cùng một thời điểm giờ Việt Nam.
+      await insert(0, { c3: '2024-01-01' });
+      await insert(1, { c3: new Date('2024-01-01T00:00:00+07:00') });
+      await insert(2, { c3: '2024-03-05 08:30' });
+      await insert(3, { c3: new Date('2024-03-05T08:30:00+07:00') });
+      await insert(4, { c3: '2024-01-01T00:00:00Z' }); // có múi giờ → giữ UTC
+      await insert(5, { c3: 'khong-phai-ngay' });
+      await insert(6, { c3: ' 2023-12-31 ' });
+    });
+
+    it('equals / in: chuỗi legacy khớp như Date nạp chuẩn; chuỗi có Z giữ UTC', async () => {
+      const eq = await query({ filters: [{ column: 'joined', operator: 'equals', value: '2024-01-01' }] });
+      expect(rows(eq)).toEqual([0, 1]);
+      const inList = await query({
+        filters: [{ column: 'joined', operator: 'in', value: ['2024-03-05 08:30', '2023-12-31'] }],
+      });
+      expect(rows(inList)).toEqual([2, 3, 6]);
+      const utc = await query({
+        filters: [{ column: 'joined', operator: 'equals', value: '2024-01-01T00:00:00Z' }],
+      });
+      expect(rows(utc)).toEqual([4]);
+    });
+
+    it('between / so sánh: biên nửa đêm giờ Việt Nam', async () => {
+      const day = await query({
+        filters: [{ column: 'joined', operator: 'between', value: ['2024-01-01', '2024-01-01'] }],
+      });
+      expect(rows(day)).toEqual([0, 1]);
+      const before = await query({
+        filters: [{ column: 'joined', operator: 'lessThan', value: '2024-01-01' }],
+      });
+      // '2023-12-31' (nửa đêm +07) < '2024-01-01'; '2024-01-01T00:00:00Z' = 07:00 giờ VN → không nhỏ hơn.
+      expect(rows(before)).toEqual([6]);
+    });
+
+    it('sort trộn chuỗi legacy với Date: đúng thứ tự thời gian, chuỗi rác xếp cuối', async () => {
+      const asc = await query({ sort: [{ column: 'joined', order: 'asc' }], limit: 50 });
+      expect(rows(asc)).toEqual([6, 0, 1, 4, 2, 3, 5]);
+      const desc = await query({ sort: [{ column: 'joined', order: 'desc' }], limit: 50 });
+      expect(rows(desc)).toEqual([2, 3, 4, 0, 1, 6, 5]);
+    });
+  });
+
+  describe('v16 — so sánh thứ tự không trả ô trống / không đọc được (DLT-08)', () => {
+    const query = (input: Partial<RecordQueryInput>): Promise<{ items: { rowIndex: number }[] }> =>
+      repo.queryRecords(
+        datasetId.toHexString(),
+        { filters: [], sort: [], ...input } as RecordQueryInput,
+        columns,
+      );
+    const rows = (res: { items: { rowIndex: number }[] }): number[] => res.items.map((r) => r.rowIndex);
+
+    it.each([
+      ['age', 'lessThan', 15, [0, 1]],
+      ['age', 'lessThanOrEqual', 20, [0, 1, 2]],
+      ['age', 'greaterThan', 0, [0, 1, 2]],
+      ['joined', 'lessThan', '2025-01-01', [0, 1, 2]],
+      ['joined', 'lessThanOrEqual', '2024-06-01', [0, 1, 2]],
+    ] as const)('%s %s %s ⇒ %j (fixture: dòng 3 age "abc", joined null)', async (column, operator, value, expected) => {
+      const res = await query({ filters: [{ column, operator, value }] });
+      expect(rows(res)).toEqual(expected);
+    });
+  });
+
+  // ─── v16 — cursor gắn truy vấn qua DataViewService (Phần 13 v18 DLT-06) ──
+
+  describe('v16 — cursor gắn bộ lọc / tìm kiếm qua DataViewService (DLT-06)', () => {
+    let service: DataViewService;
+
+    beforeEach(async () => {
+      await recordModel.deleteMany({});
+      for (let i = 0; i < 30; i++) {
+        await insert(i, { c0: i % 3 === 0 ? 'keep' : 'drop', c1: (i * 7) % 11, c2: i % 2 === 0 });
+      }
+      const datasets = {
+        findById: async () => ({
+          id: datasetId.toHexString(),
+          columns: columns.map((c, index) => ({ ...c, index, missingCount: 0, isPii: false })),
+        }),
+      } as unknown as DatasetRepositoryPort;
+      service = new DataViewService(datasets, repo);
+    });
+
+    const body = {
+      filters: [{ column: 'name', operator: 'equals' as const, value: 'keep' }],
+      sort: [{ column: 'age', order: 'desc' as const }],
+      limit: 3,
+    };
+
+    it('duyệt hết các trang khi lọc + sort ⇒ đủ dòng, không trùng', async () => {
+      const seen: number[] = [];
+      let cursor: string | undefined;
+      for (let guard = 0; guard < 20; guard++) {
+        const res = await service.queryRecords(datasetId.toHexString(), { ...body, cursor });
+        seen.push(...res.items.map((r) => r.rowIndex));
+        if (!res.meta.hasMore) break;
+        cursor = res.meta.nextCursor as string;
+      }
+      const expected = Array.from({ length: 30 }, (_, i) => i).filter((i) => i % 3 === 0);
+      expect([...seen].sort((a, b) => a - b)).toEqual(expected);
+      expect(new Set(seen).size).toBe(seen.length);
+    });
+
+    it('đổi bộ lọc / tìm kiếm giữa hai trang ⇒ VALIDATION_ERROR cursor_query_mismatch', async () => {
+      const p1 = await service.queryRecords(datasetId.toHexString(), body);
+      const cursor = p1.meta.nextCursor as string;
+      await expect(
+        service.queryRecords(datasetId.toHexString(), {
+          ...body,
+          filters: [{ column: 'name', operator: 'equals', value: 'drop' }],
+          cursor,
+        }),
+      ).rejects.toMatchObject({ details: { reason: 'cursor_query_mismatch' } });
+      await expect(
+        service.queryRecords(datasetId.toHexString(), {
+          ...body,
+          search: { columns: ['name'], value: 'ke' },
+          cursor,
+        }),
+      ).rejects.toMatchObject({ details: { reason: 'cursor_query_mismatch' } });
+      // Đổi `limit` vẫn hợp lệ.
+      const p2 = await service.queryRecords(datasetId.toHexString(), { ...body, limit: 5, cursor });
+      expect(p2.items.length).toBeGreaterThan(0);
+    });
+
+    it('GET /records không sort: duyệt hết bằng cursor đã bọc', async () => {
+      const seen: number[] = [];
+      let cursor: string | undefined;
+      for (let guard = 0; guard < 20; guard++) {
+        const res = await service.getRecords(datasetId.toHexString(), { limit: 7, cursor } as never);
+        seen.push(...res.items.map((r) => r.rowIndex));
+        if (!res.meta.hasMore) break;
+        cursor = res.meta.nextCursor as string;
+      }
+      expect(seen).toEqual(Array.from({ length: 30 }, (_, i) => i));
     });
   });
 
