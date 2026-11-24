@@ -1,121 +1,100 @@
-# Các Mô-đun Nghiệp Vụ
+# Các Module Nghiệp Vụ — 13 Module (Thực Tế)
 
-Hệ thống backend gồm **13 mô-đun nghiệp vụ**. Mỗi mô-đun là một **ngữ cảnh giới hạn** độc lập, tuân thủ Clean Architecture 4 tầng và chỉ giao tiếp qua `index.ts` (hợp đồng công khai).
+Backend có **13 module** trong `src/backend/src/modules/`. Mỗi module là một **ngữ cảnh giới hạn**, giao tiếp ra ngoài chỉ qua `index.ts` (hợp đồng công khai, kiểm chứng bởi `arch:cross-imports` + `clean-architecture.spec.ts`).
 
----
-
-## 1. Danh mục mô-đun
-
-| Mô-đun | Phạm vi trách nhiệm | README |
-|---|---|---|
-| `users` | Tài khoản, phiên đăng nhập, quản trị, khóa tài khoản | [README](./users/README.md) |
-| `auth` | Đăng ký, đăng nhập, JWT, refresh, Google OAuth 2.0, quên mật khẩu | [README](./auth/README.md) |
-| `workspaces` | Không gian làm việc, vai trò thành viên, hạn ngạch, chuyển chủ sở hữu | [README](./workspaces/README.md) |
-| `projects` | Dự án, thành viên, trạng thái, snapshot, cascade | [README](./projects/README.md) |
-| `datasets` | Nhập CSV streaming, schema, dòng dữ liệu, phát hiện vấn đề, PII | [README](./datasets/README.md) |
-| `data-view` | Lưới dữ liệu ảo, phân trang keyset, thống kê cột, biểu đồ | [README](./data-view/README.md) |
-| `analysis` | Phân tích chất lượng dữ liệu, AI job nội bộ, báo cáo PDF, tổng kết | [README](./analysis/README.md) |
-| `feedback` | Phản hồi người dùng, RAG few-shot, chỉ số chất lượng AI | [README](./feedback/README.md) |
-| `issues` | Báo cáo lỗi, tệp đính kèm, quản trị, vòng đời trạng thái | [README](./issues/README.md) |
-| `notifications` | Hộp thư, push ntfy, email, tùy chọn người dùng | [README](./notifications/README.md) |
-| `overview` | Tổng quan dashboard (chỉ đọc) | [README](./overview/README.md) |
-| `realtime` | WebSocket Socket.IO, phòng, thu hồi token | [README](./realtime/README.md) |
-| `audit` | Nhật ký kiểm toán append-only | [README](./audit/README.md) |
+> Đặc tả kế hoạch (khác hiện thực) nằm ở `docs/modules/`. README ở đây mô tả **mã nguồn thật**.
 
 ---
 
-## 2. Cấu trúc chung
+## 1. Danh mục (đếm từ mã nguồn)
 
-Mỗi mô-đun đều có **cùng một bố cục**:
+| Module | Tệp `.ts` | Handler (lệnh/truy vấn) | Controller | README |
+|---|---|---|---|---|
+| `users` | 34 | 11 / 6 | 2 (`users`, `admin/users`) | [README](./users/README.md) |
+| `auth` | 35 | 9 / 2 | 1 (`auth`, 13 route) | [README](./auth/README.md) |
+| `workspaces` | 38 | 8 / 6 | 1 (`workspaces`, 10 route) | [README](./workspaces/README.md) |
+| `projects` | 43 | 10 / 7 | 1 (12 route) | [README](./projects/README.md) |
+| `datasets` | 33 | 4 / 4 | 1 (6 route) | [README](./datasets/README.md) |
+| `data-view` | 7 | 0 / 0 (service) | 1 (`datasets/:datasetId`, 4 route) | [README](./data-view/README.md) |
+| `analysis` | 56 | 6 / 5 | 3 (analysis/report/summary, 9 route) | [README](./analysis/README.md) |
+| `feedback` | 9 | 0 / 0 (service) | 1 (7 route) | [README](./feedback/README.md) |
+| `issues` | 23 | 4 / 5 | 1 (9 route: user + admin) | [README](./issues/README.md) |
+| `notifications` | 10 | 0 / 0 (service) | 1 (5 route) | [README](./notifications/README.md) |
+| `overview` | 5 | 0 / 0 (service) | 1 (2 route, chỉ đọc) | [README](./overview/README.md) |
+| `realtime` | 8 | 0 / 0 (gateway + service) | 0 (WebSocket, không REST) | [README](./realtime/README.md) |
+| `audit` | 6 | 0 / 0 (service) | 0 (chỉ ghi nối tiếp, không REST) | [README](./audit/README.md) |
+
+---
+
+## 2. Hai dạng cấu trúc (thực tế, không phải module nào cũng 4 tầng)
+
+**Dạng CQRS** (`auth`, `users`, `workspaces`, `projects`, `datasets`, `analysis`, `issues`):
 
 ```text
 <module>/
-├── domain/           # Lõi nghiệp vụ thuần: entity, value-object, port, event
-│   ├── entities/
-│   ├── value-objects/
-│   ├── events/
-│   ├── ports/
-│   └── services/     # (một số mô-đun) hàm thuần dùng chung
-├── application/      # Ca sử dụng: command/query handler (CQRS), policy loader, service
-│   ├── commands/
-│   ├── queries/
-│   ├── services/
-│   └── policy-loaders/
-├── infrastructure/   # Adapter: Mongoose schema, repository, mapper
-└── presentation/     # Controller REST, DTO (Zod), response mapper
+├── domain/           # entity, value-object, port, event
+├── application/      # commands/ + queries/ handler, services, policy-loaders
+├── infrastructure/   # Mongoose schema, repository, adapter
+├── presentation/     # controller, DTO (Zod), response mapper
+└── index.ts          # hợp đồng công khai
 ```
+
+**Dạng phẳng / service-based** (`data-view`, `feedback`, `notifications`, `overview`, `audit`, `realtime`):
+
+```text
+<module>/
+├── *.service.ts / *.controller.ts / *.schema.ts / *.types.ts
+├── *.mapper.ts / *.repository.ts (tùy module)
+└── index.ts
+```
+
+Ví dụ: `data-view/` chỉ có 7 tệp (`controller`, `service`, `utils`, `types`, `module`, `index`, `chart.schema`); `overview/` chỉ 5 tệp; `audit/` chỉ 6 tệp.
 
 ---
 
-## 3. Quy tắc phụ thuộc
+## 3. Quy tắc phụ thuộc (CA1–CA14, kiểm chứng tự động)
 
 | Mã | Quy tắc | Kiểm chứng |
 |---|---|---|
-| CA1 | `domain` không import `application` / `infrastructure` / `presentation` | `clean-architecture.spec.ts` |
+| CA1 | `domain` không import `application` / `infrastructure` / `presentation` | `unit/arch/clean-architecture.spec.ts` |
 | CA2 | `domain` không import framework | `clean-architecture.spec.ts` |
-| CA3 | `domain` không import mô-đun khác | `clean-architecture.spec.ts` |
+| CA3 | `domain` không import module khác | `clean-architecture.spec.ts` |
 | CA4 | `application` chỉ import `domain` | `clean-architecture.spec.ts` |
 | CA5 | `shared` không import từ `modules/` | `clean-architecture.spec.ts` |
 | CA6 | `infrastructure` được import `domain` | `clean-architecture.spec.ts` |
 | CA7 | `presentation` được import `application` | `clean-architecture.spec.ts` |
-| CA8 | Import chéo mô-đun phải qua `index.ts` | `arch:cross-imports` |
+| CA8 | Import chéo module phải qua `index.ts` | `pnpm arch:cross-imports` |
 | CA9 | `presentation` không chứa logic nghiệp vụ | `clean-architecture.spec.ts` |
 | CA10 | Repository chỉ được gọi từ `application` / `infrastructure` | `clean-architecture.spec.ts` |
-| CA11 | `domain` không dùng `any` | ESLint |
+| CA11 | `domain` không dùng `any` | `unit/arch/zero-any.spec.ts` + ESLint |
 | CA12 | Controller không chứa logic nghiệp vụ | `clean-architecture.spec.ts` |
 | CA13 | `shared/domain` không import framework | `clean-architecture.spec.ts` |
 | CA14 | `shared/domain` không import `shared/interfaces` | `clean-architecture.spec.ts` |
 
 ---
 
-## 4. Vai trò trong mô hình phân quyền 3 tầng
+## 4. Phân quyền 3 tầng (thực tế)
 
-| Tầng | Mô-đun sở hữu | Vai trò |
+| Tầng | Module sở hữu | Vai trò |
 |---|---|---|
-| **Hệ thống** | `users`, `auth` | `admin`, `analyst` |
-| **Workspace** | `workspaces` | `owner`, `member` |
-| **Project** | `projects` | `owner`, `member`, `viewer` |
+| Hệ thống | `users`, `auth` | `admin`, `analyst` |
+| Workspace | `workspaces` | `owner`, `member` |
+| Project | `projects` | `owner`, `member`, `viewer` |
 
-Quy tắc suy ra:
-
-| Vai trò workspace | Vai trò project suy ra |
-|---|---|
-| `owner` | `owner` — toàn quyền trên mọi project của workspace |
-| `member` | lấy đúng vai trò ghi trong `project.members`; nếu không có → `viewer` |
-
-Hai **context port** (`WORKSPACE_CONTEXT_PORT`, `PROJECT_CONTEXT_PORT`) — khai báo trong `shared/application/ports/` và hiện thực ở `modules/workspaces/infrastructure/adapters/workspace-context.adapter.ts` và `modules/projects/infrastructure/adapters/project-context.adapter.ts` — giúp CASL giải quyết vai trò theo từng request.
+Quy tắc suy ra: `owner` workspace → `owner` mọi project trong workspace; `member` workspace lấy đúng vai trò ghi trong `project.members`, nếu không có → `viewer`. Hai cổng ngữ cảnh (`WORKSPACE_CONTEXT_PORT`, `PROJECT_CONTEXT_PORT` trong `shared/application/ports/`) hiện thực ở `workspaces/infrastructure/adapters/` và `projects/infrastructure/adapters/` — chịu lỗi (lỗi truy vấn trả rỗng, không chặn oan).
 
 ---
 
-## 5. Lưu đồ mô-đun
+## 5. Lưu đồ phụ thuộc (rút gọn)
 
 ```text
-users ──▶ auth ──▶ workspaces ──▶ projects ──▶ datasets ──▶ data-view
-                                    │              │
-                                    │              └──▶ analysis ──▶ feedback
-                                    │                            │
-                                    ├──▶ issues ──▶ notifications
-                                    └──▶ overview
+users -> auth -> workspaces -> projects -> datasets -> data-view
+                                    |            |
+                                    |            +-> analysis -> feedback
+                                    |                         |
+                                    +-> issues -> notifications
+                                    +-> overview (chỉ đọc)
 
-realtime  (nhận event từ mọi mô-đun)
-audit     (ghi nhật ký từ mọi mô-đun)
+realtime  (nhận event từ mọi module qua shared event bus)
+audit     (ghi nhật ký từ mọi module, chỉ ghi nối tiếp)
 ```
-
----
-
-## 6. Mô-đun nào có README?
-
-Tất cả 13 mô-đun đều có README riêng, mô tả **trạng thái hiện thực hiện tại**: cấu trúc thư mục, domain model, phân quyền, API, lưu trữ và kiểm thử liên quan.
-
-Đặc tả **kế hoạch** (khác với hiện thực) nằm ở `../../../../../docs/modules/`.
-
----
-
-## 7. Liên quan
-
-| Tài liệu | Nội dung |
-|---|---|
-| [`../shared/README.md`](../shared/README.md) | Lớp cross-cutting: CASL, keyset, event bus, outbox/inbox |
-| [`../README.md`](../../README.md) | Hướng dẫn vận hành backend |
-| [`../../../../README.md`](../../../../README.md) | Kiến trúc tổng thể dự án |
-| `../../../../docs/modules/` | Đặc tả mô-đun (kế hoạch) |
