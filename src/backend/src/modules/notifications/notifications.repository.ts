@@ -1,38 +1,22 @@
+/** NOTIFICATIONS — Infrastructure adapter (Template Simple). Noi duy nhat cham Mongoose. */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { INotification } from './notification.schema';
-import {
-  type CreateNotificationRecord,
-  type NotificationListQuery,
-  type NotificationRepositoryPort,
-} from '../../domain/ports/notification.repository.port';
-import type { Notification } from '../../domain/entities/notification.entity';
-import {
-  toNotificationEntity,
-  toNotificationPersistence,
-} from './notification.mapper';
-import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
-import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
+import type { INotification } from './notifications.schema';
+import type {
+  CreateNotificationRecord,
+  NotificationListQuery,
+  NotificationRepositoryPort,
+} from './notifications.types';
+import type { Notification } from './notifications.types';
+import { toNotificationEntity, toNotificationPersistence } from './notification.mapper';
+import { isObjectIdHex } from '../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../shared/infrastructure/database/mongo-session-context';
 
-/**
- * NOTIFICATIONS — Infrastructure adapter (driven).
- * Nơi duy nhất chạm Mongoose. Triển khai NOTIFICATION_REPOSITORY_PORT.
- *
- * **Bước 3 — Rich Domain Model:** trả entity `Notification`.
- */
 @Injectable()
 export class NotificationsRepository implements NotificationRepositoryPort {
   constructor(@InjectModel('Notification') private readonly model: Model<INotification>) {}
 
-  /**
-   * Ghi thông báo vào DB.
-   *
-   * **OPEN-09:** tự gia nhập session từ `MongoSessionContext` ⇒ khi được gọi
-   * bên trong transaction, thông báo nằm chung transaction với thao tác chính
-   * ⇒ không bao giờ có trạng thái "thao tác chính thất bại nhưng thông báo đã
-   * gửi tới người dùng".
-   */
   async create(doc: CreateNotificationRecord): Promise<Notification> {
     const s = resolveMongoSession(undefined);
     const inst = new this.model(toNotificationPersistence(doc));

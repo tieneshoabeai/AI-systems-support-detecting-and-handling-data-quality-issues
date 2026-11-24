@@ -1,6 +1,7 @@
+/** NOTIFICATIONS — Schema Mongoose (Template Simple). Giu nguyen index + TTL + unique partial. */
 import type { Document, Types } from 'mongoose';
 import { Schema } from 'mongoose';
-import type { BaseEntity } from '../../../../shared/infrastructure/database/base-mongo.repository';
+import type { BaseEntity } from '../../shared/infrastructure/database/base-mongo.repository';
 
 export const NotificationTypes = [
   'project_created',
@@ -71,12 +72,7 @@ export const NotificationSchema = new Schema<INotification>(
 
 NotificationSchema.index({ user_id: 1, read_at: 1, created_at: -1 });
 NotificationSchema.index({ user_id: 1, read_at: 1 });
-// Unique partial index: mỗi `source_event_id` chỉ sinh 1 thông báo cho 1 user.
-//
-// ⚠️ `partialFilterExpression` **không hỗ trợ `$ne`** (MongoDB chỉ chấp nhận
-// `$eq`, `$exists`, `$gt/$gte/$lt/$lte`, `$type`, `$and`, `$or`, `$in`).
-// Dùng `$type: 'string'` để chỉ áp dụng ràng buộc unique cho bản ghi có
-// `source_event_id` khác null — tương đương ý nghĩa nhưng tạo index được.
+// Unique partial index: moi `source_event_id` chi sinh 1 thong bao cho 1 user.
 NotificationSchema.index(
   { user_id: 1, source_event_id: 1 },
   { unique: true, partialFilterExpression: { source_event_id: { $type: 'string' } } },

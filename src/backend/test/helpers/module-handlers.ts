@@ -139,20 +139,15 @@ export const issuesHandlers = {
 } as const;
 
 // -------------------- notifications --------------------
-import { CountUnreadHandler as NotificationsCountUnreadHandler } from '../../src/modules/notifications/application/queries/count-unread.handler';
-import { DispatchHandler as NotificationsDispatchHandler } from '../../src/modules/notifications/application/commands/dispatch.handler';
-import { GetDetailHandler as NotificationsGetDetailHandler } from '../../src/modules/notifications/application/queries/get-detail.handler';
-import { ListForUserHandler as NotificationsListForUserHandler } from '../../src/modules/notifications/application/queries/list-for-user.handler';
-import { MarkAsReadHandler as NotificationsMarkAsReadHandler } from '../../src/modules/notifications/application/commands/mark-as-read.handler';
-import { UpdatePreferencesHandler as NotificationsUpdatePreferencesHandler } from '../../src/modules/notifications/application/commands/update-preferences.handler';
+import { NotificationsService as NotificationsNotificationsService } from '../../src/modules/notifications/notifications.service';
 
 export const notificationsHandlers = {
-  countUnread: NotificationsCountUnreadHandler,
-  dispatch: NotificationsDispatchHandler,
-  getDetail: NotificationsGetDetailHandler,
-  listForUser: NotificationsListForUserHandler,
-  markAsRead: NotificationsMarkAsReadHandler,
-  updatePreferences: NotificationsUpdatePreferencesHandler,
+  countUnread: NotificationsNotificationsService,
+  dispatch: NotificationsNotificationsService,
+  getDetail: NotificationsNotificationsService,
+  listForUser: NotificationsNotificationsService,
+  markAsRead: NotificationsNotificationsService,
+  updatePreferences: NotificationsNotificationsService,
 } as const;
 
 // -------------------- overview --------------------

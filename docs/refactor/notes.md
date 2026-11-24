@@ -23,3 +23,4 @@
 | P3.1 overview (Simple) | 338 | 31 416 | handler 106->104, subdirs 150->146 | type-check 0, lint 0, step3 34/34, arch+guard+contract xanh, api 84/84 (tooling ho tro *.routes.ts) |
 | P3.2 realtime (Simple) | 338 | 31 416 | subdirs 146->139 | type-check 0, lint 0, realtime 47/47, arch+guard+contract xanh, api 84/84 |
 | P3.3 data-view (Simple) | 329 | 31 306 | handler 104->100, subdirs 139->131 | type-check 0, lint 0, data-view/chart/datasets 52+42 xanh, arch+guard+contract xanh, api 84/84 |
+| P3.4 notifications (Simple) | 320 | 31 200 | handler 100->94 (6 handler gop thanh NotificationsService), subdirs 131->127 | type-check 0, lint 0, notifications 48/48 + guard/step1 xanh, api 84/84 |

@@ -1,3 +1,53 @@
+/** NOTIFICATIONS — Types (Template Simple). Gop entity + vo + port token + application input. GIU 2 mapper rieng. */
+import {
+  BaseEntity,
+  type BaseEntityProps,
+} from '../../shared/domain/entities';
+import {
+  ConflictError,
+  ValidationError,
+} from '../../shared/domain/errors';
+
+// --- VO: notification-type ---
+export const NOTIFICATION_TYPES = [
+  'project_created',
+  'project_deleted',
+  'project_member_added',
+  'issue_needs_info',
+  'issue_resolved',
+  'analysis_completed',
+  'analysis_failed',
+  'ai_analysis_ready',
+  'report_ready',
+  'security_alert',
+] as const;
+
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const MANDATORY_NOTIFICATION_TYPES: NotificationType[] = [
+  'issue_needs_info',
+  'security_alert',
+];
+
+export function isMandatoryNotification(type: string, explicitFlag: boolean): boolean {
+  if (explicitFlag) return true;
+  return (MANDATORY_NOTIFICATION_TYPES as readonly string[]).includes(type);
+}
+
+export function shouldDispatch(enabled: boolean | undefined, mandatory: boolean): boolean {
+  if (enabled === false && !mandatory) return false;
+  return true;
+}
+
+// --- Events ---
+export const NOTIFICATION_EVENTS = {
+  CREATED: 'notification.created',
+  READ: 'notification.read',
+} as const;
+
+export type NotificationEventName = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
+
+// --- Entity: Notification (Aggregate root, giu invariant title 200/summary 500/doc 1 lan) ---
 /**
  * NOTIFICATION — Aggregate root.
  *
@@ -17,21 +67,6 @@
  *   3. Invariant kiểm tra trong entity, ném `DomainError` — **không** ném
  *      `HttpException` (Bước 2) và **không** ném `Error` trần.
  */
-import {
-  BaseEntity,
-  type BaseEntityProps,
-} from '../../../../shared/domain/entities';
-import {
-  ConflictError,
-  ValidationError,
-} from '../../../../shared/domain/errors';
-import {
-  isMandatoryNotification,
-  shouldDispatch,
-  NOTIFICATION_TYPES,
-  type NotificationType,
-} from '../value-objects/notification-type.vo';
-import { NOTIFICATION_EVENTS } from '../events/notification-events';
 
 /** Giới hạn độ dài (khớp `NotificationSchema`). */
 export const MAX_TITLE_LENGTH = 200;
@@ -261,4 +296,83 @@ export class Notification extends BaseEntity<NotificationProps> {
     }
     return summary;
   }
+}
+
+// --- Port token + input (giu Symbol + useExisting) ---
+/**
+ * NOTIFICATION — Domain repository port (hexagonal chuẩn).
+ * Application chỉ gọi qua port này.
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `Notification`
+ * (không phải record trần) → handler có thể gọi hành vi của entity
+ * (`markAsRead()`, `isUnread()`, …).
+ */
+
+
+
+export const NOTIFICATION_REPOSITORY_PORT = Symbol('NotificationRepositoryPort');
+
+// (Notification/ Payload da dinh nghia o tren)
+
+export interface NotificationListQuery {
+  read: 'true' | 'false' | 'all';
+  limit: number;
+  cursorCreatedAt?: Date;
+  cursorId?: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface NotificationDispatch {
+  userId: string;
+  type: NotificationType;
+  title: string;
+}
+
+export interface CreateNotificationRecord {
+  userId: string;
+  type: string;
+  title: string;
+  summary?: string | null;
+  payload?: NotificationPayload | null;
+  sourceEventId?: string | null;
+  isMandatory: boolean;
+  expiresAt?: Date | null;
+}
+
+export interface NotificationRepositoryPort {
+  create(doc: CreateNotificationRecord): Promise<Notification>;
+  findByIdForUser(id: string, userId: string): Promise<Notification | null>;
+  listForUser(userId: string, opts: NotificationListQuery): Promise<Notification[]>;
+  countUnread(userId: string): Promise<number>;
+  markAsRead(id: string, userId: string): Promise<Notification | null>;
+  /** Tạo thông báo chỉ khi `sourceEventId` chưa tồn tại (idempotency). */
+  createIfEventNotExists(doc: CreateNotificationRecord): Promise<Notification | null>;
+  existsByEvent(userId: string, sourceEventId: string): Promise<boolean>;
+}
+
+// --- Application input ---
+/**
+ * NOTIFICATIONS — Kiểu dữ liệu tầng application (input/output contract).
+ *
+ * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
+ * Không import HTTP, không import infrastructure.
+ */
+
+
+
+export interface ListNotificationsInput {
+  cursor?: string;
+  limit: number;
+  sortOrder: 'asc' | 'desc';
+  read: 'true' | 'false' | 'all';
+}
+
+export interface DispatchNotificationInput {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  summary?: string | null;
+  payload?: { targetType?: string | null; targetId?: string | null; actionUrl?: string | null };
+  sourceEventId?: string | null;
+  isMandatory?: boolean;
 }

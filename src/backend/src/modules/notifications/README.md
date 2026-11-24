@@ -1,3 +1,12 @@
+# MÔ-ĐUN `notifications` — Trung tâm thông báo (Template: Simple)
+
+> **P3.4 (2026-11-24):** Flatten từ Hexagonal → Simple Monolith theo ADR-0002.
+> - Vì sao Simple: 6 use-case CRUD + dispatch, không DB riêng phức tạp, không transaction/outbox.
+> - Bất biến: 2 mapper RIÊNG (`notification.mapper.ts` DB ↔ entity, `notification-email.mapper.ts` loại → email); thứ tự route `notifications/unread-count` TRƯỚC `notifications/:id`; `PATCH users/me/notification-preferences`; 10 loại + 2 bắt buộc (`issue_needs_info`, `security_alert`); entity invariant title 200/summary 500/đọc 1 lần.
+> - Cấu trúc mới: `notifications.service.ts (6 method) + notifications.routes.ts (controller + 2 DTO gộp) + notifications.types.ts (entity + VO + port + input) + notifications.utils.ts + notification.mapper.ts + notification-email.mapper.ts + notifications.schema.ts + notifications.repository.ts + index.ts + notifications.module.ts`.
+> - Cấm: gộp 2 mapper (khác nghĩa), đổi Symbol port (TC-03), đổi thứ tự/tham số method (BC), đổi thứ tự route.
+
+---
 # MÔ-ĐUN `notifications` — Thông báo & Tùy chọn người dùng
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

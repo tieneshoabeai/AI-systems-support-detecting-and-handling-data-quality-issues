@@ -1,16 +1,10 @@
+/** NOTIFICATIONS — Mapper infrastructure <-> domain entity (Template Simple). GIU RIENG, KHONG gop voi email mapper. */
 import { Types } from 'mongoose';
-import type { INotification } from './notification.schema';
-import type { CreateNotificationRecord } from '../../domain/ports/notification.repository.port';
-import { Notification } from '../../domain/entities/notification.entity';
+import type { INotification } from './notifications.schema';
+import type { CreateNotificationRecord } from './notifications.types';
+import { Notification } from './notifications.types';
 
-/**
- * NOTIFICATIONS — Mapper infrastructure ↔ domain entity.
- *
- * **Bước 3 — Rich Domain Model:** chiều document → entity dùng
- * `reconstitute()` (không phát domain event).
- */
-
-/** Document Mongoose → entity `Notification`. */
+/** Document Mongoose -> entity `Notification`. */
 export function toNotificationEntity(doc: INotification): Notification {
   return Notification.reconstitute({
     id: doc._id.toString(),
@@ -30,7 +24,7 @@ export function toNotificationEntity(doc: INotification): Notification {
   });
 }
 
-/** Dữ liệu tạo mới → shape lưu trữ (Mongoose). */
+/** Du lieu tao moi -> shape luu tru (Mongoose). */
 export function toNotificationPersistence(data: CreateNotificationRecord): Record<string, unknown> {
   return {
     user_id: new Types.ObjectId(data.userId),

@@ -1,7 +1,7 @@
 /**
  * Unit test thuần cho aggregate `Notification` (Bước 3 — Rich Domain Model).
  */
-import { Notification } from '../src/modules/notifications/domain/entities/notification.entity';
+import { Notification } from '../src/modules/notifications/notifications.types';
 import {
   ConflictError,
   ValidationError,

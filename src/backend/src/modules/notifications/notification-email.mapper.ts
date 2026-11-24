@@ -1,17 +1,5 @@
-/**
- * NOTIFICATIONS — Ánh xạ loại thông báo → kênh email.
- *
- * Hàm thuần (không framework, không I/O) → đặt ở tầng `application/`.
- *
- * Vì sao không đặt ở `domain/`?
- * `domain/` chỉ được import `shared/` ở thư mục thuần (utils|validation|crypto).
- * Các hàm dựng nội dung email nằm ở `shared/domain/utils/email-templates.ts` — hợp lệ.
- * Nhưng mapper này phụ thuộc `NotificationType` (một khái niệm nghiệp vụ của
- * module notifications) và phụ thuộc `EmailTemplate` của hợp đồng hạ tầng —
- * đặt ở `application/` là vị trí tự nhiên cho logic phối hợp.
- */
-
-import type { EmailTemplate } from '../../../shared/application/ports/email.port';
+/** NOTIFICATIONS — Anh xa loai thong bao -> kenh email (Template Simple). GIU RIENG, KHONG gop voi notification.mapper. */
+import type { EmailTemplate } from '../../shared/application/ports/email.port';
 import {
   analysisCompletedTemplate,
   analysisFailedTemplate,
@@ -20,10 +8,10 @@ import {
   issueResolvedTemplate,
   reportReadyTemplate,
   securityAlertTemplate,
-} from '../../../shared/domain/utils/email-templates';
-import type { NotificationType } from '../domain/value-objects/notification-type.vo';
+} from '../../shared/domain/utils/email-templates';
+import type { NotificationType } from './notifications.types';
 
-/** Kết quả dựng email cho một thông báo. */
+/** Ket qua dung email cho mot thong bao. */
 export interface NotificationEmailDraft {
   template: EmailTemplate;
   subject: string;
@@ -31,28 +19,16 @@ export interface NotificationEmailDraft {
   text: string;
 }
 
-/**
- * Tham số dựng email — tùy chọn theo loại thông báo.
- * `appUrl` là URL gốc của ứng dụng (VD: `http://localhost:5173`).
- */
+/** Tham so dung email — tuy chon theo loai thong bao. */
 export interface NotificationEmailContext {
   appUrl: string;
-  /** Tên project (dùng cho analysis/report). */
   projectName?: string | null;
-  /** Tên báo cáo (dùng cho issue). */
   issueTitle?: string | null;
-  /** Lý do (dùng cho analysis_failed). */
   reason?: string | null;
-  /** Mô tả thêm (dùng cho security_alert). */
   detail?: string | null;
 }
 
-/**
- * Dựng nội dung email cho một loại thông báo.
- *
- * @returns `null` nghĩa là loại thông báo này KHÔNG gửi qua email
- *          (chỉ hiển thị trong trung tâm thông báo trong ứng dụng).
- */
+/** Dung noi dung email cho mot loai thong bao. Tra ve null = KHONG gui qua email. */
 export function buildNotificationEmail(
   type: NotificationType,
   title: string,
@@ -72,20 +48,12 @@ export function buildNotificationEmail(
     }
     case 'analysis_completed': {
       const projectName = ctx.projectName ?? title;
-      const built = analysisCompletedTemplate(
-        projectName,
-        summary,
-        `${ctx.appUrl}/analysis`,
-      );
+      const built = analysisCompletedTemplate(projectName, summary, `${ctx.appUrl}/analysis`);
       return { template: 'analysis_completed', ...built };
     }
     case 'analysis_failed': {
       const projectName = ctx.projectName ?? title;
-      const built = analysisFailedTemplate(
-        projectName,
-        ctx.reason ?? summary,
-        `${ctx.appUrl}/analysis`,
-      );
+      const built = analysisFailedTemplate(projectName, ctx.reason ?? summary, `${ctx.appUrl}/analysis`);
       return { template: 'analysis_failed', ...built };
     }
     case 'report_ready': {
@@ -105,7 +73,6 @@ export function buildNotificationEmail(
       return { template: 'generic', ...built };
     }
     default:
-      // Loại chưa hỗ trợ email → chỉ hiển thị trong ứng dụng.
       return null;
   }
 }

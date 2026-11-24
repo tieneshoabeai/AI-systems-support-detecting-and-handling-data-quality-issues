@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/domain/ports/notification.repository.port';
+import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/notifications.types';
 import { ISSUE_REPORT_REPOSITORY_PORT } from '../src/modules/issues/domain/ports/issue-report.repository.port';
 import { IssueReport as IssueReportEntity } from '../src/modules/issues/domain/entities/issue-report.entity';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { REALTIME_PORT } from '../src/shared/application/ports/realtime.port';
-import { MandatoryNotificationTypes } from '../src/modules/notifications/infrastructure/persistence/notification.schema';
+import { MandatoryNotificationTypes } from '../src/modules/notifications/notifications.schema';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';
 import { issuesHandlers } from './helpers/module-handlers';
 import { notificationsHandlers } from './helpers/module-handlers';
@@ -102,7 +102,7 @@ describe('Wave6 NOTIF-01: cursor + unreadCount + sort createdAt', () => {
 
   it('loc read khong hop le bi Zod chan (contract)', async () => {
     const { ListNotificationsQuerySchema } = await import(
-      '../src/modules/notifications/presentation/dtos/list-notifications-query.dto'
+      '../src/modules/notifications/notifications.routes'
     );
     expect(ListNotificationsQuerySchema.safeParse({ read: 'xyz' }).success).toBe(false);
     expect(ListNotificationsQuerySchema.safeParse({ limit: 101 }).success).toBe(false);

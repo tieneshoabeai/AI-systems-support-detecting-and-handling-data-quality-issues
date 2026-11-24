@@ -9,7 +9,7 @@ import { DataViewController } from '../src/modules/data-view/data-view.routes';
 import { AnalysisController } from '../src/modules/analysis/presentation/controllers/analysis.controller';
 import { SummaryController } from '../src/modules/analysis/presentation/controllers/summary.controller';
 import { ReportController } from '../src/modules/analysis/presentation/controllers/report.controller';
-import { NotificationsController } from '../src/modules/notifications/presentation/controllers/notifications.controller';
+import { NotificationsController } from '../src/modules/notifications/notifications.routes';
 import { IssuesController } from '../src/modules/issues/presentation/controllers/issues.controller';
 import { FeedbackController } from '../src/modules/feedback/presentation/controllers/feedback.controller';
 import { OverviewController } from '../src/modules/overview/overview.routes';

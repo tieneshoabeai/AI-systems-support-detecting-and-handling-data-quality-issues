@@ -25,14 +25,14 @@ import {
 import {
   NotificationSchema,
   type INotification,
-} from '../../src/modules/notifications/infrastructure/persistence/notification.schema';
+} from '../../src/modules/notifications/notifications.schema';
 import {
   IssueReportSchema,
   type IIssueReport,
 } from '../../src/modules/issues/infrastructure/persistence/issue-report.schema';
 import { UsersRepository } from '../../src/modules/users/infrastructure/persistence/users.repository';
 import { WorkspacesRepository } from '../../src/modules/workspaces/infrastructure/persistence/workspaces.repository';
-import { NotificationsRepository } from '../../src/modules/notifications/infrastructure/persistence/notifications.repository';
+import { NotificationsRepository } from '../../src/modules/notifications/notifications.repository';
 import { IssuesRepository } from '../../src/modules/issues/infrastructure/persistence/issues.repository';
 import { parseListCursor } from '../../src/shared/domain/pagination/keyset-cursor';
 import { detectInfra, openTestConnection } from '../helpers/test-infra';
