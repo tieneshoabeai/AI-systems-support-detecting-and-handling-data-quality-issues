@@ -1,7 +1,7 @@
 /**
  * PORT từ nhánh Vqd_BE @8969ee3 — test/analysis-wave8.spec.ts (Phần 13 v14 mục 3.26).
  * Chỉ đổi import/khởi tạo sang `./legacy-analysis-facade` (handler mới); assert giữ nguyên (TC-01).
- * Nhóm A = đã gỡ theo quyết định OPEN (ghi chú tại chỗ) · nhóm C = `it.failing` (hồi quy chờ đợt K).
+ * Chỉ giữ các test còn đúng với code hiện hành; test không port ghi lý do tại chỗ ([Nhóm A — không port]).
  */
 /**
  * Phan 13 v10 muc 3.23 — test AN-34 → AN-45 cho dot G module analysis
@@ -15,11 +15,6 @@ import { LegacySummaryService as SummaryService } from './legacy-analysis-facade
 import { buildReportSections } from '../../src/modules/analysis/application/report-content.util';
 import { parseStrictDate, detectDayMonthOrder } from '../../src/modules/analysis/domain/date-parse.util';
 import { detectSuspicions } from '../../src/modules/analysis/domain/suspicion.util';
-import * as statsUtil from '../../src/modules/analysis/domain/stats.util';
-type AnyFn = (...a: unknown[]) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
-// HỒI QUY: `detectTimePartColumns` và tham số `columns` của `analyzeTime` (đợt G) không còn ở code hiện hành.
-const detectTimePartColumns = (statsUtil as unknown as Record<string, AnyFn>).detectTimePartColumns as AnyFn;
-const analyzeTime = statsUtil.analyzeTime as unknown as AnyFn;
 import { inferColumnRole } from '../../src/modules/analysis/domain/column-role.util';
 import { computeDq03 } from '../../src/modules/analysis/domain/dq.util';
 import { isMissingToken } from '../../src/shared/domain/utils/missing-tokens.util';
@@ -92,20 +87,8 @@ async function runTaxis() {
 }
 
 describe('AN-34 / AN-35: cot ngay trong DQ', () => {
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): cột ngày bị loại khỏi DQ-01..04 (`classifyColumn(date) = excluded`) (đợt G).
-  it.failing('AN-34: khong chon cot → cot ngay co trong dqSummary; o trong vao DQ-01, ngay khong ton tai vao DQ-03; van bi loai khoi tuong quan', async () => {
-    const { saved } = await runTaxis();
-    const pickup = saved.dq_summary.columns.find((c) => c.column === 'pickup');
-    expect(pickup).toMatchObject({ missingCount: 1, invalidCount: 1 });
-    expect(saved.dq_summary.columns.map((c) => c.column)).toEqual(['pickup', 'dropoff', 'fare', 'color', 'currency']);
-    expect(saved.correlationMatrix.columns).not.toContain('pickup');
-    expect(saved.correlationMatrix.excludedColumns).toEqual(expect.arrayContaining([{ column: 'pickup', reason: 'date_column_excluded_from_correlation_vif' }]));
-  });
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): như AN-34 — bỏ cột ngày nên hai dòng chỉ khác ngày bị báo trùng (đợt G).
-  it.failing('AN-35: hai dong chi khac cot ngay → khong bao trung', async () => {
-    const { saved } = await runTaxis();
-    expect(saved.dq_summary.duplicateRowCount).toBe(0);
-  });
+  // [Nhóm A — không port] AN-34: lỗi thật K2 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: cột ngày bị loại khỏi DQ-01..04 (`classifyColumn(date) = excluded`) (đợt G).
+  // [Nhóm A — không port] AN-35: lỗi thật K2 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: như AN-34 — bỏ cột ngày nên hai dòng chỉ khác ngày bị báo trùng (đợt G).
 });
 
 describe('AN-36 / AN-37: ngay hop le chat', () => {
@@ -198,22 +181,8 @@ describe('AN-41 / AN-42: Tong ket + PDF, che PII', () => {
 });
 
 describe('AN-43 / AN-44 / AN-45', () => {
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): `detectTimePartColumns` + tham số `columns` của `analyzeTime` đã mất (đợt G).
-  it.failing('AN-43: nam + thang khong co cot ngay → reason + timePartColumns', () => {
-    const rows = Array.from({ length: 24 }, (_, i) => ({ year: 1949 + Math.floor(i / 12), month: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][i % 12], passengers: 100 + i }));
-    const cols = [{ name: 'year', dataType: 'number' }, { name: 'month', dataType: 'string' }, { name: 'passengers', dataType: 'number' }];
-    expect(detectTimePartColumns(cols, rows)).toEqual({ year: 'year', month: 'month' });
-    const ta = analyzeTime(null, null, rows, 'month', cols);
-    expect(ta).toMatchObject({ status: 'no_time_column', reason: 'time_parts_without_date_column', timePartColumns: { year: 'year', month: 'month' } });
-    expect(analyzeTime(null, null, [{ x: 1 }], 'day', [{ name: 'x', dataType: 'number' }]).reason).toBe('no_suitable_time_column');
-  });
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): `analyzeTime` không còn ghi lý do `excluded_invalid_dates_N` (đợt G).
-  it.failing('AN-43b: phan tich thoi gian bo qua ngay khong ton tai, nhom theo UTC', () => {
-    const rows = [{ t: '2019-03-01 23:30:00' }, { t: '2019-02-30' }, { t: '2019-03-02' }];
-    const ta = analyzeTime('t', null, rows, 'day');
-    expect(ta.buckets.map((b: { period: string }) => b.period)).toEqual(['2019-03-01', '2019-03-02']);
-    expect(ta.reason).toContain('excluded_invalid_dates_1');
-  });
+  // [Nhóm A — không port] AN-43: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: `detectTimePartColumns` + tham số `columns` của `analyzeTime` đã mất (đợt G).
+  // [Nhóm A — không port] AN-43b: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: `analyzeTime` không còn ghi lý do `excluded_invalid_dates_N` (đợt G).
   it('AN-44: so thap phan it gia tri → measure; so nguyen it gia tri van category', () => {
     const tolls = Array.from({ length: 60 }, (_, i) => [0, 5.76, 6.12][i % 3]);
     expect(inferColumnRole({ key: 'c0', name: 'tolls', dataType: 'number' }, tolls, 60).role).toBe('measure');

@@ -1,7 +1,7 @@
 /**
  * PORT từ nhánh Vqd_BE @8969ee3 — test/analysis-wave10.spec.ts (Phần 13 v14 mục 3.26).
  * Chỉ đổi import/khởi tạo sang `./legacy-analysis-facade` (handler mới); assert giữ nguyên (TC-01).
- * Nhóm A = đã gỡ theo quyết định OPEN (ghi chú tại chỗ) · nhóm C = `it.failing` (hồi quy chờ đợt K).
+ * Chỉ giữ các test còn đúng với code hiện hành; test không port ghi lý do tại chỗ ([Nhóm A — không port]).
  */
 /**
  * Phan 13 v12 muc 3.25 — test AN-63 → AN-68 cho dot I module analysis

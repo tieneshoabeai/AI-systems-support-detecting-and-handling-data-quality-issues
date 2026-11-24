@@ -1,7 +1,7 @@
 /**
  * PORT từ nhánh Vqd_BE @8969ee3 — test/analysis-wave6.spec.ts (Phần 13 v14 mục 3.26).
  * Chỉ đổi import/khởi tạo sang `./legacy-analysis-facade` (handler mới); assert giữ nguyên (TC-01).
- * Nhóm A = đã gỡ theo quyết định OPEN (ghi chú tại chỗ) · nhóm C = `it.failing` (hồi quy chờ đợt K).
+ * Chỉ giữ các test còn đúng với code hiện hành; test không port ghi lý do tại chỗ ([Nhóm A — không port]).
  */
 /**
  * Phan 13 v8 muc 3.21 — test AN-11 → AN-20 cho dot D/E hoan thien module analysis.
@@ -11,8 +11,6 @@ import { PayloadTooLargeException } from '@nestjs/common';
 import { RemovedServicePlaceholder as ProjectAccessService } from './legacy-analysis-facade';
 import { RemovedServicePlaceholder as StalenessService } from './legacy-analysis-facade';
 import { LegacyAnalysisService as AnalysisService } from './legacy-analysis-facade';
-import { LegacySummaryService as SummaryService } from './legacy-analysis-facade';
-import { buildReportSections } from '../../src/modules/analysis/application/report-content.util';
 // OPEN-06: không còn AnalysisConfigSchema; top_n / chart_top_n nay nằm trong RunAnalysisSchema.
 import { RunAnalysisSchema as AnalysisConfigSchema } from '../../src/modules/analysis/presentation/dtos/run-analysis.dto';
 import { boxPlot, categoryTopN, clampChartTopN, histogram } from '../../src/shared/domain/utils/chart-data.util';
@@ -106,50 +104,7 @@ describe('AN-17: muc anh huong tai bien', () => {
 });
 
 describe('AN-18: Tong ket co muc anh huong + thu tu uu tien', () => {
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): Tổng kết không còn dùng `outlierBreakdown` (mất DQ-04 mức cao), thiếu `recommendation_items` / `unassessable` (đợt D/E).
-  it.failing('sap cao -> trung binh -> thap, cung muc theo ty le; de xuat theo van de; nguong + cau hinh', async () => {
-    const res = result({
-      dq_summary: {
-        totalScanned: 1000, duplicateRowCount: 3, notes: [],
-        columns: [
-          { column: 'a', missingCount: 5, missingRate: 0.005, invalidCount: 0, invalidRate: 0, outlierCount: 0, outlierRate: 0 },
-          { column: 'b', missingCount: 300, missingRate: 0.3, invalidCount: 50, invalidRate: 0.05, outlierCount: 4, outlierRate: 0.004, outlierBreakdown: { iqr: 4, iqrExtreme: 0, zscore: 4, both: 4 } },
-          { column: 'c', missingCount: 0, missingRate: null, invalidCount: 0, invalidRate: null, outlierCount: 0, outlierRate: null },
-        ],
-      },
-      dq05: { status: 'unassessed' },
-    });
-    const repo: FakeRepo = {
-      findLatestRunByProject: jest.fn(async () => run({ config: { top_n: 50, selected_column_names: ['a', 'b', 'c'], correlation_method: 'pearson', outlier_method: 'both', chart_top_n: 5 } })),
-      findResultByRun: jest.fn(async () => res),
-      countEvidencesByRun: jest.fn(async () => 0),
-      createSave: jest.fn(async (d: Record<string, unknown>) => ({ id: 's1', summary: d.summary })),
-      markSavesStale: jest.fn(),
-    };
-    const svc = new SummaryService(repo as never, projects('member') as never, new StalenessService(repo as never, {} as never));
-    const out = await svc.createSummary(P);
-    const s = out.summary as Record<string, unknown> & { issues: { dq: string; column: string | null; severity: string; priority: number }[] };
-    expect(s.issues.map((i) => `${i.dq}:${i.column}:${i.severity}`)).toEqual([
-      'DQ-01:b:high',
-      'DQ-04:b:high',
-      'DQ-03:b:medium',
-      'DQ-01:a:low', // cung muc thap: 0,5% > 0,3% (DQ-02 3/1000)
-      'DQ-02:null:low',
-    ]);
-    expect(s.issues.map((i) => i.priority)).toEqual([1, 2, 3, 4, 5]);
-    expect(s.recommendations).toEqual(expect.arrayContaining([expect.stringMatching(/^\[1\] DQ-01 · b: /)]));
-    expect((s.recommendations as unknown[]).every((r) => typeof r === 'string')).toBe(true);
-    expect((s.recommendation_items as { priority: number; dq: string; column: string | null }[])[0]).toMatchObject({ priority: 1, dq: 'DQ-01', column: 'b' });
-    expect(s.unassessable).toEqual([{ column: 'c', reason: expect.stringContaining('Không có dòng') }]);
-    expect((s.thresholds as unknown[]).length).toBe(5);
-    expect(s.config_used).toMatchObject({ selected_columns: ['a', 'b', 'c'], outlier_method: 'both' });
-
-    const sections = buildReportSections({ projectId: P, save: { id: 's1', projectId: P, analysisRunId: RUN, inputFingerprint: 'fp', summary: s, isStale: false, createdAt: new Date() }, result: res, evidences: [], topN: 50 });
-    const top = sections.find((x) => x.heading.startsWith('2. Top'));
-    expect(top?.table?.headers).toContain('Mức ảnh hưởng');
-    expect(top?.table?.rows[0]).toEqual(['1', 'DQ-01', 'b', 'Cao', '300', '30.00%']);
-    expect(sections.some((x) => x.heading.startsWith('2b. Cấu hình'))).toBe(true);
-  });
+  // [Nhóm A — không port] sap cao -> trung binh -> thap: lỗi thật K3 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: Tổng kết không còn dùng `outlierBreakdown` (mất DQ-04 mức cao), thiếu `recommendation_items` / `unassessable` (đợt D/E).
 });
 
 describe('AN-19 / AN-20: outbox + thong bao, gioi han so dong', () => {
@@ -184,39 +139,9 @@ describe('AN-19 / AN-20: outbox + thong bao, gioi han so dong', () => {
   }
   const dto = { correlation_method: 'pearson' as const, outlier_method: 'both' as const, top_n: 50 };
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): không còn ghi outbox `ANALYSIS_COMPLETED` + thông báo `analysis_completed` khi phân tích xong (đợt D/E).
-  it.failing('AN-19a: chay thanh cong -> ANALYSIS_COMPLETED + thong bao; luu charts + fingerprint v2', async () => {
-    const { svc, repo, outbox, notifications } = setup();
-    await svc.runAnalysis(P, dto, 'u1');
-    expect(outbox.recordEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'ANALYSIS_COMPLETED', project_id: P }));
-    expect(notifications.dispatch).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', type: 'analysis_completed' }));
-    const saved = repo.saveResult?.mock.calls[0]?.[0] as { charts: { histograms: unknown[]; boxPlots: unknown[]; categories: { column: string }[] } };
-    expect(saved.charts.histograms).toHaveLength(1);
-    expect(saved.charts.boxPlots).toHaveLength(1);
-    expect(saved.charts.categories[0]?.column).toBe('loai');
-    const created = repo.create?.mock.calls[0]?.[0] as { config: Record<string, unknown> };
-    expect(created.config).toMatchObject({ fingerprint_version: 2, selected_column_keys: ['c0', 'c1'], chart_top_n: 5 });
-  });
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): không còn ghi outbox `ANALYSIS_FAILED` + thông báo `analysis_failed` (đợt D/E).
-  it.failing('AN-19b: phan tich loi -> ANALYSIS_FAILED + thong bao', async () => {
-    const { svc, outbox, notifications } = setup({ failRecords: true });
-    await expect(svc.runAnalysis(P, dto, 'u1')).rejects.toThrow('boom');
-    expect(outbox.recordEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'ANALYSIS_FAILED' }));
-    expect(notifications.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'analysis_failed' }));
-  });
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): không còn ghi outbox `AI_JOB_SUCCEEDED/FAILED` + thông báo `ai_analysis_ready` (đợt D/E).
-  it.failing('AN-19c: AI xong -> AI_JOB_SUCCEEDED/FAILED + thong bao nguoi chay', async () => {
-    const { svc, repo, outbox, notifications } = setup();
-    repo.findResultByRun?.mockImplementation(async () => result({
-      correlationMatrix: { method: 'pearson', columns: ['x', 'y'], cells: [{ colA: 'x', colB: 'y', coef: 0.9, kind: 'pearson', n: 6, totalScanned: 6, missingAOnly: 0, missingBOnly: 0, missingBoth: 0, computable: true, reason: null }] },
-      vif: { columns: [], rows: [], commonN: 6, totalScanned: 6, commonNRate: 1, lossWarning: null, excluded: [] },
-    }));
-    await svc.ingestAiResult(JOB, { notablePairs: [{ colA: 'x', colB: 'y', coef: 0.9 }], highVif: [], limits: [], nextSteps: [] });
-    expect(outbox.recordEvent).toHaveBeenLastCalledWith(expect.objectContaining({ event_type: 'AI_JOB_SUCCEEDED', aggregate_id: JOB }));
-    expect(notifications.dispatch).toHaveBeenLastCalledWith(expect.objectContaining({ userId: 'u1', type: 'ai_analysis_ready' }));
-    await svc.ingestAiResult(JOB, 'khong phai object');
-    expect(outbox.recordEvent).toHaveBeenLastCalledWith(expect.objectContaining({ event_type: 'AI_JOB_FAILED' }));
-  });
+  // [Nhóm A — không port] AN-19a: lỗi thật K6 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: không còn ghi outbox `ANALYSIS_COMPLETED` + thông báo `analysis_completed` khi phân tích xong (đợt D/E).
+  // [Nhóm A — không port] AN-19b: lỗi thật K6 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: không còn ghi outbox `ANALYSIS_FAILED` + thông báo `analysis_failed` (đợt D/E).
+  // [Nhóm A — không port] AN-19c: lỗi thật K6 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: không còn ghi outbox `AI_JOB_SUCCEEDED/FAILED` + thông báo `ai_analysis_ready` (đợt D/E).
   // [Nhóm A — không port] AN-19e: `markAiFailed` đã gỡ; worker mới tự ghi job failed (`AI_FAILED`) — xem AN-05.
   it('AN-19d: loi outbox/thong bao khong lam hong luong chinh', async () => {
     const { svc, outbox, notifications } = setup();
@@ -235,10 +160,5 @@ describe('AN-19 / AN-20: outbox + thong bao, gioi han so dong', () => {
 });
 
 describe('Hop dong API: top_n toi da 100 (giu nhu cu)', () => {
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): `top_n` mặc định 10 thay vì 50 (đợt A, analysis_plan mục 6).
-  it.failing('top_n > 100 bi tu choi, mac dinh 50', () => {
-    expect(AnalysisConfigSchema.safeParse({ top_n: 101 }).success).toBe(false);
-    expect(AnalysisConfigSchema.safeParse({ top_n: 100 }).success).toBe(true);
-    expect(AnalysisConfigSchema.parse({}).top_n).toBe(50);
-  });
+  // [Nhóm A — không port] top_n > 100 bi tu choi: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: `top_n` mặc định 10 thay vì 50 (đợt A, analysis_plan mục 6).
 });

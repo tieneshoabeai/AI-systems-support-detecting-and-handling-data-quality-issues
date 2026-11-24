@@ -14,9 +14,7 @@
  *     đổi theo đúng bảng `httpStatusForErrorCode` (AC-04), response
  *     `{ error: code, message, details }` như service cũ.
  *
- * Không có ở đây (đã gỡ theo quyết định OPEN, xem Phần 13 v14 mục 3.26 nhóm A):
- * `saveConfig`, `getConfig`, `markAiFailed`, `assertProjectAccess`,
- * `assertJobAccess`, `StalenessService.assess`.
+ * Chỉ giữ các hàm mà test còn hiệu lực (nhóm B) dùng: `runAnalysis`, `retryJob`, `createSummary`.
  */
 import {
   BadRequestException,
@@ -29,17 +27,11 @@ import {
 import { DomainError } from '../../src/shared/domain/errors/domain-error';
 import { httpStatusForErrorCode } from '../../src/shared/interfaces/errors/error-http-mapping';
 import { RunAnalysisHandler } from '../../src/modules/analysis/application/commands/run-analysis.handler';
-import { BuildPromptForJobHandler } from '../../src/modules/analysis/application/commands/build-prompt-for-job.handler';
-import { IngestAiResultHandler } from '../../src/modules/analysis/application/commands/ingest-ai-result.handler';
 import { RetryJobHandler } from '../../src/modules/analysis/application/commands/retry-job.handler';
 import { CreateSummaryHandler } from '../../src/modules/analysis/application/commands/create-summary.handler';
-import { GetResultHandler } from '../../src/modules/analysis/application/queries/get-result.handler';
-import { GetSummaryHandler } from '../../src/modules/analysis/application/queries/get-summary.handler';
-import { AiWorkerService } from '../../src/modules/analysis/application/services/ai-worker.service';
 import type { RunAnalysisInput } from '../../src/modules/analysis/application/analysis.types';
 
 type Obj = Record<string, unknown>;
-type AnyFn = (...args: unknown[]) => unknown;
 
 /** Hàm handler mới gọi mà repo giả của test cũ có thể chưa có → giá trị trung tính. */
 const NEUTRAL: Record<string, (...a: unknown[]) => unknown> = {
@@ -114,10 +106,7 @@ export class RemovedServicePlaceholder {
  */
 export class LegacyAnalysisService {
   private readonly run: RunAnalysisHandler;
-  private readonly prompt: BuildPromptForJobHandler;
-  private readonly ingest: IngestAiResultHandler;
   private readonly retry: RetryJobHandler;
-  private readonly result: GetResultHandler;
 
   constructor(
     repo: object,
@@ -136,59 +125,27 @@ export class LegacyAnalysisService {
     const p = withDefaults(projects, { setHasDataset: () => true }) as never;
     const d = withDefaults(datasets, { findById: () => null, findByProject: () => null }) as never;
     this.run = new RunAnalysisHandler(p, d, r, records as never, rag as never, config as never, realtime as never);
-    this.prompt = new BuildPromptForJobHandler(r, d, records as never, rag as never, config as never);
-    this.ingest = new IngestAiResultHandler(r, realtime as never);
     this.retry = new RetryJobHandler(r);
-    this.result = new GetResultHandler(p, r);
   }
 
   runAnalysis(projectId: string, dto: RunAnalysisInput, userId?: string): Promise<Obj> {
     return call(() => this.run.execute(projectId, dto, userId));
   }
-  buildPromptForJob(jobId: string): Promise<string> {
-    return call(() => this.prompt.execute(jobId));
-  }
-  ingestAiResult(jobId: string, raw: unknown, modelId?: string): Promise<Obj> {
-    return call(() => this.ingest.execute(jobId, raw, modelId));
-  }
   retryJob(jobId: string): Promise<Obj> {
     return call(() => this.retry.execute(jobId));
-  }
-  getResult(projectId: string): Promise<Obj> {
-    return call(() => this.result.execute(projectId));
   }
 }
 
 /** `SummaryService` cũ: `(repo, projects, staleness)`. */
 export class LegacySummaryService {
   private readonly create: CreateSummaryHandler;
-  private readonly get: GetSummaryHandler;
 
   constructor(repo: object, projects: object, _staleness?: unknown) {
     const r = withDefaults(repo) as never;
     const p = withDefaults(projects) as never;
     this.create = new CreateSummaryHandler(p, r);
-    this.get = new GetSummaryHandler(p, r);
   }
   createSummary(projectId: string): Promise<Obj> {
     return call(() => this.create.execute(projectId));
   }
-  getSummary(projectId: string): Promise<Obj> {
-    return call(() => this.get.execute(projectId));
-  }
-}
-
-/**
- * `AiWorkerService` cũ: `(repo, analysis, inference, config)` với
- * `analysis.buildPromptForJob / ingestAiResult`. Bản mới nhận 2 handler + guard RAM.
- */
-export function legacyAiWorker(repo: object, analysis: Record<string, AnyFn>, inference: object, config: object): AiWorkerService {
-  const promptHandler = { execute: (id: string) => analysis.buildPromptForJob?.(id) };
-  const ingestHandler = { execute: (...a: unknown[]) => analysis.ingestAiResult?.(...a) };
-  const guard = {
-    check: () => ({ blocked: false, reason: 'ok', availableBytes: 1, totalBytes: 1, engineRssBytes: 0 }),
-    canAcceptAiJob: () => true,
-    blockReason: () => null,
-  };
-  return new AiWorkerService(withDefaults(repo) as never, promptHandler as never, ingestHandler as never, inference as never, config as never, guard as never);
 }

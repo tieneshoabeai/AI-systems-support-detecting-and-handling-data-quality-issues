@@ -1,7 +1,7 @@
 /**
  * PORT từ nhánh Vqd_BE @8969ee3 — test/analysis-wave7.spec.ts (Phần 13 v14 mục 3.26).
  * Chỉ đổi import/khởi tạo sang `./legacy-analysis-facade` (handler mới); assert giữ nguyên (TC-01).
- * Nhóm A = đã gỡ theo quyết định OPEN (ghi chú tại chỗ) · nhóm C = `it.failing` (hồi quy chờ đợt K).
+ * Chỉ giữ các test còn đúng với code hiện hành; test không port ghi lý do tại chỗ ([Nhóm A — không port]).
  */
 /**
  * Phan 13 v9 muc 3.22 — test AN-22 → AN-33 cho dot F module analysis
@@ -14,7 +14,7 @@ import { LegacyAnalysisService as AnalysisService } from './legacy-analysis-faca
 import { buildReportSections } from '../../src/modules/analysis/application/report-content.util';
 import { inferColumnRoles, nameTokens } from '../../src/modules/analysis/domain/column-role.util';
 import { maskForAi, toShapePattern } from '../../src/modules/analysis/domain/pii-mask.util';
-import { buildCorrV1Prompt, groundAiAssessment, upperTriangleCells, type CorrCell } from '../../src/modules/analysis/domain/ai-grounding.util';
+import { buildCorrV1Prompt, upperTriangleCells, type CorrCell } from '../../src/modules/analysis/domain/ai-grounding.util';
 import { computeInputFingerprint, type ResolvedRunConfig } from '../../src/modules/analysis/domain/input-fingerprint.util';
 import type { AnalysisResultRecord, AnalysisRunRecord } from '../../src/modules/analysis/domain/ports/analysis.repository.port';
 
@@ -164,15 +164,7 @@ describe('AN-24 / AN-25 / AN-26: dung vai tro cho tuong quan, VIF, DQ-04', () =>
     expect(saved.vif.columns).toEqual(['Age', 'Fare']);
   });
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): DQ-04 không còn ghi `outlierSkippedReason: not_measure_column` cho cột phân loại/định danh (đợt F).
-  it.failing('AN-26: DQ-04 bo qua cot phan loai dang so', async () => {
-    const { saved } = await runAndGet();
-    const by = Object.fromEntries(saved.dq_summary.columns.map((c) => [c.column, c]));
-    expect(by.Pclass).toMatchObject({ outlierCount: 0, outlierSkippedReason: 'not_measure_column' });
-    expect(by.PassengerId?.outlierSkippedReason).toBe('not_measure_column');
-    expect(by.Age?.outlierCount).toBeGreaterThanOrEqual(1);
-    expect(by.Age?.outlierSkippedReason).toBeNull();
-  });
+  // [Nhóm A — không port] AN-26: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: DQ-04 không còn ghi `outlierSkippedReason: not_measure_column` cho cột phân loại/định danh (đợt F).
 });
 
 describe('AN-27 / AN-28 / AN-29: che PII theo vai tro + mau o loi', () => {
@@ -186,14 +178,7 @@ describe('AN-27 / AN-28 / AN-29: che PII theo vai tro + mau o loi', () => {
     expect(toShapePattern('Đỗ Văn 9')).toBe('Aa Aaa d');
   });
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): không còn lưu `ai_samples` = ô lỗi; prompt lấy 20 giá trị đầu bất kỳ (đợt F).
-  it.failing('AN-28: mau prompt chi gom o loi, <= 20/cot, co mau khi co loi', async () => {
-    const { saved } = await runAndGet();
-    expect(saved.ai_samples.Age).toEqual(expect.arrayContaining(['abc', '400']));
-    expect(saved.ai_samples.Age?.length).toBeLessThanOrEqual(20);
-    expect(saved.ai_samples.Survived).toEqual([]); // khong co o loi
-    expect(saved.ai_samples).not.toHaveProperty('Name'); // cot bi loai khoi tuong quan
-  });
+  // [Nhóm A — không port] AN-28: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: không còn lưu `ai_samples` = ô lỗi; prompt lấy 20 giá trị đầu bất kỳ (đợt F).
 
   it('AN-28b: bieu do theo vai tro — khong Top N cho dinh danh/van ban/cot PII', async () => {
     const plain = await runAndGet();
@@ -205,19 +190,7 @@ describe('AN-27 / AN-28 / AN-29: che PII theo vai tro + mau o loi', () => {
     expect(piiCharts.categories.map((c) => c.column)).not.toContain('Sex');
   });
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): như AN-28 — không còn `ai_samples` theo chính sách che PII (đợt F).
-  it.failing('AN-29: value_masked cua bang chung theo chinh sach moi', async () => {
-    const plain = await runAndGet();
-    const inv = plain.evidences.find((e) => e.column === 'Age' && e.kind === 'invalid_type');
-    expect(inv?.value_masked).toBe('abc');
-    expect(plain.evidences.find((e) => e.column === 'Age' && e.kind === 'missing')?.value_masked).toBeNull();
-
-    const pii = await runAndGet({ cols: titanicCols(true) });
-    expect(pii.evidences.find((e) => e.column === 'Age' && e.kind === 'invalid_type')?.value_masked).toBe('***');
-    expect(pii.saved.ai_samples.Age?.every((v) => v === '***')).toBe(true);
-
-    // [bỏ 1 assert — OPEN-06] trường hợp ghi đè vai trò `identifier` không còn (không có column_roles).
-  });
+  // [Nhóm A — không port] AN-29: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: như AN-28 — không còn `ai_samples` theo chính sách che PII (đợt F).
 });
 
 describe('AN-30 / AN-31 / AN-32: duong cheo + tam giac tren', () => {
@@ -228,12 +201,7 @@ describe('AN-30 / AN-31 / AN-32: duong cheo + tam giac tren', () => {
   const coef: Record<string, number> = { 'a|b': 0.2, 'a|c': -0.9, 'b|c': 0.5 };
   const full: CorrCell[] = names.flatMap((x) => names.map((y) => cellOf(x, y, x === y ? 1 : coef[[x, y].sort().join('|')] ?? 0)));
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): `groundAiAssessment` không còn loại cặp đường chéo X~X (đợt F).
-  it.failing('AN-30: grounding loai cap X~X', () => {
-    const g = groundAiAssessment({ notablePairs: [{ colA: 'a', colB: 'a', coef: 1 }, { colA: 'a', colB: 'c', coef: -0.9 }] }, full, [], null);
-    expect(g.notablePairs.map((p) => `${p.colA}~${p.colB}`)).toEqual(['a~c']);
-    expect(g.droppedClaims.join(' ')).toContain('đường chéo');
-  });
+  // [Nhóm A — không port] AN-30: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: `groundAiAssessment` không còn loại cặp đường chéo X~X (đợt F).
 
   it('AN-31: prompt chi co tam giac tren', () => {
     expect(upperTriangleCells(full).map((c) => `${c.colA}${c.colB}`)).toEqual(['ab', 'ac', 'bc']);
@@ -244,23 +212,7 @@ describe('AN-30 / AN-31 / AN-32: duong cheo + tam giac tren', () => {
     expect(cells.some((c) => c.colA === c.colB)).toBe(false);
   });
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): prompt không còn dùng `aiSamples` (ô lỗi) đã lưu (đợt F).
-  it.failing('AN-31b: buildPromptForJob dung mau o loi va vai tro da luu', async () => {
-    const { svc, repo } = setup();
-    repo.findJobById = jest.fn(async () => ({ id: JOB, analysisRunId: RUN, projectId: P, datasetId: DS, status: 'running', attempt: 0 }));
-    repo.findResultByRun = jest.fn(async () =>
-      result({
-        correlationMatrix: { method: 'pearson', columns: ['a', 'b', 'c'], cells: full, excludedColumns: [{ column: 'Name', reason: 'free_text_column_excluded' }] } as never,
-        vif: { columns: [], rows: [], commonN: 0, totalScanned: 0, commonNRate: null, lossWarning: null, excluded: [] } as never,
-        aiSamples: { a: ['abc'] },
-        columnRoles: [{ key: 'c0', name: 'a', role: 'measure' }],
-      } as never), // HỒI QUY: bản ghi kết quả không còn `aiSamples` (đợt F)
-    );
-    const prompt = await svc.buildPromptForJob(JOB);
-    expect(prompt).toContain('{"a":["abc"]}');
-    expect(prompt).toContain('"analysisRole":"measure"');
-    expect(prompt).toContain('free_text_column_excluded');
-  });
+  // [Nhóm A — không port] AN-31b: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: prompt không còn dùng `aiSamples` (ô lỗi) đã lưu (đợt F).
 
   it('AN-32: bang PDF moi cap mot lan, khong duong cheo, xep theo |he so|', () => {
     const sections = buildReportSections({

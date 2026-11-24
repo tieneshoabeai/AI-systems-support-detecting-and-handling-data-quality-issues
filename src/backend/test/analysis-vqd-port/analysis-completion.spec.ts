@@ -1,20 +1,17 @@
 /**
  * PORT từ nhánh Vqd_BE @8969ee3 — test/analysis-completion.spec.ts (Phần 13 v14 mục 3.26).
  * Chỉ đổi import/khởi tạo sang `./legacy-analysis-facade` (handler mới); assert giữ nguyên (TC-01).
- * Nhóm A = đã gỡ theo quyết định OPEN (ghi chú tại chỗ) · nhóm C = `it.failing` (hồi quy chờ đợt K).
+ * Chỉ giữ các test còn đúng với code hiện hành; test không port ghi lý do tại chỗ ([Nhóm A — không port]).
  */
 /**
  * Phan 13 v8 muc 3.20 — test AN-01 → AN-10 cho dot hoan thien module analysis (2026-11-17).
  * Dung fake repository/service (khong can Mongo) de kiem hanh vi tang application.
  */
-import { ConflictException } from '@nestjs/common';
 import { LegacySummaryService as SummaryService } from './legacy-analysis-facade';
 import { LegacyAnalysisService as AnalysisService } from './legacy-analysis-facade';
 import { RemovedServicePlaceholder as ProjectAccessService } from './legacy-analysis-facade';
 import { RemovedServicePlaceholder as StalenessService } from './legacy-analysis-facade';
 import { ReportWorkerService } from '../../src/modules/analysis/application/report-worker.service';
-import { legacyAiWorker } from './legacy-analysis-facade';
-import type { AiWorkerService } from '../../src/modules/analysis/application/services/ai-worker.service';
 import { buildReportSections } from '../../src/modules/analysis/application/report-content.util';
 import { resolveTopN } from '../../src/modules/analysis/domain/top-n.util';
 import type {
@@ -107,14 +104,7 @@ describe('AN-01 / AN-10: SUMMARY-01 chan ket qua stale + top_n', () => {
 describe('AN-02 / AN-06 / AN-07: AnalysisService', () => {
   // [Nhóm A — không port] AN-02: như AN-01 — không còn trạng thái lỗi thời.
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): `RetryJobHandler` không còn kiểm trạng thái job — job succeeded/running/pending vẫn được thử lại, mất mã lỗi `AI_JOB_NOT_RETRYABLE`.
-  it.failing.each(['succeeded', 'running', 'pending'] as const)('AN-06: retry job %s -> 409 AI_JOB_NOT_RETRYABLE', async (status) => {
-    const repo: FakeRepo = { findJobById: jest.fn(async () => job({ status })), updateJobById: jest.fn() };
-    const err = await analysisService(repo).retryJob(JOB).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(ConflictException);
-    expect((err as ConflictException).getResponse()).toMatchObject({ error: 'AI_JOB_NOT_RETRYABLE' });
-    expect(repo.updateJobById).not.toHaveBeenCalled();
-  });
+  // [Nhóm A — không port] AN-06: thay đổi thiết kế của nhánh `backend`, chấp nhận (analysis_plan mục 7i). Khác biệt: `RetryJobHandler` không còn kiểm trạng thái job — job succeeded/running/pending vẫn được thử lại, mất mã lỗi `AI_JOB_NOT_RETRYABLE`.
 
   // [Nhóm A — không port] AN-07: như AN-01 — không còn trạng thái lỗi thời.
 
@@ -133,29 +123,8 @@ describe('AN-02 / AN-06 / AN-07: AnalysisService', () => {
 // [Nhóm A — không port] AN-08: kiểm quyền job chuyển từ service sang guard CASL + `analysis-job-policy.loader.ts` (refactor P5); kiểm ở `casl.spec.ts` / `guard-coverage.spec.ts`.
 
 describe('AN-04 / AN-05: AI worker khong mat luot retry khi loi JSON', () => {
-  function setup(attempt: number) {
-    const repo: FakeRepo = {
-      findJobById: jest.fn(async () => job({ status: 'running', attempt })),
-      updateJobById: jest.fn(),
-      heartbeatJob: jest.fn(),
-    };
-    const analysis = { buildPromptForJob: jest.fn(async () => 'prompt'), ingestAiResult: jest.fn(async () => ({ status: 'failed' })), markAiFailed: jest.fn(async () => undefined) };
-    const inference = { complete: jest.fn(async () => ({ text: 'khong phai json', modelId: null, durationMs: 1 })) };
-    const worker = legacyAiWorker(repo, analysis, inference, config({ AI_MAX_RETRIES: 2 }));
-    return { repo, analysis, worker };
-  }
-  const process = (w: AiWorkerService, id: string): Promise<void> =>
-    (w as unknown as { processJob(id: string): Promise<void> }).processJob(id);
 
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): worker AI gọi ingest({}) ngay khi lỗi JSON dù còn lượt → ghi đánh giá AI failed sớm (đợt A).
-  it.failing('AN-04: con luot -> pending, attempt+1, khong ghi danh gia failed', async () => {
-    const { repo, analysis, worker } = setup(0);
-    await process(worker, JOB);
-    const last = repo.updateJobById?.mock.calls.at(-1)?.[1] as Record<string, unknown>;
-    expect(last).toMatchObject({ status: 'pending', attempt: 1 });
-    expect(analysis.ingestAiResult).not.toHaveBeenCalled();
-    expect(analysis.markAiFailed).not.toHaveBeenCalled();
-  });
+  // [Nhóm A — không port] AN-04: lỗi thật K1 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: worker AI gọi ingest({}) ngay khi lỗi JSON dù còn lượt → ghi đánh giá AI failed sớm (đợt A).
   // [Nhóm A — không port] AN-05: `markAiFailed` đã gỡ; worker mới tự ghi job failed `AI_FAILED` và gọi ingest({}) để ghi đánh giá failed — cơ chế khác, assert cũ dựa trên `markAiFailed`.
 });
 
@@ -195,13 +164,7 @@ describe('AN-03 / AN-09: worker PDF', () => {
     await worker.buildPdf('r1');
     expect(repo.updateReportById?.mock.calls.at(-1)?.[1]).toMatchObject({ status: 'failed', error: { code: 'REPORT_BUILD_FAILED' } });
   });
-  // HỒI QUY sau merge backend (Phần 13 v14 mục 3.26 nhóm C): `ReportWorkerService.tick()` không còn thu hồi job PDF treo (`recoverStaleReports`) và không truyền lease khi claim (đợt A).
-  it.failing('AN-09: moi tick thu hoi job PDF ket truoc khi claim (lease)', async () => {
-    const { repo, worker } = setup(reportJob());
-    await worker.tick();
-    expect(repo.recoverStaleReports).toHaveBeenCalledWith(3);
-    expect(repo.claimPendingReport).toHaveBeenCalledWith(600000);
-  });
+  // [Nhóm A — không port] AN-09: lỗi thật K5 — sửa ở đợt K; test mới viết theo hành vi hiện hành ở `test/analysis-dot-k.spec.ts` (assert cũ gắn cơ chế đã đổi). Chi tiết: `ReportWorkerService.tick()` không còn thu hồi job PDF treo (`recoverStaleReports`) và không truyền lease khi claim (đợt A).
 });
 
 describe('REPORT-01: noi dung PDF FULL + font', () => {
