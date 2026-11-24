@@ -1,3 +1,9 @@
+# `workspaces` — Template: Hexagonal
+- Vì sao Hexagonal: quota 20 + tx strict + RBAC 3 tang + 2 adapter fail-safe
+- Bất biến chính: 2 adapter access/context rieng (context fail-safe try/catch), MAX_WORKSPACES_PER_USER=20, event WORKSPACE_DELETED trong transaction (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `workspaces` — Không gian làm việc
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

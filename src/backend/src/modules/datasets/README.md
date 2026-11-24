@@ -1,3 +1,9 @@
+# `datasets` — Template: Hexagonal
+- Vì sao Hexagonal: 2 schema/2 repo + tx strict + policy + cascade OPEN-09
+- Bất biến chính: tx strict `resolveMongoSession`, INSERT-ONLY `dataset_records`, `RECORD_QUERY_PORT` cho data-view/analysis (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `datasets` — Tiếp nhận & Lưu trữ dữ liệu
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

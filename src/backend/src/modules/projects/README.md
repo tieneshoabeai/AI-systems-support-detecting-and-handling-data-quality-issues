@@ -1,3 +1,9 @@
+# `projects` — Template: Hexagonal
+- Vì sao Hexagonal: 17 handler + 3 policy loader + best-effort outbox + cascade project→dataset
+- Bất biến chính: 3 policy loader riêng, 2 adapter access/context riêng, outbox best-effort, cascade xóa (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `projects` — Dự án phân tích
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

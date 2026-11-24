@@ -1,3 +1,9 @@
+# `users` — Template: Hexagonal
+- Vì sao Hexagonal: password policy + revocation service + USER_BLOCKED/REMOVED dung boi realtime
+- Bất biến chính: session-policy.vo + password policy, 2 controller user/admin tach, user-access-revocation.service rieng (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `users` — Tài khoản & Phiên đăng nhập
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**
