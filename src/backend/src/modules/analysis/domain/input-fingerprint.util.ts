@@ -31,14 +31,6 @@ export interface ResolvedRunConfig {
   outlierMethod: string;
   topN: number;
   timeGranularity: string;
-  /** Đợt F: ghi đè vai trò cột của người dùng (key → vai trò). Rỗng → không đưa vào hash (giữ fingerprint cũ). */
-  columnRoles?: Record<string, string> | null;
-}
-
-function normalizeRoles(roles: Record<string, string> | null | undefined): [string, string][] {
-  return Object.entries(roles ?? {})
-    .filter(([, v]) => typeof v === 'string' && v !== '')
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /** Tim cot theo key → ten hien tai → ten goc (thu tu uu tien). */
@@ -81,7 +73,6 @@ export function computeInputFingerprint(dataset: FingerprintDataset, cfg: Resolv
       outlier_method: cfg.outlierMethod,
       top_n: cfg.topN,
       time_granularity: cfg.timeGranularity,
-      ...(normalizeRoles(cfg.columnRoles).length > 0 ? { column_roles: normalizeRoles(cfg.columnRoles) } : {}),
     },
   };
   return crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex');
@@ -101,13 +92,5 @@ export function readResolvedRunConfig(config: Record<string, unknown> | null | u
     outlierMethod: String(config.outlier_method ?? ''),
     topN: typeof config.top_n === 'number' ? config.top_n : 0,
     timeGranularity: String(config.time_granularity ?? 'day'),
-    columnRoles: readRoles(config.column_roles),
   };
-}
-
-function readRoles(v: unknown): Record<string, string> | null {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
-  const out: Record<string, string> = {};
-  for (const [k, r] of Object.entries(v as Record<string, unknown>)) if (typeof r === 'string') out[k] = r;
-  return out;
 }

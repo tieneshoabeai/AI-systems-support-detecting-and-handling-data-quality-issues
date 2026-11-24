@@ -14,7 +14,7 @@ const files = [];
   for (const f of fs.readdirSync(d)) {
     const p = path.join(d, f);
     if (fs.statSync(p).isDirectory()) walk(p);
-    else if (f.endsWith('.controller.ts')) files.push(p);
+    else if (f.endsWith('.controller.ts') || f.endsWith('.routes.ts')) files.push(p);
   }
 })('src');
 
@@ -83,3 +83,21 @@ extra.forEach((k) => console.log('  ' + actualN.get(k)));
 console.log('\n=== TỔNG ===');
 console.log('  Hợp đồng §3.13: ' + expectedN.size + ' | Mã nguồn: ' + actualN.size);
 console.log('  Thiếu: ' + missing.length + ' | Thừa: ' + extra.length);
+
+// ── 5. Exit code ───────────────────────────────────────────────────────────
+// Script này chạy trong `pnpm run test:arch` → **phải** fail khi lệch để chặn
+// regression route. Exit 0 = hợp đồng và mã nguồn khớp 1-1.
+if (missing.length > 0 || extra.length > 0) {
+  console.error(
+    '\n✗ HỢP ĐỒNG API LỆCH VỚI MÃ NGUỒN: ' +
+      missing.length +
+      ' thiếu, ' +
+      extra.length +
+      ' thừa. ' +
+      'Cập nhật `docs/restructures/7_api_contracts_v8.md` §3.13 hoặc sửa mã nguồn.',
+  );
+  process.exit(1);
+}
+
+console.log('\n✓ Hợp đồng §3.13 và mã nguồn khớp 1-1 (' + expectedN.size + ' route).');
+process.exit(0);

@@ -1,255 +1,282 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
-import type { DatasetColumn } from '../../../../services/processing/dataset.service'
 import type { Project } from '../../../../types/preview/preview.types'
-import type { AnalysisConfigInput, CreateFeedbackInput } from '../../../../services/processing/analysis.service'
-import styles from '../project-workspace.module.css'
+import { AnalysisFeedbackPanel } from './analysis-feedback-panel'
+import { ApiError } from '../../../../lib/api-error'
+import { ModuleNotice } from './module-notice'
+import { AnalysisResultOverview } from './analysis-result-overview'
+import { AnalysisJobPanel } from './analysis-job-panel'
+import { Button } from '../../../../components/ui/primitives/button'
+import { Input } from '../../../../components/ui/primitives/input'
+import { Select } from '../../../../components/ui/form/select'
+import styles from './module-content.module.css'
 
 type RecordValue = Record<string, unknown>
 const asRecord = (value: unknown): RecordValue | null =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? value as RecordValue : null
 const readString = (value: unknown): string => typeof value === 'string' ? value : ''
+const objectId = (value: unknown) => /^[a-f\d]{24}$/i.test(readString(value)) ? readString(value) : ''
+const missingResult = (error: unknown) => error instanceof ApiError && error.status === 404
+  && /Chưa có lần phân tích|Chưa có kết quả phân tích/.test(error.message)
+const jobFromResult = (result: RecordValue | null) => objectId(result?.['jobId'])
+  || objectId(readString(result?.['pollUrl']).match(/\/analysis\/jobs\/([a-f\d]{24})$/i)?.[1])
+const pollIntervalMs = 2000
+const maxJobChecks = 30
+
 const formatResponse = (value: unknown): string => JSON.stringify(value, null, 2) ?? String(value)
 const message = (error: unknown) => error instanceof Error ? error.message : 'Yêu cầu không thành công.'
-const labels = [
-  ['correct', 'Chính xác'],
-  ['partially_correct', 'Đúng một phần'],
-  ['false_positive', 'Cảnh báo sai'],
-  ['missed_issue', 'Bỏ sót vấn đề'],
-  ['other', 'Khác'],
-] as const
 
-export function LiveAnalysisPanel({ project, canExecute, onAnalysisRun }: {
+export function LiveAnalysisPanel({ project, canExecute }: {
   project: Project
   canExecute: boolean
-  onAnalysisRun: () => void
 }) {
   const store = useManagementStore()
   const service = store.analysisService
-  const datasetId = project.dataset?.id
-  const [columns, setColumns] = useState<DatasetColumn[]>([])
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([])
-  const [labelColumn, setLabelColumn] = useState('')
-  const [timeColumn, setTimeColumn] = useState('')
-  const [timeGranularity, setTimeGranularity] = useState<'day' | 'week' | 'month' | 'year'>('day')
-  const [valueColumn, setValueColumn] = useState('')
   const [correlationMethod, setCorrelationMethod] = useState<'pearson' | 'spearman'>('pearson')
   const [outlierMethod, setOutlierMethod] = useState<'iqr' | 'modified_zscore' | 'both'>('iqr')
   const [topN, setTopN] = useState(10)
-  const [analysisId, setAnalysisId] = useState('')
+  const [chartTopN, setChartTopN] = useState(5)
+  const datasetId = project.dataset?.id
+  const [latestResult, setLatestResult] = useState<RecordValue | null>(null)
+  const [loadingResult, setLoadingResult] = useState(true)
+  const [resultError, setResultError] = useState('')
+  const analysisId = objectId(latestResult?.['analysisRunId'])
   const [jobId, setJobId] = useState('')
+  const [job, setJob] = useState<unknown>(null)
+  const assessment = latestResult?.['aiCorrelationAssessment']
+  const [polling, setPolling] = useState(false)
+  const mutationActive = useRef(false)
+  const [jobOperation, setJobOperation] = useState<'check' | 'retry' | null>(null)
+  const [jobCheckedAt, setJobCheckedAt] = useState<Date | null>(null)
+  const [jobError, setJobError] = useState('')
   const [reportId, setReportId] = useState('')
-  const [feedbackId, setFeedbackId] = useState('')
-  const [findingId, setFindingId] = useState('')
-  const [feedbackLabel, setFeedbackLabel] = useState<CreateFeedbackInput['label']>('correct')
-  const [feedbackReason, setFeedbackReason] = useState('')
-  const [suggestedSeverity, setSuggestedSeverity] = useState<'low' | 'medium' | 'high' | 'critical' | ''>('')
   const [response, setResponse] = useState<unknown>(null)
+  const [technicalOpen, setTechnicalOpen] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    if (!service || !datasetId) return
+    const controller = new AbortController()
+    void service.getResult(project.id, controller.signal).then(result => {
+      if (!controller.signal.aborted) setLatestResult(asRecord(result))
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted && !missingResult(cause)) setResultError(message(cause))
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoadingResult(false)
+    })
+    return () => controller.abort()
+  }, [datasetId, project.id, service])
 
   useEffect(() => {
-    if (!service || !datasetId || !store.datasetService) { setLoading(false); return }
+    if (!service || !jobId || !analysisId || jobOperation !== null) return
     const controller = new AbortController()
-    const schemaRequest = store.datasetService.schema(datasetId, controller.signal)
-    void Promise.all([service.getConfig(project.id, controller.signal), schemaRequest]).then(([saved, schema]) => {
-      if (controller.signal.aborted) return
-      const config = asRecord(saved)
-      setColumns(schema)
-      if (config) {
-        const keyFor = (value: string) => schema.find(column => column.key === value || column.name === value)?.key ?? value
-        setSelectedColumns(Array.isArray(config['selectedColumns'])
-          ? config['selectedColumns'].filter((item): item is string => typeof item === 'string').map(keyFor) : [])
-        setLabelColumn(keyFor(readString(config['labelColumn'])))
-        setTimeColumn(keyFor(readString(config['timeColumn'])))
-        setValueColumn(keyFor(readString(config['valueColumn'])))
-        if (config['timeGranularity'] === 'week' || config['timeGranularity'] === 'month' || config['timeGranularity'] === 'year') setTimeGranularity(config['timeGranularity'])
-        if (config['correlationMethod'] === 'spearman') setCorrelationMethod('spearman')
-        if (config['outlierMethod'] === 'modified_zscore' || config['outlierMethod'] === 'both') setOutlierMethod(config['outlierMethod'])
-        if (typeof config['topN'] === 'number' && Number.isInteger(config['topN'])) setTopN(config['topN'])
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let checks = 0
+    const serviceForJob = service
+
+    const check = async () => {
+      setPolling(true)
+      try {
+        const payload = await serviceForJob.getJob(jobId, controller.signal)
+        if (controller.signal.aborted) return
+        const record = asRecord(payload)
+        if (record?.['jobId'] !== jobId || record['analysisRunId'] !== analysisId) {
+          throw new Error('Máy chủ trả về tác vụ không khớp với lần phân tích hiện tại.')
+        }
+        setJob(record)
+        setJobCheckedAt(new Date())
+        const jobStatus = record['status']
+        if (jobStatus === 'pending' || jobStatus === 'running') {
+          checks += 1
+          if (checks < maxJobChecks) {
+            timer = setTimeout(() => { void check() }, pollIntervalMs)
+            return
+          }
+          setJobError('Đã tạm dừng theo dõi. Bạn có thể kiểm tra lại trạng thái.')
+        } else if (jobStatus === 'succeeded') {
+          const result = asRecord(await serviceForJob.getResult(project.id, controller.signal))
+          if (!controller.signal.aborted && result?.['analysisRunId'] === analysisId) {
+            setLatestResult(result)
+          }
+        }
+      } catch (cause) {
+        if (!controller.signal.aborted) setJobError(message(cause))
       }
-      setError('')
-    }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setError(message(cause))
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
-  }, [datasetId, project.id, service, store.datasetService])
+      if (!controller.signal.aborted) setPolling(false)
+    }
+
+    timer = setTimeout(() => { void check() }, 0)
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+    }
+  }, [analysisId, jobId, jobOperation, project.id, service])
 
   const action = async (operation: () => Promise<void>) => {
-    if (busy) return
+    if (mutationActive.current) return
+    mutationActive.current = true
     setBusy(true); setError(''); setStatus('')
-    try { await operation() } catch (cause) { setError(message(cause)) } finally { setBusy(false) }
+    try { await operation() } catch (cause) { setError(message(cause)) } finally { mutationActive.current = false; setBusy(false) }
   }
-  const configPayload = (): AnalysisConfigInput => ({
-    selected_columns: selectedColumns.map(key => columns.find(column => column.key === key)?.name ?? key),
-    label_column: labelColumn ? columns.find(column => column.key === labelColumn)?.name ?? labelColumn : null,
-    time_column: timeColumn ? columns.find(column => column.key === timeColumn)?.name ?? timeColumn : null,
-    time_granularity: timeGranularity,
-    value_column: valueColumn ? columns.find(column => column.key === valueColumn)?.name ?? valueColumn : null,
-    correlation_method: correlationMethod,
-    outlier_method: outlierMethod,
-    top_n: topN,
-  })
-  const saveConfig = () => action(async () => {
-    const saved = await service!.saveConfig(project.id, configPayload())
-    setResponse(saved); setStatus('Đã lưu cấu hình phân tích.')
-  })
   const runAnalysis = () => action(async () => {
     const result = await service!.run(project.id, {
-      selected_columns: configPayload().selected_columns ?? [],
       correlation_method: correlationMethod,
       outlier_method: outlierMethod,
       top_n: topN,
+      chart_top_n: chartTopN,
     })
     const record = asRecord(result)
-    const id = readString(record?.['analysisId'])
-    const pollUrl = readString(record?.['pollUrl'])
-    const job = readString(record?.['jobId']) || pollUrl.split('/').filter(Boolean).at(-1) || ''
-    if (id) setAnalysisId(id)
-    setJobId(job)
-    onAnalysisRun()
-    setResponse(result); setStatus('Đã nhận kết quả chạy phân tích.')
+    setLatestResult(record)
+    setResultError('')
+    setReportId('')
+    setJobId(jobFromResult(record))
+    setJob(null)
+    setPolling(false)
+    setJobCheckedAt(null)
+    setJobError('')
+    setResponse(null); setStatus('Đã nhận kết quả chạy phân tích.')
   })
-  const submitFeedback = (finding = false) => action(async () => {
-    if (!analysisId) throw new Error('Cần có mã lần phân tích trước khi gửi feedback.')
-    if ((feedbackLabel === 'false_positive' || feedbackLabel === 'missed_issue' || feedbackLabel === 'other') && !feedbackReason.trim()) {
-      throw new Error('Với nhãn đã chọn, cần nhập lý do.')
+  const loadResult = () => action(async () => {
+    const result = await service!.getResult(project.id)
+    const record = asRecord(result)
+    if (objectId(record?.['analysisRunId']) !== analysisId) {
+      setReportId('')
+      setJobId('')
+      setJob(null)
+      setPolling(false)
     }
-    const body: CreateFeedbackInput = {
-      label: feedbackLabel,
-      reason: feedbackReason.trim() || null,
-      suggestedSeverity: suggestedSeverity || null,
+    setLatestResult(record)
+    setResultError('')
+    setResponse(null)
+  })
+
+  const changeJob = (operation: 'check' | 'retry') => action(async () => {
+    const id = jobId.trim()
+    if (!service || !id || (operation === 'retry' && !canExecute)) return
+    setPolling(false)
+    setJobOperation(operation)
+    setJobError('')
+    try {
+      const result = operation === 'check' ? await service.getJob(id) : await service.retryJob(id)
+      const record = asRecord(result)
+      const nextId = objectId(record?.['jobId'])
+      if (operation === 'retry') {
+        if (!nextId) throw new Error('Máy chủ chưa trả mã tác vụ mới.')
+        setJobId(nextId)
+      } else if (nextId !== id || record?.['analysisRunId'] !== analysisId) {
+        throw new Error('Máy chủ trả về tác vụ không khớp với lần phân tích hiện tại.')
+      }
+      setJob(result)
+      setJobCheckedAt(new Date())
+    } catch (cause) {
+      setJobError(message(cause))
+    } finally {
+      setJobOperation(null)
     }
-    const result = finding
-      ? findingId ? await service!.createFindingFeedback(analysisId, findingId, body) : (() => { throw new Error('Nhập mã finding trước.') })()
-      : await service!.createRunFeedback(analysisId, body)
-    setResponse(result); setStatus('Đã gửi feedback.')
   })
 
   if (!service) return <p>Analysis API chỉ khả dụng trong chế độ đăng nhập trực tuyến.</p>
   if (!project.dataset) return <p>Project cần có dataset trước khi chạy phân tích.</p>
 
-  return <section className={styles['analysisPanel']} aria-label="Phân tích dữ liệu trực tuyến">
-    {loading && <p role="status">Đang tải cấu hình phân tích.</p>}
+  const validOptions = Number.isInteger(topN) && topN >= 1 && topN <= 100
+    && Number.isInteger(chartTopN) && chartTopN >= 1 && chartTopN <= 20
+  const runBlocked = project.dataset.status !== 'processed' ? 'Tập dữ liệu cần xử lý xong trước khi phân tích.'
+    : !canExecute ? 'Bạn có quyền xem nhưng chưa có quyền chạy phân tích.'
+      : !validOptions ? 'Top N cần từ 1–100 và Top N biểu đồ từ 1–20.' : ''
+
+  return <section className={styles['stack']} aria-label="Phân tích dữ liệu trực tuyến">
     {error && <p role="alert">{error}</p>}
     {status && <p role="status">{status}</p>}
 
-    <section className={styles['analysisSection']}>
-      <h3>Cấu hình phân tích</h3>
-      <fieldset className={styles['analysisColumns']}>
-        <legend>Cột cần phân tích</legend>
-        {columns.map(column => <label key={column.key}>
-          <input type="checkbox" checked={selectedColumns.includes(column.key)} onChange={event => {
-            setSelectedColumns(current => event.target.checked
-              ? [...current, column.key] : current.filter(key => key !== column.key))
-          }} />
-          {column.name}
-        </label>)}
-        {!columns.length && <span>Không có schema cột để chọn.</span>}
-      </fieldset>
-      <label>Cột nhãn
-        <select value={labelColumn} onChange={event => setLabelColumn(event.target.value)}>
-          <option value="">Không chọn</option>{columns.map(column => <option key={column.key} value={column.key}>{column.name}</option>)}
-        </select>
-      </label>
-      <label>Cột thời gian
-        <select value={timeColumn} onChange={event => setTimeColumn(event.target.value)}>
-          <option value="">Tự nhận diện</option>{columns.filter(column => column.dataType === 'date').map(column => <option key={column.key} value={column.key}>{column.name}</option>)}
-        </select>
-      </label>
-      <label>Độ hạt thời gian
-        <select value={timeGranularity} onChange={event => setTimeGranularity(event.target.value as typeof timeGranularity)}>
-          <option value="day">Ngày</option><option value="week">Tuần</option><option value="month">Tháng</option><option value="year">Năm</option>
-        </select>
-      </label>
-      <label>Cột giá trị
-        <select value={valueColumn} onChange={event => setValueColumn(event.target.value)}>
-          <option value="">Không chọn</option>{columns.filter(column => column.dataType === 'number').map(column => <option key={column.key} value={column.key}>{column.name}</option>)}
-        </select>
-      </label>
-      <label>Tương quan
-        <select value={correlationMethod} onChange={event => setCorrelationMethod(event.target.value as typeof correlationMethod)}>
-          <option value="pearson">Pearson</option><option value="spearman">Spearman</option>
-        </select>
-      </label>
-      <label>Phát hiện ngoại lệ
-        <select value={outlierMethod} onChange={event => setOutlierMethod(event.target.value as typeof outlierMethod)}>
-          <option value="iqr">IQR</option><option value="modified_zscore">Modified Z-score</option><option value="both">Cả hai</option>
-        </select>
-      </label>
-      <label>Top N<input type="number" min={1} max={100} value={topN} onChange={event => setTopN(Number(event.target.value))} /></label>
-      <div className={styles['analysisActions']}>
-        <button disabled={!canExecute || busy || loading || !columns.length} onClick={() => { void saveConfig() }}>Lưu cấu hình</button>
-        <button disabled={!canExecute || project.dataset.status !== 'processed' || busy || loading || !columns.length} onClick={() => { void runAnalysis() }}>Chạy phân tích</button>
-        <button disabled={busy} onClick={() => { void action(async () => { const result = await service.getResult(project.id); const id = readString(asRecord(result)?.['analysisId']); if (id) setAnalysisId(id); setResponse(result) }) }}>Tải kết quả</button>
+    <section className={styles['card']}>
+      <div className={styles['cardHeading']}>
+        <div><h3>{project.dataset.fileName}</h3><p>{runBlocked || 'Tập dữ liệu đã sẵn sàng.'}</p></div>
+        <Button disabled={Boolean(runBlocked) || busy || loadingResult}
+          onClick={() => { void runAnalysis() }}>Chạy phân tích</Button>
       </div>
+      <details className={styles['disclosure']}>
+        <summary>Tùy chỉnh phân tích</summary>
+        <div className={styles['disclosureBody']}>
+          <div className={styles['fields']}>
+            <label>Tương quan
+              <Select value={correlationMethod} onChange={event => setCorrelationMethod(event.target.value as typeof correlationMethod)}>
+                <option value="pearson">Pearson</option><option value="spearman">Spearman</option>
+              </Select>
+            </label>
+            <label>Phát hiện ngoại lệ
+              <Select value={outlierMethod} onChange={event => setOutlierMethod(event.target.value as typeof outlierMethod)}>
+                <option value="iqr">IQR</option><option value="modified_zscore">Modified Z-score</option><option value="both">Cả hai</option>
+              </Select>
+            </label>
+            <label>Top N<Input type="number" min={1} max={100} value={topN} onChange={event => setTopN(Number(event.target.value))} /></label>
+            <label>Top N biểu đồ<Input type="number" min={1} max={20} value={chartTopN} onChange={event => setChartTopN(Number(event.target.value))} /></label>
+          </div>
+        </div>
+      </details>
     </section>
 
-    <section className={styles['analysisSection']}>
-      <h3>AI job</h3>
-      <label>Mã job<input value={jobId} onChange={event => setJobId(event.target.value)} /></label>
-      <div className={styles['analysisActions']}>
-        <button disabled={busy || !jobId} onClick={() => { void action(async () => { setResponse(await service.getJob(jobId)) }) }}>Xem trạng thái</button>
-        <button disabled={!canExecute || busy || !jobId} onClick={() => { void action(async () => { setResponse(await service.retryJob(jobId)) }) }}>Thử lại job</button>
+    <section className={styles['card']} aria-label="Kết quả phân tích">
+      <div className={styles['cardHeading']}>
+        <h3>Kết quả gần nhất</h3>
+        <Button variant="secondary" disabled={busy || loadingResult} onClick={() => { void loadResult() }}>Tải lại kết quả</Button>
       </div>
+      {loadingResult ? <ModuleNotice tone="loading">Đang tải kết quả…</ModuleNotice>
+        : resultError ? <ModuleNotice tone="error">{resultError}</ModuleNotice>
+          : latestResult ? <AnalysisResultOverview result={latestResult} runId={analysisId} service={service} />
+            : <ModuleNotice>Chưa có kết quả phân tích cho project này.</ModuleNotice>}
     </section>
 
-    <section className={styles['analysisSection']}>
-      <h3>Tổng kết và PDF</h3>
-      <label>Mã report<input value={reportId} onChange={event => setReportId(event.target.value)} /></label>
-      <div className={styles['analysisActions']}>
-        <button disabled={busy} onClick={() => { void action(async () => { setResponse(await service.getSummary(project.id)) }) }}>Tải tổng kết</button>
-        <button disabled={!canExecute || busy} onClick={() => { void action(async () => { setResponse(await service.createSummary(project.id)); setStatus('Đã tạo tổng kết.') }) }}>Tạo tổng kết</button>
-        <button disabled={!canExecute || busy} onClick={() => { void action(async () => {
-          const result = await service.requestReport(project.id)
-          const id = readString(asRecord(result)?.['reportId'])
-          if (id) setReportId(id)
-          setResponse(result); setStatus(id ? 'Đã yêu cầu tạo PDF.' : 'Đã gửi yêu cầu tạo PDF.')
-        }) }}>Yêu cầu PDF</button>
-        <button disabled={busy || !reportId} onClick={() => { void action(async () => {
-          const result = await service.downloadReport(project.id, reportId)
-          if (result.status === 'pending') { setResponse(result.metadata); setStatus('PDF chưa sẵn sàng; có thể kiểm tra lại.') ; return }
-          const url = URL.createObjectURL(result.file)
-          const link = document.createElement('a'); link.href = url; link.download = `report-${reportId}.pdf`; link.click()
-          setTimeout(() => URL.revokeObjectURL(url), 1000)
-          setStatus('Đã tải PDF.')
-        }) }}>Tải PDF</button>
-      </div>
-    </section>
+    {(Boolean(jobId) || asRecord(assessment) !== null) && <AnalysisJobPanel jobId={jobId} job={job} assessment={assessment} busy={busy} operation={jobOperation} polling={polling}
+      checkedAt={jobCheckedAt} error={jobError} canRetry={canExecute}
+      onCheck={() => { void changeJob('check') }} onRetry={() => { void changeJob('retry') }}
+      onResult={() => { void loadResult() }} />}
 
-    <section className={styles['analysisSection']}>
-      <h3>Feedback</h3>
-      <label>Mã lần phân tích<input value={analysisId} onChange={event => setAnalysisId(event.target.value)} /></label>
-      <label>Mã finding<input value={findingId} onChange={event => setFindingId(event.target.value)} /></label>
-      <label>Nhãn feedback
-        <select value={feedbackLabel} onChange={event => setFeedbackLabel(event.target.value as typeof feedbackLabel)}>
-          {labels.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-      </label>
-      <label>Lý do<input value={feedbackReason} maxLength={2000} onChange={event => setFeedbackReason(event.target.value)} /></label>
-      <label>Mức độ đề xuất
-        <select value={suggestedSeverity} onChange={event => setSuggestedSeverity(event.target.value as typeof suggestedSeverity)}>
-          <option value="">Không đề xuất</option><option value="low">Thấp</option><option value="medium">Trung bình</option><option value="high">Cao</option><option value="critical">Nghiêm trọng</option>
-        </select>
-      </label>
-      <div className={styles['analysisActions']}>
-        <button disabled={busy || !analysisId} onClick={() => { void submitFeedback() }}>Gửi feedback lần chạy</button>
-        <button disabled={busy || !analysisId || !findingId} onClick={() => { void submitFeedback(true) }}>Gửi feedback finding</button>
-        <button disabled={busy || !analysisId} onClick={() => { void action(async () => { setResponse(await service.listRunFeedback(analysisId, { limit: 20 })) }) }}>Xem feedback lần chạy</button>
-        <button disabled={busy || !analysisId || !findingId} onClick={() => { void action(async () => { setResponse(await service.listFindingFeedback(analysisId, findingId, { limit: 20 })) }) }}>Xem feedback finding</button>
-        <button disabled={busy || !feedbackId} onClick={() => { void action(async () => { setResponse(await service.updateFeedback(feedbackId, { label: feedbackLabel, reason: feedbackReason.trim() || null, suggestedSeverity: suggestedSeverity || null })) }) }}>Cập nhật feedback</button>
-        <button disabled={busy || !feedbackId} onClick={() => { void action(async () => { setResponse(await service.deleteFeedback(feedbackId)); setStatus('Đã xóa feedback.') }) }}>Xóa feedback</button>
-        <button disabled={busy} onClick={() => { void action(async () => { setResponse(await service.getAiQualityMetrics(project.id)) }) }}>Chỉ số chất lượng AI</button>
+    <details className={styles['disclosure']}>
+      <summary>Tổng kết và PDF</summary>
+      <div className={styles['disclosureBody']}>
+        <label className={styles['field']}>Mã report<Input value={reportId} onChange={event => setReportId(event.target.value)} /></label>
+        <div className={styles['actions']}>
+          <Button variant="secondary" disabled={busy} onClick={() => { void action(async () => { setResponse(await service.getSummary(project.id)) }) }}>Tải tổng kết</Button>
+          <Button variant="secondary" disabled={!canExecute || busy} onClick={() => { void action(async () => { setResponse(await service.createSummary(project.id)); setStatus('Đã tạo tổng kết.') }) }}>Tạo tổng kết</Button>
+          <Button variant="secondary" disabled={!canExecute || busy} onClick={() => { void action(async () => {
+            const result = await service.requestReport(project.id)
+            const id = readString(asRecord(result)?.['reportId'])
+            if (id) setReportId(id)
+            setResponse(result); setStatus(id ? 'Đã yêu cầu tạo PDF.' : 'Đã gửi yêu cầu tạo PDF.')
+          }) }}>Yêu cầu PDF</Button>
+          <Button variant="secondary" disabled={busy || !reportId} onClick={() => { void action(async () => {
+            const result = await service.downloadReport(project.id, reportId)
+            if (result.status === 'pending') {
+              const metadata = asRecord(result.metadata)
+              setResponse(result.metadata)
+              if (metadata?.['status'] === 'failed') {
+                const detail = readString(asRecord(metadata['error'])?.['message']) || readString(metadata['error'])
+                throw new Error(detail ? `Không tạo được PDF. ${detail}` : 'Không tạo được PDF. Hãy yêu cầu tạo lại.')
+              }
+              setStatus('PDF đang được tạo. Kiểm tra lại sau.')
+              return
+            }
+            const url = URL.createObjectURL(result.file)
+            const link = document.createElement('a'); link.href = url; link.download = `report-${reportId}.pdf`; link.click()
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+            setStatus('Đã tải PDF.')
+          }) }}>Tải PDF</Button>
+        </div>
       </div>
-      <label>Mã feedback cần sửa/xóa<input value={feedbackId} onChange={event => setFeedbackId(event.target.value)} /></label>
-    </section>
+    </details>
 
-    {response !== null && <details className={styles['analysisResponse']} open>
-      <summary>Kết quả phản hồi API</summary>
-      <pre>{formatResponse(response)}</pre>
+    <AnalysisFeedbackPanel key={analysisId} runId={analysisId} service={service} />
+
+    {(latestResult || response !== null) && <details className={styles['disclosure']}
+      onToggle={event => setTechnicalOpen(event.currentTarget.open)}>
+      <summary>Chi tiết kỹ thuật</summary>
+      {technicalOpen && <div className={styles['disclosureBody']}>
+        {latestResult && <pre aria-label="Dữ liệu kết quả phân tích" className={styles['response']} tabIndex={0}>{formatResponse(latestResult)}</pre>}
+        {response !== null && response !== latestResult &&
+          <pre aria-label="Phản hồi thao tác gần nhất" className={styles['response']} tabIndex={0}>{formatResponse(response)}</pre>}
+      </div>}
     </details>}
   </section>
 }

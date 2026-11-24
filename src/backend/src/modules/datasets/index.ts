@@ -17,9 +17,17 @@ export {
   type DatasetColumnIssue,
   type DatasetColumnIssueType,
   type DatasetDelimiter,
+  type DatasetFinding,
   type DatasetProps,
   type DatasetStatus,
 } from './domain/entities/dataset.entity';
+
+// ── Mục "Phát hiện" (OPEN-03/04/05) ─────────────────────────────────────
+export {
+  makeFinding,
+  type DatasetFindingSeverity,
+  type DatasetFindingType,
+} from './domain/services/finding.util';
 
 export {
   DATASET_REPOSITORY_PORT,
@@ -31,6 +39,7 @@ export {
 export {
   RECORD_QUERY_PORT,
   type ColumnStatsResult,
+  type ColumnValuesResult,
   type DatasetColumnRef,
   type RecordFilter,
   type RecordFilterOperator,

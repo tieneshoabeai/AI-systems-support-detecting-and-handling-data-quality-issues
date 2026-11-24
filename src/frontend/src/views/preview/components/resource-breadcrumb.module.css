@@ -1,0 +1,23 @@
+.root { flex: 0 1 auto; min-width: 0; max-width: 100%; width: fit-content; }
+.root ol {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px 4px;
+  margin: 0; padding: 4px; list-style: none;
+  border: 1px solid var(--pv-line); border-radius: 13px; background: var(--pv-bg-1);
+}
+.root li { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.root li > svg { width: 15px; height: 15px; flex: none; color: var(--pv-muted); }
+.root .link, .current {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 32px;
+  min-width: 0; padding: 4px 9px; border: 1px solid transparent; border-radius: 8px;
+  color: var(--pv-muted); font-size: 12px; font-weight: 650;
+}
+.root .link:hover { background: var(--pv-blue-soft); color: var(--pv-ink); }
+.current {
+  border-color: color-mix(in srgb, var(--pv-blue) 30%, var(--pv-line));
+  background: var(--pv-blue-soft); color: var(--pv-ink); font-weight: 700;
+}
+.link > svg, .current > svg { width: 16px; height: 16px; color: var(--pv-ink-link); flex: none; }
+.link > span, .current > span {
+  min-width: 0; max-width: min(32ch, 65vw);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

@@ -135,7 +135,7 @@ it('renders the project shell immediately and scopes requests to the selected pr
   expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/projects/p1/datasets', '/workspaces/w1'])
 })
 
-it('keeps the scene mounted while preloading records and reads Detection before any run', async () => {
+it('preloads records and opens Analysis without prefetching Detection', async () => {
   let finishProject!: (value: unknown) => void
   let finishWorkspace!: (value: unknown) => void
   let finishRecords!: (value: unknown) => void
@@ -170,17 +170,18 @@ it('keeps the scene mounted while preloading records and reads Detection before 
   expect(menu.disabled).toBe(false)
   expect(screen.getByTestId('project-scene')).toBe(scene)
   expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/datasets/d1/records', params: { limit: 50, cursor: undefined } }))
-  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))
+  expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))
   expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis' }))
 
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
   expect(screen.getByText('Đang tải dữ liệu từ máy chủ.')).toBeDefined()
   await act(async () => { finishRecords({ items: [], meta: { hasMore: false, nextCursor: null } }) })
   expect(transport.request.mock.calls.filter(([r]) => r.path === '/datasets/d1/records')).toHaveLength(1)
-  fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
-  expect(screen.getByText(/Kết quả đã lưu.*0 vi phạm/)).toBeDefined()
-  fireEvent.click(screen.getByRole('button', { name: 'Chạy Detection' }))
-  expect(await screen.findByText(/Kết quả đã lưu.*1 vi phạm/)).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Data Analysis' }))
+  await screen.findByText('Kết quả này chưa có số liệu tổng quan.')
+  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))
+  expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis', method: 'POST' }))
 })
 
 it('waits for API data and exposes the real store without fixture records', async () => {

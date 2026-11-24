@@ -78,16 +78,33 @@ export class BuildPromptForJobHandler {
     const piiColumnKeys = new Set(
       (dataset?.columns ?? []).filter((c) => c.isPii).map((c) => c.name),
     );
+    // GĐ2 — dùng vai trò cột đã lưu trong result (suy ở run-analysis) để
+    // maskForAi quyết định raw/shape/***; fallback null khi thiếu.
+    const storedRoles = (result as unknown as { columnRoles?: unknown }).columnRoles;
+    const aiRoleByKey = new Map<string, string>();
+    if (Array.isArray(storedRoles)) {
+      for (const r of storedRoles as Array<{ name?: string; key?: string; role?: string }>) {
+        const k = (r.name ?? r.key) as string | undefined;
+        if (k && r.role) aiRoleByKey.set(k, r.role);
+      }
+    }
     const maskedSamples: Record<string, string[]> = {};
     for (const key of result.correlationMatrix.columns) {
       const samples: string[] = [];
       const markedPii = piiColumnKeys.has(key);
+      const aiRole = (aiRoleByKey.get(key) ?? roleByKey.get(key) ?? null) as
+        | 'identifier'
+        | 'category'
+        | 'measure'
+        | 'text'
+        | 'datetime'
+        | null;
       for (const row of rows) {
         if (samples.length >= 20) break;
         const v = row[key];
         if (v === null || v === undefined || v === '') continue;
-        const masked = maskSampleValue(v, markedPii);
-        if (masked === null) continue; // ô không che được → loại khỏi prompt
+        const masked = maskSampleValue(v, markedPii, aiRole);
+        if (masked === null) continue; // ô thiếu → bỏ qua
         samples.push(masked);
       }
       maskedSamples[key] = samples;

@@ -5,6 +5,7 @@
  */
 import {
   Dataset,
+  detectColumnIssues,
   type DatasetColumn,
 } from '../src/modules/datasets/domain/entities/dataset.entity';
 import {
@@ -150,30 +151,36 @@ describe('Dataset entity — assertIngestible()', () => {
 });
 
 /**
- * BẤT BIẾN DỮ LIỆU — sau khi nạp, nội dung dataset không được sửa.
+ * BẤT BIẾN DỮ LIỆU — sau khi nạp, **không có** method nào sửa được dataset.
  *
- * Các method `rename()` / `renameColumns()` / `resetColumnNames()` đã bị gỡ
- * khỏi entity `Dataset` (và route HTTP tương ứng đã bị gỡ khỏi controller).
- * Bộ test này khoá lại hành vi đó: không còn cách nào đổi tên dataset, đổi tên
- * cột hay khôi phục tên cột gốc.
+ * OPEN-03 (chốt 2026-11-19): hệ thống **chỉ nhận dataset và phân tích**.
+ * Các method `rename()`, `renameColumns()`, `resetColumnNames()` đã bị **xoá**
+ * khỏi entity cùng với các endpoint tương ứng:
+ *   - `PATCH /datasets/{id}`              (đổi tên dataset)
+ *   - `PATCH /datasets/{id}/columns`      (đổi tên hiển thị cột)
+ *   - `POST  /datasets/{id}/columns/reset` (khôi phục tên gốc)
+ *
+ * Muốn sửa ⇒ **xoá dataset và nạp lại** file đã chỉnh sửa.
  */
-describe('Dataset entity — bất biến dữ liệu (không có method sửa nội dung)', () => {
-  it('không còn method rename() trên entity', () => {
+describe('Dataset entity — bất biến nội dung dữ liệu', () => {
+  it('entity KHÔNG có method đổi tên dataset / tên cột / reset tên cột', () => {
     const dataset = buildDataset();
-    expect((dataset as unknown as Record<string, unknown>)['rename']).toBeUndefined();
+    const proto = dataset as unknown as Record<string, unknown>;
+    for (const forbidden of [
+      'rename',
+      'renameColumns',
+      'resetColumnNames',
+      'updateCell',
+      'setCell',
+      'updateRow',
+      'setRows',
+      'deleteRow',
+    ]) {
+      expect(proto[forbidden]).toBeUndefined();
+    }
   });
 
-  it('không còn method renameColumns() trên entity', () => {
-    const dataset = buildDataset();
-    expect((dataset as unknown as Record<string, unknown>)['renameColumns']).toBeUndefined();
-  });
-
-  it('không còn method resetColumnNames() trên entity', () => {
-    const dataset = buildDataset();
-    expect((dataset as unknown as Record<string, unknown>)['resetColumnNames']).toBeUndefined();
-  });
-
-  it('tên dataset giữ nguyên sau khi tạo (không đổi được)', () => {
+  it('tên dataset giữ nguyên sau khi tạo (không tự đổi)', () => {
     const dataset = buildDataset();
     expect(dataset.name).toBe('f');
   });
@@ -183,6 +190,17 @@ describe('Dataset entity — bất biến dữ liệu (không có method sửa n
     expect(dataset.columnByKey('c0')?.name).toBe('Ten');
     expect(dataset.columnByKey('c0')?.key).toBe('c0');
     expect(dataset.columnByKey('c0')?.originalName).toBe('Ten');
+  });
+
+  it('columnIssues được tính tự động và chặn phân tích', () => {
+    const columns = [
+      { ...buildColumn(), key: 'c0', index: 0, name: 'Ten', originalName: 'Ten' },
+      { ...buildColumn(), key: 'c1', index: 1, name: 'Ten', originalName: 'Ten' },
+    ];
+    const dataset = buildDataset({ columns, columnIssues: detectColumnIssues(columns) });
+    expect(dataset.hasColumnIssues()).toBe(true);
+    expect(dataset.columnIssues[0]?.issue).toBe('duplicate_name');
+    expect(dataset.columnIssues[0]?.columnKey).toBe('c1');
   });
 });
 

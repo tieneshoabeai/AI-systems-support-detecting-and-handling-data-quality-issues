@@ -58,7 +58,15 @@ export class RefreshAccessTokenHandler {
       if (!user || isAccountLocked(user.status) || user.deletedAt !== null) {
         throw new UnauthenticatedError('Tài khoản liên kết không còn hoạt động');
       }
-      // Rotation: revoke session cũ, tạo session mới (giữ nguyên cờ remember-me & hạn còn lại)
+      // Rotation: revoke session cũ, tạo session mới.
+      //
+      // OPEN-02 — **gia hạn trượt (sliding expiration)**: `expiresAt` của session
+      // mới = `now + TTL` (KHÔNG phải `expiresAt` cũ). Mỗi lần refresh, phiên
+      // được kéo dài thêm một TTL → phiên có thể sống vô hạn nếu client refresh
+      // liên tục.
+      //
+      // Hệ quả đã được xử lý: tái sử dụng refresh token đã thu hồi ⇒ thu hồi
+      // **toàn bộ** phiên của user (`AUTH-12`, xem nhánh bên dưới).
       await this.sessions.revokeSessionById(session.id).catch(() => undefined);
       const rawNew = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
       const newHash = computeSha256Buffer(rawNew);

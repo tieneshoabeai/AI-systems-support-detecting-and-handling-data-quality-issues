@@ -53,7 +53,8 @@ function GlassFallback() {
   return <p className="auth-glass-fallback">Thiết bị không hiển thị được khối 3D.</p>
 }
 
-function GlassScene({ onStartDrag, pageElement, formElement, registerElement, activePanel, low, dragLight, lensDebug, lensThickness, onSceneStatus }: {
+function GlassScene({ onStartDrag, pageElement, formElement, registerElement, activePanel, low, dragLight, lensDebug, lensThickness, onSceneStatus, colorMode }: {
+  colorMode: 'light' | 'dark'
   onStartDrag?: StartAssemblyDrag
   pageElement?: FormRef
   formElement?: FormRef
@@ -69,15 +70,14 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
   const canvas = useThree(state => state.gl.domElement)
   const loginArtwork = useRef<Mesh>(null)
   const registerArtwork = useRef<Mesh>(null)
+  const loginRearArtwork = useRef<Mesh>(null)
+  const registerRearArtwork = useRef<Mesh>(null)
   const turntable = useRef<Group>(null)
   const framing = useRef<'desktop' | AuthGlassPanel | null>(null)
   const previousPanel = useRef(activePanel)
   const reportedReady = useRef(false)
   const resources = useMemo(() => {
     const geometry = createAuthGlassGeometry()
-    // The interactive panels use HTML for the active form. Their artwork can
-    // use a smaller texture to reduce the initial WebGL upload.
-    const resolution = low ? 512 : formElement ? 768 : 1024
     const layout = panels.map(({ name, yaw, seamSide }) => ({
       name,
       yaw,
@@ -94,20 +94,27 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
         depth: slab.depth,
       },
       fallback: createAuthFallbackMaterial(),
-      loginFront: createAuthArtwork('login', false, resolution),
-      loginBack: createAuthArtwork('login', true, resolution / 2),
-      registerFront: createAuthArtwork('register', false, resolution),
-      registerBack: createAuthArtwork('register', true, resolution / 2),
     }
-  }, [low, formElement])
+  }, [])
 
   useEffect(() => () => {
     resources.geometry.dispose()
     resources.fallback.dispose()
-    for (const texture of [resources.loginFront, resources.loginBack, resources.registerFront, resources.registerBack]) {
-      texture?.dispose()
-    }
   }, [resources])
+
+  // The active form renders as HTML, so the interactive scene can use smaller textures.
+  const resolution = low ? 512 : formElement ? 768 : 1024
+  const artwork = useMemo(() => ({
+    loginFront: createAuthArtwork('login', false, resolution, colorMode),
+    loginBack: createAuthArtwork('login', true, resolution / 2, colorMode),
+    registerFront: createAuthArtwork('register', false, resolution, colorMode),
+    registerBack: createAuthArtwork('register', true, resolution / 2, colorMode),
+  }), [colorMode, resolution])
+
+  useEffect(() => {
+    invalidate()
+    return () => Object.values(artwork).forEach(texture => texture?.dispose())
+  }, [artwork, invalidate])
 
   useEffect(() => {
     const detachForm = () => {
@@ -130,10 +137,10 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
     }
   }, [canvas, formElement, registerElement, invalidate, onSceneStatus])
 
-  useEffect(() => invalidate(), [activePanel, invalidate])
+  useEffect(() => invalidate(), [activePanel, colorMode, invalidate])
 
   const { assembly: root, loginGroup, registerGroup, loginMesh, registerMesh } =
-    useAuthGlassRender(resources.fallback, low, dragLight, lensDebug, lensThickness)
+    useAuthGlassRender(resources.fallback, low, dragLight, lensDebug, lensThickness, colorMode)
 
   useFrame(({ camera, size, gl }) => {
     const registering = activePanel === 'register'
@@ -196,8 +203,8 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
     >
       {resources.layout.map(({ name, position, yaw }) => {
         const login = name === 'LoginPanel'
-        const front = login ? resources.loginFront : resources.registerFront
-        const rear = login ? resources.loginBack : resources.registerBack
+        const front = login ? artwork.loginFront : artwork.registerFront
+        const rear = login ? artwork.loginBack : artwork.registerBack
         return <group ref={login ? loginGroup : registerGroup} key={name} name={name} position={position} rotation-y={yaw}>
           <mesh
             ref={login ? loginMesh : registerMesh}
@@ -209,7 +216,7 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
             <planeGeometry args={[faceWidth, faceHeight]} />
             <meshBasicMaterial map={front} transparent depthWrite={false} toneMapped={false} />
           </mesh>}
-          {rear && <mesh name="RearArtwork" position={[0, slab.height / 2, -faceZ]} rotation-y={Math.PI}>
+          {rear && <mesh ref={login ? loginRearArtwork : registerRearArtwork} name="RearArtwork" position={[0, slab.height / 2, -faceZ]} rotation-y={Math.PI}>
             <planeGeometry args={[faceWidth, faceHeight]} />
             <meshBasicMaterial map={rear} transparent depthWrite={false} toneMapped={false} />
           </mesh>}
@@ -219,12 +226,12 @@ function GlassScene({ onStartDrag, pageElement, formElement, registerElement, ac
   )
 
   return <>
-    <AuthGlassBackdrop {...(pageElement === undefined ? {} : { pageElement: pageElement })} />
+    <AuthGlassBackdrop colorMode={colorMode} {...(pageElement === undefined ? {} : { pageElement: pageElement })} />
     <ambientLight intensity={1.1} />
     <directionalLight position={[-3, 6, 5]} intensity={2.0} />
     <directionalLight position={[4, -2, 3]} intensity={1.3} color="#84cfff" />
     <group position={[seamPosition[0], 0, seamPosition[2]]}>
-      {formElement ? <DisplayBase low={low} footlights={resources.footlights} turntable={{
+      {formElement ? <DisplayBase low={low} colorMode={colorMode} footlights={resources.footlights} turntable={{
         ref: turntable,
         ...(onStartDrag ? { onPointerDown: (event: ThreeEvent<PointerEvent>) => onStartDrag(event, invalidate) } : {}),
       }}>
@@ -247,8 +254,9 @@ function focusPanelField(form: HTMLElement, panel: AuthGlassPanel) {
 
 export function AuthGlassStage({
   view = 'hero', interactive = false, formElement, registerElement, activePanel = 'login', onPanelChange, onRotateStart, low = false,
-  lensDebug, lensThickness, onSceneStatus, pageElement,
+  lensDebug, lensThickness, onSceneStatus, pageElement, colorMode = 'dark',
 }: {
+  colorMode?: 'light' | 'dark'
   view?: AuthGlassView
   interactive?: boolean
   pageElement?: FormRef
@@ -368,6 +376,7 @@ export function AuthGlassStage({
         <GlassSceneBoundary {...(onSceneStatus === undefined ? {} : { onSceneStatus: onSceneStatus })}>
           <Canvas key={view} camera={camera} frameloop="demand" dpr={low ? 1 : [1, 1.5]} fallback={<GlassFallback />}>
             <GlassScene
+              colorMode={colorMode}
               {...(canRotate ? { onStartDrag: startDrag } : {})}
               {...(pageElement === undefined ? {} : { pageElement: pageElement })}
               {...(formElement === undefined ? {} : { formElement: formElement })}
@@ -384,7 +393,6 @@ export function AuthGlassStage({
       )}
     </div>
     {canRotate && <div className="auth-glass-interaction">
-      <span>Kéo ngang để xoay · Chạm panel để nhập</span>
       <button type="button" onClick={() => openPanel(activePanel === 'login' ? 'register' : 'login')}>
         {activePanel === 'login' ? 'Đăng ký' : 'Đăng nhập'}
       </button>

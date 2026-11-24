@@ -23,12 +23,15 @@ import type { CursorMeta } from '../../../../shared/domain/pagination/cursor-pag
 import { createCursorPage } from '../../../../shared/domain/pagination/cursor-paginated.response';
 import { DEFAULT_LIMIT } from '../projects.types';
 import { ValidationError } from '../../../../shared/domain/errors';
+import { WORKSPACE_REPOSITORY_PORT, type WorkspaceRepositoryPort } from '../../../workspaces';
 
 @Injectable()
 export class ListAllProjectsHandler {
   constructor(
     @Inject(PROJECT_REPOSITORY_PORT)
     private readonly projects: ProjectRepositoryPort,
+    @Inject(WORKSPACE_REPOSITORY_PORT)
+    private readonly workspaces: WorkspaceRepositoryPort,
   ) {}
 
   async execute(
@@ -51,6 +54,18 @@ export class ListAllProjectsHandler {
       throw e;
     }
 
+    // Lớp phòng thủ: loại project thuộc workspace đã bị xóa.
+    // Cascade event (`WORKSPACE_DELETED`) sẽ xóa project thật, nhưng giữa lúc
+    // phát event và lúc worker xử lý, project mồ côi vẫn còn `deleted_at: null`
+    // → nếu không lọc ở đây, người dùng vẫn thấy chúng.
+    let excludedWorkspaceIds: string[] = [];
+    try {
+      excludedWorkspaceIds = await this.workspaces.findDeletedIds();
+    } catch {
+      // Lỗi hạ tầng → không chặn request; cascade event vẫn sẽ dọn dẹp.
+      excludedWorkspaceIds = [];
+    }
+
     const { items, nextCursor, hasMore } = await this.projects.findAllPaged(
       userId,
       workspaceIds,
@@ -61,6 +76,7 @@ export class ListAllProjectsHandler {
         cursor,
       },
       isAdmin,
+      excludedWorkspaceIds,
     );
     return createCursorPage(items, limit, nextCursor, hasMore);
   }

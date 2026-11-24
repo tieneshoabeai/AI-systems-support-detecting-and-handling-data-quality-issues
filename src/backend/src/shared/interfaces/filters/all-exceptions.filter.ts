@@ -117,6 +117,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
+    // GĐ12 — `Retry-After` cho 429 nghiệp vụ (semaphore phân tích đồng bộ).
+    // Client dùng header này để biết chính xác khi nào thử lại, thay vì đoán.
+    if (status === HttpStatus.TOO_MANY_REQUESTS) {
+      const retryAfter = (details as { retryAfterSeconds?: unknown } | undefined)?.retryAfterSeconds;
+      if (typeof retryAfter === 'number' && Number.isFinite(retryAfter) && retryAfter > 0) {
+        response.setHeader('Retry-After', String(Math.ceil(retryAfter)));
+      }
+    }
+
     response.status(status).json({
       success: false,
       error: {

@@ -138,10 +138,12 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     initials: memberName(m).slice(0, 2).toUpperCase(),
     ...(m.joinedAt === undefined ? {} : { joinedAt: m.joinedAt }), email: m.email ?? people.get(m.userId)?.email ?? '', role: label(m.role) })
   const email = (p: Person) => { if (!p.email) throw new Error('Máy chủ chưa cung cấp email thành viên này. Vui lòng tải lại danh sách.'); return p.email }
+  const canManageProject = (workspace: WorkspaceDto | undefined, roster: Person[]) =>
+    workspace?.ownerId === account.id || roster.some(m => m.id === account.id && m.role === 'Owner')
   const projectModel = (p: ProjectDto, w: WorkspaceDto | undefined, members: Member[], dataset: Project['dataset']): Project => {
     const roster = members.map(person)
     const ownsWorkspace = w?.ownerId === account.id
-    const canManage = ownsWorkspace || roster.some(m => m.id === account.id && m.role === 'Owner')
+    const canManage = canManageProject(w, roster)
     const canWorkOnProject = canManage || roster.some(m => m.id === account.id && m.role === 'Member') || account.role.toLowerCase() === 'admin'
     return { canManage, canDelete: ownsWorkspace, canUpload: canManage,
       canUpdateDatasetMetadata: canWorkOnProject, canComplete: canWorkOnProject, id: p.id, code: p.id.slice(-6).toUpperCase(), name: p.name,
@@ -576,6 +578,32 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       loadProjectWizardRoster: async (workspaceId: string, signal: AbortSignal) =>
         (await loadMembers(`/workspaces/${encodeURIComponent(workspaceId)}/members`, signal)).map(person),
     } : {}),
+    loadProjectMembersData: async (project, signal) => {
+      const workspacePath = `/workspaces/${encodeURIComponent(project.workspaceId)}`
+      const [workspaceResult, roster] = await Promise.all([
+        request<{ workspace: WorkspaceDto }>(workspacePath, { signal }).catch((error: unknown) => {
+          const { status } = normalizeApiError(error)
+          if (status === 403 || status === 404) return null
+          throw error
+        }),
+        loadMembers(`/projects/${encodeURIComponent(project.id)}/members`, signal),
+      ])
+      const workspace = workspaceResult?.workspace
+      if (workspaceResult) {
+        validateWorkspace(workspace)
+        if (workspace.id !== project.workspaceId) {
+          throw new ApiError({ kind: 'invalid-response', message: 'Workspace không khớp project.' })
+        }
+      }
+      const members = roster.map(person)
+      const canManage = canManageProject(workspace, members)
+      const memberPreview = canManage && workspace ? (await loadMembers(`${workspacePath}/members`, signal)).map(person) : []
+      signal.throwIfAborted()
+      return {
+        project: { members, owner: members.find(member => member.role === 'Owner') ?? project.owner, canManage },
+        workspace: workspace ? { name: workspace.name, memberPreview } : null,
+      }
+    },
     refreshProject: async (id, signal) => {
       const current = revision
       const { project } = await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(id)}`, { signal })

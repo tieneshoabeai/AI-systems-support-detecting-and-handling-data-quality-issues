@@ -21,12 +21,12 @@ import {
 import {
   buildNotificationEmail,
   type NotificationEmailContext,
-} from '../src/modules/notifications/application/notification-email.mapper';
-import { DispatchHandler } from '../src/modules/notifications/application/commands/dispatch.handler';
+} from '../src/modules/notifications/notification-email.mapper';
+import { NotificationsService as DispatchHandler } from '../src/modules/notifications/notifications.service';
 import { ForgotPasswordHandler } from '../src/modules/auth/application/commands/forgot-password.handler';
 import { AUTH_USER_LOOKUP_PORT } from '../src/modules/auth/domain/ports/auth-session.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
-import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/domain/ports/notification.repository.port';
+import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/notifications.types';
 
 /**
  * Nhóm 1–3 — Email (SMTP), Push (ntfy) và tích hợp vào luồng Auth/Notification.
@@ -238,7 +238,7 @@ describe('DispatchHandler — kênh email & push', () => {
   });
 
   it('tạo thông báo và gửi qua cả email lẫn push', async () => {
-    const result = await handler.execute({
+    const result = await handler.dispatch({
       userId: 'user-1',
       type: 'issue_needs_info',
       title: 'Báo cáo cần bổ sung thông tin',
@@ -261,7 +261,7 @@ describe('DispatchHandler — kênh email & push', () => {
   it('email lỗi KHÔNG làm fail thao tác chính', async () => {
     email.send.mockRejectedValue(new Error('SMTP down'));
 
-    const result = await handler.execute({
+    const result = await handler.dispatch({
       userId: 'user-1',
       type: 'issue_needs_info',
       title: 'Báo cáo cần bổ sung thông tin',
@@ -276,7 +276,7 @@ describe('DispatchHandler — kênh email & push', () => {
   it('chưa cấu hình SMTP -> bỏ qua email, không lỗi', async () => {
     email.isConfigured.mockReturnValue(false);
 
-    const result = await handler.execute({
+    const result = await handler.dispatch({
       userId: 'user-1',
       type: 'issue_needs_info',
       title: 'Báo cáo cần bổ sung thông tin',

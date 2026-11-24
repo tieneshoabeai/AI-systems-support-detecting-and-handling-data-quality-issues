@@ -14,6 +14,9 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiAuthSuccess, ApiAuthError, AUTH_TOKEN_EXAMPLE, AUTH_USER_EXAMPLE, AUTH_SESSION_EXAMPLE,
+} from '../auth-swagger.responses';
 import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { Throttle } from '@nestjs/throttler';
@@ -116,7 +119,10 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Đăng ký tài khoản mới (F1.1)' })
   @ApiZodBody(RegisterSchema, 'Thông tin đăng ký tài khoản mới')
-  @ApiResponse({ status: 201, description: 'Tài khoản được tạo thành công' })
+  @ApiAuthSuccess(201, "Tài khoản được tạo thành công", { ...AUTH_USER_EXAMPLE, first_name: 'An', last_name: 'Nguyen', created_at: '2026-11-22T04:00:00.000Z' })
+  @ApiAuthError(400, "register", "Email, mật khẩu hoặc thông tin đăng ký không hợp lệ", "VALIDATION_ERROR", "Dữ liệu gửi lên không hợp lệ.")
+  @ApiAuthError(409, "register", "Email đã được sử dụng; mã lỗi CONFLICT hoặc DUPLICATE_RESOURCE nếu xung đột tại database", "CONFLICT", "Email này đã được sử dụng bởi một tài khoản khác")
+  @ApiAuthError(429, "register", "Vượt 100 request đăng ký/giờ trên mỗi IP", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async register(@Body(new ZodValidationPipe(RegisterSchema)) dto: RegisterDto): Promise<{ id: string; email: string; first_name: string; last_name: string; role: "admin" | "analyst"; created_at: Date; }> {
     return this.registerHandler.execute(dto);
   }
@@ -130,6 +136,80 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token',
+    content: {
+      'application/json': {
+        example: {
+          success: true,
+          data: {
+            access_token: '<access_token>',
+            refresh_token: '<refresh_token>',
+            expires_in: 900,
+            device_name: 'Chrome on Windows',
+            remember_me: false,
+            expires_at: '2026-11-29T04:00:00.000Z',
+            user: {
+              id: '507f1f77bcf86cd799439011',
+              email: 'analyst@example.com',
+              role: 'analyst',
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu đầu vào không hợp lệ: email sai định dạng, thiếu mật khẩu hoặc sai kiểu dữ liệu',
+    content: {
+      'application/json': {
+        example: {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Dữ liệu gửi lên không hợp lệ.',
+            details: {
+              fields: [{ field: 'password', message: 'Mật khẩu không được để trống', code: 'too_small' }],
+            },
+            timestamp: '2026-11-22T04:00:00.000Z',
+            path: '/api/v1/auth/login',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Email hoặc mật khẩu không chính xác, tài khoản chưa có mật khẩu đăng nhập hoặc đã bị khóa',
+    content: {
+      'application/json': {
+        example: {
+          success: false,
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Email hoặc mật khẩu không chính xác',
+            timestamp: '2026-11-22T04:00:00.000Z',
+            path: '/api/v1/auth/login',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Vượt giới hạn đăng nhập: tối đa 100 request trong 1 giờ cho mỗi IP trên endpoint này',
+    content: {
+      'application/json': {
+        example: {
+          success: false,
+          error: {
+            code: 'LIMIT_EXCEEDED',
+            message: 'Bạn thao tác quá nhanh. Vui lòng thử lại sau.',
+            timestamp: '2026-11-22T04:00:00.000Z',
+            path: '/api/v1/auth/login',
+          },
+        },
+      },
+    },
   })
   async login(@Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto, @Req() req: Request): Promise<{ access_token: string; refresh_token: string; expires_in: number; device_name: string; remember_me: boolean; expires_at: string; user: { id: string; email: string; role: "admin" | "analyst"; }; }> {
     const ipAddress = req.ip || req.socket.remoteAddress;
@@ -143,7 +223,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cấp mới Access Token bằng Refresh Token (F1.3)' })
   @ApiZodBody(RefreshTokenSchema, 'Refresh token dùng để gia hạn access token')
-  @ApiResponse({ status: 200, description: 'Cấp mới Access Token thành công' })
+  @ApiAuthSuccess(200, "Cấp mới Access Token và xoay vòng Refresh Token", AUTH_TOKEN_EXAMPLE)
+  @ApiAuthError(400, "refresh", "Thiếu refresh_token hoặc sai kiểu dữ liệu", "VALIDATION_ERROR", "Dữ liệu gửi lên không hợp lệ.")
+  @ApiAuthError(401, "refresh", "Refresh token hết hạn/bị thu hồi/tái sử dụng hoặc tài khoản không hoạt động; mã TOKEN_EXPIRED, TOKEN_INVALID hoặc UNAUTHENTICATED", "TOKEN_EXPIRED", "Refresh token không hợp lệ hoặc đã hết hạn")
+  @ApiAuthError(429, "refresh", "Vượt 100 request refresh/giờ trên mỗi IP", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async refresh(@Body(new ZodValidationPipe(RefreshTokenSchema)) dto: RefreshTokenDto): Promise<{ access_token: string; refresh_token: string; expires_in: number; remember_me: boolean; expires_at: string; }> {
     return this.refreshAccessTokenHandler.execute(dto.refresh_token);
   }
@@ -154,7 +237,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-05: Quên mật khẩu — gửi OTP 6 số (TTL 10 phút)' })
   @ApiZodBody(ForgotPasswordSchema, 'Email nhận mã OTP')
-  @ApiResponse({ status: 200, description: 'Thành công' })
+  @ApiAuthSuccess(200, "Thông báo trung lập, không xác nhận email có tồn tại hay email đã gửi thành công", { message: 'Nếu email tồn tại trong hệ thống, mã OTP đã được gửi. Mã có hiệu lực 10 phút.' })
+  @ApiAuthError(400, "forgot-password", "Email không hợp lệ", "VALIDATION_ERROR", "Dữ liệu gửi lên không hợp lệ.")
+  @ApiAuthError(429, "forgot-password", "Vượt 500 request/giờ/IP hoặc giới hạn 5 lần gửi OTP/giờ/tài khoản; lỗi quota OTP có thể kèm details.retryAfterSeconds và header Retry-After", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async forgotPassword(@Body(new ZodValidationPipe(ForgotPasswordSchema)) dto: ForgotPasswordDto): Promise<{ message: string; }> {
     return this.forgotPasswordHandler.execute(dto.email);
   }
@@ -165,7 +250,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AUTH-06: Đặt lại mật khẩu bằng OTP' })
   @ApiZodBody(ResetPasswordSchema, 'Email + OTP + mật khẩu mới')
-  @ApiResponse({ status: 200, description: 'Thành công' })
+  @ApiAuthSuccess(200, "Đặt lại mật khẩu và thu hồi toàn bộ phiên đăng nhập", { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.' })
+  @ApiAuthError(400, "reset-password", "Body sai, OTP sai/hết hạn/bị vô hiệu hóa do vượt số lần thử", "VALIDATION_ERROR", "Dữ liệu gửi lên không hợp lệ.")
+  @ApiAuthError(401, "reset-password", "Tài khoản bị khóa", "UNAUTHENTICATED", "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.")
+  @ApiAuthError(429, "reset-password", "Vượt 100 request đặt lại mật khẩu/giờ trên mỗi IP", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async resetPassword(@Body(new ZodValidationPipe(ResetPasswordSchema)) dto: ResetPasswordDto): Promise<{ message: string; }> {
     return this.resetPasswordHandler.execute(dto.email, dto.otp, dto.new_password);
   }
@@ -177,7 +265,10 @@ export class AuthController {
   @Throttle({ default: { limit: 500, ttl: 3600000 } })
   @ApiOperation({ summary: 'AUTH-07: Đổi mật khẩu (giữ phiên hiện tại)' })
   @ApiZodBody(ChangePasswordSchema, 'Mật khẩu hiện tại + mật khẩu mới 2 lần nhập')
-  @ApiResponse({ status: 200, description: 'Thành công' })
+  @ApiAuthSuccess(200, "Đổi mật khẩu, giữ phiên hiện tại và thu hồi các phiên khác", { message: 'Đổi mật khẩu thành công.' })
+  @ApiAuthError(400, "change-password", "Body sai, mật khẩu hiện tại sai, mật khẩu mới trùng cũ hoặc xác nhận không khớp", "VALIDATION_ERROR", "Dữ liệu gửi lên không hợp lệ.")
+  @ApiAuthError(401, "change-password", "Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động", "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)")
+  @ApiAuthError(429, "change-password", "Vượt 500 request đổi mật khẩu/giờ trên mỗi IP", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async changePassword(
     @CurrentUser() user: CurrentUserPayload,
     @Body(new ZodValidationPipe(ChangePasswordSchema)) dto: ChangePasswordDto,
@@ -194,8 +285,9 @@ export class AuthController {
   @Public()
   @Get('google')
   @ApiOperation({ summary: 'AUTH-03: Đăng nhập Google — chuyển hướng tới trang xác thực Google' })
-  @ApiResponse({ status: 302, description: 'Chuyển hướng tới Google (chỉ khi đã cấu hình credential)' })
-  @ApiResponse({ status: 501, description: 'Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI' })
+  @ApiResponse({ status: 302, description: 'Chuyển hướng tới Google khi đã cấu hình OAuth; không trả JSON envelope', headers: { Location: { description: 'URL xác thực Google', schema: { type: 'string', format: 'uri' } } } })
+  @ApiAuthError(501, "google", "Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI", "DEPENDENCY_UNAVAILABLE", "Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI.")
+  @ApiAuthError(429, "google", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async googleStart(
     @Query('format') format: string | undefined,
     @Req() req: Request,
@@ -308,14 +400,14 @@ export class AuthController {
   @Public()
   @Get('google/callback')
   @ApiOperation({ summary: 'AUTH-03: Google callback — đổi mã lấy token và đăng nhập' })
-  @ApiResponse({ status: 200, description: 'Đăng nhập thành công, trả về JWT Access Token và Refresh Token' })
-  @ApiResponse({ status: 302, description: 'Đăng nhập thành công — chuyển hướng về frontend kèm token (che do `?format=redirect`)' })
-  @ApiResponse({ status: 401, description: 'Mã ủy quyền không hợp lệ hoặc email chưa được xác minh' })
-  @ApiResponse({
-    status: 409,
-    description:
-      'Không thể liên kết — định danh Google đã bị một tài khoản khác chiếm',
-  })
+  @ApiAuthSuccess(200, "Đăng nhập thành công ở chế độ JSON (mặc định), hoặc fallback khi không thể redirect", { ...AUTH_TOKEN_EXAMPLE, device_name: 'Chrome on Windows', user: AUTH_USER_EXAMPLE, provider: 'google' })
+  @ApiResponse({ status: 302, description: 'Chế độ redirect và APP_URL hợp lệ: chuyển về frontend, fragment chứa token khi thành công hoặc mã lỗi khi thất bại. Các lỗi OAuth bên dưới trả JSON khi không redirect; lỗi throttling vẫn trả 429.', headers: { Location: { description: 'URL frontend kèm fragment kết quả', schema: { type: 'string', format: 'uri' } } } })
+  @ApiAuthError(401, "google/callback", "Google từ chối đăng nhập, code/state/token Google không hợp lệ hoặc email chưa xác minh (nhánh JSON)", "VALIDATION_ERROR", "Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.")
+  @ApiAuthError(403, "google/callback", "Tài khoản bị khóa (nhánh JSON)", "FORBIDDEN", "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.")
+  @ApiAuthError(409, "google/callback", "Định danh Google đã thuộc tài khoản khác; có thể có DUPLICATE_RESOURCE khi database phát hiện trùng (nhánh JSON)", "CONFLICT", "Không thể liên kết tài khoản Google. Định danh Google này đã được gắn với một tài khoản khác.")
+  @ApiAuthError(501, "google/callback", "Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI", "DEPENDENCY_UNAVAILABLE", "Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI.")
+  @ApiAuthError(503, "google/callback", "Không kết nối được dịch vụ Google hoặc Google tạm thời không khả dụng (nhánh JSON)", "DEPENDENCY_UNAVAILABLE", "Không thể kết nối tới Google. Vui lòng thử lại sau.")
+  @ApiAuthError(429, "google/callback", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async googleCallback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
@@ -407,7 +499,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Đăng xuất tài khoản và thu hồi session hiện hành (F1.4)' })
-  @ApiResponse({ status: 200, description: 'Đăng xuất thành công' })
+  @ApiAuthSuccess(200, "Đăng xuất và thu hồi phiên hiện hành", { message: 'Đăng xuất thành công' })
+  @ApiAuthError(401, "logout", "Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động", "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)")
+  @ApiAuthError(429, "logout", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async logout(@CurrentUser() user: CurrentUserPayload): Promise<{ message: string; }> {
     return this.logoutHandler.execute(user.sessionId);
   }
@@ -416,7 +510,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Xem danh sách các phiên đăng nhập đang hoạt động (F1.8)' })
-  @ApiResponse({ status: 200, description: 'Danh sách các phiên đăng nhập' })
+  @ApiAuthSuccess(200, "Các phiên đăng nhập đang hoạt động; data là mảng, có thể rỗng", [AUTH_SESSION_EXAMPLE])
+  @ApiAuthError(401, "sessions", "Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động", "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)")
+  @ApiAuthError(429, "sessions", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async getSessions(@CurrentUser() user: CurrentUserPayload): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }[]> {
     return this.getSessionsHandler.execute(user.userId);
   }
@@ -431,8 +527,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Chi tiết phiên đăng nhập hiện tại (tài nguyên của chính mình)' })
-  @ApiResponse({ status: 200, description: 'Chi tiết phiên hiện tại' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy phiên hiện tại (đã thu hồi hoặc hết hạn)' })
+  @ApiAuthSuccess(200, "Chi tiết phiên xác định bởi sessionId trong access token", AUTH_SESSION_EXAMPLE)
+  @ApiAuthError(404, "sessions/me", "Không tìm thấy phiên đăng nhập hoặc phiên thuộc người dùng khác", "NOT_FOUND", "Không tìm thấy phiên đăng nhập")
+  @ApiAuthError(401, "sessions/me", "Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động", "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)")
+  @ApiAuthError(429, "sessions/me", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async getCurrentSession(
     @CurrentUser() user: CurrentUserPayload,
   ): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }> {
@@ -448,8 +546,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Chi tiết 1 phiên đăng nhập (chỉ chính user đó)' })
-  @ApiResponse({ status: 200, description: 'Chi tiết phiên đăng nhập' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy phiên hoặc phiên thuộc user khác' })
+  @ApiAuthSuccess(200, "Chi tiết phiên của chính người dùng, có thể bao gồm phiên đã thu hồi hoặc hết hạn", AUTH_SESSION_EXAMPLE)
+  @ApiAuthError(404, "sessions/507f1f77bcf86cd799439012", "Không tìm thấy phiên đăng nhập hoặc phiên thuộc người dùng khác", "NOT_FOUND", "Không tìm thấy phiên đăng nhập")
+  @ApiAuthError(401, "sessions/507f1f77bcf86cd799439012", "Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động", "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)")
+  @ApiAuthError(429, "sessions/507f1f77bcf86cd799439012", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async getSessionById(@CurrentUser() user: CurrentUserPayload, @Param('id') sessionId: string): Promise<{ id: string; device_name: string | null; ip_address: string | null; user_agent: string | null; is_revoked: boolean; remember_me: boolean; last_used_at: string | null; expires_at: string; created_at: string | null; }> {
     return this.getSessionByIdHandler.execute(user.userId, sessionId);
   }
@@ -458,7 +558,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thu hồi phiên đăng nhập từ xa (F1.10)' })
-  @ApiResponse({ status: 200, description: 'Thu hồi phiên thành công' })
+  @ApiAuthSuccess(200, "Thu hồi phiên đăng nhập thành công", { message: 'Đã thu hồi phiên đăng nhập thành công' })
+  @ApiAuthError(400, "sessions/507f1f77bcf86cd799439012", "Phiên không tồn tại, thuộc người dùng khác hoặc đã bị thu hồi", "VALIDATION_ERROR", "Không tìm thấy phiên đăng nhập hoặc phiên đã bị thu hồi trước đó")
+  @ApiAuthError(401, "sessions/507f1f77bcf86cd799439012", "Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động", "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)")
+  @ApiAuthError(429, "sessions/507f1f77bcf86cd799439012", "Giới hạn request theo IP; thử lại sau khi hết thời gian chặn", "LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.")
   async revokeSession(@CurrentUser() user: CurrentUserPayload, @Param('id') sessionId: string): Promise<{ message: string; }> {
     return this.revokeSessionHandler.execute(user.userId, sessionId);
   }

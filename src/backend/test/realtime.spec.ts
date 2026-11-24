@@ -5,7 +5,7 @@ import {
   assertNoSensitiveData,
   buildEnvelope,
 } from '../src/shared/domain/utils/realtime-events';
-import { RealtimeService } from '../src/modules/realtime/application/realtime.service';
+import { RealtimeService } from '../src/modules/realtime/realtime.service';
 
 describe('REALTIME-01: envelope + room + no-sensitive-data', () => {
   it('room đặt tên đúng user/project/analysis', () => {
@@ -51,7 +51,7 @@ describe('REALTIME-01: envelope + room + no-sensitive-data', () => {
   });
 
   it('extractToken ưu tiên auth.token, fallback query ?token=', async () => {
-    const { RealtimeAuthService } = await import('../src/modules/realtime/application/realtime-auth.service');
+    const { RealtimeAuthService } = await import('../src/modules/realtime/realtime-auth.service');
     const svc = new RealtimeAuthService(
       { verifyAsync: async () => ({}) } as never,
       { get: () => 'secret' } as never,

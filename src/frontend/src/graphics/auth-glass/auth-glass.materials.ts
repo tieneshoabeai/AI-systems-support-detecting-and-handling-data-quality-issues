@@ -14,6 +14,7 @@ export function createAuthBackdropMaterial() {
       uPageBackdropUv: { value: new Vector4(0, 0, 1, 1) },
       uPageBackdropBase: { value: new Color('#02040c') },
       uHasPageBackdrop: { value: false },
+      uLightMode: { value: false },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -28,6 +29,7 @@ export function createAuthBackdropMaterial() {
       uniform vec4 uPageBackdropUv;
       uniform vec3 uPageBackdropBase;
       uniform bool uHasPageBackdrop;
+      uniform bool uLightMode;
       float orb(vec2 p, vec2 center, vec2 scale) {
         vec2 delta = (p - center) * scale;
         return exp(-dot(delta, delta));
@@ -46,6 +48,7 @@ export function createAuthBackdropMaterial() {
         vec2 center = vec2(hash(cell), hash(cell + 32.0)) * 0.55 + 0.225;
         float particle = (1.0 - smoothstep(0.035, 0.11, length(fract(grid) - center)));
         color += vec3(0.027, 0.053, 0.083) * particle * step(0.965, hash(cell + 9.0));
+        if (uLightMode) color = mix(vec3(.78,.85,.94), uPageBackdropBase, smoothstep(0.,1.,length(uv-vec2(.3,.5))));
         if (uHasPageBackdrop) {
           vec4 backdrop = texture2D(tPageBackdrop, uPageBackdropUv.xy + uv * uPageBackdropUv.zw);
           color = mix(uPageBackdropBase, backdrop.rgb, backdrop.a);
@@ -76,6 +79,7 @@ export function createAuthLensMaterial() {
       uTint: { value: glass.tint },
       uDebug: { value: 0 },
       uRim: { value: glass.rimIntensity },
+      uLightMode: { value: false },
     },
     vertexShader: `
       varying vec3 vLocal;
@@ -111,6 +115,7 @@ export function createAuthLensMaterial() {
       uniform float uTint;
       uniform int uDebug;
       uniform float uRim;
+      uniform bool uLightMode;
       uniform mat4 projectionMatrix;
       varying vec3 vLocal;
       varying vec3 vLocalNormal;
@@ -204,10 +209,17 @@ export function createAuthLensMaterial() {
         vec3 background = diskBlur(uv + offset, redOffset, blueOffset, splitChannels);
 
         if (rear) {
-          background = mix(background, vec3(0.031, 0.046, 0.074), 0.43);
+          background = uLightMode
+            ? mix(background, vec3(.78, .87, 1.0), .12)
+            : mix(background, vec3(0.031, 0.046, 0.074), 0.43);
         } else {
           float luminance = dot(background, vec3(0.2126, 0.7152, 0.0722));
           background = mix(max(mix(vec3(luminance), background, uSaturation), vec3(0.0)), vec3(1.0), uTint);
+        }
+        if (uLightMode) {
+          // Soften the plinth's reflection at the foot of each glass panel.
+          float foot = 1.0 - smoothstep(-uHalfSize.y, -uHalfSize.y * 0.53, p.y);
+          background = mix(background, vec3(.83, .91, 1.0), foot * .58);
         }
 
         vec2 light = normalize(uLightDir);

@@ -84,8 +84,8 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
 
         const method = request.method ?? 'GET'
         // The backend registers the public health check outside the API prefix.
-        const url = request.auth === 'public' && method === 'GET' && request.path === '/health'
-          ? new URL('/health', config.baseUrl).href
+        const url = request.auth === 'public' && method === 'GET' && (request.path === '/health' || request.path === '/health/ready')
+          ? new URL(request.path, config.baseUrl).href
           : resolveApiPath(request.path, config.baseUrl)
         const timeout = request.timeoutMs ?? config.timeoutMs
 

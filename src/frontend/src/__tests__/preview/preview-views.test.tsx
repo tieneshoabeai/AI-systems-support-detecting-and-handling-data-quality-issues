@@ -99,25 +99,30 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
 
   fireEvent.change(search(), { target: { value: '' } })
 
+  const chooseFilter = (filter: string, option: string) => {
+    fireEvent.click(screen.getByRole('button', { name: filter }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: filter })).getByRole('button', { name: option }))
+  }
+
   // Quyền sở hữu: hai giá trị cộng lại đúng tổng — không có bản ghi nào lọt ngoài hai ô.
   const owned = state.workspaces.filter(isOwnedByMe).length
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo quyền sở hữu' }), { target: { value: 'owned' } })
+  chooseFilter('Quyền sở hữu', 'Workspace sở hữu')
   expect(screen.getByText(`Hiển thị 1–${owned} của ${owned} Workspaces`)).toBeDefined()
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo quyền sở hữu' }), { target: { value: 'shared' } })
+  chooseFilter('Quyền sở hữu', 'Workspace được chia sẻ')
   expect(screen.getByText(`Hiển thị 1–28 của ${wsTotal - owned} Workspaces`)).toBeDefined()
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo quyền sở hữu' }), { target: { value: 'all' } })
+  chooseFilter('Quyền sở hữu', 'Tất cả quyền sở hữu')
 
   // Vai trò đọc từ roster THẬT của workspace. Admin/Viewer từng trả về 0 dòng với fixture cũ
   // → hai ô trong ảnh thành đồ chết. Fixture giờ có đúng một bản ghi mỗi loại.
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo vai trò' }), { target: { value: 'Admin' } })
+  chooseFilter('Vai trò', 'Admin (Quản trị)')
   expect(cardTitles()).toEqual(['Finance'])
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo vai trò' }), { target: { value: 'Viewer' } })
+  chooseFilter('Vai trò', 'Viewer (Chỉ xem)')
   expect(cardTitles()).toEqual(['Data Engineering'])
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo vai trò' }), { target: { value: 'all' } })
+  chooseFilter('Vai trò', 'Tất cả vai trò')
 
   // Sắp xếp 'Tên A → Z' phải là thứ tự locale thật trên TOÀN BỘ danh sách đã lọc, không phải
   // chỉ trang đang hiện (nên so với chính danh sách đó sau khi sort).
-  fireEvent.change(screen.getByRole('combobox', { name: 'Sắp xếp' }), { target: { value: 'name-asc' } })
+  chooseFilter('Sắp xếp', 'Tên A → Z')
   const asc = cardTitles()
   expect(asc).toEqual([...asc].sort((a, b) => a.localeCompare(b, 'vi')))
 
@@ -631,7 +636,7 @@ it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút
 
   // Thanh đáy: bốn NÚT bấm được (không phải bốn nhãn trang trí), và 'Tổng quan' đang bật vì
   // ảnh vẽ ô đó active.
-  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label })).toBeDefined()
+  for (const module of projectModules.filter(item => item.id !== 'detection')) expect(screen.getByRole('button', { name: module.label })).toBeDefined()
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
   everyDisabledButtonHasVisibleReason()
 })
@@ -696,16 +701,17 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
   expect(await screen.findByTestId('dataset-scene')).toBeDefined()
   expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
-  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan'], ['Detection', 'orange']] as const) {
+  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan']] as const) {
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe(theme)
   }
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
   fireEvent.click(screen.getByRole('button', { name: 'Chọn khối cam' }))
-  expect(screen.getByRole('button', { name: 'Detection' }).getAttribute('aria-current')).toBe('true')
+  expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
+  expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
   fireEvent.click(screen.getByRole('button', { name: 'Về góc tổng quan' }))
-  expect(screen.getByRole('button', { name: 'Detection' }).hasAttribute('aria-current')).toBe(false)
-  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(false)
+  expect(screen.getByRole('button', { name: 'Data View' }).hasAttribute('aria-current')).toBe(false)
+  for (const module of projectModules.filter(item => item.id !== 'detection')) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(false)
 
   expect(window.location.hash).toBe('')
   expect(document.getElementById(previewNoteIds.projectModules)).toBeNull()
@@ -716,21 +722,15 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(window.location.hash).toBe('')
 })
 
-it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh giá riêng', async () => {
+it('trang Project: chỉ mở panel sau khi focus module hiện tại hoàn tất', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull()
   expect(document.querySelector('.pj-band')).toBeNull()
   expect(document.querySelector('.pj-dataset')?.parentElement?.className).toBe('pj-head-row')
   expect(screen.getByRole('link', { name: 'Trang chủ Processing' }).getAttribute('href')).toBe('/processing')
   expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tải file kết quả' })).disabled).toBe(true)
-  fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
-  expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
-  fireEvent.click(await screen.findByText('Focus hoàn tất'))
-  const panel = screen.getByRole('complementary', { name: 'Detection' })
-  expect(within(panel).getByRole('heading', { name: 'Đánh giá' })).toBeDefined()
-  expect(within(panel).queryByRole('button', { name: /Tải file/ })).toBeNull()
+  await screen.findByText('Focus hoàn tất')
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
-  expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
   fireEvent.click(screen.getByText('Focus cam cũ hoàn tất'))
   expect(screen.queryByRole('complementary', { name: 'Data View' })).toBeNull()
   fireEvent.click(screen.getByText('Focus hoàn tất'))

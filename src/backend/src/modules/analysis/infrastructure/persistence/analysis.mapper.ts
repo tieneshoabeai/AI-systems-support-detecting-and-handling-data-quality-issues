@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 import type { IAnalysisRun } from './analysis-run.schema';
 import type { IAnalysisResult } from './analysis-result.schema';
 import type { IAiJob } from './ai-job.schema';
-import type { IAnalysisConfig } from './analysis-config.schema';
 import type { IProjectSave } from './project-save.schema';
 import type { IReportJob } from './report-job.schema';
 import type { IFewShotExample } from './few-shot-example.schema';
@@ -11,7 +10,6 @@ import type {
   CorrelationMatrixShape,
   VifShape,
   AiJobRecord,
-  AnalysisConfigRecord,
   AnalysisResultRecord,
   AnalysisRunRecord,
   CellEvidenceRecord,
@@ -86,6 +84,9 @@ export function toAnalysisResultRecord(doc: IAnalysisResult): AnalysisResultReco
     timeAnalysis: (raw.timeAnalysis ?? null) as unknown,
     evidenceSummary: (raw.evidenceSummary ?? null) as unknown,
     aiCorrelationAssessment: (raw.aiCorrelationAssessment ?? null) as unknown,
+    suspicions: (raw.suspicions ?? null) as unknown,
+    columnRoles: (raw.columnRoles ?? null) as unknown,
+    charts: (raw.charts ?? null) as unknown,
     isStale: doc.is_stale ?? false,
     staleReason: (raw.stale_reason ?? null) as string | null,
     createdAt: doc.created_at,
@@ -114,21 +115,6 @@ export function toAiJobRecord(doc: IAiJob): AiJobRecord {
     leaseExpiresAt: doc.lease_expires_at ?? null,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
-  };
-}
-
-export function toAnalysisConfigRecord(doc: IAnalysisConfig): AnalysisConfigRecord {
-  return {
-    projectId: oid(doc.project_id),
-    workspaceId: oid(doc.workspace_id),
-    selectedColumns: doc.selected_columns ?? null,
-    labelColumn: doc.label_column ?? null,
-    timeColumn: doc.time_column ?? null,
-    timeGranularity: String(doc.time_granularity ?? 'day'),
-    valueColumn: doc.value_column ?? null,
-    correlationMethod: doc.correlation_method ?? 'pearson',
-    outlierMethod: doc.outlier_method ?? 'iqr',
-    topN: doc.top_n ?? 10,
   };
 }
 
@@ -186,5 +172,7 @@ export function toCellEvidenceRecord(doc: ICellEvidence): CellEvidenceRecord {
     column: doc.column,
     rowIndex: doc.row_index,
     reason: doc.reason ?? null,
+    kind: doc.kind,
+    valueMasked: doc.value_masked ?? null,
   };
 }

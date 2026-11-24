@@ -17,6 +17,14 @@ export {
   type UserWithResetSecret,
 } from './domain/ports/user.repository.port';
 
+// ── Events (OPEN-08) ─────────────────────────────────────────────
+export {
+  USER_EVENTS,
+  USER_OUTBOX_EVENTS,
+  type UserEventName,
+  type UserOutboxEventName,
+} from './domain/events/user-events';
+
 // ── Entities (Bước 3 — Rich Domain Model) ──────────────────────
 export {
   User,
@@ -59,6 +67,8 @@ export { FindSessionByTokenHashHandler } from './application/queries/find-sessio
 // ── Commands (ghi) ─────────────────────────────────────────────
 export { CreateSessionHandler } from './application/commands/create-session.handler';
 export { CreateUserHandler } from './application/commands/create-user.handler';
+export { BlockUserHandler } from './application/commands/block-user.handler';
+export { UnblockUserHandler } from './application/commands/unblock-user.handler';
 export { RevokeAllUserSessionsHandler } from './application/commands/revoke-all-user-sessions.handler';
 export { RevokeSessionByIdHandler } from './application/commands/revoke-session-by-id.handler';
 export { RevokeSessionHandler } from './application/commands/revoke-session.handler';
@@ -66,3 +76,9 @@ export { SoftDeleteUserHandler } from './application/commands/soft-delete-user.h
 export { TouchSessionHandler } from './application/commands/touch-session.handler';
 export { UpdateNotificationPreferencesHandler } from './application/commands/update-notification-preferences.handler';
 export { UpdateProfileHandler } from './application/commands/update-profile.handler';
+
+// ── Services (OPEN-08 — thu hồi realtime) ─────────────────────────
+export {
+  UserAccessRevocationService,
+  type UserRevocationStatus,
+} from './application/services/user-access-revocation.service';

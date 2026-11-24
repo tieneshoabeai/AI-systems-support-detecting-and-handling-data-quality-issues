@@ -63,12 +63,18 @@ export function createProjectGlassPass() {
         float inset = max(-d, 0.0);
         // Same broad convex bezel as Login, scaled to the actual panel size.
         float lensWidth = min(halfSize.x, halfSize.y) * 0.5;
+        vec2 cornerPosition = abs(screenPoint - (uRect.xy + halfSize));
+        vec2 cornerDepth = halfSize - cornerPosition;
+        float diagonalBand = 1.0 - smoothstep(24.0, 72.0, abs(cornerDepth.x - cornerDepth.y));
+        float nearCorner = 1.0 - smoothstep(128.0, 176.0, max(cornerDepth.x, cornerDepth.y));
+        float cornerRegion = diagonalBand * nearCorner;
         float profile = 1.0 - clamp(inset / max(lensWidth, 1.0), 0.0, 1.0);
         vec2 gradient = vec2(glassDistance(screenPoint + vec2(1.0, 0.0)) - glassDistance(screenPoint - vec2(1.0, 0.0)),
           glassDistance(screenPoint + vec2(0.0, 1.0)) - glassDistance(screenPoint - vec2(0.0, 1.0)));
         vec2 direction = gradient / max(length(gradient), 0.00001);
         vec3 normal = normalize(vec3(convexLensSlope(profile), 0.0, 1.0));
         vec2 travel = direction * min(uThickness, 0.7 * lensWidth) / uViewport;
+        travel *= 1.0 - cornerRegion;
         float ray = refractedRayX(normal, uIor);
         vec2 uv = vUv + travel * ray;
         float chroma = uChroma * smoothstep(0.08, 0.25, profile);
@@ -82,7 +88,9 @@ export function createProjectGlassPass() {
         float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
         color = mix(color, vec3(luminance), 0.18);
         vec3 surfaceTint = mix(vec3(0.94, 0.97, 1.0), vec3(0.98, 0.99, 1.0), uLight);
-        color = mix(color, surfaceTint, mix(0.12, 0.64, uContent));
+        color = mix(color, surfaceTint, mix(0.10, 0.30, uContent));
+        // Keep the bezel consistent across backgrounds while leaving the glass live.
+        float bezel = 1.0 - smoothstep(1.0, 22.0, inset);
         float thinEdge = 1.0 - smoothstep(0.5, 1.8, inset);
         float innerRim = smoothstep(2.0, 3.0, inset) * (1.0 - smoothstep(4.0, 6.0, inset));
         vec3 surfaceNormal = normalize(vec3(direction * convexLensSlope(profile), 1.0));
@@ -95,6 +103,13 @@ export function createProjectGlassPass() {
         float specular = pow(profile, 3.0) * (0.22 + 0.58 * max(facing, 0.0));
         float bevelShade = pow(profile, 2.0) * max(-facing, 0.0) * 0.16;
         color *= 1.0 - bevelShade;
+        // A broad convex lip with a narrow highlight follows the rounded outer contour.
+        float outerLip = bezel * (.18 + .12 * max(facing, 0.0));
+        float curvedHighlight = exp(-pow((inset - 3.2) / 2.8, 2.0));
+        float innerReflection = exp(-pow((inset - 15.0) / 5.0, 2.0)) * max(facing, 0.0);
+        color = mix(color, surfaceTint, outerLip);
+        color += vec3(.56, .77, 1.0) * curvedHighlight * (.20 + .18 * uLight);
+        color += vec3(.52, .76, 1.0) * innerReflection * .12;
         color += uRim * vec3(0.92, 0.97, 1.0) * (specular * (thinEdge * 0.85 + innerRim * 0.28 + 0.14) + fresnel * profile * 0.65 + reflection * 0.28);
         gl_FragColor = vec4(mix(original.rgb, color, coverage), original.a);
       }
@@ -106,17 +121,29 @@ export function projectGlassRect(canvas: { left: number; top: number; width: num
   return new Vector4(panel.left - canvas.left, canvas.height - (panel.top - canvas.top) - panel.height, panel.width, panel.height)
 }
 
-export function updateProjectGlassPass(pass: ShaderPass, panel: HTMLElement | null | undefined) {
+function measureProjectGlass(pass: ShaderPass, canvas: HTMLCanvasElement, panel: HTMLElement) {
+  const viewport = canvas.getBoundingClientRect()
+  const rect = panel.getBoundingClientRect()
+  uniformValue(requireDefined(pass.uniforms['uViewport'], 'glass viewport'), UniformVector2).set(viewport.width, viewport.height)
+  uniformValue(requireDefined(pass.uniforms['uRect'], 'glass rect'), UniformVector4).copy(projectGlassRect(viewport, rect))
+  pass.enabled = viewport.width > 0 && viewport.height > 0 && rect.width > 0 && rect.height > 0
+  panel.toggleAttribute('data-refractive', pass.enabled)
+}
+
+export function updateProjectGlassPass(pass: ShaderPass, canvas: HTMLCanvasElement, panel: HTMLElement | null | undefined, requestFrame: () => void) {
   if (!panel) return
   const motion = readGlassMotion(panel)
-  if (!motion?.panel || !motion.canvas) return
-  // Paint HTML from exactly the state sampled by this WebGL frame, rather than
-  // a second RAF moving HTML one frame ahead of the refracted surface.
+  if (!motion) return
   motion.renderDriven = true
+  motion.requestFrame = requestFrame
+  if (motion.pendingGeometry) {
+    const apply = motion.pendingGeometry
+    delete motion.pendingGeometry
+    apply()
+    // Commit the HTML move and sample the real bounds before this frame is drawn.
+    measureProjectGlass(pass, canvas, panel)
+  }
   motion.paint?.()
-  const rect = motion.panel
-  const height = motion.canvas.height
-  uniformValue(requireDefined(pass.uniforms['uRect'], 'project-glass-pass.ts:116'), UniformVector4).set(rect.x, height - rect.y - rect.height, rect.width, rect.height)
   requireDefined(pass.uniforms['uVisibility'], 'project-glass-pass.ts:117').value = motion.progress
   requireDefined(pass.uniforms['uContent'], 'project-glass-pass.ts:118').value = panel.dataset['hasContent'] === 'true' ? 1 : 0
 }
@@ -125,27 +152,29 @@ export function updateProjectGlassPass(pass: ShaderPass, panel: HTMLElement | nu
 export function bindProjectGlassPass(pass: ShaderPass, canvas: HTMLCanvasElement, panel: HTMLElement | null | undefined, light: boolean) {
   if (!panel) { pass.enabled = false; return }
   const measure = () => {
-    const bounds = canvas.getBoundingClientRect()
-    const motion = readGlassMotion(panel)
-    const rect = panel.getBoundingClientRect()
-    uniformValue(requireDefined(pass.uniforms['uViewport'], 'project-glass-pass.ts:128'), UniformVector2).set(bounds.width, bounds.height)
-    if (!motion) uniformValue(requireDefined(pass.uniforms['uRect'], 'project-glass-pass.ts:129'), UniformVector4).copy(projectGlassRect(bounds, rect))
+    measureProjectGlass(pass, canvas, panel)
     requireDefined(pass.uniforms['uRadius'], 'project-glass-pass.ts:130').value = parseFloat(getComputedStyle(panel).borderTopLeftRadius) || 22
     requireDefined(pass.uniforms['uLight'], 'project-glass-pass.ts:131').value = light ? 1 : 0
     requireDefined(pass.uniforms['uContent'], 'project-glass-pass.ts:132').value = panel.dataset['hasContent'] === 'true' ? 1 : 0
-    pass.enabled = bounds.width > 0 && bounds.height > 0 && rect.width > 0 && rect.height > 0
-    panel.toggleAttribute('data-refractive', pass.enabled)
   }
   measure()
   const observer = new ResizeObserver(measure)
   observer.observe(canvas)
   observer.observe(panel)
+  const nav = panel.parentElement?.querySelector('.pj-modules')
+  if (nav) observer.observe(nav)
   window.addEventListener('resize', measure)
   window.addEventListener('scroll', measure, true)
   return () => {
     pass.enabled = false
     const motion = readGlassMotion(panel)
-    if (motion) motion.renderDriven = false
+    if (motion) {
+      motion.renderDriven = false
+      delete motion.requestFrame
+      const apply = motion.pendingGeometry
+      delete motion.pendingGeometry
+      apply?.()
+    }
     panel.removeAttribute('data-refractive')
     observer.disconnect()
     window.removeEventListener('resize', measure)

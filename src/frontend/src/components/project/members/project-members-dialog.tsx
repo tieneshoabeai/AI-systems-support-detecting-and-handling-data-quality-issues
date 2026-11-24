@@ -1,11 +1,13 @@
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Person, PreviewProjectPanel, Project, Workspace } from '../../../types'
 import { defaultProjectRole, emailForPerson, previewNoteIds, previewReasons, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
+import { Button } from '../../ui/primitives/button'
 import { Avatar } from '../../resource'
 import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 
 // Panel "Quản lý thành viên" của PROJECT — mục thứ hai trong ⋯ của thẻ dataset
 // (ảnh DataVerse_Project_Actions_Details_v1, panel 3). Chủ batch 03/11 yêu cầu bật thật: ảnh vẽ
@@ -73,9 +75,10 @@ function ProjectMemberRowCells({ person, isOwner, onChangeRole, onRemove }: {
   </>
 }
 
-export function ProjectMembersDialog({ project, workspace, onClose }: {
+export function ProjectMembersDialog({ project, workspace, live = false, onClose }: {
   project: Project
-  workspace: Workspace | null
+  workspace: Pick<Workspace, 'name' | 'memberPreview'> | null
+  live?: boolean
   onClose: () => void
 }) {
   const session = usePreviewSession()
@@ -83,6 +86,9 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
   const [role, setRole] = useState<string>('all')
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState('')
+  const canManage = project.canManage !== false
+  const addBlockedReason = canManage && live && !workspace
+    ? 'Không truy cập được danh sách thành viên Workspace để chọn người thêm.' : null
 
   // Chủ sở hữu luôn thuộc project (chữ trong ảnh) nhưng không nhất thiết nằm trong `members`, nên
   // bảng ghép họ vào đầu và đếm thêm họ vào tổng số — nếu không, "2 thành viên" cạnh bảng 3 dòng
@@ -127,15 +133,17 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
       <span className="members-count-icon" aria-hidden="true"><PreviewIcon name="users" /></span>
       <div className="members-count-text">
         <strong>{rows.length} thành viên</strong>
-        <span>Trong Project “{project.name}” · Workspace {workspace?.name ?? 'đã bị gỡ'}</span>
+        <span>Trong Project “{project.name}” · Workspace {workspace?.name ?? (live ? 'không truy cập được' : 'đã bị gỡ')}</span>
       </div>
-      <button type="button" className="button-primary" aria-expanded={adding} disabled={project.canManage === false} aria-controls="pj-add-member"
+      {canManage && <button type="button" className="button-primary" aria-expanded={adding} disabled={Boolean(addBlockedReason)} aria-controls="pj-add-member"
+        aria-describedby={addBlockedReason ? 'pj-add-blocked-reason' : undefined}
         onClick={() => { setAdding(value => !value); setSearch('') }}>
         <PreviewIcon name="plus" /> Thêm thành viên
-      </button>
+      </button>}
     </div>
+    {addBlockedReason && <p className="dialog-note" id="pj-add-blocked-reason">{addBlockedReason}</p>}
 
-    {adding && <div className="pv-add-member" id="pj-add-member">
+    {canManage && adding && !addBlockedReason && <div className="pv-add-member" id="pj-add-member">
       <label className="members-search">
         <span className="visually-hidden">Tìm thành viên của Workspace để thêm vào Project</span>
         <PreviewIcon name="search" />
@@ -182,7 +190,7 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
           <td>{index + 1}</td>
           <th scope="row"><span className="member-cell"><Avatar initials={person.initials} size="sm" />
             <span className="member-id"><span className="row-name">{person.name}</span><span className="row-sub">{emailForPerson(person)}</span></span></span></th>
-          {project.canManage === false ? <><td>{person.role}</td><td>Chỉ xem</td></> : <ProjectMemberRowCells person={person}
+          {!canManage ? <><td>{person.role}</td><td>Chỉ xem</td></> : <ProjectMemberRowCells person={person}
             isOwner={person.id === project.owner.id}
             onChangeRole={(personId, nextRole) => session.setProjectMemberRole(project.id, personId, nextRole)}
             onRemove={personId => session.removeProjectMember(project.id, personId)} />}
@@ -198,15 +206,63 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
 
 // Surface cấp phiên: tra project từ id; project không còn (vừa bị xóa từ chính ⋯) thì vẽ KHÔNG GÌ
 // thay vì mở một modal của một bản ghi đã mất.
+type LoadProjectMembers = NonNullable<ReturnType<typeof useManagementStore>['loadProjectMembersData']>
+
+function LiveProjectMembersDialog({ project, load, onClose }: {
+  project: Project
+  load: LoadProjectMembers
+  onClose: () => void
+}) {
+  const [attempt, setAttempt] = useState(0)
+  const [result, setResult] = useState<{
+    project: Project
+    attempt: number
+    load: LoadProjectMembers
+  } & ({ data: Awaited<ReturnType<LoadProjectMembers>> } | { error: string })>()
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const request = { project, attempt, load }
+    void load(project, controller.signal).then(data => {
+      if (!controller.signal.aborted) setResult({ ...request, data })
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setResult({ ...request, error: error instanceof Error ? error.message : 'Không tải được danh sách thành viên.' })
+      }
+    })
+    return () => controller.abort()
+  }, [project, attempt, load])
+
+  const current = result?.project === project && result.attempt === attempt && result.load === load ? result : undefined
+  if (current && 'data' in current) {
+    return <ProjectMembersDialog project={{ ...project, ...current.data.project }} workspace={current.data.workspace} live onClose={onClose} />
+  }
+
+  return <Dialog open onClose={onClose} className="is-wide" role="dialog" aria-labelledby="pj-members-loading-title">
+    <header className="dialog-head">
+      <h2 id="pj-members-loading-title">Quản lý thành viên</h2>
+      <Button variant="plain" className="icon-button dialog-close" aria-label="Đóng hộp thoại" onClick={onClose}>
+        <PreviewIcon name="close" />
+      </Button>
+    </header>
+    {current && 'error' in current ? <>
+      <p role="alert">{current.error}</p>
+      <Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button>
+    </> : <p role="status">Đang tải danh sách thành viên…</p>}
+  </Dialog>
+}
+
 export function ProjectPanelSurface({ panel, projects, workspaces, onClose }: {
   panel: PreviewProjectPanel | null
   projects: readonly Project[]
   workspaces: readonly Workspace[]
   onClose: () => void
 }) {
+  const load = useManagementStore().loadProjectMembersData
   if (panel === null) return null
   const project = projects.find(item => item.id === panel.projectId)
   if (!project) return null
+  if (load) return <LiveProjectMembersDialog key={project.id} project={project} load={load} onClose={onClose} />
   const workspace = workspaces.find(item => item.id === project.workspaceId) ?? null
   return <ProjectMembersDialog project={project} workspace={workspace} onClose={onClose} />
 }

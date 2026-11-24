@@ -4,7 +4,10 @@ import { Readable } from 'stream';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
 import { STORAGE_PORT } from '../src/shared/application/ports/storage.port';
 import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
+import { TRANSACTION_PORT } from '../src/shared/application/ports/transaction.port';
+import { fakeTransaction } from './helpers/transaction';
 import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
+import { DatasetFindingService } from '../src/modules/datasets/application/services/dataset-finding.service';
 import { ConfigService } from '@nestjs/config';
 import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
 import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
@@ -90,10 +93,12 @@ describe('DatasetsService (Streaming Ingestion & R2 Quota Guard)', () => {
       providers: [
         ...Object.values(datasetsHandlers),
         SchemaInferenceService,
+        DatasetFindingService,
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsRepository },
         { provide: PROJECT_ACCESS_PORT, useValue: projectsService },
         { provide: STORAGE_PORT, useValue: storageService },
         { provide: OUTBOX_PORT, useValue: outboxService },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
         { provide: WORKSPACE_ACCESS_PORT, useValue: workspacesService },
         {
           provide: ConfigService,

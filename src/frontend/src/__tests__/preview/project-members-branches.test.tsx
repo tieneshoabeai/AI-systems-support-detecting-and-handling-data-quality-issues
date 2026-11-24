@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ProjectMembersDialog, ProjectPanelSurface } from '../../components/project/members/project-members-dialog'
-import { usePreviewStore } from '../../hooks/preview/use-preview-store'
+import { ManagementStoreContext, usePreviewStore } from '../../hooks/preview/use-preview-store'
 import { previewMockStore as store } from '../../services/preview/preview-mock.service'
 import { requireDefined } from '../../utils/required-value'
 import { renderFrame } from './preview-test-kit'
@@ -21,6 +21,46 @@ function Members() {
   const state = usePreviewStore()
   return <ProjectPanelSurface panel={{ projectId: target().id }} projects={state.projects} workspaces={state.workspaces} onClose={() => {}} />
 }
+
+it('shows the member roster without an add button for a read-only account', () => {
+  const project = { ...target(), canManage: false, members: [person] }
+  renderFrame(<ProjectMembersDialog project={project} workspace={null} live onClose={() => {}} />)
+
+  expect(screen.queryByRole('button', { name: 'Thêm thành viên' })).toBeNull()
+  expect(within(screen.getByRole('row', { name: /Unique Candidate/ })).getByText('Chỉ xem')).toBeDefined()
+})
+
+it('retries a failed live roster and displays verified names and candidates', async () => {
+  const project = { ...target(), canManage: false }
+  const owner = { ...project.owner, name: 'Project Owner From API' }
+  const liveStore = {
+    ...store,
+    loadProjectMembersData: vi.fn()
+      .mockRejectedValueOnce(new Error('Không tải được dữ liệu.'))
+      .mockResolvedValueOnce({
+        project: { owner, members: [owner], canManage: true },
+        workspace: { name: 'Workspace From API', memberPreview: [person] },
+      }),
+  }
+  renderFrame(<ManagementStoreContext.Provider value={liveStore}>
+    <ProjectPanelSurface panel={{ projectId: project.id }} projects={[project]} workspaces={[]} onClose={() => {}} />
+  </ManagementStoreContext.Provider>)
+
+  expect(within(screen.getByRole('dialog')).getByRole('status').textContent).toContain('Đang tải')
+  await act(() => Promise.resolve())
+  expect(screen.getByRole('alert').textContent).toContain('Không tải được dữ liệu.')
+  await act(() => {
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    return Promise.resolve()
+  })
+
+  expect(screen.getByRole('row', { name: /Project Owner From API/ })).toBeDefined()
+  expect(screen.getByText(/Workspace From API/)).toBeDefined()
+  const add = screen.getByRole<HTMLButtonElement>('button', { name: 'Thêm thành viên' })
+  expect(add.disabled).toBe(false)
+  fireEvent.click(add)
+  expect(screen.getByText(person.name)).toBeDefined()
+})
 
 it.each(['keyboard', 'button'])('adds a workspace candidate using %s, changes their role and removes them through the real session', async input => {
   renderFrame(<Members />)

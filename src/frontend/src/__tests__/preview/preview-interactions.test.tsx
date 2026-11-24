@@ -599,6 +599,25 @@ it('menu tài khoản: Hồ sơ/Cài đặt ĐIỀU HƯỚNG sang Settings, khô
   expect(screen.queryByRole('dialog', { name: /Tài khoản/ })).toBeNull()
 })
 
+it('opens the account menu with the keyboard and restores focus on Escape', () => {
+  renderFrame(<WorkspacesPreviewView />)
+  const trigger = screen.getByRole('button', { name: 'Tài khoản Nguyễn Minh Anh' })
+  trigger.focus()
+
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+  const popover = screen.getByRole('dialog', { name: 'Tài khoản Nguyễn Minh Anh' })
+  const profile = within(popover).getByRole('button', { name: 'Hồ sơ cá nhân' })
+  const settings = within(popover).getByRole('button', { name: 'Cài đặt tài khoản' })
+  expect(document.activeElement).toBe(profile)
+
+  fireEvent.keyDown(profile, { key: 'ArrowDown' })
+  expect(document.activeElement).toBe(settings)
+  fireEvent.keyDown(settings, { key: 'Escape' })
+
+  expect(screen.queryByRole('dialog', { name: 'Tài khoản Nguyễn Minh Anh' })).toBeNull()
+  expect(document.activeElement).toBe(trigger)
+})
+
 it('menu tài khoản (4.1): ĐÚNG HAI hàng điều hướng được, "Cài đặt tài khoản" về tổng quan Settings', () => {
   renderFrame(<WorkspacesPreviewView />)
   fireEvent.click(screen.getByRole('button', { name: 'Tài khoản Nguyễn Minh Anh' }))
@@ -610,7 +629,7 @@ it('menu tài khoản (4.1): ĐÚNG HAI hàng điều hướng được, "Cài �
   // nhãn nhóm, nhưng nó lặp lại tên một trang bên cạnh hai nhãn việc làm còn đích đến thì đã
   // hiện rõ khi bấm.
   const rows = within(within(popover).getByRole('list')).getAllByRole('button')
-  expect(rows.map(button => button.textContent?.trim())).toEqual(['Hồ sơ cá nhân', 'Cài đặt tài khoản'])
+  expect(rows.map(button => button.getAttribute('aria-label'))).toEqual(['Hồ sơ cá nhân', 'Cài đặt tài khoản'])
   expect(rows.every(button => !button.textContent?.includes('Settings'))).toBe(true)
   fireEvent.click(within(popover).getByRole('button', { name: /Cài đặt tài khoản/ }))
   // KHÔNG nhảy vào Bảo mật: hàng này đại diện cả NHÓM ba mục (Bảo mật · Đăng nhập & phiên ·

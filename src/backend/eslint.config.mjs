@@ -181,6 +181,42 @@ export default tseslint.config(
     },
   },
 
+  // ── MM2: cấm deep cross-module import (Modular Monolith) ───────────────
+  // Chỉ chặn import sâu vào tầng nội bộ của module KHÁC
+  // (domain/application/infrastructure/presentation).
+  // Cho phép: import nội bộ cùng module (`../../domain/...`), public contract
+  // (`../datasets`), và wiring module NestJS (`../workspaces/workspaces.module`).
+  {
+    files: ['src/modules/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^\\.\\./(analysis|audit|auth|data-view|datasets|feedback|issues|notifications|overview|projects|realtime|users|workspaces)/(domain|application|infrastructure|presentation)/.+',
+              message:
+                'Module không được import trực tiếp file của module khác. ' +
+                'Chỉ import qua public contract: `../<ten-module>`. (Modular Monolith — MM2)',
+            },
+            {
+              regex: '^\\.\\./\\.\\./(analysis|audit|auth|data-view|datasets|feedback|issues|notifications|overview|projects|realtime|users|workspaces)/(domain|application|infrastructure|presentation)/.+',
+              message:
+                'Module không được import trực tiếp file của module khác. ' +
+                'Chỉ import qua public contract: `../../<ten-module>`. (Modular Monolith — MM2)',
+            },
+            {
+              regex: '^\\.\\./\\.\\./\\.\\./(analysis|audit|auth|data-view|datasets|feedback|issues|notifications|overview|projects|realtime|users|workspaces)/(domain|application|infrastructure|presentation)/.+',
+              message:
+                'Module không được import trực tiếp file của module khác. ' +
+                'Chỉ import qua public contract. (Modular Monolith — MM2)',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // ── Test: nới lỏng ────────────────────────────────────────────────────────
   {
     files: [TEST, 'scripts/**/*'],

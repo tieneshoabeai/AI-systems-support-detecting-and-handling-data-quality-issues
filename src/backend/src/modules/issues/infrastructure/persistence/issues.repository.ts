@@ -12,6 +12,7 @@ import type { IssueReport, IssueAttachment } from '../../domain/entities/issue-r
 import type { IssueStatus } from '../../domain/value-objects/issue-status.vo';
 import { toIssueEntity, toIssuePersistence } from './issue.mapper';
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
 /**
  * ISSUES — Infrastructure adapter (driven).
@@ -25,7 +26,8 @@ export class IssuesRepository implements IssueReportRepositoryPort {
 
   async create(doc: CreateIssueRecord): Promise<IssueReport> {
     const inst = new this.model(toIssuePersistence(doc));
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toIssueEntity(saved);
   }
 
@@ -82,7 +84,7 @@ export class IssuesRepository implements IssueReportRepositoryPort {
             },
           },
         },
-        { new: true },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toIssueEntity(doc) : null;
@@ -94,7 +96,7 @@ export class IssuesRepository implements IssueReportRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), version: expectedVersion, deleted_at: null },
         { $set: { status }, $inc: { version: 1 } },
-        { new: true },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toIssueEntity(doc) : null;
@@ -125,7 +127,7 @@ export class IssuesRepository implements IssueReportRepositoryPort {
           deleted_at: null,
         },
         update,
-        { new: true },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toIssueEntity(doc) : null;

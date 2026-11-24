@@ -58,6 +58,7 @@ export default function () {
   sleep(1);
 
   if (DATASET_ID) {
+    // Route hiện tại: GET /datasets/:datasetId/records (keyset pagination).
     r = http.get(BASE + '/datasets/' + DATASET_ID + '/records?limit=50', {
       headers: authHeaders,
       tags: { scenario: 'records' },

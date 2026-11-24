@@ -37,15 +37,63 @@ import {
   type ColumnDataType,
 } from '../value-objects/column-type.vo';
 import { DATASET_EVENTS } from '../events/dataset-events';
+import type { DatasetFinding } from '../services/finding.util';
 
 /** Trạng thái vòng đời dataset. */
 export type DatasetStatus = 'INGESTING' | 'READY' | 'FAILED';
 
-/** Dấu phân cách cột được hỗ trợ. */
-export type DatasetDelimiter = ',' | ';' | '\t' | '|';
+/**
+ * Dấu phân cách cột được hỗ trợ.
+ *
+ * OPEN-05 (chốt 2026-11-19): **chỉ** phẩy cách. Hỗ trợ `;`/tab/`|` sẽ bắt buộc
+ * phải **đoán** dấu phân cách (sniff) → mâu thuẫn với nguyên tắc "không tự
+ * chuẩn hoá dữ liệu theo suy đoán".
+ */
+export type DatasetDelimiter = ',';
 
 /** Loại lỗi tên cột phát hiện lúc suy luận schema. */
 export type DatasetColumnIssueType = 'empty_name' | 'duplicate_name' | 'whitespace_only';
+
+/** Độ dài tối đa của tên dataset (khớp `DatasetSchema.name.maxlength`). */
+export const MAX_DATASET_NAME_LENGTH = 100;
+
+/** Độ dài tối đa của tên hiển thị cột. */
+export const MAX_COLUMN_NAME_LENGTH = 100;
+
+/**
+ * Phát hiện lỗi tên cột — **thuần**, dùng chung cho lúc suy luận schema và sau
+ * khi đổi tên cột (mục 3.6.2 rule 2: `column_issues` phải được tính lại).
+ *
+ * So sánh trùng lặp **chính xác** (phân biệt hoa thường và khoảng trắng) —
+ * khớp với `SchemaInferenceService.detectColumnIssues()` và UC-10 bước 1
+ * ("không tự trim hay đổi hoa thường").
+ */
+export function detectColumnIssues(columns: ReadonlyArray<DatasetColumn>): DatasetColumnIssue[] {
+  const issues: DatasetColumnIssue[] = [];
+  const seen = new Map<string, number>();
+  columns.forEach((c, i) => {
+    if (c.name === '') {
+      issues.push({ columnKey: c.key, issue: 'empty_name', message: `Cot ${c.key} co ten rong` });
+    } else if (/^\s+$/.test(c.name)) {
+      issues.push({
+        columnKey: c.key,
+        issue: 'whitespace_only',
+        message: `Cot ${c.key} chi chua khoang trang`,
+      });
+    }
+    const first = seen.get(c.name);
+    if (first !== undefined && c.name !== '') {
+      issues.push({
+        columnKey: c.key,
+        issue: 'duplicate_name',
+        message: `Ten cot "${c.name}" bi trung (cot c${first} va ${c.key})`,
+      });
+    } else if (first === undefined) {
+      seen.set(c.name, i);
+    }
+  });
+  return issues;
+}
 
 /** Một cột của dataset — thuộc về aggregate. */
 export interface DatasetColumn {
@@ -70,6 +118,14 @@ export interface DatasetColumnIssue {
   message: string;
 }
 
+/**
+ * Phát hiện (finding) — mục **"Phát hiện"** trong metadata dataset.
+ *
+ * OPEN-03/04/05: vì dataset **bất biến** sau khi nạp, mọi vấn đề trong dữ liệu
+ * đều được **báo cáo kèm vị trí lỗi cụ thể** thay vì cho phép sửa trực tiếp.
+ */
+export type { DatasetFinding } from '../services/finding.util';
+
 /** Props đầy đủ của aggregate dataset. */
 export interface DatasetProps extends BaseEntityProps {
   projectId: string;
@@ -84,6 +140,8 @@ export interface DatasetProps extends BaseEntityProps {
   columnCount: number;
   columns: DatasetColumn[];
   columnIssues: DatasetColumnIssue[];
+  /** Mục "Phát hiện" — vấn đề dữ liệu kèm vị trí lỗi cụ thể (OPEN-03/04/05). */
+  findings?: DatasetFinding[];
   hasHeader: boolean;
   delimiter: DatasetDelimiter;
   currentVersion: number;
@@ -155,6 +213,16 @@ export class Dataset extends BaseEntity<DatasetProps> {
     return this.props.columnIssues;
   }
 
+  /**
+   * Mục "Phát hiện" — vấn đề dữ liệu kèm **vị trí lỗi cụ thể**.
+   *
+   * Dataset **bất biến** sau khi nạp (OPEN-03) ⇒ không sửa được ⇒ mọi vấn đề
+   * đều phải được báo cáo ở đây để người dùng tự sửa file rồi nạp lại.
+   */
+  get findings(): ReadonlyArray<DatasetFinding> {
+    return this.props.findings ?? [];
+  }
+
   get hasHeader(): boolean {
     return this.props.hasHeader;
   }
@@ -208,6 +276,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
       columnCount: 0,
       columns: [],
       columnIssues: [],
+      findings: [],
       hasHeader: props.hasHeader ?? true,
       delimiter: props.delimiter ?? ',',
       currentVersion: 1,
@@ -227,6 +296,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
       ...props,
       columns: props.columns.map((c) => ({ ...c })),
       columnIssues: props.columnIssues.map((i) => ({ ...i })),
+      findings: (props.findings ?? []).map((f) => ({ ...f })),
     });
   }
 
@@ -299,6 +369,8 @@ export class Dataset extends BaseEntity<DatasetProps> {
     rowCount: number;
     columns: DatasetColumn[];
     columnIssues: DatasetColumnIssue[];
+    /** Mục "Phát hiện" (OPEN-03/04/05) — mặc định rỗng. */
+    findings?: DatasetFinding[];
   }): void {
     if (this.props.status !== 'INGESTING') {
       throw new ConflictError(
@@ -326,7 +398,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
     this.props.columns = params.columns.map((c) => ({ ...c }));
     this.props.columnCount = params.columns.length;
     this.props.columnIssues = params.columnIssues.map((i) => ({ ...i }));
-    this.props.status = 'READY';
+    this.props.findings = (params.findings ?? []).map((f) => ({ ...f }));    this.props.status = 'READY';
     this.props.updatedAt = new Date();
     this.addDomainEvent({
       eventType: DATASET_EVENTS.INGESTED,
@@ -426,6 +498,7 @@ export class Dataset extends BaseEntity<DatasetProps> {
       columnCount: this.props.columnCount,
       columns: this.props.columns.map((c) => ({ ...c })),
       columnIssues: this.props.columnIssues.map((i) => ({ ...i })),
+      findings: (this.props.findings ?? []).map((f) => ({ ...f })),
       hasHeader: this.props.hasHeader,
       delimiter: this.props.delimiter,
       currentVersion: this.props.currentVersion,

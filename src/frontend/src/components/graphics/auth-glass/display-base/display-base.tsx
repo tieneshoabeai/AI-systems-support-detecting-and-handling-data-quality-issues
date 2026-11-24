@@ -11,7 +11,10 @@ import { createBaseRingGeometry, createBaseTierGeometry } from '../../../../grap
 import { createBaseFloorFade, createBaseGlint, createBaseGlow } from '../../../../graphics/auth-glass/display-base'
 import { useBaseEnvironment } from './use-base-environment'
 
-export function DisplayBase({ options = displayBaseOptions, login, register, footlights, turntable, children, low = false }: {
+const pearlTierColors = ['#e3effc', '#bfd4ee', '#aec7e6']
+
+export function DisplayBase({ options = displayBaseOptions, login, register, footlights, turntable, children, low = false, colorMode = 'dark' }: {
+  colorMode?: 'light' | 'dark'
   options?: DisplayBaseOptions
   login?: ReactNode
   register?: ReactNode
@@ -85,7 +88,7 @@ export function DisplayBase({ options = displayBaseOptions, login, register, foo
   return <group name="DisplayBase">
     <mesh name="floor" position-y={options.floor.y} rotation-x={-Math.PI / 2}>
       <planeGeometry args={[options.floor.size, options.floor.size]} />
-      <meshPhysicalMaterial color={options.floor.color} roughness={0.60} metalness={0.24}
+      <meshPhysicalMaterial color={options.floor.color} opacity={colorMode === 'light' ? .10 : 1} roughness={0.60} metalness={0.24}
         envMap={environment} envMapIntensity={0.15} alphaMap={resources.floorFade} transparent depthWrite={false} />
     </mesh>
     <mesh ref={floorGlowMesh} name="floor-glow" position-y={options.floor.y + 0.004} rotation-x={-Math.PI / 2}
@@ -93,9 +96,10 @@ export function DisplayBase({ options = displayBaseOptions, login, register, foo
       <planeGeometry args={[6.2, 6.2]} />
     </mesh>
     <group name="DisplayTurntable" {...turntable}>
-      {resources.tiers.map(({ name, geometry, color }) => (
+      {resources.tiers.map(({ name, geometry, color }, index) => (
         <mesh key={name} name={name} geometry={geometry}>
-          <meshPhysicalMaterial color={color} roughness={0.24} metalness={0.52} specularIntensity={0.34}
+          <meshPhysicalMaterial color={colorMode === 'light' ? pearlTierColors[index] ?? color : color}
+            roughness={0.24} metalness={colorMode === 'light' ? 0.12 : 0.52} specularIntensity={0.34}
             clearcoat={0.48} clearcoatRoughness={0.23} envMap={environment} envMapIntensity={0.24} />
         </mesh>
       ))}

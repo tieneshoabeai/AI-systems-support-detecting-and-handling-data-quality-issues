@@ -2,7 +2,6 @@ import type { ApiClient, ApiResponseWithStatus } from '../../types/api/api.types
 import { ApiError } from '../../lib/api-error'
 import type { SavedAnalysisResult } from '../management/management.types'
 import type {
-  postProjectsByProjectIdSaveAnalysisConfigRequestBody,
   postProjectsByProjectIdRunAnalysisRequestBody,
 } from '../../types/services-type/analysis'
 import type {
@@ -13,7 +12,6 @@ import type {
   patchFeedbackByIdMineRequestBody,
 } from '../../types/services-type/feedback'
 
-export type AnalysisConfigInput = postProjectsByProjectIdSaveAnalysisConfigRequestBody
 export type RunAnalysisInput = postProjectsByProjectIdRunAnalysisRequestBody
 export type CreateFeedbackInput = postAnalysesByAnalysisIdRunFeedbackRequestBody
 export type UpdateFeedbackInput = patchFeedbackByIdMineRequestBody
@@ -30,10 +28,6 @@ export function createAnalysisService(api: ApiClient) {
     api.request<T>({ path, auth: 'session', ...options })
 
   return {
-    getConfig: (projectId: string, signal?: AbortSignal) =>
-      request<unknown>(projectPath(projectId, 'analysis/config'), signal ? { signal } : {}),
-    saveConfig: (projectId: string, data: AnalysisConfigInput, signal?: AbortSignal) =>
-      request<unknown>(projectPath(projectId, 'analysis/config'), { method: 'POST', data, ...(signal ? { signal } : {}) }),
     run: (projectId: string, data: RunAnalysisInput, signal?: AbortSignal) =>
       request<SavedAnalysisResult>(projectPath(projectId, 'analysis'), { method: 'POST', data, ...(signal ? { signal } : {}) }),
     getResult: (projectId: string, signal?: AbortSignal) =>

@@ -1,9 +1,6 @@
 /** Auto-generated from OpenAPI. Do not edit manually. */
 import type { paths } from '../../lib/openapi'
 
-export type patchDatasetsByIdColumnPiiRequest = paths["/api/v1/datasets/{id}/columns/pii"]["patch"]
-export type patchDatasetsByIdColumnPiiRequestBody = NonNullable<patchDatasetsByIdColumnPiiRequest["requestBody"]>["content"]["application/json"]
-
 export type postProjectsByProjectIdUploadDatasetRequest = paths["/api/v1/projects/{projectId}/datasets/upload"]["post"]
 export type postProjectsByProjectIdUploadDatasetParams = postProjectsByProjectIdUploadDatasetRequest["parameters"]
 export type postProjectsByProjectIdUploadDatasetParamsPath = postProjectsByProjectIdUploadDatasetParams["path"]

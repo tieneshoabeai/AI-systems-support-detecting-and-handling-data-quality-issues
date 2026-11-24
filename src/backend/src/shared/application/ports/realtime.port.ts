@@ -35,6 +35,17 @@ export interface RealtimePort {
     event: Extract<RealtimeEventName, 'analysis.progress' | 'analysis.completed' | 'analysis.failed' | 'ai.job.status'>,
     fields: Omit<RealtimeFields, 'projectId' | 'analysisId'>,
   ): void;
+
+  /**
+   * OPEN-08 — **Đóng socket tức thì** của một user (tài khoản bị khoá / bị xoá).
+   *
+   * - Gửi `user.force_disconnect` cho client trước (để client biết nguyên nhân).
+   * - Sau đó server đóng hẳn socket (`disconnectSockets(true)`) — không chỉ
+   *   "emit rồi để client tự đóng", vì client có thể bỏ qua và tiếp tục giữ socket.
+   *
+   * Phải **không ném lỗi**: đây là tác vụ phụ trợ, không được làm hỏng luồng chính.
+   */
+  disconnectUser(userId: string, status: 'blocked' | 'removed'): void;
 }
 
 export type {

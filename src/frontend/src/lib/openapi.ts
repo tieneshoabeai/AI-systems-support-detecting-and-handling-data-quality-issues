@@ -5,26 +5,6 @@
  */
 
 export interface paths {
-    "/api/v1/datasets/{id}/columns/pii": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)
-         * @description Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.
-         */
-        patch: operations["DatasetsController_updateColumnPii"];
-        trace?: never;
-    };
     "/health": {
         parameters: {
             query?: never;
@@ -702,18 +682,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/projects/{projectId}/analysis/config": {
+    "/api/v1/datasets/{datasetId}/charts": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** ANALYSIS-01: Xem cấu hình cột phân tích */
-        get: operations["getAnalysisConfig"];
+        /** GĐ6/E1: So lieu bieu do (histogram, box plot, Top N) cho cac cot cua dataset */
+        get: operations["DataViewController_getChartData"];
         put?: never;
-        /** ANALYSIS-01: Lưu cấu hình cột phân tích (selected/label/time/value + phương pháp) */
-        post: operations["saveAnalysisConfig"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -780,7 +759,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** AI-01: Thử lại AI job (tối đa 2 retry) */
+        /** AI-01: Thử lại AI job (không giới hạn — job cũ thành skipped) */
         post: operations["retryAiJob"];
         delete?: never;
         options?: never;
@@ -1109,11 +1088,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** FB-05: Xoá nhận xét (chủ hoặc Owner xử lý vi phạm) */
+        /** FB-05: Xoá nhận xét (chủ, Owner xử lý vi phạm, hoặc System Admin kiểm duyệt) */
         delete: operations["FeedbackController_remove"];
         options?: never;
         head?: never;
-        /** FB-05: Sửa nhận xét của chính mình */
+        /** FB-05: Sửa nhận xét của chính mình (System Admin bị chặn) */
         patch: operations["FeedbackController_updateMine"];
         trace?: never;
     };
@@ -1124,7 +1103,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** FB-06: Thống kê chất lượng AI theo project */
+        /** FB-06: Thống kê chất lượng AI theo project (System Admin bị chặn) */
         get: operations["FeedbackController_aiQualityMetrics"];
         put?: never;
         post?: never;
@@ -1186,50 +1165,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    DatasetsController_updateColumnPii: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        /** @description Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …) */
-        requestBody: {
-            content: {
-                "application/json": {
-                    columns: {
-                        columnKey: string;
-                        isPii: boolean;
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Thành công */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Key cột không tồn tại hoặc không có cột nào thay đổi */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Không tìm thấy dataset */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     AppController_getHealth: {
         parameters: {
             query?: never;
@@ -1393,11 +1328,6 @@ export interface operations {
                     password: string;
                     first_name: string;
                     last_name: string;
-                    /**
-                     * @default analyst
-                     * @enum {string}
-                     */
-                    role?: "admin" | "analyst";
                 };
             };
         };
@@ -1407,7 +1337,121 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "id": "507f1f77bcf86cd799439011",
+                     *         "email": "analyst@example.com",
+                     *         "role": "analyst",
+                     *         "first_name": "An",
+                     *         "last_name": "Nguyen",
+                     *         "created_at": "2026-11-22T04:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Email, mật khẩu hoặc thông tin đăng ký không hợp lệ */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Dữ liệu gửi lên không hợp lệ.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/register"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Email đã được sử dụng; mã lỗi CONFLICT hoặc DUPLICATE_RESOURCE nếu xung đột tại database */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "CONFLICT",
+                     *         "message": "Email này đã được sử dụng bởi một tài khoản khác",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/register"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Vượt 100 request đăng ký/giờ trên mỗi IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/register"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1425,7 +1469,9 @@ export interface operations {
                     /** Format: email */
                     email: string;
                     password: string;
+                    /** @description Ghi nhớ đăng nhập: true → phiên 30 ngày, false/mặc định → 7 ngày. */
                     remember_me?: boolean;
+                    /** @description Deprecated — alias của `remember_me`. Sẽ bị gỡ trong phiên bản sau. Không gửi cùng `remember_me` với giá trị khác nhau (sẽ trả 400). */
                     rememberMe?: boolean;
                 };
             };
@@ -1436,7 +1482,96 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "access_token": "<access_token>",
+                     *         "refresh_token": "<refresh_token>",
+                     *         "expires_in": 900,
+                     *         "device_name": "Chrome on Windows",
+                     *         "remember_me": false,
+                     *         "expires_at": "2026-11-29T04:00:00.000Z",
+                     *         "user": {
+                     *           "id": "507f1f77bcf86cd799439011",
+                     *           "email": "analyst@example.com",
+                     *           "role": "analyst"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Dữ liệu đầu vào không hợp lệ: email sai định dạng, thiếu mật khẩu hoặc sai kiểu dữ liệu */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Dữ liệu gửi lên không hợp lệ.",
+                     *         "details": {
+                     *           "fields": [
+                     *             {
+                     *               "field": "password",
+                     *               "message": "Mật khẩu không được để trống",
+                     *               "code": "too_small"
+                     *             }
+                     *           ]
+                     *         },
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/login"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Email hoặc mật khẩu không chính xác, tài khoản chưa có mật khẩu đăng nhập hoặc đã bị khóa */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Email hoặc mật khẩu không chính xác",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/login"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Vượt giới hạn đăng nhập: tối đa 100 request trong 1 giờ cho mỗi IP trên endpoint này */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/login"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -1456,12 +1591,125 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Cấp mới Access Token thành công */
+            /** @description Cấp mới Access Token và xoay vòng Refresh Token */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "access_token": "<access_token>",
+                     *         "refresh_token": "<refresh_token>",
+                     *         "expires_in": 900,
+                     *         "remember_me": false,
+                     *         "expires_at": "2026-11-29T04:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Thiếu refresh_token hoặc sai kiểu dữ liệu */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Dữ liệu gửi lên không hợp lệ.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/refresh"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Refresh token hết hạn/bị thu hồi/tái sử dụng hoặc tài khoản không hoạt động; mã TOKEN_EXPIRED, TOKEN_INVALID hoặc UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "TOKEN_EXPIRED",
+                     *         "message": "Refresh token không hợp lệ hoặc đã hết hạn",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/refresh"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Vượt 100 request refresh/giờ trên mỗi IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/refresh"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1482,12 +1730,88 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Thành công */
+            /** @description Thông báo trung lập, không xác nhận email có tồn tại hay email đã gửi thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "message": "Nếu email tồn tại trong hệ thống, mã OTP đã được gửi. Mã có hiệu lực 10 phút."
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Email không hợp lệ */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Dữ liệu gửi lên không hợp lệ.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/forgot-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Vượt 500 request/giờ/IP hoặc giới hạn 5 lần gửi OTP/giờ/tài khoản; lỗi quota OTP có thể kèm details.retryAfterSeconds và header Retry-After */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/forgot-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1510,12 +1834,121 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Thành công */
+            /** @description Đặt lại mật khẩu và thu hồi toàn bộ phiên đăng nhập */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "message": "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại."
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Body sai, OTP sai/hết hạn/bị vô hiệu hóa do vượt số lần thử */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Dữ liệu gửi lên không hợp lệ.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/reset-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Tài khoản bị khóa */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/reset-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Vượt 100 request đặt lại mật khẩu/giờ trên mỗi IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/reset-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1537,12 +1970,121 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Thành công */
+            /** @description Đổi mật khẩu, giữ phiên hiện tại và thu hồi các phiên khác */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "message": "Đổi mật khẩu thành công."
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Body sai, mật khẩu hiện tại sai, mật khẩu mới trùng cũ hoặc xác nhận không khớp */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Dữ liệu gửi lên không hợp lệ.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/change-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/change-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Vượt 500 request đổi mật khẩu/giờ trên mỗi IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/change-password"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1555,19 +2097,80 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Chuyển hướng tới Google (chỉ khi đã cấu hình credential) */
+            /** @description Chuyển hướng tới Google khi đã cấu hình OAuth; không trả JSON envelope */
             302: {
                 headers: {
+                    /** @description URL xác thực Google */
+                    Location?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
             /** @description Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI */
             501: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "DEPENDENCY_UNAVAILABLE",
+                     *         "message": "Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1580,33 +2183,240 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Đăng nhập thành công, trả về JWT Access Token và Refresh Token */
+            /** @description Đăng nhập thành công ở chế độ JSON (mặc định), hoặc fallback khi không thể redirect */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "access_token": "<access_token>",
+                     *         "refresh_token": "<refresh_token>",
+                     *         "expires_in": 900,
+                     *         "remember_me": false,
+                     *         "expires_at": "2026-11-29T04:00:00.000Z",
+                     *         "device_name": "Chrome on Windows",
+                     *         "user": {
+                     *           "id": "507f1f77bcf86cd799439011",
+                     *           "email": "analyst@example.com",
+                     *           "role": "analyst"
+                     *         },
+                     *         "provider": "google"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
             };
-            /** @description Đăng nhập thành công — chuyển hướng về frontend kèm token (che do `?format=redirect`) */
+            /** @description Chế độ redirect và APP_URL hợp lệ: chuyển về frontend, fragment chứa token khi thành công hoặc mã lỗi khi thất bại. Các lỗi OAuth bên dưới trả JSON khi không redirect; lỗi throttling vẫn trả 429. */
             302: {
                 headers: {
+                    /** @description URL frontend kèm fragment kết quả */
+                    Location?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Mã ủy quyền không hợp lệ hoặc email chưa được xác minh */
+            /** @description Google từ chối đăng nhập, code/state/token Google không hợp lệ hoặc email chưa xác minh (nhánh JSON) */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google/callback"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
-            /** @description Không thể liên kết — định danh Google đã bị một tài khoản khác chiếm */
+            /** @description Tài khoản bị khóa (nhánh JSON) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "FORBIDDEN",
+                     *         "message": "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google/callback"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Định danh Google đã thuộc tài khoản khác; có thể có DUPLICATE_RESOURCE khi database phát hiện trùng (nhánh JSON) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "CONFLICT",
+                     *         "message": "Không thể liên kết tài khoản Google. Định danh Google này đã được gắn với một tài khoản khác.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google/callback"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google/callback"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Chưa cấu hình GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "DEPENDENCY_UNAVAILABLE",
+                     *         "message": "Đăng nhập Google chưa được cấu hình. Cần GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google/callback"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Không kết nối được dịch vụ Google hoặc Google tạm thời không khả dụng (nhánh JSON) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "DEPENDENCY_UNAVAILABLE",
+                     *         "message": "Không thể kết nối tới Google. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/google/callback"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1619,12 +2429,88 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Đăng xuất thành công */
+            /** @description Đăng xuất và thu hồi phiên hiện hành */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "message": "Đăng xuất thành công"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/logout"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/logout"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1637,12 +2523,98 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Danh sách các phiên đăng nhập */
+            /** @description Các phiên đăng nhập đang hoạt động; data là mảng, có thể rỗng */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": [
+                     *         {
+                     *           "id": "507f1f77bcf86cd799439012",
+                     *           "device_name": "Chrome on Windows",
+                     *           "ip_address": "192.0.2.1",
+                     *           "user_agent": "Mozilla/5.0 (example)",
+                     *           "is_revoked": false,
+                     *           "remember_me": false,
+                     *           "last_used_at": "2026-11-22T04:00:00.000Z",
+                     *           "expires_at": "2026-11-29T04:00:00.000Z",
+                     *           "created_at": "2026-11-22T04:00:00.000Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1655,19 +2627,129 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Chi tiết phiên hiện tại */
+            /** @description Chi tiết phiên xác định bởi sessionId trong access token */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "id": "507f1f77bcf86cd799439012",
+                     *         "device_name": "Chrome on Windows",
+                     *         "ip_address": "192.0.2.1",
+                     *         "user_agent": "Mozilla/5.0 (example)",
+                     *         "is_revoked": false,
+                     *         "remember_me": false,
+                     *         "last_used_at": "2026-11-22T04:00:00.000Z",
+                     *         "expires_at": "2026-11-29T04:00:00.000Z",
+                     *         "created_at": "2026-11-22T04:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
             };
-            /** @description Không tìm thấy phiên hiện tại (đã thu hồi hoặc hết hạn) */
+            /** @description Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/me"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Không tìm thấy phiên đăng nhập hoặc phiên thuộc người dùng khác */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "NOT_FOUND",
+                     *         "message": "Không tìm thấy phiên đăng nhập",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/me"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/me"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1682,19 +2764,129 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Chi tiết phiên đăng nhập */
+            /** @description Chi tiết phiên của chính người dùng, có thể bao gồm phiên đã thu hồi hoặc hết hạn */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "id": "507f1f77bcf86cd799439012",
+                     *         "device_name": "Chrome on Windows",
+                     *         "ip_address": "192.0.2.1",
+                     *         "user_agent": "Mozilla/5.0 (example)",
+                     *         "is_revoked": false,
+                     *         "remember_me": false,
+                     *         "last_used_at": "2026-11-22T04:00:00.000Z",
+                     *         "expires_at": "2026-11-29T04:00:00.000Z",
+                     *         "created_at": "2026-11-22T04:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
             };
-            /** @description Không tìm thấy phiên hoặc phiên thuộc user khác */
+            /** @description Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/507f1f77bcf86cd799439012"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Không tìm thấy phiên đăng nhập hoặc phiên thuộc người dùng khác */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "NOT_FOUND",
+                     *         "message": "Không tìm thấy phiên đăng nhập",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/507f1f77bcf86cd799439012"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/507f1f77bcf86cd799439012"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -1709,12 +2901,121 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Thu hồi phiên thành công */
+            /** @description Thu hồi phiên đăng nhập thành công */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "success": true,
+                     *       "data": {
+                     *         "message": "Đã thu hồi phiên đăng nhập thành công"
+                     *       }
+                     *     }
+                     */
+                    "application/json": unknown;
+                };
+            };
+            /** @description Phiên không tồn tại, thuộc người dùng khác hoặc đã bị thu hồi */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "VALIDATION_ERROR",
+                     *         "message": "Không tìm thấy phiên đăng nhập hoặc phiên đã bị thu hồi trước đó",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/507f1f77bcf86cd799439012"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Thiếu access token, token không hợp lệ/hết hạn hoặc tài khoản không còn hoạt động */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "UNAUTHENTICATED",
+                     *         "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn (Unauthorized)",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/507f1f77bcf86cd799439012"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
+            };
+            /** @description Giới hạn request theo IP; thử lại sau khi hết thời gian chặn */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "LIMIT_EXCEEDED",
+                     *         "message": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
+                     *         "timestamp": "2026-11-22T04:00:00.000Z",
+                     *         "path": "/api/v1/auth/sessions/507f1f77bcf86cd799439012"
+                     *       }
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: false;
+                        error: {
+                            code: string;
+                            message: string;
+                            details?: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            timestamp: string;
+                            path: string;
+                        };
+                    };
+                };
             };
         };
     };
@@ -2491,64 +3792,22 @@ export interface operations {
             };
         };
     };
-    getAnalysisConfig: {
+    DataViewController_getChartData: {
         parameters: {
-            query?: never;
+            query?: {
+                columns?: string;
+                top_n?: number;
+                max_rows?: number;
+            };
             header?: never;
             path: {
-                projectId: string;
+                datasetId: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Thành công */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    saveAnalysisConfig: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                projectId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    selected_columns?: string[] | null;
-                    label_column?: string | null;
-                    time_column?: string | null;
-                    /**
-                     * @default day
-                     * @enum {string}
-                     */
-                    time_granularity?: "day" | "week" | "month" | "year";
-                    value_column?: string | null;
-                    /**
-                     * @default pearson
-                     * @enum {string}
-                     */
-                    correlation_method?: "pearson" | "spearman";
-                    /**
-                     * @default iqr
-                     * @enum {string}
-                     */
-                    outlier_method?: "iqr" | "modified_zscore" | "both";
-                    /** @default 10 */
-                    top_n?: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Thành công */
+            /** @description Thanh cong */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2569,7 +3828,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    selected_columns?: string[];
                     /**
                      * @default pearson
                      * @enum {string}
@@ -2582,6 +3840,8 @@ export interface operations {
                     outlier_method?: "iqr" | "modified_zscore" | "both";
                     /** @default 10 */
                     top_n?: number;
+                    /** @default 5 */
+                    chart_top_n?: number;
                 };
             };
         };
@@ -3242,6 +4502,13 @@ export interface operations {
         responses: {
             /** @description Thành công */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description System Admin không có quyền với nhóm nhận xét */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

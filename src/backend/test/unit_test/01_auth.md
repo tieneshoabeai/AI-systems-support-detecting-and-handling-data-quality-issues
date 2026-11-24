@@ -17,7 +17,7 @@
 - [ ] **AUTH-006 [P0]** Đăng nhập đúng → so sánh hash, tạo session, cấp token gắn đúng user/session; response không chứa secret.
 - [ ] **AUTH-007 [P0]** Email không tồn tại, sai mật khẩu, user chỉ đăng nhập Google chưa có password → từ chối; không tạo session.
 - [ ] **AUTH-008 [P0]** Tài khoản blocked/đã xóa → không phát token mới; bổ sung ca hồi quy nếu nhánh chưa chặn đầy đủ.
-- [ ] **AUTH-009 [P1]** remember_me thiếu/false/true và alias rememberMe → TTL đúng policy, mặc định false; cố định clock để so expires_at.
+- [ ] **AUTH-009 [P1]** remember_me thiếu/false/true và alias rememberMe → TTL đúng policy, mặc định false; cố định clock để so expires_at. `remember_me` là tên chuẩn duy nhất; `rememberMe` là alias deprecated — gửi **cả hai với giá trị khác nhau** phải bị từ chối (400), không được âm thầm ưu tiên `remember_me`.
 - [ ] **AUTH-010 [P1]** Thiếu user-agent/IP hoặc thiết bị không nhận diện được → vẫn đăng nhập theo contract; metadata không biến thành thông tin xác thực.
 - [ ] **AUTH-011 [P0]** Refresh token hợp lệ → lookup bằng hash, thu hồi session cũ, tạo session mới, access token tham chiếu session mới.
 - [ ] **AUTH-012 [P0]** Refresh tại thời điểm expiresAt bằng now và sau now → bị từ chối; không tạo session mới.

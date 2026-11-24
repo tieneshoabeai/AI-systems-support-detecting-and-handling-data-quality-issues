@@ -1,4 +1,4 @@
-import { Inject, Controller, Get, Post, Patch, Delete, Param, Body, Req, Res, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Inject, Controller, Get, Post, Delete, Param, Req, Res, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import busboy from 'busboy';
@@ -18,17 +18,10 @@ import { GetDatasetByIdHandler } from '../../application/queries/get-dataset-by-
 import { GetDatasetByProjectIdHandler } from '../../application/queries/get-dataset-by-project-id.handler';
 import { GetDatasetSchemaHandler } from '../../application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler } from '../../application/commands/ingest-dataset-stream.handler';
-import { UpdateColumnPiiHandler } from '../../application/commands/update-column-pii.handler';
 import { DatasetPolicyLoader } from '../../application/policy-loaders/dataset-policy.loader';
 import { ProjectScopePolicyLoader } from '../../../projects';
 import { toDatasetResponse, type DatasetResponse } from '../responses/dataset.response';
 import { ValidationError } from '../../../../shared/domain/errors';
-import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
-import {
-  UpdateColumnPiiSchema,
-  type UpdateColumnPiiDto,
-} from '../dtos/update-column-pii.dto';
 
 @ApiTags('Datasets')
 @ApiBearerAuth()
@@ -47,8 +40,6 @@ export class DatasetsController {
     private readonly getDatasetByProjectIdHandler: GetDatasetByProjectIdHandler,
 
     private readonly getDatasetSchemaHandler: GetDatasetSchemaHandler,
-
-    private readonly updateColumnPiiHandler: UpdateColumnPiiHandler,
 
     @Inject(AUDIT_LOGGER_PORT)
     private readonly audit: AuditLoggerPort,
@@ -139,52 +130,35 @@ export class DatasetsController {
   // ─────────────────────────────────────────────────────────────────────────
   // BẤT BIẾN DỮ LIỆU (Data Immutability)
   //
-  // Ba route dưới đây ĐÃ BỊ GỠ:
-  //   - PATCH /datasets/:id              (đổi tên dataset)
-  //   - PATCH /datasets/:id/columns      (đổi tên cột)
-  //   - POST  /datasets/:id/columns/reset (khôi phục tên cột gốc)
+  // Nguyên tắc (OPEN-03, chốt 2026-11-19): hệ thống **chỉ nhận dataset và
+  // phân tích** — người dùng KHÔNG được thao tác lên dataset sau khi nạp.
   //
-  // Lý do: nguyên tắc "dữ liệu nạp vào như nào thì giữ nguyên như vậy" — sau
-  // khi nạp, nội dung dataset là bản chụp bất biến; không được sửa, xoá hay
-  // thay đổi bất kì điều gì. Việc gỡ route (thay vì trả 409) giữ đúng hợp
-  // đồng API: client gọi sẽ nhận 404.
+  // Nội dung dataset (giá trị ô, số dòng, số cột, kiểu dữ liệu cột, file gốc,
+  // **tên hiển thị của cột**, **tên dataset**, **cờ PII**) là bản chụp bất biến
+  // ngay sau khi nạp. Không route nào sửa được chúng.
   //
-  // VẪN GIỮ: nạp dataset (POST /projects/:projectId/datasets/upload) và
-  // xoá dataset (DELETE /datasets/:id) — xoá là huỷ bỏ toàn bộ dataset để nạp
-  // lại từ đầu, không phải sửa nội dung đã có.
+  // Thay vì sửa, hệ thống **phát hiện** vấn đề (tên cột rỗng/trùng, ô nghi ngờ
+  // ngày/số…) và trả về trong mục **Phát hiện** (`findings`) — kèm vị trí lỗi
+  // cụ thể. Người dùng sửa file rồi **xoá dataset và nạp lại**.
   //
-  // NGOẠI LỆ (GĐ4): `PATCH /datasets/:id/columns/pii` — cờ PII là *metadata
-  // phân loại cột*, nằm NGOÀI bản chụp dữ liệu nên vẫn cho phép sửa. Xem
-  // route bên dưới.
+  // VẪN GIỮ:
+  //   - `POST /projects/:projectId/datasets/upload` — nạp dataset
+  //   - `DELETE /datasets/:id` — huỷ bỏ toàn bộ dataset để nạp lại từ đầu
+  //
+  // ── Vì sao route XOÁ nằm ở root chứ không nested dưới `/projects/...` ──────
+  //
+  // Xoá dataset không chỉ xoá bản ghi mà còn **gỡ cờ `hasDataset` của project**
+  // và **trừ dung lượng đã dùng của workspace** (cả 2 việc nằm trong cùng một
+  // transaction — OPEN-09). Vì nó tác động tới resource của *hai* module khác
+  // (project, workspace), đặt route ở root là chính xác hơn.
+  //
+  // Đây là **route xoá dataset DUY NHẤT** — không tồn tại
+  // `DELETE /projects/:projectId/datasets`.
+  //
+  // Luồng gọi phía frontend:
+  //   1. `GET /projects/:projectId/datasets`  → lấy `dataset.id`
+  //   2. `DELETE /datasets/:id`               → xoá
   // ─────────────────────────────────────────────────────────────────────────
-
-  @Patch('datasets/:id/columns/pii')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary:
-      'GĐ4: Bật/tắt cờ PII cho các cột (metadata — KHÔNG sửa nội dung dữ liệu)',
-    description:
-      'Cập nhật cờ `isPii` theo key cột ổn định (`c0`, `c1`, …). ' +
-      'Cột được đánh dấu PII sẽ luôn được che trước khi đưa vào prompt AI. ' +
-      'Route này KHÔNG đổi tên cột, KHÔNG đổi số dòng/số cột — chỉ cập nhật cờ phân loại.',
-  })
-  @ApiZodBody(
-    UpdateColumnPiiSchema,
-    'Danh sách cột cập nhật cờ PII (key cột ổn định `c0`, `c1`, …)',
-    { columns: [{ columnKey: 'c0', isPii: true }] },
-  )
-  @PolicyResource('Dataset', DatasetPolicyLoader)
-  @CheckPolicies((ability) => ability.can(Action.Update, 'Dataset'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  @ApiResponse({ status: 400, description: 'Key cột không tồn tại hoặc không có cột nào thay đổi' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy dataset' })
-  async updateColumnPii(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateColumnPiiSchema)) dto: UpdateColumnPiiDto,
-  ): Promise<{ dataset: DatasetResponse }> {
-    const dataset = await this.updateColumnPiiHandler.execute(id, dto);
-    return { dataset: toDatasetResponse(dataset) };
-  }
 
   @Delete('datasets/:id')
   @HttpCode(HttpStatus.NO_CONTENT)

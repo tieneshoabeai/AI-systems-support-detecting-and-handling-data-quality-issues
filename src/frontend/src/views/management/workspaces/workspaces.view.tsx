@@ -1,4 +1,7 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import { Button } from '../../../components/ui/primitives/button'
+import { PreviewPopover } from '../../preview/components/preview-popover'
+import { ResourceBreadcrumb } from '../../preview/components/resource-breadcrumb'
 import styles from './workspaces.module.css'
 import type { PreviewMenuOrigin, Project, ProjectStatus, Workspace, WorkspaceOwnershipFilter, WorkspaceRoleFilter, WorkspaceSort } from '../../../types'
 import {
@@ -33,6 +36,59 @@ const workspacePerPageOptions: readonly number[] = [10, 20, maxWorkspacesPerPage
 // Tìm kiếm trang: tên + mô tả (`matchWorkspaceQuery` ở tầng data, để view lẫn test dùng một
 // quy tắc). Ô nhập nằm trong toolbar của chính trang (.toolbar-search), KHÔNG ở topbar — topbar
 // đã bỏ thanh tìm kiếm chung theo yêu cầu 03/11.
+
+const detailStatusOptions = [
+  { id: 'all' as const, label: 'Tất cả trạng thái' },
+  ...(Object.keys(statusFilterLabels) as ProjectStatus[]).map(id => ({ id, label: statusFilterLabels[id] })),
+]
+const detailSortOptions = [
+  { id: 'recent', label: 'Mới nhất' },
+  { id: 'name', label: 'Tên A → Z' },
+] as const
+
+function WorkspaceFilter<T extends string>({ label, icon, value, options, onChange }: {
+  label: string
+  icon: string
+  value: T
+  options: readonly { id: T; label: string }[]
+  onChange: (value: T) => void
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null)
+  const selected = options.find(option => option.id === value)
+  const close = () => setTrigger(null)
+
+  return <div className={styles['filter']}>
+    <Button ref={buttonRef} type="button" className={styles['filterTrigger']}
+      aria-label={label} aria-haspopup="dialog" aria-expanded={trigger !== null}
+      onClick={event => setTrigger(trigger ? null : event.currentTarget)}>
+      <PreviewIcon name={icon} />
+      <span className={styles['filterText']}>
+        <span className={styles['filterLabel']}>{label}</span>
+        <strong className={styles['filterValue']}>{selected?.label}</strong>
+      </span>
+      <PreviewIcon name="chevron-down" />
+    </Button>
+    <PreviewPopover label={label} open={trigger !== null} trigger={trigger} onClose={close}>
+      <div className={styles['filterPanel']}>
+        <div className={styles['filterHeading']}><PreviewIcon name={icon} /><strong>{label}</strong></div>
+        <ul className={styles['filterOptions']}>
+          {options.map(option => <li key={option.id}>
+            <Button type="button" className={styles['filterOption']} aria-pressed={option.id === value}
+              onClick={() => {
+                onChange(option.id)
+                close()
+                buttonRef.current?.focus({ preventScroll: true })
+              }}>
+              <span>{option.label}</span>
+              {option.id === value && <PreviewIcon name="check" />}
+            </Button>
+          </li>)}
+        </ul>
+      </div>
+    </PreviewPopover>
+  </div>
+}
 
 export function WorkspaceCard({ workspace, selected, view }: {
   workspace: Workspace
@@ -130,12 +186,6 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
     session.openMenu({ ...projectMenu(project), origin })
 
   return <PreviewShell active="workspaces">
-    <nav className="ws-crumb" aria-label="Path điều hướng">
-      <button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</button>
-      <span className="crumb-sep" aria-hidden="true">›</span>
-      <span className="crumb-current" aria-current="page">{workspace.name}</span>
-    </nav>
-
     <header className="ws-detail-head">
       <span className="ws-detail-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
       <div className="ws-detail-title">
@@ -159,6 +209,9 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
       </div>
     </header>
 
+    <ResourceBreadcrumb
+      parents={[{ label: 'Workspaces', icon: 'workspaces', onClick: () => session.openSection('workspaces') }]}
+      current={{ label: workspace.name, icon: 'workspaces' }} />
     <ResourceAvatarPicker key={workspace.id} kind="workspace" id={workspace.id} />
     <StatRow stats={stats} />
 
@@ -181,18 +234,10 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
           <input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
             placeholder="Tìm theo tên project…" autoComplete="off" />
         </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo trạng thái</span>
-          <select value={status} onChange={event => { setStatus(event.target.value as 'all' | ProjectStatus); setPage(1) }}>
-            <option value="all">Tất cả trạng thái</option>
-            {(Object.keys(statusFilterLabels) as ProjectStatus[]).map(value => <option key={value} value={value}>{statusFilterLabels[value]}</option>)}
-          </select>
-        </label>
-        <label className="chip-select inline"><span className="visually-hidden">Sắp xếp project</span>
-          <select value={sort} onChange={event => setSort(event.target.value as DetailSort)}>
-            <option value="recent">Mới nhất</option>
-            <option value="name">Tên A→Z</option>
-          </select>
-        </label>
+        <WorkspaceFilter label="Trạng thái" icon="activity" value={status} options={detailStatusOptions}
+            onChange={value => { setStatus(value); setPage(1) }} />
+        <WorkspaceFilter label="Sắp xếp" icon="list" value={sort} options={detailSortOptions}
+            onChange={value => { setSort(value); setPage(1) }} />
         <button type="button" className="button-primary" onClick={() => session.openProjectWizard(workspace.id)}><PreviewIcon name="plus" /> Tạo Project</button>
       </div>}>
       <div className="table-scroll">
@@ -303,21 +348,12 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
           <input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
             placeholder="Tìm kiếm Workspace…" autoComplete="off" />
         </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo quyền sở hữu</span>
-          <select value={ownership} onChange={event => { setOwnership(event.target.value as WorkspaceOwnershipFilter); setPage(1) }}>
-            {workspaceOwnershipOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
-          <select value={role} onChange={event => { setRole(event.target.value as WorkspaceRoleFilter); setPage(1) }}>
-            {workspaceRoleOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label className="chip-select inline"><span className="chip-label">Sắp xếp</span>
-          <select value={sort} onChange={event => { setSort(event.target.value as WorkspaceSort); setPage(1) }}>
-            {workspaceSortOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
+        <WorkspaceFilter label="Quyền sở hữu" icon="workspaces" value={ownership} options={workspaceOwnershipOptions}
+            onChange={value => { setOwnership(value); setPage(1) }} />
+        <WorkspaceFilter label="Vai trò" icon="users" value={role} options={workspaceRoleOptions}
+            onChange={value => { setRole(value); setPage(1) }} />
+        <WorkspaceFilter label="Sắp xếp" icon="list" value={sort} options={workspaceSortOptions}
+            onChange={value => { setSort(value); setPage(1) }} />
       </div>
       <div className="toolbar-right">
         <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">

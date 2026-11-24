@@ -84,4 +84,76 @@ describe('PDF builder — giữ dấu tiếng Việt', () => {
     const pdf = await buildReportPdfAsync({ title: 'Rỗng', sections: [] });
     expect(pdf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
   });
+
+  // ── GĐ3: bảng trong PDF ──────────────────────────────────────────────────
+  it('vẽ bảng (tiêu đề + dữ liệu) và trích xuất được nội dung ô', async () => {
+    const pdf = await buildReportPdfAsync({
+      title: 'Báo cáo có bảng',
+      sections: [
+        {
+          heading: '2. Top phát hiện',
+          lines: [],
+          table: {
+            headers: ['Ưu tiên', 'Cột', 'Số lượng'],
+            widths: [0.2, 0.5, 0.3],
+            rows: [
+              ['1', 'Tuổi', '12'],
+              ['2', 'Lương', '7'],
+            ],
+          },
+        },
+      ],
+    });
+    expect(pdf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+
+    const dir = mkdtempSync(path.join(tmpdir(), 'pdf-table-'));
+    try {
+      const file = path.join(dir, 'table.pdf');
+      writeFileSync(file, pdf);
+      let text = '';
+      try {
+        text = execFileSync('pdftotext', [file, '-'], { encoding: 'utf-8' });
+      } catch {
+        return; // máy không có `pdftotext` → bỏ qua assert nội dung
+      }
+      expect(text).toContain('Ưu tiên');
+      expect(text).toContain('Tuổi');
+      expect(text).toContain('Lương');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('bảng rỗng vẫn in "(không có dữ liệu)" và không crash', async () => {
+    const pdf = await buildReportPdfAsync({
+      title: 'Bảng rỗng',
+      sections: [
+        { heading: 'Bảng', lines: [], table: { headers: ['A', 'B'], rows: [] } },
+      ],
+    });
+    expect(pdf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
+
+  it('bảng nhiều cột + nhiều dòng vẫn sinh PDF hợp lệ', async () => {
+    const pdf = await buildReportPdfAsync({
+      title: 'Bảng lớn',
+      sections: [
+        {
+          heading: 'Ma trận',
+          lines: [],
+          table: {
+            headers: ['Cột A', 'Cột B', 'Hệ số', 'n'],
+            widths: [0.3, 0.3, 0.2, 0.2],
+            rows: Array.from({ length: 50 }, (_, i) => [
+              `c${i}`,
+              `c${i + 1}`,
+              (i / 100).toFixed(4),
+              String(100 - i),
+            ]),
+          },
+        },
+      ],
+    });
+    expect(pdf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
 });

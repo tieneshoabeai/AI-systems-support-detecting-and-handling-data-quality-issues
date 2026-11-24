@@ -125,20 +125,18 @@ export function isRoleAllowedForType(role: AnalysisRole, dataType: string): bool
 }
 
 /**
- * Suy vai trò cho các cột, áp ghi đè của người dùng.
+ * Suy vai trò cho các cột.
+ *
+ * OPEN-06 / Conflict #1 — **không còn ghi đè vai trò thủ công**: vai trò luôn
+ * được suy từ kiểu dữ liệu + tên cột + phân bố giá trị.
+ *
  * @param rows dòng theo TÊN cột hiện tại
- * @param overrides map key → vai trò (đã kiểm hợp lệ ở lớp ứng dụng)
  */
 export function inferColumnRoles(
   columns: RoleColumnInput[],
   rows: Record<string, unknown>[],
-  overrides: Record<string, string> | null | undefined,
 ): ColumnRoleInfo[] {
   return columns.map((c) => {
-    const ov = overrides?.[c.key];
-    if (ov && (ANALYSIS_ROLES as readonly string[]).includes(ov)) {
-      return { key: c.key, name: c.name, role: ov as AnalysisRole, source: 'user', uncertain: false, reason: 'user_override' };
-    }
     const r = inferColumnRole(c, rows.map((row) => row[c.name]), rows.length);
     return { key: c.key, name: c.name, ...r, source: 'system' };
   });

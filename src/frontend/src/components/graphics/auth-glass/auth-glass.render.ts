@@ -33,7 +33,7 @@ function createRenderResources(gl: WebGLRenderer) {
   }
 }
 
-export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean, dragLight?: RefObject<Vector2>, debug = 0, thickness?: number) {
+export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean, dragLight?: RefObject<Vector2>, debug = 0, thickness?: number, colorMode: 'light' | 'dark' = 'dark') {
   const invalidate = useThree(state => state.invalidate)
   const gl = useThree(state => state.gl)
   const assembly = useRef<Group>(null)
@@ -65,8 +65,12 @@ export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean,
     const { loginLens, registerLens } = resources
     requireDefined(loginLens.uniforms['uDebug'], 'auth-glass.render.ts:61').value = requireDefined(registerLens.uniforms['uDebug'], 'auth-glass.render.ts:61').value = debug
     requireDefined(loginLens.uniforms['uThickness'], 'auth-glass.render.ts:62').value = requireDefined(registerLens.uniforms['uThickness'], 'auth-glass.render.ts:62').value = thickness ?? authGlassConfig.glass.thicknessPixels
+    for (const lens of [loginLens, registerLens]) {
+      requireDefined(lens.uniforms['uLightMode'], 'auth glass theme').value = colorMode === 'light'
+      requireDefined(lens.uniforms['uTint'], 'auth glass tint').value = colorMode === 'light' ? .14 : authGlassConfig.glass.tint
+    }
     invalidate()
-  }, [debug, invalidate, low, thickness])
+  }, [colorMode, debug, invalidate, low, thickness])
 
   useFrame(({ gl, scene, camera, size: layout }) => {
     const root = assembly.current

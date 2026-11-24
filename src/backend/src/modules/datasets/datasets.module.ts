@@ -8,6 +8,7 @@ import { RECORD_QUERY_PORT } from './domain/ports/record-query.port';
 import { RecordQueryRepository } from './infrastructure/persistence/record-query.repository';
 import { DatasetsController } from './presentation/controllers/datasets.controller';
 import { SchemaInferenceService } from './application/services/schema-inference.service';
+import { DatasetFindingService } from './application/services/dataset-finding.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { StorageModule } from '../../shared/infrastructure/storage/storage.module';
@@ -18,9 +19,10 @@ import { GetDatasetByIdHandler } from './application/queries/get-dataset-by-id.h
 import { GetDatasetByProjectIdHandler } from './application/queries/get-dataset-by-project-id.handler';
 import { GetDatasetSchemaHandler } from './application/queries/get-dataset-schema.handler';
 import { IngestDatasetStreamHandler } from './application/commands/ingest-dataset-stream.handler';
-import { UpdateColumnPiiHandler } from './application/commands/update-column-pii.handler';
 import { MapPropsToOriginalNamesHandler } from './application/commands/map-props-to-original-names.handler';
 import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy.loader';
+import { CascadeProjectDatasetsHandler } from './application/commands/cascade-project-datasets.handler';
+import { CascadeDatasetEventSubscriber } from './application/commands/cascade-dataset-event.subscriber';
 
 /**
  * DATASETS — Module sở hữu collection `datasets` + `dataset_records`.
@@ -47,14 +49,16 @@ import { DatasetPolicyLoader } from './application/policy-loaders/dataset-policy
     { provide: RECORD_QUERY_PORT, useExisting: RecordQueryRepository },
     DeleteDatasetHandler,
     IngestDatasetStreamHandler,
-    UpdateColumnPiiHandler,
     MapPropsToOriginalNamesHandler,
     DownloadDatasetFileHandler,
     GetDatasetByIdHandler,
     GetDatasetByProjectIdHandler,
     GetDatasetSchemaHandler,
     SchemaInferenceService,
+    DatasetFindingService,
     DatasetPolicyLoader,
+    CascadeProjectDatasetsHandler,
+    CascadeDatasetEventSubscriber,
   ],
   exports: [
     DatasetsRepository,

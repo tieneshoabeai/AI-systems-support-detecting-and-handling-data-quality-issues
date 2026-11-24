@@ -15,12 +15,19 @@ import {
   toDatasetUpdate,
 } from './dataset.mapper';
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
 /**
  * DATASETS — Infrastructure adapter (driven).
- * Noi duy nhat cham Mongoose. Trien khai DATASET_REPOSITORY_PORT.
- * Tra ve entity `Dataset`, khong lo Document.
+ * Nơi duy nhất chạm Mongoose. Triển khai DATASET_REPOSITORY_PORT.
+ * Trả về entity `Dataset`, không lo Document.
  * Wave 4 (S19/A13): dataset_record INSERT-only.
+ *
+ * ── OPEN-09: mọi thao tác GHI đều mang `session` ───────────────────────────
+ * Nhờ `resolveMongoSession()`, khi handler bọc thao tác trong
+ * `TransactionPort.runInTransaction()` thì lệnh ghi này **tự động** nằm
+ * trong cùng transaction ⇒ thao tác chính và ghi event cùng thành công /
+ * cùng rollback.
  */
 @Injectable()
 export class DatasetsRepository implements DatasetRepositoryPort {
@@ -30,23 +37,26 @@ export class DatasetsRepository implements DatasetRepositoryPort {
   ) {}
 
   async create(data: CreateDatasetInput): Promise<Dataset> {
+    const s = resolveMongoSession(undefined);
     const inst = new this.datasetModel(toDatasetPersistence(data));
-    const saved = await inst.save();
+    const saved = await inst.save({ session: s });
     return toDatasetEntity(saved);
   }
 
   async findById(id: string): Promise<Dataset | null> {
     if (!isObjectIdHex(id)) return null;
+    const s = resolveMongoSession(undefined);
     const doc = await this.datasetModel
-      .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
+      .findOne({ _id: new Types.ObjectId(id), deleted_at: null }, null, { session: s })
       .exec();
     return doc ? toDatasetEntity(doc) : null;
   }
 
   async findByProject(projectId: string): Promise<Dataset | null> {
     if (!isObjectIdHex(projectId)) return null;
+    const s = resolveMongoSession(undefined);
     const doc = await this.datasetModel
-      .findOne({ project_id: new Types.ObjectId(projectId), deleted_at: null })
+      .findOne({ project_id: new Types.ObjectId(projectId), deleted_at: null }, null, { session: s })
       .sort({ created_at: -1 })
       .exec();
     return doc ? toDatasetEntity(doc) : null;
@@ -71,61 +81,28 @@ export class DatasetsRepository implements DatasetRepositoryPort {
     update: Partial<CreateDatasetInput> & Record<string, unknown>,
   ): Promise<Dataset | null> {
     if (!isObjectIdHex(id)) return null;
+    const s = resolveMongoSession(undefined);
     const set = toDatasetUpdate(update);
     const doc = await this.datasetModel
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), deleted_at: null, status: 'INGESTING' },
         { $set: set },
-        { new: true },
+        { returnDocument: 'after', session: s },
       )
       .exec();
     return doc ? toDatasetEntity(doc) : null;
   }
 
   /**
-   * GĐ4 — cập nhật chỉ cờ PII của các cột (`columns[].is_pii`).
+   * Ghi hàng loạt bản ghi.
    *
-   * Dùng `$set` với **đường dẫn dot-notation** (`columns.0.is_pii`) nên không
-   * ghi đè bất kỳ trường nội dung nào khác của dataset — kể cả khi dataset đã
-   * `READY` (khác với `updateById` chỉ chạy được ở `INGESTING`).
+   * @transaction-excluded
    *
-   * Đây là **metadata**, không phải nội dung dữ liệu → không vi phạm nguyên tắc
-   * bất biến ("dữ liệu nạp vào như nào thì giữ nguyên như vậy").
+   * ⚠️ **Cố ý KHÔNG đưa vào transaction** (OPEN-09): khối lượng 50k dòng × 10
+   * cột vượt trần ~16 MB của MongoDB transaction ⇒ sẽ ném
+   * `TransactionTooLarge`. Bản ghi là dữ liệu thuần, idempotent khi retry.
+   * Phần "đánh dấu READY + phát event" nằm ở transaction nhỏ phía sau.
    */
-  async updateColumnPii(
-    id: string,
-    updates: Array<{ columnKey: string; isPii: boolean }>,
-  ): Promise<Dataset | null> {
-    if (!isObjectIdHex(id) || updates.length === 0) return null;
-    const doc = await this.datasetModel
-      .findOne({ _id: new Types.ObjectId(id), deleted_at: null })
-      .exec();
-    if (!doc) return null;
-
-    const columns = doc.columns ?? [];
-    const setOps: Record<string, boolean> = {};
-    let changed = 0;
-    for (const u of updates) {
-      const idx = columns.findIndex((c) => c.key === u.columnKey);
-      if (idx < 0) continue;
-      const current = columns[idx];
-      if (!current) continue;
-      if ((current.is_pii ?? false) === u.isPii) continue;
-      setOps[`columns.${idx}.is_pii`] = u.isPii;
-      changed++;
-    }
-    if (changed === 0) return toDatasetEntity(doc);
-
-    const updated = await this.datasetModel
-      .findOneAndUpdate(
-        { _id: new Types.ObjectId(id), deleted_at: null },
-        { $set: { ...setOps, updated_at: new Date() } },
-        { new: true },
-      )
-      .exec();
-    return updated ? toDatasetEntity(updated) : null;
-  }
-
   async bulkInsertRecords(records: RecordInsertDoc[]): Promise<number> {
     if (records.length === 0) return 0;
     const operations = records.map((record) => ({
@@ -139,21 +116,65 @@ export class DatasetsRepository implements DatasetRepositoryPort {
         },
       },
     }));
+    // KHÔNG truyền `session` — cố ý ghi ngoài transaction (xem docblock trên).
     const result = await this.recordModel.bulkWrite(operations, { ordered: false });
     return result.insertedCount;
   }
 
+  async deleteRecordsByDataset(datasetId: string): Promise<number> {
+    if (!isObjectIdHex(datasetId)) return 0;
+    const s = resolveMongoSession(undefined);
+    const result = await this.recordModel.deleteMany(
+      { dataset_id: new Types.ObjectId(datasetId) },
+      { session: s },
+    );
+    return result.deletedCount ?? 0;
+  }
+
   async softDeleteDatasetWithRecords(datasetId: string): Promise<boolean> {
     if (!isObjectIdHex(datasetId)) return false;
+    const s = resolveMongoSession(undefined);
     const id = new Types.ObjectId(datasetId);
     const result = await this.datasetModel.updateOne(
       { _id: id, deleted_at: null },
       { $set: { deleted_at: new Date() } },
+      { session: s },
     );
     if (result.modifiedCount > 0) {
-      await this.recordModel.deleteMany({ dataset_id: id });
+      await this.recordModel.deleteMany({ dataset_id: id }, { session: s });
       return true;
     }
     return false;
+  }
+
+  /**
+   * Cascade — soft-delete dataset thuộc project đã xóa, kèm xóa bản ghi.
+   *
+   * Trả về dataset nào đã bị xóa + dung lượng file tương ứng để caller trừ
+   * `storage_used` của workspace.
+   */
+  async softDeleteByProject(
+    projectId: string,
+  ): Promise<Array<{ id: string; fileSizeBytes: number }>> {
+    if (!isObjectIdHex(projectId)) return [];
+    const s = resolveMongoSession(undefined);
+    const pid = new Types.ObjectId(projectId);
+    const docs = await this.datasetModel
+      .find({ project_id: pid, deleted_at: null })
+      .select('_id file_size_bytes')
+      .lean()
+      .exec();
+    if (docs.length === 0) return [];
+    const ids = docs.map((d) => d._id);
+    await this.datasetModel.updateMany(
+      { _id: { $in: ids }, deleted_at: null },
+      { $set: { deleted_at: new Date() } },
+      { session: s },
+    );
+    await this.recordModel.deleteMany({ dataset_id: { $in: ids } }, { session: s });
+    return docs.map((d) => ({
+      id: String(d._id),
+      fileSizeBytes: (d as unknown as { file_size_bytes?: number }).file_size_bytes ?? 0,
+    }));
   }
 }

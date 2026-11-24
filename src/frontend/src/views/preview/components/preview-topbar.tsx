@@ -1,4 +1,5 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
+import { Button } from '../../../components/ui/primitives/button'
 import type { ReactNode } from 'react'
 import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types'
 import { NotificationCenter } from './notification-center'
@@ -182,6 +183,19 @@ function TopbarAccount() {
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [signOutError, setSignOutError] = useState(false)
+  const descriptionId = useId()
+  const accountActions = useRef<HTMLUListElement>(null)
+  const initialAction = useRef<'first' | 'last' | null>(null)
+  const focusAction = useCallback((position: 'first' | 'last') => {
+    const actions = accountActions.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+    const action = position === 'first' ? actions?.[0] : actions?.[actions.length - 1]
+    action?.focus({ preventScroll: true })
+  }, [])
+  useEffect(() => {
+    if (!open || !initialAction.current) return
+    focusAction(initialAction.current)
+    initialAction.current = null
+  }, [focusAction, open])
 
   // Design Board 4.1 vẽ ba mục: Hồ sơ cá nhân · Cài đặt tài khoản · Đăng xuất. Hai mục đầu
   // ĐIỀU HƯỚNG sang nhánh Accounts của Settings (đặc tả dòng 9), không chạy "trong ô".
@@ -194,9 +208,9 @@ function TopbarAccount() {
   // 'security', tức một NHÓM ba mục bị đại diện bởi một màn con tùy chọn. Từ menu, người dùng
   // mới nói "tôi muốn vào cài đặt tài khoản", chưa nói họ muốn mục nào trong ba mục → về tổng
   // quan để họ mở Accounts rồi chọn trang cần dùng.
-  const rows: readonly { label: string; icon: string; to: SettingsSectionId | 'overview' }[] = [
-    { label: 'Hồ sơ cá nhân', icon: 'users', to: 'profile' },
-    { label: 'Cài đặt tài khoản', icon: 'settings', to: 'overview' },
+  const rows: readonly { label: string; description: string; icon: string; to: SettingsSectionId | 'overview' }[] = [
+    { label: 'Hồ sơ cá nhân', description: 'Cập nhật tên, đơn vị và thông tin liên hệ', icon: 'user', to: 'profile' },
+    { label: 'Cài đặt tài khoản', description: 'Quản lý bảo mật, phiên đăng nhập và thông báo', icon: 'settings', to: 'overview' },
   ]
 
   const runRow = (row: (typeof rows)[number]): void => {
@@ -206,29 +220,64 @@ function TopbarAccount() {
   }
 
   return <>
-    <button type="button" ref={triggerRef} className="topbar-user is-live" aria-haspopup="dialog" aria-expanded={open}
+    <Button type="button" variant="plain" ref={triggerRef} className="topbar-user is-live" aria-haspopup="dialog" aria-expanded={open}
       aria-label={`Tài khoản ${accountInfo.name}`}
+      onKeyDown={event => {
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+        event.preventDefault()
+        const position = event.key === 'ArrowDown' ? 'first' : 'last'
+        if (open) { focusAction(position); return }
+        initialAction.current = position
+        setTrigger(event.currentTarget)
+        setOpen(true)
+      }}
       onClick={() => { setTrigger(triggerRef.current); setOpen(current => !current) }}>
       <span className="avatar avatar-md" aria-hidden="true">{accountInfo.initials}</span>
       <span className="user-text"><strong>{accountInfo.name}</strong><small>{accountInfo.role}</small></span>
       <span className="scope-caret" aria-hidden="true"><PreviewIcon name="chevron-down" /></span>
-    </button>
-    <PreviewPopover open={open} label={`Tài khoản ${accountInfo.name}`} trigger={trigger} align="end" size="lg" onClose={() => setOpen(false)}>
+    </Button>
+    <PreviewPopover open={open} label={`Tài khoản ${accountInfo.name}`} trigger={trigger} align="end" onClose={() => setOpen(false)}>
       <div className="account-head">
         <span className="avatar avatar-lg" aria-hidden="true">{accountInfo.initials}</span>
-        <span className="account-id"><strong>{accountInfo.name}</strong><small>{accountInfo.email}</small><small>{accountInfo.role}</small></span>
+        <span className="account-id">
+          <strong>{accountInfo.name}</strong>
+          {accountInfo.email && accountInfo.email !== accountInfo.name && <small>{accountInfo.email}</small>}
+          {accountInfo.role && <span className="account-role">{accountInfo.role}</span>}
+        </span>
       </div>
-      <ul className="account-list">
+      <ul ref={accountActions} className="account-list" onKeyDown={event => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          event.stopPropagation()
+          setOpen(false)
+          triggerRef.current?.focus({ preventScroll: true })
+          return
+        }
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') return
+        const actions = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'))
+        if (!actions.length) return
+        event.preventDefault()
+        if (event.key === 'Home' || event.key === 'End') {
+          focusAction(event.key === 'Home' ? 'first' : 'last')
+          return
+        }
+        const current = actions.findIndex(action => action === document.activeElement)
+        const step = event.key === 'ArrowDown' ? 1 : -1
+        actions[(current + step + actions.length) % actions.length]?.focus({ preventScroll: true })
+      }}>
         {rows.map(row => <li key={row.label}>
-          <button type="button" className="account-row" onClick={() => runRow(row)}>
+          <Button type="button" variant="plain" className="account-row account-destination"
+            aria-label={row.label} aria-describedby={`${descriptionId}-${row.to}`} onClick={() => runRow(row)}>
             <span className="menu-icon" aria-hidden="true"><PreviewIcon name={row.icon} /></span>
             <span className="account-text">
-              <span className="account-label">{row.label}</span>
+              <span className="account-action-label">{row.label}</span>
+              <small id={`${descriptionId}-${row.to}`} className="account-description">{row.description}</small>
             </span>
-          </button>
+            <span className="account-chevron" aria-hidden="true"><PreviewIcon name="chevron" /></span>
+          </Button>
         </li>)}
-        {auth && <li>
-          <button type="button" className="account-row" disabled={signingOut} onClick={() => {
+        {auth && <li className="account-signout">
+          <Button type="button" variant="plain" className="account-row is-danger" disabled={signingOut} onClick={() => {
             setSigningOut(true)
             setSignOutError(false)
             void auth.signOut().catch(() => {
@@ -238,10 +287,10 @@ function TopbarAccount() {
           }}>
             <span className="menu-icon" aria-hidden="true"><PreviewIcon name="logout" /></span>
             <span className="account-text">
-              <span className="account-label">{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
+              <span className="account-action-label">{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
             </span>
-          </button>
-          {signOutError && <p role="alert">Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.</p>}
+          </Button>
+          {signOutError && <p className="account-error" role="alert">Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.</p>}
         </li>}
       </ul>
     </PreviewPopover>

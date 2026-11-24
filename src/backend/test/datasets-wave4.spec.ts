@@ -4,7 +4,10 @@ import { Readable } from 'stream';
 import { DATASET_REPOSITORY_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
 import { STORAGE_PORT } from '../src/shared/application/ports/storage.port';
 import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
+import { TRANSACTION_PORT } from '../src/shared/application/ports/transaction.port';
+import { fakeTransaction } from './helpers/transaction';
 import { SchemaInferenceService } from '../src/modules/datasets/application/services/schema-inference.service';
+import { DatasetFindingService } from '../src/modules/datasets/application/services/dataset-finding.service';
 import { ConfigService } from '@nestjs/config';
 import { RECORD_QUERY_PORT } from '../src/modules/datasets/domain/ports/record-query.port';
 import { DATASET_REPOSITORY_PORT as DV_DATASET_PORT } from '../src/modules/datasets/domain/ports/dataset.repository.port';
@@ -83,10 +86,12 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
       providers: [
         ...Object.values(datasetsHandlers),
         SchemaInferenceService,
+        DatasetFindingService,
         { provide: DATASET_REPOSITORY_PORT, useValue: datasetsRepository },
         { provide: PROJECT_ACCESS_PORT, useValue: projectsService },
         { provide: STORAGE_PORT, useValue: storageService },
         { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
         { provide: WORKSPACE_ACCESS_PORT, useValue: workspacesService },
         { provide: ConfigService, useValue: { get: (k: string, d: unknown) => (k === 'WORKSPACE_STORAGE_QUOTA_BYTES' ? 2147483648 : d) } },
       ],
@@ -157,16 +162,25 @@ describe('Wave4 acceptance (CSV-only, props c0.., insert-only, cursor, no-leak)'
     ).toBeUndefined();
   });
 
-  it('BẤT BIẾN: khong con handler rename/reset — chi ghep props theo ten goc', async () => {
-    // Các handler sửa nội dung dataset đã bị gỡ (bất biến dữ liệu):
-    //   - renameColumns   (đổi tên cột)
-    //   - resetColumnNames(khôi phục tên cột gốc)
-    //   - updateDataset   (đổi tên dataset)
-    expect((service as unknown as Record<string, unknown>)['renameColumns']).toBeUndefined();
-    expect((service as unknown as Record<string, unknown>)['resetColumnNames']).toBeUndefined();
-    expect((service as unknown as Record<string, unknown>)['updateDataset']).toBeUndefined();
+  it('BẤT BIẾN: KHÔNG có handler nào thao tác/sửa dataset (OPEN-03) — chỉ ghep props theo ten goc', async () => {
+    // OPEN-03 (chốt 2026-11-19): hệ thống **chỉ nhận dataset và phân tích**.
+    // Toàn bộ method thao tác dataset đã bị gỡ khỏi module `datasets`:
+    //   - updateDatasetMetadata (đổi tên dataset)         → PATCH /datasets/:id
+    //   - updateColumnNames     (đổi tên hiển thị cột)    → PATCH /datasets/:id/columns
+    //   - resetColumnNames      (khôi phục tên cột gốc)   → POST  /datasets/:id/columns/reset
+    //   - updateColumnPii       (bật/tắt cờ PII thủ công)→ PATCH /datasets/:id/columns/pii
+    const svc = service as unknown as Record<string, unknown>;
+    for (const forbidden of [
+      'updateDataset',
+      'updateDatasetMetadata',
+      'updateColumnNames',
+      'resetColumnNames',
+      'updateColumnPii',
+    ]) {
+      expect(svc[forbidden]).toBeUndefined();
+    }
 
-    // Gép props → tên gốc vẫn hoạt động (đây là phép đọc, không sửa dữ liệu).
+    // Ghep props → tên gốc vẫn hoạt động (đây là phép đọc, không sửa dữ liệu).
     const dataset = await service.getDatasetById(mockDatasetId);
     const back = service.mapPropsToOriginalNames(
       dataset.columns.map((c) => ({ key: c.key, originalName: c.originalName })),

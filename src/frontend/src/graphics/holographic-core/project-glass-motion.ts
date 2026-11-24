@@ -1,4 +1,3 @@
-type Box = { x: number; y: number; width: number; height: number }
 const motions = new WeakMap<HTMLElement, GlassMotion>()
 const fadeSeconds = .18
 
@@ -26,10 +25,18 @@ export function createGlassMotion() {
 type GlassMotion = ReturnType<typeof createGlassMotion> & {
   renderDriven?: boolean
   paint?: () => void
-  panel?: Box
-  canvas?: DOMRect
+  requestFrame?: () => void
+  pendingGeometry?: () => void
 }
 export function readGlassMotion(panel: HTMLElement) { return motions.get(panel) }
+
+export function queueProjectGlassGeometry(panel: HTMLElement, apply: () => void): boolean {
+  const motion = readGlassMotion(panel)
+  if (!motion?.requestFrame) return false
+  motion.pendingGeometry = apply
+  motion.requestFrame()
+  return true
+}
 
 export function bindProjectGlassMotion(panel: HTMLElement) {
   const stage = panel.parentElement!
@@ -39,10 +46,6 @@ export function bindProjectGlassMotion(panel: HTMLElement) {
   let raf = 0, previous = 0, closed = false, readySent = false, disposed = false
   const content = panel.querySelector<HTMLElement>('.project-module-content')
   const instant = () => media?.matches === true || panel.dataset['instant'] === 'true'
-  const measure = () => {
-    state.canvas = stage.getBoundingClientRect()
-    state.panel = { x: panel.offsetLeft, y: panel.offsetTop, width: panel.offsetWidth, height: panel.offsetHeight }
-  }
   const paint = () => {
     panel.style.opacity = String(state.progress)
     panel.style.pointerEvents = state.ready ? '' : 'none'
@@ -69,30 +72,20 @@ export function bindProjectGlassMotion(panel: HTMLElement) {
   const wake = () => { if (!disposed && !raf) raf = requestAnimationFrame(tick) }
   state.paint = paint
   const retarget = () => {
-    measure()
     closed = false
     readySent = false
     state.setOpen(panel.dataset['open'] === 'true', instant())
     if (!state.renderDriven) paint()
     wake()
   }
-  const resized = () => { measure(); if (!state.renderDriven) paint() }
-  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resized) : null
-  observer?.observe(stage)
-  observer?.observe(panel)
   const attributes = new MutationObserver(retarget)
   attributes.observe(panel, { attributes: true, attributeFilter: ['data-open', 'data-module', 'data-instant'] })
-  window.addEventListener('resize', resized)
-  window.addEventListener('scroll', resized, true)
   media?.addEventListener('change', retarget)
   retarget()
   return () => {
     disposed = true
     cancelAnimationFrame(raf)
-    observer?.disconnect()
     attributes.disconnect()
-    window.removeEventListener('resize', resized)
-    window.removeEventListener('scroll', resized, true)
     media?.removeEventListener('change', retarget)
     stage.removeAttribute('data-glass-transition')
     panel.style.removeProperty('transform')

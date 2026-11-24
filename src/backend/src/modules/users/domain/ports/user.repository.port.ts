@@ -152,6 +152,13 @@ export interface UserRepositoryPort {
   linkGoogleId(userId: string, googleId: string): Promise<User | null>;
   updateProfile(userId: string, data: UpdateProfileInput): Promise<User | null>;
   updateNotificationPreferences(userId: string, enabled: boolean): Promise<boolean>;
+  /**
+   * OPEN-08 — Đổi trạng thái tài khoản (`active` ⇄ `blocked`).
+   *
+   * Việc khoá tài khoản phải kèm thu hồi realtime (đóng socket ngay) —
+   * xem `UserAccessRevocationService`.
+   */
+  setStatus(userId: string, status: 'active' | 'blocked'): Promise<boolean>;
   softDeleteUser(userId: string): Promise<boolean>;
 
   createSession(data: CreateSessionInput): Promise<UserSession>;

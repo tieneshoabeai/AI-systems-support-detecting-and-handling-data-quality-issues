@@ -1,4 +1,5 @@
 import * as ss from 'simple-statistics';
+import { isMissingToken } from '../../../shared/domain/utils/missing-tokens.util';
 export type CorrelationKind = 'pearson' | 'spearman' | 'cramers_v' | 'eta_squared';
 export interface ICorrelationCell { colA: string; colB: string; coef: number | null; kind: CorrelationKind; n: number; totalScanned: number; missingAOnly: number; missingBOnly: number; missingBoth: number; computable: boolean; reason: string | null; }
 
@@ -8,14 +9,17 @@ export interface AnalyzableColumn {
   key: string;
   role: ColumnRole;
   reason: string | null;
+  /** GĐ2: cột kiểu chữ — ký hiệu NA/None… là một lớp, chỉ ô trống là thiếu (đồng bộ DQ-01). */
+  textColumn?: boolean;
 }
 
-const NULL_TOKENS = new Set(['', 'null', 'undefined', 'na', 'n/a', 'none', '-']);
+/** GĐ2: ô rỗng hoặc ký hiệu thiếu trong danh sách dùng chung (`shared/domain/utils/missing-tokens.util.ts`). */
+const isNullToken = (s: string): boolean => s.trim() === '' || isMissingToken(s);
 
 export function isMissingValue(val: unknown): boolean {
   if (val === null || val === undefined) return true;
   if (typeof val === 'string') {
-    return NULL_TOKENS.has(val.trim().toLowerCase());
+    return isNullToken(val);
   }
   return false;
 }
@@ -32,7 +36,12 @@ export function toFiniteNumber(val: unknown): number | null {
   return null;
 }
 
-export function toCategory(val: unknown): string | null {
+/**
+ * Chuyển ô thành nhãn lớp; null = thiếu/không hợp lệ.
+ * GĐ2: `textColumn` = cột kiểu chữ → chỉ ô rỗng/khoảng trắng là thiếu;
+ * cột khác → thêm danh sách ký hiệu thiếu dùng chung.
+ */
+export function toCategory(val: unknown, textColumn = false): string | null {
   if (val === null || val === undefined) return null;
   if (typeof val === 'number') {
     if (!Number.isFinite(val)) return null;
@@ -41,7 +50,8 @@ export function toCategory(val: unknown): string | null {
   if (typeof val === 'boolean') return val ? 'true' : 'false';
   if (typeof val === 'string') {
     const t = val.trim();
-    if (NULL_TOKENS.has(t.toLowerCase())) return null;
+    if (t === '') return null;
+    if (!textColumn && isMissingToken(t)) return null;
     return t;
   }
   if (val instanceof Date) return null;
@@ -89,8 +99,9 @@ function rank(values: number[]): number[] {
 
 function pearson(xs: number[], ys: number[]): number | null {
   if (xs.length < 3 || ys.length < 3 || xs.length !== ys.length) return null;
-  const sx = ss.standardDeviation(xs);
-  const sy = ss.standardDeviation(ys);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(xs);
+  const sy = ss.sampleStandardDeviation(ys);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(xs, ys);
   return Number.isFinite(c) ? c : null;
@@ -100,8 +111,9 @@ function spearman(xs: number[], ys: number[]): number | null {
   if (xs.length < 3 || xs.length !== ys.length) return null;
   const rx = rank(xs);
   const ry = rank(ys);
-  const sx = ss.standardDeviation(rx);
-  const sy = ss.standardDeviation(ry);
+  // OPEN-10 — chỉ dùng để kiểm tra "có phân tán không", không xuất ra API.
+  const sx = ss.sampleStandardDeviation(rx);
+  const sy = ss.sampleStandardDeviation(ry);
   if (!(sx > 0) || !(sy > 0)) return null;
   const c = ss.sampleCorrelation(rx, ry);
   return Number.isFinite(c) ? c : null;
@@ -211,18 +223,23 @@ export interface PairInput {
   colB: string;
   roleB: ColumnRole;
   rows: Record<string, unknown>[];
+  /** GĐ2: cột A/B là cột kiểu chữ (xem `toCategory`). */
+  textA?: boolean;
+  textB?: boolean;
 }
 
 export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'): ICorrelationCell {
   const totalScanned = input.rows.length;
   const zero: PairMissing = { n: 0, totalScanned, missingAOnly: 0, missingBOnly: 0, missingBoth: 0 };
-  const isValid = (role: ColumnRole, v: unknown): boolean =>
-    role === 'numeric' ? toFiniteNumber(v) !== null : toCategory(v) !== null;
+  const textOf = (key: string): boolean => (key === input.colA ? Boolean(input.textA) : Boolean(input.textB));
+  const catOf = (key: string, v: unknown): string | null => toCategory(v, textOf(key));
+  const isValid = (key: string, role: ColumnRole, v: unknown): boolean =>
+    role === 'numeric' ? toFiniteNumber(v) !== null : catOf(key, v) !== null;
 
   if (input.colA === input.colB) {
     let n = 0;
     for (const row of input.rows) {
-      if (isValid(input.roleA, row[input.colA])) n++;
+      if (isValid(input.colA, input.roleA, row[input.colA])) n++;
     }
     if (input.roleA === 'numeric') {
       return {
@@ -274,12 +291,12 @@ export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'
     const bCats: string[] = [];
     const m: PairMissing = { ...zero };
     for (const row of input.rows) {
-      const aOk = toCategory(row[input.colA]) !== null;
-      const bOk = toCategory(row[input.colB]) !== null;
+      const aOk = catOf(input.colA, row[input.colA]) !== null;
+      const bOk = catOf(input.colB, row[input.colB]) !== null;
       countMissing(aOk, bOk, m);
       if (aOk && bOk) {
-        aCats.push(toCategory(row[input.colA]) as string);
-        bCats.push(toCategory(row[input.colB]) as string);
+        aCats.push(catOf(input.colA, row[input.colA]) as string);
+        bCats.push(catOf(input.colB, row[input.colB]) as string);
       }
     }
     const base = { colA: input.colA, colB: input.colB, ...m };
@@ -301,13 +318,13 @@ export function computePairCell(input: PairInput, method: 'pearson' | 'spearman'
   const m: PairMissing = { ...zero };
   for (const row of input.rows) {
     const numOk = toFiniteNumber(row[numKey]) !== null;
-    const catOk = toCategory(row[catKey]) !== null;
+    const catOk = catOf(catKey, row[catKey]) !== null;
     const aOk = input.roleA === 'numeric' ? numOk : catOk;
     const bOk = input.roleA === 'numeric' ? catOk : numOk;
     countMissing(aOk, bOk, m);
     if (numOk && catOk) {
       nums.push(toFiniteNumber(row[numKey]) as number);
-      cats.push(toCategory(row[catKey]) as string);
+      cats.push(catOf(catKey, row[catKey]) as string);
     }
   }
   const base = { colA: input.colA, colB: input.colB, ...m };
@@ -326,12 +343,62 @@ export function buildCorrelationMatrix(
   columns: AnalyzableColumn[],
   rows: Record<string, unknown>[],
   method: 'pearson' | 'spearman',
+  options: { maxCells?: number } = {},
 ): { cells: ICorrelationCell[]; notes: string[] } {
+  const maxCells = options.maxCells ?? MAX_CORRELATION_CELLS;
   const active = columns.filter((c) => c.role !== 'excluded');
   const cells: ICorrelationCell[] = [];
+
+  // ── GĐ10 — đếm số mức (distinct) của từng cột phân loại ────────────────
+  // Chỉ cột `categorical` mới có "số mức"; cột `numeric` không dựng
+  // contingency nên không cần guard.
+  const distinctCountByKey = new Map<string, number>();
+  for (const col of active) {
+    if (col.role !== 'categorical') continue;
+    const levels = new Set<string>();
+    for (const row of rows) {
+      const cat = toCategory(row[col.key], Boolean(col.textColumn));
+      if (cat !== null) levels.add(cat);
+    }
+    distinctCountByKey.set(col.key, levels.size);
+  }
+
+  const guardedPairs: string[] = [];
+
   for (const a of active) {
     for (const b of active) {
-      cells.push(computePairCell({ colA: a.key, roleA: a.role, colB: b.key, roleB: b.role, rows }, method));
+      const pairInput: PairInput = {
+        colA: a.key, roleA: a.role, colB: b.key, roleB: b.role, rows,
+        textA: a.textColumn, textB: b.textColumn,
+      };
+      if (a.key === b.key) {
+        cells.push(computePairCell(pairInput, method));
+        continue;
+      }
+      // GĐ10 — chặn cặp có cardinality quá lớn TRƯỚC khi tính.
+      if (a.role === 'categorical' && b.role === 'categorical') {
+        const dA = distinctCountByKey.get(a.key) ?? 0;
+        const dB = distinctCountByKey.get(b.key) ?? 0;
+        const guardReason = exceedsCardinalityGuard(dA, dB, maxCells);
+        if (guardReason) {
+          guardedPairs.push(`${a.key} x ${b.key} (${guardReason})`);
+          cells.push({
+            colA: a.key,
+            colB: b.key,
+            coef: null,
+            kind: 'cramers_v',
+            n: 0,
+            totalScanned: rows.length,
+            missingAOnly: 0,
+            missingBOnly: 0,
+            missingBoth: 0,
+            computable: false,
+            reason: guardReason,
+          });
+          continue;
+        }
+      }
+      cells.push(computePairCell(pairInput, method));
     }
   }
   const excluded = columns.filter((c) => c.role === 'excluded');
@@ -339,6 +406,11 @@ export function buildCorrelationMatrix(
     'mỗi cặp dùng tập dòng hợp lệ riêng (pairwise), không điền thiếu',
     'không trộn thang diễn giải giữa pearson/spearman, cramers_v [0,1] và eta_squared [0,1]',
   ];
+  if (guardedPairs.length > 0) {
+    notes.push(
+      `${guardedPairs.length} cặp cột bị bỏ qua do vượt ngưỡng cardinality (${maxCells.toLocaleString('vi-VN')} ô): ${guardedPairs.join('; ')}`,
+    );
+  }
   if (excluded.length > 0) {
     const dateCols = excluded.filter((c) => (c.reason ?? '').includes('date')).map((c) => c.key);
     if (dateCols.length > 0) {
@@ -355,4 +427,39 @@ export function buildCorrelationMatrix(
 
 export function round4(v: number): number {
   return Number(v.toFixed(4));
+}
+
+// ── GĐ10 — Guard theo cardinality ────────────────────────────────────────
+
+/**
+ * Ngưỡng tối đa số ô contingency mà một cặp cột được phép "trả về".
+ *
+ * Lý do: ma trận contingency **dày** của một cặp có `r` mức A và `c` mức B cần
+ * `r × c` ô. Với cột định danh (`r ≈ c ≈ 99.000`) đó là ~9,8 tỷ ô ≈ 73 GB →
+ * OOM (đã xảy ra thật, xem `docs/restructures/21_cardinality_guard_gd8_gd9.md`).
+ *
+ * GĐ8 đã dùng bảng contingency **thưa** nên bộ nhớ là O(n) — nhưng đó là chiến
+ * lược bên trong `cramersV()`. GĐ10 là **lưới an toàn cuối** ở tầng ma trận:
+ * nếu một cặp vẫn lọt qua bộ lọc vai trò (GĐ9) mà có cardinality điên rồ,
+ * ta **không tính** cặp đó và báo rõ lý do thay vì để bộ nhớ tăng vô hạn.
+ *
+ * 10.000.000 ô × 8 byte ≈ 80 MB — ngân sách bộ nhớ hợp lý cho một cặp.
+ */
+export const MAX_CORRELATION_CELLS = 10_000_000;
+
+/**
+ * Kiểm tra `distinct(A) × distinct(B)` có vượt ngưỡng GĐ10 không.
+ *
+ * @returns `null` nếu cặp an toàn, hoặc chuỗi lý do nếu vượt ngưỡng.
+ */
+export function exceedsCardinalityGuard(
+  distinctA: number,
+  distinctB: number,
+  maxCells: number = MAX_CORRELATION_CELLS,
+): string | null {
+  if (!Number.isFinite(distinctA) || !Number.isFinite(distinctB)) return null;
+  if (distinctA < 2 || distinctB < 2) return null;
+  const cells = distinctA * distinctB;
+  if (cells <= maxCells) return null;
+  return `cardinality_guard_exceeded: distinct(A)=${distinctA} x distinct(B)=${distinctB} = ${cells.toLocaleString('vi-VN')} > ${maxCells.toLocaleString('vi-VN')} o`;
 }

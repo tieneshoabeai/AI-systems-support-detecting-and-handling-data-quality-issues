@@ -44,10 +44,6 @@ async function bootstrap(): Promise<void> {
     AppModule,
     httpsOptions ? { httpsOptions } : {}
   );
-  // Tạm tắt ETag tự động của Express để API không trả 304 dựa trên ETag.
-  // Bỏ dòng này để dùng lại cấu hình ETag mặc định.
-  app.getHttpAdapter().getInstance().set('etag', false);
-
   const realtimeAdapter = await useRedisAdapterIfConfigured(app);
   if (realtimeAdapter === 'memory') app.useWebSocketAdapter(new IoAdapter(app));
   const config = app.get(ConfigService);

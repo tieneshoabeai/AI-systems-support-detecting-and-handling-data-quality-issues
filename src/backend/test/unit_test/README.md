@@ -1,6 +1,10 @@
 # Kịch bản unit test toàn bộ backend — v1
 
-Ngày lập: **2026-11-16**. Trạng thái: **tài liệu checklist, chưa viết hàm test, chưa chạy kiểm thử**.
+Ngày lập: **2026-11-16**. Cập nhật: **2026-11-21**.
+
+Trạng thái tài liệu này: **checklist kịch bản kiểm thử** - mô tả *cần kiểm tra cái gì*, chưa phải báo cáo kết quả chạy.
+
+> Phân biệt quan trọng: checklist này **không phải** báo cáo kết quả test. Kết quả thực thi hiện tại nằm ở [`src/backend/README.md`](../../README.md#52-kết-quả-kiểm-thử-hiện-tại): **1 277 / 1 277 test pass** trên 79 suite, độ phủ câu lệnh 71.03%, độ phủ dòng 72.05%. Các ca trong checklist chưa gắn test vẫn là **khoảng trống chưa kiểm chứng**, không nên coi là đã đạt.
 
 ## Phạm vi đã thống nhất
 
@@ -39,10 +43,10 @@ Nguồn đối chiếu: cấu trúc 13 module hiện tại; danh mục command/q
 - [Logic HTTP có thể unit test và kiểm tra cấu trúc](16_http_contract_validation.md) — 15 nhóm kịch bản.
 - [Các kiểm tra phải làm thêm ngoài unit test](17_integration_followup.md) — 11 nhóm kịch bản.
 - [Chênh lệch yêu cầu: không tự quyết định thay người dùng](18_requirement_gaps.md) — 12 nhóm kịch bản.
-- [Inventory command/query handler](19_handler_inventory.md) — đối chiếu từng use case để tránh sót.
+- [Inventory command/query handler](19_handler_inventory.md) — đối chiếu từng use case để tránh sót (107 handler).
 - [Các quyết định còn mở](20_open_decisions.md).
 
-Tổng: **384 nhóm kịch bản**, gồm **361 nhóm unit/regression**, **11 nhóm integration bổ sung**, **12 nhóm chênh lệch yêu cầu**; inventory có **106 handler**. Đây không phải số hàm test đã viết hoặc số test đã pass.
+Tổng: **384 nhóm kịch bản**, gồm **361 nhóm unit/regression**, **11 nhóm integration bổ sung**, **12 nhóm chênh lệch yêu cầu**; inventory có **107 handler** (61 command + 46 query). Đây không phải số hàm test đã viết hoặc số test đã pass.
 
 ## Dữ liệu nền nên chuẩn bị
 
@@ -59,3 +63,4 @@ Mỗi handler trong inventory được gắn test hoặc lý do không áp dụn
 ## Lịch sử
 
 - v1 / 2026-11-16: tạo checklist theo backend hiện tại và tách chênh lệch yêu cầu theo xác nhận người dùng; chỉ tài liệu, không implementation/test execution.
+- v2 / 2026-11-21: bổ sung phần trạng thái thực thi test hiện tại và làm rõ ranh giới giữa checklist kịch bản với báo cáo kết quả.

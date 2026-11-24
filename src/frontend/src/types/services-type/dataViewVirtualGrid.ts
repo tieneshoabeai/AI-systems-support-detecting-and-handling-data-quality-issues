@@ -20,3 +20,10 @@ export type getDatasetsByDatasetIdAndColumnColumnStatsParams = getDatasetsByData
 export type getDatasetsByDatasetIdAndColumnColumnStatsParamsPath = getDatasetsByDatasetIdAndColumnColumnStatsParams["path"]
 export type getDatasetsByDatasetIdAndColumnColumnStatsResponses = getDatasetsByDatasetIdAndColumnColumnStatsRequest["responses"]
 export type getDatasetsByDatasetIdAndColumnColumnStatsResponse200 = NonNullable<getDatasetsByDatasetIdAndColumnColumnStatsResponses["200"]>
+
+export type getDatasetsByDatasetIdChartDataRequest = paths["/api/v1/datasets/{datasetId}/charts"]["get"]
+export type getDatasetsByDatasetIdChartDataParams = getDatasetsByDatasetIdChartDataRequest["parameters"]
+export type getDatasetsByDatasetIdChartDataParamsQuery = getDatasetsByDatasetIdChartDataParams["query"]
+export type getDatasetsByDatasetIdChartDataParamsPath = getDatasetsByDatasetIdChartDataParams["path"]
+export type getDatasetsByDatasetIdChartDataResponses = getDatasetsByDatasetIdChartDataRequest["responses"]
+export type getDatasetsByDatasetIdChartDataResponse200 = NonNullable<getDatasetsByDatasetIdChartDataResponses["200"]>

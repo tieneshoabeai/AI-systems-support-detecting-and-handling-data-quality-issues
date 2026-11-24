@@ -22,6 +22,66 @@ function harness(override?: (r: ApiRequestOptions) => unknown, progressiveProjec
   return { ...data, request }
 }
 describe('manager API integration', () => {
+  it.each([
+    { workspaceOwner: 'u2', projectRole: 'owner', canManage: true },
+    { workspaceOwner: 'u1', projectRole: 'member', canManage: true },
+    { workspaceOwner: 'u2', projectRole: 'member', canManage: false },
+  ])('loads Project profiles and requests candidates only for managers ($workspaceOwner, $projectRole)', async ({ workspaceOwner, projectRole, canManage }) => {
+    const { store, loadCore, request } = harness(r => {
+      if (r.path === '/workspaces/w1') return { workspace: { ...workspace, ownerId: workspaceOwner } }
+      if (r.path === '/projects/p1/members') return {
+        items: [{ userId: account.id, role: projectRole, firstName: 'Tai', lastName: 'Nguyen' }],
+        meta: { hasMore: false, nextCursor: null },
+      }
+      if (r.path === '/workspaces/w1/members') return {
+        members: [{ userId: 'u3', role: 'member', name: 'Candidate', email: 'candidate@example.com' }],
+      }
+      return undefined
+    }, true)
+    await loadCore()
+    const card = store.getState().projects[0]!
+
+    const data = await store.loadProjectMembersData!(card, new AbortController().signal)
+
+    expect(data.project).toMatchObject({ canManage, members: [{ name: 'Tai Nguyen', id: account.id }] })
+    expect(data.workspace).toMatchObject({
+      name: 'Workspace',
+      memberPreview: canManage ? [{ name: 'Candidate', email: 'candidate@example.com' }] : [],
+    })
+    expect(request.mock.calls.filter(([r]) => r.path === '/workspaces/w1/members')).toHaveLength(canManage ? 1 : 0)
+  })
+
+  it('adds an eligible Workspace candidate and reads the updated Project roster', async () => {
+    const owner = { userId: account.id, role: 'owner', name: account.name }
+    const candidate = { userId: 'u3', role: 'member', name: 'Candidate', email: 'candidate@example.com' }
+    let added = false
+    const { store, loadCore, request } = harness(r => {
+      if (r.path === '/workspaces/w1') return { workspace }
+      if (r.path === '/workspaces/w1/members') return { members: [owner, candidate] }
+      if (r.path === '/projects/p1/members') {
+        if (r.method === 'POST') {
+          added = true
+          return {}
+        }
+        return { members: added ? [owner, candidate] : [owner] }
+      }
+      return undefined
+    }, true)
+    await loadCore()
+    const signal = new AbortController().signal
+    const data = await store.loadProjectMembersData!(store.getState().projects[0]!, signal)
+    const person = data.workspace?.memberPreview.find(member => member.id === candidate.userId)
+    if (!person) throw new Error('Expected a Workspace candidate')
+
+    await store.addProjectMember({ projectId: project.id, person, role: 'Member' })
+    const updated = await store.loadProjectMembersData!(store.getState().projects[0]!, signal)
+
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/projects/p1/members', method: 'POST', data: { email: candidate.email, role: 'member' },
+    }))
+    expect(updated.project.members).toContainEqual(expect.objectContaining({ id: candidate.userId, name: candidate.name }))
+  })
+
   it('publishes cards before supplementary requests, preserves a successful roster and retries only the failed dataset', async () => {
     let allowDataset = false
     const { store, loadCore, request } = harness(r => {

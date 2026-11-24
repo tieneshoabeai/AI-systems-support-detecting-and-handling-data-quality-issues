@@ -446,6 +446,7 @@
 [data-preview='2d'] .scope-caret .preview-icon { width: 14px; height: 14px; }
 [data-preview='2d'] .topbar-user.is-live { border-radius: 11px; padding: 3px 8px 3px 10px; transition: background-color var(--pv-d-hover) var(--pv-ease-out); }
 [data-preview='2d'] .topbar-user.is-live:hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .topbar-user.is-live[aria-expanded='true'] { background: var(--pv-blue-soft); }
 
 /* Ô tìm kiếm toàn cục ở topbar ĐÃ BỎ (chủ batch 03/11): mỗi trang có ô tìm của riêng nó
    trong toolbar (Workspaces · khung Project của một Workspace). Vì vậy không còn khu
@@ -1947,28 +1948,43 @@
    rộng ngay bên cạnh: hai thông tin khác loại tranh nhau trên một hàng 32px → người dùng
    đọc và báo "chữ chen lấn". Nay mỗi hàng là NHÃN (việc muốn làm) + GIÁ TRỊ (hiện ra
    sao) + chip nguồn (còn thiếu gì), tách theo chiều dọc và theo cỡ chữ. */
-[data-preview='2d'] .account-head { display: flex; align-items: center; gap: 12px; padding: 8px 8px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--pv-line); }
-[data-preview='2d'] .account-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-[data-preview='2d'] .account-id strong { font-size: 14px; }
-[data-preview='2d'] .account-id small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Dòng thứ ba (chức danh) lùi một cỡ và mờ hơn email: ba dòng cùng cỡ/dùng được xếp chồng
-   lên nhau đọc như một khối chữ, không còn "tên + hai thông tin phụ". */
-[data-preview='2d'] .account-id small + small { font-size: 11px; color: var(--pv-faint); }
-[data-preview='2d'] .account-list { display: flex; flex-direction: column; gap: 2px; padding-bottom: 2px; }
+[data-preview='2d'] .account-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 4px; padding: 8px 9px 10px;
+  border-bottom: 1px solid var(--pv-line);
+}
+[data-preview='2d'] .account-head .avatar { flex-shrink: 0; }
+[data-preview='2d'] .account-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+[data-preview='2d'] .account-id strong { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+[data-preview='2d'] .account-id small { font-size: 12px; color: var(--pv-muted); overflow-wrap: anywhere; }
+[data-preview='2d'] .account-role {
+  align-self: flex-start; margin-top: 3px; padding: 2px 7px; border: 1px solid var(--pv-line);
+  border-radius: 6px; color: var(--pv-ink-link); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere;
+}
+[data-preview='2d'] .account-list { display: flex; flex-direction: column; gap: 3px; padding-bottom: 2px; }
 [data-preview='2d'] .account-row {
-  /* Hai cột: icon + nhãn. Ảnh 4.1 vẽ thêm cột chip "Settings" bên phải nhưng chủ batch yêu cầu
-     bỏ, nên grid không còn cột max-content thứ ba — để lại thì mỗi dòng thừa 10px khoảng trống
-     cuối hàng mà không chứa gì. */
-  display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: center;
-  width: 100%; min-height: 38px; padding: 7px 9px; border-radius: 10px; text-align: left;
+  display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center;
+  width: 100%; min-height: 40px; padding: 6px 9px; border: 0; border-radius: 9px; text-align: left;
+  background: transparent; color: var(--pv-ink);
   transition: background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
 }
-[data-preview='2d'] .account-row:not([disabled]):hover { background: var(--pv-blue-soft); }
+[data-preview='2d'] .account-destination { grid-template-columns: 24px minmax(0, 1fr) 14px; }
+[data-preview='2d'] .account-row .menu-icon {
+  width: 24px; height: 24px; color: var(--pv-muted);
+}
+[data-preview='2d'] .account-chevron { display: grid; place-items: center; color: var(--pv-muted); }
+[data-preview='2d'] .account-chevron .preview-icon { width: 14px; height: 14px; }
+[data-preview='2d'] .account-row:not([disabled]):is(:hover, :focus-visible) { background: var(--pv-blue-soft); }
 [data-preview='2d'] .account-row:not([disabled]):active { transform: scale(.99); }
 [data-preview='2d'] .account-row.is-danger { color: var(--pv-ink-rose); }
-[data-preview='2d'] .account-row.is-danger .menu-icon { color: var(--pv-ink-rose); }
+[data-preview='2d'] .account-row.is-danger:not([disabled]):is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--pv-ink-rose) 10%, transparent);
+}
+[data-preview='2d'] .account-row.is-danger .menu-icon { color: var(--pv-ink-rose); background: transparent; }
 [data-preview='2d'] .account-text { display: flex; flex-direction: column; min-width: 0; }
-[data-preview='2d'] .account-label { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .account-action-label { font-size: 13px; font-weight: 650; line-height: 1.4; }
+[data-preview='2d'] .account-description { margin-top: 3px; font-size: 11px; line-height: 1.45; color: var(--pv-muted); }
+[data-preview='2d'] .account-signout { margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--pv-line); }
+[data-preview='2d'] .account-error { padding: 4px 9px; color: var(--pv-ink-rose); font-size: 12px; }
 
 /* ---------- Toaster ---------- */
 /* Region luôn nằm trong DOM (live region duy nhất của frame) nên không chiếm chỗ và

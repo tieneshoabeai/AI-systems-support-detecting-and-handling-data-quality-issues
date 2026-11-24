@@ -1,100 +1,198 @@
-# AUTHENTICATION MODULE SPECIFICATION & OVERVIEW
-
-## 1. Tổng quan & Vị trí trong Hệ sinh thái (Overview & System Context)
-Module `auth` là vành đai bảo mật đầu tiên (Security Perimeter) và là nhà cung cấp danh tính (Identity Provider) của toàn bộ nền tảng Data Quality. Module này chịu trách nhiệm xác thực danh tính người dùng, cấp phát và quản lý vòng đời của mã xác thực (Tokens), duy trì các phiên đăng nhập bảo mật và ngăn chặn các hành vi xâm nhập trái phép.
-
-- **Vị trí trong hệ thống:**
-  - **Cổng vào Hệ thống:** Mọi yêu cầu HTTP gửi đến API (ngoại trừ các endpoint công khai có đánh dấu `@Public()`) đều phải đi qua `JwtAuthGuard` do module này cung cấp để giải mã và kiểm thực Access Token.
-  - **Liên kết Dữ liệu:** Quản lý thông tin phiên làm việc trong collection `user_sessions` và đối chiếu thông tin người dùng trong collection `users` trên **MongoDB Atlas**.
-  - **Bảo mật Đa tầng:** Kết hợp mật mã hóa mật khẩu `bcrypt` (12 rounds) và băm một chiều `SHA-256` cho Refresh Token.
+# `auth` — Template: Hexagonal
+- Vì sao Hexagonal: OAuth/session rotation + 7 token + 4 adapter + revocation
+- Bất biến chính: token/session/OAuth + thu tu sessions/me truoc :id, giu 6 adapter + jwt.strategy + 2 service (admin-bootstrap, security-alert) (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
 
 ---
+# MÔ-ĐUN `auth` — Xác thực & Phiên đăng nhập
 
-## 2. Kiến trúc & Chu trình Xác thực Trực quan (Architecture & Auth Flow)
-Quy trình Đăng nhập, Duy trì Phiên làm việc và Cấp mới Token:
+> **Đặc tả mô-đun & Tài liệu kỹ thuật**
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client as Ứng dụng Client (Web/CLI)
-    participant Ctrl as AuthController
-    participant Svc as AuthService
-    participant Crypto as CryptoUtil
-    participant Mongo as MongoDB Atlas (users / user_sessions)
+## 1. Thông tin phiên bản
 
-    rect rgb(240, 248, 255)
-        note right of Client: Luồng 1: Đăng nhập & Khởi tạo Phiên (Login)
-        Client->>Ctrl: POST /auth/login { email, password }
-        Ctrl->>Svc: login(dto)
-        Svc->>Mongo: Tìm User theo email (kiểm tra deleted_at = null, status = active)
-        Svc->>Crypto: bcrypt.compare(password, password_hash)
-        Crypto-->>Svc: Mật khẩu chính xác
-        Svc->>Svc: Sinh Access Token (JWT 15m) & Refresh Token ngẫu nhiên (7d)
-        Svc->>Crypto: SHA-256(refresh_token)
-        Svc->>Mongo: Lưu bản ghi phiên vào user_sessions { token_hash, user_agent, ip, expires_at }
-        Svc-->>Client: { access_token, refresh_token, expires_in, user }
-    end
+- **Phiên bản hiện tại:** v1.1.0
+- **Cập nhật lần cuối:** 2026-11-21
+- **Đường dẫn mô-đun:** `src/backend/src/modules/auth` (35 tệp TypeScript)
+- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
+- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
 
-    rect rgb(255, 250, 240)
-        note right of Client: Luồng 2: Cấp mới Token (Refresh Token Rotation)
-        Client->>Ctrl: POST /auth/refresh { refresh_token }
-        Ctrl->>Svc: refreshToken(token)
-        Svc->>Crypto: SHA-256(token)
-        Svc->>Mongo: Đối chiếu token_hash trong user_sessions
-        Mongo-->>Svc: Phiên hợp lệ & chưa hết hạn
-        Svc->>Svc: Sinh Access Token mới (JWT 15m)
-        Svc-->>Client: { access_token, expires_in }
-    end
+## 2. Mục đích & Phạm vi nghiệp vụ
+
+Mô-đun xử lý toàn bộ **vòng đời xác thực**: đăng ký, đăng nhập, làm mới token, đăng xuất, quên mật khẩu, Google OAuth 2.0 và quản lý phiên.
+
+Mô-đun này **không sở hữu** danh tính người dùng — nó gọi vào mô-đun `users` qua `AUTH_USER_LOOKUP_PORT` / `AUTH_SESSION_PORT` để tạo phiên và kiểm tra tài khoản.
+
+### 2.1. Tính năng thuộc phạm vi
+
+| Chức năng | Nội dung |
+|---|---|
+| Đăng ký | Tạo tài khoản `analyst` (client không chọn được vai trò) |
+| Đăng nhập | Email + mật khẩu, phát hành access + refresh token |
+| Làm mới token | Đổi refresh token lấy access token mới |
+| Đăng xuất | Thu hồi phiên hiện tại |
+| Quên / đặt lại mật khẩu | Gửi email + token đặt lại |
+| Đổi mật khẩu | Xác thực mật khẩu cũ, thu hồi các phiên khác |
+| Google OAuth 2.0 | Đăng nhập / liên kết tài khoản qua Google (PKCE + state) |
+| Quản lý phiên | Xem danh sách phiên, thu hồi theo id |
+| Khởi tạo admin | Tạo **một** tài khoản admin lần đầu từ biến môi trường (OPEN-01) |
+| Cảnh báo bảo mật | Gửi cảnh báo khi đăng nhập lạ |
+
+### 2.2. Cấu trúc thư mục
+
+```text
+auth/
+|-- domain/
+|   |-- events/auth-events.ts
+|   |-- ports/
+|   |   |-- auth-session.port.ts     # AUTH_USER_LOOKUP_PORT, PASSWORD_HASHER_PORT, AUTH_SESSION_PORT
+|   |   `-- google-oauth.port.ts     # GOOGLE_OAUTH_PORT
+|   `-- value-objects/
+|       |-- password-policy.vo.ts    # độ dài mật khẩu
+|       `-- auth-policy.vo.ts        # TTL token, trạng thái tài khoản
+|-- application/
+|   |-- commands/                    # 9 command handler
+|   |-- queries/                     # 2 query handler
+|   |-- admin-bootstrap.service.ts   # OPEN-01
+|   |-- security-alert.service.ts
+|   |-- auth.types.ts
+|   `-- auth.utils.ts
+|-- infrastructure/
+|   |-- auth/jwt.strategy.ts         # PassportStrategy
+|   `-- security/
+|       |-- bcrypt-hasher.adapter.ts
+|       |-- env-auth-session-policy.adapter.ts
+|       |-- google-oauth.adapter.ts
+|       |-- jwt-issuer.adapter.ts
+|       |-- users-auth-lookup.adapter.ts
+|       `-- users-auth-session.adapter.ts
+`-- presentation/
+    |-- controllers/auth.controller.ts
+    |-- dtos/                        # 4 DTO
+    `-- google-redirect.util.ts
 ```
 
----
+## 3. Nhật ký Prompting & Quyết định kỹ thuật
 
-## 3. Khái niệm Cốt lõi & Mô hình Nghiệp vụ (Domain Model & Invariants)
+- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Làm `auth` là **cổng xác thực duy nhất** của hệ thống, bảo đảm mọi đường đăng nhập (cục bộ, refresh, Google OAuth) đều phát ra cùng một dạng **cặp access token + refresh token**, và mọi tra cứu đều quy về một nguồn sự thật duy nhất là collection `user_sessions`.
 
-### 3.1. Mô hình Mã xác thực Kép (Dual Token Model)
-Nhằm cân bằng giữa tính bảo mật cao và trải nghiệm người dùng không bị gián đoạn:
-- **Access Token (Ngắn hạn - 15 phút):** Là JWT chứa thông tin định danh `{ sub: userId, email, role, sessionId }`, được ký bằng khóa bí mật `JWT_SECRET`. Client gửi token này trong header `Authorization: Bearer <token>` để truy cập API mà backend không cần query database mỗi lần kiểm tra.
-- **Refresh Token (Dài hạn - 7 ngày):** Là chuỗi ngẫu nhiên có độ entropy cao, được lưu trữ an toàn phía client và dùng để xin cấp lại Access Token mới khi token cũ hết hạn.
+- **Lập luận kỹ thuật & Quyết định:**
 
-### 3.2. Quy tắc Nghiệp vụ Bất biến (Invariants)
-- **Băm Một Chiều Refresh Token (Token Storage Invariant):** Backend tuyệt đối không lưu Refresh Token dưới dạng chuỗi thô (plain-text). Chỉ lưu mã băm **`SHA-256`** trong bảng `user_sessions`. Nếu database bị rò rỉ, kẻ tấn công cũng không thể sử dụng mã băm này để mạo danh phiên làm việc.
-- **Thu hồi Phiên từ xa (Remote Session Revocation):** Người dùng có thể xem danh sách các thiết bị đang đăng nhập và chủ động xóa phiên làm việc (`DELETE /auth/sessions/:id`). Khi bản ghi phiên trong DB bị xóa, Refresh Token tương ứng sẽ vô hiệu lực ngay lập tức.
-- **Tiêu chuẩn Băm Mật khẩu:** 100% mật khẩu được băm bằng thuật toán `bcrypt` với tham số an toàn cao `SALT_ROUNDS = 12`.
-- **Chặn Tài khoản Tức thì:** Ngay cả khi Access Token còn hạn, nếu tài khoản bị khóa (`status === 'blocked'`) hoặc đã bị xóa mềm (`deleted_at !== null`), yêu cầu sẽ bị `JwtStrategy` từ chối ngay lập tức.
+1. **Refresh token KHÔNG phải JWT.** Nó là chuỗi ngẫu nhiên 40 byte, chỉ lưu hash SHA-256. Nhờ vậy hạn thực tế của phiên nằm ở `user_sessions.expires_at` — **nguồn sự thật**, không phải `exp` của JWT. Một JWT refresh có `exp` sẽ không bị thu hồi được ngay khi admin thu hồi phiên.
 
----
+2. **Không có endpoint tự phong admin.** `POST /auth/register` chỉ tạo tài khoản `analyst` và **không nhận** `role`. Admin được tạo qua biến môi trường `ADMIN_EMAIL` / `ADMIN_PASSWORD` bởi `AdminBootstrapService` (idempotent, không ghi đè mật khẩu đã đặt). Nếu admin tạo được qua API công khai thì bất kỳ ai cũng tự phong mình làm admin.
 
-## 4. Ma trận Phân quyền & Endpoint Protection
+3. **Dùng bcrypt 12 vòng + `select: false`.** `passwordHash` không bao giờ được MongoDB trả về nếu không yêu cầu `select('+passwordHash')` tường minh. Giảm thiết kế chuẩn bị đọc nhầm.
 
-| Endpoint | Quyền hạn | Cơ chế bảo vệ | Mục đích Nghiệp vụ |
-| :--- | :---: | :--- | :--- |
-| `POST /api/v1/auth/register` | Công khai | `@Public()` + `ZodValidationPipe` | Đăng ký tài khoản người dùng mới |
-| `POST /api/v1/auth/login` | Công khai | `@Public()` + `ZodValidationPipe` | Đăng nhập hệ thống, cấp cặp token |
-| `POST /api/v1/auth/refresh` | Công khai | `@Public()` + `ZodValidationPipe` | Cấp mới Access Token bằng Refresh Token |
-| `GET /api/v1/auth/google` | Công khai | `@Public()` + `cookie-parser` (đọc cookie state) | Redirect tới Google; set cookie HttpOnly `google_oauth_state` (CSRF) |
-| `GET /api/v1/auth/google/callback` | Công khai | `@Public()` + `cookie-parser` (đọc & xoá cookie state) | Đổi mã lấy token, đối chiếu `state`, đăng nhập/đăng ký liền mạch |
-| `POST /api/v1/auth/logout` | Người dùng đã đăng nhập | `JwtAuthGuard` | Đăng xuất, hủy phiên làm việc hiện tại |
-| `GET /api/v1/auth/sessions` | Người dùng đã đăng nhập | `JwtAuthGuard` | Lấy danh sách các phiên thiết bị đang hoạt động |
-| `DELETE /api/v1/auth/sessions/:id` | Người dùng đã đăng nhập | `JwtAuthGuard` | Thu hồi từ xa một phiên làm việc chỉ định |
+4. **Google OAuth dùng PKCE + state + xác thực `id_token`.** `state` chống CSRF, PKCE chống đánh cắp code, `id_token` được xác thực bằng khóa công khai của Google chứ không tin payload chưa xác thực. `google_id` lưu `sub` để liên kết tài khoản.
 
-> **Bắt buộc (2026-11-18):** `main.ts` phải có `app.use(cookieParser())` — Express 5 chỉ có
-> `res.cookie()` native, thiếu middleware ⇒ `req.cookies` là `undefined` ⇒ callback Google hợp lệ
-> bị từ chối 401. Có test guard trong
-> `test/e2e/security/cookie-parser-regression.e2e-spec.ts`.
+5. **Thu hồi phiên khi đổi mật khẩu.** Đổi mật khẩu phải thu hồi **toàn bộ** phiên, không chỉ phiên hiện tại.
 
----
+6. **Chống spam quên mật khẩu.** Bộ đếm `password_reset_attempts` + `_sent_count` + `_sent_window_start`, tất cả `select: false`. Hai trường `remember_me` và `rememberMe` trong DTO đăng nhập thực chất là một — `remember_me` là chuẩn duy nhất, `rememberMe` chỉ là alias deprecated giữ tương thích ngược với client cũ; sau `transform` logic chuẩn chỉ đọc `remember_me`.
 
-## 5. Đánh đổi Kỹ thuật & Lịch sử Phiên bản (Trade-offs & Changelog)
+- **Hiện vật đã tạo / đã sửa:**
 
-### 5.1. Đánh đổi Kỹ thuật (Technical Trade-offs)
-- **Access Token 15 phút không lưu trạng thái (Stateless):** Để tối ưu hóa tốc độ và giảm tải truy vấn MongoDB Atlas, hệ thống không kiểm tra DB đối với từng request gửi Access Token hợp lệ. Đánh đổi: Nếu người dùng đổi mật khẩu hoặc bị thu hồi quyền, Access Token hiện tại vẫn có thể hoạt động tối đa 15 phút cho đến khi hết hạn.
-- **Lưu Session trong MongoDB thay vì Redis:** Lựa chọn MongoDB Atlas cho bảng `user_sessions` giúp tinh gọn hạ tầng trong giai đoạn MVP/Gói miễn phí, không phát sinh chi phí duy trì cụm Redis độc lập.
+- `domain/value-objects/password-policy.vo.ts` — `PASSWORD_MIN_LENGTH` (8), `PASSWORD_MAX_LENGTH` (100), `assertPasswordLength`.
+- `domain/value-objects/auth-policy.vo.ts` — `ACCESS_TOKEN_TTL_SECONDS` (900), `REFRESH_TOKEN_TTL_MS` (7 ngày), `REMEMBER_ME_REFRESH_TOKEN_TTL_MS` (30 ngày), `REFRESH_TOKEN_BYTES` (40).
+- `application/admin-bootstrap.service.ts` — `OnModuleInit`, idempotent, không ghi đè mật khẩu.
+- `infrastructure/security/bcrypt-hasher.adapter.ts` — `PASSWORD_HASHER_PORT`, 12 vòng.
+- `infrastructure/security/google-oauth.adapter.ts` — `GOOGLE_OAUTH_PORT`, PKCE + state, xác thực `id_token`.
+- `presentation/controllers/auth.controller.ts` — 13 route, 9 route `@Public()`.
 
-### 5.2. Lịch sử Thay đổi (Change Log)
-- `v1.2.0` (2026-10-24):
-  - *Thay đổi gì:* Nâng cấp tài liệu sang chuẩn kiến trúc trực quan, bổ sung sơ đồ Mermaid mô tả chu trình Dual Token và cơ chế băm SHA-256 cho session.
-  - *Lý do:* Giúp người xem nắm bắt cơ chế bảo mật mà không cần đọc code.
-- `v1.1.0` (2026-10-20):
-  - *Thay đổi gì:* Chuyển đổi toàn bộ DTO sang Zod Validation Pipe, tách biệt `shared/` module.
-- `v1.0.0` (2026-10-20):
-  - *Thay đổi gì:* Hoàn thành triển khai xác thực Bcrypt, Passport JWT và Session Management.
+## 4. Đặc tả giao tiếp kỹ thuật
+
+### 4.1. Điểm cuối (Endpoints)
+
+| Phương thức | Đường dẫn | Chính sách | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register` | `@Public()` | Đăng ký (chỉ tạo `analyst`) |
+| `POST` | `/api/v1/auth/login` | `@Public()` | Đăng nhập email + mật khẩu |
+| `POST` | `/api/v1/auth/refresh` | `@Public()` | Làm mới access token |
+| `POST` | `/api/v1/auth/logout` | Đăng nhập | Đăng xuất, thu hồi phiên |
+| `POST` | `/api/v1/auth/forgot-password` | `@Public()` | Quên mật khẩu |
+| `POST` | `/api/v1/auth/reset-password` | `@Public()` | Đặt lại mật khẩu bằng token |
+| `POST` | `/api/v1/auth/change-password` | Đăng nhập | Đổi mật khẩu (thu hồi phiên khác) |
+| `GET` | `/api/v1/auth/google` | `@Public()` | Bắt đầu luồng Google OAuth |
+| `GET` | `/api/v1/auth/google/callback` | `@Public()` | Callback OAuth |
+| `GET` | `/api/v1/auth/sessions` | Đăng nhập | Danh sách phiên của tôi |
+| `GET` | `/api/v1/auth/sessions/me` | Đăng nhập | Phiên hiện tại |
+| `GET` | `/api/v1/auth/sessions/:id` | Đăng nhập | Chi tiết phiên |
+| `DELETE` | `/api/v1/auth/sessions/:id` | Đăng nhập | Thu hồi phiên |
+
+> **Thứ tự khai báo route bắt buộc:** `GET /sessions/me` phải khai báo **TRƯỚC** `GET /sessions/:id`. Nếu không, NestJS sẽ khớp chuỗi `"me"` vào `:id` và trả về 404.
+
+### 4.2. Giao diện / Provider được xuất ra ngoài
+
+`src/backend/src/modules/auth/index.ts` xuất hợp đồng công khai:
+
+| Tên xuất | Vai trò |
+|---|---|
+| `AuthModule` | Mô-đun Nest |
+| `AUTH_USER_LOOKUP_PORT` | Cổng tra cứu tài khoản (dùng cho adapter) |
+| `PASSWORD_HASHER_PORT` | Cổng băm mật khẩu |
+| `AUTH_SESSION_PORT` | Cổng quản lý phiên |
+| `GOOGLE_OAUTH_PORT` | Cổng giao tiếp Google |
+
+### 4.3. Sự kiện domain phát ra
+
+| Sự kiện | Khi nào | Mục đích |
+|---|---|---|
+| `AUTH_LOGIN_SUCCESS` | Đăng nhập thành công | Cảnh báo bảo mật + audit log |
+| `AUTH_LOGIN_FAILED` | Đăng nhập thất bại | Chống brute-force + audit log |
+| `AUTH_PASSWORD_CHANGED` | Đổi mật khẩu | Thông báo + thu hồi phiên |
+| `AUTH_PASSWORD_RESET_REQUESTED` | Quên mật khẩu | Gửi email + audit log |
+| `AUTH_PASSWORD_RESET_COMPLETED` | Đặt lại thành công | Audit log + thu hồi phiên |
+
+## 5. Ràng buộc & Tiêu chuẩn bất biến
+
+### 5.1. Bất biến nghiệp vụ
+
+- `POST /auth/register` **luôn** tạo tài khoản `analyst` — không bao giờ tin `role` từ client.
+- Admin được tạo **chỉ** qua biến môi trường, tối đa **một** tài khoản, và không ghi đè mật khẩu đã đặt.
+- Độ dài mật khẩu: 8 ≤ độ dài ≤ 100.
+- Đổi mật khẩu phải thu hồi **toàn bộ** phiên của user.
+- Đặt lại mật khẩu phải thu hồi **toàn bộ** phiên của user.
+- Người dùng chỉ quản lý được phiên **của chính mình** — không có đường đọc phiên của người khác.
+- Refresh token mới được phát **mỗi lần đăng nhập**; phiên cũ lưu hash cũ không bị ghi đè.
+
+### 5.2. Xoá mềm (Soft Delete)
+
+- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
+- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
+- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
+
+### 5.3. Bảo mật
+
+| Vấn đề | Cách xử lý |
+|---|---|
+| Mật khẩu lộ | bcrypt 12 vòng; `passwordHash` `select: false` |
+| Refresh token bị lộ | Lưu hash SHA-256, không lưu token thô |
+| Leo thang đặc quyền | Register chỉ tạo `analyst`; admin chỉ qua biến môi trường |
+| CSRF trên OAuth | `state` + PKCE |
+| Token giả mạo | Xác thực `id_token` bằng khóa công khai Google |
+| Spam quên mật khẩu | Bộ đếm cửa sổ thời gian + giới hạn số lần gửi |
+| Phiên còn sống sau khi đổi mật khẩu | Thu hồi toàn bộ phiên |
+| Phát lại refresh token | Token đã dùng bị đánh dấu; hash lưu trong DB |
+| Truy cập phiên của người khác | Policy loader kiểm tra `userId` khu vực |
+
+### 5.4. Phân quyền
+
+| Tuyến đường | Chính sách |
+|---|---|
+| 9 route `@Public()` | `register`, `login`, `refresh`, `forgot-password`, `reset-password`, `google`, `google/callback` |
+| `change-password`, `logout`, `sessions*` | Đăng nhập — chỉ phiên của tôi |
+
+> Mô-đun này không trực tiếp dùng CASL theo tài nguyên. Nguồn sự thật phân quyền nằm ở `shared/interfaces/casl/policies.guard.ts` và tài khoản trong `modules/users`.
+
+## 6. Lịch sử thay đổi
+
+### 2026-11-21
+- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
+
+### 2026-11-XX
+- **v1.0.0** / 2026-11-XX / Bổ sung Google OAuth 2.0 với PKCE + state và xác thực `id_token` / Mở rộng đường đăng nhập, không cần mật khẩu / `modules/auth`, `modules/users`
+- **v0.9.0** / 2026-11-XX / Bổ sung `admin-bootstrap.service.ts` idempotent + route `/admin/users` / Quyết định OPEN-01: không có endpoint tự phong admin / `modules/auth`, `modules/users`
+- **v0.8.0** / 2026-11-XX / Chuyển refresh token từ JWT sang chuỗi ngẫu nhiên + lưu hash SHA-256 / Hạn thực của phiên phải nằm trong DB để thu hồi được ngay / `modules/auth`
+- **v0.5.0** / 2026-11-XX / Bổ sung bộ đếm cửa sổ thời gian cho quên mật khẩu / Chống spam email / `modules/auth`
+- **v0.1.0** / 2026-11-XX / Tạo mô-đun xác thực, tách khỏi `users` / Kiến trúc Clean Architecture / `modules/auth`
+
+- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`

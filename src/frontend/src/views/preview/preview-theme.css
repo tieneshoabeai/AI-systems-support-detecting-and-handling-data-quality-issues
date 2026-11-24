@@ -111,6 +111,19 @@
 [data-preview='2d'][data-theme='light'] :is(.preview-menu[data-trigger='anchor'], .preview-popover)::before {
   background: var(--pv-bg-1);
 }
+[data-preview='2d'][data-theme='light'] :is(.preview-dialog, .preview-popover, .preview-menu, .toast) {
+  color: var(--pv-ink);
+}
+[data-preview='2d'][data-theme='light'] .preview-dialog {
+  background: linear-gradient(155deg, var(--pv-bg-0), var(--pv-bg-1));
+}
+[data-preview='2d'][data-theme='light'] :is(.preview-popover, .preview-menu) {
+  background: var(--pv-surface);
+}
+[data-preview='2d'][data-theme='light'] .toast-success .toast-icon {
+  background: color-mix(in srgb, var(--pv-ink-green) 14%, transparent);
+  color: var(--pv-ink-green);
+}
 [data-preview='2d'][data-theme='light'] :is(.pj-core-name, .pj-core-meta) { text-shadow: none; }
 /* Art keeps its original colors. Controls placed over it need light ink in both themes. */
 [data-preview='2d'][data-theme='light'] :is(.icon-button.on-dark, .fav-button) { color: var(--pv-on-fill); }

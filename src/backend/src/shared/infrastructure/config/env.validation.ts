@@ -39,8 +39,19 @@ export const EnvironmentSchema = z.object({
   STORAGE_WARN_THRESHOLD_RATIO: z.coerce.number().min(0).max(1).default(0.9), // Cảnh báo khi đạt 90%
 
   // JWT & Cryptography
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET phải có tối thiểu 16 ký tự'),
-  JWT_ACCESS_EXPIRATION: z.string().default('15m'),
+  /**
+   * OPEN-01 — **Admin bootstrap**.
+   *
+   * Không có endpoint công khai để tự phong admin. Tài khoản `admin` được tạo
+   * **một lần** khi ứng dụng khởi động, từ `ADMIN_EMAIL` + `ADMIN_PASSWORD`.
+   *
+   * - Bỏ trống cả hai → không tạo admin (hợp lệ ở môi trường dev).
+   * - Có một mà thiếu cái kia → bị cảnh báo lúc khởi động, không tạo admin.
+   */
+  ADMIN_EMAIL: z.string().email('ADMIN_EMAIL phải là email hợp lệ').optional(),
+  ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD phải có tối thiểu 8 ký tự').optional(),
+
+  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET phải có tối thiểu 16 ký tự'),  JWT_ACCESS_EXPIRATION: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET phải có tối thiểu 16 ký tự'),
   JWT_REFRESH_EXPIRATION: z.string().default('7d'),
   /** Hạn phiên khi người dùng chọn "ghi nhớ đăng nhập" (remember me). */
@@ -110,9 +121,26 @@ export const EnvironmentSchema = z.object({
    * (`ANALYSIS_TOO_LARGE`) TRƯỚC khi đọc bất kỳ record nào từ MongoDB.
    * Lý do: `listAllRecords()` nạp toàn bộ dataset vào RAM, BSON deserialization
    * + biến đổi in-memory tạo peak-memory vài GB → OOM / quá nhiệt CPU.
+   *
+   * GĐ11 — mặc định hạ 100.000 → 50.000 (đo được peak RSS 568 MB trên dataset
+   * 100.000 dòng thật). Vẫn cấu hình được qua biến môi trường này.
    * @see modules/analysis/application/commands/run-analysis.handler.ts
    */
-  ANALYSIS_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(100_000),
+  ANALYSIS_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(50_000),
+  /**
+   * GĐ12 — số phân tích **đồng bộ** tối đa chạy cùng lúc trong một tiến trình.
+   *
+   * `POST /projects/:id/analysis` chạy inline trong request → mỗi lần chặn
+   * event loop ~6 giây với dataset 100.000 dòng. Nếu nhiều request cùng lúc,
+   * chúng xếp hàng và **mọi endpoint khác** của cùng instance bị chậm theo.
+   *
+   * Giới hạn số phân tích đồng thời + trả `429` khi đã đủ slot → event loop
+   * không bị chặn bởi hàng đợi, **hợp đồng API không đổi**.
+   *
+   * Lưu ý: đây là giới hạn **trên mỗi instance**. Chạy N instance (replica)
+   * → tổng số phân tích đồng thời = N × giá trị này.
+   */
+  ANALYSIS_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(1),
   EMBEDDING_MODEL: z.string().default('qwen3-embedding-0.6b'),
   EMBEDDING_DIM: z.coerce.number().int().min(1).default(1024),
 

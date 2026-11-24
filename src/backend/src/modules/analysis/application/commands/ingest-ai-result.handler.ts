@@ -27,6 +27,18 @@ export class IngestAiResultHandler {
   async execute(jobId: string, raw: unknown, modelId?: string): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
     if (!job) throw new NotFoundError('Không tìm thấy AI job');
+
+    // OPEN-07 / Conflict #5 — job đã bị **thay thế** bởi một lần retry mới ⇒
+    // kết quả trễ của job cũ **không được ghi đè** kết quả của job mới.
+    if (job.status === 'skipped') {
+      return {
+        jobId,
+        status: 'skipped',
+        skipped: true,
+        reason: 'superseded_by_retry',
+      };
+    }
+
     const result = await this.analysisRepository.findResultByRun(
       (job.analysisRunId as string).toString(),
     );

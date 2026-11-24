@@ -1,0 +1,78 @@
+<style>
+  #finding-placement {
+    color-scheme: light dark;
+    --surface: light-dark(#f4f7fc, #101b2b);
+    --ink: light-dark(#152947, #e8f1ff);
+    --muted: light-dark(#415878, #b5c9e4);
+    --line: light-dark(#bdcde3, #38506e);
+    --action: light-dark(#164a9e, #204990);
+    padding: .75rem;
+    font: 14px/1.5 system-ui, sans-serif;
+    color: var(--ink);
+  }
+  #finding-placement article { background: var(--surface); padding: 1rem; border: 1px solid var(--line); border-radius: 14px; }
+  #finding-placement h3, #finding-placement h4, #finding-placement p { margin: 0; }
+  #finding-placement nav, #finding-placement small { color: var(--muted); }
+  #finding-placement section { padding-block: .75rem; border-bottom: 1px solid var(--line); }
+  #finding-placement .heading, #finding-placement .entry { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .55rem; }
+  #finding-placement .entry { margin-top: .55rem; }
+  #finding-placement summary, #finding-placement button { color: white; background: var(--action); border: 0; border-radius: 7px; padding: .45rem .7rem; font: inherit; cursor: pointer; }
+  #finding-placement details { margin-top: .5rem; }
+  #finding-placement summary { width: fit-content; }
+  #finding-placement form { display: grid; gap: .6rem; margin-top: .6rem; padding: .75rem; border: 1px solid var(--line); border-radius: 9px; }
+  #finding-placement label { display: grid; gap: .25rem; }
+  #finding-placement select, #finding-placement textarea { font: inherit; padding: .35rem; }
+  #finding-placement form button { justify-self: start; }
+</style>
+<div class="viz-dotted-background" id="finding-placement">
+  <article aria-label="Minh họa vị trí phản hồi trong Project">
+    <nav aria-label="Vị trí">Project › Phân tích › Kết quả gần nhất</nav>
+    <section aria-labelledby="finding-quality-title">
+      <h3 id="finding-quality-title">Chất lượng dữ liệu</h3>
+      <div class="entry">
+        <div><strong>Thiếu dữ liệu</strong><br><small>Cột Email · 12 ô thiếu · Ví dụ minh họa</small></div>
+        <details>
+          <summary>Phản hồi phát hiện</summary>
+          <form>
+            <h4>Thiếu dữ liệu · Cột Email</h4>
+            <label>Đánh giá
+              <select><option>Chính xác</option><option>Đúng một phần</option><option>Báo sai</option><option>Khác</option></select>
+            </label>
+            <label>Lý do <textarea rows="2"></textarea></label>
+            <button type="submit">Gửi thử phản hồi</button>
+          </form>
+        </details>
+      </div>
+      <p role="status" aria-live="polite"></p>
+    </section>
+    <section aria-labelledby="finding-run-title">
+      <div class="heading"><h3 id="finding-run-title">Phản hồi lần phân tích</h3><span>Viết phản hồi</span></div>
+      <small>Dùng khi nhận xét tổng thể hoặc báo vấn đề bị bỏ sót.</small>
+    </section>
+    <section aria-labelledby="finding-dataset-title">
+      <h3 id="finding-dataset-title">Project › Phát hiện của Dataset</h3>
+      <small>Vị trí khác · Cần ID của lỗi Dataset và liên kết với lần phân tích.</small>
+    </section>
+  </article>
+</div>
+<script>
+  (() => {
+    const root = document.getElementById('finding-placement');
+    root.querySelector('form').addEventListener('submit', event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const label = form.querySelector('select').value;
+      const reason = form.querySelector('textarea');
+      if (['Báo sai', 'Khác'].includes(label) && !reason.value.trim()) {
+        reason.setCustomValidity('Hãy nhập lý do.');
+        reason.reportValidity();
+        return;
+      }
+      root.querySelector('[role="status"]').textContent = 'Bản xem thử · Phản hồi của bạn cho cột Email: ' + label;
+      form.closest('details').open = false;
+    });
+    const reason = root.querySelector('textarea');
+    reason.addEventListener('input', () => reason.setCustomValidity(''));
+    root.querySelector('select').addEventListener('change', () => reason.setCustomValidity(''));
+  })();
+</script>

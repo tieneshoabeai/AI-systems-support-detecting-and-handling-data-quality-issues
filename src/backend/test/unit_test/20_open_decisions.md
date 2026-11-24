@@ -1,5 +1,9 @@
 # Các điểm cần chốt khi triển khai test
 
+> ✅ **Đã chốt toàn bộ 10/10 ngày 2026-11-19.**
+> Nguồn chốt: [`docs/restructures/24_open_decisions_resolved.md`](../../../../docs/restructures/24_open_decisions_resolved.md).
+> File này giữ nguyên để làm **lịch sử câu hỏi**; khi viết test hãy lấy `expected` từ file chốt, không từ đây.
+
 Đây là danh sách câu hỏi, không tự thêm quyết định nghiệp vụ. Không cần chờ tất cả câu trả lời để viết các unit test độc lập còn lại.
 
 - **OPEN-01 — Role khi đăng ký:** admin được cấp bằng cơ chế nào? Quyết định cũ đang hoãn. Không chốt pass cho tự đăng ký admin chỉ vì DTO hiện chấp nhận.

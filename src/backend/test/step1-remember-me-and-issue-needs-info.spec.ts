@@ -76,6 +76,48 @@ describe('Buoc 1 / Nhom C — DTO login', () => {
     ).toBe(true);
   });
 
+  it('remember_me va rememberMe cung gia tri -> hop le', () => {
+    expect(
+      LoginSchema.parse({ email: 'a@b.com', password: 'x', remember_me: true, rememberMe: true })
+        .remember_me,
+    ).toBe(true);
+    expect(
+      LoginSchema.parse({ email: 'a@b.com', password: 'x', remember_me: false, rememberMe: false })
+        .remember_me,
+    ).toBe(false);
+  });
+
+  it('remember_me va rememberMe xung dot gia tri -> fail (400)', () => {
+    expect(
+      LoginSchema.safeParse({
+        email: 'a@b.com',
+        password: 'x',
+        remember_me: true,
+        rememberMe: false,
+      }).success,
+    ).toBe(false);
+    expect(
+      LoginSchema.safeParse({
+        email: 'a@b.com',
+        password: 'x',
+        remember_me: false,
+        rememberMe: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('xung dot bao loi o field rememberMe', () => {
+    const res = LoginSchema.safeParse({
+      email: 'a@b.com',
+      password: 'x',
+      remember_me: true,
+      rememberMe: false,
+    });
+    expect(res.success).toBe(false);
+    if (res.success) return;
+    expect(res.error.issues[0]?.path).toEqual(['rememberMe']);
+  });
+
   it('email sai -> fail', () => {
     expect(LoginSchema.safeParse({ email: 'khong-hop-le', password: 'x' }).success).toBe(false);
   });

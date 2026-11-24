@@ -562,6 +562,7 @@ export const settingsModules: readonly SettingsModule[] = [
   },
   { id: 'system', label: 'System', icon: 'monitor', items: [
     { id: 'color', label: 'Color', icon: 'palette' },
+    { id: 'status', label: 'Trạng thái hệ thống', icon: 'activity' },
     { id: 'notifications', label: 'Thông báo', icon: 'bell' },
   ] },
 ]

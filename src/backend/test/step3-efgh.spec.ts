@@ -2,8 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { WORKSPACE_REPOSITORY_PORT } from '../src/modules/workspaces/domain/ports/workspace.repository.port';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
+import { UserAccessRevocationService } from '../src/modules/users/application/services/user-access-revocation.service';
+import { TRANSACTION_PORT } from '../src/shared/application/ports/transaction.port';
+import { fakeTransaction } from './helpers/transaction';
 import { User } from '../src/modules/users/domain/entities/user.entity';
 import { PROJECT_REPOSITORY_PORT } from '../src/modules/projects/domain/ports/project.repository.port';
+import { OUTBOX_PORT } from '../src/shared/application/ports/outbox.port';
 import { CursorCodec } from '../src/shared/domain/pagination/cursor-codec';
 import {
   compareGeneric,
@@ -96,6 +100,8 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
         ...Object.values(workspacesHandlers),
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
       ],
     }).compile();
     wsService = createHandlerProxy(wsModule, workspacesHandlers);
@@ -109,6 +115,8 @@ describe('Nhóm E1/E2 — Danh sách thành viên (tìm kiếm + lọc + cursor)
           useValue: { findById: jest.fn().mockResolvedValue(wsRecord) },
         },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
       ],
     }).compile();
     prjService = createHandlerProxy(prjModule, projectsHandlers);
@@ -313,6 +321,8 @@ describe('Nhóm F — CreateProject chỉ định owner_id (PROJ-01)', () => {
         { provide: PROJECT_REPOSITORY_PORT, useValue: prjRepo },
         { provide: WORKSPACE_REPOSITORY_PORT, useValue: wsRepo },
         { provide: USER_REPOSITORY_PORT, useValue: usersPort },
+        { provide: OUTBOX_PORT, useValue: { recordEvent: jest.fn().mockResolvedValue({}) } },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
       ],
     }).compile();
     service = createHandlerProxy(module, projectsHandlers);
@@ -426,7 +436,15 @@ describe('Nhóm G — Profile phone & bio (ProxyOf<typeof usersHandlers>)', () =
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [...Object.values(usersHandlers), { provide: USER_REPOSITORY_PORT, useValue: repo }],
+      providers: [
+        ...Object.values(usersHandlers),
+        // OPEN-08 — `SoftDeleteUserHandler` phụ thuộc `UserAccessRevocationService`
+        // (thu hồi realtime tức thì). Service này có dependency `@Optional()`
+        // nên chạy được trong test module không có event bus / outbox.
+        UserAccessRevocationService,
+        { provide: USER_REPOSITORY_PORT, useValue: repo },
+        { provide: TRANSACTION_PORT, useValue: fakeTransaction() },
+      ],
     }).compile();
     usersService = createHandlerProxy(module, usersHandlers);
   });

@@ -1,7 +1,7 @@
 /**
  * Unit test thuần cho aggregate `Feedback` (Bước 3 — Rich Domain Model).
  */
-import { Feedback } from '../src/modules/feedback/domain/entities/feedback.entity';
+import { Feedback } from '../src/modules/feedback/feedback.types';
 import {
   ForbiddenError,
   ValidationError,

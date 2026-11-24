@@ -42,14 +42,23 @@ describe('connected dataset API', () => {
     await expect(createDatasetService(api).detail('d1', new AbortController().signal)).rejects.toMatchObject({ kind: 'invalid-response' })
   })
 
-  it('does not retry PII or delete mutations after a failure', async () => {
+  it('does not retry dataset deletion after a failure', async () => {
     const { api, request } = transport(() => { throw new Error('Forbidden') })
     const service = createDatasetService(api)
-    await expect(service.updateColumnPii('data/1', 'c0', true)).rejects.toThrow('Forbidden')
-    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1/columns/pii', method: 'PATCH', data: { columns: [{ columnKey: 'c0', isPii: true }] }, auth: 'session' })
-    request.mockClear()
     await expect(service.delete('data/1')).rejects.toThrow('Forbidden')
     expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1', method: 'DELETE', auth: 'session' })
+  })
+
+  it('keeps masked category values out of the chart output', async () => {
+    const { api, request } = transport(() => ({ charts: [{
+      column_key: 'c0', sampled_records: 10, truncated: false,
+      category: { masked: true, items: [{ value: 'private@example.test', count: 1, rate: 0.1 }] },
+    }] }))
+    const signal = new AbortController().signal
+
+    const chart = await createDatasetService(api).charts('data/1', 'c0', signal)
+    expect(chart.category).toEqual({ masked: true })
+    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1/charts', params: { columns: 'c0' }, auth: 'session', signal })
   })
 
   it('sends query conditions and cancellation with the current session', async () => {

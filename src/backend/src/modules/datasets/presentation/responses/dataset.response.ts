@@ -1,4 +1,9 @@
-import type { Dataset, DatasetColumn, DatasetColumnIssue } from '../../domain/entities/dataset.entity';
+import type {
+  Dataset,
+  DatasetColumn,
+  DatasetColumnIssue,
+  DatasetFinding,
+} from '../../domain/entities/dataset.entity';
 
 /**
  * DATASETS — Mapper entity domain → HTTP response.
@@ -35,6 +40,22 @@ export interface DatasetColumnIssueResponse {
   message: string;
 }
 
+/**
+ * Phát hiện trong response — mục **"Phát hiện"** (OPEN-03/04/05).
+ *
+ * Luôn có **vị trí lỗi cụ thể** (key cột / số dòng) để người dùng biết chính
+ * xác cần sửa ở đâu trong file CSV gốc.
+ */
+export interface DatasetFindingResponse {
+  type: string;
+  severity: string;
+  columnKey: string | null;
+  columnName: string | null;
+  rowIndex: number | null;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 /** DTO trả về cho client — shape giống hệt `DatasetRecord` cũ (trừ `storageKey`). */
 export interface DatasetResponse {
   id: string;
@@ -49,6 +70,8 @@ export interface DatasetResponse {
   columnCount: number;
   columns: DatasetColumnResponse[];
   columnIssues: DatasetColumnIssueResponse[];
+  /** Mục "Phát hiện" (OPEN-03/04/05). */
+  findings: DatasetFindingResponse[];
   hasHeader: boolean;
   delimiter: string;
   currentVersion: number;
@@ -77,6 +100,18 @@ function toColumnIssueResponse(issue: DatasetColumnIssue): DatasetColumnIssueRes
   };
 }
 
+function toFindingResponse(finding: DatasetFinding): DatasetFindingResponse {
+  return {
+    type: finding.type,
+    severity: finding.severity,
+    columnKey: finding.columnKey,
+    columnName: finding.columnName,
+    rowIndex: finding.rowIndex,
+    message: finding.message,
+    ...(finding.details ? { details: finding.details } : {}),
+  };
+}
+
 /** Entity → response DTO. */
 export function toDatasetResponse(dataset: Dataset): DatasetResponse {
   return {
@@ -92,6 +127,7 @@ export function toDatasetResponse(dataset: Dataset): DatasetResponse {
     columnCount: dataset.columnCount,
     columns: dataset.columns.map(toColumnResponse),
     columnIssues: dataset.columnIssues.map(toColumnIssueResponse),
+    findings: dataset.findings.map(toFindingResponse),
     hasHeader: dataset.hasHeader,
     delimiter: dataset.delimiter,
     currentVersion: dataset.currentVersion,

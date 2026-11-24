@@ -12,7 +12,7 @@ import {
   type IssueReport,
 } from '../src/modules/issues/domain/ports/issue-report.repository.port';
 import { IssueReport as IssueReportEntity } from '../src/modules/issues/domain/entities/issue-report.entity';
-import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/domain/ports/notification.repository.port';
+import { NOTIFICATION_REPOSITORY_PORT } from '../src/modules/notifications/notifications.types';
 import { USER_REPOSITORY_PORT } from '../src/modules/users/domain/ports/user.repository.port';
 import { REALTIME_PORT } from '../src/shared/application/ports/realtime.port';
 import { createHandlerProxy, type ProxyOf } from './helpers/handler-proxy';

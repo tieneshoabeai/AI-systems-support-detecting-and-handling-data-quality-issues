@@ -1,5 +1,6 @@
 import { isDrawable } from '../../../graphics/common/typed-objects'
 import { useEffect, useMemo } from 'react'
+import { applyLightChartAppearance } from '../../../graphics/holographic-core/light-chart-appearance'
 import { useFrame, useThree } from '@react-three/fiber'
 import {
   AdditiveBlending,
@@ -34,7 +35,7 @@ export const DECOR_CONCEPT: DecorConcept = 'star-chart'
 const CENTER_CLEAR = 0.5
 
 type Shared = { uTime: IUniform<number>; uClear: IUniform<Vector2> }
-type DecorProps = { shared: Shared; reducedMotion: boolean }
+type DecorProps = { shared: Shared; reducedMotion: boolean; light: boolean }
 
 const RAD = Math.PI / 180
 const disableRaycast = () => {}
@@ -398,7 +399,7 @@ function StarChartMotion({ shared, sphere, dial }: {
   return null
 }
 
-function StarChart({ shared, reducedMotion }: DecorProps) {
+function StarChart({ shared, reducedMotion, light }: DecorProps) {
   const sphere = useMemo(() => {
     const group = new Group()
     group.name = 'decor-star-chart'
@@ -410,6 +411,12 @@ function StarChart({ shared, reducedMotion }: DecorProps) {
     return group
   }, [shared])
   const dial = useMemo(() => createOrbitDial(), [])
+  useEffect(() => {
+    if (!light) return
+    const restoreSphere = applyLightChartAppearance(sphere)
+    const restoreDial = applyLightChartAppearance(dial.root)
+    return () => { restoreDial(); restoreSphere() }
+  }, [light, sphere, dial])
   useEffect(() => () => disposeObject(sphere), [sphere])
   useEffect(() => () => disposeObject(dial.root), [dial])
   return <>
@@ -661,7 +668,7 @@ function DeepSpace({ shared, reducedMotion }: DecorProps) {
 
 const DECOR_COMPONENTS = { 'star-chart': StarChart, 'deep-space': DeepSpace, off: null }
 
-export function HolographicDecor({ reducedMotion }: { reducedMotion: boolean }) {
+export function HolographicDecor({ reducedMotion, light = false }: { reducedMotion: boolean; light?: boolean }) {
   const { width, height } = useThree(state => state.size)
   const shared = useMemo<Shared>(() => ({
     uTime: { value: 0 },
@@ -669,5 +676,5 @@ export function HolographicDecor({ reducedMotion }: { reducedMotion: boolean }) 
   }), [])
   useEffect(() => resizeShared(shared, width, height), [shared, width, height])
   const Concept = DECOR_COMPONENTS[DECOR_CONCEPT]
-  return Concept && <Concept shared={shared} reducedMotion={reducedMotion} />
+  return Concept && <Concept shared={shared} reducedMotion={reducedMotion} light={light} />
 }

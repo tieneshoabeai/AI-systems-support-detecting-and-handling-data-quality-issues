@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IUser } from './user.schema';
 import { IUserSession } from './user-session.schema';
+import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 import {
   type CreateSessionInput,
   type CreateUserInput,
@@ -136,23 +137,27 @@ export class UsersRepository implements UserRepositoryPort {
   }
 
   async setPasswordResetOtp(email: string, tokenHash: string, expiresAt: Date, sentCount: number, windowStart: Date | null): Promise<boolean> {
-    const r = await this.userModel.updateOne({ email, deleted_at: null }, { $set: { password_reset_token_hash: tokenHash, password_reset_expires_at: expiresAt, password_reset_attempts: 0, password_reset_sent_count: sentCount, password_reset_sent_window_start: windowStart } }).exec();
+    const s = resolveMongoSession(undefined);
+    const r = await this.userModel.updateOne({ email, deleted_at: null }, { $set: { password_reset_token_hash: tokenHash, password_reset_expires_at: expiresAt, password_reset_attempts: 0, password_reset_sent_count: sentCount, password_reset_sent_window_start: windowStart } }, { session: s }).exec();
     return r.modifiedCount > 0;
   }
 
   async incrementResetAttempts(email: string): Promise<number> {
-    const doc = await this.userModel.findOneAndUpdate({ email, deleted_at: null }, { $inc: { password_reset_attempts: 1 } }, { new: true }).select('+password_reset_attempts').exec();
+    const s = resolveMongoSession(undefined);
+    const doc = await this.userModel.findOneAndUpdate({ email, deleted_at: null }, { $inc: { password_reset_attempts: 1 } }, { returnDocument: 'after', session: s }).select('+password_reset_attempts').exec();
     return doc?.password_reset_attempts ?? 0;
   }
 
   async clearPasswordReset(email: string): Promise<boolean> {
-    const r = await this.userModel.updateOne({ email, deleted_at: null }, { $set: { password_reset_token_hash: null, password_reset_expires_at: null, password_reset_attempts: 0 } }).exec();
+    const s = resolveMongoSession(undefined);
+    const r = await this.userModel.updateOne({ email, deleted_at: null }, { $set: { password_reset_token_hash: null, password_reset_expires_at: null, password_reset_attempts: 0 } }, { session: s }).exec();
     return r.matchedCount > 0;
   }
 
   async setPasswordHash(userId: string, passwordHash: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(userId)) return false;
-    const r = await this.userModel.updateOne({ _id: new Types.ObjectId(userId), deleted_at: null }, { $set: { password_hash: passwordHash } }).exec();
+    const s = resolveMongoSession(undefined);
+    const r = await this.userModel.updateOne({ _id: new Types.ObjectId(userId), deleted_at: null }, { $set: { password_hash: passwordHash } }, { session: s }).exec();
     return r.modifiedCount > 0;
   }
 
@@ -218,7 +223,8 @@ export class UsersRepository implements UserRepositoryPort {
       role: data.role,
       deleted_at: null,
     });
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toUserEntity(saved);
   }
 
@@ -236,7 +242,8 @@ export class UsersRepository implements UserRepositoryPort {
       status: 'active',
       deleted_at: null,
     });
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toUserEntity(saved);
   }
 
@@ -251,7 +258,7 @@ export class UsersRepository implements UserRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(userId), deleted_at: null },
         { $set: { google_id: gid, auth_provider: 'google' } },
-        { new: true },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toUserEntity(doc) : null;
@@ -270,7 +277,7 @@ export class UsersRepository implements UserRepositoryPort {
             ...(data.bio !== undefined ? { bio: data.bio } : {}),
           },
         },
-        { new: true },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc ? toUserEntity(doc) : null;
@@ -281,21 +288,35 @@ export class UsersRepository implements UserRepositoryPort {
       .findOneAndUpdate(
         { _id: new Types.ObjectId(userId), deleted_at: null },
         { $set: { notifications_enabled: enabled } },
-        { new: true },
+        { returnDocument: 'after', session: resolveMongoSession(undefined) },
       )
       .exec();
     return doc !== null;
   }
 
+  async setStatus(userId: string, status: 'active' | 'blocked'): Promise<boolean> {
+    if (!Types.ObjectId.isValid(userId)) return false;
+    const s = resolveMongoSession(undefined);
+    const result = await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId), deleted_at: null },
+      { $set: { status } },
+      { session: s },
+    );
+    return result.matchedCount > 0;
+  }
+
   async softDeleteUser(userId: string): Promise<boolean> {
+    const s = resolveMongoSession(undefined);
     const result = await this.userModel.updateOne(
       { _id: new Types.ObjectId(userId), deleted_at: null },
       { $set: { deleted_at: new Date() } },
+      { session: s },
     );
     if (result.matchedCount === 0) return false;
     await this.sessionModel.updateMany(
       { user_id: new Types.ObjectId(userId), is_revoked: false },
       { $set: { is_revoked: true } },
+      { session: s },
     );
     return true;
   }
@@ -312,7 +333,8 @@ export class UsersRepository implements UserRepositoryPort {
       last_used_at: new Date(),
       expires_at: data.expiresAt,
     });
-    const saved = await inst.save();
+    const s = resolveMongoSession(undefined);
+    const saved = await inst.save({ session: s });
     return toUserSessionEntity(saved);
   }
 
@@ -353,35 +375,43 @@ export class UsersRepository implements UserRepositoryPort {
 
   async touchSession(sessionId: string, lastUsedAt: Date): Promise<boolean> {
     if (!Types.ObjectId.isValid(sessionId)) return false;
+    const s = resolveMongoSession(undefined);
     const result = await this.sessionModel.updateOne(
       { _id: new Types.ObjectId(sessionId) },
       { $set: { last_used_at: lastUsedAt } },
+      { session: s },
     );
     return result.matchedCount > 0;
   }
 
   async revokeSession(userId: string, sessionId: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(sessionId)) return false;
+    const s = resolveMongoSession(undefined);
     const result = await this.sessionModel.updateOne(
       { _id: new Types.ObjectId(sessionId), user_id: new Types.ObjectId(userId) },
       { $set: { is_revoked: true } },
+      { session: s },
     );
     return result.modifiedCount > 0;
   }
 
   async revokeSessionById(sessionId: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(sessionId)) return false;
+    const s = resolveMongoSession(undefined);
     const result = await this.sessionModel.updateOne(
       { _id: new Types.ObjectId(sessionId) },
       { $set: { is_revoked: true } },
+      { session: s },
     );
     return result.modifiedCount > 0;
   }
 
   async revokeAllUserSessions(userId: string): Promise<number> {
+    const s = resolveMongoSession(undefined);
     const result = await this.sessionModel.updateMany(
       { user_id: new Types.ObjectId(userId), is_revoked: false },
       { $set: { is_revoked: true } },
+      { session: s },
     );
     return result.modifiedCount;
   }
