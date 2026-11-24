@@ -40,7 +40,7 @@ describe('E2E — Datasets + DataView', () => {
   const getById = { execute: jest.fn() };
   const getByPrj = { execute: jest.fn() };
   const getSchema = { execute: jest.fn() };
-  const dataView: Record<string, jest.Mock> = { getRecords: jest.fn(), queryRecords: jest.fn(), getColumnStats: jest.fn(), getChartData: jest.fn() };
+  const dataView = { getRecords: jest.fn(), queryRecords: jest.fn(), getColumnStats: jest.fn(), getChartData: jest.fn() };
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({

@@ -28,9 +28,9 @@ const WSID = '507f1f77bcf86cd799439012';
  */
 describe('E2E — Feedback + Notifications + Overview', () => {
   let app: INestApplication;
-  const feedback: Record<string, jest.Mock> = { createFindingFeedback: jest.fn(), createRunFeedback: jest.fn(), listFindingFeedback: jest.fn(), listRunFeedback: jest.fn(), updateMine: jest.fn(), remove: jest.fn(), aiQualityMetrics: jest.fn() };
-  const notif: Record<string, jest.Mock> = { listForUser: jest.fn(), countUnread: jest.fn(), getDetail: jest.fn(), markAsRead: jest.fn(), updatePreferences: jest.fn() };
-  const overview: Record<string, jest.Mock> = { getUserOverview: jest.fn(), getWorkspaceOverview: jest.fn() };
+  const feedback = { createFindingFeedback: jest.fn(), createRunFeedback: jest.fn(), listFindingFeedback: jest.fn(), listRunFeedback: jest.fn(), updateMine: jest.fn(), remove: jest.fn(), aiQualityMetrics: jest.fn() };
+  const notif = { listForUser: jest.fn(), countUnread: jest.fn(), getDetail: jest.fn(), markAsRead: jest.fn(), updatePreferences: jest.fn() };
+  const overview = { getUserOverview: jest.fn(), getWorkspaceOverview: jest.fn() };
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
