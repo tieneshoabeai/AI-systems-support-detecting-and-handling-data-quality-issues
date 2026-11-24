@@ -1,3 +1,9 @@
+# `auth` — Template: Hexagonal
+- Vì sao Hexagonal: OAuth/session rotation + 7 token + 4 adapter + revocation
+- Bất biến chính: token/session/OAuth + thu tu sessions/me truoc :id, giu 6 adapter + jwt.strategy + 2 service (admin-bootstrap, security-alert) (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `auth` — Xác thực & Phiên đăng nhập
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

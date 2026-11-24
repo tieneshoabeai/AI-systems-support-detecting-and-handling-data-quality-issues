@@ -1,3 +1,9 @@
+# `analysis` — Template: Hexagonal
+- Vì sao Hexagonal: AI worker + RAM guard + cardinality guard + 7 schema + 14 util + 3 service
+- Bất biến chính: worker + RAM/cardinality + OPEN-06/GD7/GD9/GD12, giu ~14 util + 3 service (ai-worker, rag-few-shot, report-worker) tach (§12)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `analysis` — Phân tích chất lượng dữ liệu & AI
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**

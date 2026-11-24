@@ -1,3 +1,9 @@
+# `issues` — Template: Hexagonal
+- Vì sao Hexagonal: optimistic locking expectedVersion + invariant title/desc trong entity + 1 controller chua ca 2 nhom route user + admin/* + cascade attachment
+- Bất biến chính: locking + 1 controller (2 nhom route user + admin/* + Roles('admin')) (§12, D14)
+- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+
+---
 # MÔ-ĐUN `issues` — Báo cáo lỗi & Quản trị
 
 > **Đặc tả mô-đun & Tài liệu kỹ thuật**
