@@ -1,8 +1,8 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.7 (2026-11-18)
-**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H và I
+**Phiên bản:** v1.8 (2026-11-18)
+**Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`)
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
 ---
@@ -155,12 +155,21 @@ Rà soát lại spec sau đợt A/B/C, module vẫn còn 6 thiếu sót:
 - **Kỳ vọng:** bắt thêm 11/16 lỗi; còn lại 5 (thứ tự hai cột ×2, tốc độ, x/y/z ≤ 12 mm, công thức depth) — ngoài phạm vi đợt này.
 - **Test:** `test/analysis-wave10.spec.ts` (AN-63..AN-68) + `local_VQD/runner/run-all.ts` hai bộ.
 
+## 7f. Đợt J — bộ trực quan module analysis (2026-11-18, chỉ tài liệu/công cụ)
+- **Trạng thái:** Đã thực hiện 2026-11-18. **Không đổi code `src/`, không đổi API hay nghiệp vụ** → không có Phần 2–14 vN+1 mới.
+- **Bối cảnh:** diagram cũ trong `local_VQD/report/diagrams/` chỉ vẽ 4/11 endpoint, thiếu alt/opt/break, activation bar, async, state machine và có vài chỗ sai so với code (tên hàm `requireRead`/`ensureFreshness` không tồn tại; `top_n` 1..500; retry "<2"; thiếu nhánh grounding fail; claim "bỏ qua kiểm record >10k dòng" không có trong `staleness.service.ts`).
+- **Sản phẩm (`local_VQD/report/`, git-exclude, không vào nhánh):** viewer UML 4 tab (Architecture · Activity 3 sheet · Sequence 4 sheet · State 4 máy), trang **walkthrough** titanic 12 bước chạy service/worker thật, trang **code-flow** (sequence → activity theo hàm → mã nguồn), bản Markdown/Mermaid sinh từ cùng dữ liệu.
+- **Chống lệch:** `npm run check` (`scripts/check-drift.mjs`) xác minh mọi tham chiếu `file#hàm@chuỗi` còn tồn tại trong git HEAD (số dòng lấy từ `source-index.js` sinh bằng TypeScript compiler API), toàn vẹn đồ thị, cạnh không đâm xuyên node, activation bar đóng đủ, phủ 11/11 endpoint và các mục tiêu định lượng.
+- **Đính chính báo cáo:** `module_analysis_report.md` + `module_analysis_presentation.md` sửa các điểm sai nêu trên và số test.
+- **Hướng dẫn chạy:** `local_VQD/report/README.md`.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.8 / 2026-11-18:** Thêm đợt J (mục 7f) — bộ trực quan module analysis (viewer UML, walkthrough, code-flow) và đính chính báo cáo; không đổi code.
 - **v1.7 / 2026-11-18:** Thêm đợt I (mục 7e) — tự phát hiện mâu thuẫn dữ liệu dưới dạng Nghi vấn; không làm khai báo quy tắc DQ-05.
 - **v1.6 / 2026-11-18:** Thêm đợt H (mục 7d) — vá lỗi bỏ sót bộ edge-cases; DQ-05 vẫn để đợt sau.
 - **v1.5 / 2026-11-17:** Thêm đợt G (mục 7c) — sửa lỗi bỏ sót từ bộ test offline; DQ-05 để đợt sau.
