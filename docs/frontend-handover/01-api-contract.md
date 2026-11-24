@@ -176,7 +176,12 @@ Thu hoi 1 phien tu xa.
 ## Data View (Virtual Grid) — `@Controller('datasets/:datasetId')`
 
 ### GET `/datasets/:datasetId/records?cursor=&limit=50&sort_field=&sort_order=asc|desc`
-- `limit` 1-200 (default 50). Response `data`: `{ items: [{ rowIndex, props: { c0, c1... } }], meta: { nextCursor, hasMore } }`.
+- `limit` 1-500 (default 50) — *cap nhat 2026-11-25, truoc la 1-200*. Response `data`: `{ items: [{ rowIndex, props: { c0, c1... } }], meta: { nextCursor, hasMore } }`.
+- **Cursor (cap nhat 2026-11-25):**
+  - Gui lai **nguyen van** `meta.nextCursor` vao `cursor`; khong tu tao hay sua cursor.
+  - Khi co sort, cursor nho ca gia tri dang sort cua dong cuoi trang (truoc day chi nho `rowIndex` nen trang sau bi sot dong).
+  - Cursor hong, hoac sinh tu mot kieu sort khac (doi `sort_field` / `sort_order` ma van gui cursor cu) -> `400 VALIDATION_ERROR`. Frontend: khi doi sort thi **bo cursor, tai lai tu trang dau**.
+- O trong (null, thieu, hoac khong doc duoc thanh so/ngay) luon xep **cuoi**, ca `asc` lan `desc`, voi moi kieu cot.
 
 ### POST `/datasets/:datasetId/records/query`
 ```json
@@ -190,10 +195,18 @@ Thu hoi 1 phien tu xa.
 ```
 - `operator`: `equals | notEquals | contains | notContains | startsWith | endsWith | greaterThan | greaterThanOrEqual | lessThan | lessThanOrEqual | between | in | isEmpty | isNotEmpty`.
 - `between` can `value: [min, max]`; `in` can mang khac rong; `isEmpty/isNotEmpty` khong can `value`.
-- Toi da 30 filters, 5 sort, search toi da 20 cot.
+- Toi da 30 filters, 5 sort, search toi da 20 cot. `limit` 1-500 (default 50).
+- **`value` (cap nhat 2026-11-25):** chi nhan chuoi (<= 500 ky tu), so, boolean, hoac **mang** cac gia tri do (<= 1000 phan tu, dung cho `in` / `between`). Gui object (vd `{ "$ne": null }`, `{ "$regex": "..." }`) -> `400 VALIDATION_ERROR` (chan NoSQL injection).
+- **So sanh thu tu** (`greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `between`) tren cot so / cot ngay voi gia tri khong phai so / ngay hop le -> `400` kem `message` ro rang (truoc day bo loc bi bo qua im lang). Nen hien `error.message` cho nguoi dung. `equals` / `in` van nhan gia tri tho de tim o nhap sai kieu.
+- Nhieu dieu kien tren **cung mot cot** (gui bang `c{i}` hay ten hien thi deu duoc) ket hop **OR**; cac cot khac nhau ket hop **AND**.
+- `isEmpty` / `isNotEmpty`: chuoi chi co khoang trang cung tinh la o trong. `contains` / `startsWith` / `endsWith` / `search` dung duoc tren cot so va boolean (so khop theo dang chu, vd `"19"` khop `1990`).
+- `cursor`: quy tac nhu `GET records`. Cursor **chua gan voi bo loc**: khi doi `filters` / `search` / `sort` thi frontend phai bo cursor va tai lai tu trang dau (doi bo loc ma giu cursor cu se khong bao loi nhung ket qua co the lech).
 
 ### GET `/datasets/:datasetId/columns/:columnKey/stats`
 - `:columnKey` chap nhan ca key `c{i}` lan ten hien thi. -> `{ stats }`.
+- `stats`: `column_key`, `column_name`, `total_records`, `null_count`, `missing_ratio`, `min`, `max`, `average`, `histogram: [{ bucket_start, bucket_end, count }]`.
+  - Cot khong phai so: khong co `min` / `max` / `average`, `histogram: []`.
+  - Cot co moi gia tri giong nhau: `histogram` chi 1 khoang. *(cap nhat 2026-11-25: truoc day loi 500 voi cot so ~120k dong tro len — da sua.)*
 
 ### GET `/datasets/:datasetId/charts` — **GĐ6 (moi 2026-11-19)**
 So lieu bieu do cho cac cot cua dataset (dung ve nhanh de render chart, khong can
@@ -269,6 +282,8 @@ Thu lai AI job (toi da 2 lan). Tra `202`.
 ```json
 { "result": {}, "modelId": "corr-v1" }
 ```
+- **Frontend KHONG goi route nay** (xem `API_ANSWER_24-11.md` muc 4.4) — worker AI goi thang handler, khong qua HTTP.
+- *Cap nhat 2026-11-25:* chi **SYS-ADMIN** duoc goi (nguoi khac -> `403`); server chay `NODE_ENV=production` -> `404` voi moi nguoi. Truoc day moi thanh vien project goi duoc va co the ghi de nhan xet AI.
 
 ## Summary — `@Controller()`
 
@@ -286,7 +301,12 @@ Thu lai AI job (toi da 2 lan). Tra `202`.
 
 `label`: `correct | partially_correct | false_positive | missed_issue | other`.
 `suggestedSeverity`: `low | medium | high | critical`.
-Bat buoc `reason` khi `label` la `false_positive | missed_issue | other`.
+Bat buoc `reason` khi `label` la `false_positive | missed_issue | other` (ca khi tao lan khi `PATCH` doi sang cac nhan nay; thieu -> `400`).
+
+**Quy tac (cap nhat 2026-11-25):**
+- Nhan xet **mot phat hien**: lan phan tich phai o trang thai `succeeded`. Nhan xet **ca lan chay**: `succeeded` hoac `failed`. Trang thai khac (`pending`, `running`) -> `409 CONFLICT`. Frontend: an / khoa nut nhan xet khi lan phan tich chua xong.
+- SYS-ADMIN (`role=admin`) bi chan `403` o moi route feedback, tru `DELETE` (xoa kiem duyet).
+- `:id`, `:analysisId` sai dinh dang -> `400`; `findingId` rong hoac dai hon 200 ky tu -> `400`.
 
 - `POST /analyses/:analysisId/findings/:findingId/feedback`:
   ```json
@@ -295,12 +315,17 @@ Bat buoc `reason` khi `label` la `false_positive | missed_issue | other`.
 - `POST /analyses/:analysisId/feedback` (nhan xet ca lan chay, body giong tren).
 - `GET /analyses/:analysisId/findings/:findingId/feedback?limit=20&cursor=&label=&sortOrder=desc`
 - `GET /analyses/:analysisId/feedback?...` (tuong tu).
+  - Response `data`: `{ items, meta: { nextCursor, hasMore, limit }, summary }` — `meta.limit` *moi 2026-11-25*.
+  - `summary` (so nhan xet theo tung nhan) dem tren **toan bo** nhan xet cua phat hien / lan chay, **khong** bi loc boi `?label=` *(cap nhat 2026-11-25)*. Muon biet so dong sau khi loc thi dem `items`.
 - `PATCH /feedback/:id`:
   ```json
   { "label": "correct", "reason": "...", "suggestedSeverity": null }
   ```
-  It nhat 1 truong.
-- `DELETE /feedback/:id`
+  It nhat 1 truong. Chi nguoi viet nhan xet duoc sua.
+- `DELETE /feedback/:id` — nguoi viet, hoac Project/Workspace Owner va SYS-ADMIN (xoa kiem duyet).
+- Loi khi sua / xoa *(cap nhat 2026-11-25)*:
+  - nguoi viet **khong con quyen xem project** (khong con la thanh vien project **va** khong con la thanh vien workspace) -> `403`. Thanh vien workspace bi go khoi project van co quyen xem nen van sua / xoa duoc nhan xet cua minh;
+  - project da bi xoa -> `404`.
 - `GET /projects/:projectId/ai-quality-metrics` -> thong ke chat luong AI theo project.
 
 ## Notifications — `@Controller()`
