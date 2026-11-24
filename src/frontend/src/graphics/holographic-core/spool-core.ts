@@ -465,8 +465,8 @@ export function createSpoolCore(): SpoolCore {
   const { platform } = SPOOL_CORE
   const platformDisc = new THREE.Mesh(
     new THREE.CylinderGeometry(platform.radius, platform.radius, platform.thickness, 96),
-    new THREE.MeshPhysicalMaterial({
-      color: '#06222b', metalness: 0.5, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.12,
+    new THREE.MeshStandardMaterial({
+      color: '#06222b', metalness: 0.5, roughness: 0.16,
       transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false,
     }),
   )

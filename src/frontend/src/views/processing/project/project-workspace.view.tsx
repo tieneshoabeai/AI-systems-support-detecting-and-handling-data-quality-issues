@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
 import type { CubeFocus, NeonCubeThemeId } from '../../../types'
@@ -11,7 +11,6 @@ import { EmptyHint } from '../../preview/components/preview-primitives'
 import { usePreviewSession } from '../../preview/preview-session-context'
 import { projectDatasetMenu } from '../../preview/preview-menu'
 import { ProjectResultActions, ProjectUploadDialog, ProjectResultDownload } from './sections/project-data-actions'
-import { Dataset3DView } from '../../dataset-3d/dataset-3d.view'
 import type { ConfirmedProjectResult } from '../../../types'
 import { bindProjectGlassMotion } from '../../../graphics/holographic-core'
 import styles from './project-workspace.module.css'
@@ -35,6 +34,10 @@ function SavedDetectionStatus({ response, onRetry }: { response: DetectionRespon
 }
 
 // Project chrome and actions stay in this view; Dataset3DView owns scene interactions.
+const Dataset3DView = lazy(() => import('../../dataset-3d/dataset-3d.view').then(module => ({ default: module.Dataset3DView })))
+
+const sceneLoading = <p role="status" className={styles['sceneLoading']}>Đang mở cảnh 3D…</p>
+
 const MODULE_CUBES = {
   overview: 'violet', 'data-view': 'blue', 'data-analysis': 'cyan', detection: 'orange',
 } satisfies Record<ProjectModuleId, NeonCubeThemeId>
@@ -97,11 +100,25 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
   }, [panelFocus, selectFocus])
-  const [detached, setDetached] = useState(false)
   const selected = projectModules.find(module => MODULE_CUBES[module.id] === focus?.theme)?.id ?? null
   const [uploading, setUploading] = useState(false)
   const project = processing?.loading || processing?.error
     ? null : session.state.projects.find(item => item.id === projectId) ?? null
+  const permissionsPending = processing?.permissionsPending === true
+  const sceneEligibleProjectId = permissionsPending ? undefined : project?.id
+  const [sceneProjectId, setSceneProjectId] = useState<string>()
+  useEffect(() => {
+    if (scene != null || !sceneEligibleProjectId) return
+    // Let the browser paint the enabled project menu before loading the 3D scene.
+    let mountFrame = 0
+    const paintFrame = requestAnimationFrame(() => {
+      mountFrame = requestAnimationFrame(() => setSceneProjectId(sceneEligibleProjectId))
+    })
+    return () => {
+      cancelAnimationFrame(paintFrame)
+      cancelAnimationFrame(mountFrame)
+    }
+  }, [sceneEligibleProjectId, scene])
   const dataset = project?.dataset
   const datasetId = dataset?.id
   const [preview, setPreview] = useState<{ datasetId: string; value: DatasetPreview | null } | null>(null)
@@ -185,17 +202,19 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
             session.notify(response.message, 'success')
           }} />}
         <button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
-          aria-haspopup="menu" onClick={event => menuButton(event.currentTarget)}>
+          aria-haspopup="menu" disabled={permissionsPending} onClick={event => menuButton(event.currentTarget)}>
           <PreviewIcon name="more" />
         </button>
       </div>
     </div>}
 
     <section key="project-stage" className="pj-stage" aria-label={project ? `Vũ trụ dữ liệu của ${project.name}` : 'Vũ trụ dữ liệu'}>
-      {scene ?? <Dataset3DView embedded colorMode={session.appearance.resolved} focus={focus}
+      {scene ?? (sceneEligibleProjectId && sceneProjectId === sceneEligibleProjectId ? <Suspense fallback={sceneLoading}>
+        <Dataset3DView embedded colorMode={session.appearance.resolved} focus={focus}
         glassPanel={glassPanel}
-        onFocusChange={next => selectFocus(next)} onDetachedChange={value => { setDetached(value); setCompletedFocus(null) }}
-        onFocusComplete={completeFocus} />}
+        onFocusChange={next => selectFocus(next)}
+        onFocusComplete={completeFocus} />
+      </Suspense> : sceneLoading)}
       {PROJECT_PANEL_ENABLED && panelFocus && <aside ref={setGlassPanel} className="project-module-panel" aria-labelledby="project-module-title"
         data-has-content={panelFocus.theme === 'orange' || panelFocus.theme === 'blue' || panelFocus.theme === 'violet'}
         data-open={panelOpen} data-instant={instant} data-module={projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.id}
@@ -232,7 +251,6 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
           const current = selected === module.id
           return <button type="button" key={module.id} data-tone={module.tone} data-module={module.id}
             className={`pj-module${current ? ' is-active' : ''}`} aria-current={current ? 'true' : undefined}
-            disabled={detached} title={detached ? 'Lắp lại mô hình để chọn module' : undefined}
             onClick={event => selectFocus({ theme: MODULE_CUBES[module.id] }, event.detail === 0)}>
             <span className="pj-module-icon" aria-hidden="true"><PreviewIcon name={module.icon} /></span>
             <span className="pj-module-label">{module.label}</span>

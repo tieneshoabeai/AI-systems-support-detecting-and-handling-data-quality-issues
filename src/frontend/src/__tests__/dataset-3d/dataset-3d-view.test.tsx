@@ -59,6 +59,15 @@ it('renders the conceptual module map without claiming live data', () => {
   expect(canvasProbe).toHaveBeenLastCalledWith(expect.objectContaining({ reducedMotion: false, detached: false, selectedId: null, cubeFocus: null }))
 })
 
+it('keeps the embedded scene assembled while allowing module focus', () => {
+  render(<MemoryRouter><Dataset3DView embedded /></MemoryRouter>)
+  expect(screen.queryByRole('button', { name: /Tách mô hình|Lắp lại mô hình/ })).toBeNull()
+  act(() => { canvasProbe.mock.lastCall?.[0].onFocusCube('orange') })
+  expect(canvasProbe).toHaveBeenLastCalledWith(expect.objectContaining({
+    detached: false, selectedId: null, cubeFocus: { theme: 'orange' },
+  }))
+})
+
 it('keeps the module map state independent of detach and selected-part changes', () => {
   render(<MemoryRouter><Dataset3DView /></MemoryRouter>)
   const toggle = screen.getByRole('button', { name: 'Mở bản đồ module' })

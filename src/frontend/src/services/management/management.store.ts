@@ -29,7 +29,7 @@ const memberRows = (result: MembersResult): Member[] => {
   return rows
 }
 type WorkspaceDto = { id: string; name: string; description: string; ownerId: string; members: Member[]; storageUsedBytes: number; createdAt: string; updatedAt: string; lastAccessedAt: string | null; version: number }
-type ProjectDto = { id: string; workspaceId: string; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
+type ProjectDto = { id: string; workspaceId: string; workspaceName?: string | null; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
 type DatasetDto = { id: string; originalFileName: string; rowCount: number; columnCount: number; fileSizeBytes: number; createdAt: string; status: string }
 function validateWorkspace(value: unknown): asserts value is WorkspaceDto {
   if (!isRecord(value) || !['id', 'name', 'description', 'ownerId', 'createdAt', 'updatedAt'].every(key => typeof value[key] === 'string')
@@ -152,7 +152,10 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   async function loadDataset(project: ProjectDto, signal?: AbortSignal): Promise<DatasetSummary | null> {
     if (!project.hasDataset) return null
-    const response = await request<unknown>(`/projects/${encodeURIComponent(project.id)}/datasets`, signal ? { signal } : {})
+    return requestProjectDataset(project.id, signal)
+  }
+  async function requestProjectDataset(id: string, signal?: AbortSignal): Promise<DatasetSummary | null> {
+    const response = await request<unknown>(`/projects/${encodeURIComponent(id)}/datasets`, signal ? { signal } : {})
     if (!isRecord(response)) throw new ApiError({ kind: 'invalid-response', message: 'Thông tin dataset từ máy chủ không hợp lệ.' })
     if (response['dataset'] === null) return null
     const dataset = response['dataset']
@@ -166,26 +169,48 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       sizeMb: checked.fileSizeBytes / 1048576, importedAt: checked.createdAt,
       status: checked.status === 'READY' ? 'processed' : checked.status === 'FAILED' ? 'failed' : 'processing' }
   }
-  async function loadProject(id: string) {
+  async function loadProject(id: string, onProjectSummary?: () => void) {
     const current = ++revision
-    const { project } = await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(id)}`)
+    const requestOptions = options.signal ? { signal: options.signal } : {}
+    const projectRequest = request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(id)}`, requestOptions)
+    // Observe the speculative request even if Project fails or has no dataset.
+    const datasetRequest = requestProjectDataset(id, options.signal).then(
+      value => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    )
+    const { project } = await projectRequest
     validateProject(project)
     if (project?.id !== id || !project.workspaceId || !Array.isArray(project.members)) {
       throw new Error('Thông tin project từ máy chủ không hợp lệ.')
     }
-    const [{ workspace }, dataset] = await Promise.all([
-      request<{ workspace: WorkspaceDto }>(`/workspaces/${encodeURIComponent(project.workspaceId)}`),
-      loadDataset(project),
-    ]).catch((error: unknown) => {
-      if (normalizeApiError(error).status === 404) throw new Error('Không tìm thấy workspace hoặc dataset của project.')
-      throw error
-    })
     if (disposed || current !== revision) return
+    const workspaceRequest = request<{ workspace: WorkspaceDto }>(`/workspaces/${encodeURIComponent(project.workspaceId)}`, requestOptions).then(
+      value => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    )
+    const datasetResult = project.hasDataset ? await datasetRequest : { ok: true as const, value: null }
+    const missingResource = (error: unknown) => normalizeApiError(error).status === 404
+      ? new Error('Không tìm thấy workspace hoặc dataset của project.') : error
+    if (!datasetResult.ok) throw missingResource(datasetResult.error)
+    if (disposed || current !== revision) return
+    const selection = { workspaceId: project.workspaceId, projectId: project.id }
+    if (onProjectSummary) {
+      const summary = projectModel(project, undefined, project.members, datasetResult.value)
+      publish({ ...state, selection, projects: [{
+        ...summary,
+        workspaceName: typeof project.workspaceName === 'string' && project.workspaceName.trim() ? project.workspaceName : summary.workspaceName,
+        canManage: false, canDelete: false, canUpload: false, canUpdateDatasetMetadata: false, canComplete: false,
+      }] })
+      onProjectSummary()
+    }
+    const workspaceResult = await workspaceRequest
+    if (disposed || current !== revision) return
+    if (!workspaceResult.ok) throw missingResource(workspaceResult.error)
+    const { workspace } = workspaceResult.value
     validateWorkspace(workspace)
     if (workspace?.id !== project.workspaceId) throw new Error('Thông tin workspace của project không hợp lệ.')
     versions.set(project.id, project.version)
-    publish({ ...state, projects: [projectModel(project, workspace, project.members, dataset)],
-      selection: { workspaceId: project.workspaceId, projectId: project.id } })
+    publish({ ...state, selection, projects: [projectModel(project, workspace, project.members, datasetResult.value)] })
   }
   async function pages<T>(path: string, signal: AbortSignal): Promise<T[]> {
     const items: T[] = []
@@ -213,8 +238,8 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       if (!result.items.length) throw new Error('Phân trang từ máy chủ không đầy đủ.')
     }
   }
-  async function load() {
-    if (options.projectId) return loadProject(options.projectId)
+  async function load(onProjectSummary?: () => void) {
+    if (options.projectId) return loadProject(options.projectId, onProjectSummary)
     if (disposed) return
     const current = ++revision
     workspaceLoad?.abort()
@@ -764,7 +789,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   }
   return {
     store,
-    loadCore: async () => { await load() },
+    loadCore: async (onProjectSummary?: () => void) => { await load(onProjectSummary) },
     loadPersonal: () => loadPersonal(),
     load: async () => {
       const loadedRevision = await load()

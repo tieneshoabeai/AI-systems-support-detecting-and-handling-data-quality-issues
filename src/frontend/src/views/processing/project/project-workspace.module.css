@@ -46,7 +46,6 @@
   margin: 0;
   border: 0;
 }
-:global(.dataset-3d-embedded .dataset-3d-detach):where(.screen, .screen *) { bottom: calc(var(--project-nav-height) + 32px); }
 :global([data-preview='2d'] .project-processing-content .pj-stage > .pj-modules):where(.screen, .screen *) {
   position: absolute;
   z-index: 9;
@@ -150,3 +149,11 @@
 .analysisResponse { min-width: 0; padding: 10px; border: 1px solid var(--pv-line); border-radius: 8px; background: transparent; }
 .analysisResponse summary { cursor: pointer; font-weight: 700; }
 .analysisResponse pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.sceneLoading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  pointer-events: none;
+}

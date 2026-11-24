@@ -5,16 +5,15 @@ import { WorkspacesPreviewView } from '../../views/preview/workspaces-2d.view'
 import { ProjectsPreviewView } from '../../views/preview/projects-2d.view'
 import { ProjectWorkspaceView } from '../../views/preview/project-workspace-2d.view'
 vi.mock('../../views/dataset-3d/dataset-3d.view', () => ({
-  Dataset3DView: ({ embedded, focus, onFocusChange, onDetachedChange, onFocusComplete, colorMode }: {
+  Dataset3DView: ({ embedded, focus, onFocusChange, onFocusComplete, colorMode }: {
     onFocusComplete: (theme: string) => void
     embedded?: boolean; focus: { theme: string } | null; colorMode: string
-    onFocusChange: (focus: { theme: string } | null) => void; onDetachedChange: (value: boolean) => void
+    onFocusChange: (focus: { theme: string } | null) => void
   }) => <div data-testid="dataset-scene" data-embedded={embedded} data-focus={focus?.theme} data-color-mode={colorMode}>
     <button onClick={() => onFocusChange({ theme: 'orange' })}>Chọn khối cam</button>
     <button onClick={() => focus && onFocusComplete(focus.theme)}>Focus hoàn tất</button>
     <button onClick={() => onFocusComplete('orange')}>Focus cam cũ hoàn tất</button>
     <button onClick={() => onFocusChange(null)}>Về góc tổng quan</button>
-    <button onClick={() => onDetachedChange(true)}>Tách mô hình</button>
   </div>,
 }))
 import { HomePreviewView } from '../../views/preview/home-2d.view'
@@ -607,7 +606,7 @@ it('shell đo chiều cao vùng cuộn và truyền --pv-viewport-h cho panel ch
 // Trang Project Workspace Overview — ảnh UI-UX/projects/DataVerse_Project_Workspace_Overview_v1.
 // Ba dải của ảnh, mọi số liệu suy từ mock store: dải đầu (tên + mô tả project | dataset + shape),
 // khoang giữa (một khối tâm + bốn khối module), thanh đáy (bốn nút module).
-it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút module', () => {
+it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút module', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.getByRole('heading', { level: 1, name: /Sales Analytics/ })).toBeDefined()
   const crumb = screen.getByRole('navigation', { name: 'Path điều hướng' })
@@ -624,7 +623,8 @@ it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút
   expect(band).toContain(`${formatCount(dataset!.columns)} cột`)
 
   // Project embeds the existing scene instead of the former 2D illustration.
-  expect(screen.getByTestId('dataset-scene').getAttribute('data-embedded')).toBe('true')
+  expect(screen.queryByTestId('dataset-scene')).toBeNull()
+  expect((await screen.findByTestId('dataset-scene')).getAttribute('data-embedded')).toBe('true')
   expect(document.querySelector('.pj-universe')).toBeNull()
   expect(screen.queryByRole('complementary', { name: 'Điều hướng chính' })).toBeNull()
   expect(screen.queryByText('Quản lý · Dữ liệu mẫu, chưa kết nối API')).toBeNull()
@@ -687,14 +687,14 @@ it('trang Project: ⋯ của dataset mở đúng ba mục của ảnh, "Quản l
 // Đặc tả UI-UX/projects/đặc tả.txt: "ấn các nút [module] cũng tương tự như ấn vào các ô khối 3d".
 // Nhóm chưa chốt màn bên trong bốn module, nên điều test được là NỐI nút ↔ khối: chọn nút thì
 // đúng một khối sáng, route không đổi, và lý do "chưa có trang" hiện ra nhìn thấy được.
-it('trang Project: chọn module cập nhật nav, giữ scene và không đổi route', () => {
+it('trang Project: chọn module cập nhật nav, giữ scene và không đổi route', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   const button = screen.getByRole('button', { name: 'Data View' })
   fireEvent.click(button)
 
   expect(button.getAttribute('aria-current')).toBe('true')
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
-  expect(screen.getByTestId('dataset-scene')).toBeDefined()
+  expect(await screen.findByTestId('dataset-scene')).toBeDefined()
   expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
   for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan'], ['Detection', 'orange']] as const) {
     fireEvent.click(screen.getByRole('button', { name: label }))
@@ -705,8 +705,7 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(screen.getByRole('button', { name: 'Detection' }).getAttribute('aria-current')).toBe('true')
   fireEvent.click(screen.getByRole('button', { name: 'Về góc tổng quan' }))
   expect(screen.getByRole('button', { name: 'Detection' }).hasAttribute('aria-current')).toBe(false)
-  fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
-  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(true)
+  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(false)
 
   expect(window.location.hash).toBe('')
   expect(document.getElementById(previewNoteIds.projectModules)).toBeNull()
@@ -717,7 +716,7 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(window.location.hash).toBe('')
 })
 
-it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh giá riêng', () => {
+it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh giá riêng', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull()
   expect(document.querySelector('.pj-band')).toBeNull()
@@ -726,7 +725,7 @@ it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh
   expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tải file kết quả' })).disabled).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
   expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
-  fireEvent.click(screen.getByText('Focus hoàn tất'))
+  fireEvent.click(await screen.findByText('Focus hoàn tất'))
   const panel = screen.getByRole('complementary', { name: 'Detection' })
   expect(within(panel).getByRole('heading', { name: 'Đánh giá' })).toBeDefined()
   expect(within(panel).queryByRole('button', { name: /Tải file/ })).toBeNull()

@@ -114,34 +114,36 @@ it('shows a live card while both supplementary requests are pending and keeps vi
   expect(screen.getByRole<HTMLButtonElement>('menuitem', { name: /^Xóa Project/ }).disabled).toBe(true)
 })
 
-it('renders the project shell immediately and requests only the selected project and its workspace', async () => {
+it('renders the project shell immediately and scopes requests to the selected project', async () => {
   let finish!: (value: unknown) => void
   transport.request.mockImplementation(r => {
     if (r.path === '/projects/p1') return new Promise(resolve => { finish = resolve })
+    if (r.path === '/projects/p1/datasets') return Promise.resolve({ dataset: null })
     if (r.path === '/workspaces/w1') return Promise.resolve({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [], storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
     return response(r)
   })
   render(tree(authenticated, 'p1'))
   expect(screen.getByText('Khung project')).toBeDefined()
   expect(screen.getByTestId('project').textContent).toBe('Đang tải')
-  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1'])
+  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/projects/p1/datasets'])
 
   await act(async () => {
     finish({ project: { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', members: [], createdBy: 'u1',
       hasDataset: false, createdAt: '2026-11-15', updatedAt: '2026-11-15', status: 'not_started', version: 1 } })
   })
   expect(screen.getByTestId('project').textContent).toBe('Project 1')
-  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/workspaces/w1'])
+  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/projects/p1/datasets', '/workspaces/w1'])
 })
 
 it('keeps the scene mounted while preloading records and reads Detection before any run', async () => {
   let finishProject!: (value: unknown) => void
+  let finishWorkspace!: (value: unknown) => void
   let finishRecords!: (value: unknown) => void
-  const project = { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', members: [], createdBy: 'u1',
+  const project = { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', workspaceName: 'Workspace', members: [], createdBy: 'u1',
     hasDataset: true, createdAt: '2026-11-15', updatedAt: '2026-11-15', status: 'completed', version: 1 }
   transport.request.mockImplementation(r => {
     if (r.path === '/projects/p1') return new Promise(resolve => { finishProject = resolve })
-    if (r.path === '/workspaces/w1') return Promise.resolve({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [], storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
+    if (r.path === '/workspaces/w1') return new Promise(resolve => { finishWorkspace = resolve })
     if (r.path === '/projects/p1/datasets') return Promise.resolve({ dataset: { id: 'd1', originalFileName: 'example.csv',
       rowCount: 0, columnCount: 0, fileSizeBytes: 0, createdAt: '2026-11-15', status: 'READY' } })
     if (r.path === '/datasets/d1/schema') return Promise.resolve({ columns: [] })
@@ -155,7 +157,17 @@ it('keeps the scene mounted while preloading records and reads Detection before 
   </PreviewSessionProvider>))
   const scene = screen.getByTestId('project-scene')
   expect(screen.getByText('Đang tải thông tin project…')).toBeDefined()
+  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/datasets' }))
   await act(async () => { finishProject({ project }) })
+  expect(screen.getByText('Dataset: example.csv')).toBeDefined()
+  expect(screen.getByRole('button', { name: 'Workspace' })).toBeDefined()
+  const menu = screen.getByRole<HTMLButtonElement>('button', { name: 'Thao tác với Project 1' })
+  expect(menu.disabled).toBe(true)
+  await act(async () => {
+    finishWorkspace({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [],
+      storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
+  })
+  expect(menu.disabled).toBe(false)
   expect(screen.getByTestId('project-scene')).toBe(scene)
   expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/datasets/d1/records', params: { limit: 50, cursor: undefined } }))
   expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))

@@ -33,13 +33,13 @@ type Dataset3DViewProps = {
   colorMode?: 'light' | 'dark'
   focus?: CubeFocus | null
   onFocusChange?: (focus: CubeFocus | null) => void
-  onDetachedChange?: (detached: boolean) => void
   onFocusComplete?: (theme: NeonCubeThemeId) => void
 }
 
-export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onFocusChange, onDetachedChange, onFocusComplete, glassPanel }: Dataset3DViewProps) {
+export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onFocusChange, onFocusComplete, glassPanel }: Dataset3DViewProps) {
   const reducedMotion = useReducedMotion()
-  const [detached, setDetached] = useState(false)
+  const [standaloneDetached, setDetached] = useState(false)
+  const detached = !embedded && standaloneDetached
   const [modelReady, setModelReady] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false)
   const [part, setPart] = useState<HolographicPartInfo | null>(null)
@@ -57,7 +57,6 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
 
   const toggleDetached = () => {
     setDetached(!detached)
-    onDetachedChange?.(!detached)
     setPart(null)
     setCubeFocus(null)
   }
@@ -101,7 +100,8 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
       <HolographicCoreCanvas colorMode={colorMode} reducedMotion={reducedMotion} detached={detached} cameraToolbar={cameraToolbar}
         {...(glassPanel === undefined ? {} : { glassPanel: glassPanel })}
         {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
-        selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} onReadyChange={setModelReady} />
+        {...(!embedded && { onReadyChange: setModelReady })}
+        selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} />
       <div className="dataset-3d-overlay">
         <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>
           <header className="dataset-3d-legend-header">
@@ -136,10 +136,10 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
         {cubeFocus && <button ref={overviewButton} type="button" className="dataset-3d-overview" onClick={returnToOverview}>
           Về góc tổng quan
         </button>}
-        <button className="dataset-3d-detach" type="button" aria-pressed={detached} disabled={!modelReady}
+        {!embedded && <button className="dataset-3d-detach" type="button" aria-pressed={detached} disabled={!modelReady}
           aria-controls="dataset-3d-part-panel" onClick={toggleDetached}>
           {detached ? 'Lắp lại mô hình' : 'Tách mô hình'}
-        </button>
+        </button>}
         {detached && (
           <aside id="dataset-3d-part-panel" className="dataset-3d-detail" aria-live="polite"
             data-part-id={part?.id ?? ''}>

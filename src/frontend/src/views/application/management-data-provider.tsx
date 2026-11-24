@@ -18,6 +18,7 @@ type LoadResult = {
   store?: ManagementStore
   error?: string
   missing?: boolean
+  projectPermissionsPending?: boolean
   personalStatus?: ManagementLoading | null
 }
 
@@ -70,7 +71,9 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       dispose = data.dispose
       const scope = { ...(projectId === undefined ? {} : { projectId }), progressiveProjects }
       const loaded = { snapshot, ...scope, store: data.store }
-      void (recent ? Promise.resolve() : data.loadCore()).then(() => {
+      void (recent ? Promise.resolve() : data.loadCore(() => {
+        if (active) setResult({ ...loaded, projectPermissionsPending: true })
+      })).then(() => {
         if (!active) return
         if (recent || projectId !== undefined) {
           setResult(loaded)
@@ -107,7 +110,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
   if (projectId !== undefined) {
     const error = snapshot?.phase === 'authenticated' ? current?.error : 'Cần phiên đăng nhập trực tuyến để mở project.'
-    const status = { loading: !current?.store && !error, ...(error ? { error } : {}),
+    const status = { loading: !current?.store && !error, permissionsPending: current?.projectPermissionsPending === true, ...(error ? { error } : {}),
       ...(current?.missing ? { missing: true } : {}), retry }
     return <ProcessingDataContext.Provider value={status}>
       <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
