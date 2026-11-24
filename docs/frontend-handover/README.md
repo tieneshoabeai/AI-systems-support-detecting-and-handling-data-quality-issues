@@ -4,6 +4,14 @@
 > Địa chỉ gốc khi qua tunnel: `https://<tunnel-host>/api/v1` — Swagger: `https://<tunnel-host>/api/v1/docs`
 > Trong Swagger, ở mục **Servers** phải chọn **`Current origin`** (không để `Local Development Server`) khi mở qua tunnel, nếu không sẽ báo `Failed to fetch` vì Swagger gọi nhầm vào `localhost:3000` của máy người xem.
 
+## 0. Danh mục tài liệu
+
+| Tài liệu | Nội dung |
+|---|---|
+| [`01-api-contract.md`](./01-api-contract.md) | Hợp đồng API đầy đủ (endpoint, body, query, response) |
+| [`02-realtime-and-env.md`](./02-realtime-and-env.md) | Biến môi trường, realtime/socket, tunnel & CORS |
+| [`API_ANSWER_24-11.md`](./API_ANSWER_24-11.md) | **Trả lời chính thức cho báo cáo QA ngày 24/11** — 3 route đã rút có chủ đích (OPEN-03/06), hợp đồng trạng thái PDF, schema biểu đồ, checklist sửa của Frontend |
+
 ## 1. Cách gọi API (bắt buộc đọc)
 
 - Mọi yêu cầu (trừ `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`) đều cần tiêu đề:
