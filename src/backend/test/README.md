@@ -8,13 +8,36 @@ Toan bo kiem thu backend nam trong thu muc nay. Cac file spec duoc chia theo 4 t
 
 ```text
 test/
-├── *.spec.ts              # Unit + Architecture (65 file) - chay mac dinh
+├── unit/                  # Unit + Architecture (66 file) - chay mac dinh, gom theo domain
+│   ├── analysis/          # DQ/GD guards, wave5, wave6-10, pdf, report-content (11 file)
+│   ├── arch/              # Kien truc: clean-arch, guard-coverage, zero-any, contract... (9 file)
+│   ├── auth/              # Auth admin-bootstrap, google-oauth (2 file)
+│   ├── datasets/          # CSV, PII, data-view, ingestion, wave4... (9 file)
+│   ├── feedback/          # Feedback entity + wave7 (2 file)
+│   ├── infra/             # Event, storage, worker, ai-adapters, group1 (8 file)
+│   ├── issues/            # Issue entity (1 file)
+│   ├── notifications/     # Notification entity (1 file)
+│   ├── projects/          # Project entity + service (2 file)
+│   ├── realtime/          # Realtime + gateway + revocation (3 file)
+│   ├── shared/            # casl, crypto, mask-pii, keyset, guard... (7 file)
+│   ├── users/             # User + session entity (2 file)
+│   ├── workflows/         # Lien module: cascade, gap-p2p3, step1, step3... (6 file)
+│   └── workspaces/        # Workspace entity + service + invite mail (3 file)
 ├── integration/           # Integration (7 file) - chay rieng, --runInBand
-├── e2e/                   # E2E (5 file)
+├── e2e/                   # E2E (12 file: 7 flow + health + 4 security)
 │   ├── health.e2e-spec.ts
-│   └── security/          # E2E security suite
-├── k6/                    # Kich ban tai chong (k6)
+│   ├── auth-flow.e2e-spec.ts
+│   ├── users-me.e2e-spec.ts
+│   ├── workspace-project.e2e-spec.ts
+│   ├── dataset-dataview.e2e-spec.ts
+│   ├── analysis-report-summary.e2e-spec.ts
+│   ├── issues-admin.e2e-spec.ts
+│   ├── feedback-notifications-overview.e2e-spec.ts
+│   └── security/          # E2E security suite (4 file)
+├── k6/                    # Kich ban tai chong (k6: 5 file)
 │   ├── smoke.js
+│   ├── full-journey.js
+│   ├── load.js
 │   ├── stress.js
 │   └── analysis-latency.js
 ├── fixtures/              # Du lieu mau
@@ -42,8 +65,8 @@ test/
 > |---|---|---|---|
 > | `pnpm test` | unit + arch | 67 | 1 069 |
 > | `pnpm test:integration` | integration | 7 | 138 |
-> | `pnpm test:e2e` | e2e | 5 | 70 |
-> | **Tổng** | | **79** | **1 277** |
+> | `pnpm test:e2e` | e2e | 12 | 94 |
+> | **Tổng** | | **86** | **1 301** |
 
 ---
 
@@ -101,8 +124,8 @@ pnpm test:cov
 
 | Chi so | Gia tri |
 |---|---|
-| Test pass | **1 277 / 1 277** |
-| Suite | 79 (67 unit/arch + 7 integration + 5 e2e) |
+| Test pass | **1 301 / 1 301 (unit 1069 + integration 138 + e2e 94)** |
+| Suite | 86 (67 unit/arch + 7 integration + 12 e2e) |
 | File spec | 74 (72 trong `test/` + 1 trong `src/` + 1 trong `scripts/benchmark/`) |
 | Phu cau lenh | 71.03% (8 796 / 12 383) |
 | Phu dong | 72.05% (7 708 / 10 697) |
@@ -168,7 +191,20 @@ Ca co nhan GAP / OPEN / RISK **khong** duoc xem la hành vi dang dung. Character
 
 ---
 
-## 8. E2E Security
+## 8. E2E (12 file — phủ 84/84 endpoint)
+
+| File | Phạm vi |
+|---|---|
+| `e2e/auth-flow.e2e-spec.ts` | Auth 13 endpoint: register/login (remember_me + alias)/refresh/forgot/reset/change/logout/sessions |
+| `e2e/users-me.e2e-spec.ts` | Users/me: GET/PATCH/DELETE, không lộ passwordHash |
+| `e2e/workspace-project.e2e-spec.ts` | WS-01..10 + PROJ-01..12: CRUD + members + transfer + snapshot + 204 |
+| `e2e/dataset-dataview.e2e-spec.ts` | F4 upload/schema/delete + F5 records/query/stats/charts |
+| `e2e/analysis-report-summary.e2e-spec.ts` | Analysis run/result/retry + Summary + Report 202 |
+| `e2e/issues-admin.e2e-spec.ts` | Issues user + admin + optimistic-locking (expectedVersion) |
+| `e2e/feedback-notifications-overview.e2e-spec.ts` | FB-01..06 + NOTIF-01..03 + E3/E4 overview |
+| `e2e/health.e2e-spec.ts` | Envelope + X-Request-Id + cursor pagination |
+
+## 8b. E2E Security
 
 | File | Pham vi |
 |---|---|
@@ -183,12 +219,19 @@ Ca co nhan GAP / OPEN / RISK **khong** duoc xem la hành vi dang dung. Character
 
 | File | Muc dich |
 |---|---|
-| `k6/smoke.js` | Kiem tra nhanh API con song |
+| `k6/smoke.js` | Kiểm tra nhanh API còn sống (staging/local) |
 | `k6/stress.js` | Tang tai lien tuc den khi bao loi |
+| `k6/full-journey.js` | Hành trình full 84 endpoint: health→auth→ws→prj→ds→dataview→analysis→issues→feedback→notif→overview |
+| `k6/load.js` | Load đọc nặng ramp 0→20→50 VU (chỉ GET, không tạo rác) |
 | `k6/analysis-latency.js` | Do do tre cua luong phan tich |
 
 ```bash
-pnpm test:perf          # k6 smoke + stress
+pnpm test:perf          # k6 smoke + journey + load + stress
+pnpm test:perf:smoke     # chỉ smoke (30s)
+pnpm test:perf:journey   # chỉ full-journey (1m)
+pnpm test:perf:load      # chỉ load ramp 5m
+pnpm test:perf:stress    # chỉ stress
+pnpm test:perf:latency   # độ trễ phân tích đơn lẻ
 pnpm test:perf:staging  # Bao cao hieu nang staging
 ```
 
