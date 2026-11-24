@@ -1,3 +1,53 @@
+/** FEEDBACK — Types (Template Simple). Gop 2 entity + vo + events + port token + application input. GIU mapper + schema rieng. */
+import {
+  BaseEntity,
+  type BaseEntityProps,
+} from '../../shared/domain/entities';
+import {
+  ForbiddenError,
+  ValidationError,
+} from '../../shared/domain/errors';
+
+// --- VO: feedback-label ---
+export const FEEDBACK_LABELS = [
+  'correct',
+  'partially_correct',
+  'false_positive',
+  'missed_issue',
+  'other',
+] as const;
+
+export type FeedbackLabel = (typeof FEEDBACK_LABELS)[number];
+
+export const FEEDBACK_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+
+export type FeedbackSeverity = (typeof FEEDBACK_SEVERITIES)[number];
+
+export const LABELS_REQUIRING_REASON: FeedbackLabel[] = [
+  'false_positive',
+  'missed_issue',
+  'other',
+];
+
+export function requiresReason(label: string): boolean {
+  return (LABELS_REQUIRING_REASON as readonly string[]).includes(label);
+}
+
+export function assertReasonForLabel(label: string, reason: string | null | undefined): void {
+  if (requiresReason(label) && !reason?.trim()) {
+    throw new Error(`Nhan "${label}" yeu cau ly do (reason)`);
+  }
+}
+
+// --- Events ---
+export const FEEDBACK_EVENTS = {
+  SUBMITTED: 'feedback.submitted',
+  PROMOTED: 'feedback.promoted',
+} as const;
+
+export type FeedbackEventName = (typeof FEEDBACK_EVENTS)[keyof typeof FEEDBACK_EVENTS];
+
+// --- Entity: Feedback (Aggregate root) ---
 /**
  * FINDING FEEDBACK — Aggregate root.
  *
@@ -19,23 +69,6 @@
  *   3. Invariant kiểm tra trong entity, ném `DomainError` — **không** ném
  *      `HttpException` (Bước 2) và **không** ném `Error` trần.
  */
-import {
-  BaseEntity,
-  type BaseEntityProps,
-} from '../../../../shared/domain/entities';
-import {
-  ForbiddenError,
-  ValidationError,
-} from '../../../../shared/domain/errors';
-import {
-  FEEDBACK_LABELS,
-  FEEDBACK_SEVERITIES,
-  requiresReason,
-  type FeedbackLabel,
-  type FeedbackSeverity,
-} from '../value-objects/feedback-label.vo';
-import { FEEDBACK_EVENTS } from '../events/feedback-events';
-
 /** Giới hạn độ dài (khớp `FindingFeedbackSchema`). */
 export const MAX_FEEDBACK_REASON_LENGTH = 2000;
 export const MAX_FEEDBACK_AI_RATIONALE_LENGTH = 1000;
@@ -373,4 +406,113 @@ export class Feedback extends BaseEntity<FeedbackProps> {
     }
     return trimmed;
   }
+}
+
+// --- Entity phu: FindingFeedback (helper nho, giu nguyen) ---
+export interface FindingFeedbackProps {
+  id: string;
+  findingId: string | null;
+  label: FeedbackLabel;
+  reason: string | null;
+}
+
+export class FindingFeedback {
+  private constructor(private readonly props: FindingFeedbackProps) {}
+
+  static create(props: FindingFeedbackProps): FindingFeedback {
+    assertReasonForLabel(props.label, props.reason);
+    return new FindingFeedback({ ...props });
+  }
+
+  assertUpdatable(nextLabel: string, nextReason: string | null | undefined): void {
+    assertReasonForLabel(nextLabel, nextReason ?? this.props.reason);
+  }
+}
+
+// --- Port token + input (giu Symbol + useExisting) ---
+/**
+ * FEEDBACK — Domain repository port (hexagonal chuẩn).
+ *
+ * **Bước 3 — Rich Domain Model:** port trả **entity** `Feedback`
+ * (không phải record trần) → handler có thể gọi hành vi của entity
+ * (`updateByAuthor()`, `softDelete()`).
+ */
+
+export const FEEDBACK_REPOSITORY_PORT = Symbol('FeedbackRepositoryPort');
+
+// (Feedback/FeedbackProps da dinh nghia o tren — khong re-export)
+
+export interface FeedbackListQuery {
+  analysisRunId: string;
+  findingId: string | null;
+  limit: number;
+  label?: string;
+  sortOrder: 'asc' | 'desc';
+  cursorCreatedAt?: Date;
+  cursorId?: string;
+}
+
+export interface CreateFeedbackRecord {
+  analysisRunId: string;
+  projectId: string;
+  workspaceId: string;
+  findingId: string | null;
+  findingKey?: string | null;
+  authorId: string;
+  label: string;
+  reason?: string | null;
+  suggestedSeverity?: string | null;
+  aiConfidence?: number | null;
+  aiRationale?: string | null;
+  authorRoleAtTime?: string | null;
+  modelId?: string | null;
+  promptVersion?: string | null;
+}
+
+export interface FeedbackScope {
+  workspaceId: string;
+  findingId: string;
+  label: string;
+}
+
+export interface FeedbackRepositoryPort {
+  create(doc: CreateFeedbackRecord & Record<string, unknown>): Promise<Feedback>;
+  listByScope(params: FeedbackListQuery): Promise<Feedback[]>;
+  listActiveByRun(analysisRunId: string): Promise<Feedback[]>;
+  findByIdActive(id: string): Promise<Feedback | null>;
+  updateById(id: string, update: Partial<CreateFeedbackRecord> & Record<string, unknown>): Promise<Feedback | null>;
+  softDelete(id: string): Promise<boolean>;
+  countByProject(projectId: string): Promise<number>;
+  countDistinctAuthors(scope: FeedbackScope): Promise<number>;
+  countDistinctRuns(projectId: string): Promise<number>;
+  aggregateByProject(projectId: string): Promise<Array<{ label: string; count: number }>>;
+  /** Đếm theo phạm vi run/finding để dựng `summary` — không cắt ở 1000. */
+  summaryByScope?(params: { analysisRunId: string; findingId?: string | null; label?: string }): Promise<Record<string, number>>;
+}
+
+// --- Application input ---
+/**
+ * FEEDBACK — Kiểu dữ liệu tầng application (input/output contract).
+ *
+ * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
+ * Không import HTTP, không import infrastructure.
+ */
+
+export interface CreateFeedbackInput {
+  label: string;
+  reason?: string | null;
+  suggestedSeverity?: string | null;
+}
+
+export interface UpdateFeedbackInput {
+  label?: string;
+  reason?: string | null;
+  suggestedSeverity?: string | null;
+}
+
+export interface ListFeedbackQueryInput {
+  limit: number;
+  cursor?: string;
+  label?: string;
+  sortOrder: 'asc' | 'desc';
 }

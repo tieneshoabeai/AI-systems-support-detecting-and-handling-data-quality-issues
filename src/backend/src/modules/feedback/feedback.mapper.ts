@@ -1,11 +1,11 @@
 import { Types } from 'mongoose';
 import type { IFindingFeedback } from './finding-feedback.schema';
-import type { CreateFeedbackRecord } from '../../domain/ports/feedback.repository.port';
-import { Feedback } from '../../domain/entities/feedback.entity';
+import type { CreateFeedbackRecord } from './feedback.types';
+import { Feedback } from './feedback.types';
 import type {
   FeedbackLabel,
   FeedbackSeverity,
-} from '../../domain/value-objects/feedback-label.vo';
+} from './feedback.types';
 
 function oid(v: unknown): string {
   if (v instanceof Types.ObjectId) return v.toString();

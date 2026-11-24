@@ -1,11 +1,4 @@
-/**
- * Public contract của module FEEDBACK.
- *
- * Các module khác chỉ được import qua file này (quy tắc CA8 — cross-module
- * import phải đi qua public contract), không import sâu vào
- * `domain/ports/...` hay `application/...`.
- */
-
+/** Public contract cua module FEEDBACK (Template Simple). */
 export {
   FEEDBACK_REPOSITORY_PORT,
   type CreateFeedbackRecord,
@@ -13,35 +6,30 @@ export {
   type Feedback,
   type FeedbackRepositoryPort,
   type FeedbackScope,
-} from './domain/ports/feedback.repository.port';
-
-export {
   FEEDBACK_LABELS,
   FEEDBACK_SEVERITIES,
   LABELS_REQUIRING_REASON,
-  assertReasonForLabel,
   requiresReason,
   type FeedbackLabel,
   type FeedbackSeverity,
-} from './domain/value-objects/feedback-label.vo';
-
-// ── Entities (Bước 3 — Rich Domain Model) ──────────────────────
-export {
-  Feedback as FeedbackEntity,
+  FEEDBACK_EVENTS,
+  type FeedbackEventName,
+  MAX_FEEDBACK_REASON_LENGTH,
   MAX_FEEDBACK_AI_RATIONALE_LENGTH,
   MAX_FEEDBACK_FINDING_ID_LENGTH,
-  MAX_FEEDBACK_REASON_LENGTH,
   type FeedbackProps,
-} from './domain/entities/feedback.entity';
-
-// ── Handlers (Command/Query) ──────────────────────────
-// ── Queries (đọc) ──────────────────────────────────────────────
-export { ListFindingFeedbackHandler } from './application/queries/list-finding-feedback.handler';
-export { ListRunFeedbackHandler } from './application/queries/list-run-feedback.handler';
-
-// ── Commands (ghi) ─────────────────────────────────────────────
-export { AiQualityMetricsHandler } from './application/commands/ai-quality-metrics.handler';
-export { CreateFindingFeedbackHandler } from './application/commands/create-finding-feedback.handler';
-export { CreateRunFeedbackHandler } from './application/commands/create-run-feedback.handler';
-export { RemoveHandler } from './application/commands/remove.handler';
-export { UpdateMineHandler } from './application/commands/update-mine.handler';
+  type CreateFeedbackInput,
+  type UpdateFeedbackInput,
+  type ListFeedbackQueryInput,
+} from './feedback.types';
+export { Feedback as FeedbackEntity } from './feedback.types';
+export { FeedbackService } from './feedback.service';
+export { FeedbackRepository } from './feedback.repository';
+export {
+  CreateFeedbackSchema,
+  UpdateFeedbackSchema,
+  ListFeedbackQuerySchema,
+  type CreateFeedbackDto,
+  type UpdateFeedbackDto,
+  type ListFeedbackQueryDto,
+} from './feedback.routes';

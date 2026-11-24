@@ -1,20 +1,15 @@
+/** FEEDBACK — Module (Template Simple). */
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { FindingFeedbackSchema } from './infrastructure/persistence/finding-feedback.schema';
-import { FeedbackRepository } from './infrastructure/persistence/feedback.repository';
-import { FEEDBACK_REPOSITORY_PORT } from './domain/ports/feedback.repository.port';
-import { FeedbackController } from './presentation/controllers/feedback.controller';
+import { FindingFeedbackSchema } from './finding-feedback.schema';
+import { FeedbackRepository } from './feedback.repository';
+import { FEEDBACK_REPOSITORY_PORT } from './feedback.types';
+import { FeedbackController } from './feedback.routes';
+import { FeedbackService } from './feedback.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UsersModule } from '../users/users.module';
 import { AnalysisModule } from '../analysis/analysis.module';
-import { AiQualityMetricsHandler } from './application/commands/ai-quality-metrics.handler';
-import { CreateFindingFeedbackHandler } from './application/commands/create-finding-feedback.handler';
-import { CreateRunFeedbackHandler } from './application/commands/create-run-feedback.handler';
-import { ListFindingFeedbackHandler } from './application/queries/list-finding-feedback.handler';
-import { ListRunFeedbackHandler } from './application/queries/list-run-feedback.handler';
-import { RemoveHandler } from './application/commands/remove.handler';
-import { UpdateMineHandler } from './application/commands/update-mine.handler';
 
 @Module({
   imports: [
@@ -28,13 +23,7 @@ import { UpdateMineHandler } from './application/commands/update-mine.handler';
   providers: [
     FeedbackRepository,
     { provide: FEEDBACK_REPOSITORY_PORT, useExisting: FeedbackRepository },
-    AiQualityMetricsHandler,
-    CreateFindingFeedbackHandler,
-    CreateRunFeedbackHandler,
-    RemoveHandler,
-    UpdateMineHandler,
-    ListFindingFeedbackHandler,
-    ListRunFeedbackHandler,
+    FeedbackService,
   ],
   exports: [FEEDBACK_REPOSITORY_PORT, FeedbackRepository],
 })

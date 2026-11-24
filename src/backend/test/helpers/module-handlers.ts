@@ -97,22 +97,16 @@ export const datasetsHandlers = {
 } as const;
 
 // -------------------- feedback --------------------
-import { AiQualityMetricsHandler as FeedbackAiQualityMetricsHandler } from '../../src/modules/feedback/application/commands/ai-quality-metrics.handler';
-import { CreateFindingFeedbackHandler as FeedbackCreateFindingFeedbackHandler } from '../../src/modules/feedback/application/commands/create-finding-feedback.handler';
-import { CreateRunFeedbackHandler as FeedbackCreateRunFeedbackHandler } from '../../src/modules/feedback/application/commands/create-run-feedback.handler';
-import { ListFindingFeedbackHandler as FeedbackListFindingFeedbackHandler } from '../../src/modules/feedback/application/queries/list-finding-feedback.handler';
-import { ListRunFeedbackHandler as FeedbackListRunFeedbackHandler } from '../../src/modules/feedback/application/queries/list-run-feedback.handler';
-import { RemoveHandler as FeedbackRemoveHandler } from '../../src/modules/feedback/application/commands/remove.handler';
-import { UpdateMineHandler as FeedbackUpdateMineHandler } from '../../src/modules/feedback/application/commands/update-mine.handler';
+import { FeedbackService as FeedbackFeedbackService } from '../../src/modules/feedback/feedback.service';
 
 export const feedbackHandlers = {
-  aiQualityMetrics: FeedbackAiQualityMetricsHandler,
-  createFindingFeedback: FeedbackCreateFindingFeedbackHandler,
-  createRunFeedback: FeedbackCreateRunFeedbackHandler,
-  listFindingFeedback: FeedbackListFindingFeedbackHandler,
-  listRunFeedback: FeedbackListRunFeedbackHandler,
-  remove: FeedbackRemoveHandler,
-  updateMine: FeedbackUpdateMineHandler,
+  aiQualityMetrics: FeedbackFeedbackService,
+  createFindingFeedback: FeedbackFeedbackService,
+  createRunFeedback: FeedbackFeedbackService,
+  listFindingFeedback: FeedbackFeedbackService,
+  listRunFeedback: FeedbackFeedbackService,
+  remove: FeedbackFeedbackService,
+  updateMine: FeedbackFeedbackService,
 } as const;
 
 // -------------------- issues --------------------

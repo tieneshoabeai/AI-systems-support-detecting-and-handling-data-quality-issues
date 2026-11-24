@@ -11,7 +11,7 @@ import { SummaryController } from '../src/modules/analysis/presentation/controll
 import { ReportController } from '../src/modules/analysis/presentation/controllers/report.controller';
 import { NotificationsController } from '../src/modules/notifications/notifications.routes';
 import { IssuesController } from '../src/modules/issues/presentation/controllers/issues.controller';
-import { FeedbackController } from '../src/modules/feedback/presentation/controllers/feedback.controller';
+import { FeedbackController } from '../src/modules/feedback/feedback.routes';
 import { OverviewController } from '../src/modules/overview/overview.routes';
 import { IS_PUBLIC_KEY } from '../src/shared/interfaces/decorators/public.decorator';
 import { JwtAuthGuard } from '../src/shared/interfaces/guards/jwt-auth.guard';

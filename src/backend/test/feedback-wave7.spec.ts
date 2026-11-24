@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { FEEDBACK_REPOSITORY_PORT } from '../src/modules/feedback/domain/ports/feedback.repository.port';
-import { Feedback as FeedbackEntity } from '../src/modules/feedback/domain/entities/feedback.entity';
+import { FEEDBACK_REPOSITORY_PORT } from '../src/modules/feedback/feedback.types';
+import { Feedback as FeedbackEntity } from '../src/modules/feedback/feedback.types';
 import { ANALYSIS_REPOSITORY_PORT } from '../src/modules/analysis/domain/ports/analysis.repository.port';
 import { PROJECT_ACCESS_PORT } from '../src/modules/projects';
 import { WORKSPACE_ACCESS_PORT } from '../src/modules/workspaces';
@@ -135,7 +135,7 @@ describe('Wave7 FB-01/FB-02: tao nhan xet', () => {
 
   it('FB-01 Zod chan reason qua 2000 ky tu', async () => {
     const { CreateFeedbackSchema } = await import(
-      '../src/modules/feedback/presentation/dtos/feedback.dto'
+      '../src/modules/feedback/feedback.routes'
     );
     expect(
       CreateFeedbackSchema.safeParse({ label: 'other', reason: 'x'.repeat(2001) }).success,
@@ -290,7 +290,7 @@ describe('Wave7 FB-06 + append-only/TTL', () => {
 
   it('schema append-only: TTL 365 ngay + index scope', async () => {
     const { FindingFeedbackSchema } = await import(
-      '../src/modules/feedback/infrastructure/persistence/finding-feedback.schema'
+      '../src/modules/feedback/finding-feedback.schema'
     );
     const idx = FindingFeedbackSchema.indexes() as Array<[Record<string, unknown>, Record<string, unknown>?]>;
     const hasScope = idx.some(([k]) => 'analysis_run_id' in k && 'finding_id' in k);

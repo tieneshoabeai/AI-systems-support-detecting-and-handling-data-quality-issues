@@ -8,10 +8,10 @@ import {
   type Feedback,
   type FeedbackRepositoryPort,
   type FeedbackScope,
-} from '../../domain/ports/feedback.repository.port';
+} from './feedback.types';
 import { toFeedbackPersistence, toFeedbackEntity } from './feedback.mapper';
-import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
-import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
+import { isObjectIdHex } from '../../shared/domain/utils/object-id.util';
+import { resolveMongoSession } from '../../shared/infrastructure/database/mongo-session-context';
 
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);

@@ -26,10 +26,10 @@ import {
 import {
   FindingFeedbackSchema,
   type IFindingFeedback,
-} from '../../src/modules/feedback/infrastructure/persistence/finding-feedback.schema';
+} from '../../src/modules/feedback/finding-feedback.schema';
 import { ProjectsRepository } from '../../src/modules/projects/infrastructure/persistence/projects.repository';
 import { DatasetsRepository } from '../../src/modules/datasets/infrastructure/persistence/datasets.repository';
-import { FeedbackRepository } from '../../src/modules/feedback/infrastructure/persistence/feedback.repository';
+import { FeedbackRepository } from '../../src/modules/feedback/feedback.repository';
 import { parseListCursor } from '../../src/shared/domain/pagination/keyset-cursor';
 import { detectInfra, openTestConnection } from '../helpers/test-infra';
 

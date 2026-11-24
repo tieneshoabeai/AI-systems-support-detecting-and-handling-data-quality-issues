@@ -1,12 +1,8 @@
 /**
- * FEEDBACK — Hàm thuần dùng chung cho handlers.
- *
- * Tách ra khỏi service gốc khi áp dụng §3.10 Command/Query pattern.
- *
- * **Bước 3 — Rich Domain Model:** `toPlain()` nhận **entity** `Feedback`.
+ * FEEDBACK — Utils (Template Simple). Ham toPlain nhan entity Feedback.
  */
 
-import type { Feedback } from '../domain/entities/feedback.entity';
+import type { Feedback } from './feedback.types';
 
 export function toPlain(
   doc: Feedback,
