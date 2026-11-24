@@ -1,198 +1,88 @@
-# `projects` — Template: Hexagonal
-- Vì sao Hexagonal: 17 handler + 3 policy loader + best-effort outbox + cascade project→dataset
-- Bất biến chính: 3 policy loader riêng, 2 adapter access/context riêng, outbox best-effort, cascade xóa (§12)
-- Cấm: gộp entity/port/handler; đổi thứ tự guard/route; đổi hằng số quota/limit.
+# Module `projects` — Dự Án
 
----
-# MÔ-ĐUN `projects` — Dự án phân tích
+Sở hữu dự án, thành viên dự án, ảnh chụp trạng thái (`snapshot` + `expectedVersion`) và xóa dây chuyền xuống dataset. Một dự án tối đa một dataset.
 
-> **Đặc tả mô-đun & Tài liệu kỹ thuật**
+## 1. Vị trí và vai trò
 
-## 1. Thông tin phiên bản
+- Đường dẫn: `src/backend/src/modules/projects/`
+- Loại kiến trúc: CQRS đầy đủ, 43 tệp `.ts` (lớn thứ hai sau analysis).
+- Sở hữu: collection `projects`.
+- Cung cấp: `PROJECT_REPOSITORY_PORT`, `PROJECT_ACCESS_PORT`, 3 policy loader (project, project-scope, workspace-scope).
 
-- **Phiên bản hiện tại:** v1.1.0
-- **Cập nhật lần cuối:** 2026-11-21
-- **Đường dẫn mô-đun:** `src/backend/src/modules/projects` (43 tệp TypeScript)
-- **Tầng kiến trúc:** Clean Architecture 4 tầng (`domain` → `application` → `infrastructure` → `presentation`)
-- **Quy tắc tầng:** CA1–CA14 — xem [`../README.md`](../README.md)
-
-## 2. Mục đích & Phạm vi nghiệp vụ
-
-Project là **đơn vị công việc** trong một workspace: nơi chứa dataset, chạy phân tích chất lượng dữ liệu và sinh báo cáo.
-
-```text
-Workspace ---> Project ---> Dataset ---> DataRecord
-                      |---> Analysis (kết quả DQ + AI)
-                      `---> ProjectSave (bản lưu của người dùng)
-```
-
-### 2.1. Tính năng thuộc phạm vi
-
-| Chức năng | Nội dung |
-|---|---|
-| CRUD project | Tạo, đọc, cập nhật, xoá mềm |
-| Thành viên | Thêm, đổi vai trò, xoá, chuyển owner |
-| Trạng thái | `not_started` → `in_progress` → `completed` |
-| Snapshot | Lưu trạng thái với khoá lạc quan (`expectedVersion`) |
-| Phân quyền ngữ cảnh | Giải quyết vai trò project của người dùng theo từng request |
-| Cascade | Xoá project → xoá dataset + tệp trên R2 bên trong |
-
-### 2.2. Cấu trúc thư mục
+## 2. Cây thư mục đầy đủ
 
 ```text
 projects/
-|-- domain/
-|   |-- entities/project.entity.ts
-|   |-- value-objects/
-|   |   |-- project-role.vo.ts       # owner | member | viewer + ma trận quyền
-|   |   `-- project-status.vo.ts     # not_started | in_progress | completed
-|   |-- events/project-events.ts
-|   `-- ports/
-|       |-- project.repository.port.ts
-|       `-- project.access.port.ts
-|-- application/
-|   |-- commands/                    # 10 command handler
-|   |-- queries/                     # 7 query handler
-|   |-- policy-loaders/
-|   |   |-- project-policy.loader.ts
-|   |   |-- project-scope-policy.loader.ts
-|   |   `-- workspace-scope-policy.loader.ts
-|   |-- projects.types.ts
-|   `-- projects.utils.ts
-|-- infrastructure/
-|   |-- adapters/
-|   |   |-- project-access.adapter.ts
-|   |   `-- project-context.adapter.ts     # hiện thực PROJECT_CONTEXT_PORT
-|   `-- persistence/                  # schema, repository, mapper
-`-- presentation/
-    |-- controllers/projects.controller.ts
-    |-- dtos/                          # 5 DTO
-    `-- responses/project.response.ts
+├── domain/
+│   ├── entities/project.entity.ts                 # Project (workspaceId, ownerId, members, status, hasDataset)
+│   ├── value-objects/project-role.vo.ts           # owner/member/viewer + canAccess/canModerate
+│   ├── value-objects/project-status.vo.ts         # active/completed/archived/deleted
+│   ├── ports/project.repository.port.ts           # CRUD + list keyset + member query
+│   ├── ports/project.access.port.ts               # Facade cho module khác
+│   └── events/project-events.ts                   # PROJECT_CREATED/DELETED/MEMBER_* 
+├── application/
+│   ├── commands/ (11, gồm 2 subscriber/handler cascade)
+│   │   ├── create-project / update-project / delete-project / mark-completed
+│   │   ├── set-has-dataset                        # Bật/tắt cờ 1 project = 1 dataset
+│   │   ├── add-project-member / remove-project-member / update-project-member-role
+│   │   ├── transfer-project-owner
+│   │   ├── cascade-workspace-projects.handler.ts  # Xóa project khi workspace bị xóa
+│   │   └── cascade-project-event.subscriber.ts    # Đăng ký lắng nghe WORKSPACE_DELETED
+│   ├── queries/ (7)
+│   │   ├── get-project-by-id / get-projects-by-workspace / list-projects-by-workspace
+│   │   ├── list-all-projects (toàn hệ thống) / list-members / get-workspace-name
+│   │   └── resolve-user-project-role
+│   └── policy-loaders/ (3)
+│       ├── project-policy.loader.ts               # Nạp theo :id
+│       ├── project-scope-policy.loader.ts         # Nạp theo :projectId
+│       └── workspace-scope-policy.loader.ts       # Nạp theo :workspaceId
+├── infrastructure/
+│   ├── persistence/project.schema.ts | project.mapper.ts | projects.repository.ts
+│   └── adapters/project-access.adapter.ts | project-context.adapter.ts
+├── presentation/
+│   ├── controllers/projects.controller.ts         # @Controller() bare, 12 route đường dẫn đầy đủ
+│   ├── dtos/ (5: create, update, member, list-query, list-member-query)
+│   └── responses/project.response.ts
+├── projects.module.ts
+└── index.ts
 ```
 
-## 3. Nhật ký Prompting & Quyết định kỹ thuật
+## 3. Tầng domain
 
-- **Yêu cầu người dùng / Ý đồ nghiệp vụ:** Làm `projects` là **tầng cuối cùng** của mô hình phân quyền (3 vai trò: `owner` | `member` | `viewer`) và là **đơn vị công việc** mà dataset, phân tích và báo cáo đều gắn vào.
+- `project.entity.ts`: `Project.create(workspaceId, ownerId, name)`, `addMember/removeMember/updateRole`, `markCompleted(snapshot)`, `setHasDataset`. Kiểm tra owner workspace tự động thành owner project.
+- `project-role.vo.ts`: `owner` (toàn quyền), `member` (đọc/ghi), `viewer` (chỉ đọc). `member` workspace không có tên trong `project.members` thì mặc định là `viewer`.
+- `project-status.vo.ts`: vòng đời `active → completed → archived`, `deleted` chỉ qua xóa mềm.
 
-- **Lập luận kỹ thuật & Quyết định:**
+## 4. Tầng application
 
-1. **Ma trận quyền tập trung trong VO, không rải rác.** `canModerateProject(projectRole, workspaceRole)` và `canAccessProject(projectRole, workspaceRole)` trong `project-role.vo.ts` là **nguồn sự thật duy nhất**. Entity gọi qua `assertCanModerate()` / `assertCanAccess()`, handler không tự viết lại điều kiện. Cách này loại bỏ lớp lỗi "kiểm tra ở controller một kiểu, ở service một kiểu, ở query một kiểu".
+- `SetHasDatasetHandler`: được `datasets` gọi sau upload/xóa để giữ ràng buộc 1-1.
+- `CascadeWorkspaceProjectsHandler`: lắng nghe `WORKSPACE_DELETED`, xóa mềm toàn bộ project, phát `PROJECT_DELETED` cho `datasets`.
+- `MarkCompletedHandler`: lưu snapshot kèm `expectedVersion` (khóa lạc quan, chống ghi đè đồng thời).
+- `ResolveUserProjectRoleHandler`: suy vai trò hiệu dụng (owner workspace → owner project).
 
-2. **Ba vai trò project.** `owner` (toàn quyền), `member` (được ghi: thêm dataset, chạy phân tích), `viewer` (chỉ đọc). Vai trò `owner` và `member` phân biệt nhau ở hạ tầng ghi; `viewer` được tách ở hạ tầng đọc để phân biệt quyền đọc với quyền ghi.
+## 5. Route đầy đủ (`@Controller()` bare)
 
-3. **Suy ra vai trò từ workspace.** `ProjectContextAdapter` áp dụng: WS-OWNER → PROJ-OWNER; có mặt trong `project.members` → lấy đúng vai trò ghi trong DB; WS-MEMBER mặc định → PROJ-VIEWER. Nhờ vậy **thêm** một người vào workspace không tự động cấp quyền ghi — phải thêm vào project.
-
-4. **Khoá lạc quan (optimistic locking).** `PUT /projects/:id/snapshot` nhận `expectedVersion`; lệch → `ConflictError` (HTTP 409). Nếu không có khoá, hai người cùng sửa một project sẽ ghi đè lẫn nhau.
-
-5. **Ba policy loader.** `ProjectPolicyLoader` (theo `:id`), `ProjectScopePolicyLoader` (theo danh sách id), `WorkspaceScopePolicyLoader` (theo workspace id). Tách riêng để mỗi loader chỉ lo một phạm vi và tránh tải nhầm phạm vi.
-
-6. **Cascade qua outbox event + transaction.** Xoá project phải xoá dataset và tệp trên R2. Làm trực tiếp trong handler tạo trạng thái nửa vời; transaction bảo đảm nhất quán.
-
-- **Hiện vật đã tạo / đã sửa:**
-
-- `domain/value-objects/project-role.vo.ts` — `ProjectMemberRole`, `canModerateProject`, `canAccessProject`.
-- `domain/value-objects/project-status.vo.ts` — `PROJECT_STATUSES`, `isProjectCompleted`.
-- `infrastructure/adapters/project-context.adapter.ts` — hiện thực `PROJECT_CONTEXT_PORT`, fail-safe.
-- `application/policy-loaders/` — 3 loader.
-- `application/commands/delete-project.handler.ts` + `cascade-project-datasets.handler.ts` — cascade.
-
-## 4. Đặc tả giao tiếp kỹ thuật
-
-### 4.1. Điểm cuối (Endpoints)
-
-| Phương thức | Đường dẫn | Chính sách | Mô tả |
+| Phương thức | Đường dẫn đầy đủ | Bảo vệ | Mô tả |
 |---|---|---|---|
-| `POST` | `/api/v1/workspaces/:workspaceId/projects` | Thành viên workspace | Tạo project |
-| `GET` | `/api/v1/workspaces/:workspaceId/projects` | Thành viên workspace | Liệt kê project của workspace |
-| `GET` | `/api/v1/projects` | Đăng nhập | Liệt kê project theo vai trò của tôi |
-| `GET` | `/api/v1/projects/:id` | `canAccessProject` | Chi tiết project |
-| `PATCH` | `/api/v1/projects/:id` | `canModerateProject` | Cập nhật |
-| `DELETE` | `/api/v1/projects/:id` | `canModerateProject` | Xoá mềm (cascade) |
-| `PUT` | `/api/v1/projects/:id/snapshot` | `Action.Execute` | Lưu trạng thái (khoá lạc quan) |
-| `GET` | `/api/v1/projects/:id/members` | `canAccessProject` | Danh sách thành viên |
-| `POST` | `/api/v1/projects/:id/members` | `canModerateProject` | Thêm thành viên |
-| `PATCH` | `/api/v1/projects/:id/members/:userId` | `canModerateProject` | Đổi vai trò |
-| `DELETE` | `/api/v1/projects/:id/members/:userId` | `canModerateProject` | Xoá thành viên |
-| `POST` | `/api/v1/projects/:id/transfer-owner` | Owner hiện tại | Chuyển quyền sở hữu |
+| POST | `/api/v1/workspaces/:workspaceId/projects` | JWT + PolicyResource(workspace) | Tạo dự án (PROJ-01). |
+| GET | `/api/v1/workspaces/:workspaceId/projects` | JWT + PolicyResource | Danh sách project trong workspace, keyset/tìm kiếm/lọc/sắp xếp (PROJ-02). |
+| GET | `/api/v1/projects` | JWT | Danh sách toàn hệ thống (PROJ-02b). |
+| GET | `/api/v1/projects/:id` | JWT + PolicyResource | Chi tiết (PROJ-03). |
+| PATCH | `/api/v1/projects/:id` | JWT + PolicyResource | Cập nhật (PROJ-04). |
+| DELETE | `/api/v1/projects/:id` | JWT + PolicyResource | Xóa mềm (PROJ-05, 204). |
+| PUT | `/api/v1/projects/:id/snapshot` | JWT + PolicyResource | Lưu snapshot, cần `expectedVersion` (PROJ-12). |
+| GET | `/api/v1/projects/:id/members` | JWT + PolicyResource | Danh sách thành viên (PROJ-09). |
+| POST | `/api/v1/projects/:id/members` | JWT + PolicyResource | Thêm thành viên. |
+| PATCH | `/api/v1/projects/:id/members/:userId` | JWT + PolicyResource | Đổi vai trò (PROJ-10). |
+| DELETE | `/api/v1/projects/:id/members/:userId` | JWT + PolicyResource | Xóa thành viên. |
+| POST | `/api/v1/projects/:id/transfer-owner` | JWT + PolicyResource | Nhượng quyền owner (PROJ-11). |
 
-### 4.2. Giao diện / Provider được xuất ra ngoài
+## 6. Bất biến
 
-`src/backend/src/modules/projects/index.ts` xuất hợp đồng công khai:
+- Một project tối đa một dataset (`hasDataset`, chặn upload thứ hai).
+- Snapshot dùng khóa lạc quan: sai `expectedVersion` trả 409.
+- Xóa project phát `PROJECT_DELETED` để `datasets` dọn dataset + file + trừ quota.
 
-| Tên xuất | Vai trò |
-|---|---|
-| `ProjectsModule` | Mô-đun Nest |
-| Thực thể `Project`, `ProjectRole`, `ProjectStatus` | Hợp đồng domain |
-| `PROJECT_REPOSITORY_PORT` | Cổng truy vấn project |
+## 7. Test liên quan
 
-> `PROJECT_CONTEXT_PORT` **không** thuộc hợp đồng công khai của mô-đun `projects` — nó là cổng tầng `shared` (`shared/application/ports/project-context.port.ts`), được `projects` **hiện thực** qua `infrastructure/adapters/project-context.adapter.ts`.
-
-### 4.3. Sự kiện domain phát ra
-
-| Sự kiện | Khi nào | Mục đích |
-|---|---|---|
-| `project.created` | Tạo project | Audit log + thông báo |
-| `project.updated` | Cập nhật project | Audit log |
-| `project.member_added` | Thêm thành viên | Thông báo |
-| `project.member_removed` | Xoá thành viên | Thông báo |
-| `project.owner_transferred` | Chuyển owner | Thông báo cho cả hai bên |
-| `PROJECT_DELETED` | Xoá project | Kích hoạt cascade xoá dataset |
-
-## 5. Ràng buộc & Tiêu chuẩn bất biến
-
-### 5.1. Bất biến nghiệp vụ
-
-- Project **phải** thuộc một `workspaceId` và có `ownerId`.
-- Chỉ `canModerateProject` được thêm / xoá / đổi vai trò thành viên, cập nhật, xoá project.
-- Không xoá chính owner qua `DELETE /members/:userId` — phải `transfer-owner` trước.
-- `status` chỉ nhận một trong `{ not_started, in_progress, completed }`.
-- `completed` là trạng thái cuối — không quay lại.
-- `version` tăng **đơn điệu**; `expectedVersion` lệch → `ConflictError` (409).
-- Không thể đặt vai trò `viewer` cho chính owner hiện tại.
-- Chỉ workspace owner / project owner được chuyển quyền sở hữu.
-
-### 5.2. Xoá mềm (Soft Delete)
-
-- **Chuẩn:** `deleted_at: Date | null` — trường này **null** nghĩa là bản ghi đang hoạt động.
-- **Quy tắc truy vấn:** mọi truy vấn mặc định luôn lọc `deleted_at: null`. Repository nền (`shared/infrastructure/database/base-mongo.repository.ts`) áp dụng điều này tự động.
-- **Chơi index Partial Unique:** `partialFilterExpression: { deleted_at: null }` — cho phép tài khoản / tên / email đã xoá mềm được tạo lại.
-
-### 5.3. Bảo mật
-
-| Vấn đề | Cách xử lý |
-|---|---|
-| IDOR qua `projectId` | Kiểm tra động nạp instance + kiểm tra `workspaceId` / `members` |
-| Thành viên project xem project khác | `canAccessProject` kiểm tra cả vai trò project và workspace |
-| Ghi đè thay đổi của người khác | Khoá lạc quan qua `expectedVersion` → 409 |
-| Chuyển quyền sở hữu không đúng người | Policy loader + kiểm tra owner hiện tại |
-| Xoá nhầm project người khác | Chỉ owner được xoá |
-| Truy vấn ngữ cảnh lỗi | Adapter fail-safe trả tập rỗng |
-
-### 5.4. Phân quyền
-
-**Ma trận quyền:**
-
-| Quyền | PROJ-OWNER | PROJ-MEMBER | PROJ-VIEWER | WS-OWNER |
-|---|---|---|---|---|
-| Đọc project | Có | Có | Có | Có |
-| Chạy phân tích | Có | Có | Không | Có |
-| Xem dataset | Có | Có | Có | Có |
-| Quản lý thành viên | Có | Không | Không | Có |
-| Cập nhật project | Có | Không | Không | Có |
-| Xoá project | Có | Không | Không | Có |
-
-**Suy ra vai trò:** WS-OWNER → PROJ-OWNER; có trong `project.members` → vai trò ghi trong DB; WS-MEMBER mặc định → PROJ-VIEWER.
-
-## 6. Lịch sử thay đổi
-
-### 2026-11-21
-- **v1.1.0** / 2026-11-21 / Viết lại README mô-đun đầy đủ theo chuẩn 6 phần / Yêu cầu tái đọc / Tài liệu mẫu chuẩn
-
-### 2026-11-XX
-- **v1.0.0** / 2026-11-XX / Bổ sung `project-context.adapter.ts` hiện thực `PROJECT_CONTEXT_PORT` và 3 policy loader / Hoàn thiện tầng ngữ cảnh của mô hình phân quyền 3 tầng / `modules/projects`
-- **v0.9.0** / 2026-11-XX / Bổ sung khoá lạc quan qua `expectedVersion` trên `PUT /snapshot` / Chặn ghi đè thay đổi / `modules/projects`
-- **v0.8.0** / 2026-11-XX / Cascade xoá project → dataset → tệp R2, bọc transaction MongoDB / Bảo đảm nhất quán / `modules/projects`, `modules/datasets`
-- **v0.4.0** / 2026-11-XX / Bổ sung `transfer-owner` và đổi vai trò thành viên / Vòng đời sở hữu an toàn / `modules/projects`
-- **v0.1.0** / 2026-11-XX / Tạo mô-đun, tách thành viên vào mảng `members[]` / Kiến trúc Clean Architecture / `modules/projects`
-
-- **Định dạng:** `[Phiên bản] / [Ngày] / [Thay đổi gì] / [Lý do] / [Ảnh hưởng đến đâu]`
+`test/unit/projects/` (2 tệp), `test/e2e/workspace-project.e2e-spec.ts`, `test/integration/cascade-delete.spec.ts`.
