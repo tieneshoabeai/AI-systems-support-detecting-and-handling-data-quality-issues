@@ -1,252 +1,160 @@
-# Ban Kiem thu - Backend
+# Test — 4 Tầng Kiểm Thử Backend
 
-Toan bo kiem thu backend nam trong thu muc nay. Cac file spec duoc chia theo 4 tang, moi tang co dac diem rieng.
+Thư mục `src/backend/test/` chứa toàn bộ kiểm thử backend: unit (mock, không cần hạ tầng), integration (Mongo/Redis/MinIO thật), e2e (HTTP pipeline thật), k6 (tải trọng).
+
+> Số liệu pass/fail thay đổi theo từng lần chạy — không ghi số cứng ở đây. Chạy lệnh ở mục 3 để lấy số thật.
 
 ---
 
-## 1. Bo cuc
+## 1. Bố cục (thực tế — đếm bằng `find`/`ls`)
 
 ```text
 test/
-├── unit/                  # Unit + Architecture (66 file) - chay mac dinh, gom theo domain
-│   ├── analysis/          # DQ/GD guards, wave5, wave6-10, pdf, report-content (11 file)
-│   ├── arch/              # Kien truc: clean-arch, guard-coverage, zero-any, contract... (9 file)
-│   ├── auth/              # Auth admin-bootstrap, google-oauth (2 file)
-│   ├── datasets/          # CSV, PII, data-view, ingestion, wave4... (9 file)
-│   ├── feedback/          # Feedback entity + wave7 (2 file)
-│   ├── infra/             # Event, storage, worker, ai-adapters, group1 (8 file)
-│   ├── issues/            # Issue entity (1 file)
-│   ├── notifications/     # Notification entity (1 file)
-│   ├── projects/          # Project entity + service (2 file)
-│   ├── realtime/          # Realtime + gateway + revocation (3 file)
-│   ├── shared/            # casl, crypto, mask-pii, keyset, guard... (7 file)
-│   ├── users/             # User + session entity (2 file)
-│   ├── workflows/         # Lien module: cascade, gap-p2p3, step1, step3... (6 file)
-│   └── workspaces/        # Workspace entity + service + invite mail (3 file)
-├── integration/           # Integration (7 file) - chay rieng, --runInBand
-├── e2e/                   # E2E (12 file: 7 flow + health + 4 security)
-│   ├── health.e2e-spec.ts
-│   ├── auth-flow.e2e-spec.ts
-│   ├── users-me.e2e-spec.ts
-│   ├── workspace-project.e2e-spec.ts
-│   ├── dataset-dataview.e2e-spec.ts
-│   ├── analysis-report-summary.e2e-spec.ts
-│   ├── issues-admin.e2e-spec.ts
-│   ├── feedback-notifications-overview.e2e-spec.ts
-│   └── security/          # E2E security suite (4 file)
-├── k6/                    # Kich ban tai chong (k6: 5 file)
-│   ├── smoke.js
-│   ├── full-journey.js
-│   ├── load.js
-│   ├── stress.js
-│   └── analysis-latency.js
-├── fixtures/              # Du lieu mau
-│   ├── valid-simple.csv
-│   ├── large-50k.csv
-│   └── arch-baseline.json
-├── helpers/               # Tien ich dung chung cho test
-│   ├── module-handlers.ts
-│   ├── test-infra.ts
-│   └── transaction.ts
-├── jest-integration.json  # Cau hinh Jest rieng cho integration
-├── jest-e2e.json          # Cau hinh Jest rieng cho E2E
-├── unit_test/             # Checklist kich ban kiem thu (20 file .md)
-└── helpers/
+├── unit/                  # 67 file *.spec.ts, gom theo 14 thư mục domain
+│   ├── analysis/          # 11: guard GĐ0/GĐ8/GĐ9/GĐ10/GĐ12, GĐ2, GĐ7, wave5, wave6-10, pdf, report-content
+│   ├── arch/              # 9: clean-architecture, guard-coverage, zero-any, contract-coverage,
+│   │                      #    modular-monolith (+MM6), mongo-session, open-09 strict, open-09 session, open-10, zod-openapi
+│   ├── auth/              # 2: admin-bootstrap, google-oauth
+│   ├── datasets/          # 10: csv-delimiter, column-pii, findings, entity, ingestion, wave4,
+│   │                      #    data-view, type-coercion, chart-data, chart-swagger-schema
+│   ├── feedback/          # 2: entity + wave7 (FB-01→FB-06 + append-only/TTL)
+│   ├── infra/             # 8: event-dispatcher, storage, storage-cleanup, group1-infra,
+│   │                      #    ai-worker, ai-adapters-outbox, report-worker, external-services-email-push
+│   ├── issues/            # 1: issue-report entity
+│   ├── notifications/     # 1: notification entity
+│   ├── projects/          # 2: entity + service (1 project = 1 dataset)
+│   ├── realtime/          # 3: realtime + gateway + revocation (OPEN-08)
+│   ├── shared/            # 7: casl, crypto, mask-pii, keyset-pagination, device-detector,
+│   │                      #    domain-error (+error-mapping), policies-guard
+│   ├── users/             # 2: user entity + user-session entity
+│   ├── workflows/         # 6: cascade-workspace-delete, gap-p2-p3, step1-services,
+│   │                      #    step3-efgh, step1-remember-me, notifications-issues-wave6
+│   └── workspaces/        # 3: entity + service + invitation-email (WS-01/WS-07/quota)
+├── integration/           # 7 file: cascade-delete, open09-rollback, record-query,
+│                          #    redis-minio, repositories, repositories-analysis, repositories-domain
+├── e2e/                   # 12 file *.e2e-spec.ts: 8 ở gốc + 4 trong security/
+│   ├── health (ngoại lệ: dùng FakeWorkspacesController), auth-flow, users-me, workspace-project,
+│   ├── dataset-dataview, analysis-report-summary, issues-admin,
+│   ├── feedback-notifications-overview
+│   └── security/          # authorization (thuần ability, 48 case), cookie-parser-regression,
+│                          # google-oauth, google-oauth-cookie
+├── k6/                    # 5 script: smoke, full-journey, load, stress, analysis-latency
+├── fixtures/              # valid-simple.csv (3 dòng), large-50k.csv (1 dòng placeholder), arch-baseline.json (9 dòng)
+├── helpers/               # module-handlers.ts, handler-proxy.ts, transaction.ts,
+│                          # test-infra.ts, resolve-import.ts
+├── factories/             # user.factory.ts, workspace.factory.ts
+├── benchmark/             # eval-set.jsonl (2 dòng thật), run-benchmark.mjs (18 dòng)
+├── coverage/              # snapshot cũ (không phải output hiện tại) — xem README riêng
+├── jest-e2e.json          # testRegex .e2e-spec.ts$
+├── jest-integration.json  # testRegex test/integration/.*, --runInBand, timeout 60s
+└── unit_test/             # 20 file .md checklist + 1 README (không phải test chạy)
 ```
 
-> **Lưu ý về số liệu.** Ngoài `test/` còn có 2 file spec nằm ngoài thư mục này:
-> `src/modules/analysis/domain/corr-vif-ai.spec.ts` (unit test cho thuật toán tương quan/VIF)
-> và `scripts/benchmark/*.spec.ts`. Tổng cộng là **74 file spec**.
->
-> Ba tầng được chạy bởi **ba lệnh khác nhau**, nên số test của từng tầng không cộng trực tiếp
-> vào `pnpm test`:
->
-> | Lệnh | Tầng | Suite | Test |
-> |---|---|---|---|
-> | `pnpm test` | unit + arch | 67 | 1 069 |
-> | `pnpm test:integration` | integration | 7 | 138 |
-> | `pnpm test:e2e` | e2e | 12 | 94 |
-> | **Tổng** | | **86** | **1 301** |
+Ngoài `test/` còn 2 file spec lẻ: `src/modules/analysis/domain/corr-vif-ai.spec.ts` và `scripts/benchmark/benchmark.spec.ts`.
+
+Vì sao `pnpm test` (testRegex `.*\.spec\.ts$`) không chạy e2e: file e2e tên `*.e2e-spec.ts` (gạch nối trước `spec`), không khớp `\.spec\.ts$` (cần dấu chấm trước `spec`). E2E chỉ chạy qua `test/jest-e2e.json` (testRegex `.e2e-spec.ts$`).
 
 ---
 
-## 2. Bon tang kiem thu
+## 2. Bốn tầng kiểm thử
 
-| Tang | Vi du | Can ha tang? | Lenh chay |
+| Tầng | Ví dụ thật | Cần hạ tầng? | Lệnh |
 |---|---|---|---|
-| **Unit** | `datasets-wave4.spec.ts`, `policies-guard.spec.ts` | Khong | `pnpm test` |
-| **Architecture** | `clean-architecture.spec.ts`, `mongo-session-arch.spec.ts` | Khong | `pnpm test:arch` |
-| **Integration** | `integration/repositories.spec.ts`, `integration/record-query.spec.ts` | **Co** | `pnpm test:integration` |
-| **E2E** | `e2e/health.e2e-spec.ts`, `e2e/security/*.e2e-spec.ts` | **Co** | `pnpm test:e2e` |
+| Unit | `unit/datasets/datasets-wave4.spec.ts`, `unit/shared/policies-guard.spec.ts` | Không | `pnpm test` / `pnpm test:unit` |
+| Architecture | `unit/arch/clean-architecture.spec.ts` (CA1–CA14), `unit/arch/zero-any.spec.ts` | Không | `pnpm test:arch` (5/9 file) hoặc `npx jest test/unit/arch` (đủ 9 file) |
+| Integration | `integration/repositories.spec.ts`, `integration/record-query.spec.ts` | **Có** (`pnpm test:infra:up`) | `pnpm test:integration` |
+| E2E | `e2e/auth-flow.e2e-spec.ts`, `e2e/security/*.e2e-spec.ts` | **Không bắt buộc** (handler mock, không cần Mongo thật) | `pnpm test:e2e` / `pnpm test:security` |
 
-### 2.1 Vì sao tach integration rieng?
-
-`package.json` khai bao `testPathIgnorePatterns` chua `<rootDir>/test/integration/`. Cac test integration dung **chung mot database MongoDB test**. Neu chay song song nhieu worker, chung se tranh chap khi xoa collection - ket qua la test hong g lan.
-
-`pnpm test:integration` chay rieng voi `--runInBand` va timeout rieng.
+`pnpm test:integration` chạy riêng `--runInBand` (xem `jest-integration.json`: `maxWorkers: 1`, `forceExit: true`) vì các suite dùng chung một database test — chạy song song sẽ tranh chấp khi xóa collection.
 
 ---
 
-## 3. Lenh chay
+## 3. Lệnh chạy (chép từ `package.json`)
 
 ```bash
-# Mac dinh: unit + arch, bo qua integration
-pnpm test
+pnpm test                 # mặc định: unit + arch (+ 2 spec lẻ), bỏ qua integration + e2e
+pnpm test:watch           # watch mode
+pnpm test:cov             # đo phủ → ghi ra src/backend/coverage/
+pnpm test:unit            # chỉ unit (ignore integration + 5 spec arch)
+pnpm test:arch            # chỉ 5 spec kiến trúc (zero-any, guard-coverage, zod-openapi, clean-architecture, api-contract-coverage)
 
-# Unit thuan
-pnpm test:unit
+pnpm test:infra:up        # bật Mongo rs0 @27018 + Redis @6380 + MinIO @9002/9003
+pnpm test:integration     # integration --runInBand (cần hạ tầng)
+pnpm test:infra:down      # tắt hạ tầng
 
-# Architecture
-pnpm test:arch
+pnpm test:e2e             # 12 file e2e (jest-e2e.json --runInBand)
+pnpm test:security        # chỉ 4 file test/e2e/security
+pnpm test:e2e:full        # tự bật/hạ hạ tầng rồi chạy e2e
 
-# Integration (can ha tang)
+pnpm test:all             # unit -> arch -> integration -> e2e
+pnpm test:all:infra       # tự bật/hạ hạ tầng rồi chạy test:all
+pnpm test:cov:all         # coverage --runInBand, ignore node_modules
+
+pnpm test:perf            # k6 smoke + journey + load + stress (không gồm latency)
+pnpm test:perf:smoke / :journey / :load / :stress / :latency
+pnpm test:perf:staging    # báo cáo staging (scripts/perf-report.sh)
+pnpm test:benchmark       # node test/benchmark/run-benchmark.mjs
+```
+
+---
+
+## 4. Hạ tầng cho integration (chép từ `scripts/test-infra-up.sh`)
+
+```bash
 pnpm test:infra:up
-pnpm test:integration
 pnpm test:infra:down
-
-# E2E
-pnpm test:e2e
-
-# E2E security
-pnpm test:security
-
-# Toan bo
-pnpm test:all
-pnpm test:all:infra
-
-# Do phu
-pnpm test:cov
 ```
 
----
-
-## 4. Ket qua hien tai
-
-| Chi so | Gia tri |
-|---|---|
-| Test pass | **1 301 / 1 301 (unit 1069 + integration 138 + e2e 94)** |
-| Suite | 86 (67 unit/arch + 7 integration + 12 e2e) |
-| File spec | 74 (72 trong `test/` + 1 trong `src/` + 1 trong `scripts/benchmark/`) |
-| Phu cau lenh | 71.03% (8 796 / 12 383) |
-| Phu dong | 72.05% (7 708 / 10 697) |
-| Phu nhanh | 58.33% (4 091 / 7 013) |
-| Phu ham | 62.06% (1 361 / 2 193) |
+- Có Docker: `deploy/docker-compose.test.yml` (mongo-test 27018, redis-test 6380, minio-test 9002/9003).
+- Không Docker: binary native trên đúng cổng trên (`scripts/test-infra-up.sh`).
+- Replica set `rs0` là bắt buộc: transaction (cascade delete, outbox/inbox) không chạy trên standalone.
+- URI mặc định trong `helpers/test-infra.ts`: `mongodb://127.0.0.1:27018/?replicaSet=rs0`, `redis://127.0.0.1:6380`, `http://127.0.0.1:9002`.
 
 ---
 
-## 5. Ha tang cho integration
+## 5. Quy tắc viết test
+
+- Handler: fake repository/port trả fixture có kiểm soát (success / null / throw / conflict). Assert cả output/error **và** tác vụ ghi/phát event được phép **và** tác vụ tuyệt đối không được gọi.
+- Hàm thống kê/crypto: dùng thuật toán thật với đáp án độc lập. Tuyệt đối không mock chính hàm đang test để sinh expected.
+- Fake clock: đồng hồ, random ID, timer, provider/model, network đều fake/mock.
+- Phân biệt: "giá trị truyền đúng vào port" = unit; "Mongo thật lưu rồi đọc lại" = integration.
+- Không tự suy diễn: ca GAP/OPEN/RISK không được coi là hành vi đúng.
+
+---
+
+## 6. Test kiến trúc (`unit/arch/`, 9 file)
+
+Chi tiết từng `describe` xem `unit/arch/README.md`. Tóm tắt:
+
+- `clean-architecture`: 14 quy tắc CA1–CA14, đọc `fixtures/arch-baseline.json` (hiện các mảng đều `[]`).
+- `modular-monolith`: MM5 vertical slice phẳng + MM6 cấm `HttpException` trong `*.service.ts`.
+- `guard-coverage`: mọi route đều có guard hoặc `@Public()`.
+- `zero-any`: quét `src/`, `scripts/`, `test/` — cấm `any`.
+- `api-contract-coverage`, `zod-openapi`, `mongo-session`, `open-09`, `open-10`: xem README riêng.
 
 ```bash
-pnpm test:infra:up     # MongoDB replica set + Redis + MinIO
-pnpm test:infra:down   # Don dep
-```
-
-`scripts/test-infra-up.sh` khoi dong MongoDB replica set bang `systemd-run --user` (fallback `--fork`) de tranh tien trinh bi keo theo khi lenh ket thuc - vi du khi chay trong CI runner.
-
-`helpers/test-infra.ts` va `helpers/transaction.ts` cung cap fixture cho test can replica set (transaction yeu cau replica set, standalone MongoDB khong ho tro).
-
----
-
-## 6. Quy tac viet test
-
-### 6.1 Test handler
-
-- Fake repository/port tra fixture **co kiem soat**: success / null / throw / conflict.
-- Assert **ca** output/error **va** thao tac ghi/phat event duoc phep, **va** thao tac tuyet doi khong duoc goi.
-- Khong chi assert mock duoc goi ma bo qua payload, scope, du lieu tra ve.
-
-### 6.2 Test ham thong ke / crypto
-
-Dung **thuat toan that** voi dap an **doc lap**. Tuyệt doi khong mock chinh ham dang test de sinh expected value.
-
-### 6.3 Fake clock
-
-Dong ho, random ID, timer, provider/model va network deu dung fake/mock. Test lease, TTL va retry phai dung fake clock de khong phu thuoc thoi gian that.
-
-### 6.4 Phan biet unit va integration
-
-| Khai bao | Ghi chu |
-|---|---|
-| "Gia tri duoc truyen dung vao port, handler tra ve dung ten" | Unit test |
-| "MongoDB that luu va doc lai ten moi" | Integration test (INT-002) |
-
-### 6.5 Khong tu suy dien
-
-Ca co nhan GAP / OPEN / RISK **khong** duoc xem la hành vi dang dung. Characterization test mo ta code hien tai, khong thay the acceptance test theo yeu cau.
-
----
-
-## 7. Test kien truc
-
-| File | Kiem tra |
-|---|---|
-| `clean-architecture.spec.ts` | 14 quy tac CA1-CA14 |
-| `mongo-session-arch.spec.ts` | Truyen session MongoDB qua AsyncLocalStorage |
-
-| Lenh | Kiem tra |
-|---|---|
-| `pnpm arch:cross-imports` | Import cheo module ngoai public contract |
-| `pnpm arch:api-coverage` | Hop dong API §3.13 khop ma nguon (84/84) |
-| `pnpm arch:baseline` | So sanh voi baseline da luu (`fixtures/arch-baseline.json`) |
-
----
-
-## 8. E2E (12 file — phủ 84/84 endpoint)
-
-| File | Phạm vi |
-|---|---|
-| `e2e/auth-flow.e2e-spec.ts` | Auth 13 endpoint: register/login (remember_me + alias)/refresh/forgot/reset/change/logout/sessions |
-| `e2e/users-me.e2e-spec.ts` | Users/me: GET/PATCH/DELETE, không lộ passwordHash |
-| `e2e/workspace-project.e2e-spec.ts` | WS-01..10 + PROJ-01..12: CRUD + members + transfer + snapshot + 204 |
-| `e2e/dataset-dataview.e2e-spec.ts` | F4 upload/schema/delete + F5 records/query/stats/charts |
-| `e2e/analysis-report-summary.e2e-spec.ts` | Analysis run/result/retry + Summary + Report 202 |
-| `e2e/issues-admin.e2e-spec.ts` | Issues user + admin + optimistic-locking (expectedVersion) |
-| `e2e/feedback-notifications-overview.e2e-spec.ts` | FB-01..06 + NOTIF-01..03 + E3/E4 overview |
-| `e2e/health.e2e-spec.ts` | Envelope + X-Request-Id + cursor pagination |
-
-## 8b. E2E Security
-
-| File | Pham vi |
-|---|---|
-| `e2e/security/authorization.e2e-spec.ts` | IDOR, phan quyen 2 tang |
-| `e2e/security/cookie-parser-regression.e2e-spec.ts` | Regression cookie parser |
-| `e2e/security/google-oauth.e2e-spec.ts` | Luong OAuth 2.0 |
-| `e2e/security/google-oauth-cookie.e2e-spec.ts` | Cookie trong luong OAuth |
-
----
-
-## 9. Kich ban tai chong (k6)
-
-| File | Muc dich |
-|---|---|
-| `k6/smoke.js` | Kiểm tra nhanh API còn sống (staging/local) |
-| `k6/stress.js` | Tang tai lien tuc den khi bao loi |
-| `k6/full-journey.js` | Hành trình full 84 endpoint: health→auth→ws→prj→ds→dataview→analysis→issues→feedback→notif→overview |
-| `k6/load.js` | Load đọc nặng ramp 0→20→50 VU (chỉ GET, không tạo rác) |
-| `k6/analysis-latency.js` | Do do tre cua luong phan tich |
-
-```bash
-pnpm test:perf          # k6 smoke + journey + load + stress
-pnpm test:perf:smoke     # chỉ smoke (30s)
-pnpm test:perf:journey   # chỉ full-journey (1m)
-pnpm test:perf:load      # chỉ load ramp 5m
-pnpm test:perf:stress    # chỉ stress
-pnpm test:perf:latency   # độ trễ phân tích đơn lẻ
-pnpm test:perf:staging  # Bao cao hieu nang staging
+pnpm arch:cross-imports   # import chéo ngoài public contract
+pnpm arch:api-coverage    # hợp đồng API khớp mã nguồn
+pnpm arch:baseline        # sinh test/fixtures/arch-baseline.json
+pnpm arch:verify-di       # đồ thị DI
 ```
 
 ---
 
-## 10. Du lieu mau
+## 7. E2E (12 file) — chi tiết xem `e2e/README.md` + `e2e/security/README.md`
 
-| File | Mo ta |
+7 file dùng controller thật + handler mock; 1 file `health` dùng `FakeWorkspacesController`; 1 file `authorization` test thuần ability (không HTTP).
+
+## 8. Tải trọng (k6, 5 file) — chi tiết xem `k6/README.md`
+
+`smoke`, `full-journey`, `load`, `stress` (staging, `checks 0.98`), `analysis-latency` (ngưỡng nghiệp vụ đúng p95 < 8000ms).
+
+## 9. Dữ liệu mẫu & Checklist
+
+| File | Mô tả thật |
 |---|---|
-| `fixtures/valid-simple.csv` | CSV hop le, dung cho smoke test |
-| `fixtures/large-50k.csv` | 50 000 dong - kiem tra hieu nang streaming import |
-| `fixtures/arch-baseline.json` | Baseline kien truc de so sanh |
-
----
-
-## 11. Checklist kich ban
-
-`unit_test/` chua 20 file markdown mo ta **384 nhom kich ban** can kiem tra. Day la **checklist**, khong phai bao cao ket qua. Xem [`unit_test/README.md`](unit_test/README.md).
+| `fixtures/valid-simple.csv` | 3 dòng (header + 2 dòng) |
+| `fixtures/large-50k.csv` | 1 dòng placeholder (70 bytes), không commit file nặng |
+| `fixtures/arch-baseline.json` | 9 dòng, các mảng CA đều rỗng |
+| `factories/user.factory.ts`, `factories/workspace.factory.ts` | Factory seed cố định (mặc định 42) |
+| `unit_test/` (20 file .md) | **Checklist** 384 checkbox (01–18) + 107 checkbox file 19 — không phải báo cáo kết quả. Xem `unit_test/README.md` |
