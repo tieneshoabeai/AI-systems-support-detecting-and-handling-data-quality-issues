@@ -5,7 +5,7 @@ import type { ProcessingStep } from '../../types'
 
 export const processingSteps: readonly ProcessingStep[] = ['upload', 'analysis', 'review', 'results']
 export const defaultAuthenticatedPath = '/processing'
-const settingsSections: readonly SettingsSectionId[] = ['profile', 'security', 'sessions', 'notifications', 'color']
+const settingsSections: readonly SettingsSectionId[] = ['profile', 'security', 'sessions', 'notifications', 'color', 'status']
 const resourceId = /^[A-Za-z0-9_-]+$/
 const segment = (value: string): string => encodeURIComponent(value)
 

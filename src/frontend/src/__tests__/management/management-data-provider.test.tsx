@@ -163,7 +163,7 @@ it('keeps the scene mounted while preloading records and reads Detection before 
   expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis' }))
 
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
-  expect(screen.getByText('Đang tải dữ liệu từ máy chủ.')).toBeDefined()
+  expect(screen.getByText(/Đang tải dữ liệu từ máy chủ/)).toBeDefined()
   await act(async () => { finishRecords({ items: [], meta: { hasMore: false, nextCursor: null } }) })
   expect(transport.request.mock.calls.filter(([r]) => r.path === '/datasets/d1/records')).toHaveLength(1)
   fireEvent.click(screen.getByRole('button', { name: 'Detection' }))

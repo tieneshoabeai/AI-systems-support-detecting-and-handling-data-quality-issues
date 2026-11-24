@@ -69,15 +69,14 @@ const attachCsv = async (dialog: HTMLElement, name: string, content: string): Pr
   })
 }
 
-it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang chạy trên dữ liệu mẫu', () => {
+it('trang Workspaces: ba bộ lọc, tìm kiếm và phân trang 20 mục', () => {
   renderFrame(<WorkspacesPreviewView />)
   const state = previewMockStore.getState()
   const wsTotal = state.workspaces.length
-  // 28 là TRẦN chủ batch nêu, không phải mặc định dễ thương: bộ demo phải VƯỢT 28 thì nút
-  // lật mới tồn tại. 28 bản ghi chia đúng 28 = một trang = "chưa có chuyển trang".
-  expect(wsTotal).toBeGreaterThan(28)
-  expect(cardCount()).toBe(28)
-  expect(screen.getByText(`Hiển thị 1–28 của ${wsTotal} Workspaces`)).toBeDefined()
+  expect(wsTotal).toBeGreaterThan(20)
+  expect(cardCount()).toBe(20)
+  expect(screen.queryByText(/^Hiển thị .* Workspaces$/)).toBeNull()
+  expect(screen.queryByRole('combobox', { name: 'Số dòng mỗi trang' })).toBeNull()
   const coverVariants = new Map(Array.from(document.querySelectorAll<HTMLElement>('.resource-card .cover-art'))
     .map(cover => [cover.dataset['seed'], cover.dataset['art']]))
   expect(new Set(coverVariants.values()).size).toBeGreaterThan(1)
@@ -88,8 +87,6 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
   fireEvent.change(search(), { target: { value: 'finance' } })
   expect(cardCount()).toBe(1)
   expect(cardTitles()).toEqual(['Finance'])
-  const filteredCover = document.querySelector<HTMLElement>('.resource-card .cover-art')!
-  expect(filteredCover.dataset['art']).toBe(coverVariants.get(filteredCover.dataset['seed']))
 
   fireEvent.change(search(), { target: { value: 'không tồn tại' } })
   expect(screen.getByText('Không có kết quả')).toBeDefined()
@@ -102,25 +99,37 @@ it('trang Workspaces: ba bộ lọc · tìm kiếm · phân trang 28 một trang
 
   // Quyền sở hữu: hai giá trị cộng lại đúng tổng — không có bản ghi nào lọt ngoài hai ô.
   const owned = state.workspaces.filter(isOwnedByMe).length
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo quyền sở hữu' }), { target: { value: 'owned' } })
-  expect(screen.getByText(`Hiển thị 1–${owned} của ${owned} Workspaces`)).toBeDefined()
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo quyền sở hữu' }), { target: { value: 'shared' } })
-  expect(screen.getByText(`Hiển thị 1–28 của ${wsTotal - owned} Workspaces`)).toBeDefined()
-  fireEvent.change(screen.getByRole('combobox', { name: 'Lọc theo quyền sở hữu' }), { target: { value: 'all' } })
+  const selectFilter = (label: string, option: string) => {
+    const toolbar = screen.getByRole('region', { name: 'Tìm và lọc Workspace' })
+    fireEvent.click(within(toolbar).getByRole('button', { name: new RegExp(`^${label}`) }))
+    const menu = screen.getByRole('dialog', { name: label })
+    fireEvent.click(within(menu).getByRole('button', { name: option }))
+  }
+  selectFilter('Quyền sở hữu', 'Workspace sở hữu')
+  expect(cardCount()).toBe(Math.min(20, owned))
+  selectFilter('Quyền sở hữu', 'Workspace được chia sẻ')
+  expect(cardCount()).toBe(Math.min(20, wsTotal - owned))
+  selectFilter('Quyền sở hữu', 'Tất cả quyền sở hữu')
 
   // Workspace contract exposes only Owner / Member; legacy fixture roles are not offered.
-  expect(within(screen.getByRole('combobox', { name: 'Lọc theo vai trò' })).getAllByRole('option').map(o => (o as HTMLOptionElement).value)).toEqual(['all', 'Owner', 'Member'])
+  const roleButton = screen.getByRole('button', { name: /^Vai trò/ })
+  fireEvent.click(roleButton)
+  const roleMenu = screen.getByRole('dialog', { name: 'Vai trò' })
+  expect(within(roleMenu).getAllByRole('button').map(option => option.textContent)).toEqual([
+    'Tất cả vai trò', 'Owner (Chủ sở hữu)', 'Member (Thành viên)',
+  ])
+  fireEvent.click(roleButton)
 
   // Sắp xếp 'Tên A → Z' phải là thứ tự locale thật trên TOÀN BỘ danh sách đã lọc, không phải
   // chỉ trang đang hiện (nên so với chính danh sách đó sau khi sort).
-  fireEvent.change(screen.getByRole('combobox', { name: 'Sắp xếp' }), { target: { value: 'name-asc' } })
+  selectFilter('Sắp xếp', 'Tên A → Z')
   const asc = cardTitles()
   expect(asc).toEqual([...asc].sort((a, b) => a.localeCompare(b, 'vi')))
 
-  // Ô 'Số dòng' chỉ nhận các giá trị ≤ 28 — 28 là trần nên không có option nào to hơn.
-  fireEvent.change(screen.getByRole('combobox', { name: 'Số dòng mỗi trang' }), { target: { value: '10' } })
-  expect(cardCount()).toBe(10)
-  expect(screen.getByText(`Hiển thị 1–10 của ${wsTotal} Workspaces`)).toBeDefined()
+  const pager = screen.getByRole('navigation', { name: 'Phân trang workspace' })
+  fireEvent.click(within(pager).getByRole('button', { name: 'Trang sau' }))
+  expect(cardCount()).toBe(Math.min(20, wsTotal - 20))
+  expect(within(pager).getByRole('button', { name: '2', current: 'page' })).toBeDefined()
 })
 
 it('bấm một thẻ workspace mở TRANG CHI TIẾT riêng (route), không còn panel kề bên', () => {

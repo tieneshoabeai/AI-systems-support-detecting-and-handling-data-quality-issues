@@ -24,7 +24,6 @@ export const previewNoteIds = {
   projectModules: 'pv-pj-modules-note',
   projects: 'pv-prj-note',
   universe: 'pv-universe-note',
-  notifications: 'pv-notice-note',
   notificationList: 'pv-notice-list-note',
   notificationDetail: 'pv-notice-detail-note',
   report: 'pv-report-note',
@@ -35,7 +34,6 @@ export const previewReasons = {
   wsMembers: 'Chủ sở hữu luôn thuộc Workspace và không thể bị gỡ khỏi danh sách thành viên.',
   projectMembers: 'Chỉ người đã thuộc Workspace mới có thể được thêm vào Project.',
   notificationList: 'Chọn thông báo để đánh dấu đã đọc hoặc xóa. Không còn thông báo mới thì “Đánh dấu tất cả đã đọc” sẽ tắt.',
-  notificationInbox: 'Chọn thông báo để thao tác. “Đánh dấu tất cả đã đọc” chỉ dùng khi còn thông báo chưa đọc.',
 } as const
 
 // Bản ghi (person / workspace / project) nằm ở tầng service: services/preview/preview-fixtures.ts,
@@ -559,6 +557,7 @@ export const settingsModules: readonly SettingsModule[] = [
   { id: 'system', label: 'System', icon: 'monitor', items: [
     { id: 'color', label: 'Color', icon: 'palette' },
     { id: 'notifications', label: 'Thông báo', icon: 'bell' },
+    { id: 'status', label: 'Trạng thái hệ thống', icon: 'monitor' },
   ] },
 ]
 

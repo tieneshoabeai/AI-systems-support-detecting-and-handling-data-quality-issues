@@ -5,6 +5,7 @@ import { AuthContext } from '../../../hooks/auth/auth-context'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { ReactNode } from 'react'
 import type { DeviceSession, SettingsNavLeaf, SettingsNavItem, SettingsSectionId } from '../../../types'
+import { SystemStatus } from './system-status'
 import { isSettingsNavGroup } from '../../../types/preview'
 import {
   notificationPrefRows, settingsModules, settingsSectionsOfModule,
@@ -483,7 +484,7 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
         <PreviewIcon name="arrow-left" />
       </Button>
       <h1 id="page-heading" tabIndex={-1}>
-        {active === null ? 'Cài đặt' : active === 'color' || active === 'notifications' ? 'System' : isProfile ? 'Hồ sơ cá nhân' : 'Cài đặt tài khoản'}
+        {active === null ? 'Cài đặt' : active === 'status' ? 'Trạng thái hệ thống' : active === 'color' || active === 'notifications' ? 'System' : isProfile ? 'Hồ sơ cá nhân' : 'Cài đặt tài khoản'}
       </h1>
       {active === 'sessions' && <Button type="button" className="button-secondary settings-head-action"
         onClick={session.revokeAllSessions}>
@@ -510,7 +511,8 @@ export function SettingsPreviewView({ section }: { section: SettingsSectionId | 
 
       <div className="settings-body">
         {active === null ? <SettingsOverview />
-          : active === 'color' ? <ColorSection />
+          : active === 'status' ? <SystemStatus />
+            : active === 'color' ? <ColorSection />
             : isProfile ? <ProfileSection />
               : active === 'security' ? <SecuritySection />
                 : active === 'sessions' ? <SessionsSection />

@@ -4,7 +4,8 @@
 [data-preview='2d'] .home-universe-canvas canvas { cursor: inherit; touch-action: pan-y; }
 [data-preview='2d'] .home-universe-canvas[data-dragging='true'],
 [data-preview='2d'] .home-universe-canvas[data-dragging='true'] canvas { cursor: var(--cursor-grabbing, grabbing); }
-[data-preview='2d'] .hero-motion-button { position: absolute; right: 18px; top: 16px; z-index: 4; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--pv-line); background: var(--pv-bg-1); color: var(--pv-muted); font-size: 12px; cursor: var(--cursor-pointer, pointer); }
+[data-preview='2d'] .hero-motion-button { position: absolute; right: 18px; top: 16px; z-index: 4; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 13px; border: 1px solid var(--pv-line); background: var(--pv-bg-1); color: var(--pv-muted); cursor: var(--cursor-pointer, pointer); }
+[data-preview='2d'] .hero-motion-button svg { width: 18px; height: 18px; }
 [data-preview='2d'] .hero-motion-button:focus-visible { outline: 2px solid var(--pv-ink-link); outline-offset: 3px; }
 [data-preview='2d'] .hero.universe-hero {
   isolation: isolate; display: flex; flex-direction: column; justify-content: space-between;
@@ -15,10 +16,10 @@
 /* Cảnh phủ TOÀN khung: không mask nửa trái, không translateX — trước đây hai thủ thuật đó
    vừa cắt mất phần cảnh, vừa đẩy canvas ra sau nền nên kéo xoay không nhận được sự kiện. */
 [data-preview='2d'] .universe-hero .hero-stage {
-  position: absolute; inset: 0; z-index: 0; min-height: 0; overflow: hidden;
+  position: absolute; inset: 0; z-index: 0; min-height: 0; overflow: hidden; pointer-events: auto;
 }
 [data-preview='2d'] .universe-hero .hero-stage-placeholder {
-  position: absolute; inset: 0; min-height: 0; border: 0; border-radius: 0;
+  position: absolute; inset: 0; min-height: 0; border: 0; border-radius: 0; pointer-events: auto;
   background:
     radial-gradient(ellipse at 76% 34%, rgba(124, 92, 255, .3), transparent 58%),
     radial-gradient(ellipse at 90% 82%, rgba(34, 211, 238, .14), transparent 55%),

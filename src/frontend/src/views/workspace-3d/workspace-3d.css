@@ -68,10 +68,14 @@
 .local-csv-picker label { display: block; font-weight: 600; margin-bottom: 12px; }
 .local-csv-picker input { max-width: 100%; font: inherit; font-size: 12px; }
 .local-csv-picker p { color: var(--color-muted); font-size: 12px; line-height: 1.6; }
-.local-csv-dialog { width: min(1100px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; border: 1px solid var(--color-line); border-radius: 20px; padding: 24px; color: var(--color-ink); background: var(--color-surface); }
-.local-csv-dialog::backdrop { background: rgb(10 35 28 / 45%); }
+.local-csv-dialog { width: min(1100px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; border: 1px solid var(--color-line); border-radius: 20px; padding: clamp(14px, 3vw, 24px); color: var(--color-ink); background: var(--color-surface-raised); overscroll-behavior: contain; box-shadow: var(--shadow-lg); }
+.local-csv-dialog::backdrop { background: var(--color-scrim); }
 .local-csv-dialog header, .local-csv-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.local-csv-dialog h2 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; overflow-wrap: anywhere; margin: 8px 0; }
+.local-csv-dialog h2 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; overflow-wrap: anywhere; margin: 3px 0 0; }
+.local-csv-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.local-csv-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 11px; background: var(--color-info-surface); color: var(--color-info); }
+.local-csv-label { font-size: 12px; color: var(--color-muted); }
+.local-csv-dialog .local-csv-note { margin-top: 12px; }
 .local-csv-dialog p, .local-csv-dialog footer { font-size: 12px; color: var(--color-muted); }
 .local-csv-dialog footer { margin-top: 16px; }
 .local-csv-table { max-height: 55dvh; overflow: auto; border: 1px solid var(--color-line); border-radius: 10px; }

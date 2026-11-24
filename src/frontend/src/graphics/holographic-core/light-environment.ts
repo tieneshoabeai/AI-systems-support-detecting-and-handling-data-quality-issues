@@ -40,17 +40,14 @@ const noise = `
   }
 `
 export function bakeLightSky(gl: WebGLRenderer) {
-  const uniforms = Object.fromEntries(
-    ['horizon', 'middle', 'zenith', 'lavender', 'cyan', 'sun'].map(name => [name, {
-      value: new Color(C[name as 'horizon' | 'middle' | 'zenith' | 'lavender' | 'cyan' | 'sun']),
-    }]),
-  )
+  const skyColors = ['horizon', 'middle', 'zenith', 'lavender', 'cyan', 'nebulaPearl'] as const
+  const uniforms = Object.fromEntries(skyColors.map(name => [name, { value: new Color(C[name]) }]))
   const material = new ShaderMaterial({
     uniforms, depthTest: false, depthWrite: false, toneMapped: false,
     vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
     fragmentShader: `
       varying vec2 vUv;
-      uniform vec3 horizon, middle, zenith, lavender, cyan, sun;
+      uniform vec3 horizon, middle, zenith, lavender, cyan, nebulaPearl;
       ${noise}
       ${lightDisplayTransform(gl)}
       void main() {
@@ -61,12 +58,29 @@ export function bakeLightSky(gl: WebGLRenderer) {
         float h=smoothstep(-.65,.05,d.y);
         vec3 color=mix(horizon,middle,smoothstep(0.,.62,h));
         color=mix(color,zenith,smoothstep(.45,1.,h));
-        float gas=noise3(d*3.4+vec3(2.1,7.3,1.9))*.7+noise3(d*7.2)*.3;
-        color=mix(color,lavender,smoothstep(.47,.78,gas)*.19);
-        color=mix(color,cyan,smoothstep(.3,.72,noise3(d*2.7+8.))* .16);
+        vec3 flow=d*vec3(7.,14.,7.);
+        flow+=vec3(noise3(d*6.),noise3(d*8.+9.),noise3(d*7.+2.))*2.4;
+        float gas=noise3(flow)*.48+noise3(flow*2.7)*.31+noise3(flow*6.3)*.15+noise3(flow*13.)*.06;
+        color=mix(color,lavender,smoothstep(.28,.66,gas)*.58);
+        color=mix(color,cyan,smoothstep(.32,.73,noise3(d*3.4+8.))*.47);
+        float cloudHeight=d.y+.32+.17*sin(longitude*2.4)+(gas-.5)*.42;
+        float nebula=exp(-pow(cloudHeight/.19,2.));
+        color=mix(color,nebulaPearl,nebula*smoothstep(.20,.71,gas)*.82);
+        // A distant pearl-blue moon belongs to the sky, outside the model volume.
+        vec3 moonDir=normalize(vec3(-.30,-.22,-.94));
+        float moonAngle=acos(clamp(dot(d,moonDir),-1.,1.));
+        float moon=1.-smoothstep(.115,.119,moonAngle);
+        vec3 tangent=normalize(cross(vec3(0.,1.,0.),moonDir));
+        vec3 up=normalize(cross(moonDir,tangent));
+        vec2 p=vec2(dot(d,tangent),dot(d,up))/.118;
+        float curvature=sqrt(max(0.,1.-dot(p,p)));
+        float shade=clamp(.45+.42*dot(vec3(p,curvature),normalize(vec3(-.6,.6,1.))),0.,1.);
+        vec3 moonColor=mix(vec3(.40,.51,.76),vec3(.89,.94,1.),shade);
+        moonColor=mix(moonColor,lavender,noise3(vec3(p*10.,2.))*.08);
+        color=mix(color,moonColor,moon*.32);
         vec3 sunDir=normalize(vec3(cos(${C.backAzimuth}),-.24,sin(${C.backAzimuth})));
         float glow=exp(-pow(acos(clamp(dot(d,sunDir),-1.,1.))/.38,2.));
-        color=mix(color,sun,glow*.68);
+        color=mix(color,nebulaPearl,glow*.48);
         color+=(hash(vec3(gl_FragCoord.xy,17.))-.5)/768.;
         gl_FragColor=vec4(lightScene(color),1.);
       }
@@ -129,14 +143,14 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
     void main(){
       vec2 p=(vUv-.5)*100.;
       float r=length(p);
-      float alpha=1.-smoothstep(8.,30.,r);
+      float alpha=(1.-smoothstep(7.,25.,r))*.58;
       if(alpha<.002) discard;
       vec3 base=mix(uWhite,uBlue,smoothstep(3.,30.,r)*.38);
-      float glow=exp(-pow((r-5.)/3.6,2.))*.13;
+      float glow=exp(-pow((r-5.)/3.6,2.))*.28;
       base=mix(base,uViolet,glow);
       vec2 grid=abs(fract(p-.5)-.5)/max(fwidth(p),vec2(.001));
       float line=1.-min(min(grid.x,grid.y),1.);
-      float gridFade=(1.-smoothstep(5.,27.,r))*.17;
+      float gridFade=(1.-smoothstep(6.,22.,r))*.25;
       base=mix(base,uLine,line*gridFade);
       float contact=exp(-dot(p/vec2(1.5,1.5),p/vec2(1.5,1.5)))*.25;
       base=mix(base,uShadow,contact);
@@ -148,7 +162,7 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
   const ground = addMesh(new PlaneGeometry(100, 100), groundMaterial, 'light-ground')
   ground.rotation.x = -Math.PI / 2; ground.position.y = -.08; ground.renderOrder = -6
 
-  // Dark curtain shape reused locally; only light palette/blending differ.
+  // A thin, luminous edge anchors each light-mode ribbon against the pearl sky.
   const auroraTime = { value: 12 }
   const auroraMaterial = makeMaterial(`
   uniform float uTime;
@@ -160,13 +174,11 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
 
   float curtain(float x, float base, float seed) {
     float h = vUv.y - base;
-    float rise = max(h, 0.0);
-    float fold = sin(13.0 * x + seed + uTime * 0.03);
-    float phase = x * 103.0 + 2.4 * fold + rise * (4.0 + 2.0 * fold);
-    float rays = smoothstep(0.08, 0.94, 0.5 + 0.32 * sin(phase) + 0.18 * sin(phase * 1.67));
-    float lip = exp(-rise * 70.0);
-    float veil = exp(-rise * mix(20.0, 8.0, rays));
-    return smoothstep(-0.014, 0.006, h) * (0.36 * lip + (0.16 + 0.6 * rays) * veil);
+    float fold = sin(15.0 * x + seed + uTime * 0.03);
+    float rays = 0.5 + 0.5 * sin(x * 72.0 + 2.4 * fold + h * 19.0);
+    float veil = smoothstep(-0.019, 0.012, h) * exp(-max(h, 0.0) * mix(22.0, 10.0, rays));
+    float edge = exp(-pow((h - 0.005) / 0.012, 2.0));
+    return .57 * veil + .43 * edge;
   }
 
   void main() {
@@ -176,23 +188,13 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
     if (arc <= 0.0) discard;
     float drift = 0.015 * sin(uTime * 0.045);
     float bend = x + drift;
-    float mainBase = 0.26 + 0.40 * smoothstep(0.04, 0.58, bend) + 0.04 * sin(9.0 * bend);
-    float violetBase = 0.49 - 0.22 * smoothstep(-0.48, -0.25, x - drift)
-      + 0.08 * sin(6.0 * x + drift);
-    float cyan = curtain(x, mainBase, 0.0) * 0.48;
-    float violet = curtain(x, violetBase, 2.3) * 0.42
-      * (1.0 - smoothstep(0.08, 0.52, x));
-    float wispBase = 0.14 + 0.12 * sin(5.0 * bend - 1.0);
-    float wisp = 0.12 * curtain(x, wispBase, 4.7) * smoothstep(0.18, 0.52, sin(8.0 * x - 1.1));
-    float total = cyan + violet + wisp;
-    vec3 color = (cyan * uCyan
-      + violet * uViolet
-      + wisp * mix(uCyan, uViolet, 0.5)) / max(total, 0.001);
-    gl_FragColor = vec4(lightScene(color), arc * min(total * 2.8, ${C.auroraOpacity}) * (1.0 - smoothstep(0.84, 1.0, vUv.y)));
-    vec4 texel = gl_FragColor;
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-    gl_FragColor = texel;
+    float mainBase = .37 + .28 * smoothstep(-.08, .65, bend) + .065 * sin(5.5 * bend);
+    float companion = mainBase + .145 + .048 * sin(7.5 * bend + 1.2);
+    float cyan = curtain(x, mainBase, 0.0) * .38;
+    float violet = curtain(x, companion, 2.3) * .33 * (1.0 - smoothstep(.24, .85, x));
+    float total = cyan + violet;
+    vec3 color = (cyan * uCyan + violet * uViolet) / max(total, .001);
+    gl_FragColor = vec4(lightScene(color), arc * total * (1.0 - smoothstep(.84, 1.0, vUv.y)));
   }
 `, {
     uTime: auroraTime, uCyan: { value: new Color(C.auroraCyan) }, uViolet: { value: new Color(C.auroraViolet) },
@@ -216,13 +218,31 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
   aurora.renderOrder = -5
 
   const random = randomSource(20261114)
-  const dustPositions = new Float32Array(120 * 3)
-  const dustPhases = new Float32Array(120)
-  for (let i = 0; i < 120; i++) {
+  const dustCount = 120
+  const chartCount = 32
+  const dustPositions = new Float32Array((dustCount + chartCount * 3) * 3)
+  const dustPhases = new Float32Array(dustPositions.length / 3)
+  for (let i = 0; i < dustCount; i++) {
     const angle = C.backAzimuth + (random() - .5) * Math.PI * 1.2
     const r = 7 + random() * 23
     dustPositions.set([Math.cos(angle) * r, .4 + random() * 10, Math.sin(angle) * r], i * 3)
     dustPhases[i] = random() * TAU
+  }
+  // Plot background stars and their connections at render resolution, outside the sky bake.
+  const chartRandom = randomSource(4317)
+  const chartLines: number[] = []
+  for (let i = 0; i < chartCount; i++) {
+    const angle = C.backAzimuth + (i % 16 + chartRandom() * .65) / 16 * TAU
+    const height = (i < 16 ? -11 : -1) + chartRandom() * 8
+    const points = [[-.047, 0], [.008, 1.6], [.071, .4 + chartRandom() * 2]].map(([offset = 0, rise = 0]) =>
+      [Math.cos(angle + offset) * 29, height + rise, Math.sin(angle + offset) * 29])
+    points.forEach((point, j) => {
+      const index = dustCount + i * 3 + j
+      dustPositions.set(point, index * 3)
+      dustPhases[index] = -1
+      const previous = points[j - 1]
+      if (previous) chartLines.push(...previous, ...point)
+    })
   }
   const dustGeometry = new BufferGeometry()
   dustGeometry.setAttribute('position', new BufferAttribute(dustPositions, 3))
@@ -230,19 +250,23 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
   resources.push(dustGeometry)
   const dustTime = { value: 12 }
   const dustMaterial = makeMaterial(`
-    varying float vAlpha; uniform vec3 uWhite,uBlue;
+    varying float vAlpha,vStar; uniform vec3 uWhite,uBlue,uStar;
     void main(){
       float d=length(gl_PointCoord-.5);
       if(d>.5)discard;
       float a=exp(-d*d*19.)*(1.-smoothstep(.35,.5,d));
-      gl_FragColor=vec4(mix(uWhite,uBlue,.28),a*vAlpha*.55);
-    }`, { uTime: dustTime, uWhite: { value: color(C.sun) }, uBlue: { value: color(C.auroraCyan) } }, `
-    attribute float phase; uniform float uTime; varying float vAlpha;
+      vec4 mote=vec4(mix(uWhite,uBlue,.28),a*vAlpha*.55);
+      vec4 star=vec4(uStar,(1.-smoothstep(.22,.5,d))*.83);
+      gl_FragColor=mix(mote,star,vStar);
+    }`, { uTime: dustTime, uWhite: { value: color(C.sun) }, uBlue: { value: color(C.auroraCyan) },
+      uStar: { value: color(C.starBlue) } }, `
+    attribute float phase; uniform float uTime; varying float vAlpha,vStar;
     void main(){
-      vec3 p=position+vec3(sin(phase+uTime*.08)*.2,sin(phase+uTime*.055)*.35,0.);
+      vStar=1.-step(0.,phase);
+      vec3 p=position+(1.-vStar)*vec3(sin(phase+uTime*.08)*.2,sin(phase+uTime*.055)*.35,0.);
       vec4 v=modelViewMatrix*vec4(p,1.);
       gl_Position=projectionMatrix*v;
-      gl_PointSize=clamp(125./max(-v.z,1.),2.,7.);
+      gl_PointSize=mix(clamp(125./max(-v.z,1.),2.,7.),3.6,vStar);
       vAlpha=.45+.35*sin(phase+uTime*.12);
     }`)
   const dust = new Points(dustGeometry, dustMaterial)
@@ -256,7 +280,7 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
     uniform vec3 uBody,uRim;
     void main(){
       float f=pow(1.-abs(dot(normalize(vNormal),normalize(vView))),3.);
-      gl_FragColor=vec4(mix(uBody,uRim,f),mix(.2,.65,f));
+      gl_FragColor=vec4(mix(uBody,uRim,f),mix(.16,.52,f));
     }`, { uBody: { value: color(C.cyan) }, uRim: { value: color(C.crystalRim) } }, `
     varying vec3 vNormal,vView;
     void main(){
@@ -302,7 +326,7 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
     line.name = name; line.raycast = noRaycast; line.frustumCulled = false
     return line
   }
-  const crystalEdges = makeLines(edges, 'light-crystal-edges', C.line, .6)
+  const crystalEdges = makeLines(edges, 'light-crystal-edges', C.line, .5)
   crystalEdges.renderOrder = -3
   crystals.add(crystalEdges)
   group.add(crystals)
@@ -312,13 +336,20 @@ export function createLightLayers(gl: Pick<WebGLRenderer, 'toneMapping' | 'toneM
     for (let i = 0; i < 160; i++) {
       for (const t of [i / 160 * TAU, (i + 1) / 160 * TAU]) rings.push(Math.cos(t) * ring.radius, ORBIT_Y, Math.sin(t) * ring.radius)
     }
+    for (let i = 0; i < 96; i++) {
+      const angle = i / 96 * TAU
+      const length = i % 8 === 0 ? .23 : .10
+      for (const radius of [ring.radius, ring.radius - length]) {
+        rings.push(Math.cos(angle) * radius, ORBIT_Y, Math.sin(angle) * radius)
+      }
+    }
   }
-  const orbit = makeLines(rings, 'light-orbit-rings', C.line, .4)
+  const orbit = makeLines(rings, 'light-orbit-rings', C.orbit, .52)
   group.add(orbit)
   const positions = NEON_CUBE_CLUSTER_LAYOUT.map(node => node.position)
-  const lines: number[] = []
+  const lines = chartLines
   for (const [a, b] of [[0, 2], [2, 1], [1, 0], [2, 3], [3, 1]]) lines.push(...positions[requireDefined(a, 'light-environment.ts:320')]!, ...positions[requireDefined(b, 'light-environment.ts:320')]!)
-  group.add(makeLines(lines, 'light-constellation', C.line, .45))
+  group.add(makeLines(lines, 'light-constellation', C.line, .4))
   let disposed = false
   return {
     group,

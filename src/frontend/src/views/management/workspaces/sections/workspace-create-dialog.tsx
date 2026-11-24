@@ -5,9 +5,12 @@ import type { KeyboardEvent } from 'react'
 import type { Person } from '../../../../types'
 import { personFromEmail } from '../../../../hooks/preview/preview-presentation'
 import { PreviewIcon } from '../../../preview/components/preview-icons'
-import { Avatar } from '../../../../components/resource'
-import { CoverArt } from '../../../../components/resource'
+import { Avatar, CoverArt } from '../../../../components/resource'
+import { SelectedResourceArt } from '../../../../components/resource/avatar/resource-avatar'
+import { WorkspaceAvatarField } from '../../../../components/workspace/dialogs/workspace-avatar-field'
+import { saveResourceAvatar, type ResourceAvatarChoice } from '../../../../hooks/resource/use-resource-avatar'
 import { usePreviewSession } from '../../../../hooks/preview/preview-session-context'
+import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
 
 // Khung 2 + 3 của ảnh "DataVerse Workspace Creation with Email Suggestions": form nhập
 // thông tin (tên · mô tả · thành viên ban đầu) rồi MÀN HÌNH THÀNH CÔNG.
@@ -19,9 +22,6 @@ import { usePreviewSession } from '../../../../hooks/preview/preview-session-con
 // kê danh bạ mẫu. Lý do nghiệp vụ đằng sau cũng cùng phía: workspace mới là ranh giới truy cập
 // riêng, lời mời phải nhắm tới một địa chỉ cụ thể chứ không phải chọn bừa một người trùng tên.
 //
-// Không có bước trung gian nào ngoài đúng những gì ảnh vẽ: thêm một tab "nâng cao" hay ô
-// chọn màu/logo (mock không vẽ) là thêm module không có giá trị.
-//
 // Mọi ghi ở đây là optimistic + Hoàn tác trên toast (cùng khuôn với wizard "Tạo Project") vì bản
 // ghi sống trong bộ nhớ tab của khung xem trước — tải lại trang là danh sách về ban đầu. Tên trùng
 // bị chặn ngay trong form vì mỗi workspace phải phân biệt được với nhau.
@@ -32,10 +32,6 @@ const descMax = 500
 // Email phải có dạng thật trước khi được thêm: một dòng "abc" trong danh sách thành viên thì
 // không mời được ai, và chip hiện ra sẽ nói dối rằng đã có người nhận lời mời.
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-
-// Giới hạn của form, nói thẳng một lần ở chân dialog thay vì để người dùng đoán.
-const previewNote = 'Mỗi email thêm vào sẽ thành một dòng thành viên của Workspace này; người tạo là chủ sở hữu và luôn thuộc Workspace. '
-  + 'Workspace vừa tạo chưa chứa project nào — muốn làm dữ liệu thì tạo project trong chính workspace đó ở trang chi tiết.'
 
 // Bấm nền tối = hủy (đặt trên scrim, tự kiểm target → panel không phải stopPropagation).
 
@@ -56,15 +52,17 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
   onClose: () => void
 }) {
   const session = usePreviewSession()
+  const store = useManagementStore()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [text, setText] = useState('')
   const [selected, setSelected] = useState<MemberPick[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [createdName, setCreatedName] = useState('')
+  const [createdWorkspace, setCreatedWorkspace] = useState<{ name: string; id: string | null } | null>(null)
   const [pending, setPending] = useState(false)
-
-  const done = createdName !== ''
+  const [avatar, setAvatar] = useState<ResourceAvatarChoice>({ art: null })
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const done = createdWorkspace !== null
   const typed = text.trim()
   // Ô trống không "sai", nó chỉ chưa có gì — báo lỗi khi người dùng còn chưa gõ xong chữ @
   // đầu tiên là gióng một tiếng chuông không ai gây ra.
@@ -103,27 +101,36 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
     if (!trimmed) { setError('Tên Workspace không được để trống.'); return }
     const clash = existingNames.find(item => item.toLowerCase() === trimmed.toLowerCase())
     if (clash) { setError(`Đã có Workspace “${clash}” trùng tên này. Tên workspace phải phân biệt được với nhau.`); return }
+    const existingIds = new Set(store.getState().workspaces.map(item => item.id))
     setPending(true)
     const success = await session.createWorkspace({ name: trimmed, description: description.trim(), members: selected.map(item => item.person) })
     setPending(false)
     if (!success) return
-    setCreatedName(trimmed)
+    const created = store.getState().workspaces.find(item => item.name === trimmed && !existingIds.has(item.id))
+    if (avatar.art || avatar.icon) {
+      if (!created) session.notify('Mở Workspace để lưu ảnh đại diện.', 'info')
+      else {
+        try {
+          saveResourceAvatar('workspace', created.id, avatar)
+        } catch {
+          session.notify('Không lưu được ảnh đại diện trên trình duyệt này. Bạn có thể thử lại trong trang chi tiết.', 'info')
+        }
+      }
+    }
+    setCreatedWorkspace({ name: created?.name ?? trimmed, id: created?.id ?? null })
     setError(null)
   }
 
   const reset = (): void => {
     setName(''); setDescription(''); setText(''); setSelected([])
-    setError(null); setCreatedName('')
+    setError(null); setCreatedWorkspace(null)
+    setAvatar({ art: null }); setAvatarOpen(false)
   }
 
-  // "Xem Workspace" = điều hướng THẬT tới bản ghi vừa tạo. createWorkspace là optimistic nên
-  // nó đã nằm trong store; tìm lại theo tên để lấy id thay vì bịa id.
   const viewWorkspace = (): void => {
-    const created = session.state.workspaces.find(item => item.name === createdName)
-    if (created) session.run('open', { kind: 'workspace', id: created.id, name: created.name })
-    // LUÔN đóng, kể cả khi không tìm lại được bản ghi: `creating` là state của danh sách chứ
-    // không phải của dialog, nên để nó bật thì quay về trang Workspaces là modal tự mở lại và
-    // scrim phủ lên chặn hết trang.
+    if (createdWorkspace?.id) {
+      session.run('open', { kind: 'workspace', id: createdWorkspace.id, name: createdWorkspace.name })
+    }
     onClose()
   }
 
@@ -132,7 +139,7 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
         <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="workspaces" /></span>
         <div className="dialog-head-text">
           <h2 id="pv-create-title">Tạo Workspace</h2>
-          {!done && <p>Workspace mới là một ranh giới truy cập riêng, chứa project · tập dữ liệu · thành viên của nó.</p>}
+          {!done && <p>Đặt tên cho Workspace và thêm thành viên nếu cần.</p>}
         </div>
         <Button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending} onClick={onClose}>
           <PreviewIcon name="close" />
@@ -142,19 +149,14 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
       {done ? <div className="pv-wizard-success">
         <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
         <h3>Tạo Workspace thành công!</h3>
-        <p>Workspace “{createdName}” đã được tạo và sẵn sàng sử dụng, với {selected.length + 1} thành viên (gồm chủ sở hữu).</p>
-        <p className="dialog-note">{previewNote}</p>
+        <p>Workspace “{createdWorkspace.name}” đã được tạo với {selected.length + 1} thành viên (gồm chủ sở hữu).</p>
         <footer className="dialog-actions">
           <Button type="button" className="button-secondary" onClick={reset}>Tạo Workspace khác</Button>
-          <Button type="button" className="button-primary" onClick={viewWorkspace}><PreviewIcon name="arrow" /> Xem Workspace</Button>
+          <Button type="button" className="button-primary" onClick={viewWorkspace}><PreviewIcon name="arrow" /> {createdWorkspace.id ? 'Xem Workspace' : 'Về danh sách Workspace'}</Button>
         </footer>
       </div> : <>
-        <div className="pv-create-grid">
-          <aside className="pv-create-aside" aria-hidden="true">
-            <span className="pv-create-art"><CoverArt hue="blue" seed={5} /></span>
-            <p>Tạo một Workspace mới để nhóm hóa Projects, quản lý thành viên và cộng tác hiệu quả.</p>
-          </aside>
-
+        <WorkspaceAvatarField open={avatarOpen} onOpenChange={setAvatarOpen} value={avatar} onSave={setAvatar}
+          staged disabled={pending} cover={avatar.art ? <SelectedResourceArt value={avatar.art} /> : <CoverArt hue="blue" seed={5} />}>
           <div className="ws-edit-fields">
             <div className="ws-edit-field">
               <label className="dialog-field">
@@ -201,19 +203,18 @@ export function WorkspaceCreateDialog({ existingNames, onClose }: {
                   <PreviewIcon name="plus" /> Thêm
                 </Button>
               </div>
-              <span className="dialog-counter">{selected.length === 0
-                ? 'Chưa thêm ai — chủ sở hữu luôn thuộc Workspace này.'
-                : `Đã thêm ${selected.length} email`}</span>
+              {selected.length > 0 && <span className="dialog-counter">Đã thêm {selected.length} email</span>}
             </div>
           </div>
-        </div>
+        </WorkspaceAvatarField>
 
         {error && <p className="dialog-error" id="pv-create-error" role="alert">{error}</p>}
-        <p className="dialog-note">{previewNote}</p>
-        <footer className="dialog-actions pv-wizard-foot">
+        {!avatarOpen && <footer className="dialog-actions pv-wizard-foot">
           <Button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</Button>
-          <Button type="button" className="button-primary" disabled={pending} onClick={() => { void submit() }}><PreviewIcon name="plus" /> Tạo Workspace</Button>
-        </footer>
+          <Button type="button" className="button-primary" busy={pending} onClick={() => { void submit() }}>
+            <PreviewIcon name={pending ? 'clock' : 'plus'} /> {pending ? 'Đang tạo Workspace…' : 'Tạo Workspace'}
+          </Button>
+        </footer>}
       </>}
   </Dialog>
 }

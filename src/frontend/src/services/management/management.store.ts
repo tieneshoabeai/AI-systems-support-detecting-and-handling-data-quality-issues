@@ -548,6 +548,8 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const store: ManagementStore = {
     ...(options.progressiveProjects ? {
       loadCardData,
+    } : {}),
+    ...(options.progressiveProjects || options.projectId ? {
       loadProjectWizardRoster: async (workspaceId: string, signal: AbortSignal) =>
         (await loadMembers(`/workspaces/${encodeURIComponent(workspaceId)}/members`, signal)).map(person),
     } : {}),

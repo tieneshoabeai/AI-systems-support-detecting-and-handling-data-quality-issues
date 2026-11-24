@@ -26,6 +26,7 @@ import {
 } from 'three'
 import type { IUniform, Object3D } from 'three'
 import { ORBIT_RINGS, ORBIT_Y } from '../../../graphics/holographic-core/orbit.config'
+import { applyLightChartAppearance } from '../../../graphics/holographic-core/light-chart-appearance'
 
 export type DecorConcept = 'star-chart' | 'deep-space' | 'off'
 export const DECOR_CONCEPT: DecorConcept = 'star-chart'
@@ -34,7 +35,7 @@ export const DECOR_CONCEPT: DecorConcept = 'star-chart'
 const CENTER_CLEAR = 0.5
 
 type Shared = { uTime: IUniform<number>; uClear: IUniform<Vector2> }
-type DecorProps = { shared: Shared; reducedMotion: boolean }
+type DecorProps = { shared: Shared; reducedMotion: boolean; light?: boolean }
 
 const RAD = Math.PI / 180
 const disableRaycast = () => {}
@@ -398,7 +399,56 @@ function StarChartMotion({ shared, sphere, dial }: {
   return null
 }
 
-function StarChart({ shared, reducedMotion }: DecorProps) {
+function createCelestialMarkers() {
+  const positions: number[] = []
+  for (const { azimuth, height, scale, rotation } of [
+    { azimuth: 184, height: 1.7, scale: 1.05, rotation: -.30 },
+    { azimuth: 265, height: 2.5, scale: .85, rotation: .48 },
+  ]) {
+    const center = skyPoint(azimuth, 0, 17)
+    center.y = height
+    const tangent = skyPoint(azimuth + 90, 0, 1)
+    const addPoint = (x: number, y: number) => {
+      const horizontal = scale * (x * Math.cos(rotation) - y * Math.sin(rotation))
+      const vertical = scale * (x * Math.sin(rotation) + y * Math.cos(rotation))
+      positions.push(center.x + tangent.x * horizontal, center.y + vertical, center.z + tangent.z * horizontal)
+    }
+    const polar = (radius: number, angle: number) => addPoint(radius * Math.cos(angle), radius * Math.sin(angle))
+    // Broken rings and short graduation marks read as instruments on a star atlas.
+    for (const [start = 0, sweep = 0, radius = 1] of [[.16, 1.72, 1], [2.27, 1.34, 1], [4.1, 1.64, 1], [.52, 1.1, .78], [3.39, 1.05, .78]]) {
+      for (let i = 0; i < 20; i++) {
+        polar(radius, start + sweep * i / 20)
+        polar(radius, start + sweep * (i + 1) / 20)
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      const angle = i * Math.PI / 6
+      polar(1.09, angle)
+      polar(i % 3 === 0 ? 1.24 : 1.15, angle)
+    }
+    for (let i = 0; i < 4; i++) {
+      polar(.19, i * Math.PI / 2)
+      polar(.19, (i + 1) * Math.PI / 2)
+      polar(.29, i * Math.PI / 2)
+      polar(.46, i * Math.PI / 2)
+    }
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
+  return geometry
+}
+
+function CelestialMarkers({ light }: { light: boolean }) {
+  const geometry = useMemo(() => createCelestialMarkers(), [])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  return <lineSegments name="decor-celestial-markers" raycast={disableRaycast} renderOrder={-1}>
+    <primitive object={geometry} attach="geometry" />
+    <lineBasicMaterial color={light ? '#397bb9' : '#8bb9ff'}
+      opacity={light ? .52 : .44} transparent depthWrite={false} fog={false} toneMapped={false} />
+  </lineSegments>
+}
+
+function StarChart({ shared, reducedMotion, light = false }: DecorProps) {
   const sphere = useMemo(() => {
     const group = new Group()
     group.name = 'decor-star-chart'
@@ -412,10 +462,17 @@ function StarChart({ shared, reducedMotion }: DecorProps) {
   const dial = useMemo(() => createOrbitDial(), [])
   useEffect(() => () => disposeObject(sphere), [sphere])
   useEffect(() => () => disposeObject(dial.root), [dial])
+  useEffect(() => {
+    if (!light) return
+    const restoreSphere = applyLightChartAppearance(sphere)
+    const restoreDial = applyLightChartAppearance(dial.root)
+    return () => { restoreSphere(); restoreDial() }
+  }, [dial, light, sphere])
   return <>
     {!reducedMotion && <StarChartMotion shared={shared} sphere={sphere} dial={dial} />}
     <primitive object={sphere} />
     <primitive object={dial.root} />
+    <CelestialMarkers light={light} />
   </>
 }
 
@@ -661,7 +718,7 @@ function DeepSpace({ shared, reducedMotion }: DecorProps) {
 
 const DECOR_COMPONENTS = { 'star-chart': StarChart, 'deep-space': DeepSpace, off: null }
 
-export function HolographicDecor({ reducedMotion }: { reducedMotion: boolean }) {
+export function HolographicDecor({ reducedMotion, colorMode = 'dark' }: { reducedMotion: boolean; colorMode?: 'light' | 'dark' }) {
   const { width, height } = useThree(state => state.size)
   const shared = useMemo<Shared>(() => ({
     uTime: { value: 0 },
@@ -669,5 +726,5 @@ export function HolographicDecor({ reducedMotion }: { reducedMotion: boolean }) 
   }), [])
   useEffect(() => resizeShared(shared, width, height), [shared, width, height])
   const Concept = DECOR_COMPONENTS[DECOR_CONCEPT]
-  return Concept && <Concept shared={shared} reducedMotion={reducedMotion} />
+  return Concept && <Concept shared={shared} reducedMotion={reducedMotion} light={colorMode === 'light'} />
 }

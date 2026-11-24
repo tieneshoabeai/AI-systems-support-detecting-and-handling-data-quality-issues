@@ -67,6 +67,18 @@ export const DEFAULT_ICON = 'sparkle:blue'
 export type Kind = 'workspace' | 'project'
 export type Slot = 'art' | 'icon'
 export const keyFor = (kind: Kind, id: string, slot: Slot = 'art') => `${slot === 'icon' ? iconPrefix : artPrefix}${kind}.${id}`
+export type ResourceAvatarChoice = { art: string | null; icon?: string | null }
+
+export function saveResourceAvatar(kind: Kind, id: string, { art, icon }: ResourceAvatarChoice) {
+  const write = (slot: Slot, value: string | null) => {
+    const key = keyFor(kind, id, slot)
+    if (value) localStorage.setItem(key, value)
+    else localStorage.removeItem(key)
+  }
+  write('art', art)
+  if (icon !== undefined) write('icon', icon)
+  window.dispatchEvent(new Event(changed))
+}
 export const subscribe = (listener: () => void) => {
   window.addEventListener(changed, listener)
   window.addEventListener('storage', listener)

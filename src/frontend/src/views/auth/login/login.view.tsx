@@ -11,6 +11,8 @@ import { parseDisplayBaseView } from '../../../graphics/auth-glass/display-base/
 import '../login-glass.css'
 import { createAccountService } from '../../../services/auth/account.service'
 import { PasswordRecoveryDialog } from './sections/password-recovery-dialog'
+import { usePreviewColorScheme } from '../../../hooks/preview/use-preview-color-scheme'
+import { ColorModeSelect } from '../../../components/appearance/color-mode-select'
 
 const compactLoginQuery = '(width < 992px)'
 const sceneLoadTimeoutMs = 10_000
@@ -32,6 +34,7 @@ const DisplayBaseReview = lazy(async () => {
 
 export const LoginView = () => {
   const form = useLogin()
+  const appearance = usePreviewColorScheme()
   const pageElement = useRef<HTMLElement>(null)
   const formElement = useRef<HTMLElement>(null)
   const registerElement = useRef<HTMLElement>(null)
@@ -107,10 +110,11 @@ export const LoginView = () => {
   if (import.meta.env.DEV && reviewView) {
     return <Suspense fallback={null}><AuthGlassReview view={reviewView} overlay={overlay && reviewView === 'hero'} low={low} /></Suspense>
   }
-  return <main className="login-page auth-glass-login" ref={pageElement}>
+  return <main className="login-page auth-glass-login" data-theme={appearance.resolved} ref={pageElement}>
     <header className="auth-glass-brand">
       <DataVerseMark className="auth-glass-brand-mark" />
       <div><strong>DataVerse</strong><span>Your Data. Our Universe.</span></div>
+      <ColorModeSelect appearance={appearance} />
     </header>
     <div className="auth-glass-login-layout">
       <div className="auth-glass-visual" data-scene={showScene ? sceneStatus : undefined}>
@@ -120,6 +124,7 @@ export const LoginView = () => {
             <Suspense fallback={null}>
               <AuthGlassStage
                 interactive
+                colorMode={appearance.resolved}
                 pageElement={pageElement}
                 formElement={formElement}
                 registerElement={registerElement}
@@ -234,7 +239,7 @@ export const LoginView = () => {
       </div>
       <section className="auth-glass-universe" aria-labelledby="auth-glass-universe-heading">
         <span className="eyebrow">Data Universe</span>
-        <h2 id="auth-glass-universe-heading">Dữ liệu là<br />vũ trụ của những cơ hội</h2>
+        <h2 id="auth-glass-universe-heading">Dữ liệu là <span className="universe-title-accent">vũ trụ của những cơ hội</span></h2>
         <p>DataVerse giúp bạn khám phá, đánh giá và nâng tầm chất lượng dữ liệu bằng sức mạnh công nghệ và trí tuệ nhân tạo.</p>
         <ul>
           <li><strong>Khám phá</strong><span>Dữ liệu sâu hơn</span></li>

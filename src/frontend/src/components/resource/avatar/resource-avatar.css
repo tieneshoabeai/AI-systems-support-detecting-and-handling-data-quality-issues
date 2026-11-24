@@ -66,7 +66,6 @@
 [data-preview='2d'] .image-tone-pink { --avatar-filter: sepia(1) saturate(2.5) hue-rotate(280deg); }
 [data-preview='2d'] .image-tone-cyan { --avatar-filter: sepia(1) saturate(2.5) hue-rotate(130deg); }
 [data-preview='2d'] .resource-avatar-image img { filter: var(--avatar-filter, none); }
-[data-preview='2d'] .avatar-tone-note { color: var(--pv-muted); margin-bottom: 14px; font-size: 12px; }
 [data-preview='2d'] :is(.avatar-library, .avatar-motifs) button[aria-pressed='true'] {
   box-shadow: 0 0 0 2px var(--pv-blue-soft), 0 0 18px var(--pv-blue-soft);
 }

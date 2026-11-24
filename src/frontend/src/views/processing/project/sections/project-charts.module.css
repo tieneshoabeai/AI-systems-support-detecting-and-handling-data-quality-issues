@@ -1,0 +1,59 @@
+.histogram {
+  --plot-accent: light-dark(#2165c2, #8abcdc);
+  --plot-selected: light-dark(#154d9a, #c4e5ff);
+  display: grid; gap: 10px; min-width: 0; margin: 0; padding: 12px;
+  border: 1px solid var(--pv-line); border-radius: 12px; background: var(--pv-bg-2);
+  font-variant-numeric: tabular-nums;
+}
+.chartCaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.chartCaption h4 { font-size: 14px; line-height: 1.4; }
+.chartCaption p { color: var(--pv-muted); font-size: 11px; }
+.segments { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid var(--pv-line); border-radius: 8px; background: var(--pv-bg-1); }
+.segments button { padding: 4px 7px; min-height: 27px; border: 1px solid transparent; border-radius: 5px; font-size: 11px; color: var(--module-control-ink, var(--pv-ink)); }
+.segments button:is(:hover, [aria-pressed='true']) {
+  background: var(--module-control-hover, var(--pv-blue-soft));
+  border-color: var(--module-control-edge, var(--pv-line));
+}
+.segments button[aria-pressed='true'] { font-weight: 650; }
+.chartFrame { --plot-height: 148px; display: grid; grid-template-columns: minmax(3ch, auto) minmax(0, 1fr); gap: 8px; }
+.scale { display: flex; flex-direction: column; justify-content: space-between; height: var(--plot-height); text-align: end; color: var(--pv-muted); font-size: 10px; line-height: 1; }
+.plotScroller { min-width: 0; overflow-x: auto; padding: 1px 2px 3px; }
+.plot {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(22px, 1fr); gap: 4px; height: var(--plot-height);
+  border-block-end: 1px solid var(--pv-line-strong);
+  background: linear-gradient(to bottom, var(--pv-line) 1px, transparent 1px) top / 100% 25%;
+}
+.plot > button { display: flex; align-items: end; justify-content: center; padding: 0 2px; min-width: 0; }
+.plot > button > span { display: block; width: 100%; max-width: 48px; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, var(--plot-accent), color-mix(in srgb, var(--plot-accent) 58%, var(--pv-bg-2))); }
+.plot > button[aria-pressed='true'] { background: color-mix(in srgb, var(--plot-accent) 13%, transparent); }
+.plot > button[aria-pressed='true'] > span, .plot > button:hover > span { background: var(--plot-selected); }
+.plot > button:focus-visible { outline-offset: -2px; }
+.range { display: flex; justify-content: space-between; gap: 8px; padding-inline-start: 25px; color: var(--pv-muted); font-size: 10px; overflow-wrap: anywhere; }
+.readout {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 3px 10px; padding: 8px 9px;
+  border-radius: 7px; background: var(--pv-bg-1); color: var(--pv-muted); font-size: 11px; overflow-wrap: anywhere;
+}
+.readout strong { color: var(--pv-ink); }
+.dataDetails { color: var(--pv-muted); font-size: 11px; }
+.dataDetails summary { cursor: pointer; font-weight: 650; color: var(--pv-ink-link); }
+.dataViewport { max-height: 220px; overflow: auto; margin-top: 6px; }
+.dataViewport table { border-collapse: collapse; width: 100%; }
+.dataViewport :is(th, td) { padding: 4px 6px; border-bottom: 1px solid var(--pv-line); text-align: end; overflow-wrap: anywhere; }
+.dataViewport :is(th, td):first-child { text-align: start; }
+.dataViewport tbody th { font-weight: 500; }
+.boxScale { display: flex; justify-content: space-between; gap: 8px; margin-inline: .55rem; color: var(--diagnostic-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rangeLegend { color: var(--diagnostic-muted); font-size: 11px; }
+.correlation { display: grid; gap: 7px; min-width: 0; }
+.correlation ul { display: grid; gap: 8px; list-style: none; padding: 0; }
+.correlation li { display: grid; gap: 4px; min-width: 0; }
+.pairLabel { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.pairLabel strong { flex: none; font-variant-numeric: tabular-nums; }
+.correlationTrack { position: relative; height: 12px; border-radius: 4px; background: var(--pv-bg-2); overflow: hidden; }
+.correlationTrack::after { content: ''; position: absolute; inset: 0 auto 0 50%; width: 1px; background: var(--pv-line-strong); }
+.correlationTrack span { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; background: light-dark(#1b6a9d, #83d1ff); }
+.correlationTrack span[data-negative='true'] { background: light-dark(#a84b2f, #ffb192); }
+.correlationAxis { display: flex; justify-content: space-between; color: var(--pv-muted); font-size: 10px; }
+@media (forced-colors: active) {
+  .plot > button > span, .correlationTrack > span { background: Highlight; forced-color-adjust: none; }
+  .plot > button[aria-pressed='true'], .segments button[aria-pressed='true'] { outline: 1px solid Highlight; }
+}

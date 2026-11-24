@@ -4,14 +4,15 @@ import { requireDefined } from '../../../utils/required-value'
 import { useEffect, useMemo } from 'react'
 import type { RefObject } from 'react'
 import { useThree } from '@react-three/fiber'
-import { SRGBColorSpace, Texture } from 'three'
+import { Color, SRGBColorSpace, Texture } from 'three'
 import pageBackground from '../../../assets/background.svg'
+import pageBackgroundLight from '../../../assets/auth-light-orbital-atlas.webp'
 import { createAuthBackdropMaterial } from '../../../graphics/auth-glass/auth-glass.materials'
 
 // This texture serves the glass effect. The page background uses the full asset.
 const maxBackdropTextureEdge = 768
 
-export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTMLElement | null> }) {
+export function AuthGlassBackdrop({ pageElement, colorMode = 'dark' }: { pageElement?: RefObject<HTMLElement | null>; colorMode?: 'light' | 'dark' }) {
   const canvas = useThree(state => state.gl.domElement)
   const invalidate = useThree(state => state.invalidate)
   const material = useMemo(() => createAuthBackdropMaterial(), [])
@@ -25,6 +26,9 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
     const texture = new Texture<HTMLImageElement | HTMLCanvasElement>(image)
     texture.colorSpace = SRGBColorSpace
     const uniforms = material.uniforms
+    requireDefined(uniforms['uLightMode'], 'auth backdrop theme').value = colorMode === 'light'
+    uniformValue(requireDefined(uniforms['uPageBackdropBase'], 'auth backdrop base'), Color).set(colorMode === 'light' ? '#f7f9fd' : '#02040c')
+    invalidate()
 
     function updateCrop() {
       if (!page || !image.naturalWidth || !image.naturalHeight) return
@@ -68,7 +72,7 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
     observer.observe(canvas)
     window.addEventListener('resize', updateCrop)
     image.addEventListener('load', showBackdrop)
-    image.src = pageBackground
+    image.src = colorMode === 'light' ? pageBackgroundLight : pageBackground
 
     return () => {
       observer.disconnect()
@@ -78,7 +82,7 @@ export function AuthGlassBackdrop({ pageElement }: { pageElement?: RefObject<HTM
       requireDefined(uniforms['uHasPageBackdrop'], 'auth-glass.backdrop.tsx:64').value = false
       texture.dispose()
     }
-  }, [canvas, invalidate, material, pageElement])
+  }, [canvas, colorMode, invalidate, material, pageElement])
 
   return <mesh name="Backdrop" frustumCulled={false} renderOrder={-100} material={material}>
     <planeGeometry args={[2, 2]} />

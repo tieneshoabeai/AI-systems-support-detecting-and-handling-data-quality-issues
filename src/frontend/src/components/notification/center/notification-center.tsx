@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import type { NotificationFilterTab, PreviewNotification } from '../../../types'
 import {
   matchNotificationQuery, matchNotificationTab, notificationIcon, notificationKindLabels,
-  notificationTabsFor, noticeDetailReason, previewNoteIds, previewReasons,
+  notificationTabsFor, noticeDetailReason, previewNoteIds,
 } from '../../../hooks/preview/preview-presentation'
 import type { NoticeOpenGap } from '../../../hooks/preview/preview-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
@@ -130,11 +130,11 @@ export function NotificationCenter() {
   return <div className="notice-center">
     {view === 'quick' && <>
       <div className="popover-head">
-        <strong>Thông báo</strong>
+        <span className="popover-title"><PreviewIcon name="bell" /><strong>Thông báo</strong></span>
         <div className="center-head-actions">
           {unreadNotifications > 0 && <span className="center-chip">{unreadNotifications} chưa đọc</span>}
           <Button type="button" className="text-link" disabled={unreadNotifications === 0}
-            aria-describedby={unreadNotifications === 0 ? previewNoteIds.notifications : undefined}
+            aria-describedby={unreadNotifications === 0 ? previewNoteIds.notificationList : undefined}
             onClick={session.readAllNotifications}>
             Đánh dấu tất cả đã đọc
           </Button>
@@ -142,7 +142,7 @@ export function NotificationCenter() {
       </div>
 
       {quickShown.length === 0
-        ? <p className="notice-empty">Không còn thông báo chưa đọc. Bấm “Xem tất cả” để xem lại toàn bộ hộp thư.</p>
+        ? <p className="notice-empty" id={previewNoteIds.notificationList}>Không còn thông báo chưa đọc. Bấm “Xem tất cả” để xem lại toàn bộ hộp thư.</p>
         : <ul className="notice-list">{quickShown.map(item => <li key={item.id}>
           <QuickRow item={item} onOpen={() => openDetail(item.id, 'quick')} />
         </li>)}</ul>}
@@ -150,9 +150,6 @@ export function NotificationCenter() {
       <div className="popover-foot">
         <Button type="button" className="text-link" onClick={goList}>Xem tất cả thông báo</Button>
       </div>
-      <p className="popover-note" id={previewNoteIds.notifications}>{session.state.source === 'api'
-        ? 'Chọn thông báo để đánh dấu đã đọc. Hiện chưa hỗ trợ xóa thông báo.'
-        : previewReasons.notificationInbox}</p>
     </>}
 
     {view === 'list' && <>
@@ -185,12 +182,12 @@ export function NotificationCenter() {
             : `Đã chọn ${chosen.length} · ${chosenElsewhere} mục nằm ngoài danh sách đang hiện`}</span>
         <div className="bulk-actions">
           <Button type="button" className="button-secondary" disabled={chosen.length === 0}
-            aria-describedby={previewNoteIds.notifications} onClick={() => applyRead(chosen)}>Đánh dấu đã đọc</Button>
-          <Button type="button" className="button-danger" title="Máy chủ chưa hỗ trợ xóa thông báo" disabled={session.state.source === 'api' || chosen.length === 0}
-            aria-describedby={previewNoteIds.notifications} onClick={() => applyDelete(chosen)}>
+            onClick={() => applyRead(chosen)}>Đánh dấu đã đọc</Button>
+          <Button type="button" className="button-danger" title={session.state.source === 'api' ? 'Máy chủ chưa hỗ trợ xóa thông báo' : undefined}
+            disabled={session.state.source === 'api' || chosen.length === 0} onClick={() => applyDelete(chosen)}>
             <PreviewIcon name="trash" /> Xóa</Button>
           <Button type="button" className="text-link" disabled={chosen.length === 0}
-            aria-describedby={previewNoteIds.notifications} onClick={clearPicked}>Bỏ chọn</Button>
+            onClick={clearPicked}>Bỏ chọn</Button>
         </div>
       </div>
 
@@ -199,7 +196,6 @@ export function NotificationCenter() {
           hộp thư đầy đủ (nơi người dùng thật sự đổi được số dòng mỗi trang). */}
       <Pagination label="Phân trang thông báo" total={filtered.length} page={safePage} perPage={perPage}
         onPage={goToPage} hideWhenEmpty />
-      <p className="popover-note" id={previewNoteIds.notifications}>{previewReasons.notificationInbox}</p>
     </>}
 
     {view === 'detail' && <>

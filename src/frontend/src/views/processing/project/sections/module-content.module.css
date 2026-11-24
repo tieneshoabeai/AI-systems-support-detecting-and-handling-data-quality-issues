@@ -1,0 +1,81 @@
+.stack { display: grid; gap: 14px; min-width: 0; color: var(--pv-ink); }
+.card {
+  display: grid; gap: 12px; min-width: 0; padding: clamp(12px, 2vw, 18px);
+  border: 1px solid var(--pv-line); border-radius: 13px; background: var(--pv-bg-1); color: var(--pv-ink);
+}
+.cardHeading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 9px; }
+.cardHeading > div { min-width: 0; }
+.card :is(h3, h4) { margin: 0; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; text-wrap: pretty; }
+.cardHeading p, .muted { margin: 3px 0 0; color: var(--pv-muted); font-size: 12px; overflow-wrap: anywhere; }
+.datasetName { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.datasetName > div { min-width: 0; }
+.iconTile {
+  display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 10px;
+  color: var(--module-ink, var(--pv-ink-link)); background: var(--module-wash, var(--pv-blue-soft));
+}
+.iconTile svg { width: 18px; height: 18px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 92px), 1fr)); gap: 8px; margin: 0; }
+.metrics > div { min-width: 0; padding: 9px 11px; border: 1px solid var(--pv-line); border-radius: 9px; background: var(--pv-bg-2); }
+.metrics dt { color: var(--pv-muted); font-size: 11px; }
+.metrics dd { margin: 2px 0 0; font-size: 19px; font-weight: 720; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.actions svg, .disclosure summary svg { width: 15px; height: 15px; flex: none; }
+.fields {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  align-items: end; gap: 10px; min-width: 0;
+}
+.fields label, .field { display: grid; gap: 5px; min-width: 0; color: var(--pv-muted); font-size: 12px; font-weight: 650; }
+.fields :is(input, select), .field :is(input, select) {
+  min-width: 0; width: 100%; min-height: 38px; padding: 7px 8px;
+  border: 1px solid var(--pv-line-strong); border-radius: 8px;
+  background: var(--pv-bg-2); color: var(--pv-ink); font: inherit; font-weight: 500;
+}
+.fields select option, .field select option { background: var(--pv-bg-1); color: var(--pv-ink); }
+.tableViewport { min-width: 0; max-height: min(320px, 48vh); overflow: auto; overscroll-behavior: contain; border: 1px solid var(--pv-line); border-radius: 9px; }
+.table { width: 100%; text-align: start; border-collapse: separate; border-spacing: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.table :is(td, th) { padding: 8px 10px; text-align: start; vertical-align: top; border-bottom: 1px solid var(--pv-line); }
+.table thead th { position: sticky; top: 0; z-index: 1; background: var(--pv-bg-2); color: var(--pv-ink); }
+.table tbody tr:last-child :is(td, th) { border-bottom: 0; }
+.table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--pv-bg-2) 55%, transparent); }
+.table tbody tr:hover { background: var(--pv-blue-soft); }
+.table:not(.schema) :is(td, th) { min-width: 88px; max-width: 225px; overflow-wrap: anywhere; }
+.table:not(.schema) :is(th, td):first-child { min-width: 54px; }
+.schema :is(th, td) { overflow-wrap: anywhere; }
+.schema tbody th { font-weight: 650; }
+.schemaTypes { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.schemaTypes li {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(20px, 1.5fr) auto;
+  align-items: center; gap: 8px; color: var(--pv-muted); font-size: 11px;
+  overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
+}
+.schemaTypes strong { color: var(--pv-ink); }
+.typeTrack { height: 6px; overflow: hidden; border-radius: 4px; background: var(--pv-bg-2); }
+.typeTrack > span { display: block; height: 100%; border-radius: inherit; background: var(--module-ink, var(--pv-ink-link)); }
+.pill {
+  display: inline-block; padding: 2px 7px; border-radius: 5px; background: var(--pv-blue-soft);
+  color: var(--pv-ink-link); font-size: 11px; font-weight: 650; overflow-wrap: anywhere;
+}
+.pill[data-tone='warning'] { background: color-mix(in srgb, var(--pv-ink-amber) 13%, transparent); color: var(--pv-ink-amber); }
+.pageControls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--pv-muted); font-size: 12px; }
+.notice {
+  margin: 0; display: flex; align-items: start; gap: 8px; padding: 10px 11px; border-radius: 8px;
+  border: 1px solid var(--pv-line); background: var(--pv-bg-2); color: var(--pv-muted); overflow-wrap: anywhere;
+}
+.notice svg { width: 16px; height: 16px; flex: none; margin-block-start: 2px; color: var(--module-ink, var(--pv-ink-link)); }
+.notice[data-tone='error'] { color: var(--pv-ink-rose); background: color-mix(in srgb, var(--pv-ink-rose) 8%, var(--pv-bg-1)); }
+.notice[data-tone='error'] svg { color: inherit; }
+.disclosure { min-width: 0; border: 1px solid var(--pv-line); border-radius: 11px; background: var(--pv-bg-1); }
+.disclosure > summary { padding: 10px 13px; font-size: 13px; font-weight: 650; cursor: pointer; }
+.disclosure[open] > summary { border-bottom: 1px solid var(--pv-line); }
+.disclosureBody { display: grid; gap: 10px; min-width: 0; padding: 12px; }
+.response { margin: 0; padding: 2px; max-height: 250px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.columnChoices {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 6px;
+  min-width: 0; max-height: 150px; margin: 0; padding: 8px; overflow: auto;
+  border: 1px solid var(--pv-line); border-radius: 9px;
+}
+.columnChoices legend { padding-inline: 5px; color: var(--pv-muted); font-weight: 650; }
+.columnChoices label { display: flex; align-items: center; gap: 7px; padding: 4px 6px; font-size: 12px; overflow-wrap: anywhere; }
+.columnChoices label:has(:checked) { background: var(--pv-blue-soft); border-radius: 6px; }
+.columnChoices input { accent-color: var(--pv-blue-fill); }
+.card :focus-visible, .disclosure :focus-visible { outline: 2px solid var(--pv-ink-link); outline-offset: 2px; }

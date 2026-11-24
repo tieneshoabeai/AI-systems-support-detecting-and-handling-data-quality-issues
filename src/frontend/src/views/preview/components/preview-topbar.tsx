@@ -1,5 +1,5 @@
 import { Button, Input } from '../../../components/ui/controls'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewNotification, PreviewSectionId, PreviewStoreState, SettingsSectionId } from '../../../types'
 import { NotificationCenter } from './notification-center'
@@ -183,6 +183,7 @@ function TopbarAccount() {
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [signOutError, setSignOutError] = useState(false)
+  const descriptionId = useId()
 
   // Design Board 4.1 vẽ ba mục: Hồ sơ cá nhân · Cài đặt tài khoản · Đăng xuất. Hai mục đầu
   // ĐIỀU HƯỚNG sang nhánh Accounts của Settings (đặc tả dòng 9), không chạy "trong ô".
@@ -195,9 +196,9 @@ function TopbarAccount() {
   // 'security', tức một NHÓM ba mục bị đại diện bởi một màn con tùy chọn. Từ menu, người dùng
   // mới nói "tôi muốn vào cài đặt tài khoản", chưa nói họ muốn mục nào trong ba mục → về tổng
   // quan để họ mở Accounts rồi chọn trang cần dùng.
-  const rows: readonly { label: string; icon: string; to: SettingsSectionId | 'overview' }[] = [
-    { label: 'Hồ sơ cá nhân', icon: 'users', to: 'profile' },
-    { label: 'Cài đặt tài khoản', icon: 'settings', to: 'overview' },
+  const rows: readonly { label: string; description: string; icon: string; to: SettingsSectionId | 'overview' }[] = [
+    { label: 'Hồ sơ cá nhân', description: 'Cập nhật tên, đơn vị và thông tin liên hệ', icon: 'user', to: 'profile' },
+    { label: 'Cài đặt tài khoản', description: 'Quản lý bảo mật, phiên đăng nhập và thông báo', icon: 'settings', to: 'overview' },
   ]
 
   const runRow = (row: (typeof rows)[number]): void => {
@@ -217,19 +218,26 @@ function TopbarAccount() {
     <PreviewPopover open={open} label={`Tài khoản ${accountInfo.name}`} trigger={trigger} align="end" size="lg" onClose={() => setOpen(false)}>
       <div className="account-head">
         <span className="avatar avatar-lg" aria-hidden="true">{accountInfo.initials}</span>
-        <span className="account-id"><strong>{accountInfo.name}</strong><small>{accountInfo.email}</small><small>{accountInfo.role}</small></span>
+        <span className="account-id">
+          <strong>{accountInfo.name}</strong>
+          {accountInfo.email && <small>{accountInfo.email}</small>}
+          {accountInfo.role && <span className="account-role">{accountInfo.role}</span>}
+        </span>
       </div>
       <ul className="account-list">
         {rows.map(row => <li key={row.label}>
-          <Button type="button" className="account-row" onClick={() => runRow(row)}>
+          <Button type="button" className="account-row account-destination"
+            aria-label={row.label} aria-describedby={`${descriptionId}-${row.to}`} onClick={() => runRow(row)}>
             <span className="menu-icon" aria-hidden="true"><PreviewIcon name={row.icon} /></span>
             <span className="account-text">
               <span className="account-label">{row.label}</span>
+              <small id={`${descriptionId}-${row.to}`} className="account-description">{row.description}</small>
             </span>
+            <span className="account-chevron" aria-hidden="true"><PreviewIcon name="chevron" /></span>
           </Button>
         </li>)}
-        {auth && <li>
-          <Button type="button" className="account-row" disabled={signingOut} onClick={() => {
+        {auth && <li className="account-signout">
+          <Button type="button" className="account-row is-danger" disabled={signingOut} onClick={() => {
             setSigningOut(true)
             setSignOutError(false)
             void auth.signOut().catch(() => {
@@ -242,7 +250,7 @@ function TopbarAccount() {
               <span className="account-label">{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
             </span>
           </Button>
-          {signOutError && <p role="alert">Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.</p>}
+          {signOutError && <p className="account-error" role="alert">Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.</p>}
         </li>}
       </ul>
     </PreviewPopover>

@@ -24,17 +24,16 @@ export function UniverseHero({ scene, headingId = 'hero-title' }: UniverseHeroPr
   </div>
   return <section className="hero universe-hero" aria-labelledby={headingId}>
     <div className="hero-copy">
-      <span className="eyebrow">Chào mừng đến với DataVerse</span>
       <h1 id={headingId} tabIndex={-1}>Khám phá <span>vũ trụ dữ liệu</span> của bạn</h1>
-      <p>Một không gian để kết nối đội nhóm, khám phá dữ liệu và tìm ra những điều có ý nghĩa.</p>
+      <p>Kết nối đội ngũ trong một không gian thống nhất để phân tích, đánh giá chất lượng và khám phá những góc nhìn mới từ dữ liệu. Mỗi phát hiện rõ ràng hơn sẽ trở thành nền tảng cho những quyết định tự tin.</p>
     </div>
     <div className="hero-stage">
       {scene ?? <div className="hero-stage-placeholder" role="img" aria-label="Minh họa vũ trụ dữ liệu">
         <Suspense fallback={fallback}><HomeUniverse paused={paused} fallback={fallback} light={appearance.resolved === 'light'} /></Suspense>
       </div>}
     </div>
-    {!scene && <button type="button" className="hero-motion-button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>
-      <PreviewIcon name={paused ? 'processing' : 'pause'} />{paused ? 'Tiếp tục chuyển động' : 'Dừng chuyển động'}
+    {!scene && <button type="button" className="hero-motion-button" aria-label={paused ? 'Tiếp tục chuyển động' : 'Dừng chuyển động'} aria-pressed={paused} onClick={() => setPaused(value => !value)}>
+      <PreviewIcon name={paused ? 'processing' : 'pause'} />
     </button>}
     <ul className="hero-values">
       {heroValues.map(value => <li key={value.title}>

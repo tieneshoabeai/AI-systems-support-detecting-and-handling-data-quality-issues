@@ -231,6 +231,16 @@ Dev server dùng `https://localhost:5173` và strict port. `yarn dev:cert` tạo
 
 ### Xem giao diện bằng mock local (PowerShell)
 
+Nếu trình duyệt báo `Certificate Error` với chứng chỉ tự ký, có thể xem UI bằng HTTP local. Dừng Vite đang chạy (`Ctrl+C`), đặt biến sau rồi chạy lại:
+
+~~~powershell
+$env:DEV_HTTPS = "false"
+$env:VITE_MANAGEMENT_DATA_MODE = "mock"
+npm run dev
+~~~
+
+Mở `http://localhost:5173/auth/login` để chỉnh giao diện login, hoặc `/management` và `/processing` để xem mock. Form login vẫn gọi API thật khi gửi. Khi cần kiểm tra phiên đăng nhập với backend triển khai, đặt `$env:DEV_HTTPS = "true"`, khởi động lại Vite và dùng chứng chỉ HTTPS được trình duyệt tin cậy. Bỏ biến `DEV_HTTPS` cũng khôi phục mặc định HTTPS.
+
 Chạy trong `src/frontend`; nếu đã có dependencies và hai file certificate thì không cần cài hoặc tạo lại:
 
 ~~~powershell
@@ -276,6 +286,8 @@ Suite kiểm tra guard, login/reload, logout và cờ thu hồi phiên phía BE,
 Không có credentials vẫn có thể chạy riêng `yarn test:e2e tests/e2e/auth/anonymous-guard.spec.ts`. Bộ Vitest mock giữ nguyên cho timeout, lỗi mạng và race. Live E2E tắt trace để tránh lưu password/token trong network trace; screenshot lỗi và report nằm trong `.agents/testing-e2e/`. Không đưa artifact có thông tin tài khoản lên public.
 
 ### Quản lý phiên nền tảng
+
+Trang `/auth/login` có bộ chọn **Sáng / Tối / Theo hệ thống** ở góc trên bên phải, dùng chung lựa chọn đã lưu với Management/Processing. Chế độ hệ thống theo dõi thay đổi màu của thiết bị ngay trong phiên. Đổi theme giữ nguyên dữ liệu đang nhập. Light mode áp dụng cho nền, form và artwork của login. Project 3D giữ nguyên mô hình, vật liệu và nhãn liquid glass; thay đổi nằm ở môi trường nền: tinh vân, cực quang, sao, thiên cầu và họa tiết quỹ đạo. Các khối 3D được giữ khi đổi theme, không dựng lại toàn bộ scene.
 
 Runtime ghép session storage và coordinator. AuthProvider theo dõi trạng thái phiên để cập nhật guard và UI. Coordinator điều phối khôi phục, gia hạn và kết thúc phiên. Xem [lib](src/lib/README.md) để tra cách lưu phiên và [services](src/services/README.md) để theo dõi điều kiện gia hạn.
 

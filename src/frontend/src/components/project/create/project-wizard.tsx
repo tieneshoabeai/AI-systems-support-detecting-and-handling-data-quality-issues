@@ -195,8 +195,8 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   const viewProject = (): void => {
     const created = session.state.projects.find(item =>
       item.workspaceId === workspaceId && item.name === createdName)
+    onClose()
     if (created) session.run('open', { kind: 'project', id: created.id, name: created.name })
-    else onClose()
   }
 
   return <Dialog open onClose={onClose} busy={pending} className="is-wide" role="dialog" aria-labelledby="pv-wizard-title">

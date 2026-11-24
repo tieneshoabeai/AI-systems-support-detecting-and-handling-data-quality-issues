@@ -156,7 +156,7 @@ export function ReportCenter() {
       <div className="report-hero">
         <span className="report-hero-icon" aria-hidden="true"><PreviewIcon name="report" /></span>
         <strong>Báo cáo vấn đề</strong>
-        <p>Gửi phản hồi về sự cố, lỗi hoặc vấn đề khác liên quan đến hệ thống DataVerse.</p>
+        <p>Gửi lỗi bạn gặp khi sử dụng DataVerse hoặc theo dõi báo cáo đã gửi.</p>
       </div>
       <div className="report-hero-actions">
         <Button type="button" className="button-primary" onClick={goCreate}>

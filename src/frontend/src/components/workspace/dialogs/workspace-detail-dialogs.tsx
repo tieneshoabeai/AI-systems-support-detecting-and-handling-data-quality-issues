@@ -12,6 +12,8 @@ import type { WorkspaceMemberRow } from '../../../hooks/preview/preview-presenta
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Avatar } from '../../resource'
 import { CoverArt, Pagination } from '../../resource'
+import { saveResourceAvatar, useResourceAvatar, useResourceIcon } from '../../../hooks/resource/use-resource-avatar'
+import { WorkspaceAvatarField } from './workspace-avatar-field'
 
 // Hai modal của trang chi tiết workspace (Design Board "workspaces detail" · ảnh
 // "Neon Workspace Management Panels"): "Thông tin Workspace" (xem + sửa tên/mô tả) và
@@ -47,6 +49,10 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
   const [error, setError] = useState<string | null>(null)
   const [overview, setOverview] = useState<WorkspaceDetailOverview | null>(null)
   const [overviewError, setOverviewError] = useState('')
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const [avatarNotice, setAvatarNotice] = useState('')
+  const avatar = useResourceAvatar('workspace', workspace.id)
+  const icon = useResourceIcon('workspace', workspace.id)
 
   useEffect(() => {
     if (store.getState().source !== 'api' || !store.getWorkspaceDetailOverview) return
@@ -61,7 +67,7 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
 
   const [busy, setBusy] = useState(false)
   const submit = async (): Promise<void> => {
-    if (busy || workspace.canManage === false) return
+    if (busy || avatarOpen || workspace.canManage === false) return
     const trimmed = name.trim()
     if (!trimmed) { setError('Tên workspace không được để trống.'); return }
     const clash = existingNames.find(item => item.toLowerCase() === trimmed.toLowerCase())
@@ -87,8 +93,12 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
         </Button>
       </header>
 
-      <div className="ws-edit-grid">
-        <span className="ws-edit-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
+      <WorkspaceAvatarField open={avatarOpen} onOpenChange={setAvatarOpen} value={{ art: avatar, icon }}
+        cover={<CoverArt hue={workspace.cover} seed={workspace.id} />} disabled={busy} readOnly={workspace.canManage === false}
+        onSave={choice => {
+          saveResourceAvatar('workspace', workspace.id, choice)
+          setAvatarNotice(choice.art ? 'Đã lưu ảnh đại diện trên trình duyệt này.' : 'Đã khôi phục ảnh đại diện mặc định.')
+        }}>
         <div className="ws-edit-fields">
           <div className="ws-edit-field">
             <label className="dialog-field">
@@ -108,8 +118,10 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
             <span className="dialog-counter">{description.length} / {descMax}</span>
           </div>
         </div>
-      </div>
+      </WorkspaceAvatarField>
 
+    {!avatarOpen && <>
+    {avatarNotice && <p className="dialog-note" role="status">{avatarNotice}</p>}
     <dl className="ws-edit-info">
       <div><dt><PreviewIcon name="shield" /> Chủ sở hữu</dt>
         <dd><span className="info-owner"><Avatar initials={workspace.owner.initials} size="sm" />{workspace.owner.name}</span>
@@ -127,6 +139,7 @@ export function WorkspaceEditDialog({ workspace, projectCount, ownerEmail, exist
         <Button type="button" className="button-secondary" disabled={busy} onClick={onClose}>Hủy</Button>
         <Button type="submit" disabled={busy || workspace.canManage === false} aria-disabled={busy} aria-busy={busy} className="button-primary"><PreviewIcon name="check" /> Lưu thay đổi</Button>
       </footer>
+    </>}
   </Dialog>
 }
 

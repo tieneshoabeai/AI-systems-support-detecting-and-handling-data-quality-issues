@@ -1,5 +1,5 @@
-import { Button, Input, Select, Table } from '../../../components/ui/controls'
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { Button, Input, Table } from '../../../components/ui/controls'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './workspaces.module.css'
 import type { PreviewMenuOrigin, Project, ProjectStatus, Workspace, WorkspaceOwnershipFilter, WorkspaceRoleFilter, WorkspaceSort } from '../../../types'
 import {
@@ -9,8 +9,9 @@ import {
 } from '../../preview/preview-data'
 import { Avatar, PreviewShell } from '../../preview/components/preview-shell'
 import { PreviewIcon } from '../../preview/components/preview-icons'
+import { PreviewPopover } from '../../preview/components/preview-popover'
+import { ResourceBreadcrumb } from '../../preview/components/resource-breadcrumb'
 import { CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut } from '../../preview/components/preview-primitives'
-import { ResourceAvatarPicker } from '../../preview/components/resource-avatar'
 import { WorkspaceCreateDialog } from './sections/workspace-create-dialog'
 import { usePreviewSession } from '../../preview/preview-session-context'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
@@ -27,15 +28,60 @@ const statusFilterLabels: Record<ProjectStatus, string> = {
   active: 'Đang hoạt động', paused: 'Tạm dừng', processing: 'Đang xử lý',
   completed: 'Đã hoàn thành', archived: 'Đã lưu trữ',
 }
+const detailStatusOptions = [
+  { id: 'all' as const, label: 'Tất cả trạng thái' },
+  ...(Object.keys(statusFilterLabels) as ProjectStatus[]).map(id => ({ id, label: statusFilterLabels[id] })),
+]
+const detailSortOptions = [
+  { id: 'recent', label: 'Mới nhất' },
+  { id: 'name', label: 'Tên A → Z' },
+] as const
 
-// Số workspace TỐI ĐA một trang, đúng con số chủ batch yêu cầu. Ô "Số dòng" cho phép chọn
-// ít hơn (10 · 20 · 28) nhưng không được vượt 28: 28 là trần, không phải mặc định duy nhất.
-const maxWorkspacesPerPage = 28
-const workspacePerPageOptions: readonly number[] = [10, 20, maxWorkspacesPerPage]
+const workspacesPerPage = 20
 
-// Tìm kiếm trang: tên + mô tả (`matchWorkspaceQuery` ở tầng data, để view lẫn test dùng một
-// quy tắc). Ô nhập nằm trong toolbar của chính trang (.toolbar-search), KHÔNG ở topbar — topbar
-// đã bỏ thanh tìm kiếm chung theo yêu cầu 03/11.
+function WorkspaceFilter<T extends string>({ label, icon, value, options, onChange }: {
+  label: string
+  icon: string
+  value: T
+  options: readonly { id: T; label: string }[]
+  onChange: (value: T) => void
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null)
+  const selected = options.find(option => option.id === value)
+  const close = () => setTrigger(null)
+
+  return <div className={styles['filter']}>
+    <Button ref={buttonRef} type="button" className={styles['filterTrigger']}
+      aria-haspopup="dialog" aria-expanded={trigger !== null}
+      onClick={event => setTrigger(trigger ? null : event.currentTarget)}>
+      <PreviewIcon name={icon} />
+      <span className={styles['filterText']}>
+        <span className={styles['filterLabel']}>{label}</span>
+        <strong className={styles['filterValue']}>{selected?.label}</strong>
+      </span>
+      <PreviewIcon name="chevron-down" />
+    </Button>
+    <PreviewPopover label={label} open={trigger !== null} trigger={trigger} onClose={close}>
+      <div className={styles['filterPanel']}>
+        <div className={styles['filterHeading']}><PreviewIcon name={icon} /><strong>{label}</strong></div>
+        <ul className={styles['filterOptions']}>
+          {options.map(option => <li key={option.id}>
+            <Button type="button" className={styles['filterOption']} aria-pressed={option.id === value}
+              onClick={() => {
+                onChange(option.id)
+                close()
+                buttonRef.current?.focus({ preventScroll: true })
+              }}>
+              <span>{option.label}</span>
+              {option.id === value && <PreviewIcon name="check" />}
+            </Button>
+          </li>)}
+        </ul>
+      </div>
+    </PreviewPopover>
+  </div>
+}
 
 export function WorkspaceCard({ workspace, selected, view }: {
   workspace: Workspace
@@ -46,7 +92,7 @@ export function WorkspaceCard({ workspace, selected, view }: {
   const target = { kind: 'workspace' as const, id: workspace.id, name: workspace.name }
   const openMenu = (origin: PreviewMenuOrigin) => session.openMenu({ ...workspaceMenu(workspace), origin })
 
-  return <article className={`resource-card${selected ? ' is-selected' : ''}${view === 'list' ? ' is-list' : ''}`}
+  return <article className={`resource-card ${styles['workspaceCard']}${selected ? ' is-selected' : ''}${view === 'list' ? ' is-list' : ''}`}
     role="button" tabIndex={0} aria-pressed={selected}
     {...previewCardProps({
       // Design Board "workspaces detail": bấm một thẻ workspace MỞ TRANG RIÊNG của nó
@@ -66,13 +112,16 @@ export function WorkspaceCard({ workspace, selected, view }: {
       </span>
     </div>
     <div className="card-body">
-      <header className="card-head"><h3>{workspace.name}</h3>
+      <header className={styles['cardIdentity']}>
+        <h3 title={workspace.name}>{workspace.name}</h3>
+        <p className="card-desc">{workspace.description}</p>
+      </header>
+      <div className={styles['cardActions']}>
         <Button type="button" className="icon-button card-menu" aria-label={`Thao tác với ${workspace.name}`} aria-haspopup="menu"
           onClick={event => { event.stopPropagation(); openMenu({ kind: 'anchor', element: event.currentTarget }) }}>
           <PreviewIcon name="more" />
         </Button>
-      </header>
-      <p className="card-desc">{workspace.description}</p>
+      </div>
       <dl className="card-metrics">
         <div><dt>{projectsOf(session.state, workspace.id).length}</dt><dd>Dự án</dd></div>
         <div><dt>{datasetCountOf(session.state, workspace.id)}</dt><dd>Tập dữ liệu</dd></div>
@@ -154,12 +203,10 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
   const openProjectMenu = (project: Project, origin: PreviewMenuOrigin) =>
     session.openMenu({ ...projectMenu(project), origin })
 
-  return <PreviewShell active="workspaces">
-    <nav className="ws-crumb" aria-label="Path điều hướng">
-      <Button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</Button>
-      <span className="crumb-sep" aria-hidden="true">›</span>
-      <span className="crumb-current" aria-current="page">{workspace.name}</span>
-    </nav>
+  return <PreviewShell active="workspaces" contentClassName={styles['catalog'] ?? ''}>
+    <ResourceBreadcrumb className={styles['detailBreadcrumb'] ?? ''}
+      parents={[{ label: 'Workspaces', icon: 'workspaces', onClick: () => session.openSection('workspaces') }]}
+      current={{ label: workspace.name, icon: 'workspaces' }} />
 
     <header className="ws-detail-head">
       <span className="ws-detail-cover"><CoverArt hue={workspace.cover} seed={workspace.id} /></span>
@@ -184,7 +231,6 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
       </div>
     </header>
 
-    <ResourceAvatarPicker key={workspace.id} kind="workspace" id={workspace.id} />
     <StatRow stats={stats} />
 
     <div className="detail-charts">
@@ -198,28 +244,24 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
       </Panel>
     </div>
 
-    <Panel title={`Project (${owned.length})`} action={
-      <div className="toolbar-right">
-        <label className="toolbar-search">
+    <Panel title={`Project (${owned.length})`}>
+      <section className={`${styles['catalogToolbar']} ${styles['detailToolbar']}`} aria-label="Tìm và lọc Project">
+        <label className={`toolbar-search ${styles['catalogSearch']}`}>
           <PreviewIcon name="search" />
           <span className="visually-hidden">Tìm project theo tên trong workspace này</span>
           <Input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
             placeholder="Tìm theo tên project…" autoComplete="off" />
         </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo trạng thái</span>
-          <Select value={status} onChange={event => { setStatus(event.target.value as 'all' | ProjectStatus); setPage(1) }}>
-            <option value="all">Tất cả trạng thái</option>
-            {(Object.keys(statusFilterLabels) as ProjectStatus[]).map(value => <option key={value} value={value}>{statusFilterLabels[value]}</option>)}
-          </Select>
-        </label>
-        <label className="chip-select inline"><span className="visually-hidden">Sắp xếp project</span>
-          <Select value={sort} onChange={event => setSort(event.target.value as DetailSort)}>
-            <option value="recent">Mới nhất</option>
-            <option value="name">Tên A→Z</option>
-          </Select>
-        </label>
-        <Button type="button" className="button-primary" onClick={() => session.openProjectWizard(workspace.id)}><PreviewIcon name="plus" /> Tạo Project</Button>
-      </div>}>
+        <div className={styles['filters']} role="group" aria-label="Bộ lọc và sắp xếp Project">
+          <WorkspaceFilter label="Trạng thái" icon="activity" value={status} options={detailStatusOptions}
+            onChange={value => { setStatus(value); setPage(1) }} />
+          <WorkspaceFilter label="Sắp xếp" icon="list" value={sort} options={detailSortOptions}
+            onChange={value => { setSort(value); setPage(1) }} />
+        </div>
+        <Button type="button" className={`button-primary ${styles['detailCreate']}`} onClick={() => session.openProjectWizard(workspace.id)}>
+          <PreviewIcon name="plus" /> Tạo Project
+        </Button>
+      </section>
       <div className="table-scroll">
         <Table className="preview-table">
           <thead><tr><th scope="col">#</th><th scope="col">Tên Project</th><th scope="col">Trạng thái</th>
@@ -249,7 +291,7 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
       </div>
 
       {filtered.length > 0 && <Pagination label="Phân trang project" total={filtered.length}
-        page={safePage} perPage={perPage} unit="Project" onPage={setPage} />}
+        page={safePage} perPage={perPage} onPage={setPage} />}
     </Panel>
     {/* Hai modal của workspace và wizard "Tạo Project" đều là surface CẤP PHIÊN
        (WorkspacePanelSurface / ProjectWizard trong PreviewSessionProvider) vì ⋯ của THẺ ở trang
@@ -265,7 +307,6 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
   const [sort, setSort] = useState<WorkspaceSort>('accessed')
   const [view, setView] = useState<ViewMode>('grid')
   const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState<number>(maxWorkspacesPerPage)
   const [creating, setCreating] = useState(false)
   const [artPaused, setArtPaused] = useState(false)
   const { state } = session
@@ -274,8 +315,7 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
   // còn (vừa bị xóa) rơi về danh sách thay vì vẽ một trang trống.
   const detailWorkspace = workspaceId ? state.workspaces.find(item => item.id === workspaceId) ?? null : null
 
-  // Lọc → sắp xếp → cắt trang, ĐÚNG thứ tự ảnh khung 8 vẽ. Đảo lại (cắt trang rồi lọc) thì
-  // dòng "của N Workspaces" nói số của một trang chứ không phải số của danh sách khớp lọc.
+  // Apply filters and sorting to the full collection before taking the current page.
   const filtered = useMemo(() => sortWorkspaces(
     state.workspaces.filter(workspace =>
       matchWorkspaceOwnership(workspace, ownership)
@@ -284,14 +324,14 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
     sort,
   ), [state.workspaces, ownership, role, query, sort])
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage))
+  const pageCount = Math.max(1, Math.ceil(filtered.length / workspacesPerPage))
   const safePage = Math.min(page, pageCount)
-  const visible = filtered.slice((safePage - 1) * perPage, safePage * perPage)
+  const visible = filtered.slice((safePage - 1) * workspacesPerPage, safePage * workspacesPerPage)
   const selected = visible.find(workspace => workspace.id === state.selection.workspaceId) ?? visible[0] ?? null
 
   if (detailWorkspace) return <WorkspaceDetailView key={detailWorkspace.id} workspace={detailWorkspace} />
 
-  return <PreviewShell active="workspaces">
+  return <PreviewShell active="workspaces" contentClassName={styles['catalog'] ?? ''}>
     <section className={`workspace-hero ${styles['screen']}`} aria-labelledby="page-heading">
       <div className="workspace-hero-art" aria-hidden="true">
         <Suspense fallback={cubeFallback}>
@@ -299,10 +339,8 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
         </Suspense>
       </div>
       <div className="workspace-hero-copy">
-        <span className="page-eyebrow">Cấp 1 · Workspaces</span>
         <h1 id="page-heading" tabIndex={-1}>Workspaces</h1>
-        <p>Nơi chứa dự án, tập dữ liệu và thành viên; mỗi workspace là một ranh giới truy cập riêng.
-          Chọn một Workspace để xem các dự án và thành viên.</p>
+        <p>Tập hợp dự án, dữ liệu và những người cùng làm việc trong một Workspace. Mỗi Workspace có quyền truy cập riêng, giúp bạn dễ tìm lại dự án đang làm và chia sẻ dữ liệu với đúng người.</p>
         <Button type="button" className="button-primary" onClick={() => setCreating(true)}>
           <PreviewIcon name="plus" /> Tạo Workspace
         </Button>
@@ -316,56 +354,38 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
 
     <StatRow stats={workspaceStatsFor(state)} />
 
-    <div className="toolbar">
-      <div className="toolbar-right">
-        {/* Ô tìm kiếm đứng NGAY TRƯỚC ba bộ lọc (quyền sở hữu · vai trò · sắp xếp) vì nó là
-            lối lọc hẹp nhất: gõ một từ khóa thì hai ô kia chỉ còn chỉnh phạm vi còn lại.
-            `setPage(1)` ở đây chứ không ở reducer — để lại trang cũ khi danh sách vừa co về
-            2 kết quả là rơi vào trang trắng. */}
-        <label className="toolbar-search">
-          <PreviewIcon name="search" />
-          <span className="visually-hidden">Tìm workspace theo tên hoặc mô tả</span>
-          <Input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
-            placeholder="Tìm kiếm Workspace…" autoComplete="off" />
-        </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo quyền sở hữu</span>
-          <Select value={ownership} onChange={event => { setOwnership(event.target.value as WorkspaceOwnershipFilter); setPage(1) }}>
-            {workspaceOwnershipOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </Select>
-        </label>
-        <label className="chip-select inline"><span className="visually-hidden">Lọc theo vai trò</span>
-          <Select value={role} onChange={event => { setRole(event.target.value as WorkspaceRoleFilter); setPage(1) }}>
-            {workspaceRoleOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </Select>
-        </label>
-        <label className="chip-select inline"><span className="chip-label">Sắp xếp</span>
-          <Select value={sort} onChange={event => { setSort(event.target.value as WorkspaceSort); setPage(1) }}>
-            {workspaceSortOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </Select>
-        </label>
+    <section className={styles['catalogToolbar']} aria-label="Tìm và lọc Workspace">
+      <label className={`toolbar-search ${styles['catalogSearch']}`}>
+        <PreviewIcon name="search" />
+        <span className="visually-hidden">Tìm workspace theo tên hoặc mô tả</span>
+        <Input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }}
+          placeholder="Tìm kiếm Workspace…" autoComplete="off" />
+      </label>
+      <div className={styles['filters']} role="group" aria-label="Bộ lọc và sắp xếp">
+        <WorkspaceFilter label="Quyền sở hữu" icon="workspaces" value={ownership} options={workspaceOwnershipOptions}
+          onChange={value => { setOwnership(value); setPage(1) }} />
+        <WorkspaceFilter label="Vai trò" icon="users" value={role} options={workspaceRoleOptions}
+          onChange={value => { setRole(value); setPage(1) }} />
+        <WorkspaceFilter label="Sắp xếp" icon="list" value={sort} options={workspaceSortOptions}
+          onChange={value => { setSort(value); setPage(1) }} />
       </div>
-      <div className="toolbar-right">
-        <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">
-          <Button type="button" className={`icon-button${view === 'grid' ? ' is-active' : ''}`} aria-pressed={view === 'grid'}
-            aria-label="Hiển thị dạng lưới" onClick={() => setView('grid')}><PreviewIcon name="grid" /></Button>
-          <Button type="button" className={`icon-button${view === 'list' ? ' is-active' : ''}`} aria-pressed={view === 'list'}
-            aria-label="Hiển thị dạng danh sách" onClick={() => setView('list')}><PreviewIcon name="list" /></Button>
-        </div>
+      <div className={`view-toggle ${styles['viewToggle']}`} role="group" aria-label="Kiểu hiển thị">
+        <Button type="button" className={`icon-button${view === 'grid' ? ' is-active' : ''}`} aria-pressed={view === 'grid'}
+          aria-label="Hiển thị dạng lưới" onClick={() => setView('grid')}><PreviewIcon name="grid" /></Button>
+        <Button type="button" className={`icon-button${view === 'list' ? ' is-active' : ''}`} aria-pressed={view === 'list'}
+          aria-label="Hiển thị dạng danh sách" onClick={() => setView('list')}><PreviewIcon name="list" /></Button>
       </div>
-    </div>
+    </section>
 
     {visible.length === 0
-      ? <EmptyHint title="Không có kết quả" note="Thử đổi một trong ba bộ lọc (quyền sở hữu · vai trò · sắp xếp) hoặc từ khóa tìm kiếm." />
-      : <div className={`card-grid${view === 'list' ? ' is-list' : ''}`}>
+      ? <EmptyHint title="Không có kết quả" note="Thử đổi từ khóa, quyền sở hữu hoặc vai trò." />
+      : <div className={`card-grid ${styles['workspaceCards']}${view === 'list' ? ' is-list' : ''}`}>
         {visible.map(workspace => <WorkspaceCard key={workspace.id} workspace={workspace}
           view={view} selected={workspace.id === selected?.id} />)}
       </div>}
 
-    {/* Ảnh khung 1: chân trang có dòng "Hiển thị … của … Workspaces", nút lật và ô "Số dòng".
-        28 là TRẦN một trang theo yêu cầu chủ batch; ô chọn chỉ cho 10 · 20 · 28. */}
-    <Pagination label="Phân trang workspace" total={filtered.length} page={safePage} perPage={perPage}
-      unit="Workspaces" perPageOptions={workspacePerPageOptions} onPage={setPage}
-      onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
+    <Pagination label="Phân trang workspace" total={filtered.length} page={safePage}
+      perPage={workspacesPerPage} onPage={setPage} hideWhenSinglePage />
 
     {creating && <WorkspaceCreateDialog existingNames={state.workspaces.map(item => item.name)}
       onClose={() => setCreating(false)} />}

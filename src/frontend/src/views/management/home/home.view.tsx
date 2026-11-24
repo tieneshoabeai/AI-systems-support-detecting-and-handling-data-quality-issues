@@ -57,20 +57,22 @@ function WorkspaceTile({ workspace }: { workspace: Workspace }) {
         thẻ ở trang Workspaces, nên đổi biểu tượng không làm mất ảnh thẻ. */}
     <span className={`ws-tile-icon cover-${workspace.cover}`} aria-hidden="true"><ResourceIconAvatar kind="workspace" id={workspace.id} fallback="workspaces" /></span>
     <div className="ws-tile-body">
-      <h3>{workspace.name}{workspace.favorite && <span className="fav" aria-label="Yêu thích">★</span>}</h3>
+      <h3 title={workspace.name}>{workspace.name}</h3>
       {/* '1 project' / '12 projects': cứng 'projects' sẽ in ra "1 projects" ở workspace lẻ. */}
       <small>{pluralEn(projectCount, 'project')} · {workspace.updatedAt}</small>
     </div>
-    <Button type="button" className={`fav-button${workspace.favorite ? ' is-on' : ''}`}
-      aria-pressed={workspace.favorite}
-      aria-label={workspace.favorite ? `Bỏ yêu thích ${workspace.name}` : `Yêu thích ${workspace.name}`}
-      onClick={stopCardBubble(() => session.run(workspace.favorite ? 'unfavorite' : 'favorite', target))}>
-      <PreviewIcon name="star" />
-    </Button>
-    <Button type="button" className="icon-button mini-card-menu" aria-label={`Thao tác với ${workspace.name}`} aria-haspopup="menu"
-      onClick={event => { event.stopPropagation(); openMenu({ kind: 'anchor', element: event.currentTarget }) }}>
-      <PreviewIcon name="more" />
-    </Button>
+    <div className="ws-tile-actions">
+      <Button type="button" className={`icon-button fav-button${workspace.favorite ? ' is-on' : ''}`}
+        aria-pressed={workspace.favorite}
+        aria-label={workspace.favorite ? `Bỏ yêu thích ${workspace.name}` : `Yêu thích ${workspace.name}`}
+        onClick={stopCardBubble(() => session.run(workspace.favorite ? 'unfavorite' : 'favorite', target))}>
+        <PreviewIcon name="star" />
+      </Button>
+      <Button type="button" className="icon-button mini-card-menu" aria-label={`Thao tác với ${workspace.name}`} aria-haspopup="menu"
+        onClick={event => { event.stopPropagation(); openMenu({ kind: 'anchor', element: event.currentTarget }) }}>
+        <PreviewIcon name="more" />
+      </Button>
+    </div>
   </article>
 }
 
@@ -131,7 +133,7 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
         {state.source === 'api' && overviewError !== '' && <p className="panel-sub" role="status">{overviewError} Đang hiển thị số liệu từ danh sách đã tải.</p>}
       </Panel>
 
-      <Panel title="Projects by Status">
+      <Panel title="Projects by Status" className="panel-project-status">
         <StatusDonut total={statusShare.total} unit="projects"
           rows={statusShare.rows.map(row => ({ label: row.label, value: row.value }))} />
       </Panel>

@@ -13,7 +13,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { buildHolographicCoreProductModel, type HolographicCoreProductModel } from '../../../graphics/holographic-core/holographic-core.model'
 import { HolographicEnvironment } from './holographic-core.environment'
 import { HolographicDecor } from './holographic-core.decor'
-import { createNeonCubeCluster } from '../../../graphics/neon-cube'
+import { NeonCubeNodes } from './neon-cube-nodes'
 import type { NeonCubeThemeId } from '../../../types'
 import type { HolographicPartInfo } from '../../../types'
 import { heroLabelForId } from '../../../graphics/holographic-core/tower-gauge-config'
@@ -317,19 +317,6 @@ function CoreStructure({ reducedMotion, detached, selectedId, onSelectPart, onHe
   return <primitive object={productModel.model} onClick={handleClick} onPointerMove={handlePointerMove} onPointerOut={() => onHeroHover(null)} />
 }
 
-function NeonCubeNodes({ onFocus }: { onFocus?: (theme: NeonCubeThemeId) => void }) {
-  const cluster = useMemo(() => createNeonCubeCluster(), [])
-  useEffect(() => () => cluster.dispose(), [cluster])
-  const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    if (!onFocus || event.delta > 6) return
-    let object: Object3D | null = event.object
-    while (object && object.parent !== cluster.group) object = object.parent
-    const theme = cluster.cubes.find(cube => cube.group === object)?.theme.id
-    if (theme) { event.stopPropagation(); onFocus(theme) }
-  }
-  return <primitive object={cluster.group} onClick={handleClick} />
-}
-
 function Lifecycle({ onContextLost }: { onContextLost(this: void): void }) { const { gl } = useThree()
   useEffect(() => {
     const handleContextLost = (event: Event) => { event.preventDefault(); onContextLost() }
@@ -383,7 +370,7 @@ function ProjectCanvasViewport() {
     const measure = () => {
       // Extend the backing canvas under nav for morphing without changing the
       // scene's original framing above nav (the extra pixels are below it).
-      const height = Math.max(1, size.height - nav.offsetHeight - 10)
+      const height = Math.max(1, size.height - (stage.clientHeight - nav.offsetTop) - 10)
       camera.setViewOffset(size.width, height, 0, 0, size.width, size.height)
       camera.updateProjectionMatrix()
     }
@@ -396,7 +383,7 @@ function ProjectCanvasViewport() {
 }
 
 function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { enabled: boolean; frame: GlassFrame; detached: boolean; light: boolean; glassPanel?: HTMLElement | null }) {
-  const { camera, gl, scene, size, viewport } = useThree()
+  const { camera, gl, invalidate, scene, size, viewport } = useThree()
   const profile = useMemo(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('glassPerf')
     ? createProjectGlassProfiler() : null, [])
   const pipeline = useMemo(() => {
@@ -437,7 +424,7 @@ function HolographicBloom({ enabled, frame, detached, light, glassPanel }: { ena
   }, [pipeline])
   useFrame(() => {
     const started = profile ? performance.now() : 0
-    updateProjectGlassPass(pipeline.panelGlass, glassPanel)
+    updateProjectGlassPass(pipeline.panelGlass, gl.domElement, glassPanel, invalidate)
     renderHolographicFrame(pipeline, enabled, !detached, light)
     profile?.(performance.now() - started, Boolean(glassPanel))
   }, 1)
@@ -526,7 +513,7 @@ function HolographicScene({ colorMode, reducedMotion, detached, selectedId, onSe
     <pointLight color="#9a55ff" intensity={10} distance={8} position={[0, 1.1, -3]} />
     <pointLight color="#3f7dff" intensity={12} distance={10} position={[-5, 4.5, -5]} />
     <HolographicEnvironment reducedMotion={reducedMotion} colorMode={colorMode} />
-    {productModel && <HolographicDecor reducedMotion={reducedMotion} />}
+    {productModel && <HolographicDecor colorMode={colorMode} reducedMotion={reducedMotion} />}
     {partial && partial.phase !== 'core' && <NeonCubeNodes {...(!detached && onFocusCube ? { onFocus: onFocusCube } : {})} />}
     {productModel
       ? <CoreStructure productModel={productModel} reducedMotion={reducedMotion} detached={detached} selectedId={selectedId} onSelectPart={onSelectPart} onHeroHover={onHeroHover} />

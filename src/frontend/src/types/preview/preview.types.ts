@@ -389,7 +389,7 @@ export type NewReportInput = {
 // Nhánh "Accounts" của Settings có bốn màn. Đặc tả dòng 9: bấm "Hồ sơ cá nhân" và
 // "Cài đặt tài khoản" đều chuyển sang Settings, nên chúng là một SECTION điều hướng thật
 // (có hash riêng '#/preview/settings/<mục>') chứ không chạy "trong ô" như chuông/báo cáo.
-export type SettingsSectionId = 'profile' | 'security' | 'sessions' | 'notifications' | 'color'
+export type SettingsSectionId = 'profile' | 'security' | 'sessions' | 'notifications' | 'color' | 'status'
 
 // Settings mở theo từng cấp: module → nhóm hoặc trang con.
 export type SettingsModuleId = 'accounts' | 'system'

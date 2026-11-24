@@ -1,4 +1,5 @@
 import { Button, Input } from '../../../../components/ui/controls'
+import { Icon } from '../../../../components/ui/primitives/icon'
 import { useState } from 'react'
 import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { createAccountService } from '../../../../services/auth/account.service'
@@ -27,21 +28,65 @@ export function PasswordRecoveryDialog({ initialEmail, onClose }: { initialEmail
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không gửi được yêu cầu.') }
     finally { setBusy(false) }
   }
-  return <Dialog open onClose={onClose} busy={busy} aria-labelledby="recovery-title">
-    <h2 id="recovery-title">Khôi phục mật khẩu</h2>
-    {step === 'done' ? <><p role="status">Đã đặt lại mật khẩu. Bạn có thể đăng nhập bằng mật khẩu mới.</p><Button onClick={onClose}>Về đăng nhập</Button></>
-      : <form onSubmit={event => { event.preventDefault(); void submit() }} aria-busy={busy}>
-        <label className="dialog-field">Email<Input type="email" required autoComplete="email" value={email} disabled={busy || step === 'reset'} onChange={event => setEmail(event.target.value)} /></label>
-        {step === 'reset' && <>
-          <p>Nếu tài khoản hợp lệ và dịch vụ email khả dụng, hãy kiểm tra mã OTP trong hộp thư.</p>
-          <label className="dialog-field">Mã OTP<Input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={otp} disabled={busy} onChange={event => setOtp(event.target.value)} /></label>
-          <label className="dialog-field">Mật khẩu mới<Input required type="password" autoComplete="new-password" minLength={8} maxLength={100} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} /></label>
-          <label className="dialog-field">Nhập lại mật khẩu<Input required type="password" autoComplete="new-password" minLength={8} maxLength={100} value={confirm} disabled={busy} onChange={event => setConfirm(event.target.value)} /></label>
-          <Button type="button" disabled={busy} onClick={() => { setStep('request'); setOtp(''); setError('') }}>Đổi email hoặc yêu cầu mã mới</Button>
-        </>}
-        {error && <p role="alert">{error}</p>}
-        <div className="dialog-actions"><Button type="button" disabled={busy} onClick={onClose}>Hủy</Button>
-          <Button type="submit" disabled={busy}>{step === 'request' ? 'Yêu cầu OTP' : 'Đặt lại mật khẩu'}</Button></div>
-      </form>}
+  const complete = step === 'done'
+  return <Dialog open onClose={onClose} busy={busy} aria-labelledby="recovery-title" className="auth-password-recovery">
+    <div className="password-recovery-header">
+      <span className={`password-recovery-mark${complete ? ' is-complete' : ''}`} aria-hidden="true">
+        <Icon name={complete ? 'check-circle' : 'lock'} />
+      </span>
+      <div className="password-recovery-heading">
+        <span className="password-recovery-kicker">KHÔI PHỤC TÀI KHOẢN</span>
+        <h2 id="recovery-title">{complete ? 'Mật khẩu đã cập nhật' : step === 'request' ? 'Xác minh email' : 'Tạo mật khẩu mới'}</h2>
+        <p>{complete
+          ? 'Bạn có thể đăng nhập bằng mật khẩu mới.'
+          : step === 'request'
+            ? 'Nhập email đăng ký để nhận mã xác minh bảo mật.'
+            : 'Nhập mã trong email và chọn mật khẩu an toàn mới.'}</p>
+      </div>
+      <Button type="button" className="password-recovery-close" aria-label="Đóng cửa sổ" disabled={busy} onClick={onClose}>
+        <Icon name="close" />
+      </Button>
+    </div>
+    {!complete && <ol className="password-recovery-steps" aria-label="Các bước khôi phục mật khẩu">
+      <li data-state={step === 'request' ? 'active' : 'complete'} aria-current={step === 'request' ? 'step' : undefined}>
+        <span className="password-recovery-step-number" aria-hidden="true">{step === 'reset' ? '✓' : '1'}</span>
+        <span>Xác minh email</span>
+      </li>
+      <li data-state={step === 'reset' ? 'active' : 'upcoming'} aria-current={step === 'reset' ? 'step' : undefined}>
+        <span className="password-recovery-step-number" aria-hidden="true">2</span>
+        <span>Mật khẩu mới</span>
+      </li>
+    </ol>}
+    {complete ? <div className="password-recovery-success">
+      <p role="status">Mật khẩu của bạn đã được cập nhật thành công. Hãy đăng nhập để tiếp tục.</p>
+      <Button className="password-recovery-submit" onClick={onClose}>Về đăng nhập</Button>
+    </div> : <form className="password-recovery-form" onSubmit={event => { event.preventDefault(); void submit() }} aria-busy={busy}>
+      <label className="dialog-field">Email đăng ký
+        <Input type="email" required autoComplete="email" value={email} disabled={busy || step === 'reset'} onChange={event => setEmail(event.target.value)} />
+      </label>
+      {step === 'reset' && <>
+        <label className="dialog-field">Mã xác thực
+          <Input className="password-recovery-otp" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={otp} disabled={busy} onChange={event => setOtp(event.target.value)} />
+        </label>
+        <div className="password-recovery-passwords">
+          <label className="dialog-field">Mật khẩu mới
+            <Input required type="password" autoComplete="new-password" minLength={8} maxLength={100} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} />
+          </label>
+          <label className="dialog-field">Nhập lại mật khẩu
+            <Input required type="password" autoComplete="new-password" minLength={8} maxLength={100} value={confirm} disabled={busy} onChange={event => setConfirm(event.target.value)} />
+          </label>
+        </div>
+        <Button className="password-recovery-resend" type="button" disabled={busy} onClick={() => { setStep('request'); setOtp(''); setError('') }}>
+          Thay đổi email
+        </Button>
+      </>}
+      {error && <p className="password-recovery-error" role="alert">{error}</p>}
+      <div className="dialog-actions password-recovery-actions">
+        <Button className="password-recovery-cancel" type="button" disabled={busy} onClick={onClose}>Hủy</Button>
+        <Button className="password-recovery-submit" type="submit" disabled={busy}>
+          {step === 'request' ? 'Gửi mã xác minh' : 'Cập nhật mật khẩu'}
+        </Button>
+      </div>
+    </form>}
   </Dialog>
 }

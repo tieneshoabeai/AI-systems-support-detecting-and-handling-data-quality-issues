@@ -1,4 +1,5 @@
 import { Button } from '../../../components/ui/controls'
+import { Icon } from '../../../components/ui/primitives/icon'
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
@@ -7,6 +8,7 @@ import {
   formatCount, formatDataSize, formatRows, projectModules,
 } from '../../preview/preview-data'
 import { PreviewShell } from '../../preview/components/preview-shell'
+import { ResourceBreadcrumb } from '../../preview/components/resource-breadcrumb'
 import { PreviewIcon } from '../../preview/components/preview-icons'
 import { EmptyHint } from '../../preview/components/preview-primitives'
 import { usePreviewSession } from '../../preview/preview-session-context'
@@ -23,16 +25,31 @@ import { firstRecordQuery, type DatasetPreview } from '../../../services/process
 import { ProcessingDataContext } from '../../application/processing-data-context'
 import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 import type { SavedAnalysisResult } from '../../../services/management/management.types'
+import moduleStyles from './sections/module-content.module.css'
+import { ModuleNotice } from './sections/module-notice'
+import { ProjectPanelResize, useProjectPanelMove } from './sections/project-panel-controls'
 
 type DetectionResponse = { datasetId: string; value?: SavedAnalysisResult | null; error?: string }
+const number = new Intl.NumberFormat('vi-VN')
 
 function SavedDetectionStatus({ response, onRetry }: { response: DetectionResponse | null; onRetry: () => void }) {
-  if (!response) return <p role="status">Đang tải kết quả Detection…</p>
-  if (response.error) return <><p role="alert">{response.error}</p><Button type="button" onClick={onRetry}>Thử lại</Button></>
-  if (!response.value) return <p>Chưa có kết quả Detection đã lưu.</p>
+  if (!response) return <ModuleNotice tone="loading">Đang tải kết quả Detection…</ModuleNotice>
+  if (response.error) return <>
+    <ModuleNotice tone="error">{response.error}</ModuleNotice>
+    <div className={moduleStyles['actions']}><Button className="button-secondary" type="button" onClick={onRetry}><Icon name="reset" /> Thử lại</Button></div>
+  </>
+  if (!response.value) return <ModuleNotice>Chưa có kết quả Detection đã lưu.</ModuleNotice>
   const assessment = response.value.dq05
-  if (assessment?.status === 'unassessed') return <p>Kết quả đã lưu · Chưa đánh giá quy tắc</p>
-  return <p>Kết quả đã lưu{Array.isArray(assessment?.violations) && ` · ${assessment.violations.length} vi phạm`}</p>
+  const violations = assessment?.status !== 'unassessed' && Array.isArray(assessment?.violations) ? assessment.violations.length : null
+  const label = assessment?.status === 'unassessed' ? 'Chưa đánh giá quy tắc'
+    : violations !== null ? `${number.format(violations)} vi phạm` : null
+  return <div className={moduleStyles['datasetName']} role="status">
+    <span className={moduleStyles['iconTile']}><Icon name={violations === 0 ? 'check-circle' : violations ? 'alert' : 'file'} /></span>
+    <div>
+      <h3>{label ? `Kết quả đã lưu · ${label}` : 'Kết quả đã lưu'}</h3>
+      <p className={moduleStyles['muted']}>{violations !== null ? 'Số vi phạm trong lần kiểm tra quy tắc đã lưu.' : 'Kết quả chưa có số vi phạm để hiển thị.'}</p>
+    </div>
+  </div>
 }
 
 // Project chrome and actions stay in this view; Dataset3DView owns scene interactions.
@@ -42,6 +59,11 @@ const MODULE_CUBES = {
 
 // Temporarily disable the project panel while comparing page-load performance.
 const PROJECT_PANEL_ENABLED = true
+const panelSurfaces = [
+  { id: 'glass', label: 'Kính', icon: 'glass' },
+  { id: 'solid', label: 'Nền trắng', icon: 'solid' },
+] as const
+type PanelSurface = typeof panelSurfaces[number]['id']
 
 export function ProjectWorkspaceView({ projectId, scene, result = null }: { projectId: string; scene?: ReactNode; result?: ConfirmedProjectResult | null }) {
   const session = usePreviewSession()
@@ -55,7 +77,9 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   const [panelFocus, setPanelFocus] = useState<CubeFocus | null>(null)
   const [instant, setInstant] = useState(false)
   const nav = useRef<HTMLElement>(null)
+  const stage = useRef<HTMLElement>(null)
   const [glassPanel, setGlassPanel] = useState<HTMLElement | null>(null)
+  const [panelSurface, setPanelSurface] = useState<PanelSurface>('glass')
   const selectFocus = useCallback((next: CubeFocus | null, immediate = false) => {
     setInstant(immediate)
     setCompletedFocus(null)
@@ -66,6 +90,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
     if (focus?.theme === theme) { setPanelFocus(focus); setCompletedFocus(focus) }
   }, [focus])
   const panelOpen = focus !== null && completedFocus === focus
+  const panelMove = useProjectPanelMove(panelOpen ? glassPanel : null)
   useLayoutEffect(() => {
     if (!glassPanel) return
     const ready = () => panelClose.current?.focus({ preventScroll: true })
@@ -100,6 +125,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   }, [panelFocus, selectFocus])
   const [detached, setDetached] = useState(false)
   const selected = projectModules.find(module => MODULE_CUBES[module.id] === focus?.theme)?.id ?? null
+  const activeModule = projectModules.find(module => MODULE_CUBES[module.id] === panelFocus?.theme)
   const [uploading, setUploading] = useState(false)
   const project = processing?.loading || processing?.error
     ? null : session.state.projects.find(item => item.id === projectId) ?? null
@@ -162,13 +188,10 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
       ? <div role="alert">{processing.error} <Button type="button" onClick={processing.retry}>Thử lại</Button></div>
       : <p role="status">Đang tải thông tin project…</p>)}
     {project && <div className="pj-head-row">
-      <nav className="ws-crumb" aria-label="Path điều hướng">
-        <Button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</Button>
-        <span className="crumb-sep" aria-hidden="true">›</span>
-        <Button type="button" className="crumb-link" onClick={() => session.openSection('workspaces', { workspaceId: project.workspaceId })}>{project.workspaceName}</Button>
-        <span className="crumb-sep" aria-hidden="true">›</span>
-        <span className="crumb-current" aria-current="page">{project.name}</span>
-      </nav>
+      <ResourceBreadcrumb parents={[
+        { label: 'Workspaces', icon: 'workspaces', onClick: () => session.openSection('workspaces') },
+        { label: project.workspaceName, onClick: () => session.openSection('workspaces', { workspaceId: project.workspaceId }) },
+      ]} current={{ label: project.name, icon: 'projects' }} />
       <div className="pj-dataset">
         <span className="pj-dataset-icon" aria-hidden="true"><PreviewIcon name="file" /></span>
         <div className="pj-dataset-text">
@@ -192,39 +215,64 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
       </div>
     </div>}
 
-    <section key="project-stage" className="pj-stage" aria-label={project ? `Vũ trụ dữ liệu của ${project.name}` : 'Vũ trụ dữ liệu'}>
-      {scene ?? <Dataset3DView embedded colorMode={session.appearance.resolved} focus={focus}
-        glassPanel={glassPanel}
+    <section key="project-stage" ref={stage} className="pj-stage" aria-label={project ? `Vũ trụ dữ liệu của ${project.name}` : 'Vũ trụ dữ liệu'}>
+      {scene ?? <Dataset3DView embedded fullscreenTarget={stage} colorMode={session.appearance.resolved} focus={focus}
+        glassPanel={panelSurface === 'glass' ? glassPanel : null}
         onFocusChange={next => selectFocus(next)} onDetachedChange={value => { setDetached(value); setCompletedFocus(null) }}
         onFocusComplete={completeFocus} />}
       {PROJECT_PANEL_ENABLED && panelFocus && <aside ref={setGlassPanel} className="project-module-panel" aria-labelledby="project-module-title"
-        data-has-content={panelFocus.theme === 'orange' || panelFocus.theme === 'blue' || panelFocus.theme === 'violet'}
-        data-open={panelOpen} data-instant={instant} data-module={projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.id}
+        {...panelMove?.pointerProps} data-panel-drag-area
+        data-has-content="true"
+        data-surface={panelSurface}
+        data-open={panelOpen} data-instant={instant} data-module={activeModule?.id}
         aria-hidden={!panelOpen} inert={!panelOpen}>
-        <div className="project-module-content">
-          <header>
-            <h2 id="project-module-title">{projectModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.label}</h2>
-            <Button ref={panelClose} type="button" className="icon-button" aria-label="Đóng bảng module"
-              onClick={event => selectFocus(null, event.detail === 0)}>×</Button>
+        <div className="project-module-content" data-panel-drag-area>
+          <header data-panel-drag-area>
+            <div className={styles['panelTitleArea']} data-panel-drag-title>
+              <h2 id="project-module-title" className={styles['panelTitle']}>
+                {activeModule && <span className={styles['panelIcon']}><Icon name={activeModule.icon} /></span>}
+                <span>{activeModule?.label}</span>
+              </h2>
+            </div>
+            <div className={styles['panelHeaderActions']} data-panel-drag-area>
+              <div className={styles['panelSurfaceSwitch']} role="group" aria-label="Kiểu nền bảng">
+                {panelSurfaces.map(({ id, label, icon }) => <Button key={id} type="button" className={styles['panelSurfaceOption']}
+                  aria-label={label} title={label} aria-pressed={panelSurface === id}
+                  onClick={() => setPanelSurface(id)}><Icon name={icon} /></Button>)}
+              </div>
+              <Button type="button" className="icon-button" aria-label="Khôi phục vị trí và kích thước mặc định"
+                title="Khôi phục vị trí và kích thước mặc định. Dùng phím mũi tên để di chuyển."
+                onClick={panelMove?.reset} onKeyDown={panelMove?.onKeyDown}>
+                <Icon name="reset" />
+              </Button>
+              <Button ref={panelClose} type="button" className="icon-button" aria-label="Đóng bảng module"
+                onClick={event => selectFocus(null, event.detail === 0)}><Icon name="close" /></Button>
+            </div>
           </header>
-          {!project ? <p role="status">{processing?.error ?? 'Đang tải thông tin project…'}</p>
+          <div className="project-module-body" role="region" aria-label="Nội dung module" tabIndex={0} data-panel-drag-area>
+            {!project ? <ModuleNotice tone={processing?.error ? 'error' : 'loading'}>{processing?.error ?? 'Đang tải thông tin project…'}</ModuleNotice>
             : panelFocus.theme === 'blue' || panelFocus.theme === 'violet'
-              ? prefetch && !currentPreview ? <p role="status">Đang tải dữ liệu từ máy chủ.</p>
+              ? prefetch && !currentPreview ? <ModuleNotice tone="loading">Đang tải dữ liệu từ máy chủ…</ModuleNotice>
                 : <LiveDatasetPanel key={`${project.id}:${dataset?.id ?? ''}:${panelFocus.theme}`} project={project}
                     overview={panelFocus.theme === 'violet'} initialPreview={currentPreview?.value ?? null}
                     onInvalidatePreview={invalidatePreview} />
               : panelFocus.theme === 'cyan' ? <LiveAnalysisPanel key={`${project.id}:${datasetId ?? ''}`}
                   project={project} canExecute={project.canComplete === true} onAnalysisRun={retryAnalysis} />
-              : panelFocus.theme === 'orange' && <div className="project-module-review">
-                  {processing && !result ? !datasetId ? <p>Project chưa có tập dữ liệu.</p>
-                    : <SavedDetectionStatus response={currentAnalysis} onRetry={retryAnalysis} />
-                    : <ProjectResultActions result={result} reviewOnly />}
-                  {processing && !result && dataset?.status === 'processed' &&
-                    project.canComplete && store.runAnalysis &&
-                    <Button type="button" disabled={!currentAnalysis || Boolean(currentAnalysis.error) || runningAnalysis}
-                      onClick={() => { void runAnalysis() }}>{runningAnalysis ? 'Đang chạy…' : 'Chạy Detection'}</Button>}
+              : panelFocus.theme === 'orange' && <div className={`project-module-review ${moduleStyles['stack']}`}>
+                  {processing && !result ? <section className={moduleStyles['card']} aria-label="Kết quả phát hiện">
+                    {!datasetId ? <ModuleNotice>Project chưa có tập dữ liệu.</ModuleNotice>
+                      : <SavedDetectionStatus response={currentAnalysis} onRetry={retryAnalysis} />}
+                    {dataset?.status === 'processed' && project.canComplete && store.runAnalysis &&
+                      <div className={moduleStyles['actions']}>
+                        <Button type="button" className="button-primary" busy={runningAnalysis}
+                          disabled={!currentAnalysis || Boolean(currentAnalysis.error)}
+                          onClick={() => { void runAnalysis() }}><Icon name={runningAnalysis ? 'clock' : 'alert'} /> {runningAnalysis ? 'Đang chạy…' : 'Chạy Detection'}</Button>
+                      </div>}
+                  </section> : <ProjectResultActions result={result} reviewOnly />}
                 </div>}
+          </div>
         </div>
+        {panelOpen && <ProjectPanelResize panel={glassPanel} />}
       </aside>}
 
       {/* Nav and cube clicks update the same focus object, including repeat selections. */}
@@ -234,7 +282,10 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
           return <Button type="button" key={module.id} data-tone={module.tone} data-module={module.id}
             className={`pj-module${current ? ' is-active' : ''}`} aria-current={current ? 'true' : undefined}
             disabled={detached} title={detached ? 'Lắp lại mô hình để chọn module' : undefined}
-            onClick={event => selectFocus({ theme: MODULE_CUBES[module.id] }, event.detail === 0)}>
+            onClick={event => {
+              setPanelSurface('glass')
+              selectFocus({ theme: MODULE_CUBES[module.id] }, event.detail === 0)
+            }}>
             <span className="pj-module-icon" aria-hidden="true"><PreviewIcon name={module.icon} /></span>
             <span className="pj-module-label">{module.label}</span>
           </Button>

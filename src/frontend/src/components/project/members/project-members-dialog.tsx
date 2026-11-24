@@ -1,12 +1,13 @@
 import { Button, Select } from '../../ui/controls'
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Person, PreviewProjectPanel, Project, Workspace } from '../../../types/preview/preview.types'
 import { defaultProjectRole, emailForPerson, previewNoteIds, previewReasons, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Avatar } from '../../resource'
 import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { useManagementStore } from '../../../hooks/preview/use-preview-store'
 
 // Panel "Quản lý thành viên" của PROJECT — mục thứ hai trong ⋯ của thẻ dataset
 // (ảnh DataVerse_Project_Actions_Details_v1, panel 3). Chủ batch 03/11 yêu cầu bật thật: ảnh vẽ
@@ -84,17 +85,39 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
   const [role, setRole] = useState<string>('all')
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState('')
+  const [workspaceRoster, setWorkspaceRoster] = useState<Person[] | null>(null)
+  const [rosterError, setRosterError] = useState('')
+  const [rosterAttempt, setRosterAttempt] = useState(0)
+  const { loadProjectWizardRoster } = useManagementStore()
+  const workspaceId = project.workspaceId
+
+  useEffect(() => {
+    if (!loadProjectWizardRoster || !workspaceId) return
+    const controller = new AbortController()
+    void loadProjectWizardRoster(workspaceId, controller.signal).then(members => {
+      if (!controller.signal.aborted) setWorkspaceRoster(members)
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) setRosterError(cause instanceof Error ? cause.message : 'Không tải được thành viên Workspace.')
+    })
+    return () => controller.abort()
+  }, [loadProjectWizardRoster, workspaceId, rosterAttempt])
 
   // Chủ sở hữu luôn thuộc project (chữ trong ảnh) nhưng không nhất thiết nằm trong `members`, nên
   // bảng ghép họ vào đầu và đếm thêm họ vào tổng số — nếu không, "2 thành viên" cạnh bảng 3 dòng
   // là hai con số cãi nhau trên cùng một màn hình.
-  const ownerInList = project.members.some(member => member.id === project.owner.id)
-  const rows = ownerInList ? project.members : [project.owner, ...project.members]
+  const roster = loadProjectWizardRoster ? workspaceRoster ?? [] : workspace?.memberPreview ?? []
+  const rosterById = new Map(roster.map(member => [member.id, member]))
+  const projectMembers = project.members.map(member => {
+    const workspaceMember = rosterById.get(member.id)
+    return workspaceMember ? { ...workspaceMember, role: member.role } : member
+  })
+  const ownerInList = projectMembers.some(member => member.id === project.owner.id)
+  const rows = ownerInList ? projectMembers : [project.owner, ...projectMembers]
 
   // Ứng viên = roster của workspace, trừ chủ sở hữu và người đã ở project.
   const inProject = new Set(rows.map(row => row.id))
   const pick = search.trim().toLowerCase()
-  const roster = workspace?.memberPreview ?? []
+  const loadingRoster = Boolean(loadProjectWizardRoster && !workspaceRoster && !rosterError)
   const candidates = roster.filter(person => person.id !== project.owner.id && !inProject.has(person.id)
     && (!pick || person.name.toLowerCase().includes(pick) || emailForPerson(person).toLowerCase().includes(pick)))
 
@@ -131,7 +154,10 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
         <span>Trong Project “{project.name}” · Workspace {workspace?.name ?? 'đã bị gỡ'}</span>
       </div>
       <button type="button" className="button-primary" aria-expanded={adding} disabled={project.canManage === false} aria-controls="pj-add-member"
-        onClick={() => { setAdding(value => !value); setSearch('') }}>
+        onClick={() => {
+          setAdding(value => !value); setSearch('')
+          if (rosterError) { setRosterError(''); setRosterAttempt(value => value + 1) }
+        }}>
         <PreviewIcon name="plus" /> Thêm thành viên
       </button>
     </div>
@@ -146,7 +172,9 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
       </label>
       {/* Không có ô nhập email ở đây: thêm người ngoài workspace là phá ràng buộc nghiệp vụ mà
             chính ảnh wizard "Tạo Project" đã viết thành ba dòng ghi chú. */}
-      {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
+      {loadingRoster && <p role="status" className="panel-sub">Đang tải thành viên Workspace…</p>}
+      {rosterError && <p role="alert" className="panel-sub">{rosterError}</p>}
+      {!loadingRoster && !rosterError && candidates.length === 0 && <p className="panel-sub">{roster.length === 0
         ? 'Workspace của project này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” của Workspace trước.'
         : 'Toàn bộ thành viên của Workspace đã thuộc Project này.'}</p>}
       {candidates.length > 0 && <ul className="pv-suggest-list">
@@ -192,7 +220,7 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
       {filtered.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
     </div>
 
-    <ResourceAccessActions kind="project" resource={project} onClose={onClose} />
+    <ResourceAccessActions kind="project" resource={{ ...project, members: projectMembers }} onClose={onClose} />
     <p className="dialog-note" id={previewNoteIds.projectMembersPage}>{previewReasons.projectMembers}</p>
   </Dialog>
 }

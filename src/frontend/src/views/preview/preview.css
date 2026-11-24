@@ -80,7 +80,7 @@
   --pv-d-press: 80ms;
   /* Surface nổi (menu · popover · dialog · toast): đủ dài để thấy nó "đi tới", đủ ngắn
      để không chặn người dùng bấm tiếp (mọi surface đều interruptible). */
-  --pv-d-surface: 130ms;
+  --pv-d-surface: 105ms;
   --pv-sidebar-w: 240px;
   /* Chiều cao phần khung trên vùng cuộn: dải demo + topbar + dải lý do (~118px).
      Dùng để giới hạn panel chi tiết đúng bằng vùng nhìn thấy của .preview-content. */
@@ -219,10 +219,7 @@
   display: grid;
   grid-template-columns: var(--pv-sidebar-w) minmax(0, 1fr);
   min-height: 0;
-  /* Lưới đổi cỡ cột là layout animation — không compositor-friendly, mỗi frame là một
-     lần reflow toàn bộ nội dung. Vì vậy nó phải NGẮN và nhấc ngay (ease-snap); 300ms +
-     ease-in-out cũ là nguồn cảm giác "lag" khi bấm nút thu gọn sidebar. */
-  transition: grid-template-columns var(--pv-d-chrome) var(--pv-ease-snap);
+  /* Resize the content and its canvases once per sidebar toggle. */
 }
 [data-preview='2d'] .preview-root.is-compact { --pv-sidebar-w: 64px; }
 
@@ -240,12 +237,8 @@
 
 [data-preview='2d'] .sidebar-brand { display: flex; align-items: center; gap: 10px; min-height: 40px; }
 [data-preview='2d'] .brand-mark {
-  display: grid; place-items: center;
-  width: 34px; height: 34px; flex: none;
-  border-radius: 11px;
-  color: var(--pv-ink-brand);
-  background: linear-gradient(140deg, var(--pv-blue), var(--pv-blue-deep));
-  box-shadow: 0 0 18px rgba(47, 124, 246, .45);
+  display: block; object-fit: contain;
+  width: 38px; height: 38px; flex: none;
 }
 [data-preview='2d'] .brand-text { display: flex; flex-direction: column; min-width: 0; overflow: hidden; white-space: nowrap; transition: opacity var(--pv-d-hover) var(--pv-ease-out); }
 [data-preview='2d'] .brand-text strong { font-size: 16px; letter-spacing: .2px; }
@@ -774,13 +767,6 @@
 [data-preview='2d'] .detail-meta dd .status-badge { vertical-align: middle; }
 [data-preview='2d'] .preview-table td.row-action, [data-preview='2d'] .preview-table th.row-action { width: 42px; text-align: right; }
 [data-preview='2d'] .row-menu { width: 28px; height: 28px; }
-/* Hai nút ★ và ⋯ của thẻ Không gian nằm dọc mép phải, mỗi nút một góc để không đè nhau.
-   Bản cũ khai báo `padding-right: 34px` ở rule .mini-card riêng rồi bị rule .mini-card
-   phía dưới ghi đè bằng shorthand `padding: 10px` (đặc tính như nhau, rule sau thắng) →
-   phần thân card GiÀN ra tới mép và nút ⋯ vẽ đè lên dòng "3 dự án gần đây". */
-[data-preview='2d'] .mini-card-menu { position: absolute; right: 8px; bottom: 8px; width: 26px; height: 26px; }
-[data-preview='2d'] .mini-card .fav-button { position: absolute; right: 7px; top: 8px; }
-
 [data-preview='2d'] .detail-meta { display: grid; gap: 8px; }
 [data-preview='2d'] .detail-meta div { display: grid; grid-template-columns: 1fr 1.1fr; gap: 8px; align-items: center; }
 [data-preview='2d'] .detail-meta dt { font-size: 12px; color: var(--pv-muted); }
@@ -933,9 +919,7 @@
 [data-preview='2d'] .mini-card {
   position: relative;
   display: flex; gap: 10px; align-items: flex-start;
-  /* 42px bên phải = chỗ hai nút ★/⋯ đã absolute; đặt trong chính shorthand này để không
-     bị ghi đè kiểu rule cũ. */
-  padding: 10px 42px 10px 10px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius);
+  padding: 10px; border: 1px solid var(--pv-line); border-radius: var(--pv-radius);
   background: var(--pv-bg-2);
   transition: border-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
 }
@@ -990,11 +974,6 @@
    Màn riêng reached từ #/preview/workspaces/<id>: breadcrumb + header (bìa, tên, chủ sở
    hữu, meta) + 4 stat card + bar + donut + bảng project. Tái dùng panel/table/stat đã có;
    chỉ thêm lớp cho phần đầu + breadcrumb + biểu đồ cột. */
-[data-preview='2d'] .ws-crumb { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; color: var(--pv-faint); }
-[data-preview='2d'] .crumb-link { padding: 0; border: 0; background: none; font: inherit; color: var(--pv-ink-link); cursor: pointer; transition: color var(--pv-d-hover) var(--pv-ease-out); }
-[data-preview='2d'] .crumb-link:hover { color: var(--pv-ink-accent-hi); text-decoration: underline; }
-[data-preview='2d'] .crumb-sep { color: var(--pv-faint); }
-[data-preview='2d'] .crumb-current { color: var(--pv-muted); }
 [data-preview='2d'] .ws-detail-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: start; margin-bottom: 16px; }
 [data-preview='2d'] .ws-detail-cover { width: 84px; height: 84px; flex: none; border-radius: var(--pv-radius); overflow: hidden; }
 [data-preview='2d'] .ws-detail-cover .cover-art { height: 100%; }
@@ -1037,10 +1016,12 @@
    ĐÚNG ba khối ảnh home: Activity Overview (rộng hơn) + Projects by Status + Projects per
    Workspace. Hàng tự gom về 1 cột trên màn hẹp để không bóp biểu đồ. */
 [data-preview='2d'] .home-overview {
-  display: grid; gap: 14px; align-items: start;
+  display: grid; gap: 14px; align-items: stretch;
   grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr);
+  margin-bottom: 24px;
 }
 [data-preview='2d'] .home-overview .panel { margin-bottom: 0; }
+[data-preview='2d'] .panel-project-status .share-chart { justify-content: center; }
 [data-preview='2d'] .panel-overview .stat-row { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); margin-bottom: 0; }
 @media (max-width: 960px) { [data-preview='2d'] .home-overview { grid-template-columns: minmax(0, 1fr); } }
 
@@ -1064,7 +1045,6 @@
    một danh sách `projectModules`, nên màu của chúng cũng phải là một định nghĩa. Chữ luôn dùng
    --pv-ink/--pv-muted (tone chỉ gánh viền/nền/icon — tương phản của nó không phụ thuộc vào màu accent). */
 [data-preview='2d'] .pj-head-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-[data-preview='2d'] .pj-head-row .ws-crumb { margin-bottom: 0; }
 [data-preview='2d'] .back-button { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 
 /* Dải đầu. Nền gần đặc (`.86`) vì nó chở chữ 21px + mô tả 12px: để tinh vân xuyên qua nhiều hơn thì
@@ -1246,7 +1226,13 @@
   max-height: 278px; overflow-y: auto; overscroll-behavior: contain;
   padding-right: 4px;
 }
-[data-preview='2d'] .ws-tile { align-items: center; }
+[data-preview='2d'] .ws-tile {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 8px;
+}
+[data-preview='2d'] .ws-tile-actions { display: flex; align-items: center; gap: 4px; }
+[data-preview='2d'] .ws-tile-actions .icon-button { width: 28px; height: 28px; min-height: 28px; }
+[data-preview='2d'] .ws-tile-actions .fav-button:not(.is-on) { color: var(--pv-muted); }
 [data-preview='2d'] .ws-tile-icon {
   flex: none; display: grid; place-items: center;
   width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--pv-line);
@@ -1409,7 +1395,7 @@
 [data-preview='2d'] .preview-popover {
   position: fixed;
   z-index: 900;
-  min-width: 218px;
+  min-width: min(218px, calc(100vw - 16px));
   /* width: max-content — KHÔNG phải để rộng hơn, mà để bề rộng KHÔNG phụ thuộc left.
      Để auto, surface fixed co theo fit-content = min(chỗ còn lại bên phải left, nội dung),
      mà chỗ còn lại lại do left quyết: layout effect đo được 218 (min-width, vì left tạm
@@ -1420,19 +1406,16 @@
   max-width: min(360px, calc(100vw - 16px));
   max-height: calc(100vh - 16px);
   overflow: hidden auto;
-  padding: 6px;
+  overscroll-behavior: contain;
+  padding: 7px;
   border: 1px solid var(--pv-line-strong);
   /* Cạnh trên sáng hơn các cạnh còn lại = ánh sáng rơi lên mép vật liệu. */
   border-top-color: rgba(180, 214, 255, .38);
   border-radius: 14px;
-  background: rgba(22, 38, 60, .86);
-  backdrop-filter: blur(24px) saturate(160%);
+  background: var(--pv-surface);
   box-shadow: 0 26px 60px rgba(2, 8, 20, .66), 0 2px 8px rgba(2, 8, 20, .5);
-  /* Neo gốc co giãn vào đúng phía trigger (mục 7) thay vì co từ tâm. */
+  /* Keep the shared anchor alignment for compact and wide menus. */
   transform-origin: top left;
-  /* Materialize bằng scale + opacity THÔI. Bản cũ animate cả backdrop-filter từ 6px lên
-     24px: mỗi frame là một lần re-blur toàn bộ vùng đứng sau (giờ còn là ảnh tinh vân) —
-     chính cái "mượt" đó làm menu mở ra bị trễ một hai frame. */
   animation: pv-materialize var(--pv-d-surface) var(--pv-ease-out);
 }
 [data-preview='2d'] .preview-popover.is-end { transform-origin: top right; }
@@ -1829,11 +1812,9 @@
   [data-preview='2d'] .settings-nav { position: static; }
 }
 
-/* Materialize, không chỉ fade: surface co nhẹ từ mép trigger rồi đặc lại trong 130ms,
-   đọc như "một lớp vật liệu đang tới" thay vì một khối bật lên bằng opacity. */
 @keyframes pv-materialize {
-  from { opacity: 0; transform: scale(.97); }
-  to { opacity: 1; transform: none; }
+  from { opacity: .72; }
+  to { opacity: 1; }
 }
 
 /* Mũi tên nhỏ chỉ về nút đã mở ra surface. data-side nói cho CSS biết trigger nằm
@@ -1844,7 +1825,7 @@
   position: absolute; top: -5px; left: 18px;
   width: 9px; height: 9px;
   transform: rotate(45deg);
-  background: rgba(22, 38, 60, .9);
+  background: var(--pv-surface);
   border-left: 1px solid rgba(180, 214, 255, .38);
   border-top: 1px solid rgba(180, 214, 255, .38);
 }
@@ -1860,37 +1841,41 @@
 /* Menu ngữ cảnh */
 [data-preview='2d'] .menu-title {
   padding: 5px 8px 6px;
-  font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
-  color: var(--pv-faint);
+  font-size: 12px; font-weight: 700;
+  color: var(--pv-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 [data-preview='2d'] .menu-list { display: flex; flex-direction: column; gap: 1px; }
 [data-preview='2d'] .menu-item {
-  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 9px; align-items: center;
-  width: 100%; padding: 8px 9px; border-radius: 9px;
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 9px; align-items: center;
+  width: 100%; min-height: 38px; padding: 5px 8px; border-radius: 9px;
   color: var(--pv-ink); text-align: left;
   transition: background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
 }
 [data-preview='2d'] .menu-item:not([disabled]):hover { background: var(--pv-blue-soft); }
 [data-preview='2d'] .menu-item:not([disabled]):active { transform: scale(.99); }
 [data-preview='2d'] .menu-icon { display: grid; place-items: center; color: var(--pv-muted); }
+[data-preview='2d'] .menu-item .menu-icon { width: 26px; height: 26px; border-radius: 7px; background: var(--pv-blue-soft); color: var(--pv-ink-link); }
+[data-preview='2d'] .menu-item .menu-icon svg { width: 16px; height: 16px; }
 [data-preview='2d'] .menu-text { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-preview='2d'] .menu-hint { font-size: 11px; color: var(--pv-faint); }
 [data-preview='2d'] .menu-item.is-danger { color: var(--pv-ink-rose); }
-[data-preview='2d'] .menu-item.is-danger .menu-icon { color: var(--pv-ink-rose); }
+[data-preview='2d'] .menu-item.is-danger .menu-icon { color: var(--pv-ink-rose); background: color-mix(in srgb, var(--pv-ink-rose) 12%, transparent); }
 [data-preview='2d'] .menu-item.is-danger:not([disabled]):hover { background: rgba(255, 107, 107, .16); }
 [data-preview='2d'] .menu-separator { height: 1px; margin: 5px 6px; background: var(--pv-line); }
 /* Item tắt phải tự giải thích trong chính surface: người bấm chuột phải chưa chắc
    đã nhìn thấy dải note cuối trang. */
 [data-preview='2d'] .menu-note {
-  margin: 6px 4px 2px; padding-top: 7px;
-  border-top: 1px dashed var(--pv-line);
-  font-size: 12px; line-height: 1.45; color: var(--pv-faint);
+  margin: 4px 4px 5px; padding: 7px 9px;
+  border-radius: 8px; background: var(--pv-bg-2);
+  font-size: 12px; line-height: 1.5; color: var(--pv-muted);
 }
 
 /* Popover topbar (combobox · thông báo · tài khoản) */
 [data-preview='2d'] .popover-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 8px 8px; }
-[data-preview='2d'] .popover-head strong { font-size: 12px; }
+[data-preview='2d'] .popover-head strong { font-size: 14px; line-height: 1.35; }
+[data-preview='2d'] .popover-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+[data-preview='2d'] .popover-title > svg { width: 17px; height: 17px; flex: none; color: var(--pv-ink-link); }
 [data-preview='2d'] .popover-search {
   display: flex; align-items: center; gap: 7px;
   margin: 0 2px 6px; padding: 6px 9px;
@@ -1942,32 +1927,40 @@
 [data-preview='2d'] .popover-foot { display: flex; justify-content: center; padding: 6px 4px 2px; }
 
 /* Dropdown tài khoản */
-/* Bản cũ xếp "Ngôn ngữ · Tiếng Việt" thành MỘT nhãn 12.5px rồi đặt "i18n" hoa 9.5px+dãn
-   rộng ngay bên cạnh: hai thông tin khác loại tranh nhau trên một hàng 32px → người dùng
-   đọc và báo "chữ chen lấn". Nay mỗi hàng là NHÃN (việc muốn làm) + GIÁ TRỊ (hiện ra
-   sao) + chip nguồn (còn thiếu gì), tách theo chiều dọc và theo cỡ chữ. */
-[data-preview='2d'] .account-head { display: flex; align-items: center; gap: 12px; padding: 8px 8px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--pv-line); }
-[data-preview='2d'] .account-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-[data-preview='2d'] .account-id strong { font-size: 14px; }
-[data-preview='2d'] .account-id small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Dòng thứ ba (chức danh) lùi một cỡ và mờ hơn email: ba dòng cùng cỡ/dùng được xếp chồng
-   lên nhau đọc như một khối chữ, không còn "tên + hai thông tin phụ". */
-[data-preview='2d'] .account-id small + small { font-size: 11px; color: var(--pv-faint); }
-[data-preview='2d'] .account-list { display: flex; flex-direction: column; gap: 2px; padding-bottom: 2px; }
+[data-preview='2d'] .account-head {
+  display: flex; align-items: center; gap: 13px; margin-bottom: 8px; padding: 13px;
+  border: 1px solid var(--pv-line); border-radius: 12px;
+  background: linear-gradient(125deg, var(--pv-blue-soft), var(--pv-bg-2));
+}
+[data-preview='2d'] .account-head .avatar { flex-shrink: 0; }
+[data-preview='2d'] .account-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+[data-preview='2d'] .account-id strong { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+[data-preview='2d'] .account-id small { font-size: 12px; color: var(--pv-muted); overflow-wrap: anywhere; }
+[data-preview='2d'] .account-role {
+  align-self: flex-start; margin-top: 3px; padding: 2px 7px; border: 1px solid var(--pv-line);
+  border-radius: 6px; color: var(--pv-ink-link); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere;
+}
+[data-preview='2d'] .account-list { display: flex; flex-direction: column; gap: 3px; padding-bottom: 2px; }
 [data-preview='2d'] .account-row {
-  /* Hai cột: icon + nhãn. Ảnh 4.1 vẽ thêm cột chip "Settings" bên phải nhưng chủ batch yêu cầu
-     bỏ, nên grid không còn cột max-content thứ ba — để lại thì mỗi dòng thừa 10px khoảng trống
-     cuối hàng mà không chứa gì. */
-  display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: center;
-  width: 100%; min-height: 38px; padding: 7px 9px; border-radius: 10px; text-align: left;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center;
+  width: 100%; min-height: 44px; padding: 7px 9px; border-radius: 10px; text-align: left;
   transition: background-color var(--pv-d-hover) var(--pv-ease-out), transform var(--pv-d-press) var(--pv-ease-out);
 }
+[data-preview='2d'] .account-destination { grid-template-columns: 34px minmax(0, 1fr) 16px; min-height: 58px; }
+[data-preview='2d'] .account-row .menu-icon {
+  width: 34px; height: 34px; border-radius: 9px; background: var(--pv-blue-soft); color: var(--pv-ink-link);
+}
+[data-preview='2d'] .account-chevron { display: grid; place-items: center; color: var(--pv-muted); }
+[data-preview='2d'] .account-chevron .preview-icon { width: 14px; height: 14px; }
 [data-preview='2d'] .account-row:not([disabled]):hover { background: var(--pv-blue-soft); }
 [data-preview='2d'] .account-row:not([disabled]):active { transform: scale(.99); }
 [data-preview='2d'] .account-row.is-danger { color: var(--pv-ink-rose); }
-[data-preview='2d'] .account-row.is-danger .menu-icon { color: var(--pv-ink-rose); }
+[data-preview='2d'] .account-row.is-danger .menu-icon { color: var(--pv-ink-rose); background: transparent; }
 [data-preview='2d'] .account-text { display: flex; flex-direction: column; min-width: 0; }
-[data-preview='2d'] .account-label { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-preview='2d'] .account-label { font-size: 14px; font-weight: 650; line-height: 1.4; }
+[data-preview='2d'] .account-description { margin-top: 3px; font-size: 11px; line-height: 1.45; color: var(--pv-muted); }
+[data-preview='2d'] .account-signout { margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--pv-line); }
+[data-preview='2d'] .account-error { padding: 4px 9px; color: var(--pv-ink-rose); font-size: 12px; }
 
 /* ---------- Toaster ---------- */
 /* Region luôn nằm trong DOM (live region duy nhất của frame) nên không chiếm chỗ và
@@ -1998,6 +1991,7 @@
 [data-preview='2d'] .toast-info { border-color: rgba(47, 124, 246, .34); }
 [data-preview='2d'] .toast-info .toast-icon { background: var(--pv-blue-soft); color: var(--pv-ink-accent-soft); }
 [data-preview='2d'] .toast-success { border-color: rgba(52, 211, 153, .34); }
+[data-preview='2d'] .toast-success .toast-icon { background: color-mix(in srgb, var(--pv-ink-green) 14%, transparent); color: var(--pv-ink-green); }
 [data-preview='2d'] .toast-danger { border-color: rgba(255, 107, 107, .4); }
 [data-preview='2d'] .toast-danger .toast-icon { background: rgba(255, 107, 107, .16); color: var(--pv-ink-rose); }
 [data-preview='2d'] .toast-action {
@@ -2022,13 +2016,14 @@
   overflow-y: auto;
   /* Nền bị tối + lùi lại khi có task cần tập trung (mục 12). */
   background: rgba(2, 6, 14, .62);
-  backdrop-filter: blur(3px);
+  backdrop-filter: none;
   animation: pv-scrim-in var(--pv-d-surface) var(--pv-ease-out);
 }
 @keyframes pv-scrim-in { from { opacity: 0; } to { opacity: 1; } }
 [data-preview='2d'] .preview-dialog {
   width: min(460px, 100%);
-  padding: 18px;
+  padding: clamp(16px, 3vw, 24px);
+  color: var(--pv-ink);
   /* 40px = padding 20px của scrim hai bên — giữ nguyên lề trên/dưới khi thân modal cuộn. */
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
@@ -2036,13 +2031,12 @@
   border: 1px solid var(--pv-line-strong);
   border-top-color: rgba(180, 214, 255, .4);
   border-radius: 20px;
-  /* Vật liệu nặng nhất của frame: gần tối đặc, blur mạnh, bóng sâu. */
-  background: rgba(9, 17, 31, .97);
-  backdrop-filter: blur(30px) saturate(160%);
+  background: var(--pv-bg-2);
+  backdrop-filter: none;
   box-shadow: 0 40px 90px rgba(2, 8, 20, .8);
   animation: pv-dialog-in var(--pv-d-surface) var(--pv-ease-out);
 }
-@keyframes pv-dialog-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes pv-dialog-in { from { opacity: .72; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 [data-preview='2d'] .dialog-kind {
   display: inline-block;
   padding: 2px 7px; border-radius: 999px; border: 1px solid var(--pv-line-strong);
@@ -2059,15 +2053,20 @@
 }
 [data-preview='2d'] .dialog-field input:focus { border-color: var(--pv-blue); box-shadow: 0 0 0 3px var(--pv-blue-soft); }
 [data-preview='2d'] .dialog-field input[aria-invalid='true'] { border-color: var(--pv-danger); }
-[data-preview='2d'] .dialog-error { margin-top: 8px; font-size: 12px; color: var(--pv-ink-rose); }
+[data-preview='2d'] .dialog-error {
+  margin-top: 8px; padding: 9px 11px; border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--pv-ink-rose) 30%, transparent);
+  background: color-mix(in srgb, var(--pv-ink-rose) 9%, transparent);
+  font-size: 13px; line-height: 1.5; color: var(--pv-ink-rose); overflow-wrap: anywhere;
+}
 [data-preview='2d'] .dialog-detail { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--pv-muted); }
 [data-preview='2d'] .dialog-note {
   margin-top: 12px; padding: 9px 11px;
   border-left: 2px solid var(--pv-line-strong); border-radius: 0 10px 10px 0;
   background: var(--pv-bg-2);
-  font-size: 11px; line-height: 1.5; color: var(--pv-faint);
+  font-size: 12px; line-height: 1.5; color: var(--pv-muted);
 }
-[data-preview='2d'] .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+[data-preview='2d'] .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
 /* ---------- Modal trang chi tiết workspace (Design Board "workspaces detail") ----------
    Nối vào họ dialog đổi tên/xóa: cùng scrim, cùng vật liệu, chỉ thêm biến thể rộng
@@ -2080,13 +2079,14 @@
   border-radius: 12px; border: 1px solid var(--pv-line-strong); background: var(--pv-blue-soft); color: var(--pv-ink-accent); }
 [data-preview='2d'] .dialog-head-icon .preview-icon { width: 20px; height: 20px; }
 [data-preview='2d'] .dialog-head-text { flex: 1; min-width: 0; }
-[data-preview='2d'] .dialog-head-text h2 { margin: 0; font-size: 18px; line-height: 1.3; }
-[data-preview='2d'] .dialog-head-text p { margin: 2px 0 0; font-size: 12px; color: var(--pv-muted); }
+[data-preview='2d'] .dialog-head-text h2 { margin: 0; font-size: 19px; line-height: 1.35; overflow-wrap: anywhere; }
+[data-preview='2d'] .dialog-head-text p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--pv-muted); }
+[data-preview='2d'] [role='alertdialog'] .dialog-head-icon {
+  color: var(--pv-ink-rose); background: color-mix(in srgb, var(--pv-ink-rose) 12%, transparent);
+}
 [data-preview='2d'] .dialog-close { flex: none; }
+[data-preview='2d'] .dialog-action-head { margin-bottom: 14px; align-items: center; }
 
-[data-preview='2d'] .ws-edit-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; margin: 16px 0; }
-[data-preview='2d'] .ws-edit-cover { border-radius: var(--pv-radius); overflow: hidden; height: 120px; }
-[data-preview='2d'] .ws-edit-cover .cover-art { height: 100%; }
 [data-preview='2d'] .ws-edit-fields { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 [data-preview='2d'] .ws-edit-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 [data-preview='2d'] .field-required { color: var(--pv-ink-rose); font-style: normal; }
@@ -2216,11 +2216,27 @@
    hai ô grid; art ẩn dưới 900px còn thì luôn có chỗ đứng cho dù art có hiện hay không. */
 [data-preview='2d'] .page-head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0; }
 
-[data-preview='2d'] .pv-create-grid { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; margin: 16px 0 4px; }
-[data-preview='2d'] .pv-create-aside { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
-[data-preview='2d'] .pv-create-art { width: 100%; height: 120px; border-radius: var(--pv-radius); overflow: hidden; }
-[data-preview='2d'] .pv-create-art .cover-art { height: 100%; }
-[data-preview='2d'] .pv-create-aside p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--pv-muted); }
+[data-preview='2d'] .workspace-avatar-grid { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: start; gap: 16px; margin: 16px 0 4px; }
+[data-preview='2d'] .workspace-avatar-art { display: block; width: 100%; height: 120px; border-radius: 11px; overflow: hidden; }
+[data-preview='2d'] .workspace-avatar-trigger {
+  position: relative; width: 100%; padding: 4px;
+  border: 1px solid var(--pv-line); border-radius: 15px; background: var(--pv-bg-1);
+}
+[data-preview='2d'] .workspace-avatar-trigger:is(:hover, :focus-visible, [aria-expanded='true']) { border-color: var(--pv-blue); }
+[data-preview='2d'] .workspace-avatar-label {
+  position: absolute; inset-inline-end: 10px; bottom: 10px;
+  display: flex; align-items: center; gap: 5px; padding: 6px 9px;
+  border: 1px solid #b7d9ff55; border-radius: 8px; background: #132742; color: #fff;
+  font-size: 12px; line-height: 1.35; font-weight: 650; pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-preview='2d'] .workspace-avatar-trigger:not(:hover, :focus-visible, [aria-expanded='true']) .workspace-avatar-label { opacity: 0; }
+}
+[data-preview='2d'] .workspace-avatar-label svg { width: 15px; height: 15px; flex: none; }
+[data-preview='2d'] .workspace-avatar-editor { min-width: 0; border: 1px solid var(--pv-line); border-radius: 13px; background: var(--pv-bg-1); }
+[data-preview='2d'] .workspace-avatar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--pv-line); }
+[data-preview='2d'] .workspace-avatar-head h3 { font-size: 14px; }
+[data-preview='2d'] .workspace-avatar-editor .avatar-library { grid-template-columns: repeat(auto-fit, minmax(min(100%, 98px), 1fr)); gap: 8px; }
 /* Nhãn đứng rời (không bọc input) cho ô "Thành viên ban đầu" — cùng bậc chữ với nhãn của
    các field khác nên form không bị hai cỡ chữ khác nhau trên một cột. */
 [data-preview='2d'] .dialog-field-label { font-size: 12px; font-weight: 600; color: var(--pv-muted); }
@@ -2252,8 +2268,8 @@
 [data-preview='2d'] .pv-suggest-row .pv-chip-text { flex: 1; min-width: 0; }
 [data-preview='2d'] .pv-suggest-add { flex: none; padding: 5px 10px; font-size: 12px; }
 @media (max-width: 720px) {
-  [data-preview='2d'] .pv-create-grid { grid-template-columns: minmax(0, 1fr); }
-  [data-preview='2d'] .pv-create-aside { display: none; }
+  [data-preview='2d'] .workspace-avatar-grid { grid-template-columns: minmax(0, 1fr); }
+  [data-preview='2d'] .workspace-avatar-art { height: 76px; }
 }
 
 /* ---------- Responsive ---------- */

@@ -25,7 +25,9 @@ export function Toast({ toasts, onDismiss, label }: {
   return <div className={`${styles['root']} preview-toaster${toasts.length ? ' is-on' : ''}`} role="status" aria-live="polite"
     aria-label={label}>
     {toasts.map(toast => <div className={`toast toast-${toast.tone}`} key={toast.id}>
-      <span className="toast-icon" aria-hidden="true"><PreviewIcon name={toast.tone === 'danger' ? 'help' : 'check'} /></span>
+      <span className="toast-icon" aria-hidden="true">
+        <PreviewIcon name={toast.tone === 'danger' ? 'alert' : toast.tone === 'success' ? 'check-circle' : 'info'} />
+      </span>
       <p className="toast-text">{toast.text}</p>
       {toast.onUndo && <button type="button" className="toast-action" aria-label={toast.undoLabel ?? 'Hoàn tác'}
         onClick={() => { if (toast.onUndo?.() !== false) onDismiss(toast.id) }}>

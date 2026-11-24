@@ -79,10 +79,7 @@ export function PreviewShell({
   // Panel chi tiết sticky cần biết đúng chiều cao còn lại của vùng cuộn. Đo thực tế thay vì
   // đoán hằng số: dải demo/topbar/dải lý do/toast đều có thể đổi chiều cao (thu gọn cửa sổ,
   // toast xuất hiện) và mỗi px đoán sai là một phần panel bị cắt dưới đáy màn hình.
-  // Bấm nút thu gọn làm cột lưới đổi chiều rộng TỪNG FRAME → ResizeObserver bắn đúng từng
-  // frame đó. Nếu mỗi frame lại getComputedStyle + ghi biến thì mỗi frame là một lần
-  // invalidate layout — chính là độ trễ mắt thấy trên cái nút. Ở đây đọc padding theo
-  // resize, còn RO chỉ đo chiều cao và im lặng khi chiều cao không đổi.
+  // Observe the available height for sticky panels and only write when it changes.
   useEffect(() => {
     const element = contentRef.current
     if (!element) return
@@ -136,7 +133,7 @@ export function PreviewShell({
   return <div className={`preview-root${!processing && compact ? ' is-compact' : ''}`} data-section={processing ? 'processing' : active}>
     {!processing && <aside className="preview-sidebar" aria-label="Điều hướng chính">
       <div className="sidebar-brand">
-        <span className="brand-mark" aria-hidden="true"><PreviewIcon name="datasets" /></span>
+        <DataVerseMark className="brand-mark" />
         <span className="brand-text"><strong>DataVerse</strong><small>Your Data. Our Universe.</small></span>
       </div>
       <nav className="sidebar-nav">

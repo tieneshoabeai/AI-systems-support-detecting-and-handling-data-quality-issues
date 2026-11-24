@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import { Link } from 'react-router'
+import { Icon } from '../../components/ui/primitives/icon/icon'
 import { HolographicCoreCanvas } from '../../components/graphics/holographic-core/holographic-core.scene'
 import type { CubeFocus } from '../../types'
 import { NEON_CUBE_LABELS } from '../../graphics/neon-cube'
@@ -30,6 +32,7 @@ function formatDimensions({ width, height, depth, units }: HolographicPartInfo['
 type Dataset3DViewProps = {
   glassPanel?: HTMLElement | null
   embedded?: boolean
+  fullscreenTarget?: RefObject<HTMLElement | null>
   colorMode?: 'light' | 'dark'
   focus?: CubeFocus | null
   onFocusChange?: (focus: CubeFocus | null) => void
@@ -37,7 +40,7 @@ type Dataset3DViewProps = {
   onFocusComplete?: (theme: NeonCubeThemeId) => void
 }
 
-export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onFocusChange, onDetachedChange, onFocusComplete, glassPanel }: Dataset3DViewProps) {
+export function Dataset3DView({ embedded = false, fullscreenTarget, colorMode = 'dark', focus, onFocusChange, onDetachedChange, onFocusComplete, glassPanel }: Dataset3DViewProps) {
   const reducedMotion = useReducedMotion()
   const [detached, setDetached] = useState(false)
   const [modelReady, setModelReady] = useState(false)
@@ -52,6 +55,10 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
   const [cameraToolbar, setCameraToolbar] = useState<HTMLDivElement | null>(null)
   const overviewButton = useRef<HTMLButtonElement>(null)
   const legendButton = useRef<HTMLButtonElement>(null)
+  const fullscreenButton = useRef<HTMLButtonElement>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [viewportExpanded, setViewportExpanded] = useState(false)
+  const fullscreenLabel = fullscreen || viewportExpanded ? 'Thoát toàn màn hình' : 'Mở toàn màn hình'
   const selectedId = detached ? part?.id ?? null : null
   const Container = embedded ? 'div' : 'main'
 
@@ -70,8 +77,51 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
 
   const returnToOverview = useCallback(() => {
     setCubeFocus(null)
-    legendButton.current?.focus({ preventScroll: true })
-  }, [setCubeFocus])
+    const control = fullscreenTarget ? fullscreenButton : legendButton
+    control.current?.focus({ preventScroll: true })
+  }, [fullscreenTarget, setCubeFocus])
+
+  useEffect(() => {
+    if (!fullscreenTarget) return
+    const sync = () => setFullscreen(document.fullscreenElement === fullscreenTarget.current)
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  }, [fullscreenTarget])
+
+  useEffect(() => {
+    if (!viewportExpanded) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      setViewportExpanded(false)
+      fullscreenButton.current?.focus({ preventScroll: true })
+    }
+    window.addEventListener('keydown', close, true)
+    return () => window.removeEventListener('keydown', close, true)
+  }, [viewportExpanded])
+
+  const toggleFullscreen = async () => {
+    const target = fullscreenTarget?.current
+    if (!target) return
+    if (viewportExpanded) {
+      setViewportExpanded(false)
+      return
+    }
+    if (document.fullscreenElement === target) {
+      await document.exitFullscreen().catch(() => {})
+      return
+    }
+    if (target.requestFullscreen && document.fullscreenEnabled) {
+      try {
+        await target.requestFullscreen()
+        return
+      } catch {
+        // Embedded browsers can expose the API while denying the request.
+      }
+    }
+    setViewportExpanded(true)
+  }
 
   useEffect(() => {
     if (cubeFocus) overviewButton.current?.focus({ preventScroll: true })
@@ -102,7 +152,11 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
         {...(onFocusComplete === undefined ? {} : { onFocusComplete: onFocusComplete })}
         selectedId={selectedId} onSelectPart={setPart} cubeFocus={cubeFocus} onFocusCube={focusCube} onReadyChange={setModelReady} />
       <div className="dataset-3d-overlay">
-        <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>
+        {fullscreenTarget ? <button ref={fullscreenButton} type="button" className="dataset-3d-fullscreen"
+          aria-label={fullscreenLabel} title={fullscreenLabel} data-viewport-expanded={viewportExpanded}
+          onClick={() => { void toggleFullscreen() }}>
+          <Icon name={fullscreen || viewportExpanded ? 'fullscreen-exit' : 'fullscreen-enter'} />
+        </button> : <aside className="dataset-3d-legend" aria-label="Bản đồ module" data-expanded={legendOpen}>
           <header className="dataset-3d-legend-header">
             <p className="dataset-3d-legend-title" hidden={!legendOpen}>BẢN ĐỒ MODULE</p>
             <button ref={legendButton} className="dataset-3d-legend-toggle" type="button"
@@ -131,7 +185,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
               Chọn một module để xem ba đường nối từ core, theo màu của module đó.
             </p>
           </div>
-        </aside>
+        </aside>}
         {cubeFocus && <button ref={overviewButton} type="button" className="dataset-3d-overview" onClick={returnToOverview}>
           Về góc tổng quan
         </button>}
@@ -162,7 +216,7 @@ export function Dataset3DView({ embedded = false, colorMode = 'dark', focus, onF
         )}
       </div>
     </section>
-    {reducedMotion && <p role="status">Chuyển động đã tắt theo cài đặt thiết bị.</p>}
+    {!embedded && reducedMotion && <p role="status">Chuyển động đã tắt theo cài đặt thiết bị.</p>}
     {!embedded && <p className="dataset-3d-boundary">Nhân trung tâm là một bộ dữ liệu; bốn khối neon là bốn module. Chọn một khối để xem ba đường nối sáng dần từ core; camera giữ góc nhìn của khối đó khi hoàn tất. Đây là minh hoạ khái niệm, chưa nối dữ liệu thật.</p>}
   </Container>
 }
