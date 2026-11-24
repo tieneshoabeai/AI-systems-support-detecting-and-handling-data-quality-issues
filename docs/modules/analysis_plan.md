@@ -1,7 +1,7 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.9 (2026-11-24)
+**Phiên bản:** v1.10 (2026-11-24)
 **Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g.
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
@@ -217,12 +217,27 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - **Hạ tầng test (báo nhóm, không sửa trong module analysis):** `scripts/test-infra-up.sh` gọi `rs.initiate()` không truyền host → cần `TEST_MONGODB_URI='mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true'`; image `minio/minio` không còn trên Docker Hub.
 - **Lưu ý git:** `.gitignore` của nhóm bỏ qua `/docs/*` (trừ `restructures/`, `refactor/`, `frontend-handover/`). File này vẫn được theo dõi vì đã có từ trước; file mới trong `docs/modules/` phải `git add -f`.
 
+## 7h. Giai đoạn 3 — dựng lại `local_VQD` + port test đợt A–I (2026-11-24)
+- **Trạng thái:** Đã thực hiện 2026-11-24. Chỉ đổi test và bộ test offline, **không đổi `src/`**. Docs: Phần 13 v14 mục 3.26 (bảng nhóm C đầy đủ).
+- **Kết quả:** 100 ca test cũ → **B 48** đạt · **C 25** `it.failing` (hồi quy) · **A 27** không port (OPEN). File `src/backend/test/analysis-vqd-port/`. `test:unit` 1123 pass (2 lỗi `/proc/meminfo` có từ mốc). `local_VQD` (đã dựng lại) chỉ còn lỗi thuộc nhóm C; edge-cases 17/28 bẫy. Bản `MISSED_ERRORS*.md` sau đợt I giữ ở `local_VQD/archive/` (bản trước khi chạy lại).
+- **Việc 1 — `local_VQD/runner/engine.ts`:** dựng bằng `RunAnalysisHandler`, `BuildPromptForJobHandler`, `IngestAiResultHandler`, `CreateSummaryHandler`, `RequestReportHandler`, `GetReportFileMetaHandler`, `ReportWorkerService` + port bộ nhớ. OPEN-06: `chosen` (label/time/value) lấy từ snapshot cấu hình hệ thống tự suy; lệch với `datasets.json` ghi vào `events.log` dòng `[OPEN-06]`. OPEN-03: bỏ bước vòng đời "đổi tên cột → lỗi thời". Bản cũ: `local_VQD/archive/engine.pre-refactor-2026-11-18.ts`.
+- **Việc 2 — port 96 test cũ** theo 3 nhóm B (còn hiệu lực, `it`), C (hồi quy, `it.failing`), A (lỗi thời theo OPEN, không port) — quy tắc ở Phần 13 v14 mục 3.26.
+- **Kết quả chạy lần đầu `local_VQD` trên code sau merge** (so với sau đợt I: 0 FAIL / 0 WARN / 0 bỏ sót, 28/28 bẫy): bộ mẫu nhiều FAIL, bộ edge-cases 17/28 bẫy. Hồi quy đã xác nhận trong code:
+  1. Prompt AI gửi 20 giá trị đầu bất kỳ của cột thay vì **chỉ ô lỗi** (đợt F, AN-28) — `application/commands/build-prompt-for-job.handler.ts`.
+  2. Cột ngày bị loại khỏi DQ-01..04 (`classifyColumn('date') = 'excluded'`) — ngược với đợt G (AN-34/35) — `run-analysis.handler.ts`.
+  3. Grounding không còn loại cặp đường chéo X~X ở đầu vào AI (đợt F, AN-30) — prompt vẫn lọc.
+  4. API kết quả thiếu `columnRoles`, `charts`, `timeAnalysis.timePartColumns/dateOrder/dateOrderAmbiguous/valueColumnIgnoredReason` (đợt D–H); Tổng kết thiếu `issue_total`, `severity_counts`, `unassessable`, `recommendation_items`, `notes`, `dq05`. Phần 7 v12 vẫn mô tả các trường này → lệch hợp đồng.
+  5. `top_n` mặc định 10 (DTO) thay vì 50 (đợt A, mục 6).
+  6. (phát hiện thêm khi port test) `RetryJobHandler` không kiểm trạng thái job (AN-06); worker PDF không thu hồi job treo (AN-09); worker AI ghi đánh giá failed sớm khi còn lượt (AN-04); không còn outbox/thông báo khi phân tích / AI xong (AN-19a–c); nhãn số 0/1 không đánh giá mất cân bằng (AN-47); `describeColumn` tính trung bình cho cột mã (AN-60); hệ thống tự chọn cột định danh làm cột giá trị mà không còn lý do loại (AN-61, edge E10).
+- **Việc sau (cần duyệt):** đợt K — khôi phục nhóm C trên cấu trúc handler mới, hoặc ghi quyết định bỏ từng hành vi (và hạ `it.failing` thành nhóm A). Riêng AN-08 / AN-11–13 (kiểm quyền chuyển sang guard CASL) cần đối chiếu lại ma trận quyền Phần 6 v9 mục 3.22–3.23.
+
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
 - `npx tsc --noEmit`.
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.10 / 2026-11-24:** Thêm mục 7h — giai đoạn 3: dựng lại `local_VQD` theo handler, port 100 ca test đợt A–I (B 48 · C 25 · A 27), ghi các hồi quy đã xác nhận; không đổi `src/`.
 - **v1.9 / 2026-11-24:** Thêm mục 7g — đồng bộ sau khi merge `origin/backend`: hợp nhất docs hai nhánh phiên bản (Phần 2 v15, 6 v9, 7 v12, 8 v12, 10 v8, 13 v13), bảng đối chiếu đường dẫn code trước/sau refactor, quyết định OPEN ảnh hưởng đợt A–I, việc còn lại cho giai đoạn 3; không đổi code.
 - **v1.8 / 2026-11-18:** Thêm đợt J (mục 7f) — bộ trực quan module analysis (viewer UML, walkthrough, code-flow) và đính chính báo cáo; không đổi code.
 - **v1.7 / 2026-11-18:** Thêm đợt I (mục 7e) — tự phát hiện mâu thuẫn dữ liệu dưới dạng Nghi vấn; không làm khai báo quy tắc DQ-05.
