@@ -258,7 +258,10 @@ describe('B2.10 — AiWorkerService', () => {
       expect(error.code).toBe('AI_FAILED');
     });
 
-    it('lỗi JSON ⇒ gọi ingest với payload rỗng để ghi nhận kết quả rỗng', async () => {
+    // Đợt K / K1 (Phần 9 v6 mục 3.13): trước đây test này yêu cầu gọi ingest({}) khi lỗi
+    // JSON — chính hành vi đó ghi job thành `failed`, đè trạng thái `pending` và làm
+    // lượt thử lại không bao giờ chạy (mâu thuẫn với test "vẫn retry" ngay bên dưới).
+    it('lỗi JSON còn lượt ⇒ không gọi ingest, job vẫn pending để thử lại (K1)', async () => {
       repository.claimPendingJob.mockResolvedValue({ id: 'job-1' });
       inference.complete.mockResolvedValue({
         text: 'AI tra ve khong phai JSON object',
@@ -268,7 +271,9 @@ describe('B2.10 — AiWorkerService', () => {
 
       await worker.tick();
 
-      expect(ingestResult.execute).toHaveBeenCalledWith('job-1', {}, 'model-x');
+      expect(ingestResult.execute).not.toHaveBeenCalled();
+      const lastCall = repository.updateJobById.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+      expect(lastCall?.status).toBe('pending');
     });
 
     it('lỗi không retryable (parse) ⇒ vẫn retry nhưng không đánh dấu failed ngay', async () => {

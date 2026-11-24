@@ -184,7 +184,8 @@ export interface AnalysisRepositoryPort {
   createReportJob(doc: Partial<ReportJobRecord> & Record<string, unknown> & { projectId: string }): Promise<ReportJobRecord>;
   findReportById(id: string): Promise<ReportJobRecord | null>;
   updateReportById(id: string, update: Record<string, unknown>): Promise<ReportJobRecord | null>;
-  claimPendingReport(): Promise<ReportJobRecord | null>;
+  /** Đợt K / K5 — nhận job PDF kèm lease (ms); nhận lại cả job `running` hết lease. */
+  claimPendingReport(leaseMs?: number): Promise<ReportJobRecord | null>;
   saveFewShotExample(doc: Partial<FewShotExampleRecord> & Record<string, unknown>): Promise<FewShotExampleRecord>;
   enforceFewShotCap(cap?: number): Promise<number>;
   findFewShotCandidates(params: { workspaceId: string; errorType?: string; language?: string; minTrustScore: number; maxAgeDays: number; limit: number }): Promise<FewShotExampleRecord[]>;

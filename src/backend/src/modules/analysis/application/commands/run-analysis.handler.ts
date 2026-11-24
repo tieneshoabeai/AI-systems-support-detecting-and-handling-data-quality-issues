@@ -185,13 +185,18 @@ export class RunAnalysisHandler {
       resolveAnalysisMaxRows(this.configService.get('ANALYSIS_MAX_ROWS')),
     );
 
-    const allInferable = dataset.columns.filter((c) => classifyColumn(c.dataType) !== 'excluded');
+    // Đợt K / K2 (Phần 12 v14 mục 3.23): tập cột **DQ** gồm mọi kiểu dữ liệu hỗ trợ, kể cả
+    // `date`. Trước đây lọc bằng `classifyColumn` (hàm dành cho tương quan) → cột ngày bị
+    // loại khỏi DQ-01..04: ô ngày trống không tính thiếu, hai dòng chỉ khác thời điểm bị
+    // DQ-02 báo trùng giả. Tương quan / VIF vẫn loại cột ngày ở bước `analyzable` bên dưới
+    // (lý do `date_column_excluded_from_correlation_vif`).
+    const DQ_DATA_TYPES = new Set(['string', 'number', 'boolean', 'date']);
+    const allInferable = dataset.columns.filter((c) => DQ_DATA_TYPES.has(c.dataType));
 
     // OPEN-06 — cấu hình cột **tự suy luận**, không còn đọc từ DB.
-    // Chọn toàn bộ cột suy luận được (loại cột kiểu không hỗ trợ tương quan).
     const selectedKeys = allInferable.map((c) => c.name);
     if (selectedKeys.length === 0) {
-      throw new ValidationError('Không có cột suy luận được để phân tích (toàn bộ là date/không hỗ trợ)',);
+      throw new ValidationError('Không có cột có kiểu dữ liệu hỗ trợ để phân tích');
     }
 
     const colTypeByName = new Map(dataset.columns.map((c) => [c.name, c.dataType] as const));
@@ -503,7 +508,13 @@ export class RunAnalysisHandler {
           rowWrappers.map((w) => w.values[c]),
         ),
       );
-      const imbalance = evaluateImbalance(labelColumn, labelDataType, rows);
+      // K4 — truyền vai trò: nhãn được chọn vì vai trò `category` thì phải đánh giá như nhãn phân loại.
+      const imbalance = evaluateImbalance(
+        labelColumn,
+        labelDataType,
+        rows,
+        labelColumn ? (roleByName.get(labelColumn) ?? null) : null,
+      );
       const timeAnalysis = analyzeTime(
         timeColumn,
         valueColumn,

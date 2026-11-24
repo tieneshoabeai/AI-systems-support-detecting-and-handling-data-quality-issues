@@ -141,11 +141,22 @@ export class AiWorkerService implements OnModuleInit {
         duration_ms: exhausted ? Date.now() - started : null,
         error: { code: exhausted ? 'AI_FAILED' : 'AI_RETRY', message, retryable },
       });
-      if (/JSON/i.test(message)) {
+      // Đợt K / K1 (Phần 9 v6 mục 3.13): còn lượt → chỉ trả job về `pending`, KHÔNG ghi
+      // đánh giá AI. Trước đây gọi ingest({}) ở đây → ingest ghi job `failed`, đè trạng
+      // thái `pending` vừa đặt ⇒ lỗi JSON không bao giờ được thử lại.
+      // Hết lượt → ghi đánh giá `failed` thẳng vào kết quả (không qua grounding: đầu vào
+      // rỗng không phải kết quả AI), cho mọi loại lỗi (kể cả timeout).
+      if (exhausted) {
         try {
-          await this.ingestAiResultHandler.execute(jobId, {} as Record<string, unknown>, job.modelId ?? undefined);
+          const result = await this.repository.findResultByRun(String(job.analysisRunId));
+          if (result) {
+            const prev = (result.aiCorrelationAssessment ?? {}) as Record<string, unknown>;
+            await this.repository.updateResultById(result.id, {
+              aiCorrelationAssessment: { ...prev, status: 'failed', error: `AI_FAILED: ${message}` },
+            });
+          }
         } catch {
-          // bo qua, job da danh dau
+          // bỏ qua — job đã đánh dấu failed
         }
       }
       this.logger.warn(`AI job ${jobId} loi (attempt ${attempt}): ${message}`);

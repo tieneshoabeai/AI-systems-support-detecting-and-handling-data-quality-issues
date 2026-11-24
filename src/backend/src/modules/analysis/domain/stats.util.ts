@@ -145,6 +145,12 @@ export function evaluateImbalance(
   labelColumn: string | null,
   labelDataType: string | null,
   rows: Record<string, unknown>[],
+  /**
+   * Đợt K / K4 (Phần 12 v14 mục 3.23): vai trò cột nhãn. Cột **số** vai trò `category`
+   * (Survived, target 0/1, pclass 1/2/3) là nhãn phân loại — giá trị số là tên lớp.
+   * Không truyền → giữ quy tắc theo kiểu dữ liệu như trước.
+   */
+  labelRole?: string | null,
 ): ImbalanceResult {
   if (!labelColumn) {
     return {
@@ -153,7 +159,8 @@ export function evaluateImbalance(
       validRows: 0, missingLabelRows: 0, reason: 'no_label_selected',
     };
   }
-  if (labelDataType === 'number' || labelDataType === 'date') {
+  const numericCategory = labelDataType === 'number' && labelRole === 'category';
+  if ((labelDataType === 'number' && !numericCategory) || labelDataType === 'date') {
     return {
       status: 'not_applicable_continuous', labelColumn, classes: [], classCount: 0,
       largest: [], smallest: [], imbalanceRatio: null, warning: null,

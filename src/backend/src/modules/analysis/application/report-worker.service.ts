@@ -9,6 +9,8 @@ import { resolveTopN } from '../domain/top-n.util';
 
 /** Tối đa số dòng bằng chứng in trong PDF (phân trang tự động). */
 const REPORT_EVIDENCE_LIMIT = 500;
+/** Đợt K / K5 — lease job PDF (đồng giá trị với job AI). */
+const REPORT_LEASE_MS = 600000;
 
 @Injectable()
 export class ReportWorkerService implements OnModuleInit {
@@ -47,7 +49,8 @@ export class ReportWorkerService implements OnModuleInit {
     if (this.busy) return;
     this.busy = true;
     try {
-      const job = await this.repository.claimPendingReport();
+      // K5 — lease để job không kẹt `running` nếu worker dừng giữa chừng.
+      const job = await this.repository.claimPendingReport(REPORT_LEASE_MS);
       if (!job) return;
       await this.buildPdf(job.id);
     } finally {

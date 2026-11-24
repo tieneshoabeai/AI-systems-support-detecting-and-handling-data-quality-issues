@@ -32,6 +32,9 @@ import {
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { resolveMongoSession } from '../../../../shared/infrastructure/database/mongo-session-context';
 
+/** Đợt K / K5 — số lượt tối đa worker được nhận một job PDF (Phần 9 v6 mục 3.13). */
+const MAX_REPORT_ATTEMPTS = 3;
+
 function oid(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
 }
@@ -361,10 +364,33 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     return doc ? toReportJobRecord(doc) : null;
   }
 
-  async claimPendingReport(): Promise<ReportJobRecord | null> {
+  /**
+   * Đợt K / K5 (Phần 9 v6 mục 3.13) — nhận job PDF có lease, đồng dạng `claimPendingJob`:
+   * job `pending` hoặc `running` đã hết lease (worker dừng giữa chừng) và còn lượt.
+   * Job `running` hết lease đã đủ `MAX_REPORT_ATTEMPTS` lượt → `failed` `REPORT_LEASE_EXPIRED`.
+   */
+  async claimPendingReport(leaseMs = 600000): Promise<ReportJobRecord | null> {
+    const now = new Date();
+    await this.reportModel.updateMany(
+      { status: 'running', deleted_at: null, lease_expires_at: { $lt: now }, attempt: { $gte: MAX_REPORT_ATTEMPTS } },
+      {
+        $set: {
+          status: 'failed',
+          lease_expires_at: null,
+          error: { code: 'REPORT_LEASE_EXPIRED', message: `Worker không hoàn tất sau ${MAX_REPORT_ATTEMPTS} lượt` },
+        },
+      },
+      { session: resolveMongoSession(undefined) },
+    ).exec();
     const doc = await this.reportModel.findOneAndUpdate(
-      { status: 'pending', deleted_at: null },
-      { $set: { status: 'running' } },
+      {
+        deleted_at: null,
+        $or: [
+          { status: 'pending' },
+          { status: 'running', lease_expires_at: { $lt: now }, attempt: { $lt: MAX_REPORT_ATTEMPTS } },
+        ],
+      },
+      { $set: { status: 'running', lease_expires_at: new Date(now.getTime() + leaseMs) }, $inc: { attempt: 1 } },
       { returnDocument: 'after', sort: { created_at: 1 }, session: resolveMongoSession(undefined) },
     ).exec();
     return doc ? toReportJobRecord(doc) : null;

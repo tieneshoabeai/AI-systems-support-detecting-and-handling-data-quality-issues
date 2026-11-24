@@ -54,6 +54,7 @@ export class CreateSummaryHandler {
         invalidRate: number | null;
         outlierCount: number;
         outlierRate: number | null;
+        outlierBreakdown?: { iqr: number; iqrExtreme: number; zscore: number; both: number } | null;
       }[];
       duplicateRowCount: number;
       notes: string[];
@@ -95,9 +96,13 @@ export class CreateSummaryHandler {
         }
         if (c.outlierCount > 0) {
           // DQ-04 đánh dấu theo phương pháp ngoại lệ, không theo tỷ lệ.
-          // Không có phân rã IQR/Z-score chi tiết → suy mức "thấp" (ngoại lệ
-          // không mặc định là lỗi cần xoá).
-          const sev = outlierSeverity({ iqr: c.outlierCount, iqrExtreme: 0, zscore: 0, both: 0 }) ?? 'low';
+          // Đợt K / K3 (Phần 12 v14 mục 3.23): dùng phân rã `outlierBreakdown` mà lần chạy
+          // đã lưu (IQR 1,5× / IQR 3× / Modified-Z / giao). Trước đây luôn coi như "chỉ IQR"
+          // → DQ-04 luôn "Thấp". Kết quả cũ không có phân rã → giữ mức "Thấp".
+          const sev =
+            outlierSeverity(
+              c.outlierBreakdown ?? { iqr: c.outlierCount, iqrExtreme: 0, zscore: 0, both: 0 },
+            ) ?? 'low';
           mk('DQ-04', c.outlierCount, c.outlierRate, sev);
         }
       }
