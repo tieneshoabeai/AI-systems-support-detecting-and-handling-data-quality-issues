@@ -32,7 +32,7 @@ Thu thập nhận xét của người dùng cho từng phát hiện và từng l
 | POST | `/api/v1/analyses/:analysisId/feedback` | Nhận xét cả lần phân tích (FB-02, 201). Run phải `succeeded` hoặc `failed`, nếu không → 409. |
 | GET | `/api/v1/analyses/:analysisId/findings/:findingId/feedback` | Xem nhận xét của một phát hiện, phân trang keyset (FB-03). Trả `meta.limit`; `summary` đếm toàn phạm vi, không theo `?label`. |
 | GET | `/api/v1/analyses/:analysisId/feedback` | Xem nhận xét của một lần phân tích (FB-04). |
-| PATCH | `/api/v1/feedback/:id` | Sửa nhận xét của chính mình. System Admin bị chặn 403 (FB-05). ID sai định dạng → 400; chủ nhận xét đã rời project → 403, project đã xoá → 404. |
+| PATCH | `/api/v1/feedback/:id` | Sửa nhận xét của chính mình. System Admin bị chặn 403 (FB-05). ID sai định dạng → 400; chủ nhận xét không còn quyền xem project (không còn là thành viên project **và** workspace) → 403, project đã xoá → 404. Thành viên workspace bị gỡ khỏi project vẫn có quyền xem nên vẫn sửa được. |
 | DELETE | `/api/v1/feedback/:id` | Xóa: chủ sở hữu (còn quyền xem project), owner xử lý vi phạm, hoặc system-admin kiểm duyệt (FB-05). |
 | GET | `/api/v1/projects/:projectId/ai-quality-metrics` | Thống kê chất lượng AI theo project: tổng feedback, tỉ lệ từng label, xu hướng. System Admin bị chặn (FB-06). |
 

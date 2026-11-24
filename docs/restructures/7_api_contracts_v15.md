@@ -2,7 +2,7 @@
 
 - **Version:** v15
 - **Ngày tạo:** 2026-11-02
-- **Cập nhật gần nhất:** 2026-11-24 (v15)
+- **Cập nhật gần nhất:** 2026-11-25 (v15)
 - **Thay đổi v15 (2026-11-24):** bổ sung mục 3.25 — Vá sau rà soát commit (VA-1…VA-4): `POST /analysis/jobs/{jobId}/result` chỉ SYS-ADMIN + tắt ở production (đúng Phần 6 v9 §3.22), audit `AI_RESULT_INGESTED`/`AI_JOB_RETRIED`, `in: []` qua port trả 0 dòng, đồng thuận RAG theo nhóm nhãn. §3.13 dòng 61 đổi cột quyền. Nguồn: rà soát bản audit các commit `Vqd_BE` 2026-11-24. Trạng thái: xem mục 3.25.
 - **Thay đổi v14 (2026-11-24):** bổ sung mục 3.24 — Hợp đồng đợt sửa module `feedback` (FB-R1…FB-R12: `meta.limit`, `summary` toàn phạm vi, chặn theo trạng thái lần phân tích, sửa/xoá cần còn quyền project, audit log, shape response thực tế). §3.17.1 thêm ghi chú trỏ sang 3.24. Nguồn: rà soát module `feedback` 2026-11-24 (`docs/modules/feedback_plan.md` v1.0). Trạng thái: xem mục 3.24.
 - **Thay đổi v13 (2026-11-24):** bổ sung mục 3.23 — Hợp đồng đợt sửa module `data-view` (cursor keyset gắn chữ ký sort, `limit` 1–500, null xếp cuối khi sort, định nghĩa trống thống nhất, chặn `value` dạng object). §3.7 thêm ghi chú trỏ sang 3.23. Nguồn: rà soát module `data-view` + `RecordQueryRepository` 2026-11-24 (`docs/modules/data_view_plan.md` v1.1). Trạng thái: xem mục 3.23.
@@ -1409,7 +1409,7 @@ Quy tắc: `dq05.status = "assessed"` chỉ khi có ít nhất 01 quy tắc đư
 | FB-R3 | `findingId` ở `GET …/findings/{findingId}/feedback` | Không kiểm tra độ dài | Trim, rỗng hoặc > 200 ký tự → `VALIDATION_ERROR` (như `POST`) |
 | FB-R4 | Trạng thái lần phân tích khi **tạo** nhận xét | Nhận mọi trạng thái | `POST …/findings/{findingId}/feedback`: chỉ `succeeded`. `POST …/feedback` (cả run): `succeeded` hoặc `failed`. Khác → `CONFLICT` (`Lần phân tích chưa hoàn tất`). `GET` không chặn |
 | FB-R5 | `findingId` có thuộc kết quả phân tích không | Không kiểm tra | **Vẫn không kiểm tra** — kết quả không sinh sẵn mã phát hiện (frontend tự dựng, vd `DQ-01:ten-cot`). Ghi RISK `FB-006` |
-| FB-R6 | Chủ nhận xét sửa/xoá khi **không còn quyền** project (bị gỡ khỏi project/workspace) hoặc project đã xoá | Vẫn sửa/xoá được | `FORBIDDEN` (mất quyền) / `NOT_FOUND` (project đã xoá) — cùng cơ chế kiểm tra quyền project như đọc nhận xét (Phần 6 §3.5b "Bảo mật") |
+| FB-R6 | Chủ nhận xét sửa/xoá khi **không còn quyền** project (bị gỡ khỏi project/workspace) hoặc project đã xoá | Vẫn sửa/xoá được | `FORBIDDEN` (mất quyền) / `NOT_FOUND` (project đã xoá) — cùng cơ chế kiểm tra quyền project như đọc nhận xét (Phần 6 §3.5b "Bảo mật"). *Làm rõ (v15):* thành viên workspace mặc định có quyền xem (`viewer`) mọi project trong workspace, nên người chỉ bị gỡ khỏi project mà **vẫn ở trong workspace** vẫn sửa/xoá được nhận xét của mình; `FORBIDDEN` chỉ khi không còn là thành viên project **và** không còn là thành viên workspace. |
 | FB-R7 | `feedbackId` sai định dạng ở `PATCH`/`DELETE /feedback/{feedbackId}` | `NOT_FOUND` | `VALIDATION_ERROR` |
 | FB-R8 | Owner / SYS-ADMIN xoá nhận xét vi phạm của người khác | Chỉ ghi log ứng dụng | Ghi **audit log** `FEEDBACK_MODERATION_DELETED` kèm nội dung bị xoá (`label`, `reason`, tác giả) — Phần 6 §3.5b quy tắc 4 |
 | FB-R9 | Chủ sửa nhận xét | Ghi đè, không dấu vết | Ghi audit log `FEEDBACK_UPDATED` kèm giá trị trước/sau (Phần 6: "sửa nhãn giữ lại bản ghi lịch sử nội bộ") |
@@ -1527,6 +1527,7 @@ Có API contract cùng ví dụ thành công/lỗi và liên kết tới tiêu c
 
 ## 7. Prompting log và lịch sử thay đổi
 
+- **Làm rõ v15 / 2026-11-25:** FB-R6 ghi rõ "không còn quyền" nghĩa là không còn là thành viên project lẫn workspace / Chạy thử API thật trước khi push phát hiện mô tả cũ dễ hiểu nhầm thành "chỉ cần gỡ khỏi project" / Chỉ làm rõ câu chữ, không đổi hành vi.
 - **Thực hiện v15 / 2026-11-24:** Hoàn tất code + test mục 3.25 / Người dùng duyệt plan / Đổi trạng thái sang đã thực hiện; audit ghi ở handler (`RetryJobHandler`, `IngestAiResultHandler`) qua tham số `actor` tuỳ chọn — worker gọi không kèm `actor` nên không ghi.
 - **Đề xuất v15 / 2026-11-24:** Vá sau rà soát commit (mục 3.25, VA-1…VA-4) / Người dùng yêu cầu kiểm tra bản audit các commit; chốt siết `/result` theo Phần 6 §3.22 / Thêm mục 3.25 + sửa §3.13 dòng 61; docs trước code.
 - **Thực hiện v14 / 2026-11-24:** Hoàn tất code + test mục 3.24 / Người dùng duyệt plan / Đổi trạng thái sang đã thực hiện.
