@@ -139,9 +139,12 @@ export class FeedbackRepository implements FeedbackRepositoryPort {
   async countDistinctAuthors(scope: FeedbackScope): Promise<number> {
     const raw = scope as unknown as Record<string, unknown>;
     const workspaceId = String(raw.workspaceId ?? raw.workspace_id ?? scope.workspaceId);
-    const findingId = String(raw.findingId ?? raw.finding_id ?? scope.findingId);
-    const label = String(raw.label ?? scope.label);
-    if (!isObjectIdHex(workspaceId)) return 0;
+    const rawFinding = raw.findingId ?? raw.finding_id ?? scope.findingId;
+    // Không đếm cho nhận xét cấp run (findingId null) — trước đây String(null) = 'null'.
+    const findingId = typeof rawFinding === 'string' ? rawFinding.trim() : '';
+    if (!findingId || !isObjectIdHex(workspaceId)) return 0;
+    const labels = Array.isArray(scope.labels) && scope.labels.length > 0 ? scope.labels.map(String) : null;
+    const label = labels ? { $in: labels } : String(raw.label ?? scope.label);
     const ids = (await this.model.distinct('author_id', {
       workspace_id: oid(workspaceId),
       finding_id: findingId,

@@ -13,6 +13,13 @@ import {
 } from '../../domain/ports/analysis.repository.port';
 import { groundAiAssessment, RawAiAssessment } from '../../domain/ai-grounding.util';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
+
+/** Người gọi qua HTTP (Phần 7 v15 §3.25 VA-2). Worker nội bộ gọi KHÔNG kèm actor → không ghi audit. */
+export interface AiJobActor {
+  userId: string;
+  role: string | null;
+}
 
 @Injectable()
 export class IngestAiResultHandler {
@@ -22,15 +29,37 @@ export class IngestAiResultHandler {
     @Optional()
     @Inject(REALTIME_PORT)
     private readonly realtime: RealtimePort,
+    @Optional()
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit?: AuditLoggerPort,
   ) {}
 
-  async execute(jobId: string, raw: unknown, modelId?: string): Promise<Record<string, unknown>> {
+  async execute(
+    jobId: string,
+    raw: unknown,
+    modelId?: string,
+    actor?: AiJobActor,
+  ): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
     if (!job) throw new NotFoundError('Không tìm thấy AI job');
+    const auditIngest = async (status: string): Promise<void> => {
+      if (!actor) return;
+      // Phần 6 v9 §3.22 — audit nạp kết quả AI thủ công (actor, jobId, projectId).
+      await this.audit?.log({
+        actorId: actor.userId,
+        actorRole: actor.role,
+        action: 'AI_RESULT_INGESTED',
+        targetType: 'ai_job',
+        targetId: jobId,
+        projectId: (job.projectId as string).toString(),
+        metadata: { analysisRunId: (job.analysisRunId as string).toString(), status, modelId: modelId ?? null },
+      });
+    };
 
     // OPEN-07 / Conflict #5 — job đã bị **thay thế** bởi một lần retry mới ⇒
     // kết quả trễ của job cũ **không được ghi đè** kết quả của job mới.
     if (job.status === 'skipped') {
+      await auditIngest('skipped');
       return {
         jobId,
         status: 'skipped',
@@ -73,6 +102,7 @@ export class IngestAiResultHandler {
     } catch {
       // realtime không bao giờ làm hỏng luồng nghiệp vụ chính
     }
+    await auditIngest(status);
     return {
       jobId,
       status,

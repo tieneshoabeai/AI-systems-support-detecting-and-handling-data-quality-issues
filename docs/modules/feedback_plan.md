@@ -1,7 +1,7 @@
 # KẾ HOẠCH MODULE FEEDBACK
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/feedback_plan.md`
-**Phiên bản:** v1.0 (2026-11-24)
+**Phiên bản:** v1.1 (2026-11-24)
 
 ---
 
@@ -81,8 +81,16 @@
 - Integration `repositories-domain` + `repositories-analysis`: 56/56 (thêm 3 ca FBT-13).
 - `test:unit` toàn bộ: chỉ 2 lỗi môi trường đã biết (`/proc/meminfo`). Integration toàn bộ: 170/173 (3 lỗi MinIO đã biết).
 
+### 2.5. Vá sau rà soát commit (v1.1)
+
+- **Hồi quy do đợt sửa v1.0 (commit `9dff652`):** `correct` và `partially_correct` cùng ánh xạ mẫu "đúng" (cùng mô tả theo khuôn) nhưng `countDistinctAuthors` đếm theo nhãn thô; v1.0 lại đưa bước tra trùng + cập nhật trust lên trước bước kiểm ngưỡng → 1 người `partially_correct` hạ trust mẫu của 3 người `correct` từ 0,8 xuống 0,5.
+- **Sửa:** `FeedbackScope.labels` (chỉ thêm); `syncFindingExample` đếm theo nhóm nhãn cùng nhãn mẫu; đổi nhãn trong cùng nhóm chỉ đồng bộ 1 lần; `countDistinctAuthors` trả 0 khi `findingId` null/rỗng (trước: `String(null)` = `'null'`).
+- **Test bổ sung:** mock `findByIds` ở `feedback-wave7.spec.ts` (tên tác giả thật). Phần 13 v17 mục 3.30 (VAT-01…VAT-04). Hợp đồng: Phần 12 v16 §3.24, Phần 7 v15 VA-4.
+- **Trạng thái:** Đã thực hiện 2026-11-24 — unit feedback + `corr-vif-ai` 96/96, integration `repositories-domain` có VAT-03.
+
 ---
 
 ## 3. Lịch sử thay đổi
 
+- **v1.1 / 2026-11-24:** Mục 2.5 — vá hồi quy đồng thuận `correct`/`partially_correct` sau rà soát commit.
 - **v1.0 / 2026-11-24:** Tạo kế hoạch module. Đợt sửa sau rà soát được người dùng yêu cầu (kèm plan Antigravity).

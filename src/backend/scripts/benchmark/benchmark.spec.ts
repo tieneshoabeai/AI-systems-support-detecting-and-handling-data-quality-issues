@@ -13,6 +13,10 @@ import { resolveJudgeModel } from './judge';
 import { isInfraError } from './infra-error';
 import { groundAiAssessment } from '../../src/modules/analysis/domain/ai-grounding.util';
 
+// Phần 13 v17 VAT-08: /proc/meminfo chỉ có trên Linux (môi trường production) → bỏ qua nơi khác.
+const itLinux = process.platform === 'linux' ? it : it.skip;
+
+
 describe('Tập dữ liệu vàng', () => {
   const samples = generateGoldSet(200);
 
@@ -397,7 +401,7 @@ describe('RAM Guard', () => {  it('skip=true thì không chặn', () => {
     expect(s.blocked).toBe(false);
   });
 
-  it('đọc được RAM hệ thống trên Linux', () => {
+  itLinux('đọc được RAM hệ thống trên Linux', () => {
     const s = evaluateRamStatus({ skip: true });
     expect(s.totalBytes).toBeGreaterThan(0);
     expect(s.availableBytes).toBeGreaterThan(0);

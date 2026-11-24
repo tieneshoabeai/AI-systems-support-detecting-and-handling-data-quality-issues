@@ -641,7 +641,8 @@ export class RecordQueryRepository implements RecordQueryPort {
       if (operator === 'notEquals') return { [path]: { $nin: numericCandidates(value) } };
       if (operator === 'in') {
         const candidates = asArray(value).flatMap(numericCandidates);
-        return candidates.length > 0 ? { [path]: { $in: candidates } } : null;
+        // Mảng rỗng (gọi thẳng qua port, bỏ qua DTO) ⇒ khớp 0 dòng như cột chuỗi (v15 VA-3).
+        return { [path]: { $in: candidates } };
       }
       if (cmp) return { $expr: { [cmp]: [numberExpr(path), requireNumber(column, value)] } };
       if (operator === 'between') {
@@ -661,7 +662,8 @@ export class RecordQueryRepository implements RecordQueryPort {
       if (operator === 'notEquals') return { [path]: { $nin: booleanCandidates(value) } };
       if (operator === 'in') {
         const candidates = asArray(value).flatMap(booleanCandidates);
-        return candidates.length > 0 ? { [path]: { $in: candidates } } : null;
+        // Mảng rỗng (gọi thẳng qua port, bỏ qua DTO) ⇒ khớp 0 dòng như cột chuỗi (v15 VA-3).
+        return { [path]: { $in: candidates } };
       }
     }
 
@@ -684,7 +686,8 @@ export class RecordQueryRepository implements RecordQueryPort {
         const parts: Record<string, unknown>[] = [];
         if (dates.length > 0) parts.push({ $expr: { $in: [dateExpr(path), dates] } });
         if (others.length > 0) parts.push({ [path]: { $in: others } });
-        if (parts.length === 0) return null;
+        // `in: []` (gọi thẳng qua port) ⇒ khớp 0 dòng như cột chuỗi (v15 VA-3).
+        if (parts.length === 0) return { [path]: { $in: [] } };
         const matchAny = parts.length === 1 ? (parts[0] as Record<string, unknown>) : { $or: parts };
         return operator === 'notEquals' ? { $nor: [matchAny] } : matchAny;
       }

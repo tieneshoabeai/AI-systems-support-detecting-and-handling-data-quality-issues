@@ -456,6 +456,14 @@ describe('B2.6 — RecordQueryRepository trên MongoDB thật', () => {
       expect(rows(notEmpty)).toEqual([0, 1, 2, 3]);
     });
 
+    it.each(['age', 'active', 'joined', 'name'])(
+      'VAT-05: in [] gọi thẳng qua port trên cột %s ⇒ 0 dòng (không bỏ qua bộ lọc)',
+      async (column) => {
+        const res = await query({ filters: [{ column, operator: 'in', value: [] }] });
+        expect(res.items).toHaveLength(0);
+      },
+    );
+
     it('DVT-03: cursor hỏng ⇒ ValidationError (không âm thầm về trang 1)', async () => {
       await expect(query({ cursor: 'khong-phai-base64!!' })).rejects.toThrow(/Cursor khong hop le/);
     });

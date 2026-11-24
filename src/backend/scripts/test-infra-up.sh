@@ -32,6 +32,9 @@ if docker info >/dev/null 2>&1; then
   echo "[infra] Docker daemon khả dụng — dùng docker-compose.test.yml"
   docker compose -f deploy/docker-compose.test.yml up -d
   echo "[infra] Cho mongo-test khởi tạo replica set rs0 ..."
+  # Lưu ý: rs.initiate() trong container lấy host = tên container (mongod nghe 27017 bên trong,
+  # map ra 27018) nên KHÔNG truyền được host 127.0.0.1:27018 ở đây. Client test trên máy host
+  # phải dùng directConnection=true — mặc định đã có trong test/helpers/test-infra.ts.
   for i in $(seq 1 30); do
     if docker exec dq-mongo-test mongosh --quiet --eval "try{rs.status().ok}catch(e){rs.initiate()}" 2>/dev/null | grep -q "1\|already initialized\|ok"; then
       echo "[infra] Mongo test sẵn sàng (rs0)."

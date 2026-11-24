@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RunAnalysisSchema, RunAnalysisDto } from '../dtos/run-analysis.dto';
 import { JwtAuthGuard } from '../../../../shared/interfaces/guards/jwt-auth.guard';
@@ -28,6 +29,7 @@ import { GetResultHandler } from '../../application/queries/get-result.handler';
 import { IngestAiResultHandler } from '../../application/commands/ingest-ai-result.handler';
 import { RetryJobHandler } from '../../application/commands/retry-job.handler';
 import { RunAnalysisHandler } from '../../application/commands/run-analysis.handler';
+import { NotFoundError } from '../../../../shared/domain/errors';
 
 @ApiTags('Analysis')
 @ApiBearerAuth()
@@ -40,6 +42,7 @@ export class AnalysisController {
     private readonly runAnalysisHandler: RunAnalysisHandler,
     private readonly getJobHandler: GetJobHandler,
     private readonly getResultHandler: GetResultHandler,
+    private readonly config: ConfigService,
   ) {}
 
   @Post('projects/:projectId/analysis')
@@ -91,25 +94,38 @@ export class AnalysisController {
   @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
   @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
   @ApiResponse({ status: 202, description: 'Đã tiếp nhận yêu cầu (xử lý bất đồng bộ)' })
-  async retryJob(@Param('jobId') jobId: string): Promise<Record<string, unknown>> {
-    return this.retryJobHandler.execute(jobId);
+  async retryJob(
+    @Param('jobId') jobId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<Record<string, unknown>> {
+    return this.retryJobHandler.execute(jobId, { userId: user.userId, role: user.role ?? null });
   }
 
   @Post('analysis/jobs/:jobId/result')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'AI nội bộ: Gắn kết quả AI corr-v1 đã grounding vào analysis_result',
+    summary: 'AI nội bộ: Gắn kết quả AI corr-v1 đã grounding vào analysis_result (chỉ SYS-ADMIN, tắt ở production)',
     operationId: 'ingestAiResult',
   })
+  // Phần 6 v9 §3.22 / Phần 7 v15 §3.25 VA-1: chỉ SYS-ADMIN (rule `manage all` chỉ admin có);
+  // worker AI gọi thẳng IngestAiResultHandler, không qua route này.
   @PolicyResource('Analysis', AnalysisJobPolicyLoader, 'jobId')
-  @CheckPolicies((ability) => ability.can(Action.Execute, 'Analysis'))
+  @CheckPolicies((ability) => ability.can(Action.Manage, 'all'))
   @ApiResponse({ status: 200, description: 'Thành công' })
+  @ApiResponse({ status: 404, description: 'Tắt khi NODE_ENV=production' })
   async ingestAiResult(
     @Param('jobId') jobId: string,
+    @CurrentUser() user: CurrentUserPayload,
     @Body() body: { result: unknown; modelId?: string },
   ): Promise<Record<string, unknown>> {
+    if (this.config.get<string>('NODE_ENV') === 'production') {
+      throw new NotFoundError('Không tìm thấy tài nguyên');
+    }
     const raw = (body?.result ?? {}) as unknown;
     const modelId = typeof body?.modelId === 'string' ? body.modelId : undefined;
-    return this.ingestAiResultHandler.execute(jobId, raw, modelId);
+    return this.ingestAiResultHandler.execute(jobId, raw, modelId, {
+      userId: user.userId,
+      role: user.role ?? null,
+    });
   }
 }

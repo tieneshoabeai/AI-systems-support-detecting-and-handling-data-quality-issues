@@ -473,6 +473,12 @@ export interface FeedbackScope {
   workspaceId: string;
   findingId: string;
   label: string;
+  /**
+   * Nhóm nhãn đếm chung (v1.1): các nhãn nhận xét cùng ánh xạ MỘT nhãn mẫu RAG
+   * (`correct` + `partially_correct` → mẫu "đúng") — Phần 12 v16 §3.24 T1-3.
+   * Có `labels` thì bỏ qua `label`.
+   */
+  labels?: string[];
 }
 
 export interface FeedbackRepositoryPort {

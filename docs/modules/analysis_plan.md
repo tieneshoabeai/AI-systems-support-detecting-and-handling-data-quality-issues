@@ -1,7 +1,7 @@
 # KẾ HOẠCH HOÀN THIỆN MODULE ANALYSIS
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ
 **Tập tin:** `docs/modules/analysis_plan.md`
-**Phiên bản:** v1.11 (2026-11-24)
+**Phiên bản:** v1.12 (2026-11-24)
 **Trạng thái:** Đã thực hiện đợt A, B, C (commit `f9f61eb`), D, E, F, G, H, I và J (đợt J chỉ là tài liệu/công cụ trực quan, không đổi code `src/`). **2026-11-24:** đã merge `origin/backend` (refactor P1–P6 + OPEN-01..10) vào `Vqd_BE` — code hiện hành theo `backend`, xem mục 7g.
 **Module:** `src/backend/src/modules/analysis/` (Data Analysis & Detection, Tổng kết, Báo cáo PDF, AI corr-v1)
 
@@ -240,7 +240,16 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - **Test:** Phần 13 v14 mục 3.27 (AK-01 → AK-08), file `src/backend/test/analysis-dot-k.spec.ts`.
 - **Trạng thái:** Đã thực hiện 2026-11-24. Kết quả: unit 1106 pass (2 lỗi `/proc/meminfo` có từ mốc), `test:arch` 23/23, integration 139/142 (3 lỗi MinIO thiếu image, có từ mốc), `arch:api-coverage` 84/84, type-check + lint sạch; `local_VQD` bộ mẫu 0 FAIL / 0 bỏ sót, edge-cases 28/28 bẫy.
 - **Thay đổi kèm theo:** `test/ai-worker.spec.ts` — ca "lỗi JSON ⇒ gọi ingest với payload rỗng" của nhánh `backend` kiểm đúng hành vi lỗi K1 (và mâu thuẫn với ca "vẫn retry" ngay sau) → đổi thành "lỗi JSON còn lượt ⇒ không gọi ingest, job vẫn pending". Test mới: `test/analysis-dot-k.spec.ts` (AK-01 → AK-06), `test/integration/report-lease.spec.ts` (AK-07, MongoDB thật). Xác nhận ngược: tạm gỡ phần sửa `src/` thì bộ test đợt K không đạt.
-- **Còn lại (báo nhóm):** K6 thông báo phân tích xong; đối chiếu ma trận quyền AN-08 / AN-11–13 với guard CASL; Phần 13 mục 3.27 cần ghi trạng thái "Đã thực hiện" ở bản v15 (đang do phiên Data Views soạn).
+- **Còn lại (báo nhóm):** K6 thông báo phân tích xong; đối chiếu ma trận quyền AN-08 / AN-11–13 với guard CASL. *(v1.12: trạng thái Phần 13 mục 3.27 đã ghi "Đã thực hiện" ở Phần 13 v17.)*
+
+### 7j. Vá sau rà soát commit (2026-11-24)
+
+- **Nguồn:** bản audit các commit `Vqd_BE` (Antigravity) — đối chiếu với code ở `9dff652`.
+- **AJ-1 (VA-1):** `POST /analysis/jobs/:jobId/result` chỉ SYS-ADMIN (`can(Manage, 'all')`), `NODE_ENV=production` → 404. Trước đó PROJ-MEMBER+ ghi đè được nhận xét AI. Worker không dùng route này.
+- **AJ-2 (VA-2):** audit `AI_JOB_RETRIED` (`POST …/retry`), `AI_RESULT_INGESTED` (`POST …/result`) qua `AUDIT_LOGGER_PORT`.
+- **Hợp đồng / test:** Phần 7 v15 mục 3.25, Phần 13 v17 mục 3.30 (VAT-06, VAT-07). Phần 6 v9 §3.22 không đổi — code nay khớp.
+- **Ngoài phạm vi:** CASL `admin → manage all` trên route chỉ kiểm CASL (dev khác xử lý); K6.
+- **Trạng thái:** Đã thực hiện 2026-11-24. Test `test/analysis-ai-result-guard.spec.ts` 11/11. `tsc` 0 lỗi, `lint` 0 cảnh báo, `test:arch` 23/23, `arch:api-coverage` 84/84; `test:unit` **không đặt biến môi trường** 73/73 suite (1180 đạt, 3 skip — gồm 2 test chỉ chạy trên Linux); integration **không đặt `TEST_MONGODB_URI`** 175/178 (3 lỗi MinIO — OPEN-T-01); E2E 70/70.
 
 ## 8. Nghiệm thu
 - `npx jest src/modules/analysis test/analysis-wave5.spec.ts` + test AN-01 → AN-10.
@@ -248,6 +257,7 @@ File cùng tên ở `docs/restructures/` là bản của `backend`; bản cùng 
 - Kiểm tra thủ công: config → run → đổi config → tạo Tổng kết bị từ chối → run lại → Tổng kết → yêu cầu PDF → tải PDF.
 
 ## 9. Lịch sử thay đổi
+- **v1.12 / 2026-11-24:** Thêm mục 7j — vá sau rà soát commit (quyền `/result`, audit job AI); ghi nhận đã cập nhật trạng thái Phần 13 mục 3.27.
 - **v1.11 (thực hiện) / 2026-11-24:** Hoàn tất đợt K (K1–K5) — code + test; cập nhật trạng thái mục 7i.
 - **v1.11 / 2026-11-24:** Viết lại mục 7h (bỏ nhóm "hồi quy" — người dùng chốt đánh giá tính đúng đắn thay vì khớp test cũ); thêm mục 7i — khác biệt thiết kế được chấp nhận + đợt K sửa 5 lỗi thật (K1–K5), K6 ngoài phạm vi. Docs: Phần 8 v13, 9 v6, 12 v14, 13 v14.
 - **v1.10 / 2026-11-24:** Thêm mục 7h — giai đoạn 3: dựng lại `local_VQD` theo handler, port 100 ca test đợt A–I (B 48 · C 25 · A 27), ghi các hồi quy đã xác nhận; không đổi `src/`.

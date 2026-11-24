@@ -15,7 +15,8 @@ import { useRedisAdapterIfConfigured, closeRedisIoAdapterClients } from '../src/
 import { buildReportPdfAsync } from '../src/modules/analysis/application/pdf-builder.util';
 import type { DomainEventEnvelope } from '../src/shared/application/ports/event-publisher.port';
 
-const REDIS_URL = (process.env.REDIS_URL ?? '').trim();
+// Phần 13 v17 VAT-08: mặc định dùng Redis test của docker-compose.test.yml (cổng 6380).
+const REDIS_URL = (process.env.REDIS_URL || process.env.TEST_REDIS_URL || 'redis://127.0.0.1:6380').trim();
 
 /**
  * Redis dùng cho test — ưu tiên `REDIS_URL` của môi trường; nếu không có thì
@@ -63,9 +64,17 @@ async function ensureRedis(): Promise<string | null> {
     const proc = spawn('redis-server', ['--port', String(port), '--save', '', '--appendonly', 'no'], {
       stdio: 'ignore',
     });
+    // Không có redis-server → `spawn` phát 'error' (ENOENT) bất đồng bộ; thiếu listener
+    // thì lỗi thoát khỏi try/catch. Bắt lỗi và bỏ qua ngay thay vì chờ hết timeout.
+    let spawnFailed = false;
+    proc.once('error', () => {
+      spawnFailed = true;
+    });
     proc.unref();
     spawnedRedis = { proc, url };
-    if (await waitRedis(url)) return url;
+    await new Promise((r) => setTimeout(r, 100));
+    if (spawnFailed) return null;
+    if (await waitRedis(url, 5000)) return url;
   } catch {
     /* không có redis-server trên máy → bỏ qua test multi-instance */
   }
@@ -117,7 +126,7 @@ describe('Nhóm 1 — Realtime multi-instance (Socket.IO Redis adapter)', () => 
     expect(mode).toBe('redis');
     expect(useWebSocketAdapter).toHaveBeenCalledTimes(1);
     expect(enableShutdownHooks).toHaveBeenCalled();
-  });
+  }, 20_000);
 });
 
 describe('Nhóm 1 — Event bus (Kafka + in-process fallback)', () => {

@@ -40,8 +40,11 @@ import * as nodeOs from 'os';
  */
 const RUNTIME_ADAPTERS = { os: nodeOs };
 
+// `directConnection=true`: rs0 trong container khởi tạo với host là tên container
+// (rs.initiate() không truyền host) → client ngoài container không phân giải được.
+// Kết nối thẳng node primary vẫn đủ transaction (Phần 13 v17 VAT-08).
 export const TEST_MONGO_URI =
-  process.env.TEST_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/?replicaSet=rs0';
+  process.env.TEST_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true';
 export const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:6380';
 export const TEST_MINIO_ENDPOINT = process.env.TEST_MINIO_ENDPOINT ?? 'http://127.0.0.1:9002';
 export const TEST_MINIO_BUCKET = process.env.TEST_MINIO_BUCKET ?? 'data-quality-storage';

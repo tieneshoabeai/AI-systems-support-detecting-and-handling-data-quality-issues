@@ -2,6 +2,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { REALTIME_PORT, type RealtimePort } from '../realtime';
 import {
+  FEEDBACK_LABELS,
   FEEDBACK_REPOSITORY_PORT,
   type Feedback,
   type FeedbackRepositoryPort,
@@ -70,6 +71,14 @@ export function columnTraitsFromFindingId(findingId: string): string {
     .replace(/\s+/g, ' ')
     .trim();
   return cleaned.slice(0, MAX_COLUMN_TRAITS_LENGTH).trim();
+}
+
+/**
+ * Các nhãn nhận xét cùng ánh xạ một nhãn mẫu (Phần 12 v16 §3.24 T1-3): đồng thuận
+ * phải đếm trên cả nhóm, vì các nhãn này dùng CHUNG một mẫu (cùng mô tả theo khuôn).
+ */
+export function labelsForExampleLabel(exampleLabel: FewShotExample['label']): string[] {
+  return FEEDBACK_LABELS.filter((l) => mapFeedbackLabelToExampleLabel(l) === exampleLabel);
 }
 
 /** Mô tả mẫu theo khuôn (T1-1) — xác định theo (loại lỗi, đặc tính cột, nhãn) nên tự gom trùng. */
@@ -208,6 +217,7 @@ export class FeedbackService {
         workspaceId: scope.workspaceId,
         findingId: fid,
         label: scope.label,
+        labels: labelsForExampleLabel(exampleLabel),
       });
       const trustScore = computeTrustScore(agreement);
       const queryText = `${errorType} | ${columnTraits} | ${description}`;
@@ -504,9 +514,12 @@ export class FeedbackService {
       );
     }
 
-    // Đổi nhãn → đồng bộ mẫu RAG của cả nhãn cũ lẫn nhãn mới (T1-5).
+    // Đổi nhãn → đồng bộ mẫu RAG của cả nhãn cũ lẫn nhãn mới (T1-5). Hai nhãn cùng
+    // nhãn mẫu (vd correct ↔ partially_correct) là CÙNG một mẫu → chỉ đồng bộ 1 lần.
     if (before.label !== updated.label) {
-      for (const label of [before.label, updated.label]) {
+      const sameExample =
+        mapFeedbackLabelToExampleLabel(before.label) === mapFeedbackLabelToExampleLabel(updated.label);
+      for (const label of sameExample ? [updated.label] : [before.label, updated.label]) {
         await this.syncFindingExample({
           workspaceId: updated.workspaceId,
           projectId: updated.projectId,

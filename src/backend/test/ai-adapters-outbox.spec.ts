@@ -17,6 +17,10 @@ import { OutboxRelayService } from '../src/shared/infrastructure/outbox/outbox-r
 import { OutboxService } from '../src/shared/infrastructure/outbox/outbox.service';
 import { EVENT_PUBLISHER_PORT } from '../src/shared/application/ports/event-publisher.port';
 
+// Phần 13 v17 VAT-08: /proc/meminfo chỉ có trên Linux (môi trường production) → bỏ qua nơi khác.
+const itLinux = process.platform === 'linux' ? it : it.skip;
+
+
 // ───────────────────────────────────────────────────────────────────────────
 // LocalInferenceAdapter
 // ───────────────────────────────────────────────────────────────────────────
@@ -210,7 +214,7 @@ describe('B2.11 — SystemResourceGuardAdapter', () => {
     return adapter;
   };
 
-  it('đọc được /proc/meminfo trên Linux ⇒ totalBytes > 0', () => {
+  itLinux('đọc được /proc/meminfo trên Linux ⇒ totalBytes > 0', () => {
     const status = makeGuard().check();
     expect(status.totalBytes).toBeGreaterThan(0);
     expect(status.availableBytes).toBeGreaterThanOrEqual(0);

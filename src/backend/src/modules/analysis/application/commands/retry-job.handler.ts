@@ -15,21 +15,26 @@
  * - Việc chặn "quá nhiều lần retry" do **quota** đảm nhiệm, không phải logic ở
  *   đây.
  */
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   ANALYSIS_REPOSITORY_PORT,
   type AnalysisRepositoryPort,
 } from '../../domain/ports/analysis.repository.port';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../audit';
+import type { AiJobActor } from './ingest-ai-result.handler';
 
 @Injectable()
 export class RetryJobHandler {
   constructor(
     @Inject(ANALYSIS_REPOSITORY_PORT)
     private readonly analysisRepository: AnalysisRepositoryPort,
+    @Optional()
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit?: AuditLoggerPort,
   ) {}
 
-  async execute(jobId: string): Promise<Record<string, unknown>> {
+  async execute(jobId: string, actor?: AiJobActor): Promise<Record<string, unknown>> {
     const job = await this.analysisRepository.findJobById(jobId);
     if (!job) throw new NotFoundError('Không tìm thấy AI job');
 
@@ -64,6 +69,18 @@ export class RetryJobHandler {
       })
       .catch(() => undefined);
 
+    if (actor) {
+      // Phần 6 v9 §3.22 — audit thử lại AI (actor, jobId, projectId).
+      await this.audit?.log({
+        actorId: actor.userId,
+        actorRole: actor.role,
+        action: 'AI_JOB_RETRIED',
+        targetType: 'ai_job',
+        targetId: jobId,
+        projectId: (job.projectId as string).toString(),
+        metadata: { newJobId: created.id, attempt: created.attempt ?? job.attempt + 1 },
+      });
+    }
     return {
       /** Job mới — client nên poll job này. */
       jobId: created.id,

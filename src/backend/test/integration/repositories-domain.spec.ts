@@ -640,6 +640,31 @@ describe('B2.4 — Mongoose repository trên MongoDB thật (nhóm 2)', () => {
       expect(await feedback.summaryByScope({ analysisRunId: 'khong-hop-le', findingId: null })).toEqual({});
     });
 
+    it('VAT-03: countDistinctAuthors với labels đếm tác giả khác nhau trên cả nhóm nhãn; findingId null → 0', async () => {
+      const workspaceId = oid();
+      const a = oid();
+      const b = oid();
+      const c = oid();
+      const d = oid();
+      const findingId = 'DQ-01:age';
+      await makeFeedback({ workspaceId, findingId, authorId: a, label: 'correct' });
+      await makeFeedback({ workspaceId, findingId, authorId: b, label: 'correct' });
+      await makeFeedback({ workspaceId, findingId, authorId: c, label: 'correct' });
+      await makeFeedback({ workspaceId, findingId, authorId: d, label: 'partially_correct' });
+      // a vừa correct vừa partially_correct (run khác) ⇒ vẫn chỉ tính 1 người.
+      await makeFeedback({ workspaceId, findingId, authorId: a, label: 'partially_correct' });
+      await makeFeedback({ workspaceId, findingId, authorId: oid(), label: 'false_positive', reason: 'x' });
+
+      const group = ['correct', 'partially_correct'];
+      expect(await feedback.countDistinctAuthors({ workspaceId, findingId, label: 'partially_correct', labels: group })).toBe(4);
+      // Không truyền labels ⇒ hành vi cũ (đếm theo nhãn thô).
+      expect(await feedback.countDistinctAuthors({ workspaceId, findingId, label: 'partially_correct' })).toBe(2);
+      expect(
+        await feedback.countDistinctAuthors({ workspaceId, findingId: null as unknown as string, label: 'correct' }),
+      ).toBe(0);
+      expect(await feedback.countDistinctAuthors({ workspaceId, findingId: '  ', label: 'correct' })).toBe(0);
+    });
+
     it.each(['asc', 'desc'] as const)(
       'FBT-13: listByScope cursor %s duyệt hết trang, không sót / lặp',
       async (sortOrder) => {

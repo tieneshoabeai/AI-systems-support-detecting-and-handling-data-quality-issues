@@ -2,7 +2,7 @@
 **Dự án:** Nền tảng Full-stack Quản lý & Giám sát Chất lượng Dữ liệu có AI Hỗ trợ  
 *(Full-Stack Data Management & Quality Assurance Platform with AI Assistance)*  
 **Tập tin:** `docs/modules/data_view_plan.md`  
-**Phiên bản:** v1.1 (2026-11-24 — thêm mục 7: đợt sửa sau rà soát)  
+**Phiên bản:** v1.2 (2026-11-24 — mục 7.5: vá `in: []` qua port)  
 **Giai đoạn:** Sprint B2 — Module 4: Truy xuất Lưới Dữ liệu Ảo & Thống kê Phân phối (`data-view`)  
 
 > **Lưu ý v1.1 (2026-11-24):** mục 1–6 là thiết kế gốc v1.0 (Sprint B2), giữ để đối chiếu. Hiện trạng đã khác:
@@ -139,9 +139,15 @@ src/backend/src/modules/data-view/
 - Unit `data-view` + `chart-data` + `record-keyset-cursor`: 84/84. Integration `record-query.spec.ts`: 56/56 (28 cũ giữ nguyên assert + 28 mới).
 - `test:unit` toàn bộ: chỉ 2 lỗi môi trường đã biết (`/proc/meminfo`). Integration toàn bộ: 167/170 (3 lỗi MinIO đã biết).
 
+### 7.5. Vá sau rà soát commit (v1.2)
+
+- `in` với mảng rỗng gọi thẳng qua `RECORD_QUERY_PORT` trên cột number / boolean / date trả `null` → bộ lọc bị bỏ qua (trả cả bảng), trong khi cột chuỗi khớp 0 dòng. Sửa: trả `{ [path]: { $in: [] } }` → 0 dòng. HTTP vẫn bị DTO chặn từ trước.
+- Hợp đồng: Phần 7 v15 mục 3.25 VA-3. Test: Phần 13 v17 VAT-05 (`record-query.spec.ts`, 4 kiểu cột). **Trạng thái:** Đã thực hiện 2026-11-24.
+
 ---
 
 ## 8. Lịch sử thay đổi
 
+- **v1.2 / 2026-11-24:** Mục 7.5 — vá `in: []` qua port.
 - **v1.1 / 2026-11-24:** Thêm lưu ý hiện trạng + mục 7 (đợt sửa sau rà soát) / Người dùng yêu cầu rà soát module `data-view` và plan sửa.
 - **v1.0:** Thiết kế gốc Sprint B2.

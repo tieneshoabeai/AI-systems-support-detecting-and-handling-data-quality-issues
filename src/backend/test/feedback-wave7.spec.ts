@@ -107,6 +107,10 @@ async function build(deps: {
             firstName: deps.meFirst ?? 'A',
             lastName: deps.meLast ?? 'B',
           }),
+          // Phần 13 v17 VAT-04: service lấy tên bằng một lần `findByIds` (v14).
+          findByIds: jest.fn().mockImplementation(async (ids: string[]) =>
+            ids.map((id) => ({ id, firstName: deps.meFirst ?? 'A', lastName: deps.meLast ?? 'B' })),
+          ),
         },
       },
     ],
@@ -189,6 +193,8 @@ describe('Wave7 FB-03/FB-04: xem + tong hop + an danh', () => {
     expect(first.isMine).toBe(false);
     expect(first).not.toHaveProperty('authorId');
     expect(first).toHaveProperty('authorDisplayName');
+    // VAT-04: tên hiển thị thật (trước đây mock thiếu findByIds ⇒ âm thầm null).
+    expect(first.authorDisplayName).toBe('A B');
   });
 
   it('cursor sai -> 400', async () => {

@@ -351,6 +351,49 @@ describe('FBT-06 / FBT-07 / FBT-08 — mẫu RAG theo khuôn (FB-R11, Phần 12 
     expect(b.repo.create).toHaveBeenCalledTimes(1);
   });
 
+  // ── Phần 13 v17 mục 3.30 — VAT-01 / VAT-02 (Phần 12 v16 §3.24 T1-3, T1-5) ──
+
+  it('VAT-01: 3 người correct + 1 người partially_correct ⇒ trust mẫu "đúng" KHÔNG giảm; đếm theo nhóm nhãn', async () => {
+    // Repo thật đếm tác giả khác nhau trên cả nhóm nhãn ⇒ 4 người.
+    const countDistinctAuthors = jest
+      .fn()
+      .mockImplementation(async (s: { labels?: string[] }) =>
+        s.labels?.includes('correct') && s.labels.includes('partially_correct') ? 4 : 1,
+      );
+    const b = await build({
+      repo: { countDistinctAuthors },
+      analysis: { findDuplicateExample: jest.fn().mockResolvedValue({ id: 'fex-correct' }) },
+    });
+    await b.service.createFindingFeedback(me, 'analyst', runId, 'DQ-01:age', { label: 'partially_correct' });
+    expect(countDistinctAuthors).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: expect.arrayContaining(['correct', 'partially_correct']) }),
+    );
+    const update = b.analysis.updateFewShotTrust.mock.calls[0]?.[1] as { trustScore: number; agreementCount: number };
+    expect(update.agreementCount).toBe(4);
+    expect(update.trustScore).toBeGreaterThanOrEqual(0.8);
+    // Cùng mô tả với mẫu của nhãn correct.
+    const desc = (b.analysis.findDuplicateExample.mock.calls[0]?.[0] as { description: string }).description;
+    expect(desc).toBe(templateExampleDescription('correct', 'DQ-01', 'age'));
+  });
+
+  it('VAT-01: nhóm nhãn false_positive / missed_issue chỉ gồm chính nó', async () => {
+    const b = await build({});
+    await b.service.createFindingFeedback(me, 'analyst', runId, 'DQ-01:age', { label: 'missed_issue', reason: 'x' });
+    expect(b.repo.countDistinctAuthors).toHaveBeenCalledWith(expect.objectContaining({ labels: ['missed_issue'] }));
+  });
+
+  it('VAT-02: đổi nhãn correct ↔ partially_correct (cùng mẫu) ⇒ chỉ đồng bộ 1 lần', async () => {
+    const mine = docOf({ authorId: me, label: 'correct' });
+    const b = await build({
+      repo: {
+        findByIdActive: jest.fn().mockResolvedValue(mine),
+        updateById: jest.fn().mockResolvedValue(docOf({ id: mine.id, label: 'partially_correct' })),
+      },
+    });
+    await b.service.updateMine(me, 'analyst', mine.id, { label: 'partially_correct' });
+    expect(b.repo.countDistinctAuthors).toHaveBeenCalledTimes(1);
+  });
+
   it('FBT-08: đặc tính cột được làm sạch (xuống dòng, ngoặc kép, email, độ dài)', () => {
     const traits = columnTraitsFromFindingId(`DQ-01:ten\ncot "x"\u0007 a@b.com ${'y'.repeat(200)}`);
     expect(traits).not.toMatch(/[\n\r"]/);

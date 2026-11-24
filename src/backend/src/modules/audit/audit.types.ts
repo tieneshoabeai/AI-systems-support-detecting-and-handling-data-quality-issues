@@ -23,6 +23,10 @@ export type AuditAction =
   | 'FEEDBACK_UPDATED'
   /** Owner / SYS-ADMIN xoá nhận xét vi phạm của người khác (FB-R8). */
   | 'FEEDBACK_MODERATION_DELETED'
+  /** Thử lại job AI qua HTTP (Phần 6 v9 §3.22, Phần 7 v15 VA-2). */
+  | 'AI_JOB_RETRIED'
+  /** SYS-ADMIN nạp kết quả AI thủ công (VA-1, VA-2). */
+  | 'AI_RESULT_INGESTED'
   | 'ISSUE_ATTACHMENT_UPLOADED'
   | 'WORKSPACE_DELETED'
   | 'PROJECT_DELETED'
@@ -36,7 +40,8 @@ export type AuditTargetType =
   | 'dataset'
   | 'project_save'
   | 'report'
-  | 'finding_feedback';
+  | 'finding_feedback'
+  | 'ai_job';
 
 export interface CreateAuditLogInput {
   actorId: string | null;
