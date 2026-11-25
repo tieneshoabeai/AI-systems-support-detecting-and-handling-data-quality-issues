@@ -48,9 +48,19 @@ export function createOfflineWriteService(options: {
   }
   const request = async <T>(scope: DraftAccess, input: ApiRequestOptions): Promise<T> => {
     valid(scope)
-    const value = await api.request<T>({ ...input, ...(controller ? { signal: controller.signal } : {}) })
-    valid(scope)
-    return value
+    try {
+      const value = await api.request<T>({ ...input, ...(controller ? { signal: controller.signal } : {}) })
+      valid(scope)
+      // A response from the actual session/resource endpoint proves the API is
+      // reachable. Do not depend on a separate health route before replay.
+      options.connected()
+      return value
+    } catch (error) {
+      valid(scope)
+      // HTTP errors (including 401/403/404) still prove the server responded.
+      if (normalizeApiError(error).kind === 'http') options.connected()
+      throw error
+    }
   }
   const finish = async (row: OfflineWrite) => {
     await options.confirmed(row)
@@ -132,14 +142,8 @@ export function createOfflineWriteService(options: {
         controller = new AbortController()
         valid(scope)
         publish({ syncing: true, error: null })
-        // A real backend probe and session validation, not navigator.onLine alone.
-        const health = await request<unknown>(scope, { path: '/health', auth: 'public', timeoutMs: 5000 })
-        if (!isRecord(health) || health['status'] !== 'ok' || !isRecord(health['services'])
-          || !isRecord(health['services']['mongodb_atlas']) || health['services']['mongodb_atlas']['status'] !== 'connected') {
-          throw new ApiError({ kind: 'network', message: 'Backend chưa sẵn sàng để đồng bộ.' })
-        }
         if (!await options.prepare()) return
-        valid(scope); options.connected()
+        valid(scope)
         await repository.recoverSending()
         for (;;) {
           valid(scope)

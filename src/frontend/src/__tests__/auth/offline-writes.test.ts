@@ -94,7 +94,7 @@ describe('persistent real API write queue', () => {
     s.db.close(); await s.db.open()
     expect(await s.repository.list()).toHaveLength(1)
     s.online(); await s.service.sync()
-    expect(s.request.mock.calls.map(([input]) => `${input.method ?? 'GET'} ${input.path}`)).toEqual(['GET /health', 'GET /projects/p', 'PATCH /projects/p'])
+    expect(s.request.mock.calls.map(([input]) => `${input.method ?? 'GET'} ${input.path}`)).toEqual(['GET /projects/p', 'PATCH /projects/p'])
     expect(await s.repository.list()).toHaveLength(0)
     expect(s.service.getSnapshot().revision).toBe(1)
   })
@@ -105,6 +105,20 @@ describe('persistent real API write queue', () => {
     expect((await s.repository.list())[0]).toMatchObject({ state: 'queued', attempts: 0 })
     await vi.waitFor(async () => { expect(await s.repository.list()).toHaveLength(0) })
     expect(s.request.mock.calls.filter(([input]) => input.method === 'PATCH')).toHaveLength(1)
+  })
+
+  it('replays against real resource APIs without depending on the health endpoint', async () => {
+    const s = setup(); await s.service.enqueue(patch())
+    s.request.mockImplementation(async input => {
+      if (input.path === '/health') throw outage()
+      if (input.method === 'PATCH') return { project: { id: 'p', name: 'New', version: 2 } }
+      return { project: { id: 'p', name: 'Old', version: 1 } }
+    })
+    s.online(); await s.service.sync()
+    expect(s.request.mock.calls.map(([input]) => `${input.method ?? 'GET'} ${input.path}`)).toEqual([
+      'GET /projects/p', 'PATCH /projects/p',
+    ])
+    expect(await s.repository.list()).toEqual([])
   })
 
   it('keeps a native Blob and sends multipart only when the backend returns', async () => {
