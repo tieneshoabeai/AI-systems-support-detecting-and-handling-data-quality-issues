@@ -10,6 +10,7 @@
 |---|---|
 | [`01-api-contract.md`](./01-api-contract.md) | Hợp đồng API đầy đủ (endpoint, body, query, response) |
 | [`02-realtime-and-env.md`](./02-realtime-and-env.md) | Biến môi trường, realtime/socket, tunnel & CORS |
+| [`03-breaking-changes-2026-11-25.md`](./03-breaking-changes-2026-11-25.md) | **Thay đổi hợp đồng API đợt merge `Vqd_BE` (25/11/2026)** — cursor `data-view` gắn bộ lọc + hạn 24h, `meta.limit` mới, `/analysis/jobs/:jobId/result` bị chặn, `409`/`403` ở feedback, 3 loại thông báo mới. **Frontend đọc mục này trước.** |
 | [`API_ANSWER_24-11.md`](./API_ANSWER_24-11.md) | **Trả lời chính thức cho báo cáo QA ngày 24/11** — 3 route đã rút có chủ đích (OPEN-03/06), hợp đồng trạng thái PDF, schema biểu đồ, checklist sửa của Frontend |
 
 ## 1. Cách gọi API (bắt buộc đọc)
@@ -45,7 +46,7 @@ Lỗi (`AllExceptionsFilter`):
 }
 ```
 
-- `400` + `code: ZOD_VALIDATION_ERROR`: `message` là mảng `{ field, message }` → làm nổi bật từng trường ở biểu mẫu.
+- `400` + `code: VALIDATION_ERROR`: `message` có 2 dạng — **mảng** `{ field, message }[]` (khi sai shape query/body) → làm nổi bật từng trường ở biểu mẫu; hoặc **chuỗi** (khi sai nghiệp vụ ở tầng domain, kèm `details.reason` nếu có) → hiển thị thông báo chung. *(Cập nhật 25/11/2026: mã cũ `ZOD_VALIDATION_ERROR` đã được hợp nhất về `VALIDATION_ERROR`.)*
 - `409` + `code: DUPLICATE_RESOURCE`: trùng khoá (email...).
 - Cập nhật trạng thái báo lỗi (issue) dùng khoá lạc quan: gửi sai `expectedVersion` sẽ lỗi → frontend phải đọc lại chi tiết rồi thử lại.
 
