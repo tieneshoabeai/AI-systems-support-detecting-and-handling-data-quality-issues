@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  DEFAULT_EMBEDDING_DIM,
+  MAX_EMBEDDING_DIM,
+} from '../../domain/utils/embedding-dim.util';
 
 // Helper chuyển đổi biến môi trường chuỗi sang boolean an toàn
 const boolEnv = (defaultValue = false) : z.ZodEffects<z.ZodBoolean, boolean, unknown> =>
@@ -141,8 +145,24 @@ export const EnvironmentSchema = z.object({
    * → tổng số phân tích đồng thời = N × giá trị này.
    */
   ANALYSIS_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(1),
+  /**
+   * Chiều vector đặc trưng RAG few-shot.
+   *
+   * Mặc định lấy từ `DEFAULT_EMBEDDING_DIM` — **nguồn sự thật duy nhất**, dùng
+   * chung với runtime (`RagFewShotService`) và script migration
+   * `db:migrate:scrub-few-shot` (OPEN-FB-02).
+   *
+   * Lưu ý: `EMBEDDING_MODEL` là biến **chết** — `embedText` là hàm hash nội
+   * bộ (FNV-1a), không gọi model embedding nào. Giữ lại để không phá tài liệu
+   * cũ; giá trị `dim` chỉ là số phần tử của vector đặc trưng.
+   */
   EMBEDDING_MODEL: z.string().default('qwen3-embedding-0.6b'),
-  EMBEDDING_DIM: z.coerce.number().int().min(1).default(1024),
+  EMBEDDING_DIM: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_EMBEDDING_DIM)
+    .default(DEFAULT_EMBEDDING_DIM),
 
   // Realtime WebSocket (Socket.io)
   SOCKET_ENABLED: boolEnv(true),

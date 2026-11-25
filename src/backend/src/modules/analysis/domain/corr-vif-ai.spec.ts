@@ -14,6 +14,7 @@ import {
   renderFewShotBlock,
 } from './rag-few-shot.util';
 import type { FewShotExample } from './rag-few-shot.util';
+import { DEFAULT_EMBEDDING_DIM } from '../../../shared/domain/utils/embedding-dim.util';
 
 describe('correlation.util (3.23.1)', () : void => {
   const rows = [
@@ -325,15 +326,15 @@ describe('Full T1: chuan hoa + agreement + embedding', () : void => {
   });
 
   it('embedText xac dinh, chuan hoa L2, text rong → vector 0', () => {
-    const a = embedText('DQ-01 | cot trang thai | khong phai loi', 64);
-    const b = embedText('DQ-01 | cot trang thai | khong phai loi', 64);
-    expect(a).toHaveLength(64);
+    const a = embedText('DQ-01 | cot trang thai | khong phai loi', DEFAULT_EMBEDDING_DIM);
+    const b = embedText('DQ-01 | cot trang thai | khong phai loi', DEFAULT_EMBEDDING_DIM);
+    expect(a).toHaveLength(DEFAULT_EMBEDDING_DIM);
     expect(a).toEqual(b);
     const norm = Math.sqrt(a.reduce((s, x) => s + x * x, 0));
     expect(norm).toBeCloseTo(1, 6);
-    const z = embedText('   ', 64);
+    const z = embedText('   ', DEFAULT_EMBEDDING_DIM);
     expect(z.every((x) => x === 0)).toBe(true);
-    const c = embedText('DQ-02 | cot khac | trung lap', 64);
+    const c = embedText('DQ-02 | cot khac | trung lap', DEFAULT_EMBEDDING_DIM);
     expect(cosineSimilarity(a, c)).toBeLessThan(0.99);
   });
 });

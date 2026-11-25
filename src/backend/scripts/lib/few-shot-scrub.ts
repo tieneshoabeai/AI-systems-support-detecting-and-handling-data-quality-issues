@@ -20,6 +20,10 @@ import {
 } from '../../src/modules/analysis/domain/rag-few-shot.util';
 import type { IFewShotExample } from '../../src/modules/analysis/infrastructure/persistence/few-shot-example.schema';
 import type { IFindingFeedback } from '../../src/modules/feedback/finding-feedback.schema';
+import {
+  DEFAULT_EMBEDDING_DIM,
+  normalizeEmbeddingDim,
+} from '../../src/shared/domain/utils/embedding-dim.util';
 
 export type FewShotScrubMode = 'dry-run' | 'apply' | 'verify';
 
@@ -53,7 +57,10 @@ export interface FewShotScrubModels {
 
 export interface FewShotScrubOptions extends FewShotScrubModels {
   mode: FewShotScrubMode;
-  /** Như `RagFewShotService.embeddingDim()` — mặc định 64. */
+  /**
+   * Như `RagFewShotService.embeddingDim()` — mặc định lấy từ
+   * `DEFAULT_EMBEDDING_DIM` (nguồn sự thật duy nhất, OPEN-FB-02).
+   */
   embeddingDim?: number;
   now?: Date;
 }
@@ -169,7 +176,7 @@ async function enforceCap(fewShot: FewShotScrubModels['fewShot'], now: Date): Pr
 export async function runFewShotScrub(opts: FewShotScrubOptions): Promise<FewShotScrubReport> {
   const { fewShot, feedback, mode } = opts;
   const now = opts.now ?? new Date();
-  const dim = opts.embeddingDim ?? 64;
+  const dim = normalizeEmbeddingDim(opts.embeddingDim ?? DEFAULT_EMBEDDING_DIM);
   const write = mode === 'apply';
 
   // ── Bước 1: quét + xoá mềm mẫu không theo khuôn (T1-7, T1-8) ─────────────
@@ -269,9 +276,14 @@ export async function runFewShotScrub(opts: FewShotScrubOptions): Promise<FewSho
   return report;
 }
 
-/** Số chiều embedding như `RagFewShotService.embeddingDim()` (biến môi trường `EMBEDDING_DIM`). */
+/**
+ * Số chiều embedding như `RagFewShotService.embeddingDim()` (biến môi trường `EMBEDDING_DIM`).
+ *
+ * Dùng chung `DEFAULT_EMBEDDING_DIM` + `normalizeEmbeddingDim` với runtime để
+ * **không thể** lệch chiều (OPEN-FB-02). Trước đây fallback cục bộ là `64`
+ * trong khi runtime thực tế dùng `1024` → mẫu do migration ghi ra không bao
+ * giờ khớp truy vấn (`cosineSimilarity` trả 0 khi lệch chiều).
+ */
 export function embeddingDimFromEnv(raw: string | undefined): number {
-  const dim = raw === undefined || raw === '' ? 64 : Number(raw);
-  if (!Number.isFinite(dim) || dim <= 0) return 64;
-  return Math.min(Math.floor(dim), 4096);
+  return normalizeEmbeddingDim(raw === undefined || raw === '' ? DEFAULT_EMBEDDING_DIM : Number(raw));
 }

@@ -1,4 +1,4 @@
-# `test/unit/analysis/` — 13 file + `vqd-port/` (6 file): thuật toán DQ + guard phân tích
+# `test/unit/analysis/` — 14 file + `vqd-port/` (6 file): thuật toán DQ + guard phân tích
 
 Test thuật toán **thuần** (không DB). Tất cả `describe` dưới đây chép nguyên văn từ code — mở file ra đối chiếu từng chữ.
 
@@ -18,6 +18,7 @@ Test thuật toán **thuần** (không DB). Tất cả `describe` dưới đây 
 | `analysis-dot-k.spec.ts` | `AK-01 / AK-02 (K1): worker AI thử lại khi AI trả không phải JSON` ; `AK-03 / AK-04 (K2): cột ngày trong DQ-01..04` ; `AK-05 (K3): mức DQ-04 trong Tổng kết theo outlierBreakdown` ; `AK-06 (K4): nhãn số vai trò phân loại` ; `AK-07 (K5): worker PDF nhận job kèm lease` (5 describe — Phần 13 v17 mục 3.27) |
 | `analysis-k6-notifications.spec.ts` | `NTT-02 / NTT-03 / NTT-04 — RunAnalysisHandler` ; `NTT-05 — IngestAiResultHandler` ; `NTT-06 — AiWorkerService` (3 describe — thông báo K6, Phần 13 v18 mục 3.31) |
 | `analysis-ai-result-guard.spec.ts` | `VAT-06 — POST /analysis/jobs/:jobId/result chỉ SYS-ADMIN (VA-1)` ; `VAT-07 — audit job AI (VA-2)` (Phần 13 v17 mục 3.30) |
+| `embedding-dim-consistency.spec.ts` | `OPEN-FB-02 — chiều embedding RAG thống nhất giữa runtime và migration` (4 describe: hằng số nguồn sự thật duy nhất; schema cấu hình; runtime ↔ migration; vector migration match truy vấn runtime) |
 
 **`vqd-port/`** — 48 ca test đợt A–I của nhánh `Vqd_BE` port sang handler sau refactor P1–P6 (Phần 13 v17 mục 3.26). `legacy-analysis-facade.ts` giữ chữ ký service cũ và gọi handler mới; assert giữ nguyên. Ca không port ghi lý do ngay trong file.
 

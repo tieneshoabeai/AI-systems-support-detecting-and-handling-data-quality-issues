@@ -15,6 +15,7 @@ import {
 } from '../../src/modules/feedback/finding-feedback.schema';
 import { buildFindingExampleDraft, isTemplatedDescription } from '../../src/modules/feedback';
 import { embedText } from '../../src/modules/analysis/domain/rag-few-shot.util';
+import { DEFAULT_EMBEDDING_DIM } from '../../src/shared/domain/utils/embedding-dim.util';
 import { runFewShotScrub } from '../../scripts/lib/few-shot-scrub';
 import { detectInfra, openTestConnection } from '../helpers/test-infra';
 
@@ -70,7 +71,7 @@ describe('FST — migration scrub-few-shot trên MongoDB thật', () => {
       column_traits: d.columnTraits,
       description: d.description,
       label: d.exampleLabel,
-      embedding: embedText(d.queryText, 64),
+      embedding: embedText(d.queryText, DEFAULT_EMBEDDING_DIM),
       agreement_count: agreement,
       trust_score: trust,
     };

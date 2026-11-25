@@ -10,6 +10,7 @@ import {
   rankFewShot,
   renderFewShotBlock,
 } from '../../domain/rag-few-shot.util';
+import { normalizeEmbeddingDim } from '../../../../shared/domain/utils/embedding-dim.util';
 
 /**
  * Phan 12 v8 §3.16.4 — Co che T1: RAG tu nhan xet nguoi dung.
@@ -25,10 +26,16 @@ export class RagFewShotService {
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * Chiều vector đặc trưng — lấy từ `EMBEDDING_DIM` (đã validate), nếu không có
+   * thì dùng `DEFAULT_EMBEDDING_DIM` (nguồn sự thật duy nhất, dùng chung với
+   * script migration `db:migrate:scrub-few-shot` — xem `embedding-dim.util.ts`).
+   *
+   * Không tự đặt hằng số riêng ở đây: trước đây fallback `?? 64` là nhánh chết
+   * (schema luôn cho giá trị), còn migration lại rơi về 64 → lệch chiều.
+   */
   embeddingDim(): number {
-    const dim = this.config.get<number>('EMBEDDING_DIM') ?? 64;
-    if (!Number.isFinite(dim) || dim <= 0) return 64;
-    return Math.min(Math.floor(dim), 4096);
+    return normalizeEmbeddingDim(this.config.get<number>('EMBEDDING_DIM'));
   }
 
   embedQueryText(text: string): number[] {

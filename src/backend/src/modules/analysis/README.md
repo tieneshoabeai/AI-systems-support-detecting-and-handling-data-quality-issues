@@ -92,7 +92,8 @@ Tất cả đều JWT + `ProjectScopePolicyLoader`/`AnalysisJobPolicyLoader` + `
 - Prompt không log (chứa dữ liệu nhạy cảm dù đã che); chỉ log độ dài + thời gian.
 - Fingerprint đổi khi PII/metadata đổi -> kết quả cũ đánh stale.
 - Thông báo cho người chạy phân tích (`analysis_completed` / `analysis_failed` / `ai_analysis_ready`, K6) đi qua `AnalysisNotifierService` → `dispatchNotificationViaPorts` của `notifications` (cách module `issues`, không email); lỗi thông báo không bao giờ làm hỏng luồng phân tích. Summary lỗi chỉ nêu mã lỗi.
+- **Chiều vector embedding RAG phải thống nhất** giữa runtime và script migration (OPEN-FB-02): nguồn sự thật duy nhất là `DEFAULT_EMBEDDING_DIM` (64) trong `shared/domain/utils/embedding-dim.util.ts`. `env.validation.ts` (`EMBEDDING_DIM`), `RagFewShotService.embeddingDim()`, `embedText()` và `embeddingDimFromEnv()` (script `db:migrate:scrub-few-shot`) đều lấy từ đó. Nếu lệch chiều, `cosineSimilarity` trả `0` → mẫu RAG do migration ghi ra không bao giờ được truy xuất.
 
 ## 6. Test liên quan
 
-`test/unit/analysis/` (thêm `analysis-k6-notifications.spec.ts` cho K6), `test/e2e/analysis-report-summary.e2e-spec.ts`, `test/k6/analysis-latency.js` (1 VU, p95 dưới 8000ms với 100k dòng).
+`test/unit/analysis/` (thêm `analysis-k6-notifications.spec.ts` cho K6, `embedding-dim-consistency.spec.ts` cho OPEN-FB-02 — khóa chiều embedding runtime/migration), `test/e2e/analysis-report-summary.e2e-spec.ts`, `test/k6/analysis-latency.js` (1 VU, p95 dưới 8000ms với 100k dòng).

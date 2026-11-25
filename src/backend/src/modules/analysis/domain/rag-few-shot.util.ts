@@ -10,6 +10,11 @@
  * - Mau cu hon 180 ngay → can danh gia lai (loai khoi kho).
  */
 
+import {
+  DEFAULT_EMBEDDING_DIM,
+  normalizeEmbeddingDim,
+} from '../../../shared/domain/utils/embedding-dim.util';
+
 export interface FewShotExample {
   /** loai loi DQ-01..DQ-05 */
   errorType: string;
@@ -215,9 +220,12 @@ export function isEligibleForStore(agreementCount: number, trustScore: number): 
  * Embedding cuc bo xac dinh (deterministic, khong goi API ngoai).
  * Bam token theo char-code + tron vi tri de vector on dinh theo dim.
  * Vector duoc chuan hoa L2 (cosine chi can huong). Text rong → vector 0.
+ *
+ * `dim` mac dinh lay tu `DEFAULT_EMBEDDING_DIM` — cung nguon su that duy nhat
+ * voi runtime (`RagFewShotService`) va script migration (OPEN-FB-02).
  */
-export function embedText(text: string, dim = 64): number[] {
-  const d = Number.isFinite(dim) && dim > 0 ? Math.min(Math.floor(dim), 4096) : 64;
+export function embedText(text: string, dim: number = DEFAULT_EMBEDDING_DIM): number[] {
+  const d = normalizeEmbeddingDim(dim);
   const vec: number[] = Array.from({ length: d }, () => 0);
   if (!text || typeof text !== 'string') return vec;
   const s = text.trim().toLowerCase();

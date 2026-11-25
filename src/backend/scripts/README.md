@@ -29,7 +29,7 @@ Thư mục `src/backend/scripts/` chứa khoảng 44 script và 2 thư mục (`b
 | `bootstrap-database.ts` | Tạo collection và index (`pnpm db:bootstrap`, `db:reset:*`) |
 | `seed-initial-data.ts` | Nạp dữ liệu mẫu (`pnpm db:seed`) |
 | `migrate-coerce-and-orphans.ts` | Ép kiểu dữ liệu và dọn bản ghi mồ côi (`pnpm db:migrate:*`) |
-| `migrate-scrub-few-shot-examples.ts` | Quét một lần mẫu RAG cũ còn chứa `reason`: xoá mềm mẫu sai khuôn, dựng lại mẫu theo khuôn từ nhận xét (`pnpm db:migrate:scrub-few-shot`; dry-run mặc định, `-- --apply` cần `MIGRATION_CONFIRM=yes`, `-- --verify`). Logic ở `lib/few-shot-scrub.ts` |
+| `migrate-scrub-few-shot-examples.ts` | Quét một lần mẫu RAG cũ còn chứa `reason`: xoá mềm mẫu sai khuôn, dựng lại mẫu theo khuôn từ nhận xét (`pnpm db:migrate:scrub-few-shot`; dry-run mặc định, `-- --apply` cần `MIGRATION_CONFIRM=yes`, `-- --verify`). Logic ở `lib/few-shot-scrub.ts`. Chiều embedding do script ghi ra lấy từ `DEFAULT_EMBEDDING_DIM` — **phải khớp** chiều runtime dùng, nếu lệch thì mẫu ghi ra không bao giờ được truy xuất (`cosine = 0`); xem `src/shared/domain/utils/embedding-dim.util.ts` (OPEN-FB-02) |
 | `backup-mongo.sh` / `restore-mongo.sh` | Sao lưu / khôi phục MongoDB (`pnpm db:backup:mongo`, `db:restore:mongo`) |
 | `backup-storage.sh` | Sao lưu kho lưu trữ (`pnpm db:backup:storage`) |
 | `generate-ssl-certs.sh` | Sinh chứng thư SSL tự ký (`pnpm ssl:generate`) |
