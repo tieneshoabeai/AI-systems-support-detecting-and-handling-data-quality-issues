@@ -27,7 +27,7 @@ Giữ cùng `EnvironmentId` chỉ khi URL mới thuộc cùng QA/backend/DB. Dù
 
 1. Chạy với link A và `qa-main`, đăng nhập, tạo một thao tác offline (tắt backend trước khi lưu để hàng đợi ghi vào IndexedDB).
 2. Dừng frontend. Khởi động lại với link B, giữ `qa-main` và truyền A bằng `-PreviousSwaggerUrl`. Script dùng `npm.cmd run dev`, không tải package manager lúc khởi động.
-3. Đăng nhập đúng tài khoản. Mở Settings → System để xác nhận Environment và Backend API.
+3. Đăng nhập đúng tài khoản. Mở Settings → System để xác nhận Environment, Backend API và trạng thái migration. Nếu còn namespace chưa khai báo hoặc cache xung đột, màn hình báo và giữ dữ liệu cũ nguyên trạng.
 4. Bật backend B. Hàng đợi được đồng bộ sau khi kiểm tra kết nối và phiên. Với upload ở trạng thái chưa rõ kết quả, cơ chế đối chiếu hiện có vẫn chạy trước; không tự gửi lại mù.
 5. Reload trang để xác nhận frontend cùng origin giữ IndexedDB. Xác nhận không có thao tác bị gửi hai lần.
 

@@ -1,7 +1,7 @@
 import type { OfflineReadDatabase } from '../../repositories/offline/offline-read.database'
 import type { OfflineWriteDatabase } from '../../repositories/offline/offline-write.database'
 
-export type OfflineMigrationResult = { movedReads: number; movedWrites: number; conflicts: number }
+export type OfflineMigrationResult = { movedReads: number; movedWrites: number; conflicts: number; unlistedNamespaces: number }
 
 const sameValue = (left: unknown, right: unknown) => {
   try { return JSON.stringify(left) === JSON.stringify(right) } catch { return false }
@@ -21,6 +21,7 @@ export async function migrateOfflineNamespace(options: {
   let movedReads = 0
   let movedWrites = 0
   let conflicts = 0
+  const knownNamespaces = new Set([target, ...options.sources])
 
   for (const source of new Set(options.sources)) {
     if (source === target) continue
@@ -61,5 +62,11 @@ export async function migrateOfflineNamespace(options: {
       })
     })
   }
-  return { movedReads, movedWrites, conflicts }
+  const [allReads, allWrites] = await Promise.all([
+    reads.reads.where('accountId').equals(accountId).toArray(),
+    writes.writes.where('accountId').equals(accountId).toArray(),
+  ])
+  const unlisted = new Set([...allReads, ...allWrites]
+    .map(row => row.namespace).filter(value => !knownNamespaces.has(value)))
+  return { movedReads, movedWrites, conflicts, unlistedNamespaces: unlisted.size }
 }

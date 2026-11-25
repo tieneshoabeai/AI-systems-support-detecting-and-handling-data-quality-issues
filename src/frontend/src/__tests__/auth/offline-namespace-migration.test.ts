@@ -30,7 +30,7 @@ describe('offline namespace migration', () => {
     ])
 
     const options = { reads, writes, accountId: 'account-a', target: 'environment:qa-main', sources: ['old-api'], isCurrent: () => true }
-    await expect(migrateOfflineNamespace(options)).resolves.toEqual({ movedReads: 1, movedWrites: 2, conflicts: 0 })
+    await expect(migrateOfflineNamespace(options)).resolves.toEqual({ movedReads: 1, movedWrites: 2, conflicts: 0, unlistedNamespaces: 0 })
     const cache = await reads.reads.toArray()
     expect(cache).toContainEqual(expect.objectContaining({ accountId: 'account-a', namespace: 'environment:qa-main', key: 'projects' }))
     expect(cache).toContainEqual(expect.objectContaining({ accountId: 'account-b', namespace: 'old-api', key: 'private' }))
@@ -41,7 +41,7 @@ describe('offline namespace migration', () => {
     const upload = queue[1]
     expect(upload?.command.kind).toBe('upload')
     if (upload?.command.kind === 'upload') await expect(upload.command.file.text()).resolves.toBe('csv payload')
-    await expect(migrateOfflineNamespace(options)).resolves.toEqual({ movedReads: 0, movedWrites: 0, conflicts: 0 })
+    await expect(migrateOfflineNamespace(options)).resolves.toEqual({ movedReads: 0, movedWrites: 0, conflicts: 0, unlistedNamespaces: 0 })
     expect((await writes.writes.orderBy('sequence').toArray()).map(row => row.id)).toEqual(['first', 'upload'])
   })
 
@@ -55,7 +55,7 @@ describe('offline namespace migration', () => {
       { accountId: 'account-a', namespace: 'environment:qa-main', key: 'projects', payload: { version: 2 }, savedAt: 2, bytes: 10 },
     ])
     await expect(migrateOfflineNamespace({ reads, writes, accountId: 'account-a', target: 'environment:qa-main', sources: ['old-api'], isCurrent: () => true }))
-      .resolves.toEqual({ movedReads: 0, movedWrites: 0, conflicts: 1 })
+      .resolves.toEqual({ movedReads: 0, movedWrites: 0, conflicts: 1, unlistedNamespaces: 1 })
     expect(await reads.reads.get(['account-a', 'old-api', 'projects'])).toBeDefined()
     expect(await reads.reads.get(['account-a', 'other-api', 'projects'])).toBeDefined()
   })

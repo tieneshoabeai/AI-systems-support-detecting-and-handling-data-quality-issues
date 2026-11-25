@@ -18,6 +18,7 @@ import { updateConfirmedCache } from '../services/offline/confirmed-write-cache'
 import { hashFile } from '../services/offline/offline-write-command'
 import { isRecord, normalizeApiError } from '../lib/api-error'
 import type { OfflineWritePort } from '../types/offline/offline-write.types'
+import type { OfflineMigrationStatus } from '../types/offline/offline.types'
 import { migrateOfflineNamespace } from '../services/offline/offline-namespace-migration'
 
 type ClientOptions = NonNullable<Parameters<typeof createAxiosClient>[0]>
@@ -60,6 +61,16 @@ export const createAppRuntime = (options: RuntimeOptions) => {
     namespace, ...(options.now === undefined ? {} : { now: options.now }) })
   const writeDatabase = options.writeDatabase ?? new OfflineWriteDatabase()
   const migrationTasks = new Map<string, Promise<void>>()
+  let migrationSnapshot: OfflineMigrationStatus = Object.freeze({ state: 'idle', conflicts: 0, unlistedNamespaces: 0, message: null })
+  const migrationListeners = new Set<() => void>()
+  const publishMigration = (next: OfflineMigrationStatus) => {
+    migrationSnapshot = Object.freeze(next)
+    migrationListeners.forEach(listener => listener())
+  }
+  const migrationStatus = {
+    getSnapshot: () => migrationSnapshot,
+    subscribe: (listener: () => void) => { migrationListeners.add(listener); return () => { migrationListeners.delete(listener) } },
+  }
   const migrateForActiveAccount = async () => {
     const scope = coordinator.draftAccess.read()
     if (!scope) return
@@ -76,8 +87,22 @@ export const createAppRuntime = (options: RuntimeOptions) => {
         const current = coordinator.draftAccess.read()
         return current?.accountId === scope.accountId && current.generation === scope.generation
       },
-    }).then(() => undefined).finally(() => { migrationTasks.delete(taskKey) })
+    }).then(result => {
+      const needsAttention = result.conflicts > 0 || result.unlistedNamespaces > 0
+      publishMigration({ state: needsAttention ? 'attention' : 'complete', conflicts: result.conflicts,
+        unlistedNamespaces: result.unlistedNamespaces,
+        message: needsAttention
+          ? `Còn ${result.conflicts} cache xung đột và dữ liệu ở ${result.unlistedNamespaces} namespace chưa xác nhận. Dữ liệu này được giữ nguyên; chỉ khai báo URL cũ nếu bạn xác nhận cùng môi trường.`
+          : null,
+      })
+    }).catch(error => {
+      publishMigration({ state: 'error', conflicts: 0, unlistedNamespaces: 0,
+        message: 'Không hoàn tất được chuyển dữ liệu offline. Cache và hàng đợi cũ được giữ lại; thử tải lại sau.',
+      })
+      throw error
+    }).finally(() => { migrationTasks.delete(taskKey) })
     migrationTasks.set(taskKey, task)
+    publishMigration({ state: 'migrating', conflicts: 0, unlistedNamespaces: 0, message: null })
     return task
   }
   // Session restore and new sign-in both run this migration; sync also awaits it
@@ -138,7 +163,7 @@ export const createAppRuntime = (options: RuntimeOptions) => {
     },
   })
   writePort.current = writes
-  const localData = { drafts, writes, offline: { ...offline, reconnect: () => {
+  const localData = { drafts, writes, migration: migrationStatus, offline: { ...offline, reconnect: () => {
     offline.reconnect(); void writes.sync()
   } }, wrapApi: offline.wrapApi }
   let owners = 0
@@ -149,6 +174,7 @@ export const createAppRuntime = (options: RuntimeOptions) => {
     writes.dispose()
     offline.dispose()
     unsubscribeMigration()
+    migrationListeners.clear()
     coordinator.dispose()
     database.close()
     offlineDatabase.close()

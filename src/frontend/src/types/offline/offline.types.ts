@@ -14,9 +14,20 @@ export type OfflineDataPort = {
   useSavedData(this: void): void
   listReports(this: void, projectId: string): Promise<{ reportId: string; savedAt: number }[]>
 }
+export type OfflineMigrationStatus = {
+  state: 'idle' | 'migrating' | 'complete' | 'attention' | 'error'
+  conflicts: number
+  unlistedNamespaces: number
+  message: string | null
+}
+export type OfflineMigrationPort = {
+  getSnapshot(this: void): OfflineMigrationStatus
+  subscribe(this: void, listener: () => void): () => void
+}
 export type LocalDataServices = {
   drafts: UploadDraftPort
   writes?: OfflineWritePort
   offline: OfflineDataPort
+  migration: OfflineMigrationPort
   wrapApi(api: ApiClient): ApiClient
 }

@@ -38,7 +38,9 @@ const setup = () => {
       user: { source: 'login', value: { id: 'u1', email: 'u1@example.test', role: 'analyst' } }, error: null, cleanupError: null },
     configurationError: null, signIn: () => Promise.resolve(), confirmRenewal: () => Promise.resolve(),
     signOut: () => Promise.resolve({ serverRevoked: true, revokeError: null, cleanupError: null }),
-    localData: { drafts: repository, offline, wrapApi: offline.wrapApi },
+    localData: { drafts: repository, offline, migration: {
+      getSnapshot: () => ({ state: 'idle', conflicts: 0, unlistedNamespaces: 0, message: null }), subscribe: () => () => {},
+    }, wrapApi: offline.wrapApi },
   }
   const wrapper = ({ children }: { children: ReactNode }) => <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
   return { drafts, repository, offline, wrapper }
