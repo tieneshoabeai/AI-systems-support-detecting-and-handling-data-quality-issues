@@ -143,7 +143,7 @@ export function createDatasetService(api: ApiClient) {
         truncated: chart['truncated'], category: parseCategory(chart['category']) }
     },
     async delete(id: string) {
-      await api.request<void>({ path: `/datasets/${encodeURIComponent(id)}`, method: 'DELETE', auth: 'session' })
+      await api.request<void>({ path: `/datasets/${encodeURIComponent(id)}`, method: 'DELETE', auth: 'session', deferIfOffline: true })
     },
     download(id: string) {
       return api.request<Blob>({ path: `/datasets/${encodeURIComponent(id)}/file`, auth: 'session', responseType: 'blob', timeoutMs: 120000 })

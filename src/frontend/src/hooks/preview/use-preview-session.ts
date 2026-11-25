@@ -141,7 +141,7 @@ export const usePreviewSessionModel = (
             return false
           }
         }
-        pushToast(result.message, 'success', result.persisted ? undefined : undoAction)
+        pushToast(result.message, result.queued ? 'info' : 'success', result.persisted || result.queued ? undefined : undoAction)
         return true
       })
       .catch(error => { pushToast(error instanceof Error ? error.message : 'Không thể thực hiện thao tác. Vui lòng thử lại.', 'danger'); return false })

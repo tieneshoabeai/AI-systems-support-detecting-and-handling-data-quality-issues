@@ -11,6 +11,13 @@ import { getApiConfig } from '../configs/api.config'
 import { OfflineReadDatabase } from '../repositories/offline/offline-read.database'
 import { createOfflineReadRepository } from '../repositories/offline/offline-read.repository'
 import { createOfflineDataService } from '../services/offline/offline-data.service'
+import { OfflineWriteDatabase } from '../repositories/offline/offline-write.database'
+import { createOfflineWriteRepository } from '../repositories/offline/offline-write.repository'
+import { createOfflineWriteService } from '../services/offline/offline-write.service'
+import { updateConfirmedCache } from '../services/offline/confirmed-write-cache'
+import { hashFile } from '../services/offline/offline-write-command'
+import { isRecord } from '../lib/api-error'
+import type { OfflineWritePort } from '../types/offline/offline-write.types'
 
 type ClientOptions = NonNullable<Parameters<typeof createAxiosClient>[0]>
 type RuntimeOptions = {
@@ -19,6 +26,7 @@ type RuntimeOptions = {
   storage?: ReturnType<typeof createSessionStorage>
   database?: UploadDraftDatabase
   offlineDatabase?: OfflineReadDatabase
+  writeDatabase?: OfflineWriteDatabase
   now?: () => number
 }
 
@@ -46,10 +54,36 @@ export const createAppRuntime = (options: RuntimeOptions) => {
   const offlineDatabase = options.offlineDatabase ?? new OfflineReadDatabase()
   const cache = createOfflineReadRepository({ db: offlineDatabase, access: coordinator.draftAccess,
     namespace: options.client?.baseUrl ?? getApiConfig().baseUrl, ...(options.now === undefined ? {} : { now: options.now }) })
-  const offline = createOfflineDataService({ cache, access: coordinator.draftAccess })
-  const localData = { drafts, offline: { ...offline, reconnect: () => {
+  const writePort: { current?: OfflineWritePort } = {}
+  const offline = createOfflineDataService({ cache, access: coordinator.draftAccess, writes: () => writePort.current })
+  const writeDatabase = options.writeDatabase ?? new OfflineWriteDatabase()
+  const namespace = options.client?.baseUrl ?? getApiConfig().baseUrl
+  const repository = createOfflineWriteRepository({ db: writeDatabase, access: coordinator.draftAccess, namespace,
+    ...(options.now === undefined ? {} : { now: options.now }) })
+  const replayApi = createAxiosClient({ ...options.client, readToken: () => {
+    const scope = coordinator.draftAccess.read()
+    const stored = storage.read()
+    return scope && stored.status === 'valid' && stored.session.accountId === scope.accountId ? stored.session.accessToken : null
+  } })
+  const writes = createOfflineWriteService({ repository, access: coordinator.draftAccess, api: replayApi, namespace,
+    prepare: async () => { await coordinator.checkSession(); return coordinator.getSnapshot().phase === 'authenticated' },
+    connected: offline.reconnect,
+    confirmed: async row => {
+      await updateConfirmedCache(cache, row)
+      if (row.command.kind !== 'upload' || !isRecord(row.response) || !isRecord(row.response['dataset']) || typeof row.response['dataset']['id'] !== 'string') return
+      const command = row.command
+      for (const draft of await drafts.list()) {
+        if (draft.projectId !== decodeURIComponent(command.resourceId) || draft.fileName !== command.fileName || draft.sizeBytes !== command.file.size) continue
+        if (await hashFile(await drafts.readFile(draft.id)) !== command.hash) continue
+        await drafts.confirmUploaded(draft.id, { accountId: row.accountId, projectId: draft.projectId, datasetId: row.response['dataset']['id'] })
+      }
+    },
+  })
+  writePort.current = writes
+  const localData = { drafts, writes, offline: { ...offline, reconnect: () => {
     offline.reconnect(); void coordinator.checkSession().then(() => {
       if (coordinator.getSnapshot().phase === 'authenticated') offline.reconnect()
+      void writes.sync()
     })
   } }, wrapApi: offline.wrapApi }
   let owners = 0
@@ -57,10 +91,12 @@ export const createAppRuntime = (options: RuntimeOptions) => {
   const dispose = () => {
     if (closed) return
     closed = true
+    writes.dispose()
     offline.dispose()
     coordinator.dispose()
     database.close()
     offlineDatabase.close()
+    writeDatabase.close()
   }
   return {
     coordinator,

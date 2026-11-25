@@ -72,6 +72,17 @@ Q010,A,90,905,2026-11-10
 
 ## 3. Ca cần Swagger, quyền riêng hoặc hỗ trợ backend
 
+### Bổ sung: hàng đợi upload/sửa/xóa với API thật
+
+- [ ] Mở và tải Workspace/Project QA khi online, giữ phiên còn hạn. Chặn riêng origin API trong trình duyệt (máy vẫn online), đổi tên Project từ menu ở danh sách. UI phải báo chờ đồng bộ; server vẫn giữ tên cũ; IndexedDB `data-quality.offline-writes.v1/writes` có bản ghi `queued`.
+- [ ] Reload khi API vẫn bị chặn: bản lưu và hàng đợi còn nguyên. Bỏ chặn API, không bấm Kết nối lại. Trong lần tự thử tiếp theo (thường khoảng 10 giây khi tab hoạt động), phải có GET health, GET phiên bản rồi PATCH đúng `expectedVersion`. Sau ACK tên thật cập nhật, hàng đợi được dọn.
+- [ ] Với Project QA chưa có dataset, ngắt API, chọn CSV tổng hợp rồi bấm Upload/Lưu chờ upload. Kiểm tra Blob có kích thước thật trong IndexedDB; reload vẫn còn. Nối lại API: đúng một multipart POST và file CSV gốc tải từ server khớp nội dung; nháp tương ứng được dọn sau ACK.
+- [ ] Ngắt mạng trình duyệt, yêu cầu xóa dataset/Project/Workspace QA. UI báo chờ, dữ liệu server chưa bị xóa. Nối mạng, chờ DELETE thành công và kiểm tra lại danh sách/bản lưu sau reload.
+- [ ] Sửa tên/mô tả Workspace theo cùng luồng. Thử hai sửa liên tiếp khi offline để xác minh gửi đúng thứ tự và phiên bản mới sau ACK. Thay đổi phiên bản ở client QA thứ hai trước khi đồng bộ: yêu cầu cũ phải dừng, không ghi đè.
+- [ ] Mất phản hồi sau mutation: PATCH đối chiếu dữ liệu, DELETE đối chiếu 404, upload đối chiếu hash file gốc. Upload chưa xác định kết quả phải dừng để kiểm tra, không tự gửi lặp. Lỗi 401/403/409/422 không được retry vô hạn.
+- [ ] Hết phiên/đăng xuất/đổi tài khoản: ngừng gửi và không hiện hàng đợi của tài khoản trước. Đăng nhập lại đúng tài khoản để tiếp tục. Mở hai tab cùng tài khoản: mutation chỉ gửi từ tab giữ Web Lock. Đóng ứng dụng không có đồng bộ nền; mở lại mới tiếp tục.
+- [ ] Kiểm tra đầy dung lượng hoặc lỗi IndexedDB: không được báo đã lưu chờ và không gửi mutation khi chưa ghi được yêu cầu. Chạy AI/tạo PDF mới/đổi mật khẩu vẫn yêu cầu BE online.
+
 - `GET /workspaces/{workspaceId}/projects` là fallback của frontend. Nếu UI chỉ gọi `/projects`, dùng Swagger **Try it out** với Workspace QA và ghi `DIRECT`. Không cần gây lỗi môi trường để ép fallback.
 - `POST /analysis/jobs/{jobId}/result` là route nội bộ. Xác nhận cùng người phụ trách worker bằng job dùng một lần trên môi trường QA. Kết quả `404` với ID không tồn tại chỉ xác nhận ca âm tính. Không gửi kết quả giả vào job đang chạy hoặc job thật.
 - Google callback cần OAuth thật. Gọi riêng không có code có thể trả `401`. Để xác nhận đầu cuối, cần backend trả callback HTTPS đúng và cấu hình Google Cloud Console khớp.
@@ -225,9 +236,9 @@ Dùng tài khoản và dữ liệu QA được phép. Để thử refresh khi m�
 2. Wizard tạo Project → Import Dataset → chọn CSV → đóng/mở lại, chọn cùng Workspace → khôi phục nháp. Nếu Project đã được tạo nhưng upload lỗi, khôi phục và tiếp tục đúng tên Project; kiểm tra không gửi POST tạo thêm Project.
 3. Cho upload thất bại → file nháp vẫn tồn tại. Cho upload thành công → đợi ACK có dataset ID → nháp được dọn. Nếu chỉ tải lại danh sách thất bại sau upload, UI không yêu cầu gửi lại file đã được máy chủ nhận.
 4. Khi có mạng, xem danh sách Project, mở Project và Data View, mở Data Analysis, tải một PDF hoàn chỉnh. Chờ lưu xong; trong DevTools → Application kiểm tra service worker đã active và IndexedDB có bản đọc.
-5. DevTools → Network → Offline → reload. Ứng dụng mở lại, có banner “Đang xem ngoại tuyến · Chỉ đọc” và thời điểm bản lưu; danh sách Project, trang bản ghi và kết quả đã xem vẫn đọc được. Mở trang/bộ lọc chưa tải → thông báo chưa có dữ liệu trên thiết bị.
+5. DevTools → Network → Offline → reload. Ứng dụng mở lại, có banner ngoại tuyến và thời điểm bản lưu; danh sách Project, trang bản ghi và kết quả đã xem vẫn đọc được. Mở trang/bộ lọc chưa tải → thông báo chưa có dữ liệu trên thiết bị.
 6. Trong Data Analysis → Tổng kết và PDF → chọn “PDF đã lưu trên thiết bị” → tải PDF khi đang Offline. PDF mới còn HTTP 202 hoặc job failed không được xuất hiện trong danh sách bản hoàn chỉnh.
-7. Khi Offline, thử tạo/sửa/xóa/upload/chạy phân tích → không có thao tác ghi thành công giả. Bật mạng, chọn “Kết nối lại” → đọc dữ liệu mới; không tự gửi lại thao tác ghi đã bị chặn.
+7. Khi Offline, sửa tên/mô tả, xóa hoặc upload CSV vào Project có sẵn → báo chờ đồng bộ và có yêu cầu bền vững trong IndexedDB, không báo đã lưu lên server. Bật mạng → tự đồng bộ các yêu cầu hỗ trợ, đọc dữ liệu thật và dọn hàng đợi sau ACK. Tạo Project/Workspace mới, chạy AI và các nghiệp vụ ngoài allowlist vẫn cần kết nối.
 8. Đăng xuất tài khoản A, đăng nhập B → B không thấy dữ liệu hoặc nháp của A. Cache đọc của A được dọn; đăng nhập lại A còn hạn mới được khôi phục nháp của A. Xác minh 401/403/404 từ server không bị thay bằng cache.
 
 Ca tự động `tests/e2e/api/analysis-offline.spec.ts` kiểm tra nguồn dữ liệu ở runtime mới: chỉ thay bản ghi tổng hợp của chính ca test trong IndexedDB bằng marker, reload và xác nhận marker xuất hiện khi offline; có đếm các lệnh đọc IndexedDB native. Ca còn chặn riêng API trong khi `navigator.onLine` vẫn true để kiểm tra fallback lỗi mạng. Khi nối lại, giá trị gốc từ server phải thay marker. API HTTP không được mock trong ca E2E này; ca production dùng HTTP mô phỏng được ghi riêng trong báo cáo.

@@ -1,5 +1,25 @@
 # Rà soát nút và IndexedDB runtime — 25/11/2026
 
+## Bổ sung hàng đợi ghi và tự đồng bộ
+
+Các thao tác được hỗ trợ ghi vào IndexedDB trước khi gửi API thật: upload CSV vào Project đã có; PATCH tên/mô tả Workspace/Project; DELETE Workspace/Project/dataset. UI trả thông báo chờ đồng bộ, không giả lập kết quả thành công trên server. Các phần ghi chú “chỉ đọc” ở những lượt kiểm chứng cũ bên dưới mô tả bản trước khi có hàng đợi này.
+
+- Database `data-quality.offline-writes.v1`, lưu Blob CSV và dữ liệu tối thiểu, phân tách theo tài khoản và URL API. Tối đa 100 yêu cầu/100 MiB mỗi tài khoản, tối đa 50 MiB mỗi file. Không lưu token hay mật khẩu trong hàng đợi.
+- Khi ứng dụng đang mở, tự thử mỗi 10 giây lúc có yêu cầu chờ và trình duyệt có mạng, đồng thời thử khi có sự kiện online hoặc khôi phục phiên. Kiểm tra health của BE, MongoDB và phiên trước khi gửi. Đóng tab thì tạm ngừng; mở lại và đăng nhập đúng tài khoản sẽ tiếp tục. Tunnel đổi origin cần kiểm tra lại hàng đợi cũ, không tự chuyển dữ liệu sang server khác.
+- Gửi tuần tự dưới Web Lock để tránh hai tab cùng gửi. Chỉ dọn sau ACK đã được lưu bền vững. Lỗi dọn cache sau ACK không làm gửi lại mutation. PATCH dùng `expectedVersion`; xung đột/quyền không hợp lệ chặn hàng đợi để người dùng kiểm tra. Có mục xem chi tiết, kiểm tra lại và bỏ khỏi hàng đợi; bỏ không hoàn tác thao tác server đã nhận.
+- Mất phản hồi PATCH: đối chiếu trường và phiên bản. DELETE gặp 404: đối tượng đã vắng mặt. Upload mất phản hồi: tải file gốc để so SHA-256 với Blob đã lưu. Không khớp hoặc chưa xác định thì dừng để kiểm tra, không tự upload lại. Đây là biện pháp tránh gửi mù; không thay thế idempotency key phía BE.
+- Tạo Workspace/Project mới, thành viên, mật khẩu, AI, tạo tổng kết/PDF và quản trị vẫn cần kết nối. Xem dữ liệu cũ tiếp tục dùng cache đọc; những mục chưa tải trước đó không tự xuất hiện offline.
+
+Swagger của lượt này: https://richardson-planner-evaluation-interim.trycloudflare.com/api/v1/docs. Cấu hình local đã cập nhật origin; tài khoản QA tạm chỉ dùng dữ liệu tổng hợp của lượt kiểm tra.
+
+### Kết quả kiểm tra hàng đợi
+
+- **Production + API thật: 3/3 ca qua**, bao gồm teardown. Hai ca chính qua cùng một lượt (1,5 phút): sửa Workspace rồi DELETE Project/Workspace đúng thứ tự; đổi tên Project, giữ hàng đợi và Blob qua reload khi API bị ngắt nhưng navigator vẫn online, tự upload multipart, đối chiếu CSV gốc khớp từng byte, xóa dataset khi mạng trình duyệt offline rồi tự gửi khi online. Không bấm Kết nối lại để kích hoạt ca BE hồi phục.
+- Ca thứ ba (33,2 giây): POST upload thực sự được BE xử lý 201 rồi chủ động bỏ phản hồi ở ranh giới client. IndexedDB chuyển `uncertain`; lần kiểm tra sau tải file gốc và so hash để xác nhận. Chỉ có **một lần POST upload**, không gửi lại file.
+- **147/147 kiểm tra liên quan qua trong 7 file**, gồm 25 ca hàng đợi mới: bền vững, auto retry, Blob, quota/khi không ghi được IndexedDB, tài khoản/namespace/phiên hết hạn, serialize giữa các runtime, version/xung đột, HTTP lỗi, mất ACK, file khác hash, cache cleanup lỗi sau ACK. TypeScript app/E2E và build production qua. Lint phần mới không có lỗi; các file UI cũ còn cảnh báo thụt dòng.
+- **Lượt chốt trước push: full suite 87/87 file, 1.003/1.003 kiểm tra qua (275,15 giây).** Build production và TypeScript E2E chạy lại đều qua; lint 0 lỗi, còn 30 cảnh báo thụt dòng. Log local: `src/frontend/temp/queue-final-vitest.log`, `queue-final-build.log`, `queue-final-lint.log`.
+- Artifact local: `temp/frontend-integration/queue-production-main.json` và `temp/frontend-integration/queue-production-lost-ack.json`; không commit tài khoản, token, file env hoặc artifact QA. Đây là ngắt kết nối API tại client; không dừng tiến trình server dùng chung của nhóm.
+
 ## Căn cứ giữ/bỏ nút
 
 Đã fetch `origin/frontend` và xác minh commit `3a49455`. Người dùng xác nhận giữ danh sách/hành vi nút như nhánh này, giữ hình thức TaiFE. Không lấy nhận xét chung “nhiều nút” làm căn cứ tự bỏ chức năng.

@@ -478,6 +478,7 @@ export type PreviewStoreState = {
 // Kết quả mutation của mock service: undo là hàm đóng, không phải id bản ghi.
 export type PreviewMutationResult = {
   persisted?: boolean
+  queued?: boolean
   message: string
   undo: () => void
 }

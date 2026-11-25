@@ -3,6 +3,8 @@ import type { DraftAccess, DraftAccessPort } from '../../types/datasets/upload-d
 import type { OfflineStatus } from '../../types/offline/offline.types'
 import { ApiError, isRecord, normalizeApiError } from '../../lib/api-error'
 import type { createOfflineReadRepository } from '../../repositories/offline/offline-read.repository'
+import type { OfflineWritePort } from '../../types/offline/offline-write.types'
+import { QueuedWriteError } from './queued-write-error'
 
 const readable = (request: ApiRequestOptions) => {
   const method = request.method ?? 'GET'
@@ -26,6 +28,7 @@ const noSavedCopy = () => new ApiError({ kind: 'network', code: 'OFFLINE_NOT_SAV
 
 export function createOfflineDataService(options: {
   cache: ReturnType<typeof createOfflineReadRepository>; access: DraftAccessPort
+  writes?: () => OfflineWritePort | undefined
 }) {
   const { cache, access } = options
   let snapshot: OfflineStatus = { offline: typeof navigator !== 'undefined' && !navigator.onLine, savedAt: null, storageError: null }
@@ -60,8 +63,13 @@ export function createOfflineDataService(options: {
       const captured = access.read()
       check(captured, request.signal)
       const canCache = readable(request)
+      const writes = options.writes?.()
+      const defer = writes?.accepts(request) === true
       const method = request.method ?? 'GET'
       const key = keyFor(request)
+      // Persist opted-in writes before any network I/O. A server outage while the
+      // browser is still online must keep an unsent upload eligible for automatic retry.
+      if (defer && writes) throw new QueuedWriteError(await writes.enqueue(request))
       const cached = async (): Promise<T> => {
         check(captured, request.signal)
         const entry = await cache.read(key).catch(error => {

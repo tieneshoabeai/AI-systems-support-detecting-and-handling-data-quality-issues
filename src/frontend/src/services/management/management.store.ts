@@ -12,6 +12,7 @@ import { createDatasetService } from '../processing/dataset.service'
 import { createAnalysisService } from '../processing/analysis.service'
 import { listRecentProjects } from '../processing/recent-projects.service'
 import { ApiError, isRecord, normalizeApiError } from '../../lib/api-error'
+import { QueuedWriteError } from '../offline/queued-write-error'
 import { mapSessionDetail } from './session.mapper'
 import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
 
@@ -78,7 +79,7 @@ const saved = (message: string): PreviewMutationResult => ({ message, persisted:
 
 export function createManagementStore(api: ApiClient, account: Person, options: {
   readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal; recent?: boolean; progressiveProjects?: boolean
-  drafts?: UploadDraftPort; readOnly?: () => boolean
+  drafts?: UploadDraftPort; readOnly?: () => boolean; deferredWrites?: boolean
 } = {}) {
   let state: PreviewStoreState = {
     source: 'api', workspaces: [], projects: [], notifications: [], reports: [], sessions: [],
@@ -113,8 +114,8 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const publish = (next: PreviewStoreState) => {
     if (disposed) return
     state = options.readOnly?.() ? { ...next,
-      workspaces: next.workspaces.map(workspace => ({ ...workspace, canManage: false })),
-      projects: next.projects.map(project => ({ ...project, canManage: false, canDelete: false, canUpload: false, canUpdateDatasetMetadata: false, canComplete: false })),
+      workspaces: next.workspaces.map(workspace => ({ ...workspace, ...(options.deferredWrites ? {} : { canManage: false }) })),
+      projects: next.projects.map(project => ({ ...project, ...(options.deferredWrites ? {} : { canManage: false, canDelete: false, canUpload: false }), canUpdateDatasetMetadata: false, canComplete: false })),
     } : next
     listeners.forEach(fn => fn())
   }
@@ -470,15 +471,20 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     }
     await options.drafts.confirmUploaded(draft.id, { accountId: account.id, projectId: draft.scope, datasetId: dataset['id'] })
   }
-  async function uploadCsv(id: string, file: File, localDraft?: LocalUploadDraftRef, acknowledged?: () => void) {
+  async function uploadCsv(id: string, file: File, localDraft?: LocalUploadDraftRef, acknowledged?: () => void, deferIfOffline = false) {
     const form = new FormData(); form.append('file', file)
-    const response = await request<unknown>(`/projects/${id}/datasets/upload`, { method: 'POST', data: form, timeoutMs: 120000 })
+    const response = await request<unknown>(`/projects/${id}/datasets/upload`, { method: 'POST', data: form, timeoutMs: 120000, deferIfOffline })
     acknowledged?.()
     try { await confirmDraft(localDraft, response) }
     catch { throw new Error('File đã được tải lên nhưng chưa dọn được bản nháp. Mở lại project để kiểm tra, không gửi lại file.') }
   }
   async function mutate(path: string, method: NonNullable<ApiRequestOptions['method']>, data?: unknown) {
-    await request<void>(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+    try {
+      await request<void>(path, { method, data, deferIfOffline: true, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+    } catch (error) {
+      if (error instanceof QueuedWriteError) return { message: error.message, queued: true, undo: () => {} }
+      throw error
+    }
     if (options.progressiveProjects) {
       cardRevision.abort()
       const deletedId = method === 'DELETE' ? path.match(/^\/projects\/([^/]+)$/)?.[1] : undefined
@@ -726,7 +732,10 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     downloadAttachment: (id, attachmentId) => request<Blob>(`/issues/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`, { responseType: 'blob' }),
     uploadDataset: async (id, file, localDraft) => {
       validateCsvFile(file)
-      await uploadCsv(id, file, localDraft)
+      try { await uploadCsv(id, file, localDraft, undefined, true) } catch (error) {
+        if (error instanceof QueuedWriteError) return { message: error.message, queued: true, undo: () => {} }
+        throw error
+      }
       try { await load() } catch { return saved('Đã upload file; chưa tải lại được project. Không gửi lại file.') }
       return saved('Đã tải CSV lên máy chủ.')
     },

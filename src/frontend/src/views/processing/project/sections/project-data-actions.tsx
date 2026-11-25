@@ -10,7 +10,7 @@ import { ResultReviewDialog } from '../../../preview/components/result-review-di
 import styles from './project-data-actions.module.css'
 import { PreviewIcon } from '../../../preview/components/preview-icons'
 import { useUploadDraft } from '../../../../hooks/offline/use-upload-draft'
-import { useOfflineStatus } from '../../../../hooks/offline/use-local-data'
+import { useLocalData, useOfflineStatus } from '../../../../hooks/offline/use-local-data'
 import { UploadDraftNotice } from '../../../../components/offline/upload-draft-notice'
 
 export function ProjectResultDownload({ result }: { result: ConfirmedProjectResult | null }) {
@@ -45,14 +45,15 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
   const projectId = session.state.selection.projectId
   const draft = useUploadDraft(projectId)
   const { offline } = useOfflineStatus()
+  const supportsQueue = Boolean(useLocalData()?.writes)
   const upload = async () => {
-    if (!file || busy || offline || !store.uploadDataset) return
+    if (!file || busy || (offline && !supportsQueue) || !store.uploadDataset) return
     setBusy(true); setError('')
     try {
       validateCsvFile(file)
       const localDraft = await draft.flush()
       const result = await store.uploadDataset(projectId, file, localDraft)
-      session.notify(result.message, 'success'); onClose()
+      session.notify(result.message, result.queued ? 'info' : 'success'); onClose()
     } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được tệp.') }
     finally { setBusy(false) }
   }
@@ -72,8 +73,8 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
     <p className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
     {!store.uploadDataset && <p className="action-note">Chưa kết nối dịch vụ upload trong chế độ xem trước.</p>}
     {error && <p role="alert" className="form-error">{error}</p>}
-    {offline && <p role="status">File nháp vẫn lưu trên thiết bị. Kết nối lại để upload lên máy chủ.</p>}
-    <div className="dialog-actions"><Button className="button-secondary" disabled={busy || draft.saving} onClick={onClose}>Đóng</Button><Button className="button-primary" aria-busy={busy} disabled={busy || draft.saving || offline || !file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</Button></div>
+    {offline && <p role="status">{supportsQueue ? 'File sẽ lưu trong hàng đợi và tự upload khi backend kết nối lại. Chưa chạy phân tích khi đang ngoại tuyến.' : 'File nháp vẫn lưu trên thiết bị. Kết nối lại để upload lên máy chủ.'}</p>}
+    <div className="dialog-actions"><Button className="button-secondary" disabled={busy || draft.saving} onClick={onClose}>Đóng</Button><Button className="button-primary" aria-busy={busy} disabled={busy || draft.saving || (offline && !supportsQueue) || !file || !store.uploadDataset} onClick={() => { void upload() }}>{offline && supportsQueue ? 'Lưu chờ upload' : 'Upload data'}</Button></div>
   </Dialog>
 }
 

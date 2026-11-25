@@ -10,7 +10,7 @@ import { readAccessToken } from '../../utils/auth/access-token'
 import { normalizeApiError } from '../../lib/api-error'
 import { ProcessingDataContext } from './processing-data-context'
 import type { Person } from '../../types/preview/preview.types'
-import { useOfflineStatus } from '../../hooks/offline/use-local-data'
+import { useOfflineStatus, useOfflineWrites } from '../../hooks/offline/use-local-data'
 
 type LoadResult = {
   snapshot: SessionSnapshot
@@ -36,6 +36,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
   const snapshot = auth?.snapshot
   const localData = auth?.localData
   const offline = useOfflineStatus().offline
+  const syncedRevision = useOfflineWrites().revision
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<LoadResult | null>(null)
   const pendingStore = useMemo(() => createManagementStore({
@@ -65,7 +66,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       })
       const api = localData ? localData.wrapApi(transport) : transport
       const data = createManagementStore(api, sessionAccount(snapshot), {
-        ...(localData ? { drafts: localData.drafts, readOnly: () => localData.offline.getSnapshot().offline } : {}),
+        ...(localData ? { drafts: localData.drafts, readOnly: () => localData.offline.getSnapshot().offline, deferredWrites: Boolean(localData.writes) } : {}),
         progressiveProjects,
         ...(projectId === undefined ? {} : { projectId }),
         ...(recent ? { recent } : {}),
@@ -108,7 +109,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       queueMicrotask(() => { if (active) setResult({ snapshot, progressiveProjects, ...(projectId === undefined ? {} : { projectId }), error: message }) })
     }
     return () => { active = false; controller.abort(); dispose?.() }
-  }, [snapshot, attempt, projectId, recent, progressiveProjects, localData, offline])
+  }, [snapshot, attempt, projectId, recent, progressiveProjects, localData, offline, syncedRevision])
 
   // Isolated previews retain their fixture store.
   // The route guard remains responsible for admission; API failures never select fixtures.
