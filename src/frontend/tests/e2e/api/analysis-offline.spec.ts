@@ -151,7 +151,7 @@ test('runs analysis, feedback and offline reads using only its own synthetic CSV
   // only API traffic blocked to exercise the runtime's network-error fallback too.
   try {
     await page.reload()
-    await expect(page.getByText('Đang xem ngoại tuyến · Chỉ đọc', { exact: true })).toBeVisible()
+    await expect(page.getByText('Chưa kết nối được backend · Đang dùng dữ liệu đã lưu', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Data View', exact: true }).click()
     await expect(page.getByRole('cell', { name: marker, exact: true })).toBeVisible()
     const disconnectedRuntime = await readOfflineRuntimeProbe(page)
@@ -164,7 +164,7 @@ test('runs analysis, feedback and offline reads using only its own synthetic CSV
   await page.context().setOffline(true)
   try {
     if (productionShell) await page.reload()
-    await expect(page.getByText('Đang xem ngoại tuyến · Chỉ đọc', { exact: true })).toBeVisible()
+    await expect(page.getByText('Đang ngoại tuyến · Thay đổi hỗ trợ sẽ lưu chờ đồng bộ', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Data View', exact: true }).click()
     await expect(page.getByRole('cell', { name: marker, exact: true })).toBeVisible()
     const offlineRuntime = await readOfflineRuntimeProbe(page)
@@ -191,7 +191,8 @@ test('runs analysis, feedback and offline reads using only its own synthetic CSV
       contentType: 'application/json',
     })
   } finally { await page.context().setOffline(false) }
-  await expect(page.getByText('Đang xem ngoại tuyến · Chỉ đọc', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Đang ngoại tuyến · Thay đổi hỗ trợ sẽ lưu chờ đồng bộ', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Chưa kết nối được backend · Đang dùng dữ liệu đã lưu', { exact: true })).toHaveCount(0)
   await page.goto(`/processing/projects/${projectId}`)
   await page.getByRole('button', { name: 'Data View', exact: true }).click()
   await expect(page.getByRole('cell', { name: 'QA001', exact: true })).toBeVisible()

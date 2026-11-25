@@ -1,5 +1,27 @@
 # Rà soát nút và IndexedDB runtime — 25/11/2026
 
+## Sửa lỗi nhận diện ngoại tuyến khi API khác vẫn trả 200
+
+Trước đây một GET lỗi mạng/timeout/HTTP 5xx có thể đặt cả ứng dụng vào chế độ đọc bản lưu, làm khóa phân tích. Trạng thái không tự phục hồi khi hàng đợi ghi trống. Lượt kiểm tra hàng đợi trước đó chưa bao phủ lỗi riêng một endpoint trong khi các API khác vẫn hoạt động.
+
+- HTTP 5xx chỉ dùng bản lưu của đúng yêu cầu (nếu có) và hiển thị cảnh báo dữ liệu chưa cập nhật; không đặt toàn ứng dụng offline. Nếu chưa có bản lưu, giữ lỗi HTTP thật cho module đó.
+- Lỗi mạng/timeout được kiểm tra kết nối trước khi chuyển cả ứng dụng sang đọc offline. Một phản hồi API thành công mới hơn không bị timeout cũ ghi đè.
+- Tự kiểm tra phục hồi mỗi 10 giây khi đang dùng offline, kể cả không có hàng đợi. Render lại provider không kích hoạt lại một probe đã thất bại, tránh tự thử dồn khi profile chưa phục hồi. Runtime `local-limited` phải xác minh lại profile trước khi trở về authenticated. Health lỗi riêng lẻ được đối chiếu với GET profile có xác thực, không dùng health làm căn cứ duy nhất khóa ứng dụng.
+- Nếu profile probe trả 401/403 hoặc tài khoản không còn hợp lệ thì chấm dứt đúng phiên đã kiểm tra và dọn cache; kết quả muộn của A không được chấm dứt phiên B. Hết phiên/đổi tài khoản/dispose/ngắt mạng trong lúc probe không được phục hồi sai.
+- Banner phân biệt trình duyệt mất mạng, chưa kết nối BE và một phần dữ liệu dùng bản lưu. Sự kiện browser online chỉ bắt đầu xác minh, không tự xác nhận BE sẵn sàng. Nút phân tích được mở lại sau khi phục hồi thật và các điều kiện quyền/dataset vẫn hợp lệ.
+
+### Kiểm chứng bổ sung trên production và BE thật
+
+**7 ca khác nhau đã đạt**: lượt tổng hợp có 5 ca đạt và 2 ca ghi được chạy lại thành công sau khi sửa mốc chờ của test (đợi quyền tải đầy đủ, đợi receipt IndexedDB trước khi chuyển trang). Các ca gồm đọc cache/kết quả/PDF, lỗi riêng 500/503/mạng/timeout thật 30 giây, health 503 nhưng profile 200, phục hồi không có hàng đợi, mạng online trước BE, upload mất ACK, sửa/xóa đúng thứ tự và hàng đợi Blob qua reload. POST phân tích thật trả **201** sau phục hồi; Data View thật trả 200. Đây là kiểm tra gọi phân tích, không phải xác nhận worker AI inference đã thành công.
+
+Hai file unit liên quan trực tiếp có 31 ca đọc/nhận diện kết nối và 52 ca session/runtime. Đã kiểm tra 401/403/404, phiên hết hạn khi probe đang chạy, đổi tài khoản/logout/dispose, probe đồng thời, render lại provider, timeout muộn và không dùng cache khi profile probe từ chối phiên. Build production, TypeScript app/E2E và lint các file sửa qua.
+
+Sau khi chặn provider render lại kích hoạt probe lặp, **129/129 kiểm tra liên quan qua**. Đã chạy lại ca production không có hàng đợi: đo được **2 GET profile** trong giai đoạn ngắt BE/reload/chuyển module, không tăng theo render; tự phục hồi và POST phân tích trả 201. Artifact: `temp/frontend-integration/offline-recovery-rate-guard-live.json`.
+
+**Lượt chốt bản sửa: 87/87 file, 1.025/1.025 unit test qua (260,69 giây)**, log `src/frontend/temp/offline-recovery-release-vitest.log`. Một lượt chạy đồng thời với Chrome bị timeout ở ca mock Workspace; ca đó giữ timeout 5 giây, chạy riêng đạt 25/25 và cả hai lượt full suite chạy riêng sau đó đạt 1.024/1.024 và 1.025/1.025. Build cuối, TypeScript app/E2E và lint các file sửa đều qua. Credential/tài khoản QA của cả hai lượt đã được dọn.
+
+Artifact local: `temp/frontend-integration/offline-recovery-live-first.json`, `offline-recovery-live-writes-recheck.json`, `offline-recovery-summary.json`. Tài nguyên và tài khoản QA tạm đã được dọn; credential đã xóa khỏi env. Các lỗi kết nối/HTTP được tiêm ở client; không dừng server dùng chung của nhóm.
+
 ## Bổ sung hàng đợi ghi và tự đồng bộ
 
 Các thao tác được hỗ trợ ghi vào IndexedDB trước khi gửi API thật: upload CSV vào Project đã có; PATCH tên/mô tả Workspace/Project; DELETE Workspace/Project/dataset. UI trả thông báo chờ đồng bộ, không giả lập kết quả thành công trên server. Các phần ghi chú “chỉ đọc” ở những lượt kiểm chứng cũ bên dưới mô tả bản trước khi có hàng đợi này.

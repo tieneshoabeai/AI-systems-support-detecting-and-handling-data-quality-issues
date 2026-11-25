@@ -18,16 +18,16 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 const failure = (kind: 'network' | 'http', status?: number) => new ApiError({ kind, message: 'Test outage', ...(status ? { status } : {}) })
-const setup = () => {
+const setup = (options: Pick<Parameters<typeof createOfflineDataService>[0], 'checkConnection' | 'recoveryIntervalMs'> = {}) => {
   const db = new OfflineReadDatabase(`offline-test-${crypto.randomUUID()}`)
   databases.push(db)
   let current: DraftAccess | null = { accountId: 'a', generation: 1, expiresAtMs: 2000 }
   let time = 1000
   const listeners = new Set<() => void>()
-  const access = { read: () => current, subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } } }
+  const access = { read: () => current && current.expiresAtMs > time ? current : null, subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } } }
   const change = (next: DraftAccess | null) => { current = next; listeners.forEach(fn => fn()) }
   const cache = createOfflineReadRepository({ db, access, namespace: 'qa', now: () => time })
-  const service = createOfflineDataService({ cache, access })
+  const service = createOfflineDataService({ cache, access, ...options })
   services.push(service)
   const request = vi.fn<(input: ApiRequestOptions) => Promise<unknown>>().mockResolvedValue({ items: [{ id: 'p', name: 'Saved project' }] })
   const api = service.wrapApi({ request } as ApiClient)
@@ -36,6 +36,177 @@ const setup = () => {
 const projects: ApiRequestOptions = { path: '/projects', auth: 'session' }
 
 describe('durable offline reads', () => {
+  it.each([500, 502, 503])('keeps other APIs and analysis usable after an individual HTTP %s', async status => {
+    const s = setup()
+    await s.api.request(projects)
+    s.request.mockRejectedValueOnce(failure('http', status))
+    expect(await s.api.request(projects)).toMatchObject({ items: [{ id: 'p' }] })
+    expect(s.service.getSnapshot()).toMatchObject({ offline: false, fallback: { path: '/projects', status } })
+    s.request.mockResolvedValueOnce({ analysisRunId: 'real-response' })
+    expect(await s.api.request({ path: '/projects/p/analysis', method: 'POST', auth: 'session' })).toEqual({ analysisRunId: 'real-response' })
+    await s.api.request(projects)
+    expect(s.service.getSnapshot().fallback).toBeUndefined()
+  })
+
+  it('preserves the actual HTTP error for an uncached failing endpoint without going offline', async () => {
+    const s = setup()
+    s.request.mockRejectedValueOnce(failure('http', 500))
+    await expect(s.api.request(projects)).rejects.toMatchObject({ status: 500 })
+    expect(s.service.getSnapshot().offline).toBe(false)
+  })
+
+  it.each([401, 403, 404])('never substitutes saved data for HTTP %s or treats it as a connection failure', async status => {
+    const checkConnection = vi.fn().mockResolvedValue(true)
+    const s = setup({ checkConnection })
+    await s.api.request(projects)
+    await s.api.request({ path: '/workspaces', auth: 'session' })
+    s.request.mockRejectedValueOnce(failure('http', status))
+    await expect(s.api.request(projects)).rejects.toMatchObject({ status })
+    expect(s.service.getSnapshot().offline).toBe(false)
+    expect(s.service.getSnapshot().fallback).toBeUndefined()
+    expect(checkConnection).not.toHaveBeenCalled()
+    expect(await s.cache.list()).toHaveLength(status === 404 ? 1 : 0)
+  })
+
+  it.each(['network', 'timeout'] as const)('verifies backend reachability before treating a %s failure as global offline', async kind => {
+    const checkConnection = vi.fn().mockResolvedValue(true)
+    const s = setup({ checkConnection })
+    await s.api.request(projects)
+    s.request.mockRejectedValueOnce(new ApiError({ kind, message: 'one endpoint failed' }))
+    expect(await s.api.request(projects)).toBeDefined()
+    expect(checkConnection).toHaveBeenCalledOnce()
+    expect(s.service.getSnapshot().offline).toBe(false)
+  })
+
+  it('recovers automatically with no queued writes and no online event', async () => {
+    const checkConnection = vi.fn().mockResolvedValue(false)
+    const s = setup({ checkConnection, recoveryIntervalMs: 10 })
+    await s.api.request(projects)
+    s.request.mockRejectedValueOnce(failure('network'))
+    await s.api.request(projects)
+    expect(s.service.getSnapshot()).toMatchObject({ offline: true, reason: 'backend' })
+    checkConnection.mockResolvedValue(true)
+    await vi.waitFor(() => { expect(s.service.getSnapshot().offline).toBe(false) })
+    s.request.mockResolvedValueOnce({ items: [{ id: 'p', name: 'Fresh API' }] })
+    expect(await s.api.request(projects)).toMatchObject({ items: [{ name: 'Fresh API' }] })
+  })
+
+  it('does not trust the browser online event until the backend actually recovers', async () => {
+    let online = false
+    vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online)
+    const checkConnection = vi.fn().mockResolvedValue(false)
+    const s = setup({ checkConnection, recoveryIntervalMs: 10 })
+    window.dispatchEvent(new Event('offline'))
+    expect(s.service.getSnapshot()).toMatchObject({ offline: true, reason: 'network' })
+    expect(checkConnection).not.toHaveBeenCalled()
+    online = true; window.dispatchEvent(new Event('online'))
+    await vi.waitFor(() => { expect(checkConnection).toHaveBeenCalled() })
+    expect(s.service.getSnapshot().offline).toBe(true)
+    checkConnection.mockResolvedValue(true)
+    await vi.waitFor(() => { expect(s.service.getSnapshot().offline).toBe(false) })
+  })
+
+  it('does not let a late failed request override a newer API 200 response', async () => {
+    const s = setup({ checkConnection: vi.fn().mockResolvedValue(false) })
+    await s.api.request(projects)
+    let reject!: (error: unknown) => void
+    s.request.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+    const pending = s.api.request(projects)
+    await s.api.request({ path: '/workspaces', auth: 'session' })
+    reject(new ApiError({ kind: 'timeout', message: 'late timeout' }))
+    await pending
+    expect(s.service.getSnapshot().offline).toBe(false)
+  })
+
+  it('rejects stale recovery and cached responses when the account changes during the probe', async () => {
+    let resolve!: (value: boolean) => void
+    const checkConnection = vi.fn(() => new Promise<boolean>(done => { resolve = done }))
+    const s = setup({ checkConnection })
+    await s.api.request(projects)
+    s.request.mockRejectedValueOnce(failure('network'))
+    const pending = s.api.request(projects)
+    const assertion = expect(pending).rejects.toMatchObject({ kind: 'session' })
+    await vi.waitFor(() => { expect(resolve).toBeTypeOf('function') })
+    s.change({ accountId: 'b', generation: 2, expiresAtMs: 2000 }); resolve(true)
+    await assertion
+    expect(s.service.getSnapshot().offline).toBe(false)
+    expect(await s.cache.list()).toEqual([])
+  })
+
+  it('ignores late recovery after logout and never resumes a revoked local session', async () => {
+    let resolve!: (value: boolean) => void
+    const s = setup({ checkConnection: () => new Promise<boolean>(done => { resolve = done }) })
+    s.service.useSavedData()
+    await vi.waitFor(() => { expect(resolve).toBeTypeOf('function') })
+    s.change(null); resolve(true)
+    await Promise.resolve(); await Promise.resolve()
+    expect(s.service.getSnapshot().offline).toBe(false)
+    await expect(s.api.request(projects)).rejects.toMatchObject({ kind: 'session' })
+  })
+
+  it('cannot clear physical offline using a late successful API response', async () => {
+    let online = true
+    vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online)
+    const s = setup()
+    let resolve!: (value: unknown) => void
+    s.request.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+    const pending = s.api.request(projects)
+    online = false; window.dispatchEvent(new Event('offline'))
+    resolve({ items: [] }); await pending
+    expect(s.service.getSnapshot()).toMatchObject({ offline: true, reason: 'network' })
+  })
+
+  it('stops background recovery and ignores its result after disposal', async () => {
+    let resolve!: (value: boolean) => void
+    const checkConnection = vi.fn(() => new Promise<boolean>(done => { resolve = done }))
+    const s = setup({ checkConnection, recoveryIntervalMs: 10 })
+    const listener = vi.fn(); s.service.subscribe(listener)
+    s.service.useSavedData()
+    await vi.waitFor(() => { expect(resolve).toBeTypeOf('function') })
+    s.service.dispose(); const previous = listener.mock.calls.length; resolve(true)
+    await Promise.resolve(); await Promise.resolve()
+    expect(listener).toHaveBeenCalledTimes(previous)
+    expect(checkConnection).toHaveBeenCalledOnce()
+  })
+
+  it('joins concurrent connectivity probes instead of racing them', async () => {
+    let resolve!: (value: boolean) => void
+    const checkConnection = vi.fn(() => new Promise<boolean>(done => { resolve = done }))
+    const s = setup({ checkConnection })
+    await s.api.request(projects)
+    s.request.mockRejectedValue(failure('network'))
+    const requests = [s.api.request(projects), s.api.request(projects)]
+    await vi.waitFor(() => { expect(checkConnection).toHaveBeenCalledOnce() })
+    resolve(false); await Promise.all(requests)
+    expect(checkConnection).toHaveBeenCalledOnce()
+    expect(s.service.getSnapshot().offline).toBe(true)
+  })
+
+  it('does not restart failed recovery just because the offline provider renders again', async () => {
+    const checkConnection = vi.fn().mockResolvedValue(false)
+    const s = setup({ checkConnection, recoveryIntervalMs: 60000 })
+    s.service.useSavedData()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    s.service.useSavedData()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(checkConnection).toHaveBeenCalledOnce()
+    expect(s.service.getSnapshot().offline).toBe(true)
+  })
+
+  it('does not recover when the session expires during a connectivity probe', async () => {
+    let resolve!: (value: boolean) => void
+    const checkConnection = vi.fn(() => new Promise<boolean>(done => { resolve = done }))
+    const s = setup({ checkConnection })
+    s.service.useSavedData()
+    await vi.waitFor(() => { expect(resolve).toBeTypeOf('function') })
+    s.setTime(2000); resolve(true)
+    await Promise.resolve(); await Promise.resolve()
+    s.service.reconnect()
+    await expect(s.api.request(projects)).rejects.toMatchObject({ kind: 'session' })
+    expect(s.service.getSnapshot().offline).toBe(true)
+    expect(checkConnection).toHaveBeenCalledOnce()
+  })
+
   it('reads a saved response after reopening IndexedDB and makes no offline request', async () => {
     const s = setup()
     const value = await s.api.request(projects)

@@ -2,7 +2,11 @@ import type { ApiClient } from '../api/api.types'
 import type { UploadDraftPort } from '../datasets/upload-draft.types'
 import type { OfflineWritePort } from './offline-write.types'
 
-export type OfflineStatus = { offline: boolean; savedAt: number | null; storageError: string | null }
+export type OfflineStatus = {
+  offline: boolean; savedAt: number | null; storageError: string | null
+  reason?: 'network' | 'backend'
+  fallback?: { path: string; status?: number }
+}
 export type OfflineDataPort = {
   getSnapshot(this: void): OfflineStatus
   subscribe(this: void, listener: () => void): () => void

@@ -102,6 +102,7 @@ test('synchronizes Workspace metadata then deletes its Project and Workspace in 
   })))['project'])['id'])
   await page.goto('/management/projects')
   await expect(page.getByRole('heading', { name: `${prefix}-project`, exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Thao tác với ${prefix}-project`, exact: true })).toBeEnabled()
   await page.goto('/management/workspaces')
   await expect(page.getByRole('button', { name: `Thao tác với ${prefix}`, exact: true })).toBeVisible()
   disconnected = true
@@ -115,6 +116,8 @@ test('synchronizes Workspace metadata then deletes its Project and Workspace in 
   await openResourceMenu(page, `${prefix}-project`)
   await page.getByRole('menuitem', { name: 'Xóa Project', exact: true }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Gỡ khỏi danh sách', exact: true }).click()
+  await expect.poll(() => pending(page)).toMatchObject([{ kind: 'patch' }, { kind: 'delete' }])
+  await expect(page.getByRole('alertdialog')).toHaveCount(0)
   await page.goto('/management/workspaces')
   await openResourceMenu(page, prefix)
   await page.getByRole('menuitem', { name: 'Xóa Workspace', exact: true }).click()
@@ -174,6 +177,7 @@ test('persists real writes across reload and automatically uploads, edits and de
   await expect(page.getByRole('button', { name: 'Upload data', exact: true })).toBeVisible()
   await page.goto('/management/projects')
   await expect(page.getByRole('heading', { name: `${prefix}-project`, exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Thao tác với ${prefix}-project`, exact: true })).toBeEnabled()
   disconnected = true
   await openResourceMenu(page, `${prefix}-project`)
   await page.getByRole('menuitem', { name: /Đổi tên/ }).click()

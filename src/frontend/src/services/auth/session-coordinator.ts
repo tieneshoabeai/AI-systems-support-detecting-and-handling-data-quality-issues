@@ -5,6 +5,7 @@ import type { LoginRequestDto } from '../../types'
 import type { StoredSession } from '../../types'
 import type { SessionCoordinatorOptions, SessionSnapshot, SessionUser, SignOutResult } from '../../types'
 import type { DraftAccessPort } from '../../types'
+import type { DraftAccess } from '../../types/datasets/upload-draft.types'
 import type { CurrentUser } from '../../types'
 
 const sessionError = (message: string) => new ApiError({ kind: 'session', message })
@@ -323,5 +324,9 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     // Đóng instance không phải logout: giữ credential/draft cho instance mới restore.
   }
 
-  return { getSnapshot: () => snapshot, subscribe, restore, signIn, signInWithGoogle, signOut, deleteAccount, confirmRenewal, checkSession, draftAccess, dispose }
+  const rejectSession = (captured: DraftAccess, error: unknown) => {
+    // A rejection for A must never sign out a newer account/session B.
+    if (!disposed && session?.accountId === captured.accountId && generation === captured.generation) endSession(safeError(error))
+  }
+  return { getSnapshot: () => snapshot, subscribe, restore, signIn, signInWithGoogle, signOut, deleteAccount, confirmRenewal, checkSession, rejectSession, draftAccess, dispose }
 }

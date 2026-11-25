@@ -16,7 +16,7 @@ import { createOfflineWriteRepository } from '../repositories/offline/offline-wr
 import { createOfflineWriteService } from '../services/offline/offline-write.service'
 import { updateConfirmedCache } from '../services/offline/confirmed-write-cache'
 import { hashFile } from '../services/offline/offline-write-command'
-import { isRecord } from '../lib/api-error'
+import { isRecord, normalizeApiError } from '../lib/api-error'
 import type { OfflineWritePort } from '../types/offline/offline-write.types'
 
 type ClientOptions = NonNullable<Parameters<typeof createAxiosClient>[0]>
@@ -55,7 +55,32 @@ export const createAppRuntime = (options: RuntimeOptions) => {
   const cache = createOfflineReadRepository({ db: offlineDatabase, access: coordinator.draftAccess,
     namespace: options.client?.baseUrl ?? getApiConfig().baseUrl, ...(options.now === undefined ? {} : { now: options.now }) })
   const writePort: { current?: OfflineWritePort } = {}
-  const offline = createOfflineDataService({ cache, access: coordinator.draftAccess, writes: () => writePort.current })
+  const offline = createOfflineDataService({ cache, access: coordinator.draftAccess, writes: () => writePort.current,
+    checkConnection: async signal => {
+      const wasLimited = coordinator.getSnapshot().phase === 'local-limited'
+      await coordinator.checkSession()
+      signal.throwIfAborted()
+      if (coordinator.getSnapshot().phase !== 'authenticated') return false
+      // checkSession has already obtained and validated a fresh profile in this case.
+      if (wasLimited) return true
+      try {
+        if ((await createHealthService(publicApi).check({ signal })).available) return true
+      } catch { /* A failed health endpoint alone does not prove all data APIs are offline. */ }
+      const scope = coordinator.draftAccess.read()
+      const stored = storage.read()
+      if (!scope || stored.status !== 'valid' || stored.session.accountId !== scope.accountId) return false
+      const boundApi = createAxiosClient({ ...options.client, readToken: () => stored.session.accessToken })
+      try {
+        const user = await createUsersService(boundApi).getMe({ signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) })
+        if (user.id !== scope.accountId || user.status !== 'active') throw new ApiError({ kind: 'session', message: 'Tài khoản không còn hoạt động hoặc không khớp phiên hiện tại.' })
+        return true
+      } catch (error) {
+        const failure = normalizeApiError(error)
+        if ([401, 403].includes(failure.status ?? 0) || failure.kind === 'session') coordinator.rejectSession(scope, failure)
+        throw error
+      }
+    },
+  })
   const writeDatabase = options.writeDatabase ?? new OfflineWriteDatabase()
   const namespace = options.client?.baseUrl ?? getApiConfig().baseUrl
   const repository = createOfflineWriteRepository({ db: writeDatabase, access: coordinator.draftAccess, namespace,
@@ -67,7 +92,7 @@ export const createAppRuntime = (options: RuntimeOptions) => {
   } })
   const writes = createOfflineWriteService({ repository, access: coordinator.draftAccess, api: replayApi, namespace,
     prepare: async () => { await coordinator.checkSession(); return coordinator.getSnapshot().phase === 'authenticated' },
-    connected: offline.reconnect,
+    connected: offline.confirmConnection,
     confirmed: async row => {
       await updateConfirmedCache(cache, row)
       if (row.command.kind !== 'upload' || !isRecord(row.response) || !isRecord(row.response['dataset']) || typeof row.response['dataset']['id'] !== 'string') return
@@ -81,10 +106,7 @@ export const createAppRuntime = (options: RuntimeOptions) => {
   })
   writePort.current = writes
   const localData = { drafts, writes, offline: { ...offline, reconnect: () => {
-    offline.reconnect(); void coordinator.checkSession().then(() => {
-      if (coordinator.getSnapshot().phase === 'authenticated') offline.reconnect()
-      void writes.sync()
-    })
+    offline.reconnect(); void writes.sync()
   } }, wrapApi: offline.wrapApi }
   let owners = 0
   let closed = false

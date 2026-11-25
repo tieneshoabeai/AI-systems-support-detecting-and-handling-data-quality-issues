@@ -8,15 +8,16 @@ export function OfflineNotice() {
   const status = useOfflineStatus()
   const writes = useOfflineWrites()
   const [error, setError] = useState('')
-  if (!local || (!status.offline && !status.storageError && !writes.entries.length && !writes.error)) return null
+  if (!local || (!status.offline && !status.fallback && !status.storageError && !writes.entries.length && !writes.error)) return null
   const act = (operation: Promise<void>) => { setError(''); void operation.catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Chưa xử lý được hàng đợi.')) }
   const states = { queued: 'Chờ đồng bộ', sending: 'Đang gửi', uncertain: 'Đang kiểm tra lần gửi trước', blocked: 'Cần kiểm tra', confirmed: 'Server đã nhận · Đang cập nhật bản lưu' }
   return <aside role="status" className={styles['notice']}>
     <div>{status.offline ? <>
-      <strong>{local.writes ? 'Đang ngoại tuyến · Thay đổi hỗ trợ sẽ lưu chờ đồng bộ' : 'Đang xem ngoại tuyến · Chỉ đọc'}</strong>
+      <strong>{status.reason === 'backend' ? 'Chưa kết nối được backend · Đang dùng dữ liệu đã lưu' : local.writes ? 'Đang ngoại tuyến · Thay đổi hỗ trợ sẽ lưu chờ đồng bộ' : 'Đang xem ngoại tuyến · Chỉ đọc'}</strong>
       <p>{status.savedAt !== null ? `Bản lưu trên thiết bị: ${new Date(status.savedAt).toLocaleString('vi-VN')}. ` : ''}
         {local.writes ? 'Xem dữ liệu đã tải trước đó; upload CSV, sửa tên/mô tả và yêu cầu xóa sẽ tự gửi khi backend hoạt động lại.' : 'Chỉ xem được dữ liệu đã tải trước đó. Kết nối lại để cập nhật hoặc thay đổi dữ liệu.'}</p>
     </> : null}
+    {!status.offline && status.fallback && <p>Một phần dữ liệu đang dùng bản lưu do yêu cầu tải mới bị lỗi. Các chức năng khác vẫn có thể sử dụng; hãy tải lại phần dữ liệu này để thử lại.</p>}
     {status.storageError && <p>{status.storageError}</p>}
     {writes.entries.length > 0 && <details>
       <summary>{writes.syncing ? 'Đang đồng bộ' : 'Hàng đợi đồng bộ'} · {writes.entries.length} yêu cầu</summary>
