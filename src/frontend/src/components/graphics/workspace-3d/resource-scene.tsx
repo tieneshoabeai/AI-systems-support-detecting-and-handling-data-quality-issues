@@ -10,8 +10,6 @@ import { ResourceHardware } from './resource-hardware'
 import { HardwareLighting } from './hardware-lighting'
 import { ResourceCameraController } from './resource-camera-controller'
 import { routeCurve } from '../../../math/workspace-3d/resource-routing'
-import { readScenePalette } from '../../../graphics/workspace-3d/scene-palette'
-import { useSurfaceTheme } from '../../../hooks/ui/use-surface-theme'
 
 type Props = {
   layout: ResourceLayout
@@ -128,29 +126,26 @@ export function ResourceScene({ layout, selectedId, focusedId = null, onSelect, 
   const [lines] = useState(() => new Map<string, SVGLineElement>())
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const onFailure = useMemo(() => () => setFailed(true), [])
-  // Nền, sàn và lưới đọc token --scene-* nên khung 3D đổi hẳn tông giữa Light và Dark.
-  const light = useSurfaceTheme() === 'light'
-  const palette = useMemo(() => readScenePalette(light), [light])
   return <div className="resource-canvas" aria-label="Bản đồ tài nguyên 3D">
     {failed ? <div className="resource-canvas-fallback" role="status">
       <strong>Không thể hiển thị 3D</strong>
       <p>Bạn vẫn có thể chọn và khám phá tài nguyên trong danh sách bên dưới.</p>
     </div> : <SceneBoundary onFailure={onFailure}>
-      <Canvas className="dataverse-3d-canvas" shadows="percentage" dpr={[1, 1.5]} frameloop={moving ? 'always' : 'demand'} camera={{ fov: 40, near: 0.1, far: 500 }}
+      <Canvas shadows="percentage" dpr={[1, 1.5]} frameloop={moving ? 'always' : 'demand'} camera={{ fov: 40, near: 0.1, far: 500 }}
         fallback={<div className="resource-canvas-fallback" role="status">Trình duyệt không hỗ trợ WebGL. Hãy dùng danh sách tài nguyên bên dưới.</div>}>
-        <color attach="background" args={[palette.background]} />
+        <color attach="background" args={['#f3f7f4']} />
         <HardwareLighting />
         <ambientLight intensity={0.65} />
         <directionalLight position={[8, 18, 4]} intensity={2} castShadow shadow-mapSize={[1024, 1024]}
           shadow-camera-left={-25} shadow-camera-right={25} shadow-camera-top={25} shadow-camera-bottom={-25} shadow-bias={-0.001} />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[layout.center[0], -0.81, layout.center[2]]}>
           <planeGeometry args={[layout.span * 4, layout.span * 4]} />
-          <meshBasicMaterial color={palette.floor} toneMapped={false} />
+          <meshBasicMaterial color="#f0f5f1" toneMapped={false} />
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[layout.center[0], -0.8, layout.center[2]]} receiveShadow>
-          <planeGeometry args={[layout.span * 4, layout.span * 4]} /><shadowMaterial transparent opacity={palette.shadowOpacity} />
+          <planeGeometry args={[layout.span * 4, layout.span * 4]} /><shadowMaterial transparent opacity={0.16} />
         </mesh>
-        <gridHelper args={[Math.max(30, layout.span * 2), Math.max(30, Math.ceil(layout.span * 2)), palette.grid, palette.gridAlt]}
+        <gridHelper args={[Math.max(30, layout.span * 2), Math.max(30, Math.ceil(layout.span * 2)), '#d2e0d8', '#e4ece7']}
           position={[layout.center[0], -0.79, layout.center[2]]} />
         {layout.edges.map(edge => <DataPipe key={edge.id} edge={edge} moving={moving} />)}
         {layout.nodes.map(node => <ResourceHardware key={node.resource.id} node={node} selected={node.resource.id === selectedId} onSelect={onSelect} onHover={setHoveredId} />)}

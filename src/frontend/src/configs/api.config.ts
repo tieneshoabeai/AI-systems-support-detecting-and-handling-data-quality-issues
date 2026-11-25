@@ -3,34 +3,6 @@ import type { ApiConfig } from '../types'
 
 export const DEFAULT_API_TIMEOUT_MS = 30_000
 
-const environmentIdPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/
-
-export const getApiEnvironmentId = (baseUrl?: string): string => {
-  const configured = import.meta.env.VITE_API_ENVIRONMENT_ID?.trim()
-  if (configured && !environmentIdPattern.test(configured)) {
-    throw new ApiError({ kind: 'config', message: 'VITE_API_ENVIRONMENT_ID chỉ được chứa chữ, số, dấu chấm, gạch dưới và gạch ngang (tối đa 64 ký tự).' })
-  }
-  // Backward-compatible default. Use the startup script and a stable ID to retain
-  // the same local data when a temporary tunnel hostname changes.
-  return configured ? `environment:${configured}` : baseUrl ?? getApiConfig().baseUrl
-}
-
-const apiBaseFromSwaggerUrl = (value: string): string => {
-  let url: URL
-  try { url = new URL(value.trim()) } catch { throw new ApiError({ kind: 'config', message: 'Link Swagger không hợp lệ.' }) }
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash
-    || !/^\/api\/v[0-9]+\/(?:docs|docs-json)\/?$/.test(url.pathname)) {
-    throw new ApiError({ kind: 'config', message: 'Link Swagger cần có dạng https://host/api/v1/docs.' })
-  }
-  return `${url.origin}${url.pathname.replace(/\/(?:docs|docs-json)\/?$/, '')}`
-}
-
-export const getOfflineMigrationSources = (current = getApiConfig().baseUrl): string[] => {
-  const explicit = (import.meta.env.VITE_API_MIGRATE_FROM ?? '').split(',').map(value => value.trim()).filter(Boolean)
-  const normalized = explicit.map(value => value.includes('/docs') ? apiBaseFromSwaggerUrl(value) : parseApiConfig(value).baseUrl)
-  return [...new Set([current, ...normalized])].filter(value => value !== getApiEnvironmentId(current))
-}
-
 export const parseApiConfig = (value: unknown): ApiConfig => {
   const invalidConfig = () => new ApiError({
     kind: 'config',

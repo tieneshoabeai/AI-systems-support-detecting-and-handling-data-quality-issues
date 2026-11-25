@@ -1,6 +1,3 @@
-import { Button } from '../../../components/ui/primitives/button'
-import { ResourceBreadcrumb } from '../../application/components/resource-breadcrumb'
-import { ModuleNotice } from './sections/module-notice'
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
@@ -144,7 +141,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   // Id không còn trong store (vừa bị xóa) → về danh sách thay vì vẽ trang trống.
   if ((!processing && !project) || processing?.missing) return <PreviewShell active="workspaces" area="processing">
     <EmptyHint title="Không tìm thấy project" note="Project không còn tồn tại. Hãy chọn project khác trong danh sách." />
-    <Button type="button" className="button-secondary" onClick={() => session.openSection('projects')}>Về danh sách Project</Button>
+    <button type="button" className="button-secondary" onClick={() => session.openSection('projects')}>Về danh sách Project</button>
   </PreviewShell>
 
   const menuButton = (element: HTMLElement) =>
@@ -157,10 +154,13 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
       ? <div role="alert">{processing.error} <button type="button" onClick={processing.retry}>Thử lại</button></div>
       : <><p role="status" className="visually-hidden">Đang tải thông tin project…</p><ProjectHeaderSkeleton /></>)}
     {project && <div className="pj-head-row">
-      <ResourceBreadcrumb parents={[
-        { label: 'Workspaces', icon: 'workspaces', onClick: () => session.openSection('workspaces') },
-        { label: project.workspaceName, onClick: () => session.openSection('workspaces', { workspaceId: project.workspaceId }) },
-      ]} current={{ label: project.name, icon: 'projects' }} />
+      <nav className="ws-crumb" aria-label="Path điều hướng">
+        <button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</button>
+        <span className="crumb-sep" aria-hidden="true">›</span>
+        <button type="button" className="crumb-link" onClick={() => session.openSection('workspaces', { workspaceId: project.workspaceId })}>{project.workspaceName}</button>
+        <span className="crumb-sep" aria-hidden="true">›</span>
+        <span className="crumb-current" aria-current="page">{project.name}</span>
+      </nav>
       <div className="pj-dataset">
         <span className="pj-dataset-icon" aria-hidden="true"><PreviewIcon name="file" /></span>
         <div className="pj-dataset-text">
@@ -208,16 +208,14 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
                 onClick={event => selectFocus(null, event.detail === 0)}>×</button>
             </div>
           </header>
-          <div className="project-module-body" role="region" aria-label="Nội dung module" tabIndex={0} data-panel-drag-area>
-            {!project ? <ModuleNotice tone={processing?.error ? 'error' : 'loading'}>{processing?.error ?? 'Đang tải thông tin project…'}</ModuleNotice>
+          {!project ? <p role="status">{processing?.error ?? 'Đang tải thông tin project…'}</p>
             : panelFocus.theme === 'blue' || panelFocus.theme === 'violet'
-              ? prefetch && !currentPreview ? <ModuleNotice tone="loading">Đang tải dữ liệu từ máy chủ…</ModuleNotice>
+              ? prefetch && !currentPreview ? <p role="status">Đang tải dữ liệu từ máy chủ.</p>
                 : <LiveDatasetPanel key={`${project.id}:${dataset?.id ?? ''}:${panelFocus.theme}`} project={project}
                     overview={panelFocus.theme === 'violet'} initialPreview={currentPreview?.value ?? null}
                     onInvalidatePreview={invalidatePreview} />
               : panelFocus.theme === 'cyan' ? <LiveAnalysisPanel key={`${project.id}:${datasetId ?? ''}`}
                   project={project} canExecute={project.canComplete === true} /> : null}
-          </div>
         </div>
         {panelOpen && <ProjectPanelResize panel={glassPanel} />}
       </aside>}
@@ -226,12 +224,12 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
       <nav ref={nav} className="pj-modules" aria-label="Các module của project">
         {activeModules.map(module => {
           const current = selected === module.id
-          return <Button type="button" key={module.id} data-tone={module.tone} data-module={module.id}
+          return <button type="button" key={module.id} data-tone={module.tone} data-module={module.id}
             className={`pj-module${current ? ' is-active' : ''}`} aria-current={current ? 'true' : undefined}
             onClick={event => selectFocus({ theme: MODULE_CUBES[module.id] }, event.detail === 0)}>
             <span className="pj-module-icon" aria-hidden="true"><PreviewIcon name={module.icon} /></span>
             <span className="pj-module-label">{module.label}</span>
-          </Button>
+          </button>
         })}
       </nav>
     </section>}

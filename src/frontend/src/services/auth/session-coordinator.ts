@@ -5,7 +5,6 @@ import type { LoginRequestDto } from '../../types'
 import type { StoredSession } from '../../types'
 import type { SessionCoordinatorOptions, SessionSnapshot, SessionUser, SignOutResult } from '../../types'
 import type { DraftAccessPort } from '../../types'
-import type { DraftAccess } from '../../types/datasets/upload-draft.types'
 import type { CurrentUser } from '../../types'
 
 const sessionError = (message: string) => new ApiError({ kind: 'session', message })
@@ -112,23 +111,7 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     if (renewalTask) return renewalTask
     if (snapshot.phase === 'awaiting-consent') return Promise.resolve()
     const previous = session
-    if (!expired(previous)) {
-      if (snapshot.phase !== 'local-limited') return Promise.resolve()
-      const captured = generation
-      const task = options.bindSession(previous.accessToken).getMe({ signal: controller.signal }).then(user => {
-        if (!isCurrent(captured)) return
-        validateProfile(user, previous)
-        commit(previous, { source: 'profile', value: user }, captured, false)
-      }).catch((error: unknown) => {
-        if (!isCurrent(captured)) return
-        const failure = safeError(error)
-        if (failure.kind === 'network' || failure.kind === 'timeout' || (failure.kind === 'http' && (failure.status ?? 0) >= 500)) {
-          publish(sessionSnapshot('local-limited', previous, failure))
-        } else endSession(failure)
-      }).finally(() => { if (healthTask === task) healthTask = null })
-      healthTask = task
-      return task
-    }
+    if (!expired(previous)) return Promise.resolve()
     const captured = begin()
     const signal = controller.signal
     // Schedule trước publish để caller đồng thời/reentrant luôn join cùng flow.
@@ -324,9 +307,5 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     // Đóng instance không phải logout: giữ credential/draft cho instance mới restore.
   }
 
-  const rejectSession = (captured: DraftAccess, error: unknown) => {
-    // A rejection for A must never sign out a newer account/session B.
-    if (!disposed && session?.accountId === captured.accountId && generation === captured.generation) endSession(safeError(error))
-  }
-  return { getSnapshot: () => snapshot, subscribe, restore, signIn, signInWithGoogle, signOut, deleteAccount, confirmRenewal, checkSession, rejectSession, draftAccess, dispose }
+  return { getSnapshot: () => snapshot, subscribe, restore, signIn, signInWithGoogle, signOut, deleteAccount, confirmRenewal, checkSession, draftAccess, dispose }
 }

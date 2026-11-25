@@ -98,7 +98,7 @@ it('hộp thư: không còn ô tìm kiếm; tab trống thì cất hẳn phân t
   expect(document.querySelector('.pagination')).toBeNull()
   // Lối ra phải là chữ nhìn thấy được, không phải tooltip, và phải trỏ tới control CÓ THẬT trên
   // màn (menu tài khoản không còn mục "Khôi phục dữ liệu mẫu").
-  expect(screen.getByText(/Đổi tab lọc ở trên để xem nhóm thông báo khác/)).toBeDefined()
+  expect(screen.getByText(/tải lại trang sẽ trả hộp thư về danh sách ban đầu/)).toBeDefined()
 
   // Quay lại tab có bản ghi thì phân trang trở lại, đếm đúng khoảng thật.
   fireEvent.click(screen.getByRole('tab', { name: 'Tất cả (16)' }))

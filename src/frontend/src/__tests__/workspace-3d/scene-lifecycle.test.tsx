@@ -25,7 +25,6 @@ it('shows DOM recovery instructions for both unsupported WebGL and renderer exce
   const props = { layout: layoutResources(previewResources), selectedId: null, onSelect: vi.fn(), moving: false, tabHidden: false, resetKey: 0 }
   const rendered = render(<ResourceScene {...props} />)
   expect(screen.getByRole('status').textContent).toContain('không hỗ trợ WebGL')
-  expect(rendered.container.querySelector('.resource-scene-labels')).not.toBeNull()
   rendered.unmount()
   mode.fail = true
   vi.spyOn(console, 'error').mockImplementation(() => {})

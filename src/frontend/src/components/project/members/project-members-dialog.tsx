@@ -1,4 +1,3 @@
-import { Select } from '../../ui/controls'
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
 import { useEffect, useState } from 'react'
@@ -39,7 +38,7 @@ const roleClass = (role: string): string => `role-badge role-${role.toLowerCase(
 //
 // Giá trị `role` của người trong fixture có thể là chức danh công việc chứ không thuộc ba vai trò
 // project, nên ô chọn KHÒ cái giá trị hiện tại vào đầu danh sách nếu nó không có sẵn — một
-// `<Select>` mà value không khớp option nào sẽ hiển thị trống và người dùng tưởng dữ liệu mất.
+// `<select>` mà value không khớp option nào sẽ hiển thị trống và người dùng tưởng dữ liệu mất.
 //
 // Chủ sở hữu không có hai ô đó (badge + dấu "—"): gỡ người duy nhất chịu trách nhiệm về project
 // là để lại một bản ghi mồ côi, và ảnh wizard đã viết "Chủ sở hữu luôn thuộc project".
@@ -62,16 +61,16 @@ function ProjectMemberRowCells({ person, isOwner, onChangeRole, onRemove }: {
     <td>
       <label className="chip-select inline">
         <span className="visually-hidden">Vai trò của {person.name} trong project</span>
-        <Select value={person.role} onChange={event => onChangeRole(person.id, event.target.value)}>
+        <select value={person.role} onChange={event => onChangeRole(person.id, event.target.value)}>
           {options.map(option => <option key={option} value={option}>{option}</option>)}
-        </Select>
+        </select>
       </label>
     </td>
     <td className="row-action">
-      <Button type="button" className="icon-button sm row-menu" aria-label={`Gỡ ${person.name} khỏi Project`}
+      <button type="button" className="icon-button sm row-menu" aria-label={`Gỡ ${person.name} khỏi Project`}
         onClick={() => onRemove(person.id)}>
         <PreviewIcon name="trash" />
-      </Button>
+      </button>
     </td>
   </>
 }
@@ -90,39 +89,17 @@ export function ProjectMembersDialog({ project, workspace, live = false, onClose
   const canManage = project.canManage !== false
   const addBlockedReason = canManage && live && !workspace
     ? 'Không truy cập được danh sách thành viên Workspace để chọn người thêm.' : null
-  const [workspaceRoster, setWorkspaceRoster] = useState<Person[] | null>(null)
-  const [rosterError, setRosterError] = useState('')
-  const [rosterAttempt, setRosterAttempt] = useState(0)
-  const { loadProjectWizardRoster } = useManagementStore()
-  const workspaceId = project.workspaceId
-
-  useEffect(() => {
-    if (live || project.canManage === false || !loadProjectWizardRoster || !workspaceId) return
-    const controller = new AbortController()
-    void loadProjectWizardRoster(workspaceId, controller.signal).then(members => {
-      if (!controller.signal.aborted) setWorkspaceRoster(members)
-    }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setRosterError(cause instanceof Error ? cause.message : 'Không tải được thành viên Workspace.')
-    })
-    return () => controller.abort()
-  }, [loadProjectWizardRoster, workspaceId, rosterAttempt, live, project.canManage])
 
   // Chủ sở hữu luôn thuộc project (chữ trong ảnh) nhưng không nhất thiết nằm trong `members`, nên
   // bảng ghép họ vào đầu và đếm thêm họ vào tổng số — nếu không, "2 thành viên" cạnh bảng 3 dòng
   // là hai con số cãi nhau trên cùng một màn hình.
-  const roster = !live && loadProjectWizardRoster ? workspaceRoster ?? [] : workspace?.memberPreview ?? []
-  const rosterById = new Map(roster.map(member => [member.id, member]))
-  const projectMembers = project.members.map(member => {
-    const workspaceMember = rosterById.get(member.id)
-    return workspaceMember ? { ...workspaceMember, role: member.role } : member
-  })
-  const ownerInList = projectMembers.some(member => member.id === project.owner.id)
-  const rows = ownerInList ? projectMembers : [project.owner, ...projectMembers]
+  const ownerInList = project.members.some(member => member.id === project.owner.id)
+  const rows = ownerInList ? project.members : [project.owner, ...project.members]
 
   // Ứng viên = roster của workspace, trừ chủ sở hữu và người đã ở project.
   const inProject = new Set(rows.map(row => row.id))
   const pick = search.trim().toLowerCase()
-  const loadingRoster = Boolean(!live && project.canManage !== false && loadProjectWizardRoster && !workspaceRoster && !rosterError)
+  const roster = workspace?.memberPreview ?? []
   const candidates = roster.filter(person => person.id !== project.owner.id && !inProject.has(person.id)
     && (!pick || person.name.toLowerCase().includes(pick) || emailForPerson(person).toLowerCase().includes(pick)))
 
@@ -160,7 +137,7 @@ export function ProjectMembersDialog({ project, workspace, live = false, onClose
       </div>
       {canManage && <button type="button" className="button-primary" aria-expanded={adding} disabled={Boolean(addBlockedReason)} aria-controls="pj-add-member"
         aria-describedby={addBlockedReason ? 'pj-add-blocked-reason' : undefined}
-        onClick={() => { setAdding(value => !value); setSearch(''); if (rosterError) { setRosterError(''); setRosterAttempt(value => value + 1) } }}>
+        onClick={() => { setAdding(value => !value); setSearch('') }}>
         <PreviewIcon name="plus" /> Thêm thành viên
       </button>}
     </div>
@@ -176,9 +153,7 @@ export function ProjectMembersDialog({ project, workspace, live = false, onClose
       </label>
       {/* Không có ô nhập email ở đây: thêm người ngoài workspace là phá ràng buộc nghiệp vụ mà
             chính ảnh wizard "Tạo Project" đã viết thành ba dòng ghi chú. */}
-      {loadingRoster && <p role="status" className="panel-sub">Đang tải thành viên Workspace…</p>}
-      {rosterError && <p role="alert" className="panel-sub">{rosterError}</p>}
-      {!loadingRoster && !rosterError && candidates.length === 0 && <p className="panel-sub">{roster.length === 0
+      {candidates.length === 0 && <p className="panel-sub">{roster.length === 0
         ? 'Workspace của project này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” của Workspace trước.'
         : 'Toàn bộ thành viên của Workspace đã thuộc Project này.'}</p>}
       {candidates.length > 0 && <ul className="pv-suggest-list">
@@ -224,7 +199,7 @@ export function ProjectMembersDialog({ project, workspace, live = false, onClose
       {filtered.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
     </div>
 
-    <ResourceAccessActions kind="project" resource={{ ...project, members: projectMembers }} onClose={onClose} />
+    <ResourceAccessActions kind="project" resource={project} onClose={onClose} />
     <p className="dialog-note" id={previewNoteIds.projectMembersPage}>{previewReasons.projectMembers}</p>
   </Dialog>
 }

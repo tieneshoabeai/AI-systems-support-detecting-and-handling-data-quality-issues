@@ -241,9 +241,16 @@ it('Esc trong dialog là hủy, không ghi gì cả', () => {
 
 it('xóa phải xác nhận, và sau xác nhận vẫn Hoàn tác được', async () => {
   renderFrame(<WorkspacesPreviewView />)
+  // Bộ demo phải đủ dài để Home lướt được trong khung (xem preview-fixtures.ts) → đếm từ store
+  // thay vì viết tay con số, để một lần thêm bản ghi không phải sửa lại ba test cùng lúc.
   const wsTotal = previewMockStore.getState().workspaces.length
+  // Trang Workspaces chỉ vẽ tối đa 28 thẻ một trang, nên từ khi bộ demo vượt ngưỡng thì ĐẾM THẺ
+  // không còn là bằng chứng "danh sách đổi": xóa một bản ghi ở trang 1 thì trang 1 vẫn kéo bản
+  // kế tiếp lên đủ 28. Phải đếm trong store và xem ĐÚNG BẢN GHI còn nằm trong trang hay không.
+  const pageSize = cardTitles().length
   const inStore = (name: string): boolean =>
     previewMockStore.getState().workspaces.some(item => item.name === name)
+  const pagerInfo = (): string | undefined => document.querySelector('.pagination-info')?.textContent
   fireEvent.contextMenu(cardByTitle('Acme Corp'), { clientX: 100, clientY: 100 })
   fireEvent.click(menuItem('Xóa Workspace'))
 
@@ -262,12 +269,14 @@ it('xóa phải xác nhận, và sau xác nhận vẫn Hoàn tác được', asy
   expect(await screen.findByText('Đã xóa Acme Corp khỏi danh sách mẫu')).toBeDefined()
   expect(inStore('Acme Corp')).toBe(false)
   expect(cardTitles()).not.toContain('Acme Corp')
-  expect(previewMockStore.getState().workspaces).toHaveLength(wsTotal - 1)
+  // Dòng phân trang báo tổng SAU bộ lọc → nó tụt theo là bằng chứng duy nhất còn lại rằng phép
+  // xóa thật sự chạm vào danh sách (số thẻ trên trang thì không đổi vì trang 1 vẫn đầy).
+  expect(pagerInfo()).toBe(`Hiển thị 1–${pageSize} của ${wsTotal - 1} Workspaces`)
 
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }))
   expect(inStore('Acme Corp')).toBe(true)
   expect(cardTitles()).toContain('Acme Corp')
-  expect(previewMockStore.getState().workspaces).toHaveLength(wsTotal)
+  expect(pagerInfo()).toBe(`Hiển thị 1–${pageSize} của ${wsTotal} Workspaces`)
 })
 
 // "Lưu trữ Project" đã BỎ theo chỉ đạo chủ batch 03/11: trong frame này người dùng không còn
@@ -343,6 +352,7 @@ it('⋯ của workspace đúng ba mục (ảnh vẽ gì lấy nấy) và "Quản
 it('"Tạo Workspace" mở dialog: chặn tên trống · trùng · chặn email lỗi, thêm thành viên rồi ghi thật', async () => {
   renderFrame(<WorkspacesPreviewView />)
   const wsTotal = previewMockStore.getState().workspaces.length
+  const pageSize = cardTitles().length
 
   // Trước khi mở dialog thì trang chỉ có MỘT nút tên này (nút đầu trang), nên query không
   // mơ hồ; bên trong dialog phải giới hạn bằng within vì nút gửi cũng mang đúng tên đó.
@@ -419,7 +429,7 @@ it('"Tạo Workspace" mở dialog: chặn tên trống · trùng · chặn email
     'tran.quang.huy@acmecorp.com', 'bs.tung@company.com',
   ])
   expect(previewMockStore.getState().workspaces).toHaveLength(wsTotal + 1)
-  expect(cardTitles()).toContain('Product Analytics')
+  expect(document.querySelector('.pagination-info')?.textContent).toBe(`Hiển thị 1–${pageSize} của ${wsTotal + 1} Workspaces`)
 
   // "Tạo Workspace khác" = xóa trắng form để tạo liên tiếp, KHÔNG được nuốt bản ghi đã tạo.
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tạo Workspace khác' }))

@@ -3,13 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { PageSkeleton } from '../components/loading'
 import '../styles/tokens.css'
 import '../styles/global.css'
-import '../styles/glass.css'
 import './style.css'
 import '../views/auth/login-glass.css'
-
-if (import.meta.env.PROD && 'serviceWorker' in navigator && window.isSecureContext) {
-  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}offline-shell.js`).catch(() => {})
-}
 
 const rootElement = document.getElementById('root')
 

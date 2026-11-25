@@ -1,5 +1,0 @@
-export * as components from './components'
-export * as hooks from './hooks'
-export * as services from './services'
-export * as views from './views'
-export * as types from './types'

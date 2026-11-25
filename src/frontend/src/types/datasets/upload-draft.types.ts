@@ -21,13 +21,9 @@ export type UploadDraft = {
   createdAtMs: number
   status: 'pending' | 'uploaded'
   datasetId?: string
-  targetProjectId?: string
-  targetProjectName?: string
 }
 
 export type SaveUploadDraft = { projectId: string; file: File }
-// The scope can be a real project ID or a local new-project scope until the server creates it.
-export type LocalUploadDraftRef = { id: string; scope: string; targetProjectId?: string; targetProjectName?: string }
 
 // Chỉ caller đã validate ACK backend mới gọi confirmUploaded.
 // Đây không phải endpoint hoặc cơ chế chống upload trùng.
@@ -38,13 +34,3 @@ export type UploadConfirmation = {
 }
 
 export type DraftCleanupResult = { cleaned: boolean }
-
-export type UploadDraftPort = {
-  save(this: void, input: SaveUploadDraft): Promise<UploadDraft>
-  list(this: void): Promise<UploadDraft[]>
-  readFile(this: void, id: string): Promise<Blob>
-  remove(this: void, id: string): Promise<void>
-  bindProject(this: void, id: string, projectId: string, projectName: string): Promise<void>
-  confirmUploaded(this: void, id: string, confirmation: UploadConfirmation): Promise<DraftCleanupResult>
-  cleanupUploaded(this: void): Promise<number>
-}

@@ -13,9 +13,6 @@ import { createSessionCoordinator } from '../../services/auth/session-coordinato
 import type { LoginRequestDto, LoginResult, RefreshResult } from '../../types'
 import type { StoredSession } from '../../types'
 import type { CurrentUser } from '../../types'
-import type { ApiClient } from '../../types/api/api.types'
-import { OfflineReadDatabase } from '../../repositories/offline/offline-read.database'
-import { OfflineWriteDatabase } from '../../repositories/offline/offline-write.database'
 
 const token = (account = 'a', exp = 20) => `e30.${btoa(JSON.stringify({ sub: account, exp })).replace(/=/g, '')}.c2ln`
 const session = (account = 'a', exp = 20): StoredSession => ({
@@ -189,33 +186,6 @@ describe('session coordinator', () => {
     await s.coordinator.restore()
     expect(s.coordinator.getSnapshot()).toMatchObject({ phase: 'local-limited', user: null })
     expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a' })
-  })
-
-  it('recovers a valid limited session without changing its draft generation', async () => {
-    const s = setup(session())
-    s.getMe.mockRejectedValueOnce(failure('network'))
-    await s.coordinator.restore()
-    const before = s.coordinator.draftAccess.read()
-    const pending = deferred<CurrentUser>()
-    s.getMe.mockReturnValueOnce(pending.promise)
-    const jobs = [s.coordinator.checkSession(), s.coordinator.checkSession()]
-    expect(s.coordinator.draftAccess.read()).toEqual(before)
-    pending.resolve(profile())
-    await Promise.all(jobs)
-    expect(s.coordinator.getSnapshot().phase).toBe('authenticated')
-    expect(s.coordinator.draftAccess.read()).toEqual(before)
-    expect(s.getMe).toHaveBeenCalledTimes(2)
-    expect(s.refresh).not.toHaveBeenCalled()
-  })
-
-  it('ends a limited session when reconnect confirms access was revoked', async () => {
-    const s = setup(session())
-    s.getMe.mockRejectedValueOnce(failure('network'))
-    await s.coordinator.restore()
-    s.getMe.mockRejectedValueOnce(failure('http', 401))
-    await s.coordinator.checkSession()
-    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
-    expect(s.coordinator.draftAccess.read()).toBeNull()
   })
 
   it('treats exact expiry as blocked and coalesces health calls without refreshing', async () => {
@@ -457,53 +427,6 @@ describe('session coordinator', () => {
 })
 
 describe('runtime connects services, session coordinator and IndexedDB', () => {
-  it.each([401, 403])('does not return saved data if the authenticated connectivity probe rejects the session with %s', async status => {
-    const db = new UploadDraftDatabase(`runtime-rejected-${crypto.randomUUID()}`)
-    const reads = new OfflineReadDatabase(`runtime-rejected-reads-${crypto.randomUUID()}`)
-    const writes = new OfflineWriteDatabase(`runtime-rejected-writes-${crypto.randomUUID()}`)
-    const s = setup(session())
-    let profiles = 0
-    const adapter: AxiosAdapter = config => {
-      if (config.url?.endsWith('/users/me') && ++profiles > 1) throw new ApiError({ kind: 'http', status, message: 'Session rejected' })
-      return Promise.resolve({ config, status: 200, statusText: 'OK', headers: new AxiosHeaders(),
-        data: { success: true, data: config.url?.endsWith('/health') ? { status: 'invalid-health' } : profile() } })
-    }
-    const runtime = createAppRuntime({ client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, database: db,
-      offlineDatabase: reads, writeDatabase: writes, storage: s.storage, clearSessionCache: vi.fn(), now: () => 10000 })
-    try {
-      await runtime.coordinator.restore()
-      const request = vi.fn().mockResolvedValueOnce({ items: [{ id: 'private' }] }).mockRejectedValueOnce(new ApiError({ kind: 'network', message: 'endpoint unavailable' }))
-      const api = runtime.localData.wrapApi({ request } as ApiClient)
-      await api.request({ path: '/projects', auth: 'session' })
-      await expect(api.request({ path: '/projects', auth: 'session' })).rejects.toMatchObject({ kind: 'session' })
-      expect(runtime.coordinator.getSnapshot().phase).toBe('anonymous')
-      expect(s.storage.read().status).toBe('empty')
-      await vi.waitFor(async () => { expect(await reads.reads.count()).toBe(0) })
-    } finally { runtime.dispose(); await Promise.all([db.delete(), reads.delete(), writes.delete()]) }
-  })
-
-  it('uses an authenticated API 200 as recovery evidence when health alone is broken', async () => {
-    const db = new UploadDraftDatabase(`runtime-health-${crypto.randomUUID()}`)
-    const reads = new OfflineReadDatabase(`runtime-health-reads-${crypto.randomUUID()}`)
-    const writes = new OfflineWriteDatabase(`runtime-health-writes-${crypto.randomUUID()}`)
-    const s = setup(session())
-    const adapter = vi.fn<AxiosAdapter>(config => Promise.resolve({
-      config, status: 200, statusText: 'OK', headers: new AxiosHeaders(),
-      data: { success: true, data: config.url?.endsWith('/health') ? { status: 'invalid-health' } : profile() },
-    }))
-    const runtime = createAppRuntime({ client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, database: db,
-      offlineDatabase: reads, writeDatabase: writes, storage: s.storage, clearSessionCache: vi.fn(), now: () => 10000 })
-    try {
-      await runtime.coordinator.restore()
-      const request = vi.fn().mockResolvedValueOnce({ items: [] }).mockRejectedValueOnce(new ApiError({ kind: 'network', message: 'individual endpoint failure' }))
-      const api = runtime.localData.wrapApi({ request } as ApiClient)
-      await api.request({ path: '/projects', auth: 'session' })
-      await expect(api.request({ path: '/projects', auth: 'session' })).resolves.toEqual({ items: [] })
-      expect(runtime.localData.offline.getSnapshot().offline).toBe(false)
-      expect(adapter.mock.calls.filter(([config]) => config.url?.endsWith('/users/me'))).toHaveLength(2)
-    } finally { runtime.dispose(); await Promise.all([db.delete(), reads.delete(), writes.delete()]) }
-  })
-
   it('aborts a real draft transaction when the coordinator logs out', async () => {
     const db = new UploadDraftDatabase(`runtime-abort-${crypto.randomUUID()}`)
     const s = setup(session())

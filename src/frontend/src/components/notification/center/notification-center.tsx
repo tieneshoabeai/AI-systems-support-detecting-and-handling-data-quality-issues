@@ -133,7 +133,7 @@ export function NotificationCenter() {
         <div className="center-head-actions">
           {unreadNotifications > 0 && <span className="center-chip">{unreadNotifications} chưa đọc</span>}
           <button type="button" className="text-link" disabled={unreadNotifications === 0}
-            aria-describedby={unreadNotifications === 0 ? previewNoteIds.notificationList : undefined}
+            aria-describedby={unreadNotifications === 0 ? previewNoteIds.notifications : undefined}
             onClick={session.readAllNotifications}>
             Đánh dấu tất cả đã đọc
           </button>
@@ -149,9 +149,9 @@ export function NotificationCenter() {
       <div className="popover-foot">
         <button type="button" className="text-link" onClick={goList}>Xem tất cả thông báo</button>
       </div>
-      <p className="popover-note" id={previewNoteIds.notificationList}>{session.state.source === 'api'
+      <p className="popover-note" id={previewNoteIds.notifications}>{session.state.source === 'api'
         ? 'Chọn thông báo để đánh dấu đã đọc. Hiện chưa hỗ trợ xóa thông báo.'
-        : previewReasons.notificationList}</p>
+        : previewReasons.notificationInbox}</p>
     </>}
 
     {view === 'list' && <>
@@ -184,12 +184,12 @@ export function NotificationCenter() {
             : `Đã chọn ${chosen.length} · ${chosenElsewhere} mục nằm ngoài danh sách đang hiện`}</span>
         <div className="bulk-actions">
           <button type="button" className="button-secondary" disabled={chosen.length === 0}
-            aria-describedby={previewNoteIds.notificationList} onClick={() => applyRead(chosen)}>Đánh dấu đã đọc</button>
+            aria-describedby={previewNoteIds.notifications} onClick={() => applyRead(chosen)}>Đánh dấu đã đọc</button>
           <button type="button" className="button-danger" title="Máy chủ chưa hỗ trợ xóa thông báo" disabled={session.state.source === 'api' || chosen.length === 0}
-            aria-describedby={previewNoteIds.notificationList} onClick={() => applyDelete(chosen)}>
+            aria-describedby={previewNoteIds.notifications} onClick={() => applyDelete(chosen)}>
             <PreviewIcon name="trash" /> Xóa</button>
           <button type="button" className="text-link" disabled={chosen.length === 0}
-            aria-describedby={previewNoteIds.notificationList} onClick={clearPicked}>Bỏ chọn</button>
+            aria-describedby={previewNoteIds.notifications} onClick={clearPicked}>Bỏ chọn</button>
         </div>
       </div>
 
@@ -198,7 +198,7 @@ export function NotificationCenter() {
           hộp thư đầy đủ (nơi người dùng thật sự đổi được số dòng mỗi trang). */}
       <Pagination label="Phân trang thông báo" total={filtered.length} page={safePage} perPage={perPage}
         onPage={goToPage} hideWhenEmpty />
-      <p className="popover-note" id={previewNoteIds.notificationList}>{previewReasons.notificationList}</p>
+      <p className="popover-note" id={previewNoteIds.notifications}>{previewReasons.notificationInbox}</p>
     </>}
 
     {view === 'detail' && <>

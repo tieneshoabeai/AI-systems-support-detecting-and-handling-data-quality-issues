@@ -1,6 +1,6 @@
 import type { SurfaceSide, SurfaceOrigin } from './type'
 import { requireDefined } from '../../utils/required-value'
-import { useEffect, useEffectEvent, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import type { RefObject } from 'react'
 
 // Browser-only positioning, focus and dismissal. No application navigation dependency.
@@ -10,7 +10,7 @@ export type PreviewPoint = { x: number; y: number }
 
 // flipped = surface phải lật lên trên trigger vì thiếu chỗ bên dưới. View cần biết để
 // quay mũi tên chỉ vào trigger đúng chiều (apple-design mục 7: neo surface vào nơi mở ra nó).
-export type SurfacePoint = PreviewPoint & { flipped: boolean; maxHeight?: number }
+export type SurfacePoint = PreviewPoint & { flipped: boolean }
 
 const margin = 8
 const gap = 6
@@ -47,39 +47,13 @@ const clampPoint = (point: PreviewPoint, size: { w: number; h: number }): Previe
 
 export const useSurfacePosition = (
   ref: RefObject<HTMLElement | null>,
-  anchor: SurfaceAnchor | HTMLElement,
+  anchor: SurfaceAnchor,
   align: 'start' | 'end' = 'start',
   side: SurfaceSide = 'bottom',
 ): SurfacePoint => {
-  const anchorElement = 'getBoundingClientRect' in anchor ? anchor : null
-  const { x, y, top, bottom, right } = 'getBoundingClientRect' in anchor
-    ? { x: margin, y: margin, top: 0, bottom: 0, right: 0 }
-    : anchor
+  const { x, y, top, bottom, right } = anchor
   const [point, setPoint] = useState<SurfacePoint>({ x, y, flipped: false })
   useLayoutEffect(() => {
-    if (anchorElement) {
-      const surface = ref.current
-      if (!surface) return
-      const positionPopover = () => {
-        const anchor = anchorFromElement(anchorElement)
-        const { w, h } = sizeOf(surface)
-        const contentHeight = Math.max(h, surface.scrollHeight + h - surface.clientHeight)
-        const below = Math.max(0, window.innerHeight - margin - anchor.y)
-        const above = Math.max(0, anchor.top - gap - margin)
-        const flipped = contentHeight > below && above > below
-        const maxHeight = flipped ? above : below
-        const height = Math.min(contentHeight, maxHeight)
-        const left = align === 'end' ? anchor.right - w : anchor.x
-        const point = clampPoint({ x: left, y: flipped ? anchor.top - gap - height : anchor.y }, { w, h: height })
-        setPoint(previous => previous.x === point.x && previous.y === point.y && previous.flipped === flipped && previous.maxHeight === maxHeight
-          ? previous
-          : { ...point, flipped, maxHeight })
-      }
-      positionPopover()
-      const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(positionPopover) : null
-      observer?.observe(surface)
-      return () => observer?.disconnect()
-    }
     const size = sizeOf(ref.current)
     if (side === 'right') {
       // Flyout submenu: thân surface nằm NGANG item, thẳng mép trên item. Menu chỉ ~218-260px
@@ -99,8 +73,7 @@ export const useSurfacePosition = (
     const flipped = canFlip && y + size.h > window.innerHeight - margin
     const clamped = clampPoint({ x: left, y: flipped ? top - size.h - gap : y }, size)
     setPoint({ ...clamped, flipped })
-    return undefined
-  }, [align, anchorElement, bottom, ref, right, side, top, x, y])
+  }, [align, bottom, ref, right, side, top, x, y])
   return point
 }
 
@@ -112,42 +85,33 @@ export const useSurfaceDismiss = (
   surfaceRef: RefObject<HTMLElement | null>,
   triggerRef?: RefObject<HTMLElement | null>,
 ): void => {
-  const close = useEffectEvent(onClose)
   useEffect(() => {
     if (!open) return
     const isInside = (target: EventTarget | null): boolean =>
       (surfaceRef.current?.contains(target as Node) ?? false) || (triggerRef?.current?.contains(target as Node) ?? false)
-    const onPointerDown = (event: PointerEvent): void => { if (!isInside(event.target)) close() }
-    const onContextMenu = (event: MouseEvent): void => { if (!isInside(event.target)) close() }
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.defaultPrevented || event.key !== 'Escape') return
-      if (surfaceRef.current?.contains(document.activeElement)) triggerRef?.current?.focus({ preventScroll: true })
-      close()
-    }
-    const onScroll = (event: Event): void => {
-      if (event.target instanceof Node && surfaceRef.current?.contains(event.target)) return
-      close()
-    }
-    const onReflow = (): void => close()
+    const onPointerDown = (event: PointerEvent): void => { if (!isInside(event.target)) onClose() }
+    const onContextMenu = (event: MouseEvent): void => { if (!isInside(event.target)) onClose() }
+    const onKeyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape') onClose() }
+    const onReflow = (): void => onClose()
     // Browser hash changes close the surface. Application-specific navigation is an adapter concern.
-    const onNavigate = (): void => close()
+    const onNavigate = (): void => onClose()
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('contextmenu', onContextMenu, true)
     document.addEventListener('keydown', onKeyDown)
     window.addEventListener('hashchange', onNavigate)
     // scroll không bubble nhưng capture từ window vẫn nhận được — đây là cách chuẩn
     // để biết một panel bất kỳ trong trang vừa cuộn.
-    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('scroll', onReflow, true)
     window.addEventListener('resize', onReflow)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('contextmenu', onContextMenu, true)
       document.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('hashchange', onNavigate)
-      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('scroll', onReflow, true)
       window.removeEventListener('resize', onReflow)
     }
-  }, [open, surfaceRef, triggerRef])
+  }, [onClose, open, surfaceRef, triggerRef])
 }
 
 // Roving focus: ArrowUp/ArrowDown/Home/End nhảy giữa các item CÒN bật. Item tắt bị loại
@@ -159,8 +123,7 @@ export const useRovingFocus = (open: boolean, containerRef: RefObject<HTMLElemen
     if (!container) return
     const items = (): HTMLButtonElement[] =>
       Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled]), [role="option"]:not([disabled])'))
-    // Opening a fixed menu must not scroll the page and trigger its scroll dismissal.
-    items()[0]?.focus({ preventScroll: true })
+    items()[0]?.focus()
     const onKeyDown = (event: KeyboardEvent): void => {
       const list = items()
       const index = list.indexOf(document.activeElement as HTMLButtonElement)
@@ -178,7 +141,6 @@ export const useRovingFocus = (open: boolean, containerRef: RefObject<HTMLElemen
 
 // Dialog có scrim: Tab quẩn trong dialog, Esc hủy, đóng thì trả focus về đúng nút đã mở.
 export const useDialogFocus = (ref: RefObject<HTMLElement | null>, onClose: () => void, fallbackFocus = false): void => {
-  const close = useEffectEvent(onClose)
   useEffect(() => {
     const element = ref.current
     if (!element) return
@@ -187,11 +149,10 @@ export const useDialogFocus = (ref: RefObject<HTMLElement | null>, onClose: () =
       'input:not([disabled]), button:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ))
     const initial = focusables()[0]
-    if (initial) initial.focus({ preventScroll: true })
-    else if (fallbackFocus) element.focus({ preventScroll: true })
+    if (initial) initial.focus()
+    else if (fallbackFocus) element.focus()
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.defaultPrevented) return
-      if (event.key === 'Escape') { event.preventDefault(); close(); return }
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
       if (event.key !== 'Tab') return
       const list = focusables()
       if (list.length === 0) {
@@ -209,7 +170,7 @@ export const useDialogFocus = (ref: RefObject<HTMLElement | null>, onClose: () =
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       // isConnected chặn trường hợp nút trigger đã bị gỡ khỏi DOM (danh sách đổi vì xóa bản ghi).
-      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true })
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
     }
-  }, [fallbackFocus, ref])
+  }, [fallbackFocus, onClose, ref])
 }

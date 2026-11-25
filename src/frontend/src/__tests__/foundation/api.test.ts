@@ -1,7 +1,7 @@
 import { AxiosError, AxiosHeaders, CanceledError } from 'axios'
 import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { composeApiConfig, getApiConfig, getApiEnvironmentId, getOfflineMigrationSources, parseApiConfig } from '../../configs/api.config'
+import { composeApiConfig, getApiConfig, parseApiConfig } from '../../configs/api.config'
 import { normalizeApiError } from '../../lib/api-error'
 import { createAxiosClient } from '../../lib/axios-client'
 
@@ -60,27 +60,6 @@ describe('API configuration', () => {
     expect(typeof createAxiosClient).toBe('function')
     expect(() => getApiConfig()).toThrow('VITE_API_BASE_URL')
     expect(() => createAxiosClient()).toThrow('VITE_API_BASE_URL')
-  })
-
-  it('uses a stable environment key and explicit migration source URLs', () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://new-tunnel.example')
-    vi.stubEnv('VITE_API_PREFIX', '/api/v1')
-    vi.stubEnv('VITE_API_ENVIRONMENT_ID', 'qa-main')
-    vi.stubEnv('VITE_API_MIGRATE_FROM', 'https://old-tunnel.example/api/v1/docs,https://older.example/api/v2')
-    expect(getApiEnvironmentId()).toBe('environment:qa-main')
-    expect(getOfflineMigrationSources()).toEqual([
-      'https://new-tunnel.example/api/v1', 'https://old-tunnel.example/api/v1', 'https://older.example/api/v2',
-    ])
-  })
-
-  it('rejects unsafe environment identifiers and malformed migration Swagger URLs', () => {
-    vi.stubEnv('VITE_API_ENVIRONMENT_ID', '../production')
-    expect(() => getApiEnvironmentId()).toThrow('VITE_API_ENVIRONMENT_ID')
-    vi.stubEnv('VITE_API_ENVIRONMENT_ID', 'qa-main')
-    vi.stubEnv('VITE_API_BASE_URL', 'https://new-tunnel.example')
-    vi.stubEnv('VITE_API_PREFIX', '/api/v1')
-    vi.stubEnv('VITE_API_MIGRATE_FROM', 'https://user:secret@example.test/api/v1/docs')
-    expect(() => getOfflineMigrationSources()).toThrow('Link Swagger')
   })
 })
 

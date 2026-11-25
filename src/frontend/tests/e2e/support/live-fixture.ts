@@ -14,11 +14,6 @@ export const test = base.extend<{ live: LiveFixture }>({
     const operations: (() => Promise<void>)[] = []
     const teardown = async () => {
       const errors: unknown[] = []
-      // Stop background UI reads before deleting their fixture resources.
-      try {
-        await page.context().setOffline(false)
-        await page.goto('about:blank')
-      } catch { /* Cleanup uses an independent Node transport. */ }
       for (const operation of operations) {
         try { await operation() } catch (error) { errors.push(error) }
       }
@@ -28,5 +23,5 @@ export const test = base.extend<{ live: LiveFixture }>({
     try {
       await provide({ session, deferCleanup: operation => { operations.push(operation) } })
     } finally { await teardown() }
-  }, { timeout: 90_000 }],
+  }, { timeout: 30_000 }],
 })

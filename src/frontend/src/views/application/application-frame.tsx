@@ -24,11 +24,10 @@ export function ApplicationFrame() {
     <Outlet />
   </PreviewSessionProvider>
   const detailId = parseProjectRoute(location.pathname)
-  const scopedFrame = /^\/processing\/?$/.test(location.pathname)
-    ? <ProcessingDataProvider>{frame}</ProcessingDataProvider>
-    : detailId
+  if (/^\/processing\/?$/.test(location.pathname)) {
+    return <ProcessingDataProvider>{frame}</ProcessingDataProvider>
+  }
+  return detailId
     ? <ProcessingDataProvider projectId={detailId}>{frame}</ProcessingDataProvider>
     : <ManagementDataProvider progressiveProjects={management?.section === 'projects' && !management.projectId}>{frame}</ManagementDataProvider>
-  // Data scopes can remount across areas; keep the in-memory theme above that boundary.
-  return scopedFrame
 }

@@ -76,7 +76,6 @@ export type WorkspaceEdit = { name: string; description: string }
 // wizard bắt buộc nạp tệp ở bước "Import Dataset" (view đọc tệp bằng parseLocalCsv rồi đưa số
 // đo thật — rows/columns/sizeMb — qua đây, service chỉ đóng gói thành DatasetSummary).
 export type NewProjectDatasetInput = {
-  localDraft?: import('../datasets/upload-draft.types').LocalUploadDraftRef
   file?: File
   fileName: string
   format: DatasetSummary['format']
@@ -477,7 +476,6 @@ export type PreviewStoreState = {
 
 // Kết quả mutation của mock service: undo là hàm đóng, không phải id bản ghi.
 export type PreviewMutationResult = {
-  queued?: boolean
   persisted?: boolean
   workspaceId?: string
   message: string

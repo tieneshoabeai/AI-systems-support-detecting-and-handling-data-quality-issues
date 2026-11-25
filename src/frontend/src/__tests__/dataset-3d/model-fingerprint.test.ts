@@ -21,7 +21,7 @@ const MOMENTS: Moment[] = ['init', 'update-7.3', 'reset-motion', 'detached', 'se
 function parseBaseline(text: string): Map<Moment, string[]> {
   const sections = new Map<Moment, string[]>()
   let current: Moment | null = null
-  for (const line of text.split(/\r?\n/)) {
+  for (const line of text.split('\n')) {
     if (line.startsWith('# moment=')) {
       const moment = line.slice('# moment='.length).trim() as Moment
       if (!MOMENTS.includes(moment)) throw new Error(`unknown moment in baseline: ${moment}`)

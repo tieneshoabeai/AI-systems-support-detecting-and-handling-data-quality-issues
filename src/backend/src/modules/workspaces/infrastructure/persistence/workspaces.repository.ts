@@ -213,34 +213,13 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
   }
 
   async removeMember(workspaceId: string, userId: string): Promise<boolean> {
-    const wsId = new Types.ObjectId(workspaceId);
-    const removedId = new Types.ObjectId(userId);
-    const execute = async (session: import('mongoose').ClientSession): Promise<boolean> => {
-      const workspace = await this.workspaceModel.findOne({ _id: wsId, deleted_at: null }).session(session).lean().exec();
-      if (!workspace || String(workspace.owner_id) === userId) return false;
-      // Revoke explicit project roles too: rejoining the workspace must not resurrect old grants.
-      await this.workspaceModel.db.collection('projects').updateMany(
-        { workspace_id: wsId, deleted_at: null, 'members.user_id': removedId },
-        [{ $set: {
-          members: { $cond: [
-            { $gt: [{ $size: { $filter: { input: '$members', as: 'm', cond: { $and: [{ $eq: ['$$m.user_id', removedId] }, { $eq: ['$$m.role', 'owner'] }] } } } }, 0] },
-            { $concatArrays: [
-              { $filter: { input: '$members', as: 'm', cond: { $and: [{ $ne: ['$$m.user_id', removedId] }, { $ne: ['$$m.user_id', workspace.owner_id] }] } } },
-              [{ user_id: workspace.owner_id, role: 'owner', joined_at: new Date() }],
-            ] },
-            { $filter: { input: '$members', as: 'm', cond: { $ne: ['$$m.user_id', removedId] } } },
-          ] },
-          version: { $add: [{ $ifNull: ['$version', 1] }, 1] }, updated_at: new Date(),
-        } }], { session },
-      );
-      const result = await this.workspaceModel.updateOne(
-        { _id: wsId, deleted_at: null, owner_id: { $ne: removedId } },
-        { $pull: { members: { user_id: removedId } }, $inc: { version: 1 } }, { session },
-      );
-      return result.modifiedCount > 0;
-    };
-    const existing = resolveMongoSession(undefined);
-    return existing ? execute(existing) : this.workspaceModel.db.transaction(execute);
+    const s = resolveMongoSession(undefined);
+    const result = await this.workspaceModel.updateOne(
+      { _id: new Types.ObjectId(workspaceId), deleted_at: null },
+      { $pull: { members: { user_id: new Types.ObjectId(userId) } } },
+      { session: s },
+    );
+    return result.modifiedCount > 0;
   }
 
   async updateMemberRole(
@@ -293,19 +272,25 @@ export class WorkspacesRepository implements WorkspaceRepositoryPort {
   }
 
   async transferOwner(workspaceId: string, newOwnerId: string, expectedVersion: number): Promise<boolean | null> {
-    const id = new Types.ObjectId(workspaceId);
+    const s = resolveMongoSession(undefined);
+    const wsId = new Types.ObjectId(workspaceId);
     const newId = new Types.ObjectId(newOwnerId);
-    const scoped = { _id: id, deleted_at: null, 'members.user_id': newId, ...(expectedVersion === undefined ? {} : { version: expectedVersion }) };
-    // One atomic write: never leave a document with no Owner between two requests.
-    const result = await this.workspaceModel.collection.updateOne(scoped, [{ $set: {
-      owner_id: newId,
-      members: { $map: { input: '$members', as: 'm', in: { $mergeObjects: ['$$m', { role: { $cond: [
-        { $eq: ['$$m.user_id', newId] }, 'owner', { $cond: [{ $eq: ['$$m.role', 'owner'] }, 'member', '$$m.role'] },
-      ] } }] } } },
-      version: { $add: [{ $ifNull: ['$version', 1] }, 1] }, updated_at: new Date(),
-    } }], { session: resolveMongoSession(undefined) });
-    if (result.matchedCount) return true;
-    const exists = await this.workspaceModel.findOne({ _id: id, deleted_at: null }).select('_id version').lean().exec();
-    return exists && expectedVersion !== undefined ? null : false;
+    const scoped: Record<string, unknown> = { _id: wsId, deleted_at: null, version: expectedVersion };
+    const demote = await this.workspaceModel.updateOne(
+      scoped,
+      { $set: { 'members.$[o].role': 'member' }, $inc: { version: 1 } },
+      { arrayFilters: [{ 'o.role': 'owner' }], session: s } as never,
+    ).exec();
+    if (demote.matchedCount === 0) {
+      const exists = await this.workspaceModel.findOne({ _id: wsId, deleted_at: null }).select('_id version').lean().exec();
+      if (exists) return null;
+      return false;
+    }
+    const r = await this.workspaceModel.updateOne(
+      { _id: wsId, deleted_at: null, 'members.user_id': newId },
+      { $set: { owner_id: newId, 'members.$.role': 'owner' } },
+      { session: s },
+    ).exec();
+    return r.modifiedCount > 0;
   }
 }

@@ -36,13 +36,13 @@ function ProjectStepRedirect() {
   return projectId ? <Navigate to={managementHref('projects', { projectId })} replace /> : <NotFoundPage />
 }
 
-export function WorkbenchRoutes({ protect = true }: { protect?: boolean }) {
+export function WorkbenchRoutes() {
   const location = useLocation()
   return <Suspense fallback={<PageSkeleton pathname={location.pathname} message="Đang mở trang…" />}>
     <Routes>
       <Route path="/preview/*" element={<LegacyRedirect />} />
       <Route path="/" element={<LegacyRedirect />} />
-      <Route element={protect ? <ProtectedRoute><Outlet /></ProtectedRoute> : <Outlet />}>
+      <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
         <Route element={<ApplicationFrame />}>
           {['/management', '/management/workspaces', '/management/workspaces/:workspaceId',
             '/management/projects', '/management/members', '/management/notifications',
@@ -64,5 +64,5 @@ export function WorkbenchRoutes({ protect = true }: { protect?: boolean }) {
 
 // Standalone router composition still requires an AuthProvider from its caller.
 export function WorkbenchEntry() {
-  return <BrowserRouter><WorkbenchRoutes protect={!(import.meta.env.DEV && import.meta.env['VITE_MANAGEMENT_DATA_MODE'] === 'mock')} /></BrowserRouter>
+  return <BrowserRouter><WorkbenchRoutes /></BrowserRouter>
 }

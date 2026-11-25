@@ -27,6 +27,6 @@ function DialogSurface({ onClose, as = 'div', dismissOnBackdrop = true, busy = f
     if (dismissOnBackdrop && event.target === event.currentTarget) close()
   }}>
     <Surface tabIndex={-1} {...props} ref={setPanel} className={`${styles['panel']} preview-dialog ${className}`.trim()}
-      role={role} aria-modal={role === 'dialog' || role === 'alertdialog' ? true : props['aria-modal']} {...(busy ? { 'aria-busy': true } : {})} />
+      role={role} aria-modal={role === 'dialog' ? true : props['aria-modal']} {...(busy ? { 'aria-busy': true } : {})} />
   </div>
 }

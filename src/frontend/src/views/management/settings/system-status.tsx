@@ -1,11 +1,9 @@
-import { useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '../../../components/ui/primitives/button'
 import styles from '../../../components/ui/diagnostics.module.css'
 import { createAxiosClient } from '../../../lib/axios-client'
 import { normalizeApiError } from '../../../lib/api-error'
 import { createHealthService } from '../../../services/health/health.service'
-import { getApiConfig } from '../../../configs/api.config'
-import { AuthContext } from '../../../hooks/auth/auth-context'
 
 type Readiness = Awaited<ReturnType<ReturnType<typeof createHealthService>['readiness']>>
 type Snapshot = { at: Date; elapsedMs: number } & (
@@ -14,21 +12,8 @@ type Snapshot = { at: Date; elapsedMs: number } & (
 const time = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'medium' })
 const checkLabel = (value: Readiness['mongo']) => value === 'ok' ? 'Hoạt động' : value === 'fail' ? 'Có lỗi' : 'Chưa có thông tin'
 const storageLabels = { cloud_s3_r2: 'Đám mây', local_fallback: 'Cục bộ' }
-const idleMigration = Object.freeze({ state: 'idle' as const, conflicts: 0, unlistedNamespaces: 0, message: null })
-const getIdleMigration = () => idleMigration
-const noMigrationSubscription = () => () => {}
-const migrationLabels = { idle: 'Chưa chạy', migrating: 'Đang chuyển', complete: 'Đã kiểm tra', attention: 'Cần xác nhận', error: 'Có lỗi' }
 
 export function SystemStatus() {
-  const auth = useContext(AuthContext)
-  const migration = useSyncExternalStore(auth?.localData?.migration.subscribe ?? noMigrationSubscription,
-    auth?.localData?.migration.getSnapshot ?? getIdleMigration, getIdleMigration)
-  const connection = (() => {
-    try {
-      const config = getApiConfig()
-      return { environment: import.meta.env.VITE_API_ENVIRONMENT_ID?.trim() || 'Theo URL backend', backend: config.baseUrl }
-    } catch { return { environment: import.meta.env.VITE_API_ENVIRONMENT_ID?.trim() || 'Chưa cấu hình', backend: 'URL API không hợp lệ' } }
-  })()
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<{ attempt: number; snapshot: Snapshot } | null>(null)
   const snapshot = result?.attempt === attempt ? result.snapshot : null
@@ -69,13 +54,9 @@ export function SystemStatus() {
       {stateLabel}
     </p>
     <dl className={styles['serviceChecks']}>
-      <div><dt>Môi trường</dt><dd>{connection.environment}</dd></div>
-      <div><dt>Backend API</dt><dd>{connection.backend}</dd></div>
-      <div><dt>Migration IndexedDB</dt><dd>{migrationLabels[migration.state]}</dd></div>
       <div><dt>Cơ sở dữ liệu</dt><dd>{snapshot ? checkLabel(data?.mongo ?? null) : 'Đang kiểm tra'}</dd></div>
       <div><dt>Chế độ lưu trữ</dt><dd>{data?.storageMode ? storageLabels[data.storageMode] : snapshot ? 'Chưa có thông tin' : 'Đang kiểm tra'}</dd></div>
     </dl>
-    {migration.message && <p className={styles['empty']} role="status" aria-live="polite">{migration.message}</p>}
     {failure && <p className={styles['empty']}>{failure.code ? `HTTP ${failure.code}. ` : ''}{failure.message}</p>}
     {snapshot && <div className={styles['meta']}>
       <span>Kiểm tra lúc <time dateTime={snapshot.at.toISOString()}>{time.format(snapshot.at)}</time></span>

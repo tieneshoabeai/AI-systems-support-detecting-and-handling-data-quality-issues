@@ -132,18 +132,6 @@ export const createUploadDraftRepository = (options: Options) => {
       })
     },
 
-    async bindProject(id: string, projectId: string, projectName: string): Promise<void> {
-      const captured = requireAccess()
-      if (!projectId.trim() || !projectName.trim()) throw storageError('Project không hợp lệ.', 'DRAFT_INVALID_PROJECT')
-      await transact(captured, async () => {
-        const draft = await owned(id, captured)
-        if (draft.status !== 'pending' || (draft.targetProjectId && draft.targetProjectId !== projectId)) {
-          throw storageError('Bản nháp đã gắn với project khác hoặc đã upload.', 'DRAFT_PROJECT_MISMATCH')
-        }
-        await db.drafts.put({ ...draft, targetProjectId: projectId, targetProjectName: projectName })
-      })
-    },
-
     async confirmUploaded(id: string, confirmation: UploadConfirmation): Promise<DraftCleanupResult> {
       const captured = requireAccess()
       await transact(captured, async () => {

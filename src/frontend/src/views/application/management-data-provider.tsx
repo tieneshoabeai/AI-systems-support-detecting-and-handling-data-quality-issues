@@ -10,7 +10,6 @@ import { readAccessToken } from '../../utils/auth/access-token'
 import { normalizeApiError } from '../../lib/api-error'
 import { ProcessingDataContext } from './processing-data-context'
 import type { Person } from '../../types/management/management.types'
-import { useOfflineStatus, useOfflineWrites } from '../../hooks/offline/use-local-data'
 
 type LoadResult = {
   snapshot: SessionSnapshot
@@ -35,9 +34,6 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
 }) {
   const auth = useContext(AuthContext)
   const snapshot = auth?.snapshot
-  const localData = auth?.localData
-  const offline = useOfflineStatus().offline
-  const syncedRevision = useOfflineWrites().revision
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<LoadResult | null>(null)
   const pendingStore = useMemo(() => createManagementStore({
@@ -45,9 +41,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
   }, sessionAccount(snapshot)).store, [snapshot])
 
   useEffect(() => {
-    if (snapshot?.phase !== 'authenticated' && snapshot?.phase !== 'local-limited') return
-    if (snapshot.phase === 'local-limited' && !localData) return
-    if (snapshot.phase === 'local-limited') localData?.offline.useSavedData()
+    if (snapshot?.phase !== 'authenticated') return
     let active = true
     let dispose: (() => void) | undefined
     const controller = new AbortController()
@@ -57,7 +51,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       if (session.status !== 'valid' || session.session.accountId !== snapshot.accountId) {
         throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại.')
       }
-      const transport = createAxiosClient({
+      const api = createAxiosClient({
         readToken: () => {
           if (!active || controller.signal.aborted) return null
           const current = storage.read()
@@ -65,9 +59,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
             ? current.session.accessToken : null
         },
       })
-      const api = localData ? localData.wrapApi(transport) : transport
       const data = createManagementStore(api, sessionAccount(snapshot), {
-        ...(localData ? { drafts: localData.drafts, readOnly: () => localData.offline.getSnapshot().offline, deferredWrites: Boolean(localData.writes) } : {}),
         progressiveProjects,
         ...(projectId === undefined ? {} : { projectId }),
         ...(recent ? { recent } : {}),
@@ -112,15 +104,14 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       queueMicrotask(() => { if (active) setResult({ snapshot, progressiveProjects, ...(projectId === undefined ? {} : { projectId }), error: message }) })
     }
     return () => { active = false; controller.abort(); dispose?.() }
-  }, [snapshot, attempt, projectId, recent, progressiveProjects, localData, offline, syncedRevision])
+  }, [snapshot, attempt, projectId, recent, progressiveProjects])
 
   // Standalone mounts can supply their own ManagementStoreContext.
   if (!auth) return children
   const current = result?.snapshot === snapshot && result?.projectId === projectId && result?.progressiveProjects === progressiveProjects ? result : null
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
   if (projectId !== undefined) {
-    const error = snapshot?.phase === 'authenticated' || (snapshot?.phase === 'local-limited' && localData)
-      ? current?.error : 'Cần phiên đăng nhập hợp lệ để mở project.'
+    const error = snapshot?.phase === 'authenticated' ? current?.error : 'Cần phiên đăng nhập trực tuyến để mở project.'
     const status = { loading: !current?.store && !error, permissionsPending: current?.projectPermissionsPending === true, ...(error ? { error } : {}),
       ...(current?.missing ? { missing: true } : {}), retry }
     return <ProcessingDataContext.Provider value={status}>
@@ -128,7 +119,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
     </ProcessingDataContext.Provider>
   }
   let status: ManagementLoading | null = null
-  if (snapshot?.phase !== 'authenticated' && !(snapshot?.phase === 'local-limited' && localData)) status = { phase: 'error', message: 'Cần phiên đăng nhập hợp lệ để quản lý dữ liệu.' }
+  if (snapshot?.phase !== 'authenticated') status = { phase: 'error', message: 'Cần phiên đăng nhập trực tuyến để quản lý dữ liệu.' }
   else if (current?.error) status = { phase: 'error', message: current.error, retry }
   else if (!current?.store) status = { phase: 'loading' }
 

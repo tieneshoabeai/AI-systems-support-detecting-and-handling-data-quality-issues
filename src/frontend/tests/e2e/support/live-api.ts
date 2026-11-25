@@ -38,49 +38,7 @@ export function responseFor(page: Page, path: string, method: string): Promise<R
   return page.waitForResponse(response => matchesApi(response.url(), path) && response.request().method() === method)
 }
 
-type DirectApiResponse = Pick<APIResponse, 'ok' | 'status' | 'json' | 'body'>
-type DirectOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
-  headers?: Record<string, string>
-  data?: Record<string, unknown>
-  multipart?: Record<string, { name: string; mimeType: string; buffer: Buffer }>
-  timeoutMs?: number
-}
-export async function directRequest(_page: Page, path: string, options: DirectOptions = {}): Promise<DirectApiResponse> {
-  try {
-    const headers = { ...options.headers, Connection: 'close', ...(options.data ? { 'Content-Type': 'application/json' } : {}) }
-    let body: string | FormData | undefined = options.data ? JSON.stringify(options.data) : undefined
-    if (options.multipart) {
-      const form = new FormData()
-      for (const [key, file] of Object.entries(options.multipart)) {
-        form.append(key, new Blob([new Uint8Array(file.buffer)], { type: file.mimeType }), file.name)
-      }
-      body = form
-    }
-    // Independent Node transport also works while the browser context is offline.
-    const response = await fetch(apiUrl(path), {
-      method: options.method ?? 'GET', headers, ...(body ? { body } : {}), signal: AbortSignal.timeout(options.timeoutMs ?? 20_000),
-    })
-    const bytes = Buffer.from(await response.arrayBuffer())
-    return { ok: () => response.ok, status: () => response.status,
-      body: () => Promise.resolve(bytes), json: () => Promise.resolve(JSON.parse(bytes.toString()) as unknown) }
-  } catch (error) {
-    // Playwright transport errors include Authorization headers. Keep them out of reports.
-    const kind = error instanceof Error ? error.message.split('\n')[0]?.replace(/Bearer\s+\S+/gi, 'Bearer [omitted]') : 'transport error'
-    // eslint-disable-next-line preserve-caught-error -- Raw transport causes can expose Authorization headers in reports.
-    throw new Error(`Direct QA request did not complete: ${options.method ?? 'GET'} ${path}; ${kind}; credentials omitted.`)
-  }
-}
-
-export async function openResourceMenu(page: Page, name: string): Promise<void> {
-  const trigger = page.getByRole('button', { name: `Thao tác với ${name}`, exact: true })
-  await trigger.scrollIntoViewIfNeeded()
-  // Scroll dismisses fixed surfaces. Drain the automatic scroll before opening one.
-  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
-  await trigger.click()
-}
-
-export async function data(response: Response | DirectApiResponse): Promise<unknown> {
+export async function data(response: Response | APIResponse): Promise<unknown> {
   if (!response.ok()) throw new Error(`Real API request failed (HTTP ${response.status()}); body omitted.`)
   const body = record(await response.json() as unknown)
   if (body['success'] !== true || !Object.hasOwn(body, 'data')) throw new Error('BE did not return the success/data envelope.')
@@ -88,11 +46,11 @@ export async function data(response: Response | DirectApiResponse): Promise<unkn
 }
 
 export async function get(page: Page, session: LiveSession, path: string): Promise<unknown> {
-  return data(await directRequest(page, path, { headers: { Authorization: `Bearer ${session.token}` } }))
+  return data(await page.request.get(apiUrl(path), { headers: { Authorization: `Bearer ${session.token}` } }))
 }
 
 export async function closeSession(page: Page, session: LiveSession): Promise<void> {
-  const response = await directRequest(page, '/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${session.token}` } })
+  const response = await page.request.post(apiUrl('/auth/logout'), { headers: { Authorization: `Bearer ${session.token}` } })
   if (!response.ok()) throw new Error(`Test-session cleanup failed (HTTP ${response.status()}).`)
 }
 

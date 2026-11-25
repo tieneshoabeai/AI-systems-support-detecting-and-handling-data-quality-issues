@@ -6,8 +6,12 @@ import { useState } from 'react'
 import type { PreviewDialogRequest, PreviewResourceKind } from '../../../types'
 import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
 
+// Hai dialog của thao tác mock: Đổi tên (form) và Xóa (xác nhận).
+// Apple-design mục 12: task cần tập trung thì đi kèm scrim và đẩy nền ra xa — nên dialog
+// đặc hơn popover (blur mạnh hơn, bóng sâu hơn), còn popover/menu thì trong suốt nhẹ.
+
 const kindLabels: Record<PreviewResourceKind, string> = {
-  workspace: 'Workspace',
+  workspace: 'Không gian làm việc',
   project: 'Dự án',
   dataset: 'Tập dữ liệu',
 }
@@ -51,13 +55,8 @@ function RenameForm({ request, onSubmit, onCancel }: {
 
   return <Dialog open onClose={onCancel} busy={busy} as="form" className="" role="dialog" aria-labelledby="rename-title"
     onSubmit={event => { event.preventDefault(); void submit() }}>
-    <header className="dialog-head dialog-action-head">
-      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="pencil" /></span>
-      <div className="dialog-head-text">
-        <h2 id="rename-title">Đổi tên “{request.currentName}”</h2>
-        <p>{kindLabels[request.target.kind]}</p>
-      </div>
-    </header>
+    <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
+    <h2 id="rename-title">Đổi tên “{request.currentName}”</h2>
     <label className="dialog-field">
       <span>Tên mới</span>
       <Input value={name} onChange={event => { setName(event.target.value); setError(null) }}
@@ -90,12 +89,8 @@ function RemoveForm({ request, onConfirm, onCancel }: {
   const [busy, setBusy] = useState(false)
   const confirm = async () => { if (busy) return; setBusy(true); try { await onConfirm() } finally { setBusy(false) } }
   return <Dialog open onClose={onCancel} busy={busy} className="" role="alertdialog" aria-labelledby="remove-title" aria-describedby="remove-detail">
-    <header className="dialog-head dialog-action-head">
-      <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="trash" /></span>
-      <div className="dialog-head-text">
-        <h2 id="remove-title">Gỡ “{request.target.name}” khỏi {live ? 'danh sách' : 'danh sách mẫu'}?</h2>
-      </div>
-    </header>
+    <span className="dialog-kind">{kindLabels[request.target.kind]}</span>
+    <h2 id="remove-title">Gỡ “{request.target.name}” khỏi {live ? 'danh sách' : 'danh sách mẫu'}?</h2>
     <p id="remove-detail" className="dialog-detail">{request.detail}</p>
     <footer className="dialog-actions">
       <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>Giữ lại</Button>

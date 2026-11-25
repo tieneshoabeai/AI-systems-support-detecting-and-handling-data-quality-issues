@@ -89,7 +89,6 @@ it('tạo (3.1): điền đủ → gửi → optimistic thêm vào đầu danh s
   // Sau gửi nhảy sang danh sách để thấy ngay dòng vừa thêm ở đầu.
   await waitFor(() => expect(rowCount()).toBeGreaterThan(0))
   expect(await screen.findByText(/Đã gửi báo cáo/)).toBeDefined()
-  expect(rowCount()).toBeGreaterThan(0)
 })
 
 it('danh sách (3.2): tab đếm đúng, 6 dòng/trang — TRONG Ô không còn dòng "Hiển thị…"', () => {

@@ -2,7 +2,7 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại.** TaiFE giữ giao diện và scene 3D ban đầu, cập nhật API theo hợp đồng full stack và Swagger QA ngày 25/11. Management dùng API cho workspace/project, thành viên, thông báo, báo cáo vấn đề và hồ sơ; Settings nối đổi mật khẩu và quản lý phiên. Overview/Data View đọc dataset bất biến, truy vấn, thống kê, biểu đồ và tải CSV. Data Analysis gộp phát hiện chất lượng, tương quan, phản hồi và PDF. IndexedDB lưu file upload nháp và dữ liệu đã xem để đọc ngoại tuyến trong phiên còn hợp lệ; production có service worker phục vụ tải lại khi mất mạng. Xem [kết quả tích hợp](../../API_INTEGRATION_STATUS.md) và [hướng dẫn QA](../../MANUAL_QA_GUIDE.md) để phân biệt test local với server thật. Dev vẫn có mock Management/Processing và preview Workspace 3D riêng.
+**Trạng thái hiện tại.** Frontend có luồng đăng nhập và quản lý phiên. Management dùng API cho workspace/project, thành viên, thông báo, báo cáo vấn đề và hồ sơ; Settings nối đổi mật khẩu và quản lý phiên. Trong project, panel Overview/Data View đọc schema/bản ghi, hỗ trợ truy vấn, thống kê cột, đổi tên cột và tải CSV. Tài khoản admin có panel tài khoản/báo cáo vấn đề trên Home. Các lời gọi này cần kiểm chứng với backend triển khai; build/test mô phỏng không thay nghiệm thu BE thật. Workspace 3D dành cho dev và Shopping Demo vẫn là các công cụ riêng.
 
 ## 1. Project Overview
 
@@ -88,7 +88,7 @@ React Router điều hướng bằng pathname; URL 2D mới không dùng `/previ
 
 Đường dẫn chi tiết hiện tại có dạng `/processing/projects/prj-sales`. ID workspace có thể dùng để lọc danh sách qua query `?workspace=` tại `/management/projects`.
 
-Mặc định dev và production đi qua `ProtectedRoute` cho Management, Processing và Dataset 3D. Riêng dev có thể đặt `VITE_MANAGEMENT_DATA_MODE=mock` để xem Management/Processing không cần BE; production không dùng nhánh này. Đích mặc định sau đăng nhập là `/processing`; đây chỉ là điều hướng, không chứng minh kết nối API nghiệp vụ. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project mở `/processing/new`; một dòng project mở trang Project hiện tại. Các màn quản lý nhận store API từ `ManagementDataProvider`; chế độ dev mock dùng fixture.
+Dev và production đều đi qua `ProtectedRoute` cho Management, Processing và Dataset 3D, giữ URL đích hợp lệ khi đăng nhập. Không có entry mock 2D bỏ auth runtime. Đích mặc định sau đăng nhập là `/processing`. Processing và Home Management cùng dùng `UniverseHero` và `RecentProjects`; Management giữ các khối còn lại. Nút Tạo Project mở `/processing/new`; một dòng project mở trang Project hiện tại. `ManagementDataProvider` tải dữ liệu qua API cho phiên đăng nhập trực tuyến; lỗi API hiển thị lỗi/thử lại, không chuyển sang dữ liệu mẫu. Shopping Demo vẫn là luồng riêng.
 
 **Upload và lưu kết quả:** Project chưa có dataset có nút Upload data theo quyền upload. Tệp CSV được gửi qua API, UI chờ server xác nhận và tải lại dữ liệu; lỗi giữ hộp thoại để thử lại. Mục Detection vẫn cần kết quả server xác nhận. `ConfirmedProjectResult` là biên tích hợp UI, không phải DTO backend: callback `save` chỉ được resolve sau khi đánh giá và kết quả được lưu. Đợt tích hợp này chưa nối API lưu đánh giá/xuất kết quả Detection. Tải CSV gốc trong Data View là thao tác riêng với tải kết quả xử lý.
 
@@ -229,42 +229,6 @@ yarn dev
 
 Dev server dùng `https://localhost:5173` và strict port. `yarn dev:cert` tạo certificate tự ký 30 ngày trong `certs/`, không ghi đè file có sẵn và không tự thêm trust vào trình duyệt. Trên macOS/Linux cần OpenSSL; trên Windows script mặc định gọi PowerShell (`pwsh`). Nếu có certificate đã được tin cậy, dùng `DEV_HTTPS_KEY` và `DEV_HTTPS_CERT` để chọn đường dẫn. Không commit certificate/private key. API dùng từ FE HTTPS cũng phải dùng HTTPS; cấu hình CORS của server cần chấp nhận origin FE. Thiếu certificate sẽ làm dev server không khởi động. Build không yêu cầu certificate; cấu hình E2E riêng không bật HTTPS.
 
-### Xem giao diện bằng mock local (PowerShell)
-
-Nếu trình duyệt báo `Certificate Error` với chứng chỉ tự ký, có thể xem UI bằng HTTP local. Dừng Vite đang chạy (`Ctrl+C`), đặt biến sau rồi chạy lại:
-
-~~~powershell
-$env:DEV_HTTPS = "false"
-$env:VITE_MANAGEMENT_DATA_MODE = "mock"
-npm run dev
-~~~
-
-Mở `http://localhost:5173/auth/login` để chỉnh giao diện login, hoặc `/management` và `/processing` để xem mock. Form login vẫn gọi API thật khi gửi. Khi cần kiểm tra phiên đăng nhập với backend triển khai, đặt `$env:DEV_HTTPS = "true"`, khởi động lại Vite và dùng chứng chỉ HTTPS được trình duyệt tin cậy. Bỏ biến `DEV_HTTPS` cũng khôi phục mặc định HTTPS.
-
-Chạy trong `src/frontend`; nếu đã có dependencies và hai file certificate thì không cần cài hoặc tạo lại:
-
-~~~powershell
-$env:VITE_MANAGEMENT_DATA_MODE = "mock"
-npm run dev
-~~~
-
-Mở trực tiếp `https://localhost:5173/management` hoặc `https://localhost:5173/processing`. Chế độ này dùng dữ liệu mẫu, không cần backend hoặc đăng nhập. Mở `/` vẫn đi vào luồng đăng nhập; mock chỉ áp dụng cho các route Management/Processing khi chạy dev. Preview Workspace 3D riêng ở `https://localhost:5173/preview/workspaces-3d`. Các thao tác phụ thuộc API thật như Analysis không được mô phỏng đầy đủ.
-
-### Xem giao diện với API thật từ link Swagger (PowerShell)
-
-Dừng Vite bằng `Ctrl+C`. Ví dụ backend cung cấp Swagger tại `https://your-backend-host.example/api/v1/docs`, cấu hình và chạy lại:
-
-~~~powershell
-$env:VITE_MANAGEMENT_DATA_MODE = "api"
-$env:VITE_API_BASE_URL = "https://your-backend-host.example"
-$env:VITE_API_PREFIX = "/api/v1"
-npm run dev
-~~~
-
-Thay hostname ví dụ bằng hostname backend đang hoạt động. `VITE_API_BASE_URL` chỉ chứa origin (protocol, hostname và port nếu có); không thêm `/api/v1` hoặc `/docs`. Đặt prefix theo server thực tế. Mở `https://localhost:5173/auth/login`, đăng nhập tài khoản backend rồi vào `/processing` hoặc `/management`. Biến môi trường PowerShell ghi đè `.env`; khi đổi chế độ hoặc URL cần khởi động lại Vite. Nếu muốn lưu cấu hình, dùng `.env.local` (không commit), đồng thời bỏ các biến PowerShell cũ hoặc mở terminal mới để tránh bị ghi đè.
-
-Backend cần cho phép CORS từ `https://localhost:5173`, bật credentials và chấp nhận header `Authorization`. API phải là HTTPS khi dùng dev server HTTPS này. Nếu backend chỉ mở HTTP local, cần bật HTTPS hoặc dùng tunnel HTTPS trước. Với tunnel, cập nhật hostname mỗi khi link đổi. Mở Swagger thành công chưa chứng minh frontend đã kết nối: trong DevTools → Network, xác nhận request đăng nhập và tải danh sách trả 2xx từ đúng host, giao diện hiển thị dữ liệu của tài khoản. Lỗi 401 thường cần đăng nhập lại; lỗi CORS cần sửa origin phía backend; lỗi mixed content cần sửa protocol; lỗi 5xx cần kiểm tra backend.
-
 ### Build, lint và preview
 
 ~~~sh
@@ -279,7 +243,7 @@ Build chạy TypeScript build và Vite production build. Preview phục vụ b�
 
 Chạy `yarn test` để kiểm tra các suite frontend bằng Vitest, Testing Library và jsdom. Dùng [bản đồ test](src/__tests__/README.md) để chạy nhóm cụ thể. HTTP adapter giả và test DOM chỉ kiểm tra hành vi mô phỏng. Xác nhận API và WebGL cần môi trường tích hợp hoặc trình duyệt.
 
-`yarn test:e2e` chạy Playwright với **API thật**, không dùng mock HTTP. Vite E2E mở riêng `http://127.0.0.1:4173`; backend phải cho phép CORS từ origin này. Chỉ cấu hình công khai `VITE_API_BASE_URL`/`VITE_API_PREFIX` được đưa vào browser. Trong `.env.local` (không commit), khai báo `E2E_TEST_EMAIL` và `E2E_TEST_PASSWORD` của tài khoản thử; ca quản trị yêu cầu role `admin`. Hai biến này chỉ được đọc trong Node test runner. Thiếu credentials làm ca đăng nhập fail rõ ràng, không skip hoặc fallback sang dữ liệu giả.
+`yarn test:e2e` chạy Playwright với **API thật**, không dùng Shopping Demo hay mock HTTP. Vite E2E mở riêng `http://127.0.0.1:4173`; backend phải cho phép CORS từ origin này. Chỉ cấu hình công khai `VITE_API_BASE_URL`/`VITE_API_PREFIX` được đưa vào browser. Trong `.env.local` (không commit), khai báo `E2E_TEST_EMAIL` và `E2E_TEST_PASSWORD` của tài khoản thử; ca quản trị yêu cầu role `admin`. Hai biến này chỉ được đọc trong Node test runner. Thiếu credentials làm ca đăng nhập fail rõ ràng, không skip hoặc fallback sang dữ liệu giả.
 
 Suite kiểm tra guard, login/reload, logout và cờ thu hồi phiên phía BE, giao diện Admin, theme, tạo/đổi tên workspace/project và upload/đọc lại CSV giả lập. Lifecycle chỉ tạo tài nguyên `E2E-<uuid>` và dọn đúng ID do ca đó nhận về, theo thứ tự dataset → project → workspace; có workspace chứng minh thao tác xóa không ảnh hưởng bản ghi khác. Đây là xóa mềm theo API, không phải purge file R2. Chỉ chạy trên backend thử nghiệm đã được phép ghi/xóa dữ liệu thử. Không tái sử dụng refresh token cũ, đổi mật khẩu hoặc đăng ký tài khoản.
 
@@ -287,13 +251,11 @@ Không có credentials vẫn có thể chạy riêng `yarn test:e2e tests/e2e/au
 
 ### Quản lý phiên nền tảng
 
-Trang `/auth/login` có bộ chọn **Sáng / Tối / Theo hệ thống** ở góc trên bên phải, dùng chung lựa chọn đã lưu với Management/Processing. Chế độ hệ thống theo dõi thay đổi màu của thiết bị ngay trong phiên. Đổi theme giữ nguyên dữ liệu đang nhập. Light mode áp dụng cho nền, form và artwork của login. Project 3D giữ nguyên mô hình, vật liệu và nhãn liquid glass; thay đổi nằm ở môi trường nền: tinh vân, cực quang, sao, thiên cầu và họa tiết quỹ đạo. Các khối 3D được giữ khi đổi theme, không dựng lại toàn bộ scene.
-
 Runtime ghép session storage và coordinator. AuthProvider theo dõi trạng thái phiên để cập nhật guard và UI. Coordinator điều phối khôi phục, gia hạn và kết thúc phiên. Xem [lib](src/lib/README.md) để tra cách lưu phiên và [services](src/services/README.md) để theo dõi điều kiện gia hạn.
 
 ### Cấu hình địa chỉ API
 
-[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Luồng chính đọc cấu hình khi tạo runtime. Nếu cấu hình sai, bootstrap chuyển lỗi tới UI. Mock Management/Processing và preview Workspace 3D ở dev được chọn trước khi nạp runtime chính.
+[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Luồng chính đọc cấu hình khi tạo runtime. Nếu cấu hình sai, bootstrap chuyển lỗi tới UI. Chỉ preview Workspace 3D dành cho dev được chọn trước khi nạp runtime chính.
 
 Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin FE. Không đưa token, API key, password hoặc secret backend vào cấu hình FE; không in nội dung **.env** vào chat/tài liệu. Xem [AI usage](AI-usage.md).
 
@@ -322,7 +284,7 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 
 ## 9. Limitations
 
-- Manager 2D dùng API khi đăng nhập; trang review phát triển mới dùng dữ liệu mẫu. Dataset 3D đang phục vụ review hình ảnh.
+- Preview 2D và Workspace 3D dùng dữ liệu mẫu. Dataset 3D đang phục vụ review hình ảnh.
 - Một số contract backend còn thiếu hoặc cần đối chiếu DTO/service và response thật; xem ngày/bằng chứng trong contract audit, không coi snapshot cũ là xác nhận server hiện tại.
 - Chưa chốt toàn bộ UX, permission presentation, data 3D mapping và tiêu chí hiệu năng.
 - Repository có schema và quota cục bộ. Luồng replay và đối soát server chờ contract đồng bộ.
@@ -338,28 +300,3 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 7. Thêm automated tests, browser/API integration, accessibility, CI và deployment checks.
 
 Mọi thay đổi quan trọng theo workflow review và human confirmation của dự án. Quy định sử dụng AI: [AI-usage.md](AI-usage.md).
-
-## Tích hợp Manager trên TaiFE
-
-Copy `.env.example` thành `.env`, cấu hình `VITE_API_BASE_URL` và `VITE_API_PREFIX` theo backend rồi chạy `npm run dev`. Mặc định `/management` đi qua ứng dụng có phiên đăng nhập; tải lại trang vẫn dùng API. Chỉ đặt `VITE_MANAGEMENT_DATA_MODE=mock` khi cần xem giao diện mẫu độc lập trong môi trường dev.
-
-Đã nối: danh sách toàn bộ workspace/project qua phân trang, chi tiết và bộ lọc trên dữ liệu đã tải, tạo/đổi tên/sửa mô tả/xóa workspace, tạo/đổi tên/xóa project, tải CSV khi tạo project, thêm/gỡ thành viên workspace và project, đổi vai trò Member/Viewer của project kèm `expectedVersion`. Workspace chỉ hỗ trợ Owner/Member; thay đổi vai trò workspace được khóa vì backend dùng luồng chuyển chủ sở hữu riêng. Yêu thích chỉ tồn tại trong phiên hiện tại.
-
-Các thao tác ghi chờ server; không hiện Hoàn tác cục bộ cho dữ liệu đã lưu. Nếu tạo project/workspace thành công nhưng bước tiếp theo thất bại, thông báo ghi rõ trạng thái tạo một phần để tránh tạo trùng. API danh sách thành viên bổ sung tên/email, chỉ trả trường hiển thị và kiểm tra quyền trước khi đọc hồ sơ.
-
-Điểm bàn giao cho người nối auth/3D: `ManagementDataProvider` dùng `AuthContext` và session storage hiện có, giữ nguyên luồng login/renew/logout. Backend mới dùng một số DTO camelCase; cần đối chiếu auth/users khi nối phiên thật. Không có thay đổi hợp đồng 3D. Đã nối danh sách/đánh dấu đọc thông báo và tùy chọn nhận thông báo chung, tạo/xem báo lỗi kèm upload/download tệp, cập nhật họ tên. Xóa thông báo và các trường hồ sơ ngoài DTO hiện hành bị khóa. Chức năng auth/session vẫn thuộc phần bàn giao auth.
-
-Kiểm tra: frontend build/lint, test manager, test xóa HTTP 204, wizard chờ xác nhận server; backend type-check và test workspace/project/member. Chưa kiểm thử end-to-end với database và tài khoản thật. Kiểm thử 3D/Detection là phạm vi riêng; không cập nhật baseline hình ảnh để che lỗi tích hợp manager.
-
-Các bổ sung manager: chuyển chủ sở hữu workspace/project kèm phiên bản, rời workspace, upload vào project trống đã tồn tại, chờ API thành công mới đóng form. Retry trong cùng phiên dùng lại project/báo lỗi đã tạo. UI dùng các control tại `src/components/ui`; module manager có `index.ts` và README riêng.
-
-Backend manager dùng `ManagementAccessGuard` kiểm tra membership từ database, không phụ thuộc workspace claims trong JWT. Xóa thành viên/rời workspace thu hồi các vai trò project; nếu người rời là Project Owner thì Workspace Owner tiếp quản. Thao tác này dùng transaction MongoDB, cần replica set. Chuyển Owner dùng một phép cập nhật nguyên tử để không có khoảng trống chủ sở hữu.
-
-Kiểm thử HTTP nội bộ dùng repository thay thế để kiểm tra controller, validation và quyền. Cần chạy thêm luồng trình duyệt với tài khoản thật và MongoDB replica set trước khi nghiệm thu; không coi các bài kiểm thử mô phỏng là E2E đầy đủ.
-
-### Ghép kiến trúc frontend và manager
-
-- Màn quản lý nằm trong `src/views/management`; wizard và hộp thành viên nằm trong `src/components/project` và `src/components/workspace`. Các file `views/preview` cũ chỉ giữ điểm export tương thích.
-- Luồng dữ liệu: page → `ApplicationFrame` → `ManagementDataProvider` → hook/session → `services/management` → HTTP client → BE. Chờ xác nhận ghi trước khi chuyển màn thành công; không fallback sang fixture khi BE lỗi.
-- Control manager dùng Design System tại `components/ui`; chuyển quyền/rời workspace thu gọn trong hộp quản lý thành viên. Giữ bố cục trang và các lối vào đã có.
-- Kiểm thử hồi quy nằm tại `src/__tests__/management`, gồm tệp CSV gốc, chờ xác nhận, lỗi quyền và retry. Khi có URL BE mới, kiểm tra thêm CORS, phiên thật, persistence và phân quyền với nhiều tài khoản.

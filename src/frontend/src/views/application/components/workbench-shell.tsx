@@ -1,4 +1,3 @@
-import { Button } from '../../../components/ui/controls'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useInRouterContext } from 'react-router'
@@ -10,7 +9,6 @@ import { usePreviewSession } from '../../../hooks/workbench/workbench-session-co
 import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
 import { PreviewTopbar } from './workbench-topbar'
 import { DataVerseMark } from '../../../components/branding'
-import { OfflineNotice } from '../../../components/offline/offline-notice'
 
 // Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
@@ -49,7 +47,6 @@ export function PreviewShell({
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed)
   const [narrow, setNarrow] = useState(readNarrow)
   const contentRef = useRef<HTMLDivElement>(null)
-  const mainRef = useRef<HTMLDivElement>(null)
   const compact = collapsed || narrow
 
   useEffect(() => {
@@ -71,7 +68,10 @@ export function PreviewShell({
   // Panel chi tiết sticky cần biết đúng chiều cao còn lại của vùng cuộn. Đo thực tế thay vì
   // đoán hằng số: dải demo/topbar/dải lý do/toast đều có thể đổi chiều cao (thu gọn cửa sổ,
   // toast xuất hiện) và mỗi px đoán sai là một phần panel bị cắt dưới đáy màn hình.
-  // Observe the available height for sticky panels and only write when it changes.
+  // Bấm nút thu gọn làm cột lưới đổi chiều rộng TỪNG FRAME → ResizeObserver bắn đúng từng
+  // frame đó. Nếu mỗi frame lại getComputedStyle + ghi biến thì mỗi frame là một lần
+  // invalidate layout — chính là độ trễ mắt thấy trên cái nút. Ở đây đọc padding theo
+  // resize, còn RO chỉ đo chiều cao và im lặng khi chiều cao không đổi.
   useEffect(() => {
     const element = contentRef.current
     if (!element) return
@@ -125,7 +125,7 @@ export function PreviewShell({
   return <div className={`preview-root${!processing && compact ? ' is-compact' : ''}`} data-section={processing ? 'processing' : active}>
     {!processing && <aside className="preview-sidebar" aria-label="Điều hướng chính">
       <div className="sidebar-brand">
-        <DataVerseMark className="brand-mark" />
+        <span className="brand-mark" aria-hidden="true"><PreviewIcon name="datasets" /></span>
         <span className="brand-text"><strong>DataVerse</strong><small>Your Data. Our Universe.</small></span>
       </div>
       <nav className="sidebar-nav">
@@ -134,24 +134,24 @@ export function PreviewShell({
           : <a className="nav-item" href="/processing" title="AI Data Processing">{processingLink}</a>}
         {visibleNavItems.map(item => {
           const selected = item.id === active
-          return <Button type="button" key={item.id}
+          return <button type="button" key={item.id}
             className={`nav-item${selected ? ' is-active' : ''}`}
             data-nav={item.id}
             aria-current={selected ? 'page' : undefined} title={item.label}
             onClick={() => navigate(item.id, item.label)}>
             <span className="nav-icon" aria-hidden="true"><PreviewIcon name={item.id === 'members' ? 'users' : item.id} /></span>
             <span className="nav-label">{item.label}</span>
-          </Button>
+          </button>
         })}
       </nav>
       {isContextual && <div className="nav-context">
         <span className="nav-context-label">Đang mở</span>
         <strong>{sectionLabels[active] ?? active}</strong>
-        <Button type="button" className="text-link" onClick={() => navigate('home', 'Home')}>Về Home</Button>
+        <button type="button" className="text-link" onClick={() => navigate('home', 'Home')}>Về Home</button>
       </div>}
     </aside>}
 
-    <div className="preview-main" ref={mainRef}>
+    <div className="preview-main">
       {/* Màn hẹp thì sidebar đã buộc thu nên nút toggle ẩn đi — để lại nút
           "thu gọn" khi đang ở 64px sẽ nói dối người dùng (aria-expanded sai). */}
       <PreviewTopbar
@@ -163,18 +163,15 @@ export function PreviewShell({
           {inRouter ? <Link className="button-secondary" to="/management"><PreviewIcon name="workspaces" /> Quản lý</Link>
             : <a className="button-secondary" href="/management"><PreviewIcon name="workspaces" /> Quản lý</a>}
         </span> : context}
-        sidebarToggle={!processing && !narrow && <Button type="button" className="sidebar-toggle"
+        sidebarToggle={!processing && !narrow && <button type="button" className="sidebar-toggle"
           aria-label={compact ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
           aria-expanded={!compact}
           onClick={() => setCollapsed(value => !value)}>
           <PreviewIcon name={compact ? 'expand' : 'collapse'} />
-        </Button>}
-        state={state}
-      />
+        </button>}
+        state={state} />
       <div className={`preview-content ${contentClassName}`} ref={contentRef}>
-        {/* Chỉ nói "dữ liệu mẫu" khi đúng là fixture; khi store đã là API thì dòng này nói sai. */}
         {!processing && state.source !== 'api' && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}
-        <OfflineNotice />
         {children}
       </div>
     </div>

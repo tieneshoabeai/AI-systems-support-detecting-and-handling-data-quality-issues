@@ -76,7 +76,7 @@ function normalizeStrictReads(source: string): string {
   return render(file)
 }
 it('preserves the original dark rendering source apart from checked reads and equivalent index access', () => {
-  const source=normalizeStrictReads(readFileSync(resolve('src/components/graphics/holographic-core/holographic-core.environment.tsx'), 'utf8').replace(/\r\n/g, '\n'))
+  const source=normalizeStrictReads(readFileSync(resolve('src/components/graphics/holographic-core/holographic-core.environment.tsx'), 'utf8'))
   const baseline=jsonObject(readFileSync(resolve('../../.agents/lint-fe/dark-source-baseline.json'), 'utf8')) as Record<string, string>
   const sha=(s:string) => createHash('sha256').update(s).digest('hex')
   // Canonical hashes were derived before formatting, after checking the original

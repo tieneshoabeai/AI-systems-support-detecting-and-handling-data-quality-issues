@@ -21,6 +21,7 @@ export const previewNoteIds = {
   projectModules: 'pv-pj-modules-note',
   projects: 'pv-prj-note',
   universe: 'pv-universe-note',
+  notifications: 'pv-notice-note',
   notificationList: 'pv-notice-list-note',
   notificationDetail: 'pv-notice-detail-note',
   report: 'pv-report-note',
@@ -31,6 +32,7 @@ export const previewReasons = {
   wsMembers: 'Chủ sở hữu luôn thuộc Workspace và không thể bị gỡ khỏi danh sách thành viên.',
   projectMembers: 'Chỉ người đã thuộc Workspace mới có thể được thêm vào Project.',
   notificationList: 'Chọn thông báo để đánh dấu đã đọc hoặc xóa. Không còn thông báo mới thì “Đánh dấu tất cả đã đọc” sẽ tắt.',
+  notificationInbox: 'Chọn thông báo để thao tác. “Đánh dấu tất cả đã đọc” chỉ dùng khi còn thông báo chưa đọc.',
 } as const
 
 // Các mảng tĩnh của Home cũ (quickActions, recentActivities, universeModules, homeStatsFor,
@@ -87,8 +89,9 @@ export const projectStatsFor = (list: readonly Project[]): readonly TrendStat[] 
   { id: 'pj-dataset', label: 'Tổng dataset', value: String(count(list, project => project.dataset === undefined
     ? project.supplementary?.hasDataset === true : project.dataset !== null)), delta: '', tone: 'violet', icon: 'datasets' },
   { id: 'pj-active', label: 'Đang hoạt động', value: String(count(list, project => project.status === 'active')), delta: '', tone: 'green', icon: 'activity' },
-  { id: 'pj-processing', label: 'Đang xử lý', value: String(count(list, project => project.status === 'processing')), delta: '', tone: 'orange', icon: 'clock' },
+  { id: 'pj-paused', label: 'Tạm dừng', value: String(count(list, project => project.status === 'paused')), delta: '', tone: 'orange', icon: 'pause' },
   { id: 'pj-done', label: 'Đã hoàn thành', value: String(count(list, project => project.status === 'completed')), delta: '', tone: 'cyan', icon: 'check-circle' },
+  { id: 'pj-archived', label: 'Đã lưu trữ', value: String(count(list, project => project.status === 'archived')), delta: '', tone: 'accent', icon: 'archive' },
 ]
 
 // Số trên thẻ workspace phải khớp danh sách project thật của nó trong mock store: nếu
@@ -404,9 +407,8 @@ export const projectTabsFor = (list: readonly Project[]): readonly { id: Project
   { id: 'all', label: `Tất cả (${list.length})` },
   { id: 'active', label: `Đang hoạt động (${count(list, project => project.status === 'active')})` },
   { id: 'paused', label: `Tạm dừng (${count(list, project => project.status === 'paused')})` },
-  { id: 'archived', label: `Đã lưu trữ (${count(list, project => project.status === 'archived')})` },
-  { id: 'processing', label: `Đang xử lý (${count(list, project => project.status === 'processing')})` },
   { id: 'completed', label: `Đã hoàn thành (${count(list, project => project.status === 'completed')})` },
+  { id: 'archived', label: `Đã lưu trữ (${count(list, project => project.status === 'archived')})` },
 ]
 
 // Nhãn dòng "Loại" ở màn chi tiết + cột Loại ở màn danh sách (Design Board 1.2–1.3).
