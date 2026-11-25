@@ -1,5 +1,5 @@
 import { Blob } from 'node:buffer'
-import { AxiosError } from 'axios'
+import { AxiosError, type AxiosAdapter } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import { createAdminService } from '../../services/management/admin.service'
 import { createDatasetService } from '../../services/processing/dataset.service'
@@ -46,7 +46,19 @@ describe('connected dataset API', () => {
     const { api, request } = transport(() => { throw new Error('Forbidden') })
     const service = createDatasetService(api)
     await expect(service.delete('data/1')).rejects.toThrow('Forbidden')
-    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1', method: 'DELETE', auth: 'session' })
+    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1', method: 'DELETE', auth: 'session', deferIfOffline: true })
+  })
+
+  it('keeps masked category values out of the chart output', async () => {
+    const { api, request } = transport(() => ({ charts: [{
+      column_key: 'c0', sampled_records: 10, truncated: false,
+      category: { masked: true, items: [{ value: 'private@example.test', count: 1, rate: 0.1 }] },
+    }] }))
+    const signal = new AbortController().signal
+
+    const chart = await createDatasetService(api).charts('data/1', 'c0', signal)
+    expect(chart.category).toEqual({ masked: true })
+    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1/charts', params: { columns: 'c0' }, auth: 'session', signal })
   })
 
   it('keeps masked category values out of the chart output', async () => {
@@ -167,15 +179,18 @@ describe('connected session API', () => {
 it('uses HTTP status to distinguish pending metadata from a PDF through the session transport', async () => {
   const pending = new Blob(['{"status":"queued"}'], { type: 'application/octet-stream' })
   const file = new Blob(['%PDF-1.7'])
-  const request = vi.fn().mockResolvedValueOnce({ status: 202, data: pending }).mockResolvedValueOnce({ status: 200, data: file })
+  let calls = 0
+  const request = vi.fn<AxiosAdapter>(config => Promise.resolve({ config, headers: {}, statusText: 'OK',
+    status: ++calls === 1 ? 202 : 200, data: calls === 1 ? pending : file }))
   const api = createAxiosClient({ baseUrl: 'https://example.test/api/v1', readToken: () => 'test-token', adapter: request })
   const service = createManagementStore(api, account).store.analysisService!
 
   await expect(service.downloadReport('p1', 'r1')).resolves.toEqual({ status: 'pending', metadata: { status: 'queued' } })
   await expect(service.downloadReport('p1', 'r1')).resolves.toEqual({ status: 'ready', file })
   expect(request).toHaveBeenCalledWith(expect.objectContaining({
-    url: 'https://example.test/api/v1/projects/p1/report/r1/file', responseType: 'blob', signal: expect.any(AbortSignal),
+    url: 'https://example.test/api/v1/projects/p1/report/r1/file', responseType: 'blob',
   }))
+  expect(request.mock.calls[0]?.[0].signal).toBeInstanceOf(AbortSignal)
 })
 
 it('keeps plain text from a 202 response as pending metadata', async () => {
@@ -195,10 +210,10 @@ it('preserves the HTTP error when the report download is rejected', async () => 
   const api = createAxiosClient({
     baseUrl: 'https://example.test/api/v1',
     readToken: () => 'test-token',
-    adapter: async config => {
-      throw new AxiosError('Report unavailable', undefined, config, undefined, {
+    adapter: config => {
+      return Promise.reject(new AxiosError('Report unavailable', undefined, config, undefined, {
         status: 404, statusText: 'Not Found', headers: {}, data: new Blob([]), config,
-      })
+      }))
     },
   })
   await expect(createAnalysisService(api).downloadReport('p1', 'r1')).rejects.toMatchObject({ kind: 'http', status: 404 })

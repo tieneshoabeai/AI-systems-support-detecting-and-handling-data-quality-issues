@@ -1,7 +1,7 @@
 /* Shared theme for Management and Processing, including dialogs and menus. */
 [data-preview='2d'] .processing-brand-actions { display: inline-flex; align-items: center; gap: 12px; }
 [data-preview='2d'] .processing-brand-actions a { display: flex; align-items: center; gap: 10px; color: var(--pv-ink); text-decoration: none; }
-[data-preview='2d'] .processing-brand-mark { display: block; flex: none; width: 28px; height: 34px; }
+[data-preview='2d'] .processing-brand-mark { display: block; flex: none; width: 34px; height: 34px; object-fit: contain; }
 [data-preview='2d'] .processing-brand-actions strong { font-size: 19px; font-weight: 650; }
 [data-preview='2d'][data-theme='dark'] { color-scheme: dark; }
 
@@ -227,3 +227,311 @@
   [data-preview='2d'][data-theme='light'] :is(.preview-menu, .preview-popover, .pv-info-card, .toast, .preview-dialog) { border-color: var(--pv-hc-edge); box-shadow: none; }
   [data-preview='2d'] .color-option-body { border-color: var(--pv-hc-edge); box-shadow: none; }
 }
+
+/* =============================================================================
+   LỚP TRÌNH BÀY DÙNG CHUNG — chữ, kính, phản hồi tương tác.
+   File này nạp SAU preview.css (application-frame.tsx) nên đây là nơi duy nhất ghi lại
+   giá trị đã chốt cho ba thứ dưới đây; preview.css vẫn giữ toàn bộ số đo layout.
+   ============================================================================= */
+
+/* ---------- 1. Chữ ---------- */
+/* Một font duy nhất cho cả khung. Bản trước trộn 'Segoe UI Variable Text' cho thân bài
+   với Jakarta cho tiêu đề: hai bộ dáng chữ khác nhau trong cùng một màn hình làm chữ
+   "lệch vai" ở mọi khối, và đó là cảm giác "chữ xấu" dù cỡ chữ đúng. */
+[data-preview='2d'] {
+  font-family: var(--font-ui, 'Plus Jakarta Sans', system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.004em;
+}
+
+[data-preview='2d'] :is(h1, h2, h3) {
+  font-family: var(--font-ui, 'Plus Jakarta Sans', system-ui, sans-serif);
+  color: var(--pv-ink);
+  font-weight: 700;
+  letter-spacing: -0.026em;
+  line-height: 1.24;
+  text-wrap: balance;
+}
+[data-preview='2d'] h1 { font-size: 30px; line-height: 1.16; letter-spacing: -0.032em; }
+[data-preview='2d'] h2 { font-size: 18px; line-height: 1.3; letter-spacing: -0.018em; }
+[data-preview='2d'] h3 { font-size: 16px; line-height: 1.35; letter-spacing: -0.012em; }
+
+/* Tiêu đề không còn bị pha màu mục và không còn quầng sáng: chữ 30px pha 35% màu mục
+   cộng bóng phát sáng là hai lớp hiệu ứng chồng lên nhau, làm mép chữ nhoè. Màu mục giữ
+   vai trò điểm nhấn ở eyebrow/icon, không phải ở tiêu đề. */
+[data-preview='2d'] :is(.page-head h1, .settings-head h1, .panel-head h2, .ws-detail-name h1) {
+  color: var(--pv-ink);
+  text-shadow: none;
+}
+
+[data-preview='2d'] :is(.page-eyebrow, .eyebrow) {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pv-ink-eyebrow);
+}
+
+[data-preview='2d'] :is(.page-head-text p, .settings-head p, .ws-detail-desc) {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--pv-muted);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+[data-preview='2d'] :is(.panel-sub, .card-desc, .hero-card p, .menu-note, .popover-note) {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--pv-muted);
+}
+[data-preview='2d'] :is(.card-updated, .card-metrics dd, .stat-label, .info-card-code) {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--pv-faint);
+}
+[data-preview='2d'] .stat-value {
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bảng: tiêu đề cột nhỏ, viết hoa, giãn chữ — mắt tách được hàng tiêu đề khỏi dữ liệu
+   mà không cần thêm nền đậm. */
+[data-preview='2d'] .preview-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pv-faint);
+}
+[data-preview='2d'] .preview-table td { color: var(--pv-ink); }
+[data-preview='2d'] .preview-table tbody th { font-weight: 600; }
+
+[data-preview='2d'] :is(.button-primary, .button-secondary, .button-danger) {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.002em;
+}
+[data-preview='2d'] .nav-label { font-size: 13px; font-weight: 500; letter-spacing: -0.002em; }
+[data-preview='2d'] .nav-item.is-active .nav-label { font-weight: 600; }
+
+/* ---------- 2. Liquid glass ---------- */
+/* Trước đây lớp kính chỉ tồn tại ở component UI mới, còn các mặt đọc của khung này là
+   gradient ĐẶC — nên nhìn vào không thấy chất kính nào. Ở đây mặt phẳng được mở trong
+   suốt thật, có blur + viền sáng 1px ở mép trên (tia sáng bị khúc xạ ở cạnh tấm kính). */
+[data-preview='2d'] :is(.panel, .stat-card, .resource-card, .hero-card, .pv-info-card, .toast) {
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+  backdrop-filter: blur(24px) saturate(155%);
+}
+
+[data-preview='2d'] .panel {
+  background:
+    radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-panel-tone, var(--pv-blue)) 16%, transparent), transparent 62%),
+    linear-gradient(168deg, rgb(19 32 52 / 58%), rgb(8 15 27 / 72%));
+  border-color: rgb(150 190 240 / 15%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    inset 0 -1px 0 rgb(0 0 0 / 26%),
+    0 22px 46px -30px rgb(2 8 20 / 74%);
+}
+
+[data-preview='2d'] .stat-card {
+  background:
+    radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-stat-tone, var(--pv-blue)) 18%, transparent), transparent 70%),
+    linear-gradient(150deg, rgb(24 40 63 / 60%), rgb(10 18 32 / 74%));
+  border-color: rgb(150 190 240 / 14%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 9%),
+    0 16px 32px -26px rgb(2 8 20 / 70%);
+}
+
+[data-preview='2d'] .resource-card {
+  background: linear-gradient(170deg, rgb(23 38 60 / 56%), rgb(9 17 30 / 72%));
+}
+[data-preview='2d'] .hero-card {
+  background: rgb(10 19 34 / 58%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  backdrop-filter: blur(26px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 20px 40px -28px rgb(2 8 20 / 70%);
+}
+[data-preview='2d'] .pv-info-card,
+[data-preview='2d'] .toast {
+  background: rgb(18 31 51 / 62%);
+}
+
+/* Keep form fields readable over animated scenes. */
+[data-preview='2d'] .preview-dialog {
+  background: linear-gradient(155deg, var(--pv-surface), var(--pv-bg-1));
+  border-color: var(--pv-line-strong);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 40px 80px -40px rgb(2 8 20 / 90%);
+}
+
+/* Bản sáng: kính trắng có viền xanh xám mảnh, không phải trắng đục. */
+[data-preview='2d'][data-theme='light'] .panel {
+  background:
+    radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-panel-tone, var(--pv-blue)) 10%, transparent), transparent 62%),
+    linear-gradient(168deg, rgb(255 255 255 / 82%), rgb(240 246 255 / 66%));
+  border-color: rgb(44 73 122 / 14%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 95%),
+    0 18px 36px -28px rgb(31 57 100 / 34%);
+}
+[data-preview='2d'][data-theme='light'] .stat-card {
+  background:
+    radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--pv-stat-tone, var(--pv-blue)) 12%, transparent), transparent 70%),
+    linear-gradient(150deg, rgb(255 255 255 / 88%), rgb(238 245 255 / 72%));
+  border-color: rgb(44 73 122 / 13%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 96%), 0 16px 32px -26px rgb(31 57 100 / 26%);
+}
+[data-preview='2d'][data-theme='light'] .resource-card {
+  background: linear-gradient(170deg, rgb(255 255 255 / 90%), rgb(238 245 255 / 78%));
+}
+[data-preview='2d'][data-theme='light'] .hero-card {
+  background: rgb(255 255 255 / 78%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 96%), 0 18px 36px -28px rgb(31 57 100 / 30%);
+}
+[data-preview='2d'][data-theme='light'] .pv-info-card,
+[data-preview='2d'][data-theme='light'] .toast {
+  background: rgb(255 255 255 / 84%);
+}
+[data-preview='2d'][data-theme='light'] .preview-dialog {
+  background: linear-gradient(155deg, var(--pv-bg-0), var(--pv-bg-1));
+  border-color: rgb(44 73 122 / 18%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 98%), 0 40px 80px -40px rgb(31 57 100 / 45%);
+}
+
+/* ---------- 3. Phản hồi tương tác ---------- */
+/* Một quy tắc duy nhất: hover đổi màu/viền/đổ bóng, bấm co nhẹ tại chỗ. Bản trước trộn
+   translateY(+1px) khi bấm với translateY(-3px) khi hover nên mỗi vùng nhấc lên một kiểu,
+   và mọi cú bấm đều "nhảy" một pixel — đó là phần thô nhất của cảm giác tương tác. */
+[data-preview='2d'] :is(.nav-item, .icon-button, .sidebar-toggle, .scope-select, .fav-button,
+  .button-primary, .button-secondary, .ghost-button, .menu-item, .quick-card, .mini-card,
+  .resource-card, .stat-card, .row-menu, .view-toggle button) {
+  transition:
+    background-color var(--pv-d-hover) var(--pv-ease-out),
+    border-color var(--pv-d-hover) var(--pv-ease-out),
+    color var(--pv-d-hover) var(--pv-ease-out),
+    box-shadow var(--pv-d-hover) var(--pv-ease-out),
+    transform var(--pv-d-press) var(--pv-ease-out);
+}
+
+[data-preview='2d'] .nav-item:hover:not(.is-active) {
+  background: color-mix(in srgb, var(--pv-blue) 12%, transparent);
+}
+[data-preview='2d'] .nav-item.is-active {
+  background: linear-gradient(100deg, var(--pv-blue-fill), var(--pv-fill-deep));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 18%),
+    0 8px 18px -12px color-mix(in srgb, var(--pv-blue) 90%, transparent);
+}
+/* Nhấn điều hướng thì đổi màu, KHÔNG đẩy cả hàng xuống: danh sách dọc mà nhảy từng dòng
+   là hiệu ứng rẻ nhất và cũng dễ thấy nhất. */
+[data-preview='2d'] .nav-item:active { transform: none; }
+
+[data-preview='2d'] .button-primary {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 18%),
+    0 6px 16px -10px color-mix(in srgb, var(--pv-blue) 80%, transparent);
+}
+[data-preview='2d'] .button-primary:not([disabled]):hover {
+  background: linear-gradient(120deg, var(--pv-blue-fill-hover), var(--pv-fill-deep-hover));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 22%),
+    0 10px 22px -12px color-mix(in srgb, var(--pv-blue) 85%, transparent);
+}
+[data-preview='2d'] :is(.button-primary, .button-secondary, .ghost-button):not([disabled]):active {
+  transform: scale(.97);
+  box-shadow: none;
+}
+
+[data-preview='2d'] :is(.icon-button, .sidebar-toggle):not([disabled]):hover {
+  background: color-mix(in srgb, var(--pv-blue) 14%, transparent);
+  color: var(--pv-ink);
+}
+[data-preview='2d'] :is(.icon-button, .sidebar-toggle, .fav-button):not([disabled]):active {
+  transform: scale(.95);
+}
+
+[data-preview='2d'] :is(.resource-card, .stat-card, .mini-card, .quick-card):hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--pv-blue) 40%, var(--pv-line-strong));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 26px 48px -34px rgb(2 8 20 / 85%);
+}
+[data-preview='2d'] :is(.resource-card, .stat-card, .mini-card, .quick-card):active {
+  transform: translateY(0) scale(.997);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+}
+
+[data-preview='2d'] .menu-item:hover {
+  background: color-mix(in srgb, var(--pv-blue) 16%, transparent);
+}
+
+[data-preview='2d'] :is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--pv-ink-link);
+  outline-offset: 3px;
+}
+
+/* Người dùng không muốn trong suốt / cần tương phản cao: kính chuyển về mặt đặc. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-preview='2d'] :is(.panel, .stat-card, .resource-card, .hero-card, .pv-info-card, .toast, .preview-dialog) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--pv-surface);
+  }
+}
+@media (prefers-contrast: more) {
+  [data-preview='2d'] :is(.panel, .stat-card, .resource-card, .hero-card, .pv-info-card, .toast, .preview-dialog) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--pv-bg-0);
+  }
+}
+
+/* ---------- 4. Con trỏ ---------- */
+/* preview.css từng đặt cursor: pointer trực tiếp cho button. Trỏ về token để cả app dùng
+   một nguồn duy nhất; token hiện là con trỏ mặc định của hệ điều hành. */
+[data-preview='2d'] :is(a, button, [role='button'], [role='tab'], [role='option'], label[for], summary, select) {
+  cursor: var(--cursor-pointer, pointer);
+}
+[data-preview='2d'] :is(.resource-card, .mini-card, .ws-tile, .preview-table tbody tr) {
+  cursor: var(--cursor-pointer, pointer);
+}
+[data-preview='2d'] :is(.home-universe-canvas, .workspace-hero-art) { cursor: var(--cursor-grab, grab); }
+[data-preview='2d'] :is(.home-universe-canvas, .workspace-hero-art)[data-dragging='true'] { cursor: var(--cursor-grabbing, grabbing); }
+[data-preview='2d'] [disabled] { cursor: not-allowed; }
+
+/* ---------- 5. Chuyển động giao diện ---------- */
+@keyframes pv-rise { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+@keyframes pv-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pv-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+
+/* Nội dung trang vào theo nhịp: mỗi khối con trượt lên 10px rồi dừng, lệch nhau 45ms để mắt
+   đọc được thứ tự thay vì cả trang bật ra cùng lúc. Khung hình cuối là `transform: none` nên
+   animation không để lại containing block cho popover/dialog bên trong. */
+[data-preview='2d'] .preview-content > * { animation: pv-rise 300ms var(--pv-ease-out) both; }
+[data-preview='2d'] .preview-content > *:nth-child(2) { animation-delay: 45ms; }
+[data-preview='2d'] .preview-content > *:nth-child(3) { animation-delay: 90ms; }
+[data-preview='2d'] .preview-content > *:nth-child(4) { animation-delay: 135ms; }
+[data-preview='2d'] .preview-content > *:nth-child(n+5) { animation-delay: 170ms; }
+
+/* Lưới thẻ hiện lần lượt thay vì "đổ" ra một cục. */
+[data-preview='2d'] :is(.mini-cards, .resource-grid, .ws-tiles) > * {
+  animation: pv-fade-in 260ms var(--pv-ease-out) both;
+}
+
+/* Icon điều hướng nhích theo hướng đọc khi hover — phản hồi thị giác cho mục đang trỏ. */
+[data-preview='2d'] .nav-item .preview-icon { transition: transform var(--pv-d-hover) var(--pv-ease-out); }
+[data-preview='2d'] .nav-item:hover .preview-icon { transform: translateX(2px) scale(1.06); }
+
+/* Chấm "có thông báo" thở nhẹ để không lẫn với chấm trang trí tĩnh. */
+[data-preview='2d'] .badge-dot { animation: pv-pulse 2.4s var(--pv-ease-out) infinite; }
+
+/* Dòng bảng đổi nền mượt thay vì bật/tắt tức thì. */
+[data-preview='2d'] .preview-table tbody tr { transition: background-color var(--pv-d-hover) var(--pv-ease-out); }

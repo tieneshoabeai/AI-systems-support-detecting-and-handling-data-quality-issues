@@ -124,7 +124,8 @@ const frontendLayers = {
 }
 
 export default defineConfig([
-  globalIgnores(['dist', '.agents/**']),
+  // OpenAPI outputs are generated; handwritten adapters remain fully linted.
+  globalIgnores(['dist', '.agents/**', 'src/lib/openapi.ts', 'src/types/services-type/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

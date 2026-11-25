@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { createManagementStore } from '../../services/management/management.store'
 import { ApiError } from '../../lib/api-error'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
+import type { UploadDraftPort } from '../../types/datasets/upload-draft.types'
 const account = { id: 'u1', name: 'Tai', email: 'tai@example.com', role: 'analyst', initials: 'TA' }
 const workspace = { id: 'w1', name: 'Workspace', description: '', ownerId: 'u1', members: [], storageUsedBytes: 0, version: 3, createdAt: '2026-11-15', updatedAt: '2026-11-15', lastAccessedAt: null }
 const project = { id: 'p1', name: 'Project', description: '', workspaceId: 'w1', createdBy: 'u1', members: [], status: 'not_started', hasDataset: false, version: 4, createdAt: '2026-11-15', updatedAt: '2026-11-15' }
-function harness(override?: (r: ApiRequestOptions) => unknown, progressiveProjects = false) {
+function harness(override?: (r: ApiRequestOptions) => unknown, progressiveProjects = false, drafts?: UploadDraftPort) {
   const request = vi.fn(async (r: ApiRequestOptions) => {
     const result = override?.(r)
     if (result !== undefined) return await Promise.resolve(result)
@@ -18,7 +19,7 @@ function harness(override?: (r: ApiRequestOptions) => unknown, progressiveProjec
     if (r.path === '/workspaces/w1/projects') return { items: [project], total: 1 }
     return {}
   })
-  const data = createManagementStore({ request } as ApiClient, account, { progressiveProjects })
+  const data = createManagementStore({ request } as ApiClient, account, { progressiveProjects, ...(drafts ? { drafts } : {}) })
   return { ...data, request }
 }
 describe('manager API integration', () => {
@@ -286,6 +287,68 @@ describe('manager API integration', () => {
   })
 })
 
+const draftPort = (): UploadDraftPort => ({
+  save: vi.fn<UploadDraftPort['save']>(), list: vi.fn<UploadDraftPort['list']>(),
+  readFile: vi.fn<UploadDraftPort['readFile']>(), remove: vi.fn<UploadDraftPort['remove']>(),
+  bindProject: vi.fn<UploadDraftPort['bindProject']>().mockResolvedValue(),
+  confirmUploaded: vi.fn<UploadDraftPort['confirmUploaded']>().mockResolvedValue({ cleaned: true }),
+  cleanupUploaded: vi.fn<UploadDraftPort['cleanupUploaded']>(),
+})
+
+it('confirms draft cleanup only after a valid upload ACK, retaining drafts on failure', async () => {
+  const drafts = draftPort()
+  let failUpload = true
+  const { store } = harness(r => r.path.endsWith('/upload')
+    ? failUpload ? Promise.reject(new Error('Offline')) : { dataset: { id: 'd1' } } : undefined, false, drafts)
+  const file = new File(['a\n1'], 'a.csv')
+  const local = { id: 'draft', scope: 'p1' }
+  await expect(store.uploadDataset!('p1', file, local)).rejects.toThrow('Offline')
+  expect(drafts.confirmUploaded).not.toHaveBeenCalled()
+  failUpload = false
+  await store.uploadDataset!('p1', file, local)
+  expect(drafts.confirmUploaded).toHaveBeenCalledExactlyOnceWith('draft', { accountId: 'u1', projectId: 'p1', datasetId: 'd1' })
+})
+
+it('keeps a draft when the server response omits the dataset ID', async () => {
+  const drafts = draftPort()
+  const { store } = harness(r => r.path.endsWith('/upload') ? { message: 'Uploaded' } : undefined, false, drafts)
+  await expect(store.uploadDataset!('p1', new File(['a'], 'a.csv'), { id: 'draft', scope: 'p1' })).rejects.toThrow('không gửi lại')
+  expect(drafts.confirmUploaded).not.toHaveBeenCalled()
+})
+
+it('resumes a project from a persisted draft binding after a page reload', async () => {
+  const drafts = draftPort()
+  const { store, request } = harness(r => {
+    if (r.path === '/projects/p1') return { project }
+    if (r.path.endsWith('/upload')) return { dataset: { id: 'd1' } }
+    return undefined
+  }, false, drafts)
+  const file = new File(['a\n1'], 'a.csv')
+  await store.createProject({ workspaceId: 'w1', name: 'Project', description: '', members: [], dataset: {
+    file, fileName: file.name, format: 'CSV', rows: 1, columns: 1, sizeMb: 0,
+    localDraft: { id: 'draft', scope: 'new-project:w1', targetProjectId: 'p1', targetProjectName: 'Project' },
+  } })
+  expect(request.mock.calls.filter(([r]) => r.path === '/workspaces/w1/projects' && r.method === 'POST')).toHaveLength(0)
+  expect(drafts.bindProject).toHaveBeenCalledWith('draft', 'p1', 'Project')
+  expect(drafts.confirmUploaded).toHaveBeenCalledWith('draft', { accountId: 'u1', projectId: 'new-project:w1', datasetId: 'd1' })
+})
+
+it('checks the existing dataset before cleaning a resumed draft without re-uploading', async () => {
+  const drafts = draftPort()
+  const file = new File(['a\n1'], 'a.csv')
+  const { store, request } = harness(r => {
+    if (r.path === '/projects/p1') return { project: { ...project, hasDataset: true } }
+    if (r.path === '/projects/p1/datasets') return { dataset: { id: 'd1', originalFileName: file.name, fileSizeBytes: file.size, rowCount: 1, columnCount: 1, createdAt: '2026-11-15', status: 'ready' } }
+    return undefined
+  }, false, drafts)
+  await store.createProject({ workspaceId: 'w1', name: 'Project', description: '', members: [], dataset: {
+    file, fileName: file.name, format: 'CSV', rows: 1, columns: 1, sizeMb: 0,
+    localDraft: { id: 'draft', scope: 'new-project:w1', targetProjectId: 'p1', targetProjectName: 'Project' },
+  } })
+  expect(request.mock.calls.filter(([r]) => r.path.endsWith('/upload'))).toHaveLength(0)
+  expect(drafts.confirmUploaded).toHaveBeenCalledOnce()
+})
+
 it('resumes a failed upload without creating another project', async () => {
   let attempts = 0
   const { store, request } = harness(r => {
@@ -310,7 +373,8 @@ it('shares a concurrent create and reports a saved project when only the list re
   const results = await Promise.all([store.createProject(input), store.createProject(input)])
 
   for (const result of results) {
-    expect(result).toMatchObject({ persisted: true, message: expect.stringContaining('chưa tải lại được danh sách') })
+    expect(result.persisted).toBe(true)
+    expect(result.message).toContain('chưa tải lại được danh sách')
   }
   expect(request.mock.calls.filter(([r]) => r.method === 'POST').map(([r]) => r.path))
     .toEqual(['/workspaces/w1/projects', '/projects/p1/datasets/upload'])

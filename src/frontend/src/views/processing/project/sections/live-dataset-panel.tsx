@@ -11,6 +11,7 @@ import { DatasetDistribution } from './dataset-distribution'
 import { Icon } from '../../../../components/ui/primitives/icon'
 import { ModuleNotice } from './module-notice'
 import styles from './module-content.module.css'
+import { QueuedWriteError } from '../../../../services/offline/queued-write-error'
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Không tải được dữ liệu.'
 const count = new Intl.NumberFormat('vi-VN')
@@ -65,6 +66,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
   const [statsError, setStatsError] = useState<{ column: string; message: string } | null>(null)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
+  const [pendingNotice, setPendingNotice] = useState('')
   const [loading, setLoading] = useState(!initialPreview)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -100,7 +102,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
   const selectedColumn = activeColumn?.key ?? ''
   const action = async (operation: () => Promise<void>) => {
     if (busy) return
-    setBusy(true); setActionError('')
+    setBusy(true); setActionError(''); setPendingNotice('')
     try { await operation() } catch (cause) { setActionError(message(cause)) } finally { setBusy(false) }
   }
   const reload = () => { onInvalidatePreview?.(); setLoading(true); setError(''); setAttempt(value => value + 1) }
@@ -112,6 +114,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   return <section className={styles['stack']} aria-label={overview ? 'Tổng quan tập dữ liệu' : 'Bản ghi dữ liệu'}>
+    {pendingNotice && <p role="status">{pendingNotice}</p>}
     <section className={styles['card']} aria-label="Thông tin tập dữ liệu">
       <div className={styles['datasetName']}>
         <span className={styles['iconTile']}><Icon name="file" /></span>
@@ -136,7 +139,10 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
         <Button type="button" variant="secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>Hủy</Button>
         <Button type="button" variant="danger" disabled={busy} onClick={() => {
           void action(async () => {
-            await service.delete(id)
+            try { await service.delete(id) } catch (cause) {
+              if (!(cause instanceof QueuedWriteError)) throw cause
+              setPendingNotice(cause.message); setConfirmDelete(false); return
+            }
             onInvalidatePreview?.()
             try { await store.refreshProject?.(project.id, new AbortController().signal) } catch {
               setConfirmDelete(false)

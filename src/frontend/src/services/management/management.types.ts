@@ -91,7 +91,7 @@ export type ManagementStore = {
   loadSessions?: () => Promise<void>
   downloadAttachment?: (reportId: string, attachmentId: string) => Promise<Blob>
 
-  uploadDataset?: (projectId: string, file: File) => Promise<import('../../types/management/management.types').PreviewMutationResult>
+  uploadDataset?: (projectId: string, file: File, draft?: import('../../types/datasets/upload-draft.types').LocalUploadDraftRef) => Promise<import('../../types/management/management.types').PreviewMutationResult>
   transferOwner?: (kind: 'workspace' | 'project', id: string, email: string) => Promise<import('../../types/management/management.types').PreviewMutationResult>
   leaveWorkspace?: (id: string) => Promise<import('../../types/management/management.types').PreviewMutationResult>
 }

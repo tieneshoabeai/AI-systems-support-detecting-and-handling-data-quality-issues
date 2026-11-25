@@ -59,7 +59,7 @@ export const authGlassConfig = {
   },
   seamPosition: [0.14, width, 0.35] as Vec3,
   panels: [
-    { name: 'LoginPanel', yaw: -0.25, seamSide: 1 },
+    { name: 'LoginPanel', yaw: 0.09, seamSide: 1 },
     { name: 'RegisterPanel', yaw: 0.9, seamSide: -1 },
   ] as const,
 }

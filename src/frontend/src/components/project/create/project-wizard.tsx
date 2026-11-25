@@ -1,3 +1,4 @@
+import { Button, Input, Textarea } from '../../ui/controls'
 import { Dialog } from '../../ui/overlay/dialog'
 import { CreationOrbit } from '../../ui/feedback/creation-orbit'
 import creationStyles from '../../ui/feedback/creation-orbit.module.css'
@@ -12,6 +13,9 @@ import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Avatar } from '../../resource'
 import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
 import { useManagementStore } from '../../../hooks/management/use-management-store'
+import { useUploadDraft } from '../../../hooks/offline/use-upload-draft'
+import { useOfflineStatus } from '../../../hooks/offline/use-local-data'
+import { UploadDraftNotice } from '../../offline/upload-draft-notice'
 
 // Four-step 2D import flow. The selected CSV is previewed locally, then uploaded by the
 // manager store. Only members of the selected workspace can be added to the project.
@@ -66,6 +70,9 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<PickedCsv | null>(null)
+  const fileDraft = useUploadDraft(workspaceId ? `new-project:${workspaceId}` : '')
+  const { offline } = useOfflineStatus()
+  const selectionRevision = useRef(0)
   const [selected, setSelected] = useState<MemberPick[]>([])
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -127,9 +134,10 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
       : [...list, { person, role }])
 
   // Preview CSV độc lập với scene 3D; lỗi định dạng được hiện ngay trong bước import.
-  const onPickFile = (files: FileList | null): void => {
-    const picked = files?.[0]
+  const onPickFile = (files: FileList | null, restored?: File): void => {
+    const picked = restored ?? files?.[0]
     if (!picked) return
+    const revision = ++selectionRevision.current
     if (!/\.csv$/i.test(picked.name)) {
       setError(`“${picked.name}” không phải .csv. Frame này chỉ đọc CSV — Parquet/Excel/JSON thuộc module Dataset.`)
       return
@@ -137,7 +145,8 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
     if (picked.size > 50 * 1024 * 1024) { setFile(null); setError('Tệp CSV tối đa 50 MB.'); return }
     void picked.arrayBuffer()
       .then(buffer => { if (buffer.byteLength > 50 * 1024 * 1024) throw new Error('Tệp CSV tối đa 50 MB.'); return parseLocalCsv(new TextDecoder('utf-8', { fatal: true }).decode(buffer)) })
-      .then(doc => {
+      .then(async doc => {
+        if (revision !== selectionRevision.current) return
         setFile({
           file: picked,
           fileName: picked.name,
@@ -148,8 +157,10 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
           delimiter: doc.delimiter,
         })
         setError(null)
+        if (!restored) await fileDraft.save(picked)
       })
       .catch((reason: unknown) => {
+        if (revision !== selectionRevision.current) return
         setFile(null)
         setError(reason instanceof Error
           ? reason.message
@@ -158,6 +169,8 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   }
 
   const dropFile = (): void => {
+    selectionRevision.current++
+    void fileDraft.remove()
     setFile(null)
     // Reset cả input: chọn lại đúng tệp cũ mà input vẫn giữ giá trị thì trình duyệt không bắn
     // change, và người dùng sẽ tưởng nút "Bỏ tệp" không có tác dụng.
@@ -165,15 +178,17 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   }
 
   const submit = async (): Promise<void> => {
-    if (pending) return
+    if (pending || offline) return
     if (!workspace || !file) return
     setPending(true)
+    const localDraft = await fileDraft.flush()
     const success = await session.createProject({
       workspaceId: workspace.id,
       name: name.trim(),
       description: description.trim(),
       members: selected.map(item => ({ ...item.person, role: item.role })),
       dataset: {
+        ...(localDraft ? { localDraft } : {}),
         file: file.file,
         fileName: file.fileName,
         format: file.format,
@@ -235,16 +250,16 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
       closeWorkspaceCreation()
     }} />
 
-  return <Dialog open onClose={onClose} busy={pending} className="is-wide" role="dialog" aria-labelledby="pv-wizard-title">
+  return <Dialog open onClose={onClose} busy={pending || fileDraft.saving} className="is-wide" role="dialog" aria-labelledby="pv-wizard-title">
     <header className="dialog-head">
       <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="projects" /></span>
       <div className="dialog-head-text">
         <h2 id="pv-wizard-title">Tạo Project</h2>
         <p>{workspace ? `Trong Workspace “${workspace.name}”.` : 'Chọn Workspace chứa Project ở bước Thông tin Project.'}</p>
       </div>
-      <button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending} onClick={onClose}>
+      <Button type="button" className="icon-button dialog-close" aria-label="Đóng hộp thoại" disabled={pending || fileDraft.saving} onClick={onClose}>
         <PreviewIcon name="close" />
-      </button>
+      </Button>
     </header>
 
     {!isDone && <ProjectSteps labels={steps} step={step} previousStep={previousStep} pending={pending} onStep={goToStep} />}
@@ -268,7 +283,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
           <div className="ws-edit-field">
             <label className="dialog-field">
               <span>Tên Project <em className="field-required" aria-hidden="true">*</em></span>
-              <input value={name} onChange={event => { setName(event.target.value); setError(null) }}
+              <Input value={name} onChange={event => { setName(event.target.value); setError(null) }}
                 maxLength={nameMax} placeholder="VD: Phân tích churn quý 4" autoComplete="off"
                 aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'pv-wizard-error' : undefined} />
             </label>
@@ -277,7 +292,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
           <div className="ws-edit-field">
             <label className="dialog-field">
               <span>Mô tả</span>
-              <textarea value={description} onChange={event => setDescription(event.target.value)}
+              <Textarea value={description} onChange={event => setDescription(event.target.value)}
                 maxLength={descMax} rows={3} placeholder="Mục tiêu và phạm vi của project…" />
             </label>
             <span className="dialog-counter">{description.length} / {descMax}</span>
@@ -285,10 +300,16 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
         </div>}
 
         {step === 1 && <div className="pv-import-step">
+          <UploadDraftNotice draft={fileDraft.entry} selected={Boolean(file)} saving={fileDraft.saving} notice={fileDraft.notice}
+            onRestore={() => { void fileDraft.restore().then(restored => {
+              if (!restored) return
+              if (fileDraft.entry?.targetProjectName) setName(fileDraft.entry.targetProjectName)
+              onPickFile(null, restored)
+            }) }} onRemove={() => { void fileDraft.remove() }} />
           <span className="pv-step-hint">Mỗi project gắn với đúng một tập dữ liệu, nên phải nạp ngay khi tạo. Tệp được đọc trên máy bạn để lấy số hàng · số cột · dung lượng thật.</span>
           {file === null
             ? <label className="dropzone">
-              <input ref={fileInputRef} type="file" className="visually-hidden" accept=".csv,text/csv"
+              <Input ref={fileInputRef} type="file" className="visually-hidden" accept=".csv,text/csv"
                 aria-label="Chọn tập dữ liệu CSV" onChange={event => onPickFile(event.target.files)} />
               <span className="dropzone-text">Kéo tệp vào đây hoặc <span className="dropzone-pick">Chọn tệp</span></span>
               <small>Hỗ trợ .CSV · dòng đầu tiên phải là tiêu đề cột</small>
@@ -296,9 +317,9 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
             : <>
               <div className="attachment">
                 <span className="attachment-name"><PreviewIcon name="file" /> {file.fileName} ({formatDataSize(file.sizeMb)})</span>
-                <button type="button" className="icon-button sm" aria-label="Bỏ tệp đã chọn" onClick={dropFile}>
+                <Button type="button" className="icon-button sm" aria-label="Bỏ tệp đã chọn" onClick={dropFile}>
                   <PreviewIcon name="close" />
-                </button>
+                </Button>
               </div>
               <dl className="pv-import-shape">
                 <div><dt>Số bản ghi</dt><dd>{formatRows(file.rows)}</dd></div>
@@ -317,16 +338,16 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
                 {selected.map(item => <li key={item.person.id} className="pv-chip is-on">
                   <Avatar initials={item.person.initials} size="sm" />
                   <span className="pv-chip-text"><span className="pv-chip-name">{item.person.name}</span><span className="pv-chip-email">{item.role}</span></span>
-                  <button type="button" className="pv-chip-remove" aria-label={`Gỡ ${item.person.name} khỏi project`}
+                  <Button type="button" className="pv-chip-remove" aria-label={`Gỡ ${item.person.name} khỏi project`}
                     onClick={() => togglePerson(item.person)}>
                     <PreviewIcon name="close" />
-                  </button>
+                  </Button>
                 </li>)}
               </ul>}
               <label className="members-search">
                 <span className="visually-hidden">Tìm kiếm thành viên trong Workspace</span>
                 <PreviewIcon name="search" />
-                <input value={search} onChange={event => setSearch(event.target.value)}
+                <Input value={search} onChange={event => setSearch(event.target.value)}
                   placeholder="Tìm kiếm thành viên trong Workspace…" autoComplete="off" />
               </label>
               {candidates.length > 0 && <ul className="pv-suggest-list pv-member-rows">
@@ -334,7 +355,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
                   const picked = selected.find(item => item.person.id === person.id)
                   return <li key={person.id} className="pv-suggest-row">
                     <label className="pv-member-pick">
-                      <input type="checkbox" className="pv-member-check" checked={picked !== undefined}
+                      <Input type="checkbox" className="pv-member-check" checked={picked !== undefined}
                         aria-label={`Chọn ${person.name} vào project`} onChange={() => togglePerson(person)} />
                       <Avatar initials={person.initials} size="sm" />
                       <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
@@ -350,7 +371,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
               </ul>}
               {loadProjectWizardRoster && !currentRoster?.members
                 ? currentRoster
-                  ? <p role="alert">Không tải được thành viên Workspace. <button type="button" onClick={() => setRosterAttempt(value => value + 1)}>Thử lại</button></p>
+                  ? <p role="alert">Không tải được thành viên Workspace. <Button type="button" onClick={() => setRosterAttempt(value => value + 1)}>Thử lại</Button></p>
                   : <p role="status">Đang tải thành viên Workspace…</p>
                 : candidates.length === 0 && <p className="panel-sub">{roster.length === 0
                 ? 'Workspace này chưa có thành viên nào ngoài chủ sở hữu — thêm người trong “Quản lý thành viên” rồi quay lại bước này.'
@@ -380,11 +401,12 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
       </div>}
 
       {error && <p className="dialog-error" id="pv-wizard-error" role="alert">{error}</p>}
+      {offline && <p role="status">Có thể lưu file nháp trên thiết bị. Kết nối lại để tạo Project.</p>}
       <footer className={`dialog-actions pv-wizard-foot ${creationStyles['creationActions']}`}>
-        <button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</button>
+        <button type="button" className="button-secondary" disabled={pending || fileDraft.saving} onClick={onClose}>Hủy</button>
         <div className={`pv-wizard-nav ${creationStyles['creationActions']}`}>
-          {step > 0 && <button type="button" className="button-secondary" disabled={pending} onClick={() => { goToStep(step - 1) }}>Quay lại</button>}
-          <button type="button" className="button-primary" disabled={pending} onClick={goNext}>
+          {step > 0 && <button type="button" className="button-secondary" disabled={pending || fileDraft.saving} onClick={() => { goToStep(step - 1) }}>Quay lại</button>}
+          <button type="button" className="button-primary" disabled={pending || fileDraft.saving || (offline && step === steps.length - 1)} onClick={goNext}>
             {step === steps.length - 1
               ? pending ? 'Đang tạo Project…' : <><PreviewIcon name="check" /> Tạo Project</>
               : <>Tiếp theo <PreviewIcon name="chevron" /></>}

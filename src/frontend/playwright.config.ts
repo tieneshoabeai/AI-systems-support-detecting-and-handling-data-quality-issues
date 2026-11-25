@@ -32,7 +32,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium', channel: 'chromium' } }],
   webServer: {
-    command: 'yarn dev:e2e',
+    command: 'npm.cmd run dev:e2e',
     url: `${baseURL}/auth/login`,
     // Do not silently attach to an unrelated application on the dedicated E2E port.
     reuseExistingServer: false,

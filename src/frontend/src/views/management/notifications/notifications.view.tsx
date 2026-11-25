@@ -1,3 +1,4 @@
+import { Button, Input, Table } from '../../../components/ui/controls'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { NotificationFilterTab, PreviewNotification } from '../../../types'
@@ -46,9 +47,9 @@ function NoticeKind({ item }: { item: PreviewNotification }) {
 function BackToList() {
   const session = usePreviewSession()
   return <div className="back-row">
-    <button type="button" className="back-link" onClick={() => session.openSection('notifications')}>
+    <Button type="button" className="back-link" onClick={() => session.openSection('notifications')}>
       <span className="back-arrow" aria-hidden="true">←</span> Danh sách thông báo
-    </button>
+    </Button>
   </div>
 }
 
@@ -59,12 +60,12 @@ function BackToList() {
 function BackOutOfInbox() {
   const session = usePreviewSession()
   return <div className="back-row">
-    <button type="button" className="back-link" onClick={() => {
+    <Button type="button" className="back-link" onClick={() => {
       if (window.history.length > 1) window.history.back()
       else session.openSection('home')
     }}>
       <PreviewIcon name="arrow-left" /> Quay lại
-    </button>
+    </Button>
   </div>
 }
 
@@ -114,7 +115,7 @@ function NotificationDetail({ notification }: { notification: PreviewNotificatio
           dưới thì người đọc nghĩ trang chưa tải xong — nói thẳng là nó không có mô tả. */}
       <p className="notice-desc">{notification.description || 'Bản tin này không kèm mô tả chi tiết.'}</p>
       <div className="detail-actions">
-        <button type="button" className="button-primary" disabled={gap !== 'ok'}
+        <Button type="button" className="button-primary" disabled={gap !== 'ok'}
           aria-describedby={previewNoteIds.notificationDetail}
           onClick={() => {
             if (!project) return
@@ -123,11 +124,11 @@ function NotificationDetail({ notification }: { notification: PreviewNotificatio
             // chính nó chứa nút mở 3D. Route mang cả workspace lẫn project nên F5 vẫn đứng trang.
             session.openSection('projects', { workspaceId: project.workspaceId, projectId: project.id })
           }}>
-          Mở Project <span aria-hidden="true">↗</span></button>
-        <button type="button" className="button-secondary" disabled={!notification.unread}
+          Mở Project <span aria-hidden="true">↗</span></Button>
+        <Button type="button" className="button-secondary" disabled={!notification.unread}
           aria-describedby={previewNoteIds.notificationDetail}
           onClick={() => session.markNotificationsRead([notification.id])}>
-          <PreviewIcon name="check" /> Đánh dấu đã đọc</button>
+          <PreviewIcon name="check" /> Đánh dấu đã đọc</Button>
       </div>
       <ActionNote id={previewNoteIds.notificationDetail}>
         {noticeDetailReason(gap, !notification.unread)}
@@ -214,10 +215,10 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
       <FilterTabs tabs={notificationTabsFor(state.notifications)} active={tab}
         onChange={id => { setTab(id); setPage(1) }} label="Lọc thông báo" />
       <div className="toolbar-right">
-        <button type="button" className="button-secondary" disabled={unreadNotifications === 0}
+        <Button type="button" className="button-secondary" disabled={unreadNotifications === 0}
           aria-describedby={previewNoteIds.notificationList} onClick={session.readAllNotifications}>
           <PreviewIcon name="check" /> Đánh dấu tất cả đã đọc
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -226,15 +227,15 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
         : chosenElsewhere === 0 ? `Đã chọn ${chosen.length}`
           : `Đã chọn ${chosen.length} · ${chosenElsewhere} mục nằm ngoài danh sách đang hiện`}</span>
       <div className="bulk-actions">
-        <button type="button" className="button-secondary" disabled={chosen.length === 0}
+        <Button type="button" className="button-secondary" disabled={chosen.length === 0}
           aria-describedby={previewNoteIds.notificationList}
-          onClick={() => session.markNotificationsRead(chosen)}>Đánh dấu đã đọc</button>
-        <button type="button" className="button-danger" title="Máy chủ chưa hỗ trợ xóa thông báo" disabled={session.state.source === 'api' || chosen.length === 0}
+          onClick={() => session.markNotificationsRead(chosen)}>Đánh dấu đã đọc</Button>
+        <Button type="button" className="button-danger" title="Máy chủ chưa hỗ trợ xóa thông báo" disabled={session.state.source === 'api' || chosen.length === 0}
           aria-describedby={previewNoteIds.notificationList}
           onClick={() => { session.deleteNotifications(chosen); setPicked([]) }}>
-          <PreviewIcon name="trash" /> Xóa</button>
-        <button type="button" className="text-link" disabled={chosen.length === 0}
-          aria-describedby={previewNoteIds.notificationList} onClick={() => setPicked([])}>Bỏ chọn</button>
+          <PreviewIcon name="trash" /> Xóa</Button>
+        <Button type="button" className="text-link" disabled={chosen.length === 0}
+          aria-describedby={previewNoteIds.notificationList} onClick={() => setPicked([])}>Bỏ chọn</Button>
       </div>
     </div>
 
@@ -244,10 +245,10 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
         : 'Đổi tab lọc ở trên để xem nhóm thông báo khác; tải lại trang sẽ trả hộp thư về danh sách ban đầu.'} />
       : <Panel title={panelTitleFor(tab)}>
         <div className="table-scroll">
-          <table className="preview-table notice-table">
+          <Table className="preview-table notice-table">
             <thead><tr>
               <th scope="col" className="check-cell">
-                <label className="check-target"><input ref={headRef} type="checkbox"
+                <label className="check-target"><Input ref={headRef} type="checkbox"
                   aria-label="Chọn tất cả thông báo trên trang này"
                   checked={allVisibleChosen} onChange={toggleAll} /></label>
               </th>
@@ -258,12 +259,12 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
             </tr></thead>
             <tbody>{visible.map(item => <tr key={item.id} className={chosenSet.has(item.id) ? 'is-selected' : undefined}>
               <td className="check-cell">
-                <label className="check-target"><input type="checkbox" checked={chosenSet.has(item.id)}
+                <label className="check-target"><Input type="checkbox" checked={chosenSet.has(item.id)}
                   aria-label={`Chọn: ${item.title}`} onChange={() => toggleOne(item.id)} /></label>
               </td>
               <th scope="row">
-                <button type="button" className="row-link" onClick={() => session.openSection('notifications', { notificationId: item.id })}>
-                  {item.title}</button>
+                <Button type="button" className="row-link" onClick={() => session.openSection('notifications', { notificationId: item.id })}>
+                  {item.title}</Button>
                 <span className="row-sub">{item.context}</span>
               </th>
               <td><NoticeKind item={item} /></td>
@@ -271,7 +272,7 @@ export function NotificationsPreviewView({ notificationId }: { notificationId: s
               <td><ReadBadge unread={item.unread} /></td>
             </tr>)}
             </tbody>
-          </table>
+          </Table>
         </div>
         <ActionNote id={previewNoteIds.notificationList}>{session.state.source === 'api'
           ? 'Chọn thông báo để đánh dấu đã đọc. Hiện chưa hỗ trợ xóa thông báo.'

@@ -55,7 +55,7 @@ it('runs analysis on demand and follows the returned job until success', async (
   }))
   expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(1)
   expect(screen.getByText('Dòng đã quét')).toBeDefined()
-  expect(screen.queryByText('Tiến trình phân tích AI')).toBeNull()
+  expect(screen.getByRole('region', { name: 'Tiến trình phân tích AI' })).toBeDefined()
 })
 
 it('shows an empty result when the project has no analysis run', async () => {

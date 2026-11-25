@@ -5,6 +5,7 @@ import type { postIssuesReportRequestBody as CreateReportBody } from '../../type
 import type { patchUsersProfileRequestBody as ProfileBody } from '../../types/services-type/users'
 import type { patchUsersPreferencesRequestBody as PreferencesBody } from '../../types/services-type/notifications'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
+import type { LocalUploadDraftRef, UploadDraftPort } from '../../types/datasets/upload-draft.types'
 import type { ManagementStore, WorkspaceDetailOverview, WorkspaceOverview } from './management.types'
 import { validateCsvFile } from './upload-validation'
 import { mutationRefreshFailedCode } from './management.types'
@@ -13,6 +14,7 @@ import { createDatasetService } from '../processing/dataset.service'
 import { createAnalysisService } from '../processing/analysis.service'
 import { listRecentProjects } from '../processing/recent-projects.service'
 import { ApiError, isRecord, normalizeApiError } from '../../lib/api-error'
+import { QueuedWriteError } from '../offline/queued-write-error'
 import { mapSessionDetail } from './session.mapper'
 import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/management/management.types'
 
@@ -77,6 +79,7 @@ const saved = (message: string): PreviewMutationResult => ({ message, persisted:
 
 export function createManagementStore(api: ApiClient, account: Person, options: {
   readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal; recent?: boolean; progressiveProjects?: boolean
+  drafts?: UploadDraftPort; readOnly?: () => boolean; deferredWrites?: boolean
 } = {}) {
   let state: PreviewStoreState = {
     source: 'api', workspaces: [], projects: [], notifications: [], reports: [], sessions: [],
@@ -88,7 +91,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
   const versions = new Map<string, number>()
   const people = new Map<string, Person>([[account.id, account]])
   const issueDrafts = new Map<string, { id: string; attachmentUploaded: boolean }>()
-  const drafts = new Map<string, { project: ProjectDto; uploaded: boolean; members: Set<string> }>()
+  const drafts = new Map<string, { project: ProjectDto; uploaded: boolean; bound: boolean; confirmed: boolean; members: Set<string> }>()
   const inFlight = new Map<string, Promise<PreviewMutationResult>>()
   let revision = 0
   let disposed = false
@@ -108,7 +111,14 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       return value
     },
   }
-  const publish = (next: PreviewStoreState) => { if (!disposed) { state = next; listeners.forEach(fn => fn()) } }
+  const publish = (next: PreviewStoreState) => {
+    if (disposed) return
+    state = options.readOnly?.() ? { ...next,
+      workspaces: next.workspaces.map(workspace => ({ ...workspace, ...(options.deferredWrites ? {} : { canManage: false }) })),
+      projects: next.projects.map(project => ({ ...project, ...(options.deferredWrites ? {} : { canManage: false, canDelete: false, canUpload: false }), canUpdateDatasetMetadata: false, canComplete: false })),
+    } : next
+    listeners.forEach(fn => fn())
+  }
   const request = <T>(path: string, requestOptions: Omit<Exclude<ApiRequestOptions, { includeStatus: true }>, 'path' | 'auth'> = {}) =>
     sessionApi.request<T>({ path, auth: 'session', ...requestOptions })
   async function loadMembers(path: string, signal: AbortSignal): Promise<Member[]> {
@@ -453,8 +463,28 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     publish({ ...state, workspaces, projects, selection: { workspaceId, projectId } })
     return current
   }
+  async function confirmDraft(draft: LocalUploadDraftRef | undefined, value: unknown) {
+    if (!draft || !options.drafts) return
+    const dataset = isRecord(value) && isRecord(value['dataset']) ? value['dataset'] : null
+    if (!dataset || typeof dataset['id'] !== 'string' || !dataset['id']) {
+      throw new Error('Máy chủ đã nhận file nhưng thiếu mã dataset. Mở lại project để kiểm tra, không gửi lại file.')
+    }
+    await options.drafts.confirmUploaded(draft.id, { accountId: account.id, projectId: draft.scope, datasetId: dataset['id'] })
+  }
+  async function uploadCsv(id: string, file: File, localDraft?: LocalUploadDraftRef, acknowledged?: () => void, deferIfOffline = false) {
+    const form = new FormData(); form.append('file', file)
+    const response = await request<unknown>(`/projects/${id}/datasets/upload`, { method: 'POST', data: form, timeoutMs: 120000, deferIfOffline })
+    acknowledged?.()
+    try { await confirmDraft(localDraft, response) }
+    catch { throw new Error('File đã được tải lên nhưng chưa dọn được bản nháp. Mở lại project để kiểm tra, không gửi lại file.') }
+  }
   async function mutate(path: string, method: NonNullable<ApiRequestOptions['method']>, data?: unknown) {
-    await request<void>(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+    try {
+      await request<void>(path, { method, data, deferIfOffline: true, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+    } catch (error) {
+      if (error instanceof QueuedWriteError) return { message: error.message, queued: true, undo: () => {} }
+      throw error
+    }
     if (options.progressiveProjects) {
       cardRevision.abort()
       const deletedId = method === 'DELETE' ? path.match(/^\/projects\/([^/]+)$/)?.[1] : undefined
@@ -707,10 +737,17 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     transferOwner: (kind, id, email) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}/transfer-owner`, 'POST', { email, expectedVersion: version(id) } satisfies WorkspaceTransferBody & ProjectTransferBody),
     leaveWorkspace: id => mutate(`/workspaces/${id}/leave`, 'POST'),
     downloadAttachment: (id, attachmentId) => request<Blob>(`/issues/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`, { responseType: 'blob' }),
-    uploadDataset: async (id, file) => {
+    uploadDataset: async (id, file, localDraft) => {
       validateCsvFile(file)
-      const form = new FormData(); form.append('file', file)
-      return mutate(`/projects/${id}/datasets/upload`, 'POST', form)
+      try { await uploadCsv(id, file, localDraft, undefined, true) } catch (error) {
+        if (error instanceof QueuedWriteError) return { message: error.message, queued: true, undo: () => {} }
+        throw error
+      }
+      try { await load() } catch {
+        throw new ApiError({ kind: 'invalid-response', code: mutationRefreshFailedCode,
+          message: 'Đã upload file; chưa tải lại được project. Không gửi lại file.' })
+      }
+      return saved('Đã tải CSV lên máy chủ.')
     },
     toggleFavorite: id => { publish({ ...state, workspaces: state.workspaces.map(w => w.id === id ? { ...w, favorite: !w.favorite } : w) }); return Promise.resolve(saved('Đã đổi yêu thích trong phiên hiện tại.')) },
     rename: (kind, id, name) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}`, 'PATCH', { name, expectedVersion: version(id) } satisfies UpdateWorkspaceBody & UpdateProjectBody),
@@ -738,14 +775,36 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       const key = `${input.workspaceId}:${input.name.trim().toLowerCase()}`
       let draft = drafts.get(key)
       if (!draft) {
-        const { project } = await request<{ project: ProjectDto }>(`/workspaces/${input.workspaceId}/projects`, { method: 'POST', requireBody: true, data: { name: input.name, description: input.description } satisfies CreateProjectBody })
-        draft = { project, uploaded: false, members: new Set() }; drafts.set(key, draft)
+        const local = input.dataset.localDraft
+        const { project } = local?.targetProjectId
+          ? await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(local.targetProjectId)}`)
+          : await request<{ project: ProjectDto }>(`/workspaces/${input.workspaceId}/projects`, { method: 'POST', requireBody: true, data: { name: input.name, description: input.description } satisfies CreateProjectBody })
+        if (local?.targetProjectId && (project.workspaceId !== input.workspaceId || project.name !== input.name)) {
+          throw new Error('Bản nháp đã gắn với project khác. Giữ đúng Workspace và tên project để tiếp tục.')
+        }
+        draft = { project, uploaded: Boolean(local?.targetProjectId && project.hasDataset), bound: false, confirmed: false,
+          members: new Set(input.members.filter(member => project.members.some(row => row.userId === member.id)).map(email)) }
+        drafts.set(key, draft)
       }
       const { project } = draft
       let failedStep = 'tải CSV'
       try {
-        const form = new FormData(); form.append('file', input.dataset.file)
-        if (!draft.uploaded) { await request(`/projects/${project.id}/datasets/upload`, { method: 'POST', data: form, timeoutMs: 120000 }); draft.uploaded = true }
+        const local = input.dataset.localDraft
+        if (local && options.drafts && !draft.bound) {
+          await options.drafts.bindProject(local.id, project.id, project.name)
+          draft.bound = true
+        }
+        if (!draft.uploaded) {
+          await uploadCsv(project.id, input.dataset.file, local, () => { draft.uploaded = true })
+          draft.confirmed = true
+        } else if (local && options.drafts && !draft.confirmed) {
+          const existing = await request<{ dataset: DatasetDto | null }>(`/projects/${project.id}/datasets`)
+          if (existing.dataset?.originalFileName !== input.dataset.file.name || existing.dataset.fileSizeBytes !== input.dataset.file.size) {
+            throw new Error('Project đã có dataset khác. Mở project để kiểm tra trước khi xóa bản nháp.')
+          }
+          await confirmDraft(local, existing)
+          draft.confirmed = true
+        }
         failedStep = 'thêm thành viên'
         for (const p of input.members) { if (draft.members.has(email(p))) continue; await request(`/projects/${project.id}/members`, { method: 'POST', data: { email: email(p), role: projectRole(p.role) } satisfies ProjectMemberBody }); draft.members.add(email(p)) }
       } catch {

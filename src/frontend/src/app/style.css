@@ -44,9 +44,18 @@ button:disabled, input:disabled { background: var(--color-disabled); color: var(
 .session-wait { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px; min-height: 100dvh; text-align: center; }
 .session-wait h1 { font-size: clamp(28px, 4vw, 42px); margin: 25px 0 14px; }
 .session-wait p { color: var(--color-muted); font-size: 14px; }
-.dialog-backdrop { position: fixed; inset: 0; z-index: var(--layer-dialog); padding: 16px; display: grid; place-items: start center; background: rgb(17 31 26 / 14%); overflow-y: auto; }
-.dialog-panel { box-sizing: border-box; max-width: 700px; max-height: calc(100dvh - 32px); overflow-y: auto; width: 100%; padding: 16px 20px; border-radius: 16px; background: var(--color-surface); box-shadow: 0 8px 24px rgb(17 31 26 / 18%); animation: appear 350ms var(--ease-ui) both; }
-.dialog-panel h2 { margin: 0 0 12px; font-size: clamp(13px, 2.2vw, 17px); line-height: 1.4; text-align: center; }
+.dialog-backdrop { position: fixed; inset: 0; z-index: var(--layer-dialog); padding: 16px; display: grid; place-items: center; background: var(--color-scrim); overflow-y: auto; }
+.dialog-panel {
+  box-sizing: border-box; width: min(100%, 440px); max-height: calc(100dvh - 32px); overflow-y: auto;
+  overscroll-behavior: contain; padding: clamp(16px, 4vw, 26px); border: 1px solid var(--color-line);
+  border-radius: 18px; background: var(--color-surface-raised); color: var(--color-ink);
+  box-shadow: var(--shadow-lg); animation: appear 115ms var(--ease-ui) both;
+}
+.dialog-panel h2 { margin: 10px 0 6px; font-size: 20px; line-height: 1.4; text-wrap: balance; }
+.dialog-panel p { color: var(--color-muted); margin: 0 0 18px; line-height: 1.55; }
+.dialog-panel .dialog-actions { justify-content: flex-end; flex-wrap: wrap; }
+.renewal-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: var(--color-info-surface); color: var(--color-info); }
+@media (prefers-reduced-motion: reduce) { .dialog-panel { animation: none; } }
 .dialog-actions { display: flex; gap: 8px; justify-content: center; }
 .workspace-shell { min-height: 100dvh; padding: 20px clamp(20px, 6vw, 100px) 60px; }
 .workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--color-line); padding-bottom: 20px; }

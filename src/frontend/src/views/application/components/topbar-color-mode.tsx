@@ -1,3 +1,4 @@
+import { Button, Input } from '../../../components/ui/controls'
 import { useId, useRef, useState } from 'react'
 import type { PreviewColorPreference } from '../../../types'
 import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
@@ -18,11 +19,11 @@ export function TopbarColorMode() {
   const name = useId()
   const selected = modes.find(mode => mode.value === appearance.preference)!
   return <>
-    <button type="button" ref={triggerRef} className="icon-button" aria-label="Chế độ màu"
+    <Button type="button" ref={triggerRef} className="icon-button" aria-label="Chế độ màu"
       title={`Chế độ màu: ${selected.label}`} aria-haspopup="dialog" aria-expanded={open}
       onClick={() => { setTrigger(triggerRef.current); setOpen(value => !value) }}>
       <PreviewIcon name={selected.icon} />
-    </button>
+    </Button>
     <PreviewPopover open={open} label="Chế độ màu" trigger={trigger} align="end" onClose={() => setOpen(false)}>
       <fieldset className="topbar-color-options" onKeyDown={event => {
         if (event.key !== 'Escape') return
@@ -32,7 +33,7 @@ export function TopbarColorMode() {
       }}>
         <legend>Chế độ màu</legend>
         {modes.map(mode => <label key={mode.value} className="topbar-color-option">
-          <input type="radio" name={name} value={mode.value} checked={appearance.preference === mode.value}
+          <Input type="radio" name={name} value={mode.value} checked={appearance.preference === mode.value}
             autoFocus={appearance.preference === mode.value}
             onChange={() => appearance.setColorPreference(mode.value)} />
           <PreviewIcon name={mode.icon} />

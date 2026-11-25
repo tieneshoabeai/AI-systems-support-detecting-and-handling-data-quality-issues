@@ -128,8 +128,11 @@ it('giữ nội dung trang và bỏ dải ghi chú nội bộ', () => {
 
 it('topbar dựng đủ các vùng của Global Application Shell, trái sang phải', () => {
   const { container } = shell('home')
+  // Design System `Button` ghép thêm class CSS-module của nó vào className, nên đọc vùng theo
+  // class nghiệp vụ mà thứ tự các vùng vẫn được kiểm đúng như trước.
+  const regionNames = ['sidebar-toggle', 'topbar-chips', 'topbar-actions'] as const
   const regions = Array.from(container.querySelectorAll<HTMLElement>('.preview-topbar > *'))
-    .map(element => element.className)
+    .map(element => regionNames.find(name => element.classList.contains(name)) ?? element.className)
   // (1) toggle · (2+3) hai combobox phạm vi · (4→6) chuông/báo cáo/tài khoản.
   // Ô tìm kiếm toàn cục của đặc tả (vùng 4 cũ) đã bỏ theo chủ batch 03/11.
   expect(regions).toEqual(['sidebar-toggle', 'topbar-chips', 'topbar-actions'])

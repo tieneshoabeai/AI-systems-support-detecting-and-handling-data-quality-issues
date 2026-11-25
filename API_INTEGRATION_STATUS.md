@@ -1,0 +1,282 @@
+# Rà soát nút và IndexedDB runtime — 25/11/2026
+
+## Sửa lỗi nhận diện ngoại tuyến khi API khác vẫn trả 200
+
+Trước đây một GET lỗi mạng/timeout/HTTP 5xx có thể đặt cả ứng dụng vào chế độ đọc bản lưu, làm khóa phân tích. Trạng thái không tự phục hồi khi hàng đợi ghi trống. Lượt kiểm tra hàng đợi trước đó chưa bao phủ lỗi riêng một endpoint trong khi các API khác vẫn hoạt động.
+
+- HTTP 5xx chỉ dùng bản lưu của đúng yêu cầu (nếu có) và hiển thị cảnh báo dữ liệu chưa cập nhật; không đặt toàn ứng dụng offline. Nếu chưa có bản lưu, giữ lỗi HTTP thật cho module đó.
+- Lỗi mạng/timeout được kiểm tra kết nối trước khi chuyển cả ứng dụng sang đọc offline. Một phản hồi API thành công mới hơn không bị timeout cũ ghi đè.
+- Tự kiểm tra phục hồi mỗi 10 giây khi đang dùng offline, kể cả không có hàng đợi. Render lại provider không kích hoạt lại một probe đã thất bại, tránh tự thử dồn khi profile chưa phục hồi. Runtime `local-limited` phải xác minh lại profile trước khi trở về authenticated. Health lỗi riêng lẻ được đối chiếu với GET profile có xác thực, không dùng health làm căn cứ duy nhất khóa ứng dụng.
+- Nếu profile probe trả 401/403 hoặc tài khoản không còn hợp lệ thì chấm dứt đúng phiên đã kiểm tra và dọn cache; kết quả muộn của A không được chấm dứt phiên B. Hết phiên/đổi tài khoản/dispose/ngắt mạng trong lúc probe không được phục hồi sai.
+- Banner phân biệt trình duyệt mất mạng, chưa kết nối BE và một phần dữ liệu dùng bản lưu. Sự kiện browser online chỉ bắt đầu xác minh, không tự xác nhận BE sẵn sàng. Nút phân tích được mở lại sau khi phục hồi thật và các điều kiện quyền/dataset vẫn hợp lệ.
+
+### Kiểm chứng bổ sung trên production và BE thật
+
+**7 ca khác nhau đã đạt**: lượt tổng hợp có 5 ca đạt và 2 ca ghi được chạy lại thành công sau khi sửa mốc chờ của test (đợi quyền tải đầy đủ, đợi receipt IndexedDB trước khi chuyển trang). Các ca gồm đọc cache/kết quả/PDF, lỗi riêng 500/503/mạng/timeout thật 30 giây, health 503 nhưng profile 200, phục hồi không có hàng đợi, mạng online trước BE, upload mất ACK, sửa/xóa đúng thứ tự và hàng đợi Blob qua reload. POST phân tích thật trả **201** sau phục hồi; Data View thật trả 200. Đây là kiểm tra gọi phân tích, không phải xác nhận worker AI inference đã thành công.
+
+Hai file unit liên quan trực tiếp có 31 ca đọc/nhận diện kết nối và 52 ca session/runtime. Đã kiểm tra 401/403/404, phiên hết hạn khi probe đang chạy, đổi tài khoản/logout/dispose, probe đồng thời, render lại provider, timeout muộn và không dùng cache khi profile probe từ chối phiên. Build production, TypeScript app/E2E và lint các file sửa qua.
+
+Sau khi chặn provider render lại kích hoạt probe lặp, **129/129 kiểm tra liên quan qua**. Đã chạy lại ca production không có hàng đợi: đo được **2 GET profile** trong giai đoạn ngắt BE/reload/chuyển module, không tăng theo render; tự phục hồi và POST phân tích trả 201. Artifact: `temp/frontend-integration/offline-recovery-rate-guard-live.json`.
+
+**Lượt chốt bản sửa: 87/87 file, 1.025/1.025 unit test qua (260,69 giây)**, log `src/frontend/temp/offline-recovery-release-vitest.log`. Một lượt chạy đồng thời với Chrome bị timeout ở ca mock Workspace; ca đó giữ timeout 5 giây, chạy riêng đạt 25/25 và cả hai lượt full suite chạy riêng sau đó đạt 1.024/1.024 và 1.025/1.025. Build cuối, TypeScript app/E2E và lint các file sửa đều qua. Credential/tài khoản QA của cả hai lượt đã được dọn.
+
+Artifact local: `temp/frontend-integration/offline-recovery-live-first.json`, `offline-recovery-live-writes-recheck.json`, `offline-recovery-summary.json`. Tài nguyên và tài khoản QA tạm đã được dọn; credential đã xóa khỏi env. Các lỗi kết nối/HTTP được tiêm ở client; không dừng server dùng chung của nhóm.
+
+## Bổ sung hàng đợi ghi và tự đồng bộ
+
+Các thao tác được hỗ trợ ghi vào IndexedDB trước khi gửi API thật: upload CSV vào Project đã có; PATCH tên/mô tả Workspace/Project; DELETE Workspace/Project/dataset. UI trả thông báo chờ đồng bộ, không giả lập kết quả thành công trên server. Các phần ghi chú “chỉ đọc” ở những lượt kiểm chứng cũ bên dưới mô tả bản trước khi có hàng đợi này.
+
+- Database `data-quality.offline-writes.v1`, lưu Blob CSV và dữ liệu tối thiểu, phân tách theo tài khoản và URL API. Tối đa 100 yêu cầu/100 MiB mỗi tài khoản, tối đa 50 MiB mỗi file. Không lưu token hay mật khẩu trong hàng đợi.
+- Khi ứng dụng đang mở, tự thử mỗi 10 giây lúc có yêu cầu chờ và trình duyệt có mạng, đồng thời thử khi có sự kiện online hoặc khôi phục phiên. Kiểm tra health của BE, MongoDB và phiên trước khi gửi. Đóng tab thì tạm ngừng; mở lại và đăng nhập đúng tài khoản sẽ tiếp tục. Tunnel đổi origin cần kiểm tra lại hàng đợi cũ, không tự chuyển dữ liệu sang server khác.
+- Gửi tuần tự dưới Web Lock để tránh hai tab cùng gửi. Chỉ dọn sau ACK đã được lưu bền vững. Lỗi dọn cache sau ACK không làm gửi lại mutation. PATCH dùng `expectedVersion`; xung đột/quyền không hợp lệ chặn hàng đợi để người dùng kiểm tra. Có mục xem chi tiết, kiểm tra lại và bỏ khỏi hàng đợi; bỏ không hoàn tác thao tác server đã nhận.
+- Mất phản hồi PATCH: đối chiếu trường và phiên bản. DELETE gặp 404: đối tượng đã vắng mặt. Upload mất phản hồi: tải file gốc để so SHA-256 với Blob đã lưu. Không khớp hoặc chưa xác định thì dừng để kiểm tra, không tự upload lại. Đây là biện pháp tránh gửi mù; không thay thế idempotency key phía BE.
+- Tạo Workspace/Project mới, thành viên, mật khẩu, AI, tạo tổng kết/PDF và quản trị vẫn cần kết nối. Xem dữ liệu cũ tiếp tục dùng cache đọc; những mục chưa tải trước đó không tự xuất hiện offline.
+
+Swagger của lượt này: https://richardson-planner-evaluation-interim.trycloudflare.com/api/v1/docs. Cấu hình local đã cập nhật origin; tài khoản QA tạm chỉ dùng dữ liệu tổng hợp của lượt kiểm tra.
+
+### Kết quả kiểm tra hàng đợi
+
+- **Production + API thật: 3/3 ca qua**, bao gồm teardown. Hai ca chính qua cùng một lượt (1,5 phút): sửa Workspace rồi DELETE Project/Workspace đúng thứ tự; đổi tên Project, giữ hàng đợi và Blob qua reload khi API bị ngắt nhưng navigator vẫn online, tự upload multipart, đối chiếu CSV gốc khớp từng byte, xóa dataset khi mạng trình duyệt offline rồi tự gửi khi online. Không bấm Kết nối lại để kích hoạt ca BE hồi phục.
+- Ca thứ ba (33,2 giây): POST upload thực sự được BE xử lý 201 rồi chủ động bỏ phản hồi ở ranh giới client. IndexedDB chuyển `uncertain`; lần kiểm tra sau tải file gốc và so hash để xác nhận. Chỉ có **một lần POST upload**, không gửi lại file.
+- **147/147 kiểm tra liên quan qua trong 7 file**, gồm 25 ca hàng đợi mới: bền vững, auto retry, Blob, quota/khi không ghi được IndexedDB, tài khoản/namespace/phiên hết hạn, serialize giữa các runtime, version/xung đột, HTTP lỗi, mất ACK, file khác hash, cache cleanup lỗi sau ACK. TypeScript app/E2E và build production qua. Lint phần mới không có lỗi; các file UI cũ còn cảnh báo thụt dòng.
+- **Lượt chốt trước push: full suite 87/87 file, 1.003/1.003 kiểm tra qua (275,15 giây).** Build production và TypeScript E2E chạy lại đều qua; lint 0 lỗi, còn 30 cảnh báo thụt dòng. Log local: `src/frontend/temp/queue-final-vitest.log`, `queue-final-build.log`, `queue-final-lint.log`.
+- Artifact local: `temp/frontend-integration/queue-production-main.json` và `temp/frontend-integration/queue-production-lost-ack.json`; không commit tài khoản, token, file env hoặc artifact QA. Đây là ngắt kết nối API tại client; không dừng tiến trình server dùng chung của nhóm.
+
+## Căn cứ giữ/bỏ nút
+
+Đã fetch `origin/frontend` và xác minh commit `3a49455`. Người dùng xác nhận giữ danh sách/hành vi nút như nhánh này, giữ hình thức TaiFE. Không lấy nhận xét chung “nhiều nút” làm căn cứ tự bỏ chức năng.
+
+- Full stack yêu cầu bỏ cấu hình cột/lưu-tải cấu hình phân tích và chỉnh PII thủ công; bốn tham số phương pháp vẫn gửi trong POST phân tích.
+- Chính `frontend` đã bỏ tab/nút Detection riêng, nút Chỉ số chất lượng AI, các ô nhập ID job/run/finding/feedback và thay nhóm feedback rời rạc bằng `AnalysisFeedbackPanel`. Những thay đổi này không phải yêu cầu gộp Detection trong tài liệu full stack.
+- Đối chiếu tại `src/frontend/src/views/processing/project/project-workspace.view.tsx`, `sections/live-analysis-panel.tsx` và `sections/analysis-job-panel.tsx` của commit trên. Giữ ba tab như frontend. Đã gỡ cách ánh xạ tự thêm orange → Data Analysis; khối cam không mở module, đúng handler frontend. Các nút Kính/Nền trắng và điều khiển 3D TaiFE được giữ.
+
+## Kiểm chứng runtime IndexedDB
+
+Production app, service worker và IndexedDB native chạy thật trên Chrome; ca độc lập dùng HTTP API mô phỏng đã qua **8 tình huống**. Đã sửa duy nhất bản ghi QA trong IndexedDB thành marker không có trên API, reload để tạo runtime mới rồi kiểm tra UI hiển thị marker đó. Đo được 7 lần đọc store `reads` khi API mất kết nối nhưng navigator vẫn online, và 5 lần đọc khi ngắt toàn bộ mạng. Đây là đọc dữ liệu bền vững từ IndexedDB, không phải giữ state của runtime cũ.
+
+Đã xác minh bản ghi, kết quả phân tích, PDF hoàn chỉnh, danh sách Project đọc được ngoại tuyến; thao tác chạy mới bị khóa; Project chưa từng tải báo chưa có bản lưu; kết nối lại lấy lại giá trị API và thay marker cũ. Bằng chứng local: `temp/frontend-integration/runtime-offline-proof.json` và ảnh `runtime-*.png`.
+
+Server mới: [Swagger QA](https://additions-kid-soft-pond.trycloudflare.com/api/v1/docs). Health/ready/docs-json đều 200; vẫn 84 thao tác, `paths` và schema giống snapshot hiện tại. Cấu hình local và bản production đã chuyển sang origin mới.
+
+**E2E với API thật: 1/1 qua, gồm cả teardown (53,1 giây).** CSV tổng hợp được upload lên server, Data View gọi stats/charts, chạy phân tích với đúng bốn tham số, gửi/đọc feedback, tạo tổng kết và tải PDF có chữ ký `%PDF-`. Khi ngắt API nhưng navigator vẫn online, runtime mới đọc store `reads` 7 lần. Khi ngắt toàn bộ mạng và reload, runtime mới đọc 5 lần, UI hiển thị marker chỉ có trong IndexedDB; PDF hoàn chỉnh đã có trong cache; không nhận phản hồi API nào trong giai đoạn offline. Kết nối lại hiển thị `QA001` từ API thay marker. Lần này không còn lỗi cleanup của lượt test trước.
+
+Bộ hồi quy liên quan: **48/48 qua**; build production và TypeScript E2E qua; lint bốn tệp thay đổi không có lỗi (9 cảnh báo). Dữ liệu Workspace/Project/dataset/feedback của ca live đã được teardown dọn theo ID; đã xóa thêm hai tài khoản QA tạm và credential local. Bản xem tại `http://127.0.0.1:5179/` nối tunnel mới. Artifact live: `src/frontend/temp/runtime-live-indexeddb.log` và các attachment `indexeddb-network-error-fallback`, `indexeddb-runtime-proof` trong report local; không commit artifact/credential.
+
+---
+
+# Lượt tích hợp trước trên TaiFE — 25/11/2026
+
+## Phạm vi và thứ tự ưu tiên
+
+Code được cập nhật trực tiếp trên `TaiFE`, giữ nền giao diện tại `511f5f9`; chọn lọc phần API từ `b2c80bb` trên nhánh tích hợp và cập nhật theo Swagger server mới. Thứ tự xử lý: hợp đồng full stack trong `API_ANSWER_24-11.md` → luồng nghiệp vụ/gộp nút từ `frontend` → hình thức và thao tác đặc trưng của TaiFE. Tài liệu trả lời full stack và thư mục yêu cầu riêng không được đưa vào commit.
+
+- Giữ theme Sáng/Tối/Theo hệ thống, bố cục Management/Processing, avatar, nền/vật liệu/mô hình 3D, Kính/Nền trắng, kéo/đổi kích thước/khôi phục panel, toàn màn hình, tách/ghép mô hình, camera và Đăng xuất.
+- Giữ ba tab Tổng quan, Data View và Data Analysis theo nhánh frontend. Sau lượt rà soát ở đầu tài liệu, khối cam không mở module theo đúng frontend.
+- Bỏ lưu/tải cấu hình phân tích, chọn cột/vai trò cột và chỉnh PII theo quyết định full stack. Bốn tham số phương pháp đi trực tiếp trong body chạy phân tích. PII là thông tin đọc.
+- Feedback gắn với lần chạy/phát hiện đang xem, không yêu cầu nhập ID thủ công. Kết quả có tổng quan chất lượng, thống kê và ma trận tương quan. PDF đọc trạng thái thực, báo lỗi khi `failed`; job retry theo dõi ID mới.
+- Thành viên Project được tải khi mở dialog; không tải thêm roster Workspace cho Viewer. Admin giữ hai tab TaiFE, tải theo trang với nút Tải thêm.
+- File nháp được nối vào wizard và màn upload: khôi phục/xóa nháp, giữ khi upload lỗi, dọn sau ACK, tiếp tục Project đã tạo dở. Dữ liệu Project/dataset/phân tích/PDF đã tải được lưu theo tài khoản và API origin; ngoại tuyến chỉ đọc trong phiên hợp lệ. Cache không thay thế lỗi 401/403/404, không chứa mật khẩu/refresh token hoặc trang Admin.
+- Production có service worker chỉ cache tài nguyên tĩnh để reload khi mất mạng. API và dữ liệu tài khoản dùng IndexedDB riêng. Mục chưa xem/tải khi có mạng không tự có bản ngoại tuyến.
+
+## Server QA của lượt tích hợp trước và kết quả đã xác minh
+
+[Swagger mới](https://sustained-folder-europe-invest.trycloudflare.com/api/v1/docs), origin `https://sustained-folder-europe-invest.trycloudflare.com`, prefix `/api/v1`. Đã cập nhật `.env` local và sinh lại snapshot/type từ `/api/v1/docs-json`: **84 thao tác HTTP**. Con số này là inventory hợp đồng, **không phải 84 ca live đã đạt ngày 25/11**.
+
+- `/health` và `/health/ready`: 200; profile không đăng nhập: 401; Analyst gọi Admin: 403. CORS từ origin local được chấp nhận.
+- Dùng hai tài khoản Analyst QA tạm và CSV tổng hợp. Đã xác minh đăng ký/đăng nhập, guard, đổi màu, khôi phục phiên, đăng xuất và cờ session bị thu hồi trên server.
+- Luồng production Workspace/Project đã qua: tạo, sửa tên, reload kiểm tra persistence, wizard upload CSV, đọc đúng dòng/cột, truy vấn records, đổi tên Project, xóa tài nguyên test và kiểm tra Workspace đối chứng còn nguyên.
+- Phân quyền API đã qua: người ngoài Workspace bị chặn; Viewer đọc được nhưng không sửa/chạy phân tích; owner đổi Viewer sang Member bằng expectedVersion; gỡ membership Project trở về Viewer kế thừa Workspace; gỡ Workspace thì mất quyền đọc Project.
+- Data View gọi stats/charts 200. Data Analysis trả kết quả cho CSV có dòng trùng, thiếu dữ liệu và ngoại lệ; gửi/đọc lại feedback thành công. Tạo tổng kết trước khi yêu cầu PDF; đã nhận và tải tệp có chữ ký `%PDF-`.
+- Ca production với API thật đã qua toàn bộ assertion chức năng ngoại tuyến: reload, xem records/phân tích, tải PDF đã lưu, mở danh sách Project và kết nối lại. Tuy nhiên test vẫn báo đỏ ở teardown do timeout DELETE tài nguyên QA; đã dọn riêng thành công sau đó. Chưa coi cả suite live là xanh ổn định.
+- Worker AI có ca trả trạng thái `failed`, attempt 3, thông báo `fetch failed`. Frontend đã hiển thị trạng thái này; chưa nghiệm thu AI chạy thành công đầu cuối.
+- Chưa có tài khoản Admin để nghiệm thu các ca quản trị dương tính; chưa nghiệm thu OTP nhận qua email thật và OAuth Google hoàn chỉnh. Unit test không thay các ca này.
+
+## Kiểm chứng local và cách xem lại
+
+Build production và kiểm tra TypeScript E2E đã qua. Đã chụp sáu màn TaiFE trên Chrome (Workspace, Project, Kính, Analysis tối/sáng/mobile). Test production với API mô phỏng đã qua bảy tình huống: tải/lưu online, reload offline, bản ghi, kết quả phân tích, tải PDF, danh sách Project và kết nối lại. Các bằng chứng này tách khỏi E2E server thật.
+
+Lượt local trước khi rà soát runtime: **978/978 test qua, 0 lỗi**; hồi quy bốn suite UI liên quan 94/94. Build production và TypeScript E2E qua. Lint phần thay đổi: 79 tệp, 0 lỗi, 78 cảnh báo. Lượt chạy cùng nhiều Chrome trước đó có 5 timeout; chạy lại tuần tự đã qua toàn bộ, không tăng timeout của Vitest để che lỗi.
+
+Đã xóa hai tài khoản Analyst QA tạm và các tài nguyên test còn lại theo ID/owner đã xác minh; credential tạm đã được xóa khỏi env và file trạng thái. Bản xem production tại `http://127.0.0.1:5179/` nối backend mới, yêu cầu tài khoản của người xem.
+
+Artifact kiểm thử nằm trong thư mục local bị ignore `temp/frontend-integration/` và `src/frontend/temp/`. Không commit credential, `.env`, trace hay dữ liệu QA riêng. Hướng dẫn thực hiện lại nằm trong [MANUAL_QA_GUIDE.md](MANUAL_QA_GUIDE.md). Phần dưới là báo cáo lịch sử ngày 24/11 trên tunnel cũ, không dùng thay kết quả ngày 25/11.
+
+---
+
+# Báo cáo tích hợp API — 24/11/2026
+
+## 1. Toàn bộ API trong Swagger và kết quả ngày 24/11
+
+- [Swagger QA](https://headquarters-qualification-fighter-cio.trycloudflare.com/api/v1/docs) và [OpenAPI JSON](https://headquarters-qualification-fighter-cio.trycloudflare.com/api/v1/docs-json) trả HTTP `200`. Inventory lấy trực tiếp từ JSON ngày 24/11.
+- **84/84 API** trong Swagger có mã HTTP ngày 24/11. **81** có status Network từ DataVerse (trong đó **79** có ít nhất một lần `2xx`). **3** chỉ thử trực tiếp; các ca âm tính hoặc chưa xác nhận đầu cuối có ghi chú riêng.
+- Môi trường UI: DataVerse qua Vite `http://127.0.0.1:5178`, Chrome, hai analyst QA và một admin. Cấu hình origin frontend trỏ tới tunnel QA mới. Request CORS preflight không được tính là đã kiểm tra endpoint.
+- Mã `304` là xác thực cache. Mã `4xx` chỉ chứng minh đã gửi request; cần đọc ngữ cảnh luồng trước khi kết luận sai cách nối.
+
+| API | Màn hình hoặc consumer | Network DataVerse | Gọi kiểm tra trực tiếp |
+|---|---|---|---|
+| `GET /health` | Health service kiểm tra MongoDB trước khi gia hạn session; không phải màn nghiệp vụ | 200 | 200 |
+| `GET /health/ready` | Cài đặt → System → Trạng thái hệ thống (đã nối) | 200 | — |
+| `GET /api/v1/users/me` | Bootstrap/khôi phục hồ sơ hiện tại sau đăng nhập | 200 | — |
+| `PATCH /api/v1/users/me` | Settings → Hồ sơ cá nhân, lưu profile | 200 | — |
+| `DELETE /api/v1/users/me` | Cài đặt → Hồ sơ → Xóa tài khoản (thử với tài khoản tạm) | 200 | — |
+| `GET /api/v1/admin/users` | Quản lý → Quản trị → Tài khoản, danh sách user | 200 | — |
+| `GET /api/v1/admin/users/{id}` | Mở hồ sơ user trong trang quản trị | 200 | — |
+| `POST /api/v1/auth/register` | Form đăng ký account | 201 | — |
+| `POST /api/v1/auth/login` | Form đăng nhập | 200 | — |
+| `POST /api/v1/auth/refresh` | Gia hạn phiên sau consent | 200 | — |
+| `POST /api/v1/auth/forgot-password` | Form quên mật khẩu, gửi OTP | 200 | — |
+| `POST /api/v1/auth/reset-password` | Form đặt lại mật khẩu bằng OTP | 400 | — |
+| `POST /api/v1/auth/change-password` | Settings → Bảo mật → Đổi mật khẩu | 200 | — |
+| `GET /api/v1/auth/google` | Nút đăng nhập Google, bắt đầu OAuth redirect | 302 | — |
+| `GET /api/v1/auth/google/callback` | Callback Google, hoàn tất đăng nhập/redirect | — | 401 |
+| `POST /api/v1/auth/logout` | Menu account/đăng xuất, thu hồi session hiện tại | 200 | — |
+| `GET /api/v1/auth/sessions` | Settings → Đăng nhập & phiên, danh sách thiết bị | 200 | — |
+| `GET /api/v1/auth/sessions/me` | Chi tiết session hiện tại | 200 | — |
+| `GET /api/v1/auth/sessions/{id}` | Mở chi tiết một session | 200 | — |
+| `DELETE /api/v1/auth/sessions/{id}` | Thu hồi một session khác | 200 | — |
+| `POST /api/v1/workspaces` | Dialog Tạo Workspace | 201 | — |
+| `GET /api/v1/workspaces` | Bootstrap và danh sách Workspace | 200 | — |
+| `GET /api/v1/workspaces/{id}` | Mở chi tiết Workspace | 200 | — |
+| `PATCH /api/v1/workspaces/{id}` | Lưu thông tin Workspace | 200 | — |
+| `DELETE /api/v1/workspaces/{id}` | Xóa mềm Workspace sau xác nhận | 204 | — |
+| `GET /api/v1/workspaces/{id}/members` | Danh sách thành viên trong Workspace | 200 | — |
+| `POST /api/v1/workspaces/{id}/members` | Thêm thành viên Workspace | 201 | — |
+| `DELETE /api/v1/workspaces/{id}/members/{userId}` | Gỡ thành viên Workspace | 200 | — |
+| `POST /api/v1/workspaces/{id}/transfer-owner` | Chuyển quyền owner Workspace | 201 | — |
+| `POST /api/v1/workspaces/{id}/leave` | Rời Workspace | 201 | — |
+| `POST /api/v1/workspaces/{workspaceId}/projects` | Wizard Tạo Project trong Workspace | 201 | — |
+| `GET /api/v1/workspaces/{workspaceId}/projects` | Danh sách Project theo Workspace, fallback tương thích | — | 200 |
+| `GET /api/v1/projects` | Processing/Projects, danh sách Project toàn hệ thống | 200 | — |
+| `GET /api/v1/projects/{id}` | Mở Project overview | 200 | — |
+| `PATCH /api/v1/projects/{id}` | Cập nhật Project | 200 | — |
+| `DELETE /api/v1/projects/{id}` | Xóa mềm Project sau xác nhận | 204 | — |
+| `PUT /api/v1/projects/{id}/snapshot` | Hoàn tất Project/snapshot | 200 | — |
+| `GET /api/v1/projects/{id}/members` | Thành viên Project | 200 | — |
+| `POST /api/v1/projects/{id}/members` | Thêm thành viên Project | 201 | — |
+| `PATCH /api/v1/projects/{id}/members/{userId}` | Đổi role thành viên Project | 200 | — |
+| `DELETE /api/v1/projects/{id}/members/{userId}` | Gỡ thành viên Project | 200 | — |
+| `POST /api/v1/projects/{id}/transfer-owner` | Chuyển quyền owner Project | 201 | — |
+| `POST /api/v1/projects/{projectId}/datasets/upload` | Wizard upload CSV vào Project | 201 | — |
+| `GET /api/v1/projects/{projectId}/datasets` | Tải dataset của Project | 200 | — |
+| `GET /api/v1/datasets/{id}` | Đọc metadata dataset | 200 | — |
+| `DELETE /api/v1/datasets/{id}` | Xóa mềm dataset sau xác nhận | 204 | — |
+| `GET /api/v1/datasets/{id}/file` | Data View → Tải CSV gốc | 200 | — |
+| `GET /api/v1/datasets/{id}/schema` | Data View/Data Analysis, dựng cột và kiểu dữ liệu | 200, 404 | — |
+| `GET /api/v1/datasets/{datasetId}/records` | Data View, tải trang bản ghi cursor | 200, 404 | — |
+| `POST /api/v1/datasets/{datasetId}/records/query` | Data View, tìm kiếm/lọc/sắp xếp rồi Áp dụng | 200 | — |
+| `GET /api/v1/datasets/{datasetId}/columns/{columnKey}/stats` | Data View → Thống kê cột đã chọn | 200 | — |
+| `GET /api/v1/datasets/{datasetId}/charts` | Data View → Phân bố dữ liệu, histogram và các tứ phân vị | 200 | 200 |
+| `POST /api/v1/projects/{projectId}/analysis` | Project → Data Analysis → Chạy phân tích | 201 | — |
+| `GET /api/v1/projects/{projectId}/analysis/result` | Data Analysis → Tải kết quả | 404, 200 | — |
+| `GET /api/v1/analysis/jobs/{jobId}` | Data Analysis → Xem trạng thái AI job | 200 | — |
+| `POST /api/v1/analysis/jobs/{jobId}/retry` | Data Analysis → Thử lại job | 202 | — |
+| `POST /api/v1/analysis/jobs/{jobId}/result` | Endpoint nhận kết quả nội bộ, UI theo dõi qua GET job | — | 404 |
+| `POST /api/v1/projects/{projectId}/summary` | Data Analysis → Tạo tổng kết | 201 | — |
+| `GET /api/v1/projects/{projectId}/summary` | Data Analysis → Tải tổng kết | 200 | — |
+| `POST /api/v1/projects/{projectId}/report` | Data Analysis → Yêu cầu PDF | 202 | — |
+| `GET /api/v1/projects/{projectId}/report/{reportId}/file` | Data Analysis → Tải PDF/poll trạng thái | 202 | — |
+| `GET /api/v1/notifications` | Chuông/trang thông báo, danh sách cá nhân | 200 | — |
+| `GET /api/v1/notifications/unread-count` | Badge số thông báo chưa đọc | 200 | — |
+| `GET /api/v1/notifications/{id}` | Mở chi tiết thông báo | 200 | — |
+| `PATCH /api/v1/notifications/{id}/read` | Đánh dấu thông báo đã đọc | 200 | — |
+| `PATCH /api/v1/users/me/notification-preferences` | Settings thông báo, bật/tắt nhận | 200 | — |
+| `POST /api/v1/issues` | Gửi báo cáo vấn đề từ UI | 201 | — |
+| `GET /api/v1/issues` | Danh sách báo cáo vấn đề của user | 200 | — |
+| `POST /api/v1/issues/{id}/attachments` | Upload file đính kèm issue | 201 | — |
+| `GET /api/v1/issues/{id}/attachments/{attachmentId}` | Tải file đính kèm issue | 200 | — |
+| `GET /api/v1/issues/{id}` | Mở chi tiết issue của user | 200 | — |
+| `PATCH /api/v1/issues/{id}` | Sửa issue khi backend cho phép | 200 | — |
+| `GET /api/v1/admin/issues` | Quản trị → Báo cáo vấn đề, danh sách | 200 | — |
+| `GET /api/v1/admin/issues/{id}` | Quản trị → Chi tiết issue | 200 | — |
+| `PATCH /api/v1/admin/issues/{id}/status` | Quản trị → Cập nhật trạng thái issue | 200, 401 | — |
+| `POST /api/v1/analyses/{analysisId}/findings/{findingId}/feedback` | Data Analysis → Gửi feedback cho finding | 201 | — |
+| `GET /api/v1/analyses/{analysisId}/findings/{findingId}/feedback` | Data Analysis → Xem feedback finding | 200 | — |
+| `POST /api/v1/analyses/{analysisId}/feedback` | Data Analysis → Gửi feedback lần chạy | 201 | — |
+| `GET /api/v1/analyses/{analysisId}/feedback` | Data Analysis → Xem feedback lần chạy | 200 | — |
+| `PATCH /api/v1/feedback/{id}` | Data Analysis → Cập nhật feedback | 200 | — |
+| `DELETE /api/v1/feedback/{id}` | Data Analysis → Xóa feedback | 200 | — |
+| `GET /api/v1/projects/{projectId}/ai-quality-metrics` | Data Analysis → Chỉ số chất lượng AI | 200 | — |
+| `GET /api/v1/overview/workspaces` | Home/Activity Overview, tổng quan workspace của user | 200 | — |
+| `GET /api/v1/workspaces/{id}/overview` | Workspace Detail, cards và phân bố trạng thái | 200 | — |
+
+## 2. API chưa có kết nối từ DataVerse
+
+- `POST /api/v1/analysis/jobs/{jobId}/result`. Endpoint nhận kết quả nội bộ, UI theo dõi qua GET job.
+
+## 3. API đã nối nhưng chưa có mã HTTP từ UI
+
+- `GET /api/v1/auth/google/callback` — Callback Google, hoàn tất đăng nhập/redirect.
+- `GET /api/v1/workspaces/{workspaceId}/projects` — Danh sách Project theo Workspace, fallback tương thích.
+
+## 4. API có nhưng chưa có thao tác UI tương ứng
+
+- `GET /api/v1/datasets/{datasetId}/charts` **đã nối** vào Data View. Lượt kiểm tra bổ sung đã xác nhận Box Plot và Top N bằng dữ liệu backend QA. Giá trị phân loại được ẩn nếu backend đánh dấu `masked` hoặc cột được đánh dấu PII. Xem kết quả chi tiết ở cuối báo cáo.
+- `POST /api/v1/analysis/jobs/{jobId}/result`: endpoint ghi kết quả nội bộ. Worker gọi `IngestAiResultHandler` trong `src/backend/src/modules/analysis/application/services/ai-worker.service.ts`; người dùng xem trạng thái hoặc thử lại từ Data Analysis.
+- `GET /health/ready` **đã có UI** ở `src/frontend/src/views/management/settings/system-status.tsx`, nên không nằm trong nhóm này.
+
+## 5. Rà soát màn hình có tính năng thiếu API
+
+- **Đăng nhập/đăng ký:** nút Microsoft và GitHub bị khóa trong `src/frontend/src/views/auth/login/sections/auth-provider-buttons.tsx`; Swagger không có OAuth cho hai nhà cung cấp. Google có API riêng.
+- **Processing → Data Analysis:** nút tải/lưu cấu hình gọi `GET`/`POST /analysis/config` qua `analysis.service.ts`. Hai route có trong checkout backend nhưng vắng ở Swagger QA. Xem kết quả ngày 24/11 bên dưới.
+- **Processing → Data View:** đánh dấu PII gọi `PATCH /datasets/{id}/columns/pii` qua `dataset.service.ts`. Route có trong checkout backend nhưng vắng ở Swagger QA.
+- **Processing → thanh công cụ project:** nút Tải file kết quả cần `result.download` trong `project-data-actions.tsx`; chưa có adapter live cho file dữ liệu sau xử lý. Tải CSV gốc và yêu cầu/xuất PDF đã có API riêng.
+- **Workspace:** thêm/gỡ/chuyển owner đã có contract. Dropdown sửa role thành viên ở chế độ live bị khóa; `setWorkspaceMemberRole` là `unsupported` trong `management.store.ts`. Yêu thích workspace chỉ cập nhật state trong phiên, không có hợp đồng lưu trên server.
+- **Workspace → ảnh/biểu tượng:** `workspace-detail-dialogs.tsx` gọi `saveResourceAvatar` từ `use-resource-avatar.ts`. Đây là lưu trên client, Swagger không có endpoint đồng bộ ảnh/biểu tượng qua tài khoản.
+- **Thông báo:** nút xóa bị khóa trong `notification-center.tsx` và `notifications.view.tsx`; Swagger chỉ có danh sách, chi tiết, số chưa đọc và đánh dấu đọc.
+- **Cài đặt → Hồ sơ:** trường Đơn vị bị khóa ở chế độ API; backend không có `organization` trong `update-user.dto.ts`. Chế độ màu lưu theo thiết bị từ UI, không cần API trừ khi phải đồng bộ tài khoản.
+- **Báo cáo vấn đề:** gửi, xem, tải tệp và sửa khi cần bổ sung đã có contract. Swagger chưa có endpoint xóa issue hay tệp, nên QA cần dữ liệu tạo riêng và chấp nhận lưu bản ghi. **Quản trị** có API xem tài khoản và cập nhật issue, không dùng quyền analyst để kết luận lỗi.
+- **Home, menu tài khoản, phiên đăng nhập, thông báo, Settings, danh sách Workspace/Project, wizard CSV, Data View/Data Analysis và trạng thái hệ thống** đã được đối chiếu handler trong source. Thao tác nào thực sự phát request được ghi ở bảng đầu. Chế độ 3D và mở CSV cục bộ xử lý hiển thị tại trình duyệt; bản ghi upload mới dùng API dataset.
+
+### Sai khác OpenAPI frontend so với Swagger deploy
+
+- `PATCH /api/v1/datasets/{id}/columns/pii`: 404.
+- `POST /api/v1/projects/{projectId}/analysis/config`: chưa thu HTTP từ UI.
+- `GET /api/v1/projects/{projectId}/analysis/config`: 404.
+
+## 6. Kết quả luồng, dữ liệu QA và việc backend cần hỗ trợ
+
+- Các luồng chính đã thao tác trong Chrome: tài khoản, gia hạn/thu hồi phiên, quản lý Workspace/Project, upload/lọc/tải/xóa CSV, phân tích/AI/PDF/feedback, thông báo, báo cáo vấn đề và quản trị. Phản hồi từng bước nằm trong inventory.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `workspace` `6b050b0d00f66f78bb734c80` `QA24-mwu5xekc`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `project` `6b050b2000f66f78bb734c81`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `dataset` `e5a8c359e06e82c93060de70`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `feedback` `6b050ba200f66f78bb734c95`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa feedback` `6b050ba200f66f78bb734c95`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `issue QA lưu lại vì không có DELETE` `6b050bed00f66f78bb734c97`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `finding feedback` `6b050dd400f66f78bb734ca6`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa finding feedback` `6b050dd400f66f78bb734ca6`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa dataset` `e5a8c359e06e82c93060de70`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa tài khoản tạm` `6b050bfd00f66f78bb734c99`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `dataset kiểm tra lại` `8ebe063ac080507cd6e39f50`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `issue QA đã đánh dấu resolved` `6b050bed00f66f78bb734c97`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa dataset kiểm tra lại` `8ebe063ac080507cd6e39f50`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa project` `6b050b2000f66f78bb734c81`.
+- Dữ liệu QA đã tạo, dọn hoặc cập nhật: `đã xóa workspace` `6b050b0d00f66f78bb734c80`.
+
+### Sửa frontend và kiểm tra lại
+
+- **Cấu hình QA:** cập nhật `.env` của frontend sang origin `https://headquarters-qualification-fighter-cio.trycloudflare.com` và giữ prefix `/api/v1`. Dev server QA mới và preflight đăng nhập trả `200`/`204`; đăng nhập của hai analyst và một admin trả `200` qua form.
+- **Data View → Phân bố dữ liệu:** trước khi sửa, màn hình chỉ gọi thống kê cột. Gọi trực tiếp `/charts?columns=c1` trên CSV QA trả `200`, với `charts[].histogram.bins` và `box_plot`. `dataset.service.ts`, `live-dataset-panel.tsx` và `dataset-distribution.tsx` đã được nối theo phản hồi này. Lượt UI sau sửa trả `200` cho `/charts`, vẽ histogram, hiển thị trung vị, đổi được sang Tỷ trọng. API thống kê cột vẫn cấp các số tổng hợp và là fallback khi API charts lỗi.
+- **Thành viên Project:** mở project trực tiếp từ Processing chưa có roster của workspace, làm nút thêm không tìm được thành viên đã tham gia. `project-members-dialog.tsx` và `management.store.ts` đã bổ sung tải roster và ghép thông tin hiển thị/email theo ID, giữ role của Project. Sau sửa, `GET` roster `200`, thêm `201`, sửa role `200`, gỡ `200`. Chuyển owner Project sang analyst thứ hai rồi chuyển lại đều `201`.
+- **Xóa dataset:** lần đầu `DELETE` trả `204` nhưng khi cache preview bị vô hiệu hóa trước lúc Project tải lại, Data View còn gửi `GET schema/records` trên ID vừa xóa (`404`). Đã chặn tải dataset cũ ngay sau `DELETE` và đổi thứ tự làm mới Project/cache. Upload lại CSV tạm `201`, xóa `204`, màn hình về trạng thái chưa có dataset và Network không ghi thêm GET trên ID vừa xóa.
+- **Kiểm tra dọn fixture:** xóa dataset, Project và Workspace của lượt test đều trả `204`; xóa feedback và tài khoản tạm trả `200`. Issue QA và tệp tổng hợp vẫn tồn tại vì Swagger không có route xóa, issue đã được admin chuyển `resolved` với HTTP `200` từ phiên mới. Lượt `401` của phiên admin trước đó xảy ra khi phiên hết hạn.
+
+### Việc cần backend hoặc môi trường QA hỗ trợ
+
+1. **Google OAuth.** Request từ nút Google trả `302` với `redirect_uri=http://localhost:3000/api/v1/auth/google/callback`. Gọi trực tiếp callback thiếu code trả `401` và chỉ xác nhận nhánh từ chối. Backend cần cập nhật `GOOGLE_REDIRECT_URI` và đăng ký cùng URL HTTPS ở Google Cloud Console. Sau đó mới thử được đăng nhập Google đầu cuối và xác nhận role.
+2. **Cấu hình phân tích và PII.** `GET /analysis/config` và `PATCH /columns/pii` đều trả `404` từ UI. Bên deploy thiếu các route này trong Swagger, trong khi `AnalysisController` và `DatasetsController` ở checkout có khai báo. Backend cần triển khai đúng bản có routes và đồng bộ Swagger nếu đã thống nhất cung cấp. Nút lưu cấu hình bị khóa sau GET `404` nên chưa có Network cho `POST /analysis/config`. Chạy phân tích vẫn `201`; đọc kết quả `404` trước lần chạy đầu và `200` sau khi có kết quả là hành vi phù hợp với fixture.
+3. **OTP.** `POST /auth/forgot-password` trả `200` cho tài khoản tạm. Reset với mã không hợp lệ trả `400`. Cần mailbox QA nhận OTP thật để kiểm tra giao mã và reset thành công. Đổi mật khẩu tài khoản tạm trả `200`, đăng nhập lại bằng mật khẩu mới thành công và sau đó đã xóa tài khoản tạm qua UI.
+4. **Ghi kết quả từ AI worker.** `POST /analysis/jobs/{jobId}/result` gọi trực tiếp với ID job không tồn tại trả `404`. Luồng tạo và xem job/retry trên UI đã có status riêng. Cần fixture hoặc log worker để xác nhận nhánh ghi kết quả thành công cho endpoint nội bộ nếu backend còn gọi nó qua HTTP.
+5. **Fallback danh sách theo workspace.** `GET /workspaces/{workspaceId}/projects` trả `200` khi gọi trực tiếp bằng workspace QA. UI dùng `GET /projects` bình thường, không có Network cho nhánh fallback trong phiên này.
+6. **Các tính năng chưa có hợp đồng.** Xác nhận phạm vi sản phẩm trước khi backend thêm API cho xóa thông báo, đồng bộ yêu thích/ảnh Workspace, trường Đơn vị hoặc xuất CSV sau xử lý. Phần giao diện và lý do cho từng mục nằm ở trên.
+7. **Đồng bộ contract biểu đồ.** `/charts` hoạt động trên tunnel và đã qua UI. Route chưa có trong `DataViewController` của checkout backend và OpenAPI snapshot frontend. Backend cần công bố schema phản hồi của endpoint trong Swagger, gồm `histogram`, `box_plot` và quy tắc che dữ liệu phân loại, để frontend có thể sinh kiểu từ cùng contract.
+
+Nhật ký Network đã bỏ query, header, credential và nội dung response. Chỉ các fixture tạo trong lượt ngày 24/11 được dùng cho thao tác xóa. CSV và tệp ảnh đính kèm dùng dữ liệu tổng hợp.
+
+### Kiểm tra bổ sung Data View trên Chrome — 24/11/2026
+
+- Dùng DataVerse qua Vite và một CSV tổng hợp 78 bản ghi trong fixture `QA-CHARTS-mwu9gc9b`. Chrome Network ghi `POST /auth/login 200`, tạo Workspace/Project/upload `201`, thống kê cột và `GET /datasets/{datasetId}/charts` đều `200` cho cột số, cột phân loại và cột boolean (các path API nghiệp vụ có tiền tố `/api/v1`).
+- **Box Plot:** UI hiển thị râu dưới `10`, Q1 `13,25`, trung vị `17`, Q3 `21`, râu trên `25`, và `1/78` điểm ngoài râu, khớp với phản hồi QA. Đã thao tác nút Tỷ trọng. Kiểm tra tự động dùng nhãn cũ của histogram nên chưa xác nhận lại toàn bộ nội dung ở chế độ Tỷ trọng trong lượt bổ sung.
+- **Top N:** cột `nhom` hiển thị 5 nhóm và nhóm **Các giá trị còn lại**, mỗi nhóm có 13 bản ghi và tỷ trọng `16,67%`. Cột boolean hiển thị 2 nhóm, khớp số lượng và tỷ trọng trong response. Ở viewport 480 px, khung Top N có `clientWidth = scrollWidth = 377 px`, không ghi nhận tràn ngang. Kiểm tra chuyển sáng/tối của biểu đồ chưa hoàn tất.
+- **Trạng thái che giá trị:** dùng phản hồi mô phỏng chỉ cho ca `masked: true`. UI hiển thị thông báo ẩn giá trị và không hiện nhãn hoặc danh sách. Ca này kiểm tra cách render của frontend, không tính mã mô phỏng là kết quả backend.
+- **Dọn fixture:** dataset `8f1555eaceaa97c5b51b3382`, Project `6b0522214ea9b99a53a81422`, Workspace `6b05221b4ea9b99a53a81421` đều được xóa qua UI, Network trả `204` cho từng thao tác.
+- **Đổi mật khẩu tài khoản người dùng:** chưa thực hiện trong lượt này. Đăng nhập bằng form vẫn trả `200`. Kết quả đổi mật khẩu `200` trong inventory thuộc phép thử trước đó trên tài khoản tạm.

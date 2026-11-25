@@ -44,6 +44,8 @@ export type ApiRequestOptions = RequestOptions & (
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   data?: unknown
   params?: Record<string, string | number | boolean | null | undefined>
+  // Local policy only; never transmitted as an HTTP header or request body.
+  deferIfOffline?: boolean
 }
 
 export type ApiResponseWithStatus<T> = { status: number; data: T }

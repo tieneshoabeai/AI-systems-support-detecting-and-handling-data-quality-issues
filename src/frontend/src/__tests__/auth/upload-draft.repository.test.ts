@@ -29,6 +29,14 @@ const metadata = (accountId: string, sizeBytes: number): UploadDraft => ({
 })
 
 describe('account-scoped upload drafts', () => {
+  it('persists a new-project binding and rejects rebinding it to another server project', async () => {
+    const s = setup()
+    const draft = await s.repository.save({ projectId: 'new-project:w', file: file() })
+    await s.repository.bindProject(draft.id, 'p1', 'Created project')
+    s.db.close(); await s.db.open()
+    expect(await s.repository.list()).toEqual([expect.objectContaining({ targetProjectId: 'p1', targetProjectName: 'Created project' })])
+    await expect(s.repository.bindProject(draft.id, 'p2', 'Other project')).rejects.toMatchObject({ kind: 'storage' })
+  })
   it('commits Blob and metadata and restores after reopening the database', async () => {
     const s = setup()
     const draft = await s.repository.save({ projectId: 'p', file: file() })

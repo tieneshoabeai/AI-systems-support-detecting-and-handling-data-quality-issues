@@ -1,3 +1,4 @@
+import { Button, Table } from '../../ui/controls'
 import { useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewMenuOrigin, Project } from '../../../types'
@@ -75,7 +76,7 @@ export function RecentProjects({ action, onOpenProject }: { action?: ReactNode; 
 
   return <Panel title="Projects gần đây" action={action}>
     <div className="table-scroll home-table">
-      <table className="preview-table">
+      <Table className="preview-table">
         <thead><tr><th scope="col">#</th><th scope="col">Project</th><th scope="col">Workspace</th>
           <th scope="col">Status</th><th scope="col">Last Updated</th><th scope="col">Data File</th>
           <th scope="col"><span className="visually-hidden">Actions</span></th></tr></thead>
@@ -101,24 +102,24 @@ export function RecentProjects({ action, onOpenProject }: { action?: ReactNode; 
               ? <span className="file-chip"><PreviewIcon name="file" />{project.fileName}</span>
               : <span className="row-sub">{project.hasDataset === false ? 'chưa có' : '—'}</span>}</td>
             <td className="row-action">
-              {selection && <button type="button" className="icon-button row-menu" aria-label={`Thao tác với ${project.name}`} aria-haspopup="menu"
+              {selection && <Button type="button" className="icon-button row-menu" aria-label={`Thao tác với ${project.name}`} aria-haspopup="menu"
                 onClick={event => { event.stopPropagation(); openMenu(selection, { kind: 'anchor', element: event.currentTarget }) }}>
                 <PreviewIcon name="more" />
-              </button>}
+              </Button>}
             </td>
           </tr>
         })}</tbody>
-      </table>
+      </Table>
       {!loading && visible.length === 0 && <p className="panel-sub">Chưa có project nào.</p>}
     </div>
     {loadPage ? (page > 1 || nextCursor) && <nav aria-label="Phân trang Projects gần đây" className="form-actions">
-      <button type="button" className="button-secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>Trang trước</button>
+      <Button type="button" className="button-secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>Trang trước</Button>
       <span>Trang {page}</span>
-      <button type="button" className="button-secondary" disabled={!nextCursor || cursors.slice(0, page).includes(nextCursor)} onClick={() => {
+      <Button type="button" className="button-secondary" disabled={!nextCursor || cursors.slice(0, page).includes(nextCursor)} onClick={() => {
         if (!nextCursor) return
         setCursors([...cursors.slice(0, page), nextCursor])
         setPage(page + 1)
-      }}>Trang tiếp</button>
+      }}>Trang tiếp</Button>
     </nav> : <Pagination label="Projects pagination" total={sorted.length} page={safePage} perPage={perPage} onPage={setPage} hideWhenSinglePage />}
   </Panel>
 }

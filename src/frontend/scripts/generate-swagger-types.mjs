@@ -2,13 +2,18 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
 import dotenv from 'dotenv'
+import openapiTS, { astToString } from 'openapi-typescript'
 
 const rootDir = process.cwd()
 dotenv.config({ path: path.join(rootDir, '.env'), quiet: true })
 
 const swaggerUrl = process.env.VITE_SWAGGER_URL
+const fileOption = process.argv.indexOf('--from-file')
+const inputFile = fileOption === -1 ? null : process.argv[fileOption + 1]
+if (fileOption !== -1 && (!inputFile || inputFile.startsWith('--'))) {
+  throw new Error('Usage: node scripts/generate-swagger-types.mjs --from-file <openapi.json>')
+}
 const jsonDir = path.join(rootDir, 'src', 'lib')
 const typesDir = path.join(rootDir, 'src', 'types', 'services-type')
 const jsonFile = path.join(jsonDir, 'openapi.json')
@@ -682,7 +687,13 @@ const normalizeGeneratedFileNames = () => {
 try {
   ensureDirExists(jsonDir)
   ensureDirExists(typesDir)
-  await downloadOpenApiJson()
+  if (inputFile) {
+    const spec = JSON.parse(fs.readFileSync(path.resolve(rootDir, inputFile), 'utf8'))
+    if (!spec.paths || !spec.openapi) throw new Error('Input file is not an OpenAPI document')
+    fs.writeFileSync(jsonFile, JSON.stringify(spec, null, 2))
+  } else {
+    await downloadOpenApiJson()
+  }
   const spec = JSON.parse(fs.readFileSync(jsonFile, 'utf8'))
   const sanitizedSpec = sanitizeOpenApiSpec(spec)
   const normalizedOperationIdCount = normalizeDuplicateOperationIds(sanitizedSpec)
@@ -694,9 +705,9 @@ try {
   } else {
     fs.writeFileSync(jsonFile, JSON.stringify(sanitizedSpec, null, 2))
   }
-  execSync(`npx openapi-typescript "${jsonFile}" -o "${openapiTypesFile}"`, {
-    stdio: 'inherit',
-  })
+  // Pass the document directly: file-URL decoding breaks non-ASCII Windows paths in the CLI.
+  const declarations = astToString(await openapiTS(sanitizedSpec))
+  fs.writeFileSync(openapiTypesFile, `/** Auto-generated from OpenAPI. Do not edit manually. */\n${declarations}`)
 
   // ==========================================
   // 👇 THÊM ĐOẠN NÀY ĐỂ BỎ QUA LỖI TYPESCRIPT

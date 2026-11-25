@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../hooks/auth/auth-context'
@@ -16,12 +17,18 @@ import { DataRegionStatus } from '../../components/loading/data-region-status'
 import type { AuthContextValue } from '../../types/auth/auth-context.types'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
 import type { ApiRequestOptions } from '../../types/api/api.types'
+import { OfflineReadDatabase } from '../../repositories/offline/offline-read.database'
+import { createOfflineReadRepository } from '../../repositories/offline/offline-read.repository'
+import { createOfflineDataService } from '../../services/offline/offline-data.service'
+import { ApiError } from '../../lib/api-error'
+import type { DraftAccess } from '../../types/datasets/upload-draft.types'
 
 // Only the transport is replaced; provider, session storage and API store are real.
 const transport = vi.hoisted(() => ({
   request: vi.fn<(options: ApiRequestOptions) => Promise<unknown>>(),
   token: undefined as (() => string | null) | undefined,
 }))
+const offlineResources: { db: OfflineReadDatabase; service: ReturnType<typeof createOfflineDataService> }[] = []
 vi.mock('../../lib/axios-client', () => ({
   createAxiosClient: (options: { readToken: () => string | null }) => {
     transport.token = options.readToken
@@ -45,9 +52,19 @@ function Probe() {
   if (status) return <DataRegionStatus status={status} label="Đang tải dữ liệu"><span /></DataRegionStatus>
   return <output data-testid="source">{state.source === 'api' ? `api:${state.workspaces.length}` : 'fixture'}</output>
 }
-function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false, progressiveProjects = false) {
+function ManagementRowsProbe() {
+  const state = usePreviewStore()
+  const status = useContext(ManagementLoadingContext)
+  if (status) return <DataRegionStatus status={status} label="Đang tải dữ liệu"><span /></DataRegionStatus>
+  return <div>
+    {state.workspaces.map(workspace => <span key={workspace.id}>{workspace.name}</span>)}
+    {state.projects.map(project => <span key={project.id}>{project.name}</span>)}
+  </div>
+}
+function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false,
+  progressiveProjects = false, localData?: AuthContextValue['localData']) {
   const value: AuthContextValue = {
-    snapshot, configurationError: null,
+    snapshot, configurationError: null, ...(localData ? { localData } : {}),
     signIn: () => Promise.resolve(), confirmRenewal: () => Promise.resolve(),
     signOut: () => Promise.resolve({ serverRevoked: true, revokeError: null, cleanupError: null }),
   }
@@ -74,7 +91,10 @@ beforeEach(() => {
   window.sessionStorage.clear()
   persist('first')
 })
-afterEach(() => { cleanup(); window.sessionStorage.clear() })
+afterEach(async () => {
+  cleanup(); window.sessionStorage.clear()
+  for (const resource of offlineResources.splice(0)) { resource.service.dispose(); await resource.db.delete() }
+})
 
 it('shows a live card while both supplementary requests are pending and keeps viewer actions disabled', async () => {
   let finishMembers!: (value: unknown) => void
@@ -107,9 +127,11 @@ it('shows a live card while both supplementary requests are pending and keeps vi
     expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/members' }))
     expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/datasets' }))
   })
+  await waitFor(() => { expect(finishMembers).toBeTypeOf('function'); expect(finishDataset).toBeTypeOf('function') })
   await act(async () => {
     finishMembers({ members: [{ userId: 'u1', role: 'viewer', name: 'Viewer' }] })
     finishDataset({ dataset: null })
+    await Promise.resolve()
   })
   expect(within(card).getByText('Chưa có tập dữ liệu.')).toBeDefined()
   expect(card.dataset['cardDetails']).toBe('ready')
@@ -134,6 +156,7 @@ it('renders the project shell immediately and scopes requests to the selected pr
   await act(async () => {
     finish({ project: { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', members: [], createdBy: 'u1',
       hasDataset: false, createdAt: '2026-11-15', updatedAt: '2026-11-15', status: 'not_started', version: 1 } })
+    await Promise.resolve()
   })
   expect(screen.getByTestId('project').textContent).toBe('Project 1')
   expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/projects/p1/datasets', '/workspaces/w1'])
@@ -162,7 +185,7 @@ it('preloads records and opens Analysis without prefetching Detection', async ()
   const scene = screen.getByTestId('project-scene')
   expect(screen.getByText('Đang tải thông tin project…')).toBeDefined()
   expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/datasets' }))
-  await act(async () => { finishProject({ project }) })
+  await act(async () => { finishProject({ project }); await Promise.resolve() })
   expect(screen.getByText('Dataset: example.csv')).toBeDefined()
   expect(screen.getByRole('button', { name: 'Workspace' })).toBeDefined()
   const menu = screen.getByRole<HTMLButtonElement>('button', { name: 'Thao tác với Project 1' })
@@ -170,6 +193,7 @@ it('preloads records and opens Analysis without prefetching Detection', async ()
   await act(async () => {
     finishWorkspace({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [],
       storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
+    await Promise.resolve()
   })
   expect(menu.disabled).toBe(false)
   expect(screen.getByTestId('project-scene')).toBe(scene)
@@ -178,8 +202,8 @@ it('preloads records and opens Analysis without prefetching Detection', async ()
   expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis' }))
 
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
-  expect(screen.getByText('Đang tải dữ liệu từ máy chủ.')).toBeDefined()
-  await act(async () => { finishRecords({ items: [], meta: { hasMore: false, nextCursor: null } }) })
+  expect(screen.getByText(/Đang tải dữ liệu từ máy chủ/)).toBeDefined()
+  await act(async () => { finishRecords({ items: [], meta: { hasMore: false, nextCursor: null } }); await Promise.resolve() })
   expect(transport.request.mock.calls.filter(([r]) => r.path === '/datasets/d1/records')).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Data Analysis' }))
@@ -194,6 +218,53 @@ it('waits for API data and exposes the real store without fixture records', asyn
   expect(screen.queryByTestId('source')).toBeNull()
   await waitFor(() => expect(screen.getByTestId('source').textContent).toBe('api:0'))
   expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/workspaces', '/projects', '/users/me', '/notifications', '/issues', '/notifications/unread-count'])
+})
+
+it('renders cached workspace and project names in the UI after the backend stops responding', async () => {
+  const db = new OfflineReadDatabase(`management-ui-offline-${crypto.randomUUID()}`)
+  const scope: DraftAccess = { accountId: 'u1', generation: 1, expiresAtMs: 4_000_000_000_000 }
+  const access = { read: () => scope, subscribe: () => () => {} }
+  const offline = createOfflineDataService({
+    cache: createOfflineReadRepository({ db, access, namespace: 'qa-main' }), access,
+  })
+  offlineResources.push({ db, service: offline })
+  const localData: NonNullable<AuthContextValue['localData']> = {
+    drafts: {} as NonNullable<AuthContextValue['localData']>['drafts'],
+    offline,
+    migration: { getSnapshot: () => ({ state: 'complete', conflicts: 0, unlistedNamespaces: 0, message: null }), subscribe: () => () => {} },
+    wrapApi: offline.wrapApi,
+  }
+  const workspace = {
+    id: 'w1', name: 'Workspace đã lưu', description: '', ownerId: 'u1', members: [], storageUsedBytes: 0,
+    createdAt: '2026-11-01', updatedAt: '2026-11-01', lastAccessedAt: null, version: 1,
+  }
+  const project = {
+    id: 'p1', workspaceId: 'w1', workspaceName: workspace.name, name: 'Project đã lưu', description: '',
+    createdBy: 'u1', members: [], status: 'not_started', hasDataset: false,
+    createdAt: '2026-11-01', updatedAt: '2026-11-01', version: 1,
+  }
+  transport.request.mockImplementation(r => {
+    if (r.path === '/workspaces') return Promise.resolve({ items: [workspace], meta: { hasMore: false, nextCursor: null } })
+    if (r.path === '/projects') return Promise.resolve({ items: [project], meta: { hasMore: false, nextCursor: null } })
+    if (r.path === '/workspaces/w1/members' || r.path === '/projects/p1/members') {
+      return Promise.resolve({ members: [{ userId: 'u1', role: 'owner', name: 'Test User' }] })
+    }
+    return response(r)
+  })
+  const online = render(tree(authenticated, undefined, <ManagementRowsProbe />, false, false, localData))
+  expect(await screen.findByText(workspace.name)).toBeDefined()
+  expect(screen.getByText(project.name)).toBeDefined()
+  await waitFor(() => expect(transport.request).toHaveBeenCalledTimes(8))
+  const onlineRequestCount = transport.request.mock.calls.length
+  online.unmount()
+
+  transport.request.mockRejectedValueOnce(new ApiError({ kind: 'network', message: 'Backend stopped' }))
+  render(tree(authenticated, undefined, <ManagementRowsProbe />, false, false, localData))
+
+  expect(await screen.findByText(workspace.name)).toBeDefined()
+  expect(screen.getByText(project.name)).toBeDefined()
+  expect(offline.getSnapshot()).toMatchObject({ offline: true, reason: 'backend' })
+  expect(transport.request.mock.calls.slice(onlineRequestCount).map(([r]) => r.path)).toEqual(['/workspaces'])
 })
 
 it('keeps core data visible when notifications fail and retries only personal data', async () => {
@@ -231,7 +302,7 @@ it('keeps the Processing hero mounted and shows loading, retry and empty state i
   expect(screen.queryByText('Chưa có project nào.')).toBeNull()
 
   await waitFor(() => expect(transport.request).toHaveBeenCalledTimes(1))
-  await act(async () => { failLoad(new Error('Offline')) })
+  await act(async () => { failLoad(new Error('Offline')); await Promise.resolve() })
   expect(within(table).getByRole('alert').textContent).toBe('Offline')
   fireEvent.click(within(table).getByRole('button', { name: 'Thử lại' }))
   expect(await screen.findByText('Chưa có project nào.')).toBeDefined()
@@ -289,7 +360,7 @@ it('renders project rows before workspace names and reuses one lookup across row
   expect(await screen.findByText('p1')).toBeDefined()
   expect(screen.getByText('p2')).toBeDefined()
   expect(screen.queryByText('Workspace chung')).toBeNull()
-  await act(async () => { finishWorkspace({ workspace: { name: 'Workspace chung' } }) })
+  await act(async () => { finishWorkspace({ workspace: { name: 'Workspace chung' } }); await Promise.resolve() })
   expect(screen.getAllByText('Workspace chung')).toHaveLength(2)
   expect(screen.getByText('missing')).toBeDefined()
   expect(screen.queryByRole('alert')).toBeNull()
@@ -313,7 +384,7 @@ it('shows Home and publishes overview totals while other Management data is stil
   </MemoryRouter>))
 
   expect(screen.getByRole('complementary', { name: 'Điều hướng chính' })).toBeDefined()
-  expect(screen.getByText('Chào mừng đến với DataVerse')).toBeDefined()
+  expect(screen.getByRole('heading', { name: 'Khám phá vũ trụ dữ liệu của bạn' })).toBeDefined()
   expect(await screen.findByText('42')).toBeDefined()
   expect(screen.getByRole('status', { name: 'Đang tải trạng thái Project' })).toBeDefined()
   expect(screen.getByRole('status', { name: 'Đang tải Workspace gần đây' })).toBeDefined()
@@ -345,7 +416,7 @@ it('shows Management navigation and waits for workspace data before reporting a 
   expect(screen.getByRole('status', { name: 'Đang tải Workspaces' })).toBeDefined()
   expect(screen.queryByText('Không tìm thấy workspace')).toBeNull()
 
-  await act(async () => { finishLoad({ items: [], total: 0 }) })
+  await act(async () => { finishLoad({ items: [], total: 0 }); await Promise.resolve() })
   expect(await screen.findByText('Không tìm thấy workspace')).toBeDefined()
 })
 
@@ -376,12 +447,12 @@ it('does not reveal an old load after the session ends', async () => {
   view.rerender(tree({ ...base, generation: 2, phase: 'anonymous', accountId: null, expiresAtMs: null, user: null }))
   await act(() => { finish({ items: [], total: 0 }); return Promise.resolve() })
   expect(screen.queryByTestId('source')).toBeNull()
-  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
+  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập hợp lệ')
 })
 
 it('does not substitute fixture data for a local-limited online session', () => {
   render(tree({ ...base, phase: 'local-limited', accountId: 'u1', expiresAtMs: 4_000_000_000_000, user: null }))
-  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
+  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập hợp lệ')
   expect(screen.queryByTestId('source')).toBeNull()
   expect(transport.request).not.toHaveBeenCalled()
 })
