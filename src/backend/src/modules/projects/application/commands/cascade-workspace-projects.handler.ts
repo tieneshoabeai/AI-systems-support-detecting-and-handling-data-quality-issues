@@ -23,6 +23,7 @@ import {
   PROJECT_REPOSITORY_PORT,
   type ProjectRepositoryPort,
 } from '../../domain/ports/project.repository.port';
+import { WORKSPACE_OUTBOX_EVENTS } from '../../../../shared/domain/utils/outbox-events';
 
 @Injectable()
 export class CascadeWorkspaceProjectsHandler {
@@ -55,7 +56,7 @@ export class CascadeWorkspaceProjectsHandler {
 
   /** Xử lý trực tiếp từ envelope event. */
   async handleEvent(eventType: string, payload: Record<string, unknown>): Promise<number> {
-    if (eventType !== 'WORKSPACE_DELETED') return 0;
+    if (eventType !== WORKSPACE_OUTBOX_EVENTS.DELETED) return 0;
     const raw = payload['workspace_id'] ?? payload['workspaceId'];
     const workspaceId = typeof raw === 'string' ? raw : '';
     if (!workspaceId) return 0;

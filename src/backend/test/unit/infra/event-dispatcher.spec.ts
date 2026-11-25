@@ -275,6 +275,18 @@ describe('B2.8 — EventDispatcherService', () => {
       expect(realtime.emitToProject).not.toHaveBeenCalled();
     });
 
+    it('PROJECT_DELETED ⇒ KHÔNG emit ai.quality.updated vào project đã xóa', async () => {
+      // Rơi xuống `default` sẽ đẩy `ai.quality.updated` vào room của project
+      // **đã bị xóa** ⇒ client nhận thông báo về tài nguyên không còn tồn tại.
+      await dispatcher.handle(envelope({ eventType: 'PROJECT_DELETED' }));
+      expect(realtime.emitToProject).not.toHaveBeenCalled();
+    });
+
+    it('WORKSPACE_DELETED ⇒ KHÔNG emit ai.quality.updated', async () => {
+      await dispatcher.handle(envelope({ eventType: 'WORKSPACE_DELETED' }));
+      expect(realtime.emitToProject).not.toHaveBeenCalled();
+    });
+
     it('không có projectId ⇒ không emit gì cả', async () => {
       await dispatcher.handle(envelope({ projectId: undefined, payload: {} }));
       expect(realtime.emitToProject).not.toHaveBeenCalled();

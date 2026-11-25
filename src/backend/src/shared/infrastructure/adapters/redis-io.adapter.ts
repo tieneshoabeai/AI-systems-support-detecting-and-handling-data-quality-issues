@@ -82,7 +82,12 @@ export async function useRedisAdapterIfConfigured(app: INestApplication): Promis
         override createIOServer(port: number, opts?: Record<string, unknown>): unknown {
           const s: unknown = super.createIOServer(port, { ...(opts ?? {}) });
           const socketIoServer = s as { adapter?: (a: unknown) => void };
-          socketIoServer.adapter?.(createAdapter(pubClient, subClient));
+          // `key` = tiền tố cho kênh pub/sub của adapter. Mặc định là
+          // `socket.io` ⇒ nhiều môi trường dùng chung một Redis sẽ **đụng
+          // nhau** (event của app A lọt sang app B). Dùng `REDIS_KEY_PREFIX`
+          // (mặc định `dq:`) để cô lập theo môi trường.
+          const prefix = (process.env.REDIS_KEY_PREFIX ?? 'dq:').trim() || 'dq:';
+          socketIoServer.adapter?.(createAdapter(pubClient, subClient, { key: `${prefix}socket.io` }));
           return s;
         }
       })(app.getHttpServer() as never),

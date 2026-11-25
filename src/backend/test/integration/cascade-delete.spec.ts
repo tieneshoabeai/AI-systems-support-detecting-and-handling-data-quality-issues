@@ -84,6 +84,9 @@ describe('B2.3 — cascade xóa Workspace → Project → Dataset → Records', 
         deletedKeys.push(key);
         return true;
       }),
+      // Handler dùng `fileExists()` để phân biệt "file đã xóa" với "lỗi R2"
+      // khi `deleteFile()` trả `false`.
+      fileExists: jest.fn(async () => false),
     } as unknown as StoragePort;
 
     workspaceAccess = {
@@ -262,6 +265,77 @@ describe('B2.3 — cascade xóa Workspace → Project → Dataset → Records', 
     expect(freed).toBe(1000);
 
     const incMock = workspaceAccess.incrementStorageUsed as unknown as jest.Mock;
+    expect(incMock).toHaveBeenCalledWith(workspaceId.toHexString(), -1000);
+  });
+
+  // ── R2 down ⇒ ném lỗi ⇒ Inbox retry (không nuốt lỗi) ───────────────────
+
+  it('R2 down ⇒ ném lỗi (không nuốt) + KHÔNG trừ storage_used', async () => {
+    const { projectId, workspaceId, datasetId } = await seed();
+
+    // `deleteFile` trả `false` (lỗi R2) và `fileExists` xác nhận file **còn**
+    // ⇒ phải ném lỗi để event được retry.
+    (storage.deleteFile as unknown as jest.Mock).mockResolvedValue(false);
+    (storage.fileExists as unknown as jest.Mock).mockResolvedValue(true);
+
+    await expect(
+      cascadeDatasets.execute(projectId.toHexString(), workspaceId.toHexString()),
+    ).rejects.toThrow(/Khong dung xong/);
+
+    const incMock = workspaceAccess.incrementStorageUsed as unknown as jest.Mock;
+    expect(incMock).not.toHaveBeenCalled();
+
+    // Dataset **đã** soft-delete (đó là lý do cần retry).
+    const ds = await datasetModel.findById(datasetId).lean();
+    expect(ds?.deleted_at).not.toBeNull();
+    // Nhưng **chưa** đánh dấu đã giải phóng ⇒ lần retry vẫn phải dọn tiếp.
+    expect(ds?.storage_released).not.toBe(true);
+  });
+
+  it('retry sau khi R2 hồi phục ⇒ dọn nốt file + trừ storage_used đúng 1 lần', async () => {
+    const { projectId, workspaceId, datasetId } = await seed();
+
+    // Lần 1: R2 down ⇒ ném lỗi.
+    (storage.deleteFile as unknown as jest.Mock).mockResolvedValue(false);
+    (storage.fileExists as unknown as jest.Mock).mockResolvedValue(true);
+    await expect(
+      cascadeDatasets.execute(projectId.toHexString(), workspaceId.toHexString()),
+    ).rejects.toThrow(/Khong dung xong/);
+
+    // Lần 2 (retry): R2 đã hồi phục ⇒ xóa được.
+    (storage.deleteFile as unknown as jest.Mock).mockResolvedValue(true);
+    (storage.fileExists as unknown as jest.Mock).mockResolvedValue(false);
+
+    const freed = await cascadeDatasets.execute(
+      projectId.toHexString(),
+      workspaceId.toHexString(),
+    );
+    expect(freed).toBe(1000);
+
+    const incMock = workspaceAccess.incrementStorageUsed as unknown as jest.Mock;
+    expect(incMock).toHaveBeenCalledTimes(1);
+    expect(incMock).toHaveBeenCalledWith(workspaceId.toHexString(), -1000);
+
+    const ds = await datasetModel.findById(datasetId).lean();
+    expect(ds?.storage_released).toBe(true);
+  });
+
+  it('retry lần 3 ⇒ KHÔNG trừ storage_used lần nữa (không âm)', async () => {
+    const { projectId, workspaceId } = await seed();
+
+    (storage.deleteFile as unknown as jest.Mock).mockResolvedValue(true);
+    (storage.fileExists as unknown as jest.Mock).mockResolvedValue(false);
+
+    await cascadeDatasets.execute(projectId.toHexString(), workspaceId.toHexString());
+    // Lần retry tiếp theo (file đã xóa, cờ đã bật) ⇒ giải phóng 0 byte.
+    const freed = await cascadeDatasets.execute(
+      projectId.toHexString(),
+      workspaceId.toHexString(),
+    );
+    expect(freed).toBe(0);
+
+    const incMock = workspaceAccess.incrementStorageUsed as unknown as jest.Mock;
+    expect(incMock).toHaveBeenCalledTimes(1);
     expect(incMock).toHaveBeenCalledWith(workspaceId.toHexString(), -1000);
   });
 

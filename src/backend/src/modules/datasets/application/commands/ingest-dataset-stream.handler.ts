@@ -59,6 +59,7 @@ import {
   stripBom,
 } from '../../domain/services/csv-delimiter.util';
 import { ConflictError, FileTooLargeError, ValidationError } from '../../../../shared/domain/errors';
+import { DATASET_OUTBOX_EVENTS } from '../../../../shared/domain/utils/outbox-events';
 
 @Injectable()
 export class IngestDatasetStreamHandler {
@@ -557,7 +558,7 @@ export class IngestDatasetStreamHandler {
         await this.outbox.recordEvent({
           aggregate_type: 'DATASET',
           aggregate_id: datasetId,
-          event_type: 'DATASET_INGESTED',
+          event_type: DATASET_OUTBOX_EVENTS.INGESTED,
           payload: {
             dataset_id: datasetId,
             project_id: projectId,

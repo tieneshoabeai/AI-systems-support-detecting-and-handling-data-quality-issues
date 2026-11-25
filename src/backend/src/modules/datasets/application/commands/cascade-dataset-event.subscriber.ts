@@ -5,6 +5,7 @@ import {
   type DomainEventHandlerRegistry,
 } from '../../../../shared/application/ports/domain-event-handler.port';
 import { CascadeProjectDatasetsHandler } from './cascade-project-datasets.handler';
+import { PROJECT_OUTBOX_EVENTS } from '../../../../shared/domain/utils/outbox-events';
 
 /**
  * DATASETS — Đăng ký handler cascade vào registry của `shared`.
@@ -25,7 +26,7 @@ export class CascadeDatasetEventSubscriber implements OnModuleInit {
   onModuleInit(): void {
     const handler: DomainEventHandler = {
       consumerName: 'cascade-project-datasets',
-      eventTypes: ['PROJECT_DELETED'],
+      eventTypes: [PROJECT_OUTBOX_EVENTS.DELETED],
       handle: async (envelope) => {
         await this.cascade.handleEvent(envelope.eventType, envelope.payload ?? {});
       },

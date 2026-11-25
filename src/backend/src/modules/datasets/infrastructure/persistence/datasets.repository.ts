@@ -177,4 +177,65 @@ export class DatasetsRepository implements DatasetRepositoryPort {
       fileSizeBytes: (d as unknown as { file_size_bytes?: number }).file_size_bytes ?? 0,
     }));
   }
+
+  /**
+   * Lấy **mọi** dataset của project (kể cả đã xóa mềm) — dùng để hoàn tất
+   * việc dọn file R2 khi lần cascade trước đã soft-delete nhưng xóa file
+   * thất bại (R2 down) ⇒ event được retry.
+   *
+   * Xem `DatasetRepositoryPort.listAllByProjectIncludingDeleted()`.
+   */
+  async listAllByProjectIncludingDeleted(
+    projectId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      fileSizeBytes: number;
+      storageKey: string;
+      deleted: boolean;
+      storageReleased: boolean;
+    }>
+  > {
+    if (!isObjectIdHex(projectId)) return [];
+    const pid = new Types.ObjectId(projectId);
+    const docs = await this.datasetModel
+      .find({ project_id: pid })
+      .select('_id file_size_bytes storage_key deleted_at storage_released')
+      .lean()
+      .exec();
+    return docs.map((d) => {
+      const raw = d as unknown as {
+        file_size_bytes?: number;
+        storage_key?: string;
+        deleted_at?: Date | null;
+        storage_released?: boolean;
+      };
+      return {
+        id: String(d._id),
+        fileSizeBytes: raw.file_size_bytes ?? 0,
+        storageKey: raw.storage_key ?? '',
+        deleted: raw.deleted_at !== null && raw.deleted_at !== undefined,
+        storageReleased: raw.storage_released === true,
+      };
+    });
+  }
+
+  /**
+   * Đánh dấu dataset **đã giải phóng dung lượng** — cờ idempotent.
+   *
+   * Dùng `findOneAndUpdate` với điều kiện `storage_released != true` ⇒ chỉ
+   * lần gọi **đầu tiên** mới `modifiedCount > 0` ⇒ caller biết chính xác có
+   * được phép trừ `storage_used` hay không. Các lần retry sau trả `false` ⇒
+   * không trừ trùng (`storage_used` không bao giờ âm).
+   */
+  async markStorageReleased(datasetId: string): Promise<boolean> {
+    if (!isObjectIdHex(datasetId)) return false;
+    const s = resolveMongoSession(undefined);
+    const result = await this.datasetModel.updateOne(
+      { _id: new Types.ObjectId(datasetId), storage_released: { $ne: true } },
+      { $set: { storage_released: true } },
+      { session: s },
+    );
+    return (result.modifiedCount ?? 0) > 0;
+  }
 }

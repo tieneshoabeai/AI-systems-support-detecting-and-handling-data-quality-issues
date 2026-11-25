@@ -60,6 +60,15 @@ export interface IDataset extends Document, BaseEntity {
   current_version: number;
   status: 'INGESTING' | 'READY' | 'FAILED';
   deleted_at: Date | null;
+  /**
+   * Đã giải phóng dung lượng của workspace cho dataset này hay chưa.
+   *
+   * Cờ **idempotent** ⇒ việc trừ `storage_used` của workspace chỉ xảy ra đúng
+   * một lần, kể cả khi event cascade bị retry nhiều lần (R2 down ⇒ ném lỗi
+   * ⇒ Inbox retry). Không có cờ này, lần retry sẽ trừ `storage_used` lần nữa
+   * ⇒ `storage_used` âm ⇒ quota sai.
+   */
+  storage_released: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -134,6 +143,7 @@ export const DatasetSchema = new Schema<IDataset>(
       index: true,
     },
     deleted_at: { type: Date, default: null, index: true },
+    storage_released: { type: Boolean, default: false },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

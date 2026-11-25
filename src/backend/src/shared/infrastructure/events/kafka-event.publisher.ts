@@ -2,11 +2,33 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Producer } from 'kafkajs';
 import type { DomainEventEnvelope, EventPublisherPort } from '../../application/ports/event-publisher.port';
+import { RealtimeRevocationEvents } from '../../domain/utils/realtime-events';
 
-function topicFor(eventType: string): string {
+/**
+ * Phân topic Kafka theo loại event.
+ *
+ * ── Vì sao cần hàm thuần, export ra ngoài? ───────────────────────────────
+ * Trước đây hàm này là `private` (không export) ⇒ **không test được** ⇒
+ * quy tắc phân topic chỉ được kiểm chứng bằng mắt. Export ra để có test
+ * riêng (xem `test/unit/infra/kafka-topic-routing.spec.ts`).
+ *
+ * ── Quy tắc ───────────────────────────────────────────────────────────────
+ * - `ai.*`          → topic `ai.jobs`          (job AI nặng, consumer riêng).
+ * - `notification.*`, `email.*` → topic `notification.dispatch`.
+ * - `realtime.*`    → topic `realtime.push`    (đẩy realtime, không xử lý nghiệp vụ).
+ * - Event **thu hồi realtime** (`USER_BLOCKED`, `USER_REMOVED`) → `realtime.push`.
+ *   Trước đây chúng rơi vào `domain.events` vì không có prefix `realtime.`
+ *   ⇒ phân loại sai. Hiện chưa gây hỏng (consumer subscribe **cả 4** topic
+ *   rồi đưa tất cả vào cùng một dispatcher), nhưng là tiền đề cho bug khi
+ *   tách worker theo topic.
+ * - Còn lại         → topic `domain.events`    (sự kiện nghiệp vụ + cascade).
+ */
+export function topicFor(eventType: string): string {
   if (eventType.startsWith('ai.')) return 'ai.jobs';
   if (eventType.startsWith('notification.') || eventType.startsWith('email.')) return 'notification.dispatch';
   if (eventType.startsWith('realtime.')) return 'realtime.push';
+  if (eventType === RealtimeRevocationEvents.USER_BLOCKED) return 'realtime.push';
+  if (eventType === RealtimeRevocationEvents.USER_REMOVED) return 'realtime.push';
   return 'domain.events';
 }
 

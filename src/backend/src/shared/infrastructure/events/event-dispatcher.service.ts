@@ -8,6 +8,12 @@ import { InboxService as InboxServiceToken } from '../outbox/inbox.service';
 import type { DomainEventHandlerRegistry } from '../../application/ports/domain-event-handler.port';
 import { DOMAIN_EVENT_HANDLER_REGISTRY } from '../../application/ports/domain-event-handler.port';
 import { RealtimeRevocationEvents } from '../../domain/utils/realtime-events';
+import {
+  DATASET_OUTBOX_EVENTS,
+  PROJECT_OUTBOX_EVENTS,
+  WORKSPACE_OUTBOX_EVENTS,
+} from '../../domain/utils/outbox-events';
+
 
 /**
  * Nhom 4 - Event dispatcher (consumer in-process).
@@ -85,9 +91,18 @@ export class EventDispatcherService implements OnModuleInit {
       const projectId = e.projectId ?? (typeof p.project_id === 'string' ? p.project_id : undefined);
       const analysisId = typeof p.analysis_id === 'string' ? p.analysis_id : (typeof p.analysisId === 'string' ? p.analysisId : undefined);
       switch (e.eventType) {
-        case 'DATASET_INGESTED':
+        case DATASET_OUTBOX_EVENTS.INGESTED:
           if (projectId) this.realtime.emitToProject(projectId, 'ai.quality.updated', { projectId, status: 'dataset_ready' });
           break;
+        // ── Các case dưới đây là "hợp đồng định tuyến" cho event chưa được
+        // phát qua outbox trong production. Chúng được giữ lại để:
+        //   1. Khi module tương ứng bắt đầu ghi event vào outbox, realtime
+        //      hoạt động ngay mà không phải sửa dispatcher.
+        //   2. Test có thể kiểm chứng hợp đồng định tuyến độc lập với việc
+        //      event có được phát hay không.
+        // Hiện tại các event này được đẩy realtime **trực tiếp** từ module
+        // (notifications → `emitToUser`, feedback → `emitToProject`,
+        // analysis → `emitAnalysisLifecycle`), nên dispatcher chưa nhận chúng.
         case 'ANALYSIS_STARTED':
         case 'ANALYSIS_PROGRESS':
           if (projectId && analysisId) this.realtime.emitAnalysisLifecycle(projectId, analysisId, 'analysis.progress', { status: 'running' });
@@ -112,6 +127,13 @@ export class EventDispatcherService implements OnModuleInit {
         case 'ISSUE_CREATED':
         case 'ISSUE_UPDATED':
           if (projectId) this.realtime.emitToProject(projectId, 'ai.quality.updated', { projectId, status: 'issue_changed' });
+          break;
+        // ── Event xóa (cascade) ───────────────────────────────────────────
+        // Không được rơi xuống `default`: `default` sẽ đẩy
+        // `ai.quality.updated` vào room của project/workspace **đã bị xóa**
+        // ⇒ client nhận thông báo về một tài nguyên không còn tồn tại.
+        case PROJECT_OUTBOX_EVENTS.DELETED:
+        case WORKSPACE_OUTBOX_EVENTS.DELETED:
           break;
         // OPEN-08 — Thu hồi realtime (khoá / xoá tài khoản).
         // Việc đóng socket do `RealtimeRevocationSubscriber` (module realtime) xử lý

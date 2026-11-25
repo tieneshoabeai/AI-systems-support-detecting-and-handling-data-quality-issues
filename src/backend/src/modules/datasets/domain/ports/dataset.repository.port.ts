@@ -78,4 +78,37 @@ export interface DatasetRepositoryPort {
    * đã dùng của workspace).
    */
   softDeleteByProject(projectId: string): Promise<Array<{ id: string; fileSizeBytes: number }>>;
+  /**
+   * Lấy dataset **đã bị xóa mềm** của một project — dùng để **hoàn tất**
+   * việc dọn file R2 khi lần cascade trước đã soft-delete nhưng xóa file
+   * thất bại (R2 down) ⇒ event được retry.
+   *
+   * Vì sao cần method riêng:
+   * `softDeleteByProject()` chỉ trả về dataset **còn sống**. Sau khi
+   * soft-delete thành công, lần retry tiếp theo sẽ trả về mảng rỗng ⇒
+   * không bao giờ xóa lại file R2 ⇒ **rò rỉ dung lượng vĩnh viễn**.
+   * Method này trả về cả dataset đã xóa mềm (mọi trạng thái) để lần retry
+   * biết chính xác file nào cần dọn.
+   */
+  listAllByProjectIncludingDeleted(
+    projectId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      fileSizeBytes: number;
+      storageKey: string;
+      deleted: boolean;
+      /** Đã giải phóng dung lượng workspace hay chưa (cờ idempotent). */
+      storageReleased: boolean;
+    }>
+  >;
+  /**
+   * Đánh dấu dataset **đã giải phóng dung lượng** của workspace — cờ
+   * idempotent để việc trừ `storage_used` chỉ xảy ra đúng một lần.
+   *
+   * Trả về `true` nếu lần gọi này là lần **đầu tiên** đánh dấu (⇒ caller
+   * được phép trừ `storage_used`), `false` nếu đã đánh dấu rồi (⇒ caller
+   * **không** được trừ lần nữa).
+   */
+  markStorageReleased(datasetId: string): Promise<boolean>;
 }
