@@ -63,7 +63,9 @@ export function readEngineRssBytes(): number {
     const out = execFileSync('ps', ['-eo', 'rss=,args='], { encoding: 'utf8' });
     let total = 0;
     for (const line of out.split('\n')) {
-      if (!/ollama\s+runner|ollama_runner|vllm/.test(line)) continue;
+      // Ollama >= 0.40 đổi tên tiến trình suy luận: `ollama runner` → `llama-server`.
+      // Không khớp tên mới thì peak_rss_bytes = 0 ⇒ chỉ số "RSS đỉnh" luôn = n/a.
+      if (!/ollama\s+runner|ollama_runner|llama-server|vllm/.test(line)) continue;
       const rssKb = Number(line.trim().split(/\s+/)[0] ?? '0');
       if (Number.isFinite(rssKb)) total += rssKb * 1024;
     }
@@ -81,7 +83,7 @@ export function countEngineRunners(): number {
     for (const pid of entries) {
       try {
         const cmd = readFileSync(`/proc/${pid}/cmdline`, 'utf8');
-        if (/ollama.*runner/.test(cmd)) count += 1;
+        if (/ollama.*runner|llama-server/.test(cmd)) count += 1;
       } catch {
         // tiến trình đã kết thúc — bỏ qua
       }

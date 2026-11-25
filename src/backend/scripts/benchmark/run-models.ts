@@ -187,7 +187,9 @@ function sleep(ms: number): Promise<void> {
  * Engine bị OOM-killer giết ⇒ socket đóng đột ngột (`socket hang up` /
  * `ECONNRESET`). Đây **không phải** lỗi model ⇒ không tính vào `failure_rate`.
  */
-export { isInfraError } from './infra-error';
+import { isInfraError } from './infra-error';
+
+export { isInfraError };
 
 /** Chuyển phản hồi Ollama thành `InferenceOutcome`. */
 function toOutcome(res: {

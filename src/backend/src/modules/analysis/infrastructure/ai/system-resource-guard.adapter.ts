@@ -103,7 +103,7 @@ export class SystemResourceGuardAdapter extends ResourceGuardPort {
       const out = execFileSync('ps', ['-eo', 'rss=,args='], { encoding: 'utf8' });
       let total = 0;
       for (const line of out.split('\n')) {
-        if (!/ollama\s+runner|ollama_runner|vllm/.test(line)) continue;
+        if (!/ollama\s+runner|ollama_runner|llama-server|vllm/.test(line)) continue;
         const rssKb = Number(line.trim().split(/\s+/)[0] ?? '0');
         if (Number.isFinite(rssKb)) total += rssKb * 1024;
       }
