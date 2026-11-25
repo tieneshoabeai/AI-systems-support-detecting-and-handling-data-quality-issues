@@ -44,7 +44,7 @@ Write-Host "Frontend URL: http://127.0.0.1:$Port/auth/login"
 
 Push-Location $frontendRoot
 try {
-  & yarn.cmd dev --host 127.0.0.1 --port $Port --strictPort --open /auth/login
+  & npm.cmd run dev -- --host 127.0.0.1 --port $Port --strictPort --open /auth/login
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally { Pop-Location }
