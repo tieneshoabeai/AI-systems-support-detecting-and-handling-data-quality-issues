@@ -44,7 +44,13 @@ interface AuthedSocket extends Socket {
  */
 @WebSocketGateway({
   path: '/api/v1/realtime',
-  cors: { origin: true, credentials: true },
+  cors: {
+    origin: (function getCorsOrigins() {
+      const origins = process.env.FRONTEND_ORIGINS || 'http://localhost:3000';
+      return origins.split(',').map((o) => o.trim());
+    })(),
+    credentials: true,
+  },
   transports: ['websocket', 'polling'],
   pingInterval: 25000,
   pingTimeout: 60000,

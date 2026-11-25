@@ -1,0 +1,57 @@
+# Giám sát cho kiểm thử hiệu năng: Prometheus + Grafana + node_exporter.
+# k6 đẩy metric vào Prometheus qua remote write (không sửa code app).
+# Chạy từ src/backend:
+#   docker compose -f deploy/monitoring/docker-compose.monitoring.yml up -d
+#   Grafana:    http://localhost:3300  (admin / admin — đổi qua GF_ADMIN_PASSWORD)
+#   Prometheus: http://localhost:9090
+#   Chạy k6:    bash deploy/monitoring/k6.sh smoke
+# Lưu ý Docker Desktop: node_exporter đo máy ảo của Docker Desktop (nơi container chạy), nên hãy đo
+# app chạy bằng deploy/docker-compose.e2e.yml. cAdvisor không dùng vì trên Docker Desktop nó không thấy
+# cgroup từng container; CPU/RAM theo container được k6.sh ghi bằng `docker stats` (file *-stats.csv).
+
+name: dq-monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3300}:3000"
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+    pid: host
+    volumes:
+      - /:/host:ro
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  default:
+    name: dq-monitoring
