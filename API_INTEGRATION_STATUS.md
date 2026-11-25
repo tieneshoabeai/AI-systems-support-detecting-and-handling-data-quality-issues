@@ -1,3 +1,42 @@
+# Tích hợp trên TaiFE — 25/11/2026
+
+## Phạm vi và thứ tự ưu tiên
+
+Code được cập nhật trực tiếp trên `TaiFE`, giữ nền giao diện tại `511f5f9`; chọn lọc phần API từ `b2c80bb` trên nhánh tích hợp và cập nhật theo Swagger server mới. Thứ tự xử lý: hợp đồng full stack trong `API_ANSWER_24-11.md` → luồng nghiệp vụ/gộp nút từ `frontend` → hình thức và thao tác đặc trưng của TaiFE. Tài liệu trả lời full stack và thư mục yêu cầu riêng không được đưa vào commit.
+
+- Giữ theme Sáng/Tối/Theo hệ thống, bố cục Management/Processing, avatar, nền/vật liệu/mô hình 3D, Kính/Nền trắng, kéo/đổi kích thước/khôi phục panel, toàn màn hình, tách/ghép mô hình, camera và Đăng xuất.
+- Gộp Detection vào Data Analysis; khối cam vẫn mở phần phân tích. Giữ ba tab Tổng quan, Data View và Data Analysis, không thêm nút chạy Detection trùng chức năng.
+- Bỏ lưu/tải cấu hình phân tích, chọn cột/vai trò cột và chỉnh PII theo quyết định full stack. Bốn tham số phương pháp đi trực tiếp trong body chạy phân tích. PII là thông tin đọc.
+- Feedback gắn với lần chạy/phát hiện đang xem, không yêu cầu nhập ID thủ công. Kết quả có tổng quan chất lượng, thống kê và ma trận tương quan. PDF đọc trạng thái thực, báo lỗi khi `failed`; job retry theo dõi ID mới.
+- Thành viên Project được tải khi mở dialog; không tải thêm roster Workspace cho Viewer. Admin giữ hai tab TaiFE, tải theo trang với nút Tải thêm.
+- File nháp được nối vào wizard và màn upload: khôi phục/xóa nháp, giữ khi upload lỗi, dọn sau ACK, tiếp tục Project đã tạo dở. Dữ liệu Project/dataset/phân tích/PDF đã tải được lưu theo tài khoản và API origin; ngoại tuyến chỉ đọc trong phiên hợp lệ. Cache không thay thế lỗi 401/403/404, không chứa mật khẩu/refresh token hoặc trang Admin.
+- Production có service worker chỉ cache tài nguyên tĩnh để reload khi mất mạng. API và dữ liệu tài khoản dùng IndexedDB riêng. Mục chưa xem/tải khi có mạng không tự có bản ngoại tuyến.
+
+## Server QA hiện tại và kết quả đã xác minh
+
+[Swagger mới](https://sustained-folder-europe-invest.trycloudflare.com/api/v1/docs), origin `https://sustained-folder-europe-invest.trycloudflare.com`, prefix `/api/v1`. Đã cập nhật `.env` local và sinh lại snapshot/type từ `/api/v1/docs-json`: **84 thao tác HTTP**. Con số này là inventory hợp đồng, **không phải 84 ca live đã đạt ngày 25/11**.
+
+- `/health` và `/health/ready`: 200; profile không đăng nhập: 401; Analyst gọi Admin: 403. CORS từ origin local được chấp nhận.
+- Dùng hai tài khoản Analyst QA tạm và CSV tổng hợp. Đã xác minh đăng ký/đăng nhập, guard, đổi màu, khôi phục phiên, đăng xuất và cờ session bị thu hồi trên server.
+- Luồng production Workspace/Project đã qua: tạo, sửa tên, reload kiểm tra persistence, wizard upload CSV, đọc đúng dòng/cột, truy vấn records, đổi tên Project, xóa tài nguyên test và kiểm tra Workspace đối chứng còn nguyên.
+- Phân quyền API đã qua: người ngoài Workspace bị chặn; Viewer đọc được nhưng không sửa/chạy phân tích; owner đổi Viewer sang Member bằng expectedVersion; gỡ membership Project trở về Viewer kế thừa Workspace; gỡ Workspace thì mất quyền đọc Project.
+- Data View gọi stats/charts 200. Data Analysis trả kết quả cho CSV có dòng trùng, thiếu dữ liệu và ngoại lệ; gửi/đọc lại feedback thành công. Tạo tổng kết trước khi yêu cầu PDF; đã nhận và tải tệp có chữ ký `%PDF-`.
+- Ca production với API thật đã qua toàn bộ assertion chức năng ngoại tuyến: reload, xem records/phân tích, tải PDF đã lưu, mở danh sách Project và kết nối lại. Tuy nhiên test vẫn báo đỏ ở teardown do timeout DELETE tài nguyên QA; đã dọn riêng thành công sau đó. Chưa coi cả suite live là xanh ổn định.
+- Worker AI có ca trả trạng thái `failed`, attempt 3, thông báo `fetch failed`. Frontend đã hiển thị trạng thái này; chưa nghiệm thu AI chạy thành công đầu cuối.
+- Chưa có tài khoản Admin để nghiệm thu các ca quản trị dương tính; chưa nghiệm thu OTP nhận qua email thật và OAuth Google hoàn chỉnh. Unit test không thay các ca này.
+
+## Kiểm chứng local và cách xem lại
+
+Build production và kiểm tra TypeScript E2E đã qua. Đã chụp sáu màn TaiFE trên Chrome (Workspace, Project, Kính, Analysis tối/sáng/mobile). Test production với API mô phỏng đã qua bảy tình huống: tải/lưu online, reload offline, bản ghi, kết quả phân tích, tải PDF, danh sách Project và kết nối lại. Các bằng chứng này tách khỏi E2E server thật.
+
+Lượt local cuối: **978/978 test qua, 0 lỗi**; hồi quy bốn suite UI liên quan 94/94. Build production và TypeScript E2E qua. Lint phần thay đổi: 79 tệp, 0 lỗi, 78 cảnh báo. Lượt chạy cùng nhiều Chrome trước đó có 5 timeout; chạy lại tuần tự đã qua toàn bộ, không tăng timeout của Vitest để che lỗi.
+
+Đã xóa hai tài khoản Analyst QA tạm và các tài nguyên test còn lại theo ID/owner đã xác minh; credential tạm đã được xóa khỏi env và file trạng thái. Bản xem production tại `http://127.0.0.1:5179/` nối backend mới, yêu cầu tài khoản của người xem.
+
+Artifact kiểm thử nằm trong thư mục local bị ignore `temp/frontend-integration/` và `src/frontend/temp/`. Không commit credential, `.env`, trace hay dữ liệu QA riêng. Hướng dẫn thực hiện lại nằm trong [MANUAL_QA_GUIDE.md](MANUAL_QA_GUIDE.md). Phần dưới là báo cáo lịch sử ngày 24/11 trên tunnel cũ, không dùng thay kết quả ngày 25/11.
+
+---
+
 # Báo cáo tích hợp API — 24/11/2026
 
 ## 1. Toàn bộ API trong Swagger và kết quả ngày 24/11

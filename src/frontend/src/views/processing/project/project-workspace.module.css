@@ -78,6 +78,9 @@
   margin: 0;
   box-shadow: 0 12px 28px -12px #000a, inset 0 1px #b3d7ff33;
 }
+:global([data-preview='2d'] .pj-modules[data-module-count='3']):where(.screen, .screen *) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 :global([data-preview='2d'][data-theme='light'] .project-processing-content .pj-stage > .pj-modules):where(.screen, .screen *) {
   background: #f6faffec;
   box-shadow: 0 12px 26px -12px #21457680, inset 0 1px #fff;

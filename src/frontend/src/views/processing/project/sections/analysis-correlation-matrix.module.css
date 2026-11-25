@@ -1,0 +1,41 @@
+.matrix { display: grid; gap: 8px; min-width: 0; padding: 10px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.toolbar .expand { margin-inline-start: auto; min-height: 32px; padding: 5px 10px; gap: 5px; }
+:global([data-preview='2d']) .dialog { width: min(1440px, 100%); }
+.dialogHeader { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.dialog .viewport { max-height: 64dvh; }
+.legend, .pager { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.legend { list-style: none; margin: 0; padding: 0; color: var(--pv-muted); font-size: 11px; }
+.legend li::before {
+  display: inline-block; width: 9px; height: 9px; margin-inline-end: 5px;
+  border-radius: 2px; background: var(--tone); content: '';
+}
+.matrix [data-tone='negative'] { --tone: #d35478; }
+.matrix [data-tone='positive'] { --tone: #408add; }
+.matrix [data-tone='strength'] { --tone: #269983; }
+.hint { margin: 0; color: var(--pv-muted); font-size: 12px; }
+.pager > div { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.pager button { min-width: 26px; min-height: 28px; border-radius: 5px; background: var(--pv-bg-2); }
+.viewport { overflow: auto; max-height: 320px; border: 1px solid var(--pv-line); border-radius: 8px; }
+.table { border-spacing: 2px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.table th {
+  max-width: 112px; overflow: hidden; padding: 5px; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--pv-ink); background: var(--pv-bg-1); font-weight: 650; text-align: start;
+}
+.table thead th { position: sticky; top: 0; z-index: 2; }
+.table tr > th:first-child { position: sticky; left: 0; }
+.table tbody th { z-index: 1; }
+.table thead th:first-child { z-index: 3; }
+.table td { padding: 0; }
+.matrix .cell {
+  display: block; min-width: 54px; width: 100%; min-height: 32px; padding: 3px 5px;
+  border: 1px solid var(--pv-line); border-radius: 4px; color: var(--pv-ink);
+  background: color-mix(in srgb, var(--tone, var(--pv-bg-2)) var(--intensity), var(--pv-bg-1));
+}
+.matrix .cell[data-tone='missing'] { background: var(--pv-bg-2); color: var(--pv-muted); }
+.matrix .cell:is(:hover, :focus-visible) { outline: 2px solid var(--pv-ink); outline-offset: -2px; }
+.detail {
+  display: grid; gap: 3px; padding: 7px 9px; border: 1px solid var(--pv-line); border-radius: 7px;
+  color: var(--pv-muted); font-size: 12px; overflow-wrap: anywhere;
+}
+.detail strong { color: var(--pv-ink); }

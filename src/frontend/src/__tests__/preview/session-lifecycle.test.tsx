@@ -1,8 +1,11 @@
-import { act, cleanup, renderHook } from '@testing-library/react'
+import { act, cleanup, renderHook as renderReactHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { usePreviewSessionModel } from '../../hooks/preview/use-preview-session'
 import { previewMockStore as store } from '../../services/preview/preview-mock.service'
 import { requireDefined } from '../../utils/required-value'
+import { PreviewAppearanceProvider } from '../../views/preview/preview-appearance-provider'
+
+const renderHook = <T,>(callback: () => T) => renderReactHook(callback, { wrapper: PreviewAppearanceProvider })
 
 beforeEach(() => { store.reset('demo'); vi.useFakeTimers() })
 afterEach(() => { cleanup(); vi.useRealTimers() })

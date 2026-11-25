@@ -23,13 +23,17 @@ export function AdminApiPanel() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
 
   useEffect(() => {
     if (!service) return
     let active = true
-    void Promise.all([service.listUsers(), service.listIssues()]).then(([userRows, issueRows]) => {
+    const request = tab === 'users' ? service.listUsersPage() : service.listIssuesPage()
+    void request.then(page => {
       if (!active) return
-      setUsers(userRows); setIssues(issueRows); setLoading(false)
+      if (tab === 'users') setUsers(page.items as AdminUser[])
+      else setIssues(page.items as AdminIssue[])
+      setNextCursor(page.nextCursor); setLoading(false)
     }).catch((cause: unknown) => {
       if (active) {
         setError(cause instanceof Error ? cause.message : 'Không tải được dữ liệu quản trị.')
@@ -37,9 +41,30 @@ export function AdminApiPanel() {
       }
     })
     return () => { active = false }
-  }, [service, attempt])
+  }, [service, attempt, tab])
 
   if (!service) return null
+  const changeTab = (next: AdminTab) => {
+    if (next === tab || busy || loading) return
+    setTab(next); setLoading(true); setError(''); setNextCursor(null)
+    setSelectedIssue(null); setSelectedUser(null)
+  }
+  const loadMore = async () => {
+    if (!nextCursor || busy || loading) return
+    setBusy(true); setError('')
+    try {
+      if (tab === 'users') {
+        const page = await service.listUsersPage(nextCursor)
+        setUsers(current => [...current, ...page.items.filter(row => !current.some(item => item.id === row.id))])
+        setNextCursor(page.nextCursor)
+      } else {
+        const page = await service.listIssuesPage(nextCursor)
+        setIssues(current => [...current, ...page.items.filter(row => !current.some(item => item.id === row.id))])
+        setNextCursor(page.nextCursor)
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không tải được trang tiếp theo.') }
+    finally { setBusy(false) }
+  }
   const openUser = async (user: AdminUser): Promise<void> => {
     setSelectedUser(user); setSelectedIssue(null); setBusy(true); setError('')
     try { setSelectedUser(await service.getUser(user.id)) }
@@ -67,8 +92,8 @@ export function AdminApiPanel() {
 
   return <Panel title="Quản trị" className="admin-api-panel">
     <div className="form-actions" role="tablist" aria-label="Dữ liệu quản trị">
-      <Button type="button" role="tab" aria-selected={tab === 'users'} className={tab === 'users' ? 'button-primary' : 'button-secondary'} onClick={() => { setTab('users'); setSelectedIssue(null); setSelectedUser(null) }}>Tài khoản</Button>
-      <Button type="button" role="tab" aria-selected={tab === 'issues'} className={tab === 'issues' ? 'button-primary' : 'button-secondary'} onClick={() => { setTab('issues'); setSelectedIssue(null); setSelectedUser(null) }}>Báo cáo vấn đề</Button>
+      <Button type="button" role="tab" aria-selected={tab === 'users'} disabled={busy || loading} className={tab === 'users' ? 'button-primary' : 'button-secondary'} onClick={() => changeTab('users')}>Tài khoản</Button>
+      <Button type="button" role="tab" aria-selected={tab === 'issues'} disabled={busy || loading} className={tab === 'issues' ? 'button-primary' : 'button-secondary'} onClick={() => changeTab('issues')}>Báo cáo vấn đề</Button>
       <Button type="button" className="button-secondary" disabled={loading || busy} onClick={() => { setLoading(true); setError(''); setAttempt(value => value + 1) }}>Tải lại</Button>
     </div>
     {loading && <p role="status">Đang tải dữ liệu quản trị.</p>}
@@ -105,5 +130,6 @@ export function AdminApiPanel() {
         <Button type="button" className="button-primary" disabled={busy || status === selectedIssue.status} onClick={() => { void saveStatus() }}>Lưu trạng thái</Button>
       </div>}
     </div>}
+    {!loading && nextCursor && <Button className="button-secondary" busy={busy} onClick={() => { void loadMore() }}>Tải thêm</Button>}
   </Panel>
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { expect } from '@playwright/test'
 import { test } from '../support/live-fixture'
-import { apiUrl, data, get, matchesApi, record, responseFor, text } from '../support/live-api'
+import { data, directRequest, get, matchesApi, openResourceMenu, record, responseFor, text } from '../support/live-api'
 
 test.describe('Real workspace and project API', () => {
   test('persists workspace and CSV project edits and deletes only its own test resources', async ({ page, live }) => {
@@ -25,7 +25,7 @@ test.describe('Real workspace and project API', () => {
     }
     const deleteOwned = async (kind: 'datasets' | 'projects' | 'workspaces', id: string) => {
       if (!id) return
-      const response = await page.request.delete(apiUrl(`/${kind}/${encodeURIComponent(id)}`), { headers })
+      const response = await directRequest(page, `/${kind}/${encodeURIComponent(id)}`, { method: 'DELETE', headers })
       const status = response.status()
       if (![204, 404].includes(status)) {
         throw new Error(`Cleanup failed for owned ${kind} ID ${id} (HTTP ${status}); parent resources are retained.`)
@@ -49,7 +49,7 @@ test.describe('Real workspace and project API', () => {
 
     live.deferCleanup(cleanup)
     // A separate owned witness proves that scoped deletion leaves another workspace intact.
-    const witnessResponse = await page.request.post(apiUrl('/workspaces'), {
+    const witnessResponse = await directRequest(page, '/workspaces', { method: 'POST',
       headers, data: { name: witnessName, description: 'Isolated E2E deletion witness.' },
     })
     witnessId = ownedWorkspace(await data(witnessResponse), witnessName)
@@ -77,7 +77,7 @@ test.describe('Real workspace and project API', () => {
     await createWorkspace.getByRole('button', { name: 'Đóng hộp thoại', exact: true }).click()
 
     // Rename, independently read from BE, then reload the actual document.
-    await page.getByRole('button', { name: `Thao tác với ${workspaceName}`, exact: true }).click()
+    await openResourceMenu(page, workspaceName)
     await page.getByRole('menuitem', { name: 'Thông tin Workspace', exact: true }).click()
     const editWorkspace = page.getByRole('dialog', { name: 'Thông tin Workspace', exact: true })
     await editWorkspace.getByRole('textbox', { name: 'Tên Workspace', exact: true }).fill(renamedWorkspace)
@@ -97,9 +97,7 @@ test.describe('Real workspace and project API', () => {
     await wizard.getByRole('textbox', { name: 'Tên Project', exact: true }).fill(projectName)
     await wizard.getByRole('textbox', { name: 'Mô tả', exact: true }).fill('Three synthetic CSV rows for real API integration.')
     await wizard.getByRole('button', { name: 'Tiếp theo', exact: true }).click()
-    const chooserPending = page.waitForEvent('filechooser')
-    await wizard.getByRole('button', { name: 'Chọn tập dữ liệu CSV', exact: true }).click()
-    await (await chooserPending).setFiles({ name: 'e2e-records.csv', mimeType: 'text/csv',
+    await wizard.getByLabel('Chọn tập dữ liệu CSV', { exact: true }).setInputFiles({ name: 'e2e-records.csv', mimeType: 'text/csv',
       buffer: Buffer.from('record_id,label,score\nQA001,Sample Alpha,10\nQA002,Sample Beta,20\nQA003,Sample Gamma,30\n') })
     await expect(wizard.getByText('3 dòng', { exact: true })).toBeVisible()
     await wizard.getByRole('button', { name: 'Tiếp theo', exact: true }).click()
@@ -125,14 +123,14 @@ test.describe('Real workspace and project API', () => {
     await expect(table.getByRole('row').filter({ hasText: 'QA001' })).toContainText('Sample Alpha')
     await expect(table.getByRole('row').filter({ hasText: 'QA002' })).toContainText('Sample Beta')
     await expect(table.getByRole('row').filter({ hasText: 'QA003' })).toContainText('Sample Gamma')
-    const queryResponse = await page.request.post(apiUrl(`/datasets/${datasetId}/records/query`), { headers, data: { limit: 50 } })
+    const queryResponse = await directRequest(page, `/datasets/${datasetId}/records/query`, { method: 'POST', headers, data: { limit: 50 } })
     const records = record(await data(queryResponse))['items']
     if (!Array.isArray(records)) throw new Error('BE omitted dataset records.')
     expect((records as unknown[]).map(row => record(record(row)['props'])['c0'])).toEqual(['QA001', 'QA002', 'QA003'])
 
     // Rename the exact owned project and prove persistence independently of UI state.
     await page.goto(`/management/workspaces/${workspaceId}`)
-    await page.getByRole('button', { name: `Thao tác với ${projectName}`, exact: true }).click()
+    await openResourceMenu(page, projectName)
     await page.getByRole('menuitem', { name: 'Đổi tên', exact: true }).click()
     const rename = page.getByRole('dialog', { name: `Đổi tên “${projectName}”`, exact: true })
     await rename.getByRole('textbox', { name: 'Tên mới', exact: true }).fill(renamedProject)
@@ -146,20 +144,20 @@ test.describe('Real workspace and project API', () => {
     // Soft-delete the dataset first so record/quota cleanup is not blocked by a deleted parent.
     await deleteOwned('datasets', datasetId)
     datasetId = ''
-    await page.getByRole('button', { name: `Thao tác với ${renamedProject}`, exact: true }).click()
+    await openResourceMenu(page, renamedProject)
     await page.getByRole('menuitem', { name: 'Xóa Project', exact: true }).click()
     const deleteProject = responseFor(page, `/projects/${projectId}`, 'DELETE')
     await page.getByRole('button', { name: 'Gỡ khỏi danh sách', exact: true }).click()
     expect((await deleteProject).status()).toBe(204)
-    expect((await page.request.get(apiUrl(`/projects/${projectId}`), { headers })).status()).toBe(404)
+    expect((await directRequest(page, `/projects/${projectId}`, { method: 'GET', headers })).status()).toBe(404)
     projectId = ''
     await expect(page.getByRole('heading', { name: 'Project (0)', exact: true })).toBeVisible()
-    await page.getByRole('button', { name: `Thao tác với ${renamedWorkspace}`, exact: true }).click()
+    await openResourceMenu(page, renamedWorkspace)
     await page.getByRole('menuitem', { name: 'Xóa Workspace', exact: true }).click()
     const deleteWorkspace = responseFor(page, `/workspaces/${workspaceId}`, 'DELETE')
     await page.getByRole('button', { name: 'Gỡ khỏi danh sách', exact: true }).click()
     expect((await deleteWorkspace).status()).toBe(204)
-    expect((await page.request.get(apiUrl(`/workspaces/${workspaceId}`), { headers })).status()).toBe(404)
+    expect((await directRequest(page, `/workspaces/${workspaceId}`, { method: 'GET', headers })).status()).toBe(404)
     workspaceId = ''
     const witness = record(record(await get(page, session, `/workspaces/${witnessId}`))['workspace'])
     expect(witness['name']).toBe(witnessName)

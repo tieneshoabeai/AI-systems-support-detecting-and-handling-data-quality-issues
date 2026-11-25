@@ -76,6 +76,7 @@ export type WorkspaceEdit = { name: string; description: string }
 // wizard bắt buộc nạp tệp ở bước "Import Dataset" (view đọc tệp bằng parseLocalCsv rồi đưa số
 // đo thật — rows/columns/sizeMb — qua đây, service chỉ đóng gói thành DatasetSummary).
 export type NewProjectDatasetInput = {
+  localDraft?: import('../datasets/upload-draft.types').LocalUploadDraftRef
   file?: File
   fileName: string
   format: DatasetSummary['format']
@@ -107,12 +108,11 @@ export type NewWorkspaceInput = { name: string; description: string; members: Pe
 export type NewWorkspaceMemberInput = { workspaceId: string; person: Person }
 
 export type Project = {
+  canUpdateDatasetMetadata?: boolean
+  canComplete?: boolean
   canManage?: boolean
   canDelete?: boolean
   canUpload?: boolean
-  canUpdateDatasetMetadata?: boolean
-  canWorkOnProject?: boolean
-  canComplete?: boolean
 
   id: string
   code: string
@@ -361,8 +361,8 @@ export type ReportFilterTab = 'all' | 'processing' | 'needs-info' | 'resolved'
 export type ReportAttachment = { name: string; sizeLabel: string; file?: File; id?: string }
 
 export type PreviewReport = {
-  id: string
   version?: number
+  id: string
   /** Mã công khai kiểu DV-250120-001 (Design Board 3.2–3.3), không phải id nội bộ. */
   code: string
   issueType: ReportIssueType

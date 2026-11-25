@@ -1,5 +1,4 @@
 import type { ApiClient } from '../../types/api/api.types'
-import type { patchDatasetsByIdColumnPiiRequestBody } from '../../types/services-type/datasets'
 import type { postDatasetsByDatasetIdQueryRecordsRequestBody as RecordQuery } from '../../types/services-type/dataViewVirtualGrid'
 import { ApiError, isRecord } from '../../lib/api-error'
 
@@ -29,6 +28,7 @@ export type ColumnChart = {
 export type ColumnStats = { column_name: string; total_records: number; null_count: number; missing_ratio: number; min?: number; max?: number; average?: number; histogram?: HistogramBucket[] }
 export type { RecordQuery }
 const invalid = (message: string) => new ApiError({ kind: 'invalid-response', message })
+
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const count = (value: unknown): value is number => finite(value) && Number.isSafeInteger(value) && value >= 0
 
@@ -113,11 +113,10 @@ export function createDatasetService(api: ApiClient) {
       if (typeof stats['column_name'] !== 'string'
         || !['total_records', 'null_count'].every(key => typeof stats[key] === 'number' && Number.isInteger(stats[key]) && stats[key] >= 0)
         || typeof stats['missing_ratio'] !== 'number' || !Number.isFinite(stats['missing_ratio'])
-        || ['min', 'max', 'average'].some(key => stats[key] !== undefined && (typeof stats[key] !== 'number' || !Number.isFinite(stats[key])))
+        || ['min', 'max', 'average'].some(key => stats[key] !== undefined && !finite(stats[key]))
         || (stats['histogram'] !== undefined && (!Array.isArray(stats['histogram']) || !stats['histogram'].every(bucket =>
-          isRecord(bucket) && typeof bucket['bucket_start'] === 'number' && Number.isFinite(bucket['bucket_start'])
-          && typeof bucket['bucket_end'] === 'number' && Number.isFinite(bucket['bucket_end'])
-          && typeof bucket['count'] === 'number' && Number.isSafeInteger(bucket['count']) && bucket['count'] >= 0)))) {
+          isRecord(bucket) && finite(bucket['bucket_start']) && finite(bucket['bucket_end'])
+          && bucket['bucket_start'] <= bucket['bucket_end'] && count(bucket['count']))))) {
         throw invalid('Thống kê cột từ máy chủ không hợp lệ.')
       }
       return stats as ColumnStats
@@ -142,10 +141,6 @@ export function createDatasetService(api: ApiClient) {
       }
       return { histogram, boxPlot: parseBoxPlot(chart['box_plot']), sampledRecords: chart['sampled_records'],
         truncated: chart['truncated'], category: parseCategory(chart['category']) }
-    },
-    async updateColumnPii(id: string, columnKey: string, isPii: boolean) {
-      await api.request({ path: `/datasets/${encodeURIComponent(id)}/columns/pii`, method: 'PATCH',
-        data: { columns: [{ columnKey, isPii }] } satisfies patchDatasetsByIdColumnPiiRequestBody, auth: 'session' })
     },
     async delete(id: string) {
       await api.request<void>({ path: `/datasets/${encodeURIComponent(id)}`, method: 'DELETE', auth: 'session' })

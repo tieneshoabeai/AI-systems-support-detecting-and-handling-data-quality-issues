@@ -111,7 +111,23 @@ export const createSessionCoordinator = (options: SessionCoordinatorOptions) => 
     if (renewalTask) return renewalTask
     if (snapshot.phase === 'awaiting-consent') return Promise.resolve()
     const previous = session
-    if (!expired(previous)) return Promise.resolve()
+    if (!expired(previous)) {
+      if (snapshot.phase !== 'local-limited') return Promise.resolve()
+      const captured = generation
+      const task = options.bindSession(previous.accessToken).getMe({ signal: controller.signal }).then(user => {
+        if (!isCurrent(captured)) return
+        validateProfile(user, previous)
+        commit(previous, { source: 'profile', value: user }, captured, false)
+      }).catch((error: unknown) => {
+        if (!isCurrent(captured)) return
+        const failure = safeError(error)
+        if (failure.kind === 'network' || failure.kind === 'timeout' || (failure.kind === 'http' && (failure.status ?? 0) >= 500)) {
+          publish(sessionSnapshot('local-limited', previous, failure))
+        } else endSession(failure)
+      }).finally(() => { if (healthTask === task) healthTask = null })
+      healthTask = task
+      return task
+    }
     const captured = begin()
     const signal = controller.signal
     // Schedule trước publish để caller đồng thời/reentrant luôn join cùng flow.

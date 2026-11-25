@@ -64,5 +64,5 @@ export function WorkbenchRoutes({ protect = true }: { protect?: boolean }) {
 
 // Standalone router composition still requires an AuthProvider from its caller.
 export function WorkbenchEntry() {
-  return <BrowserRouter><WorkbenchRoutes protect={!(import.meta.env.DEV && import.meta.env.VITE_MANAGEMENT_DATA_MODE === 'mock')} /></BrowserRouter>
+  return <BrowserRouter><WorkbenchRoutes protect={!(import.meta.env.DEV && import.meta.env['VITE_MANAGEMENT_DATA_MODE'] === 'mock')} /></BrowserRouter>
 }

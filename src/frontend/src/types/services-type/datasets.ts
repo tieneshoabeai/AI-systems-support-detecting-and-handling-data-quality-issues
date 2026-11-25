@@ -26,15 +26,6 @@ export type deleteDatasetsByIdDatasetParamsPath = deleteDatasetsByIdDatasetParam
 export type deleteDatasetsByIdDatasetResponses = deleteDatasetsByIdDatasetRequest["responses"]
 export type deleteDatasetsByIdDatasetResponse204 = NonNullable<deleteDatasetsByIdDatasetResponses["204"]>
 
-export type patchDatasetsByIdColumnPiiRequest = paths["/api/v1/datasets/{id}/columns/pii"]["patch"]
-export type patchDatasetsByIdColumnPiiParams = patchDatasetsByIdColumnPiiRequest["parameters"]
-export type patchDatasetsByIdColumnPiiParamsPath = patchDatasetsByIdColumnPiiParams["path"]
-export type patchDatasetsByIdColumnPiiRequestBody = NonNullable<patchDatasetsByIdColumnPiiRequest["requestBody"]>["content"][keyof NonNullable<patchDatasetsByIdColumnPiiRequest["requestBody"]>["content"]]
-export type patchDatasetsByIdColumnPiiResponses = patchDatasetsByIdColumnPiiRequest["responses"]
-export type patchDatasetsByIdColumnPiiResponse200 = NonNullable<patchDatasetsByIdColumnPiiResponses["200"]>
-export type patchDatasetsByIdColumnPiiResponse400 = NonNullable<patchDatasetsByIdColumnPiiResponses["400"]>
-export type patchDatasetsByIdColumnPiiResponse404 = NonNullable<patchDatasetsByIdColumnPiiResponses["404"]>
-
 export type getDatasetsByIdDownloadDatasetFileRequest = paths["/api/v1/datasets/{id}/file"]["get"]
 export type getDatasetsByIdDownloadDatasetFileParams = getDatasetsByIdDownloadDatasetFileRequest["parameters"]
 export type getDatasetsByIdDownloadDatasetFileParamsPath = getDatasetsByIdDownloadDatasetFileParams["path"]

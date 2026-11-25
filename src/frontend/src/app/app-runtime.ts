@@ -7,6 +7,10 @@ import { createSessionCoordinator } from '../services/auth/session-coordinator'
 import { UploadDraftDatabase } from '../repositories/datasets/upload-draft.database'
 import { createUploadDraftRepository } from '../repositories/datasets/upload-draft.repository'
 import { ApiError } from '../lib/api-error'
+import { getApiConfig } from '../configs/api.config'
+import { OfflineReadDatabase } from '../repositories/offline/offline-read.database'
+import { createOfflineReadRepository } from '../repositories/offline/offline-read.repository'
+import { createOfflineDataService } from '../services/offline/offline-data.service'
 
 type ClientOptions = NonNullable<Parameters<typeof createAxiosClient>[0]>
 type RuntimeOptions = {
@@ -14,6 +18,7 @@ type RuntimeOptions = {
   client?: Omit<ClientOptions, 'readToken'>
   storage?: ReturnType<typeof createSessionStorage>
   database?: UploadDraftDatabase
+  offlineDatabase?: OfflineReadDatabase
   now?: () => number
 }
 
@@ -38,17 +43,29 @@ export const createAppRuntime = (options: RuntimeOptions) => {
     },
   })
   const drafts = createUploadDraftRepository({ db: database, access: coordinator.draftAccess, ...(options.now === undefined ? {} : { now: options.now }) })
+  const offlineDatabase = options.offlineDatabase ?? new OfflineReadDatabase()
+  const cache = createOfflineReadRepository({ db: offlineDatabase, access: coordinator.draftAccess,
+    namespace: options.client?.baseUrl ?? getApiConfig().baseUrl, ...(options.now === undefined ? {} : { now: options.now }) })
+  const offline = createOfflineDataService({ cache, access: coordinator.draftAccess })
+  const localData = { drafts, offline: { ...offline, reconnect: () => {
+    offline.reconnect(); void coordinator.checkSession().then(() => {
+      if (coordinator.getSnapshot().phase === 'authenticated') offline.reconnect()
+    })
+  } }, wrapApi: offline.wrapApi }
   let owners = 0
   let closed = false
   const dispose = () => {
     if (closed) return
     closed = true
+    offline.dispose()
     coordinator.dispose()
     database.close()
+    offlineDatabase.close()
   }
   return {
     coordinator,
     drafts,
+    localData,
     retain: () => {
       if (closed) throw new ApiError({ kind: 'session', message: 'Runtime đã được đóng.' })
       owners += 1

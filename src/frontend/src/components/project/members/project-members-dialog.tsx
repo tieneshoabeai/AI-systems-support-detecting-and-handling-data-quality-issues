@@ -75,9 +75,10 @@ function ProjectMemberRowCells({ person, isOwner, onChangeRole, onRemove }: {
   </>
 }
 
-export function ProjectMembersDialog({ project, workspace, onClose }: {
+export function ProjectMembersDialog({ project, workspace, loaded = false, onClose }: {
   project: Project
-  workspace: Workspace | null
+  workspace: Pick<Workspace, 'name' | 'memberPreview'> | null
+  loaded?: boolean
   onClose: () => void
 }) {
   const session = usePreviewSession()
@@ -92,7 +93,7 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
   const workspaceId = project.workspaceId
 
   useEffect(() => {
-    if (!loadProjectWizardRoster || !workspaceId) return
+    if (loaded || project.canManage === false || !loadProjectWizardRoster || !workspaceId) return
     const controller = new AbortController()
     void loadProjectWizardRoster(workspaceId, controller.signal).then(members => {
       if (!controller.signal.aborted) setWorkspaceRoster(members)
@@ -100,12 +101,12 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
       if (!controller.signal.aborted) setRosterError(cause instanceof Error ? cause.message : 'Không tải được thành viên Workspace.')
     })
     return () => controller.abort()
-  }, [loadProjectWizardRoster, workspaceId, rosterAttempt])
+  }, [loadProjectWizardRoster, workspaceId, rosterAttempt, loaded, project.canManage])
 
   // Chủ sở hữu luôn thuộc project (chữ trong ảnh) nhưng không nhất thiết nằm trong `members`, nên
   // bảng ghép họ vào đầu và đếm thêm họ vào tổng số — nếu không, "2 thành viên" cạnh bảng 3 dòng
   // là hai con số cãi nhau trên cùng một màn hình.
-  const roster = loadProjectWizardRoster ? workspaceRoster ?? [] : workspace?.memberPreview ?? []
+  const roster = !loaded && loadProjectWizardRoster ? workspaceRoster ?? [] : workspace?.memberPreview ?? []
   const rosterById = new Map(roster.map(member => [member.id, member]))
   const projectMembers = project.members.map(member => {
     const workspaceMember = rosterById.get(member.id)
@@ -117,7 +118,7 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
   // Ứng viên = roster của workspace, trừ chủ sở hữu và người đã ở project.
   const inProject = new Set(rows.map(row => row.id))
   const pick = search.trim().toLowerCase()
-  const loadingRoster = Boolean(loadProjectWizardRoster && !workspaceRoster && !rosterError)
+  const loadingRoster = Boolean(!loaded && project.canManage !== false && loadProjectWizardRoster && !workspaceRoster && !rosterError)
   const candidates = roster.filter(person => person.id !== project.owner.id && !inProject.has(person.id)
     && (!pick || person.name.toLowerCase().includes(pick) || emailForPerson(person).toLowerCase().includes(pick)))
 
@@ -227,15 +228,63 @@ export function ProjectMembersDialog({ project, workspace, onClose }: {
 
 // Surface cấp phiên: tra project từ id; project không còn (vừa bị xóa từ chính ⋯) thì vẽ KHÔNG GÌ
 // thay vì mở một modal của một bản ghi đã mất.
+type LoadProjectMembers = NonNullable<ReturnType<typeof useManagementStore>['loadProjectMembersData']>
+
+function LiveProjectMembersDialog({ project, load, onClose }: {
+  project: Project
+  load: LoadProjectMembers
+  onClose: () => void
+}) {
+  const [attempt, setAttempt] = useState(0)
+  const [result, setResult] = useState<{
+    project: Project
+    attempt: number
+    load: LoadProjectMembers
+  } & ({ data: Awaited<ReturnType<LoadProjectMembers>> } | { error: string })>()
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const request = { project, attempt, load }
+    void load(project, controller.signal).then(data => {
+      if (!controller.signal.aborted) setResult({ ...request, data })
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setResult({ ...request, error: error instanceof Error ? error.message : 'Không tải được danh sách thành viên.' })
+      }
+    })
+    return () => controller.abort()
+  }, [project, attempt, load])
+
+  const current = result?.project === project && result.attempt === attempt && result.load === load ? result : undefined
+  if (current && 'data' in current) {
+    return <ProjectMembersDialog project={{ ...project, ...current.data.project, canManage: project.canManage !== false && current.data.project.canManage === true }} workspace={current.data.workspace} loaded onClose={onClose} />
+  }
+
+  return <Dialog open onClose={onClose} className="is-wide" role="dialog" aria-labelledby="pj-members-loading-title">
+    <header className="dialog-head">
+      <h2 id="pj-members-loading-title">Quản lý thành viên</h2>
+      <Button  className="icon-button dialog-close" aria-label="Đóng hộp thoại" onClick={onClose}>
+        <PreviewIcon name="close" />
+      </Button>
+    </header>
+    {current && 'error' in current ? <>
+      <p role="alert">{current.error}</p>
+      <Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button>
+    </> : <p role="status">Đang tải danh sách thành viên…</p>}
+  </Dialog>
+}
+
 export function ProjectPanelSurface({ panel, projects, workspaces, onClose }: {
   panel: PreviewProjectPanel | null
   projects: readonly Project[]
   workspaces: readonly Workspace[]
   onClose: () => void
 }) {
+  const load = useManagementStore().loadProjectMembersData
   if (panel === null) return null
   const project = projects.find(item => item.id === panel.projectId)
   if (!project) return null
+  if (load) return <LiveProjectMembersDialog key={project.id} project={project} load={load} onClose={onClose} />
   const workspace = workspaces.find(item => item.id === project.workspaceId) ?? null
   return <ProjectMembersDialog project={project} workspace={workspace} onClose={onClose} />
 }

@@ -114,7 +114,7 @@ it('đường dẫn Color mở đúng System; về Settings đóng các nhánh r
   expect(nav().getByRole('button', { name: 'System' }).getAttribute('aria-expanded')).toBe('true')
   expect(nav().getByRole('button', { name: 'Accounts' }).getAttribute('aria-expanded')).toBe('false')
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-  await waitFor(() => expect(nav().getAllByRole('button').map(button => button.textContent)).toEqual(['Accounts', 'System']))
+  await waitFor(() => expect(nav().getAllByRole('button').map(button => button.textContent)).toEqual(['Accounts', 'System', 'Đăng xuất']))
   expect(frameTheme()).toBe('light')
   fireEvent.click(nav().getByRole('button', { name: 'System' }))
   fireEvent.click(nav().getByRole('button', { name: 'Color' }))

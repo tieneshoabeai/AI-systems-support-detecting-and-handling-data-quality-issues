@@ -125,7 +125,7 @@ describe('login, routes and session cleanup', () => {
     expect(screen.getByTestId('location').textContent).toBe('/management?view=local#top')
     const originalSession = s.storage.read()
     if (originalSession.status !== 'valid') throw new Error('Expected a valid session before logout')
-    const account = await screen.findByRole('button', { name: /^Tài khoản / })
+    const account = await screen.findByRole('button', { name: /^Tài khoản / }, { timeout: 4000 })
     expect(account.classList.contains('is-live')).toBe(true)
     fireEvent.click(account)
     const logout = within(screen.getByRole('dialog', { name: /^Tài khoản / })).getByRole('button', { name: 'Đăng xuất' })

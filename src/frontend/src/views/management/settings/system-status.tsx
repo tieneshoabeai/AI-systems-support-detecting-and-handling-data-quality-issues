@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button } from '../../../components/ui/controls'
+import { Button } from '../../../components/ui/primitives/button'
 import styles from '../../../components/ui/diagnostics.module.css'
 import { createAxiosClient } from '../../../lib/axios-client'
 import { normalizeApiError } from '../../../lib/api-error'
@@ -11,6 +11,7 @@ type Snapshot = { at: Date; elapsedMs: number } & (
 )
 const time = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'medium' })
 const checkLabel = (value: Readiness['mongo']) => value === 'ok' ? 'Hoạt động' : value === 'fail' ? 'Có lỗi' : 'Chưa có thông tin'
+const storageLabels = { cloud_s3_r2: 'Đám mây', local_fallback: 'Cục bộ' }
 
 export function SystemStatus() {
   const [attempt, setAttempt] = useState(0)
@@ -46,7 +47,7 @@ export function SystemStatus() {
 
   return <section className={styles['panel']} data-accent="teal" aria-label="Trạng thái hệ thống">
     <header className={styles['header']}>
-      <div><h2>Khả năng tiếp nhận yêu cầu</h2><p>Kiểm tra kết nối cơ sở dữ liệu và trạng thái lưu trữ do máy chủ báo về.</p></div>
+      <div><h2>Khả năng tiếp nhận yêu cầu</h2><p>Kiểm tra kết nối cơ sở dữ liệu và xem chế độ lưu trữ do máy chủ báo về.</p></div>
       <Button className="button-secondary" disabled={!snapshot} onClick={() => setAttempt(value => value + 1)}>{snapshot ? 'Kiểm tra lại' : 'Đang kiểm tra…'}</Button>
     </header>
     <p className={styles['status']} role="status" data-tone={failure ? 'error' : data ? 'normal' : 'neutral'}>
@@ -54,7 +55,7 @@ export function SystemStatus() {
     </p>
     <dl className={styles['serviceChecks']}>
       <div><dt>Cơ sở dữ liệu</dt><dd>{snapshot ? checkLabel(data?.mongo ?? null) : 'Đang kiểm tra'}</dd></div>
-      <div><dt>Lưu trữ</dt><dd>{snapshot ? checkLabel(data?.storage ?? null) : 'Đang kiểm tra'}{data?.storageMode && <small>{data.storageMode}</small>}</dd></div>
+      <div><dt>Chế độ lưu trữ</dt><dd>{data?.storageMode ? storageLabels[data.storageMode] : snapshot ? 'Chưa có thông tin' : 'Đang kiểm tra'}</dd></div>
     </dl>
     {failure && <p className={styles['empty']}>{failure.code ? `HTTP ${failure.code}. ` : ''}{failure.message}</p>}
     {snapshot && <div className={styles['meta']}>

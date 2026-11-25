@@ -188,6 +188,33 @@ describe('session coordinator', () => {
     expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a' })
   })
 
+  it('recovers a valid limited session without changing its draft generation', async () => {
+    const s = setup(session())
+    s.getMe.mockRejectedValueOnce(failure('network'))
+    await s.coordinator.restore()
+    const before = s.coordinator.draftAccess.read()
+    const pending = deferred<CurrentUser>()
+    s.getMe.mockReturnValueOnce(pending.promise)
+    const jobs = [s.coordinator.checkSession(), s.coordinator.checkSession()]
+    expect(s.coordinator.draftAccess.read()).toEqual(before)
+    pending.resolve(profile())
+    await Promise.all(jobs)
+    expect(s.coordinator.getSnapshot().phase).toBe('authenticated')
+    expect(s.coordinator.draftAccess.read()).toEqual(before)
+    expect(s.getMe).toHaveBeenCalledTimes(2)
+    expect(s.refresh).not.toHaveBeenCalled()
+  })
+
+  it('ends a limited session when reconnect confirms access was revoked', async () => {
+    const s = setup(session())
+    s.getMe.mockRejectedValueOnce(failure('network'))
+    await s.coordinator.restore()
+    s.getMe.mockRejectedValueOnce(failure('http', 401))
+    await s.coordinator.checkSession()
+    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+    expect(s.coordinator.draftAccess.read()).toBeNull()
+  })
+
   it('treats exact expiry as blocked and coalesces health calls without refreshing', async () => {
     const s = setup(session())
     await s.coordinator.restore()

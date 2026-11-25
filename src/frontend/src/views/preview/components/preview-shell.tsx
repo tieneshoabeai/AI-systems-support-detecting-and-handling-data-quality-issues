@@ -9,6 +9,7 @@ import { usePreviewSession } from '../preview-session-context'
 import { PreviewIcon } from './preview-icons'
 import { PreviewTopbar } from './preview-topbar'
 import { DataVerseMark } from '../../../components/branding'
+import { OfflineNotice } from '../../../components/offline/offline-notice'
 
 // Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
 // nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
@@ -182,6 +183,7 @@ export function PreviewShell({
       <div className={`preview-content ${contentClassName}`} ref={contentRef}>
         {/* Chỉ nói "dữ liệu mẫu" khi đúng là fixture; khi store đã là API thì dòng này nói sai. */}
         {!processing && state.source !== 'api' && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}
+        <OfflineNotice />
         {children}
       </div>
     </div>

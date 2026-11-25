@@ -83,12 +83,10 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
         }
 
         const method = request.method ?? 'GET'
-        const health = request.scope === 'health' || (request.auth === 'public' && (request.method ?? 'GET') === 'GET' && request.path === '/health')
-        if (health && (request.auth !== 'public' || (request.method ?? 'GET') !== 'GET'
-          || !['/health', '/health/ready'].includes(request.path))) {
-          throw new ApiError({ kind: 'config', message: 'Đường dẫn kiểm tra trạng thái không hợp lệ.' })
-        }
-        const url = resolveApiPath(request.path, health ? new URL(config.baseUrl).origin : config.baseUrl)
+        // The backend registers the public health check outside the API prefix.
+        const url = request.auth === 'public' && method === 'GET' && (request.path === '/health' || request.path === '/health/ready')
+          ? new URL(request.path, config.baseUrl).href
+          : resolveApiPath(request.path, config.baseUrl)
         const timeout = request.timeoutMs ?? config.timeoutMs
 
         if (!Number.isFinite(timeout) || timeout <= 0) {
@@ -135,9 +133,6 @@ export const createAxiosClient = (options: AxiosClientOptions = {}): ApiClient =
         if (request.responseType === 'blob') return response.data as T
         return unwrapEnvelope<T>(response.data)
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response) {
-          console.info('[qa-network]', request.method ?? 'GET', request.path, error.response.status)
-        }
         throw normalizeApiError(error)
       }
     },

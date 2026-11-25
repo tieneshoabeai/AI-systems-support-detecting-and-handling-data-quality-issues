@@ -31,11 +31,12 @@ it('opens local file selection only when the project has no dataset, without fak
 it('does not infer a confirmed result from a sample dataset status', () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.queryByRole('button', { name: 'Upload data' })).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
+  expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Data Analysis' }))
   expect(screen.queryByRole('button', { name: 'Đánh giá và lưu kết quả' })).toBeNull()
   fireEvent.click(screen.getByText('Focus hoàn tất'))
-  expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Đánh giá và lưu kết quả' })).disabled).toBe(true)
-  expect(screen.getByText(/Chưa có kết quả xử lý được xác nhận/)).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Đánh giá và lưu kết quả' })).toBeNull()
+  expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tải file kết quả' }).disabled).toBe(true)
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 
@@ -49,7 +50,7 @@ it('confirms project completion outside the Dataset toolbar and retains the dial
     <PreviewSessionProvider routeIds={{}}><ProjectWorkspaceView projectId="prj-sales" /></PreviewSessionProvider>
   </ManagementStoreContext.Provider>)
 
-  const detection = screen.getByRole('button', { name: 'Detection' })
+  const detection = screen.getByRole('button', { name: 'Data Analysis' })
   fireEvent.click(detection)
   fireEvent.click(screen.getByText('Focus hoàn tất'))
   const trigger = screen.getByRole('button', { name: 'Hoàn thành Project' })

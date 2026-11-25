@@ -1,19 +1,6 @@
 /** Auto-generated from OpenAPI. Do not edit manually. */
 import type { paths } from '../../lib/openapi'
 
-export type getProjectsByProjectIdAnalysisConfigRequest = paths["/api/v1/projects/{projectId}/analysis/config"]["get"]
-export type getProjectsByProjectIdAnalysisConfigParams = getProjectsByProjectIdAnalysisConfigRequest["parameters"]
-export type getProjectsByProjectIdAnalysisConfigParamsPath = getProjectsByProjectIdAnalysisConfigParams["path"]
-export type getProjectsByProjectIdAnalysisConfigResponses = getProjectsByProjectIdAnalysisConfigRequest["responses"]
-export type getProjectsByProjectIdAnalysisConfigResponse200 = NonNullable<getProjectsByProjectIdAnalysisConfigResponses["200"]>
-
-export type postProjectsByProjectIdSaveAnalysisConfigRequest = paths["/api/v1/projects/{projectId}/analysis/config"]["post"]
-export type postProjectsByProjectIdSaveAnalysisConfigParams = postProjectsByProjectIdSaveAnalysisConfigRequest["parameters"]
-export type postProjectsByProjectIdSaveAnalysisConfigParamsPath = postProjectsByProjectIdSaveAnalysisConfigParams["path"]
-export type postProjectsByProjectIdSaveAnalysisConfigRequestBody = NonNullable<postProjectsByProjectIdSaveAnalysisConfigRequest["requestBody"]>["content"][keyof NonNullable<postProjectsByProjectIdSaveAnalysisConfigRequest["requestBody"]>["content"]]
-export type postProjectsByProjectIdSaveAnalysisConfigResponses = postProjectsByProjectIdSaveAnalysisConfigRequest["responses"]
-export type postProjectsByProjectIdSaveAnalysisConfigResponse200 = NonNullable<postProjectsByProjectIdSaveAnalysisConfigResponses["200"]>
-
 export type postProjectsByProjectIdRunAnalysisRequest = paths["/api/v1/projects/{projectId}/analysis"]["post"]
 export type postProjectsByProjectIdRunAnalysisParams = postProjectsByProjectIdRunAnalysisRequest["parameters"]
 export type postProjectsByProjectIdRunAnalysisParamsPath = postProjectsByProjectIdRunAnalysisParams["path"]

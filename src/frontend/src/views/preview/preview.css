@@ -41,6 +41,8 @@
      tương phản chạy trên trình duyệt thật (kể cả pixel nền tinh vân đứng sau chữ) vẫn 0 fail
      trước và sau khi refactor. Test preview-constraints giữ cho không chỗ nào quay lại hex. */
   --pv-on-fill: #fff;                 /* chữ trắng trên nền đặc (button · badge · avatar) */
+  --pv-floating-control-line: #b7d9ff55;
+  --pv-floating-control-bg: #132742;
   --pv-ink-brand: #dff1ff;            /* logo mark trên khối gradient */
   --pv-ink-accent: #cfe3ff;           /* nhãn sáng trên chip/đầu mục đang bật */
   --pv-ink-accent-hi: #dbeafe;        /* hover của link/nhãn */
@@ -2231,7 +2233,7 @@
 [data-preview='2d'] .workspace-avatar-label {
   position: absolute; inset-inline-end: 10px; bottom: 10px;
   display: flex; align-items: center; gap: 5px; padding: 6px 9px;
-  border: 1px solid #b7d9ff55; border-radius: 8px; background: #132742; color: #fff;
+  border: 1px solid var(--pv-floating-control-line); border-radius: 8px; background: var(--pv-floating-control-bg); color: var(--pv-on-fill);
   font-size: 12px; line-height: 1.35; font-weight: 650; pointer-events: none;
 }
 @media (hover: hover) and (pointer: fine) {

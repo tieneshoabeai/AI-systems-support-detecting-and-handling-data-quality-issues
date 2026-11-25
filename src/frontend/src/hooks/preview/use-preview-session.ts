@@ -10,7 +10,7 @@ import { useManagementStore } from './use-preview-store'
 import { previewHref, previewNavigateEvent, universeUrl } from '../../services/preview/preview-route'
 import type { PreviewRouteIds } from '../../types'
 import { usePreviewStore } from './use-preview-store'
-import { usePreviewColorScheme } from './use-preview-color-scheme'
+import { usePreviewAppearance } from './preview-appearance-context'
 
 // Flow của frame preview: một chỗ duy nhất quyết định "bấm vào thì hệ thống làm gì".
 // Menu ngữ cảnh, nút ⋯, dropdown "Thao tác ▾" và các nút trong panel chi tiết đều gọi
@@ -49,7 +49,7 @@ export const usePreviewSessionModel = (
   // state lấy qua hook để mọi thẻ/panel/topbar cùng dựng lại khi mock store đổi;
   // gọi thẳng getState() trong render sẽ trả về snapshot cũ và giao diện "không nhận" thao tác.
   const state = usePreviewStore()
-  const appearance = usePreviewColorScheme()
+  const appearance = usePreviewAppearance()
   const toastTimers = useRef(new Map<string, number>())
   const toastSeq = useRef(0)
   // Nơi focus đang đứng trước khi menu mở — đóng menu phải trả về đúng chỗ cũ,
@@ -90,7 +90,7 @@ export const usePreviewSessionModel = (
     setMenu(null)
     const anchor = returnFocusRef.current
     returnFocusRef.current = null
-    if (anchor?.isConnected) anchor.focus()
+    if (anchor?.isConnected) anchor.focus({ preventScroll: true })
   }, [])
 
   const openMenu = useCallback((request: PreviewMenuRequest) => {

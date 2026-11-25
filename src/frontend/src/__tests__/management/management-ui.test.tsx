@@ -17,7 +17,7 @@ afterEach(cleanup)
 it('submits the report edit from the detail UI and renders the server response', async () => {
   const issue = { id: 'i1', title: 'Issue to edit', description: 'Initial', issueType: 'data_error', status: 'needs_info',
     version: 2, updatedAt: '2026-11-18', createdAt: '2026-11-18' }
-  const request = vi.fn(async (options: ApiRequestOptions) => {
+  const request = vi.fn((options: ApiRequestOptions) => Promise.resolve().then(() => {
     switch (options.path) {
       case '/workspaces':
       case '/projects': return { items: [], total: 0 }
@@ -29,7 +29,7 @@ it('submits the report edit from the detail UI and renders the server response',
         ? { ...issue, description: 'More information', status: 'in_progress', version: 3 } : issue
       default: throw new Error(`Unexpected request: ${options.path}`)
     }
-  })
+  }))
   const { store, load } = createManagementStore({ request } as ApiClient, { id: 'u1', role: 'analyst', name: 'Test User', initials: 'TU' })
   await load()
   render(<ManagementStoreContext.Provider value={store}><PreviewSessionProvider routeIds={{}}>
@@ -43,8 +43,10 @@ it('submits the report edit from the detail UI and renders the server response',
 
   expect(await screen.findByText('More information')).toBeDefined()
   expect(screen.queryByRole('button', { name: 'Bổ sung báo cáo' })).toBeNull()
-  expect(request).toHaveBeenLastCalledWith({ path: '/issues/i1', method: 'PATCH', auth: 'session',
-    data: { title: 'Issue to edit', description: 'More information', expectedVersion: 2 }, signal: expect.any(AbortSignal) })
+  const lastRequest = request.mock.calls.at(-1)?.[0]
+  expect(lastRequest).toMatchObject({ path: '/issues/i1', method: 'PATCH', auth: 'session',
+    data: { title: 'Issue to edit', description: 'More information', expectedVersion: 2 } })
+  expect(lastRequest?.signal).toBeInstanceOf(AbortSignal)
 })
 it('keeps an upload open on failure, prevents a second request, closes only after acknowledgment', async () => {
   let accept!: () => void
@@ -60,7 +62,7 @@ it('keeps an upload open on failure, prevents a second request, closes only afte
   fireEvent.click(screen.getByRole('button', { name: 'Upload data' }))
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Upload data' }).disabled).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Upload data' }))
-  expect(uploadDataset).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(uploadDataset).toHaveBeenCalledTimes(2))
   await act(async () => { accept(); await Promise.resolve() })
   await waitFor(() => expect(close).toHaveBeenCalledOnce())
 })
@@ -93,7 +95,7 @@ it('the migrated project wizard forwards the original file and waits for acknowl
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tiếp theo' }))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tiếp theo' }))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tạo Project' }))
-  expect(createProject.mock.calls[0]?.[0].dataset.file).toBe(file)
+  await waitFor(() => expect(createProject.mock.calls[0]?.[0].dataset.file).toBe(file))
   expect(within(dialog).queryByText('Tạo Project thành công!')).toBeNull()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tạo Project' }))
   expect(createProject).toHaveBeenCalledTimes(1)

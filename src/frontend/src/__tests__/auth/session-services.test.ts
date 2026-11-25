@@ -57,6 +57,16 @@ describe('session service contracts', () => {
     expect(await setup(health('disconnected')).health.check()).toEqual({ available: false })
   })
 
+  it('reads readiness outside the API prefix and keeps storage as a mode', async () => {
+    const s = setup({ status: 'ok', checks: { mongodb: { status: 'ok' }, storage: { status: 'ok', mode: 'local_fallback' } } })
+    const signal = new AbortController().signal
+
+    await expect(s.health.readiness(signal)).resolves.toEqual({ mongo: 'ok', storageMode: 'local_fallback' })
+    expect(s.adapter.mock.calls[0]?.[0].url).toBe('http://localhost:3000/health/ready')
+    expect(s.readToken).not.toHaveBeenCalled()
+    await expect(setup({}, 503).health.readiness(signal)).rejects.toMatchObject({ status: 503 })
+  })
+
   it.each([null, {}, { status: 'ok' }, health('unknown'), { ...health(), status: 'bad' }])('rejects malformed health instead of claiming availability', async data => {
     await expect(setup(data).health.check()).rejects.toMatchObject({ kind: 'invalid-response' })
   })

@@ -40,7 +40,6 @@ export type ApiRequestOptions = RequestOptions & (
   | { responseType?: 'blob'; includeStatus?: false; requireBody?: boolean }
   | { responseType: 'blob'; includeStatus: true; requireBody?: never }
 ) & {
-  scope?: 'health'
   path: string
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   data?: unknown

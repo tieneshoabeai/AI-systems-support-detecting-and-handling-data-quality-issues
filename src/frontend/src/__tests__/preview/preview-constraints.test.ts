@@ -66,7 +66,7 @@ it('thang chữ: tối thiểu 11px và không có nửa bậc', () => {
   expect(tooSmall).toEqual([])
   expect(halfSteps).toEqual([])
   // Bậc thang thật đang dùng — ghi lại để một lần chỉnh cỡ chữ là một lần có chủ đích.
-  expect([...new Set(sizes)].sort((a, b) => a - b)).toEqual([11, 12, 14, 16, 18, 21, 30, 34])
+  expect([...new Set(sizes)].sort((a, b) => a - b)).toEqual([11, 12, 13, 14, 15, 16, 18, 19, 21, 30, 34])
 })
 
 // ---------- Chuyển động ----------

@@ -611,7 +611,7 @@ it('shell đo chiều cao vùng cuộn và truyền --pv-viewport-h cho panel ch
 // Trang Project Workspace Overview — ảnh UI-UX/projects/DataVerse_Project_Workspace_Overview_v1.
 // Ba dải của ảnh, mọi số liệu suy từ mock store: dải đầu (tên + mô tả project | dataset + shape),
 // khoang giữa (một khối tâm + bốn khối module), thanh đáy (bốn nút module).
-it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút module', () => {
+it('trang Project: giữ scene 3D và có ba nút module sau khi gộp Detection', () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.getByRole('heading', { level: 1, name: /Sales Analytics/ })).toBeDefined()
   const crumb = screen.getByRole('navigation', { name: 'Path điều hướng' })
@@ -635,7 +635,8 @@ it('trang Project: dataset+shape, scene 3D nhúng, không sidebar và bốn nút
 
   // Thanh đáy: bốn NÚT bấm được (không phải bốn nhãn trang trí), và 'Tổng quan' đang bật vì
   // ảnh vẽ ô đó active.
-  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label })).toBeDefined()
+  for (const module of projectModules.filter(item => item.id !== 'detection')) expect(screen.getByRole('button', { name: module.label })).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
   everyDisabledButtonHasVisibleReason()
 })
@@ -700,17 +701,18 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(screen.getByRole('button', { name: 'Tổng quan' }).hasAttribute('aria-current')).toBe(false)
   expect(screen.getByTestId('dataset-scene')).toBeDefined()
   expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
-  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan'], ['Detection', 'orange']] as const) {
+  for (const [label, theme] of [['Tổng quan', 'violet'], ['Data Analysis', 'cyan']] as const) {
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe(theme)
   }
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
   fireEvent.click(screen.getByRole('button', { name: 'Chọn khối cam' }))
-  expect(screen.getByRole('button', { name: 'Detection' }).getAttribute('aria-current')).toBe('true')
+  expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
+  expect(screen.getByRole('button', { name: 'Data Analysis' }).getAttribute('aria-current')).toBe('true')
   fireEvent.click(screen.getByRole('button', { name: 'Về góc tổng quan' }))
-  expect(screen.getByRole('button', { name: 'Detection' }).hasAttribute('aria-current')).toBe(false)
+  expect(screen.getByRole('button', { name: 'Data Analysis' }).hasAttribute('aria-current')).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
-  for (const module of projectModules) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(true)
+  for (const module of projectModules.filter(item => item.id !== 'detection')) expect(screen.getByRole('button', { name: module.label }).hasAttribute('disabled')).toBe(true)
 
   expect(window.location.hash).toBe('')
   expect(document.getElementById(previewNoteIds.projectModules)).toBeNull()
@@ -721,21 +723,21 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(window.location.hash).toBe('')
 })
 
-it('trang Project: chỉ mở panel sau focus hiện tại, Detection có đánh giá riêng', () => {
+it('trang Project: khối cam mở Data Analysis và không mở panel của focus cũ', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull()
   expect(document.querySelector('.pj-band')).toBeNull()
   expect(document.querySelector('.pj-dataset')?.parentElement?.className).toBe('pj-head-row')
   expect(screen.getByRole('link', { name: 'Trang chủ Processing' }).getAttribute('href')).toBe('/processing')
   expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tải file kết quả' })).disabled).toBe(true)
-  fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
-  expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn khối cam' }))
+  expect(screen.queryByRole('complementary', { name: 'Data Analysis' })).toBeNull()
   fireEvent.click(screen.getByText('Focus hoàn tất'))
-  const panel = screen.getByRole('complementary', { name: 'Detection' })
-  expect(within(panel).getByRole('heading', { name: 'Đánh giá' })).toBeDefined()
-  expect(within(panel).queryByRole('button', { name: /Tải file/ })).toBeNull()
+  const panel = await screen.findByRole('complementary', { name: 'Data Analysis' })
+  expect(within(panel).getByText(/Analysis API chỉ khả dụng/)).toBeDefined()
+  expect(within(panel).queryByRole('button', { name: 'Chạy Detection' })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
-  expect(screen.queryByRole('complementary', { name: 'Detection' })).toBeNull()
+  expect(screen.queryByRole('complementary', { name: 'Data Analysis' })).toBeNull()
   fireEvent.click(screen.getByText('Focus cam cũ hoàn tất'))
   expect(screen.queryByRole('complementary', { name: 'Data View' })).toBeNull()
   fireEvent.click(screen.getByText('Focus hoàn tất'))

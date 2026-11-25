@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { parseManagementRoute, parseProjectRoute } from '../../services/navigation'
 import { previewNavigateEvent } from '../../services/preview/preview-route'
-import { ManagementDataProvider } from './management-data-provider'
+import { ManagementDataProvider, ProcessingDataProvider } from './management-data-provider'
 import { PreviewSessionProvider } from '../preview/preview-session'
+import { PreviewAppearanceProvider } from '../preview/preview-appearance-provider'
 import '../preview/preview.css'
 import '../preview/preview-theme.css'
 
@@ -22,7 +23,11 @@ export function ApplicationFrame() {
     <Outlet />
   </PreviewSessionProvider>
   const detailId = parseProjectRoute(location.pathname)
-  return <ManagementDataProvider recent={/^\/processing\/?$/.test(location.pathname)}
-    {...(detailId ? { projectId: detailId } : {})}
-    progressiveProjects={management?.section === 'projects' && !management.projectId}>{frame}</ManagementDataProvider>
+  const scopedFrame = /^\/processing\/?$/.test(location.pathname)
+    ? <ProcessingDataProvider>{frame}</ProcessingDataProvider>
+    : detailId
+    ? <ProcessingDataProvider projectId={detailId}>{frame}</ProcessingDataProvider>
+    : <ManagementDataProvider progressiveProjects={management?.section === 'projects' && !management.projectId}>{frame}</ManagementDataProvider>
+  // Data scopes can remount across areas; keep the in-memory theme above that boundary.
+  return <PreviewAppearanceProvider>{scopedFrame}</PreviewAppearanceProvider>
 }

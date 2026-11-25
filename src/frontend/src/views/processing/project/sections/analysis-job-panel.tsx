@@ -1,9 +1,8 @@
+import { Button } from '../../../../components/ui/controls'
 import { useId } from 'react'
-import { Button, Input } from '../../../../components/ui/controls'
 import styles from '../../../../components/ui/diagnostics.module.css'
 import { isRecord } from '../../../../lib/api-error'
 import chartStyles from './project-charts.module.css'
-import moduleStyles from './module-content.module.css'
 
 const stages = ['Đã xếp hàng', 'Đang phân tích', 'Có kết quả']
 const coefficient = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 })
@@ -18,16 +17,16 @@ const statusLabels: Record<string, { title: string; stage: number; error?: boole
   skipped: { title: 'Tác vụ đã được bỏ qua', stage: -1 },
 }
 
-export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, checkedAt, error, canRetry, onJobId, onCheck, onRetry, onResult }: {
+export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, polling, checkedAt, error, canRetry, onCheck, onRetry, onResult }: {
   jobId: string
   job: unknown
   assessment: unknown
   busy: boolean
   operation: 'check' | 'retry' | null
+  polling: boolean
   checkedAt: Date | null
   error: string
   canRetry: boolean
-  onJobId: (id: string) => void
   onCheck: () => void
   onRetry: () => void
   onResult: () => void
@@ -35,6 +34,7 @@ export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, chec
   const heading = useId()
   const record = isRecord(job) && job['jobId'] === jobId.trim() ? job : null
   const key = record?.['status']
+  const jobFailure = key === 'failed' && isRecord(record?.['error']) ? record['error']['message'] : null
   const summary = typeof key === 'string' && Object.hasOwn(statusLabels, key) ? statusLabels[key] : undefined
   const attempt = record?.['attempt']
   const result = isRecord(assessment) && assessment['status'] === 'succeeded' ? assessment : null
@@ -49,25 +49,26 @@ export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, chec
     <header className={styles['header']}>
       <div><h3 id={heading}>Tiến trình phân tích AI</h3><p>Theo dõi tác vụ phân tích tương quan của project.</p></div>
       <span className={styles['status']} data-tone={summary?.error ? 'error' : summary ? 'normal' : 'neutral'} role="status">
-        {operation === 'check' ? 'Đang kiểm tra…' : operation === 'retry' ? 'Đang gửi yêu cầu…' : summary?.title ?? (jobId.trim() ? 'Chưa kiểm tra trạng thái' : 'Chưa có tác vụ')}
+        {operation === 'retry' ? 'Đang gửi yêu cầu…' : summary?.title
+          ?? (polling || operation === 'check' ? 'Đang kiểm tra…' : jobId ? 'Chưa kiểm tra trạng thái' : 'Không có mã tác vụ để theo dõi')}
       </span>
     </header>
     {summary && summary.stage >= 0 && <ol className={styles['steps']} aria-label="Các bước phân tích">
       {stages.map((label, index) => <li key={label} data-reached={index <= summary.stage}
         aria-current={index === summary.stage ? 'step' : undefined}><span className={styles['stepMark']} aria-hidden="true">{index < summary.stage ? '✓' : index + 1}</span>{label}</li>)}
     </ol>}
-    {!jobId.trim() && <p className={styles['empty']}>Bấm “Chạy phân tích” để tạo tác vụ và lấy mã job tự động.</p>}
     {record && <div className={styles['meta']}>
       {typeof attempt === 'number' && Number.isSafeInteger(attempt) && attempt >= 0 && <span>Số lần thử lại: {attempt}</span>}
       {checkedAt && <span>Cập nhật lúc <time dateTime={checkedAt.toISOString()}>{clock.format(checkedAt)}</time></span>}
     </div>}
     <div className={styles['actions']}>
-      <label className={moduleStyles['field']}>Mã job<Input value={jobId} disabled={Boolean(operation)} spellCheck={false} onChange={event => onJobId(event.target.value)} /></label>
-      <Button className="button-secondary" disabled={busy || !jobId.trim()} onClick={onCheck}>Xem trạng thái</Button>
-      {canRetry && <Button className="button-secondary" disabled={busy || !jobId.trim()} onClick={onRetry}>Thử lại job</Button>}
-      {key === 'succeeded' && <Button className="button-primary" disabled={busy} onClick={onResult}>Xem kết quả mới nhất của project</Button>}
+      {jobId && <Button className="button-secondary" disabled={busy || polling} onClick={onCheck}>Kiểm tra lại trạng thái</Button>}
+      {jobId && canRetry && (key === 'failed' || key === 'skipped') &&
+        <Button className="button-secondary" disabled={busy} onClick={onRetry}>Thử lại job</Button>}
+      {key === 'succeeded' && <Button className="button-secondary" disabled={busy} onClick={onResult}>Tải lại kết quả</Button>}
     </div>
     {error && <p role="alert" className={styles['empty']}>{error}</p>}
+    {typeof jobFailure === 'string' && jobFailure && <p className={styles['empty']}>{jobFailure}</p>}
     {result && <div className={styles['findings']}>
       <h4>Nhận xét AI mới nhất của project</h4>
       {pairs.length > 0 && <section className={chartStyles['correlation']} aria-label="Biểu đồ tương quan">

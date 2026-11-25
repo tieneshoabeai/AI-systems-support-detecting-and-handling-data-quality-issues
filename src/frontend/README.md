@@ -2,7 +2,7 @@
 
 Frontend của dự án **AI-systems-support-detecting-and-handling-data-quality-issues** — **Hệ thống AI hỗ trợ phát hiện và xử lý vấn đề về chất lượng dữ liệu**. Tên tiếng Anh trong README gốc: **AI Systems Support Detecting and Handling Data Quality Issues**. Tài liệu này dành cho nhóm 2 người phát triển FE, người review và người cần cài/chạy project.
 
-**Trạng thái hiện tại.** Frontend có luồng đăng nhập và quản lý phiên. Management dùng API cho workspace/project, thành viên, thông báo, báo cáo vấn đề và hồ sơ; Settings nối đổi mật khẩu và quản lý phiên. Trong project, panel Overview/Data View đọc schema/bản ghi, hỗ trợ truy vấn, thống kê cột, đổi tên cột và tải CSV. Tài khoản admin có trang Quản trị tài khoản/báo cáo vấn đề từ Home. Các lời gọi này cần kiểm chứng với backend triển khai; build/test mô phỏng không thay nghiệm thu BE thật. Dev hỗ trợ mock Management/Processing và preview Workspace 3D riêng.
+**Trạng thái hiện tại.** TaiFE giữ giao diện và scene 3D ban đầu, cập nhật API theo hợp đồng full stack và Swagger QA ngày 25/11. Management dùng API cho workspace/project, thành viên, thông báo, báo cáo vấn đề và hồ sơ; Settings nối đổi mật khẩu và quản lý phiên. Overview/Data View đọc dataset bất biến, truy vấn, thống kê, biểu đồ và tải CSV. Data Analysis gộp phát hiện chất lượng, tương quan, phản hồi và PDF. IndexedDB lưu file upload nháp và dữ liệu đã xem để đọc ngoại tuyến trong phiên còn hợp lệ; production có service worker phục vụ tải lại khi mất mạng. Xem [kết quả tích hợp](../../API_INTEGRATION_STATUS.md) và [hướng dẫn QA](../../MANUAL_QA_GUIDE.md) để phân biệt test local với server thật. Dev vẫn có mock Management/Processing và preview Workspace 3D riêng.
 
 ## 1. Project Overview
 

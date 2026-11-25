@@ -1,5 +1,5 @@
 import { Button, Input, Select } from '../../../../components/ui/controls'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
 import { firstRecordQuery, type ColumnChart, type ColumnStats, type DatasetColumn, type DatasetPreview, type RecordPage, type RecordQuery } from '../../../../services/processing/dataset.service'
@@ -44,8 +44,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
 }) {
   const store = useManagementStore()
   const service = store.datasetService
-  const [deletedDatasetId, setDeletedDatasetId] = useState<string | null>(null)
-  const dataset = project.dataset?.id === deletedDatasetId ? null : project.dataset
+  const dataset = project.dataset
   const id = dataset?.id
   const [columns, setColumns] = useState<DatasetColumn[]>(initialPreview?.columns ?? [])
   const [page, setPage] = useState<RecordPage | null>(overview ? null : initialPreview?.page ?? null)
@@ -57,9 +56,10 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
   const [filter, setFilter] = useState<FilterOperator | ''>('')
   const [filterValue, setFilterValue] = useState('')
   const [stats, setStats] = useState<{ datasetId: string; column: string; value: ColumnStats; chart: ColumnChart | null } | null>(null)
-  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsRequestColumn, setStatsRequestColumn] = useState<string | null>(null)
+  const statsRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => statsRequest.current?.abort(), [id, service])
   const [statsError, setStatsError] = useState<{ column: string; message: string } | null>(null)
-  const [piiUpdateAvailable, setPiiUpdateAvailable] = useState(true)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [loading, setLoading] = useState(!initialPreview)
@@ -91,8 +91,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
     })
     return () => controller.abort()
   }, [id, service, query, overview, attempt, initialPreview])
-  if (!dataset) return actionError ? <ModuleNotice tone="error">{actionError}</ModuleNotice>
-    : <ModuleNotice>Project chưa có tập dữ liệu. Hãy tải CSV lên trước.</ModuleNotice>
+  if (!dataset) return <ModuleNotice>Project chưa có tập dữ liệu. Hãy tải CSV lên trước.</ModuleNotice>
   if (!service || !id) return <ModuleNotice>Dịch vụ dữ liệu chưa sẵn sàng.</ModuleNotice>
   const activeColumn = columns.find(item => item.key === column) ?? columns[0]
   const selectedColumn = activeColumn?.key ?? ''
@@ -123,7 +122,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
       <div className={styles['actions']}>
         <Button className="button-secondary" disabled={busy} onClick={() => { void action(download) }}><Icon name="export" /> Tải CSV gốc</Button>
         <Button className="button-secondary" disabled={loading || busy} onClick={reload}><Icon name="reset" /> Tải lại</Button>
-        {project.canManage && store.refreshProject && <Button className="ghost-button" disabled={busy} onClick={() => setConfirmDelete(true)}><Icon name="trash" /> Xóa dataset</Button>}
+        {project.canManage && store.refreshProject && <Button variant="plain" className="ghost-button" disabled={busy} onClick={() => setConfirmDelete(true)}><Icon name="trash" /> Xóa dataset</Button>}
       </div>
     </section>
     <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} busy={busy} aria-labelledby="delete-dataset-title">
@@ -135,13 +134,12 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
         <Button type="button" className="button-danger" disabled={busy} onClick={() => {
           void action(async () => {
             await service.delete(id)
-            setDeletedDatasetId(id)
+            onInvalidatePreview?.()
             try { await store.refreshProject?.(project.id, new AbortController().signal) } catch {
-              throw new Error('Đã xóa dataset trên máy chủ nhưng chưa tải lại được Project. Hãy tải lại trang, không gửi lại thao tác.')
-            } finally {
               setConfirmDelete(false)
-              onInvalidatePreview?.()
+              throw new Error('Đã xóa dataset trên máy chủ nhưng chưa tải lại được Project. Hãy tải lại trang, không gửi lại thao tác.')
             }
+            setConfirmDelete(false)
           })
         }}>Xác nhận xóa</Button>
       </div>
@@ -174,7 +172,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
     }}>
       <h3>Truy vấn bản ghi</h3>
       <div className={styles['fields']}>
-        <label>Cột <Select value={selectedColumn} onChange={event => { setColumn(event.target.value); setStats(null); setStatsError(null) }}>
+        <label>Cột <Select value={selectedColumn} onChange={event => { statsRequest.current?.abort(); statsRequest.current = null; setStatsRequestColumn(null); setColumn(event.target.value); setStats(null); setStatsError(null) }}>
           {columns.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
         </Select></label>
         <label>Tìm kiếm <Input value={search} maxLength={200} onChange={event => setSearch(event.target.value)} /></label>
@@ -232,47 +230,37 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
       </section>}
     {!overview && selectedColumn && <>
       <DatasetDistribution column={activeColumn?.name ?? selectedColumn} columnIsPii={activeColumn?.isPii === true}
-        busy={busy || loading} loading={statsLoading}
+        busy={busy || loading || statsRequestColumn === selectedColumn} loading={statsRequestColumn === selectedColumn}
         error={statsError?.column === selectedColumn ? statsError.message : ''}
         stats={stats?.datasetId === id && stats.column === selectedColumn ? stats.value : null}
         chart={stats?.datasetId === id && stats.column === selectedColumn ? stats.chart : null}
-        onLoad={() => { void action(async () => {
-          setStatsLoading(true)
+        onLoad={() => {
+          statsRequest.current?.abort()
+          const controller = new AbortController()
+          statsRequest.current = controller
+          setStatsRequestColumn(selectedColumn)
           setStatsError(null)
-          try {
-            const signal = new AbortController().signal
-            const [statistics, chart] = await Promise.allSettled([
-              service.stats(id, selectedColumn, signal), service.charts(id, selectedColumn, signal),
-            ])
-            if (statistics.status === 'rejected') throw statistics.reason
+          void Promise.allSettled([
+            service.stats(id, selectedColumn, controller.signal),
+            service.charts(id, selectedColumn, controller.signal),
+          ]).then(([statistics, chart]) => {
+            if (controller.signal.aborted) return
+            if (statistics.status === 'rejected') {
+              setStatsError({ column: selectedColumn, message: message(statistics.reason) })
+              return
+            }
             setStats({ datasetId: id, column: selectedColumn, value: statistics.value,
               chart: chart.status === 'fulfilled' ? chart.value : null })
-          } catch (cause) {
-            setStatsError({ column: selectedColumn, message: message(cause) })
-          } finally {
-            setStatsLoading(false)
-          }
-        }) }} />
+          }).finally(() => {
+            if (statsRequest.current === controller) {
+              statsRequest.current = null
+              setStatsRequestColumn(null)
+            }
+          })
+        }} />
       <section className={styles['card']}>
         <h3>Quyền riêng tư của cột</h3>
         {activeColumn && <p className={styles['muted']}>{activeColumn.isPii ? 'Cột được đánh dấu là PII.' : 'Cột chưa được đánh dấu là PII.'}</p>}
-        {project.canUpdateDatasetMetadata && activeColumn && piiUpdateAvailable && <div className={styles['actions']}><Button className="button-secondary" disabled={busy || loading || Boolean(error)} onClick={() => {
-          void action(async () => {
-            try {
-              await service.updateColumnPii(id, activeColumn.key, !activeColumn.isPii)
-            } catch (cause) {
-              const status = typeof cause === 'object' && cause !== null && 'status' in cause ? cause.status : undefined
-              if (status === 404) {
-                setPiiUpdateAvailable(false)
-                setActionError('Backend hiện tại không hỗ trợ cập nhật cờ PII.')
-                return
-              }
-              throw cause
-            }
-            reload()
-          })
-        }}>{activeColumn.isPii ? 'Bỏ đánh dấu PII' : 'Đánh dấu là PII'}</Button></div>}
-        {project.canUpdateDatasetMetadata && activeColumn && !piiUpdateAvailable && <ModuleNotice>Backend hiện tại không hỗ trợ cập nhật cờ PII.</ModuleNotice>}
       </section>
     </>}
   </section>

@@ -74,19 +74,6 @@ const cursorPage = <T>(value: unknown, map: (item: unknown) => T) => {
 export function createAdminService(api: ApiClient) {
   const request = <T>(path: string, method: 'GET' | 'PATCH' = 'GET', data?: unknown, params?: Record<string, string | number>) =>
     api.request<T>({ path, method, auth: 'session', ...(data === undefined ? {} : { data }), ...(params === undefined ? {} : { params }) })
-  async function allPages<T>(path: string, map: (value: unknown) => T, params: Record<string, string | number>): Promise<T[]> {
-    const items: T[] = []
-    const visited = new Set<string>()
-    let cursor: string | null = null
-    for (;;) {
-      const page: { items: T[]; nextCursor: string | null } = cursorPage(await request<unknown>(path, 'GET', undefined, { ...params, ...(cursor ? { cursor } : {}) }), map)
-      items.push(...page.items)
-      if (!page.nextCursor) return items
-      if (visited.has(page.nextCursor)) throw new Error('Phân trang quản trị bị lặp lại.')
-      visited.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
-  }
 
   return {
     async listUsersPage(cursor?: string) {
@@ -99,14 +86,14 @@ export function createAdminService(api: ApiClient) {
       if (cursor && page.nextCursor === cursor) throw new Error('Con trỏ quản trị bị lặp lại.')
       return page
     },
-    listUsers(): Promise<AdminUser[]> {
-      return allPages('/admin/users', mapAdminUser, { limit: 100 })
+    async listUsers(): Promise<AdminUser[]> {
+      return pageItems(await request<unknown>('/admin/users'), mapAdminUser)
     },
     async getUser(id: string): Promise<AdminUser> {
       return mapAdminUser(await request<unknown>(`/admin/users/${encodeURIComponent(id)}`))
     },
-    listIssues(limit = 10): Promise<AdminIssue[]> {
-      return allPages('/admin/issues', mapAdminIssue, { limit, sortBy: 'createdAt', sortOrder: 'desc' })
+    async listIssues(limit = 10): Promise<AdminIssue[]> {
+      return pageItems(await request<unknown>('/admin/issues', 'GET', undefined, { limit, sortBy: 'createdAt', sortOrder: 'desc' }), mapAdminIssue)
     },
     async getIssue(id: string): Promise<AdminIssue> {
       return mapAdminIssue(await request<unknown>(`/admin/issues/${encodeURIComponent(id)}`))

@@ -37,16 +37,19 @@ export const AuthProvider = ({ runtime, configurationError = null, children }: P
   useEffect(() => {
     if (!coordinator) return
     const onFocus = () => { void coordinator.checkSession() }
+    const onOnline = () => { runtime?.localData.offline.reconnect() }
     const onVisibility = () => { if (document.visibilityState === 'visible') onFocus() }
     window.addEventListener('focus', onFocus)
     window.addEventListener('pageshow', onFocus)
+    window.addEventListener('online', onOnline)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.removeEventListener('focus', onFocus)
       window.removeEventListener('pageshow', onFocus)
+      window.removeEventListener('online', onOnline)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [coordinator])
+  }, [coordinator, runtime])
 
   useEffect(() => {
     if (!coordinator || snapshot.expiresAtMs === null
@@ -65,11 +68,12 @@ export const AuthProvider = ({ runtime, configurationError = null, children }: P
     const missing = () => new ApiError(configurationError ?? { kind: 'config', message: 'Dịch vụ đăng nhập chưa khả dụng.' })
     return {
       snapshot, configurationError,
+      ...(runtime ? { localData: runtime.localData } : {}),
       signIn: coordinator?.signIn ?? (() => Promise.reject(missing())),
       signOut: coordinator?.signOut ?? (() => Promise.reject(missing())),
       ...(coordinator ? { deleteAccount: coordinator.deleteAccount } : {}),
       confirmRenewal: coordinator?.confirmRenewal ?? (() => Promise.reject(missing())),
     }
-  }, [snapshot, configurationError, coordinator])
+  }, [snapshot, configurationError, coordinator, runtime])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

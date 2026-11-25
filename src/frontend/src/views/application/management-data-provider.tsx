@@ -10,6 +10,7 @@ import { readAccessToken } from '../../utils/auth/access-token'
 import { normalizeApiError } from '../../lib/api-error'
 import { ProcessingDataContext } from './processing-data-context'
 import type { Person } from '../../types/preview/preview.types'
+import { useOfflineStatus } from '../../hooks/offline/use-local-data'
 
 type LoadResult = {
   snapshot: SessionSnapshot
@@ -18,6 +19,7 @@ type LoadResult = {
   store?: ManagementStore
   error?: string
   missing?: boolean
+  projectPermissionsPending?: boolean
   personalStatus?: ManagementLoading | null
 }
 
@@ -32,6 +34,8 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
 }) {
   const auth = useContext(AuthContext)
   const snapshot = auth?.snapshot
+  const localData = auth?.localData
+  const offline = useOfflineStatus().offline
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<LoadResult | null>(null)
   const pendingStore = useMemo(() => createManagementStore({
@@ -39,7 +43,9 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
   }, sessionAccount(snapshot)).store, [snapshot])
 
   useEffect(() => {
-    if (snapshot?.phase !== 'authenticated') return
+    if (snapshot?.phase !== 'authenticated' && snapshot?.phase !== 'local-limited') return
+    if (snapshot.phase === 'local-limited' && !localData) return
+    if (snapshot.phase === 'local-limited') localData?.offline.useSavedData()
     let active = true
     let dispose: (() => void) | undefined
     const controller = new AbortController()
@@ -49,7 +55,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       if (session.status !== 'valid' || session.session.accountId !== snapshot.accountId) {
         throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại.')
       }
-      const api = createAxiosClient({
+      const transport = createAxiosClient({
         readToken: () => {
           if (!active || controller.signal.aborted) return null
           const current = storage.read()
@@ -57,7 +63,9 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
             ? current.session.accessToken : null
         },
       })
+      const api = localData ? localData.wrapApi(transport) : transport
       const data = createManagementStore(api, sessionAccount(snapshot), {
+        ...(localData ? { drafts: localData.drafts, readOnly: () => localData.offline.getSnapshot().offline } : {}),
         progressiveProjects,
         ...(projectId === undefined ? {} : { projectId }),
         ...(recent ? { recent } : {}),
@@ -70,7 +78,9 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       dispose = data.dispose
       const scope = { ...(projectId === undefined ? {} : { projectId }), progressiveProjects }
       const loaded = { snapshot, ...scope, store: data.store }
-      void (recent ? Promise.resolve() : data.loadCore()).then(() => {
+      void (recent ? Promise.resolve() : data.loadCore(() => {
+        if (active) setResult({ ...loaded, projectPermissionsPending: true })
+      })).then(() => {
         if (!active) return
         if (recent || projectId !== undefined) {
           setResult(loaded)
@@ -98,36 +108,36 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       queueMicrotask(() => { if (active) setResult({ snapshot, progressiveProjects, ...(projectId === undefined ? {} : { projectId }), error: message }) })
     }
     return () => { active = false; controller.abort(); dispose?.() }
-  }, [snapshot, attempt, projectId, recent, progressiveProjects])
+  }, [snapshot, attempt, projectId, recent, progressiveProjects, localData, offline])
 
   // Isolated previews retain their fixture store.
   // The route guard remains responsible for admission; API failures never select fixtures.
   if (!auth) return children
   const current = result?.snapshot === snapshot && result?.projectId === projectId && result?.progressiveProjects === progressiveProjects ? result : null
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
-  const projectError = snapshot?.phase === 'authenticated' ? current?.error : 'Cần phiên đăng nhập trực tuyến để mở project.'
-  const processingStatus = projectId === undefined ? null : {
-    loading: !current?.store && !projectError, ...(projectError ? { error: projectError } : {}),
-    ...(current?.missing ? { missing: true } : {}), retry,
+  if (projectId !== undefined) {
+    const error = snapshot?.phase === 'authenticated' || (snapshot?.phase === 'local-limited' && localData)
+      ? current?.error : 'Cần phiên đăng nhập hợp lệ để mở project.'
+    const status = { loading: !current?.store && !error, permissionsPending: current?.projectPermissionsPending === true, ...(error ? { error } : {}),
+      ...(current?.missing ? { missing: true } : {}), retry }
+    return <ProcessingDataContext.Provider value={status}>
+      <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
+    </ProcessingDataContext.Provider>
   }
   let status: ManagementLoading | null = null
-  if (snapshot?.phase !== 'authenticated') status = { phase: 'error', message: 'Cần phiên đăng nhập trực tuyến để quản lý dữ liệu.' }
+  if (snapshot?.phase !== 'authenticated' && !(snapshot?.phase === 'local-limited' && localData)) status = { phase: 'error', message: 'Cần phiên đăng nhập hợp lệ để quản lý dữ liệu.' }
   else if (current?.error) status = { phase: 'error', message: current.error, retry }
   else if (!current?.store) status = { phase: 'loading' }
 
-  return <ProcessingDataContext.Provider value={processingStatus}>
-    <ManagementLoadingContext.Provider value={status}>
+  return <ManagementLoadingContext.Provider value={status}>
     <ManagementPersonalLoadingContext.Provider value={current?.personalStatus ?? null}>
       <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
     </ManagementPersonalLoadingContext.Provider>
-    </ManagementLoadingContext.Provider>
-  </ProcessingDataContext.Provider>
+  </ManagementLoadingContext.Provider>
 }
 
-export function ManagementDataProvider({ children, ...scope }: {
-  children: ReactNode; progressiveProjects?: boolean; recent?: boolean; projectId?: string
-}) {
-  return <SessionDataProvider {...scope}>{children}</SessionDataProvider>
+export function ManagementDataProvider({ children, progressiveProjects = false }: { children: ReactNode; progressiveProjects?: boolean }) {
+  return <SessionDataProvider progressiveProjects={progressiveProjects}>{children}</SessionDataProvider>
 }
 
 export function ProcessingDataProvider({ children, projectId }: { children: ReactNode; projectId?: string }) {

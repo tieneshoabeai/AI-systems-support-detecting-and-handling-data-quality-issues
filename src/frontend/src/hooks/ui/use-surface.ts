@@ -160,7 +160,8 @@ export const useRovingFocus = (open: boolean, containerRef: RefObject<HTMLElemen
     if (!container) return
     const items = (): HTMLButtonElement[] =>
       Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled]), [role="option"]:not([disabled])'))
-    items()[0]?.focus()
+    // Opening a fixed menu must not scroll the page and trigger its scroll dismissal.
+    items()[0]?.focus({ preventScroll: true })
     const onKeyDown = (event: KeyboardEvent): void => {
       const list = items()
       const index = list.indexOf(document.activeElement as HTMLButtonElement)

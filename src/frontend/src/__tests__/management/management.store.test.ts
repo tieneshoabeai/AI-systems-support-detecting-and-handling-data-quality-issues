@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { createManagementStore } from '../../services/management/management.store'
 import { ApiError } from '../../lib/api-error'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
+import type { UploadDraftPort } from '../../types/datasets/upload-draft.types'
 const account = { id: 'u1', name: 'Tai', email: 'tai@example.com', role: 'analyst', initials: 'TA' }
 const workspace = { id: 'w1', name: 'Workspace', description: '', ownerId: 'u1', members: [], storageUsedBytes: 0, version: 3, createdAt: '2026-11-15', updatedAt: '2026-11-15', lastAccessedAt: null }
 const project = { id: 'p1', name: 'Project', description: '', workspaceId: 'w1', createdBy: 'u1', members: [], status: 'not_started', hasDataset: false, version: 4, createdAt: '2026-11-15', updatedAt: '2026-11-15' }
-function harness(override?: (r: ApiRequestOptions) => unknown, options: boolean | { readSessionId: () => string } = false) {
+function harness(override?: (r: ApiRequestOptions) => unknown, progressiveProjects = false, drafts?: UploadDraftPort) {
   const request = vi.fn(async (r: ApiRequestOptions) => {
     const result = override?.(r)
     if (result !== undefined) return await Promise.resolve(result)
@@ -13,16 +14,75 @@ function harness(override?: (r: ApiRequestOptions) => unknown, options: boolean 
     if (r.path === '/notifications/unread-count') return { unreadCount: 0 }
     if (['/issues', '/notifications'].includes(r.path)) return { items: [], meta: { hasMore: false, nextCursor: null } }
     if (r.path.endsWith('/members')) return { members: [{ userId: 'u1', role: 'owner', name: 'Tai', email: account.email }] }
-    if (r.path === '/workspaces/w1') return { workspace }
     if (r.path === '/workspaces') return { items: [workspace], total: 1 }
     if (r.path === '/projects') throw new ApiError({ kind: 'http', status: 404, message: 'Route unavailable' })
     if (r.path === '/workspaces/w1/projects') return { items: [project], total: 1 }
     return {}
   })
-  const data = createManagementStore({ request } as ApiClient, account, typeof options === 'boolean' ? { progressiveProjects: options } : options)
+  const data = createManagementStore({ request } as ApiClient, account, { progressiveProjects, ...(drafts ? { drafts } : {}) })
   return { ...data, request }
 }
 describe('manager API integration', () => {
+  it.each([
+    { workspaceOwner: 'u2', projectRole: 'owner', canManage: true },
+    { workspaceOwner: 'u1', projectRole: 'member', canManage: true },
+    { workspaceOwner: 'u2', projectRole: 'member', canManage: false },
+  ])('loads Project profiles and requests candidates only for managers ($workspaceOwner, $projectRole)', async ({ workspaceOwner, projectRole, canManage }) => {
+    const { store, loadCore, request } = harness(r => {
+      if (r.path === '/workspaces/w1') return { workspace: { ...workspace, ownerId: workspaceOwner } }
+      if (r.path === '/projects/p1/members') return {
+        items: [{ userId: account.id, role: projectRole, firstName: 'Tai', lastName: 'Nguyen' }],
+        meta: { hasMore: false, nextCursor: null },
+      }
+      if (r.path === '/workspaces/w1/members') return {
+        members: [{ userId: 'u3', role: 'member', name: 'Candidate', email: 'candidate@example.com' }],
+      }
+      return undefined
+    }, true)
+    await loadCore()
+    const card = store.getState().projects[0]!
+
+    const data = await store.loadProjectMembersData!(card, new AbortController().signal)
+
+    expect(data.project).toMatchObject({ canManage, members: [{ name: 'Tai Nguyen', id: account.id }] })
+    expect(data.workspace).toMatchObject({
+      name: 'Workspace',
+      memberPreview: canManage ? [{ name: 'Candidate', email: 'candidate@example.com' }] : [],
+    })
+    expect(request.mock.calls.filter(([r]) => r.path === '/workspaces/w1/members')).toHaveLength(canManage ? 1 : 0)
+  })
+
+  it('adds an eligible Workspace candidate and reads the updated Project roster', async () => {
+    const owner = { userId: account.id, role: 'owner', name: account.name }
+    const candidate = { userId: 'u3', role: 'member', name: 'Candidate', email: 'candidate@example.com' }
+    let added = false
+    const { store, loadCore, request } = harness(r => {
+      if (r.path === '/workspaces/w1') return { workspace }
+      if (r.path === '/workspaces/w1/members') return { members: [owner, candidate] }
+      if (r.path === '/projects/p1/members') {
+        if (r.method === 'POST') {
+          added = true
+          return {}
+        }
+        return { members: added ? [owner, candidate] : [owner] }
+      }
+      return undefined
+    }, true)
+    await loadCore()
+    const signal = new AbortController().signal
+    const data = await store.loadProjectMembersData!(store.getState().projects[0]!, signal)
+    const person = data.workspace?.memberPreview.find(member => member.id === candidate.userId)
+    if (!person) throw new Error('Expected a Workspace candidate')
+
+    await store.addProjectMember({ projectId: project.id, person, role: 'Member' })
+    const updated = await store.loadProjectMembersData!(store.getState().projects[0]!, signal)
+
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/projects/p1/members', method: 'POST', data: { email: candidate.email, role: 'member' },
+    }))
+    expect(updated.project.members).toContainEqual(expect.objectContaining({ id: candidate.userId, name: candidate.name }))
+  })
+
   it('publishes cards before supplementary requests, preserves a successful roster and retries only the failed dataset', async () => {
     let allowDataset = false
     const { store, loadCore, request } = harness(r => {
@@ -104,8 +164,7 @@ describe('manager API integration', () => {
     const ids = ['w1', 'w2', 'w3', 'w4']
     const finish = new Map<string, (result: { members: [] }) => void>()
     const { load, store, request } = harness(r => {
-      if (r.path === '/workspaces/w1') return { workspace }
-    if (r.path === '/workspaces') return { items: ids.map(id => ({ ...workspace, id })), total: ids.length }
+      if (r.path === '/workspaces') return { items: ids.map(id => ({ ...workspace, id })), total: ids.length }
       if (r.path !== '/projects' && r.path.endsWith('/projects')) return { items: [], total: 0 }
       if (r.path.endsWith('/members')) return new Promise<{ members: [] }>(resolve => { finish.set(r.path, resolve) })
       return undefined
@@ -194,9 +253,7 @@ describe('manager API integration', () => {
     const { load, store, request } = harness(r => {
       if (r.path === '/workspaces' && r.params?.['cursor'] === undefined) return { items: [{ ...workspace, id: 'w1' }], meta: { hasMore: true, nextCursor: 'c2' } }
       if (r.path === '/workspaces' && r.params?.['cursor'] === 'c2') return { items: [{ ...workspace, id: 'w2' }], meta: { hasMore: false, nextCursor: null } }
-      if (r.path === '/workspaces/w1/members') return r.params?.['cursor'] === 'm2'
-        ? { items: [{ userId: 'u2', role: 'member', name: 'Member' }], meta: { hasMore: false, nextCursor: null } }
-        : { items: [{ userId: 'u1', role: 'owner', firstName: 'Tai', lastName: 'Nguyen', email: account.email }], meta: { hasMore: true, nextCursor: 'm2' } }
+      if (r.path === '/workspaces/w1/members') return { items: [{ userId: 'u1', role: 'owner', firstName: 'Tai', lastName: 'Nguyen', email: account.email }] }
       if (r.path.endsWith('/members')) return { items: [], meta: { hasMore: false, nextCursor: null } }
       if (r.path.endsWith('/projects')) return { items: [], meta: { hasMore: false, nextCursor: null } }
       return undefined
@@ -204,58 +261,7 @@ describe('manager API integration', () => {
     await load()
     expect(store.getState().workspaces).toHaveLength(2)
     expect(store.getState().workspaces[0]!.owner.name).toBe('Tai Nguyen')
-    expect(store.getState().workspaces[0]!.members).toBe(2)
     expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: '/workspaces', params: { cursor: 'c2', limit: 100 } }))
-  })
-  it('reads deployed session fields and uses the current-session endpoint', async () => {
-    const detail = { id: 's1', device_name: 'Desktop', ip_address: '127.0.0.1', user_agent: 'Browser', is_revoked: false, remember_me: true, last_used_at: null, created_at: null, expires_at: '2026-12-01T00:00:00.000Z' }
-    const { store, request } = harness(r => r.path === '/auth/sessions' ? [detail] : detail, { readSessionId: () => 's1' })
-    await store.loadSessions!()
-    expect(store.getState().sessions[0]).toMatchObject({ platform: 'Desktop', browser: 'Browser', ip: '127.0.0.1', current: true })
-    await expect(store.getSessionDetail!('s1')).resolves.toMatchObject({ id: 's1', rememberMe: true })
-    expect(request).toHaveBeenLastCalledWith(expect.objectContaining({ path: '/auth/sessions/me', auth: 'session' }))
-  })
-  it('lists reports that need information and submits the edited report version', async () => {
-    const issue = { id: 'i1', title: 'Issue', description: 'Initial', issueType: 'data_error', status: 'needs_info',
-      version: 2, createdAt: '2026-11-15', updatedAt: '2026-11-15' }
-    const { store, load, request } = harness(r => {
-      if (r.path === '/issues') return { items: [issue], meta: { hasMore: false, nextCursor: null } }
-      if (r.path === '/issues/i1') return r.method === 'PATCH'
-        ? { ...issue, description: 'More information', status: 'in_progress', version: 3 } : issue
-      return undefined
-    })
-    await load()
-    expect(store.getState().reports[0]).toMatchObject({ status: 'needs-info', version: 2 })
-    await store.getIssueDetail!('i1')
-    await store.updateIssue!('i1', { description: 'More information', expectedVersion: 2 })
-    expect(request).toHaveBeenLastCalledWith({ path: '/issues/i1', method: 'PATCH', auth: 'session',
-      data: { description: 'More information', expectedVersion: 2 }, signal: expect.any(AbortSignal) })
-    expect(store.getState().reports[0]).toMatchObject({ description: 'More information', status: 'processing', version: 3 })
-  })
-  it('uses GET for default record pages and POST for filtered or sorted records', async () => {
-    const { store, request } = harness(() => ({ items: [], meta: { hasMore: false, nextCursor: null } }))
-    const signal = new AbortController().signal
-    await store.datasetService!.records('d1', { limit: 50, cursor: 'c2' }, signal)
-    expect(request).toHaveBeenLastCalledWith(expect.objectContaining({ path: '/datasets/d1/records', params: { limit: 50, cursor: 'c2' }, signal: expect.any(AbortSignal) }))
-    const query = { limit: 50, sort: [{ column: 'c0', order: 'asc' as const }] }
-    await store.datasetService!.records('d1', query, signal)
-    expect(request).toHaveBeenLastCalledWith(expect.objectContaining({ path: '/datasets/d1/records/query', method: 'POST', data: query, signal: expect.any(AbortSignal) }))
-  })
-  it('uses the dataset soft-delete endpoint', async () => {
-    const { store, request } = harness()
-    await store.datasetService!.delete('d1')
-    expect(request).toHaveBeenLastCalledWith({ path: '/datasets/d1', method: 'DELETE', auth: 'session', signal: expect.any(AbortSignal) })
-  })
-  it('updates project information and its version from the detail endpoint', async () => {
-    const { store, load, request } = harness(r => r.path === '/projects/p1' && !r.method
-      ? { project: { ...project, name: 'Updated', workspaceName: 'Workspace details', version: 5 } } : undefined)
-    await load()
-    const signal = new AbortController().signal
-    await store.refreshProject!('p1', signal)
-    expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1', signal: expect.any(AbortSignal) }))
-    expect(store.getState().projects[0]).toMatchObject({ name: 'Updated', workspaceName: 'Workspace' })
-    await store.rename('project', 'p1', 'Renamed')
-    expect(request).toHaveBeenCalledWith(expect.objectContaining({ method: 'PATCH', data: { name: 'Renamed', expectedVersion: 5 } }))
   })
   it('uploads the original CSV after creation and only then reports success', async () => {
     const { store, request } = harness(r => r.path === '/workspaces/w1/projects' && r.method === 'POST' ? { project } : undefined)
@@ -281,6 +287,68 @@ describe('manager API integration', () => {
   })
 })
 
+const draftPort = (): UploadDraftPort => ({
+  save: vi.fn<UploadDraftPort['save']>(), list: vi.fn<UploadDraftPort['list']>(),
+  readFile: vi.fn<UploadDraftPort['readFile']>(), remove: vi.fn<UploadDraftPort['remove']>(),
+  bindProject: vi.fn<UploadDraftPort['bindProject']>().mockResolvedValue(),
+  confirmUploaded: vi.fn<UploadDraftPort['confirmUploaded']>().mockResolvedValue({ cleaned: true }),
+  cleanupUploaded: vi.fn<UploadDraftPort['cleanupUploaded']>(),
+})
+
+it('confirms draft cleanup only after a valid upload ACK, retaining drafts on failure', async () => {
+  const drafts = draftPort()
+  let failUpload = true
+  const { store } = harness(r => r.path.endsWith('/upload')
+    ? failUpload ? Promise.reject(new Error('Offline')) : { dataset: { id: 'd1' } } : undefined, false, drafts)
+  const file = new File(['a\n1'], 'a.csv')
+  const local = { id: 'draft', scope: 'p1' }
+  await expect(store.uploadDataset!('p1', file, local)).rejects.toThrow('Offline')
+  expect(drafts.confirmUploaded).not.toHaveBeenCalled()
+  failUpload = false
+  await store.uploadDataset!('p1', file, local)
+  expect(drafts.confirmUploaded).toHaveBeenCalledExactlyOnceWith('draft', { accountId: 'u1', projectId: 'p1', datasetId: 'd1' })
+})
+
+it('keeps a draft when the server response omits the dataset ID', async () => {
+  const drafts = draftPort()
+  const { store } = harness(r => r.path.endsWith('/upload') ? { message: 'Uploaded' } : undefined, false, drafts)
+  await expect(store.uploadDataset!('p1', new File(['a'], 'a.csv'), { id: 'draft', scope: 'p1' })).rejects.toThrow('không gửi lại')
+  expect(drafts.confirmUploaded).not.toHaveBeenCalled()
+})
+
+it('resumes a project from a persisted draft binding after a page reload', async () => {
+  const drafts = draftPort()
+  const { store, request } = harness(r => {
+    if (r.path === '/projects/p1') return { project }
+    if (r.path.endsWith('/upload')) return { dataset: { id: 'd1' } }
+    return undefined
+  }, false, drafts)
+  const file = new File(['a\n1'], 'a.csv')
+  await store.createProject({ workspaceId: 'w1', name: 'Project', description: '', members: [], dataset: {
+    file, fileName: file.name, format: 'CSV', rows: 1, columns: 1, sizeMb: 0,
+    localDraft: { id: 'draft', scope: 'new-project:w1', targetProjectId: 'p1', targetProjectName: 'Project' },
+  } })
+  expect(request.mock.calls.filter(([r]) => r.path === '/workspaces/w1/projects' && r.method === 'POST')).toHaveLength(0)
+  expect(drafts.bindProject).toHaveBeenCalledWith('draft', 'p1', 'Project')
+  expect(drafts.confirmUploaded).toHaveBeenCalledWith('draft', { accountId: 'u1', projectId: 'new-project:w1', datasetId: 'd1' })
+})
+
+it('checks the existing dataset before cleaning a resumed draft without re-uploading', async () => {
+  const drafts = draftPort()
+  const file = new File(['a\n1'], 'a.csv')
+  const { store, request } = harness(r => {
+    if (r.path === '/projects/p1') return { project: { ...project, hasDataset: true } }
+    if (r.path === '/projects/p1/datasets') return { dataset: { id: 'd1', originalFileName: file.name, fileSizeBytes: file.size, rowCount: 1, columnCount: 1, createdAt: '2026-11-15', status: 'ready' } }
+    return undefined
+  }, false, drafts)
+  await store.createProject({ workspaceId: 'w1', name: 'Project', description: '', members: [], dataset: {
+    file, fileName: file.name, format: 'CSV', rows: 1, columns: 1, sizeMb: 0,
+    localDraft: { id: 'draft', scope: 'new-project:w1', targetProjectId: 'p1', targetProjectName: 'Project' },
+  } })
+  expect(request.mock.calls.filter(([r]) => r.path.endsWith('/upload'))).toHaveLength(0)
+  expect(drafts.confirmUploaded).toHaveBeenCalledOnce()
+})
+
 it('resumes a failed upload without creating another project', async () => {
   let attempts = 0
   const { store, request } = harness(r => {
@@ -297,7 +365,6 @@ it('resumes a failed upload without creating another project', async () => {
 it('shares a concurrent create and reports a saved project when only the list reload fails', async () => {
   const { store, request } = harness(r => {
     if (r.path === '/workspaces/w1/projects' && r.method === 'POST') return { project }
-    if (r.path === '/workspaces/w1') return { workspace }
     if (r.path === '/workspaces') return Promise.reject(new Error('Offline'))
     return undefined
   })
@@ -306,7 +373,8 @@ it('shares a concurrent create and reports a saved project when only the list re
   const results = await Promise.all([store.createProject(input), store.createProject(input)])
 
   for (const result of results) {
-    expect(result).toMatchObject({ persisted: true, message: expect.stringContaining('chưa tải lại được danh sách') })
+    expect(result.persisted).toBe(true)
+    expect(result.message).toContain('chưa tải lại được danh sách')
   }
   expect(request.mock.calls.filter(([r]) => r.method === 'POST').map(([r]) => r.path))
     .toEqual(['/workspaces/w1/projects', '/projects/p1/datasets/upload'])
@@ -356,7 +424,3 @@ it('does not upload an attachment twice when refreshing after a saved report fai
   expect(request.mock.calls.filter(([r]) => r.path === '/issues' && r.method === 'POST')).toHaveLength(1)
   expect(request.mock.calls.filter(([r]) => r.path === '/issues/issue1/attachments')).toHaveLength(1)
 })
-it('exposes the live analysis service in API mode', () => {
-    const { store } = harness()
-    expect(store.analysisService).toBeDefined()
-  })

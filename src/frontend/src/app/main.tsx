@@ -8,6 +8,10 @@ import '../styles/glass.css'
 import './style.css'
 import '../views/auth/login-glass.css'
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator && window.isSecureContext) {
+  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}offline-shell.js`).catch(() => {})
+}
+
 const rootElement = document.getElementById('root')
 
 if (!rootElement) {
@@ -20,7 +24,7 @@ root.render(<PageSkeleton pathname={window.location.pathname} message="Äang má»
 // The standalone Workspace 3D preview remains a separate development tool.
 // Management, Processing and Dataset 3D always use the application auth runtime.
 const is3DPreview = import.meta.env.DEV && window.location.pathname === '/preview/workspaces-3d'
-const isWorkbench = import.meta.env.DEV && import.meta.env.VITE_MANAGEMENT_DATA_MODE === 'mock' && (
+const isWorkbench = import.meta.env.DEV && import.meta.env['VITE_MANAGEMENT_DATA_MODE'] === 'mock' && (
   /^\/(management|processing)(\/|$)/.test(window.location.pathname)
   || legacyManagementRedirect(window.location.pathname, window.location.hash) !== null
 )

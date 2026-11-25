@@ -9,6 +9,9 @@ import { Panel } from '../../../preview/components/preview-primitives'
 import { ResultReviewDialog } from '../../../preview/components/result-review-dialog'
 import styles from './project-data-actions.module.css'
 import { PreviewIcon } from '../../../preview/components/preview-icons'
+import { useUploadDraft } from '../../../../hooks/offline/use-upload-draft'
+import { useOfflineStatus } from '../../../../hooks/offline/use-local-data'
+import { UploadDraftNotice } from '../../../../components/offline/upload-draft-notice'
 
 export function ProjectResultDownload({ result }: { result: ConfirmedProjectResult | null }) {
   const [busy, setBusy] = useState(false)
@@ -40,25 +43,37 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const projectId = session.state.selection.projectId
+  const draft = useUploadDraft(projectId)
+  const { offline } = useOfflineStatus()
   const upload = async () => {
-    if (!file || busy || !store.uploadDataset) return
+    if (!file || busy || offline || !store.uploadDataset) return
     setBusy(true); setError('')
     try {
       validateCsvFile(file)
-      const result = await store.uploadDataset(projectId, file)
+      const localDraft = await draft.flush()
+      const result = await store.uploadDataset(projectId, file, localDraft)
       session.notify(result.message, 'success'); onClose()
     } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được tệp.') }
     finally { setBusy(false) }
   }
   const id = useId()
-  return <Dialog open onClose={onClose} busy={busy} className={styles['screen']} aria-labelledby={`${id}-title`}>
+  return <Dialog open onClose={onClose} busy={busy || draft.saving} className={styles['screen']} aria-labelledby={`${id}-title`}>
     <h2 id={`${id}-title`}>Upload data</h2>
-    <label className="dialog-field"><span>Chọn tệp dữ liệu</span><Input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => setFile(e.target.files?.[0] ?? null)} /></label>
+    <label className="dialog-field"><span>Chọn tệp dữ liệu</span><Input type="file" accept=".csv,text/csv" disabled={busy || draft.saving} onChange={event => {
+      const picked = event.target.files?.[0]
+      if (!picked) return
+      try { validateCsvFile(picked); setFile(picked); setError(''); void draft.save(picked) }
+      catch (cause) { setError(cause instanceof Error ? cause.message : 'File không hợp lệ.') }
+    }} /></label>
+    <UploadDraftNotice draft={draft.entry} selected={Boolean(file)} saving={draft.saving} notice={draft.notice}
+      onRestore={() => { void draft.restore().then(restored => { if (restored) setFile(restored) }) }}
+      onRemove={() => { void draft.remove() }} />
     {file && <p>Đã chọn trên thiết bị: {file.name}</p>}
     <p className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
     {!store.uploadDataset && <p className="action-note">Chưa kết nối dịch vụ upload trong chế độ xem trước.</p>}
     {error && <p role="alert" className="form-error">{error}</p>}
-    <div className="dialog-actions"><Button className="button-secondary" disabled={busy} onClick={onClose}>Đóng</Button><Button className="button-primary" aria-busy={busy} disabled={busy || !file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</Button></div>
+    {offline && <p role="status">File nháp vẫn lưu trên thiết bị. Kết nối lại để upload lên máy chủ.</p>}
+    <div className="dialog-actions"><Button className="button-secondary" disabled={busy || draft.saving} onClick={onClose}>Đóng</Button><Button className="button-primary" aria-busy={busy} disabled={busy || draft.saving || offline || !file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</Button></div>
   </Dialog>
 }
 
@@ -79,7 +94,7 @@ export function ProjectResultActions({ result, reviewOnly = false }: { result: C
     finally { setDownloading(false) }
   }
   return <>
-    <Panel title={reviewOnly ? 'Đánh giá' : 'Kết quả xử lý'} className={`${styles['screen']} project-result-actions`}>
+    <Panel title={reviewOnly ? 'Đánh giá' : 'Kết quả xử lý'} className={`project-result-actions ${styles['screen']}`}>
       <p id={`${id}-save-note`} className="action-note">{!result
         ? 'Chưa có kết quả xử lý được xác nhận từ hệ thống. Chưa thể đánh giá hoặc lưu kết quả.'
         : saved ? 'Đã lưu đánh giá và kết quả vào hệ thống.' : 'Bạn cần đánh giá 1–5 sao và nhập nội dung trước khi lưu kết quả vào hệ thống.'}</p>

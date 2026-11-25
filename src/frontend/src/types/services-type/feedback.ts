@@ -35,6 +35,7 @@ export type patchFeedbackByIdMineParamsPath = patchFeedbackByIdMineParams["path"
 export type patchFeedbackByIdMineRequestBody = NonNullable<patchFeedbackByIdMineRequest["requestBody"]>["content"][keyof NonNullable<patchFeedbackByIdMineRequest["requestBody"]>["content"]]
 export type patchFeedbackByIdMineResponses = patchFeedbackByIdMineRequest["responses"]
 export type patchFeedbackByIdMineResponse200 = NonNullable<patchFeedbackByIdMineResponses["200"]>
+export type patchFeedbackByIdMineResponse403 = NonNullable<patchFeedbackByIdMineResponses["403"]>
 
 export type deleteFeedbackByIdRequest = paths["/api/v1/feedback/{id}"]["delete"]
 export type deleteFeedbackByIdParams = deleteFeedbackByIdRequest["parameters"]

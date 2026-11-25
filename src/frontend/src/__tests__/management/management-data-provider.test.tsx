@@ -66,7 +66,6 @@ const response = (r: ApiRequestOptions): Promise<unknown> => Promise.resolve().t
   if (r.path === '/users/me') return { firstName: 'Test', lastName: 'User', email: 'user@example.test', role: 'analyst', notificationsEnabled: true }
   if (r.path === '/notifications/unread-count') return { unreadCount: 0 }
   if (r.path === '/notifications' || r.path === '/issues') return { items: [], meta: { hasMore: false, nextCursor: null } }
-  if (r.path === '/notifications/unread-count') return { unreadCount: 0 }
   throw new Error(`Unexpected request: ${r.path}`)
 })
 beforeEach(() => {
@@ -104,9 +103,11 @@ it('shows a live card while both supplementary requests are pending and keeps vi
   const menu = within(card).getByRole<HTMLButtonElement>('button', { name: 'Thao tác với Project 1' })
   expect(menu.disabled).toBe(true)
 
+  await waitFor(() => { expect(finishMembers).toBeTypeOf('function'); expect(finishDataset).toBeTypeOf('function') })
   await act(async () => {
     finishMembers({ members: [{ userId: 'u1', role: 'viewer', name: 'Viewer' }] })
     finishDataset({ dataset: null })
+    await Promise.resolve()
   })
   expect(within(card).getByText('Chưa có tập dữ liệu.')).toBeDefined()
   expect(card.dataset['cardDetails']).toBe('ready')
@@ -115,34 +116,37 @@ it('shows a live card while both supplementary requests are pending and keeps vi
   expect(screen.getByRole<HTMLButtonElement>('menuitem', { name: /^Xóa Project/ }).disabled).toBe(true)
 })
 
-it('renders the project shell immediately and requests only the selected project and its workspace', async () => {
+it('renders the project shell immediately and scopes requests to the selected project', async () => {
   let finish!: (value: unknown) => void
   transport.request.mockImplementation(r => {
     if (r.path === '/projects/p1') return new Promise(resolve => { finish = resolve })
+    if (r.path === '/projects/p1/datasets') return Promise.resolve({ dataset: null })
     if (r.path === '/workspaces/w1') return Promise.resolve({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [], storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
     return response(r)
   })
   render(tree(authenticated, 'p1'))
   expect(screen.getByText('Khung project')).toBeDefined()
   expect(screen.getByTestId('project').textContent).toBe('Đang tải')
-  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1'])
+  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/projects/p1/datasets'])
 
   await act(async () => {
     finish({ project: { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', members: [], createdBy: 'u1',
       hasDataset: false, createdAt: '2026-11-15', updatedAt: '2026-11-15', status: 'not_started', version: 1 } })
+    await Promise.resolve()
   })
   expect(screen.getByTestId('project').textContent).toBe('Project 1')
-  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/workspaces/w1'])
+  expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/projects/p1', '/projects/p1/datasets', '/workspaces/w1'])
 })
 
-it('keeps the scene mounted while preloading records and reads Detection before any run', async () => {
+it('preloads records and opens Analysis without prefetching Detection', async () => {
   let finishProject!: (value: unknown) => void
+  let finishWorkspace!: (value: unknown) => void
   let finishRecords!: (value: unknown) => void
-  const project = { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', members: [], createdBy: 'u1',
+  const project = { id: 'p1', name: 'Project 1', description: '', workspaceId: 'w1', workspaceName: 'Workspace', members: [], createdBy: 'u1',
     hasDataset: true, createdAt: '2026-11-15', updatedAt: '2026-11-15', status: 'completed', version: 1 }
   transport.request.mockImplementation(r => {
     if (r.path === '/projects/p1') return new Promise(resolve => { finishProject = resolve })
-    if (r.path === '/workspaces/w1') return Promise.resolve({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [], storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
+    if (r.path === '/workspaces/w1') return new Promise(resolve => { finishWorkspace = resolve })
     if (r.path === '/projects/p1/datasets') return Promise.resolve({ dataset: { id: 'd1', originalFileName: 'example.csv',
       rowCount: 0, columnCount: 0, fileSizeBytes: 0, createdAt: '2026-11-15', status: 'READY' } })
     if (r.path === '/datasets/d1/schema') return Promise.resolve({ columns: [] })
@@ -156,20 +160,32 @@ it('keeps the scene mounted while preloading records and reads Detection before 
   </PreviewSessionProvider>))
   const scene = screen.getByTestId('project-scene')
   expect(screen.getByText('Đang tải thông tin project…')).toBeDefined()
-  await act(async () => { finishProject({ project }) })
+  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/datasets' }))
+  await act(async () => { finishProject({ project }); await Promise.resolve() })
+  expect(screen.getByText('Dataset: example.csv')).toBeDefined()
+  expect(screen.getByRole('button', { name: 'Workspace' })).toBeDefined()
+  const menu = screen.getByRole<HTMLButtonElement>('button', { name: 'Thao tác với Project 1' })
+  expect(menu.disabled).toBe(true)
+  await act(async () => {
+    finishWorkspace({ workspace: { id: 'w1', name: 'Workspace', ownerId: 'u1', description: '', members: [],
+      storageUsedBytes: 0, version: 1, lastAccessedAt: null, createdAt: '2026-11-15', updatedAt: '2026-11-15' } })
+    await Promise.resolve()
+  })
+  expect(menu.disabled).toBe(false)
   expect(screen.getByTestId('project-scene')).toBe(scene)
   expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/datasets/d1/records', params: { limit: 50, cursor: undefined } }))
-  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))
+  expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))
   expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis' }))
 
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
   expect(screen.getByText(/Đang tải dữ liệu từ máy chủ/)).toBeDefined()
-  await act(async () => { finishRecords({ items: [], meta: { hasMore: false, nextCursor: null } }) })
+  await act(async () => { finishRecords({ items: [], meta: { hasMore: false, nextCursor: null } }); await Promise.resolve() })
   expect(transport.request.mock.calls.filter(([r]) => r.path === '/datasets/d1/records')).toHaveLength(1)
-  fireEvent.click(screen.getByRole('button', { name: 'Detection' }))
-  expect(screen.getByText(/Kết quả đã lưu.*0 vi phạm/)).toBeDefined()
-  fireEvent.click(screen.getByRole('button', { name: 'Chạy Detection' }))
-  expect(await screen.findByText(/Kết quả đã lưu.*1 vi phạm/)).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Data Analysis' }))
+  await screen.findByText('Kết quả này chưa có số liệu tổng quan.')
+  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis/result' }))
+  expect(transport.request).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/analysis', method: 'POST' }))
 })
 
 it('waits for API data and exposes the real store without fixture records', async () => {
@@ -215,7 +231,7 @@ it('keeps the Processing hero mounted and shows loading, retry and empty state i
   expect(screen.queryByText('Chưa có project nào.')).toBeNull()
 
   await waitFor(() => expect(transport.request).toHaveBeenCalledTimes(1))
-  await act(async () => { failLoad(new Error('Offline')) })
+  await act(async () => { failLoad(new Error('Offline')); await Promise.resolve() })
   expect(within(table).getByRole('alert').textContent).toBe('Offline')
   fireEvent.click(within(table).getByRole('button', { name: 'Thử lại' }))
   expect(await screen.findByText('Chưa có project nào.')).toBeDefined()
@@ -273,7 +289,7 @@ it('renders project rows before workspace names and reuses one lookup across row
   expect(await screen.findByText('p1')).toBeDefined()
   expect(screen.getByText('p2')).toBeDefined()
   expect(screen.queryByText('Workspace chung')).toBeNull()
-  await act(async () => { finishWorkspace({ workspace: { name: 'Workspace chung' } }) })
+  await act(async () => { finishWorkspace({ workspace: { name: 'Workspace chung' } }); await Promise.resolve() })
   expect(screen.getAllByText('Workspace chung')).toHaveLength(2)
   expect(screen.getByText('missing')).toBeDefined()
   expect(screen.queryByRole('alert')).toBeNull()
@@ -296,7 +312,7 @@ it('shows Management navigation and waits for workspace data before reporting a 
   expect(screen.getByRole('status', { name: 'Đang tải Workspaces' })).toBeDefined()
   expect(screen.queryByText('Không tìm thấy workspace')).toBeNull()
 
-  await act(async () => { finishLoad({ items: [], total: 0 }) })
+  await act(async () => { finishLoad({ items: [], total: 0 }); await Promise.resolve() })
   expect(await screen.findByText('Không tìm thấy workspace')).toBeDefined()
 })
 
@@ -327,12 +343,12 @@ it('does not reveal an old load after the session ends', async () => {
   view.rerender(tree({ ...base, generation: 2, phase: 'anonymous', accountId: null, expiresAtMs: null, user: null }))
   await act(() => { finish({ items: [], total: 0 }); return Promise.resolve() })
   expect(screen.queryByTestId('source')).toBeNull()
-  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
+  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập hợp lệ')
 })
 
 it('does not substitute fixture data for a local-limited online session', () => {
   render(tree({ ...base, phase: 'local-limited', accountId: 'u1', expiresAtMs: 4_000_000_000_000, user: null }))
-  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
+  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập hợp lệ')
   expect(screen.queryByTestId('source')).toBeNull()
   expect(transport.request).not.toHaveBeenCalled()
 })
