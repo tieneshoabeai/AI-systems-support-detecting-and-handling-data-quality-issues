@@ -4,6 +4,7 @@ import styles from '../../../components/ui/diagnostics.module.css'
 import { createAxiosClient } from '../../../lib/axios-client'
 import { normalizeApiError } from '../../../lib/api-error'
 import { createHealthService } from '../../../services/health/health.service'
+import { getApiConfig } from '../../../configs/api.config'
 
 type Readiness = Awaited<ReturnType<ReturnType<typeof createHealthService>['readiness']>>
 type Snapshot = { at: Date; elapsedMs: number } & (
@@ -14,6 +15,12 @@ const checkLabel = (value: Readiness['mongo']) => value === 'ok' ? 'Hoạt độ
 const storageLabels = { cloud_s3_r2: 'Đám mây', local_fallback: 'Cục bộ' }
 
 export function SystemStatus() {
+  const connection = (() => {
+    try {
+      const config = getApiConfig()
+      return { environment: import.meta.env.VITE_API_ENVIRONMENT_ID?.trim() || 'Theo URL backend', backend: config.baseUrl }
+    } catch { return { environment: import.meta.env.VITE_API_ENVIRONMENT_ID?.trim() || 'Chưa cấu hình', backend: 'URL API không hợp lệ' } }
+  })()
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<{ attempt: number; snapshot: Snapshot } | null>(null)
   const snapshot = result?.attempt === attempt ? result.snapshot : null
@@ -54,6 +61,8 @@ export function SystemStatus() {
       {stateLabel}
     </p>
     <dl className={styles['serviceChecks']}>
+      <div><dt>Môi trường</dt><dd>{connection.environment}</dd></div>
+      <div><dt>Backend API</dt><dd>{connection.backend}</dd></div>
       <div><dt>Cơ sở dữ liệu</dt><dd>{snapshot ? checkLabel(data?.mongo ?? null) : 'Đang kiểm tra'}</dd></div>
       <div><dt>Chế độ lưu trữ</dt><dd>{data?.storageMode ? storageLabels[data.storageMode] : snapshot ? 'Chưa có thông tin' : 'Đang kiểm tra'}</dd></div>
     </dl>
