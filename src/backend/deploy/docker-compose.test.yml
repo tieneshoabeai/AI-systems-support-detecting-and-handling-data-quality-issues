@@ -36,7 +36,8 @@ services:
     networks: [dq-test-net]
 
   minio-test:
-    image: minio/minio:latest
+    # Ghim bản open-source cuối: `latest` mới bắt buộc license AIStor (S3 bị từ chối).
+    image: ${DQ_TEST_MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
     container_name: dq-minio-test
     command: ["server", "/data", "--console-address", ":9001"]
     environment:

@@ -27,10 +27,52 @@ MONGO_ROOT_PASSWORD="${ADMIN_PASSWORD:-Admin@123}"
 
 mkdir -p "$DATA_DIR/logs" "$DATA_DIR/mongo-data" "$DATA_DIR/redis" "$DATA_DIR/minio-data"
 
+# ── MinIO (S3-compatible): binary native trước, container sau ──────────────
+# Docker Hub có thể từ chối pull `minio/minio` ("pull access denied"), và bản
+# `latest` mới bắt buộc license AIStor ⇒ S3 bị từ chối ⇒ test storage fail.
+# ⇒ Ưu tiên binary open-source RELEASE.2025-04-22T22-12-26Z; chỉ khi không tải
+#   được mới dùng container `minio-test` (image đã ghim trong compose).
+start_minio() {
+  if (exec 3<>/dev/tcp/127.0.0.1/$MINIO_PORT) 2>/dev/null; then
+    echo "[infra] MinIO @ $MINIO_PORT đã chạy — giữ nguyên."
+    return 0
+  fi
+  local MINIO_BIN="$DATA_DIR/minio-real"
+  if [ ! -x "$MINIO_BIN" ]; then
+    echo "[infra] Tải MinIO server (bản cuối trước khi open-source bị archive)..."
+    local MINIO_REL="RELEASE.2025-04-22T22-12-26Z"
+    curl -sSL --max-time 300 -o "$MINIO_BIN" \
+      "https://github.com/minio/minio/releases/download/${MINIO_REL}/minio.linux-amd64.${MINIO_REL}" \
+      && chmod +x "$MINIO_BIN" \
+      || { rm -f "$MINIO_BIN"; echo "[infra] KHÔNG tải được MinIO binary."; }
+  fi
+  if [ -x "$MINIO_BIN" ]; then
+    echo "[infra] Khởi động MinIO @ $MINIO_PORT (native binary) ..."
+    MINIO_ROOT_USER=testminio MINIO_ROOT_PASSWORD=testminio123 \
+      setsid "$MINIO_BIN" server "$DATA_DIR/minio-data" \
+        --address "127.0.0.1:$MINIO_PORT" --console-address "127.0.0.1:$MINIO_CONSOLE_PORT" \
+        > "$DATA_DIR/logs/minio.log" 2>&1 < /dev/null &
+  elif [ "${1:-}" = "docker" ]; then
+    echo "[infra] Fallback: MinIO bằng container minio-test ..."
+    docker compose -f deploy/docker-compose.test.yml up -d minio-test \
+      || echo "[infra] KHÔNG chạy được container MinIO — test storage sẽ fail."
+  else
+    echo "[infra] Bỏ qua S3 (test storage sẽ fail)."
+    return 0
+  fi
+  for i in $(seq 1 30); do
+    if curl -sf -o /dev/null "http://127.0.0.1:$MINIO_PORT/minio/health/live"; then
+      echo "[infra] MinIO sẵn sàng."; return 0
+    fi
+    sleep 1
+  done
+  echo "[infra] CẢNH BÁO: MinIO chưa sẵn sàng."
+}
+
 # ── Docker khả dụng? ────────────────────────────────────────────────────────
 if docker info >/dev/null 2>&1; then
-  echo "[infra] Docker daemon khả dụng — dùng docker-compose.test.yml"
-  docker compose -f deploy/docker-compose.test.yml up -d
+  echo "[infra] Docker daemon khả dụng — dùng docker-compose.test.yml (mongo + redis)"
+  docker compose -f deploy/docker-compose.test.yml up -d mongo-test redis-test
   echo "[infra] Cho mongo-test khởi tạo replica set rs0 ..."
   # Lưu ý: rs.initiate() trong container lấy host = tên container (mongod nghe 27017 bên trong,
   # map ra 27018) nên KHÔNG truyền được host 127.0.0.1:27018 ở đây. Client test trên máy host
@@ -43,6 +85,7 @@ if docker info >/dev/null 2>&1; then
     sleep 2
     if [ "$i" = "30" ]; then echo "[infra] CẢNH BÁO: mongo-test chưa sẵn sàng."; fi
   done
+  start_minio docker
   docker compose -f deploy/docker-compose.test.yml ps
   exit 0
 fi
@@ -111,31 +154,6 @@ else
 fi
 
 # ── MinIO (S3-compatible) ──────────────────────────────────────────────────
-if ! (exec 3<>/dev/tcp/127.0.0.1/$MINIO_PORT) 2>/dev/null; then
-  MINIO_BIN="$DATA_DIR/minio-real"
-  if [ ! -x "$MINIO_BIN" ]; then
-    echo "[infra] Tải MinIO server (bản cuối trước khi open-source bị archive)..."
-    MINIO_REL="RELEASE.2025-04-22T22-12-26Z"
-    curl -sSL --max-time 300 -o "$MINIO_BIN" \
-      "https://github.com/minio/minio/releases/download/${MINIO_REL}/minio.linux-amd64.${MINIO_REL}" \
-      && chmod +x "$MINIO_BIN" \
-      || { echo "[infra] KHÔNG tải được MinIO — bỏ qua S3 (test storage sẽ fail)."; }
-  fi
-  if [ -x "$MINIO_BIN" ]; then
-  echo "[infra] Khởi động MinIO @ $MINIO_PORT ..."
-  MINIO_ROOT_USER=testminio MINIO_ROOT_PASSWORD=testminio123 \
-    setsid "$MINIO_BIN" server "$DATA_DIR/minio-data" \
-      --address "127.0.0.1:$MINIO_PORT" --console-address "127.0.0.1:$MINIO_CONSOLE_PORT" \
-      > "$DATA_DIR/logs/minio.log" 2>&1 < /dev/null &
-    for i in $(seq 1 30); do
-      if curl -sf -o /dev/null "http://127.0.0.1:$MINIO_PORT/minio/health/live"; then
-        echo "[infra] MinIO sẵn sàng."; break
-      fi
-      sleep 1
-    done
-  fi
-else
-  echo "[infra] MinIO @ $MINIO_PORT đã chạy — giữ nguyên."
-fi
+start_minio
 
 echo "[infra] Xong. Cổng: mongo=$MONGO_PORT redis=$REDIS_PORT minio=$MINIO_PORT"
