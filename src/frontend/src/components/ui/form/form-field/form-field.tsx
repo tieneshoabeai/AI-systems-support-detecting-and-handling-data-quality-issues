@@ -1,8 +1,8 @@
+import type { ControlProps } from './type'
 import { useId } from 'react'
 import type { ReactNode } from 'react'
 import styles from './form-field.module.css'
 
-type ControlProps = { id: string; 'aria-describedby'?: string; 'aria-invalid'?: true }
 export function FormField({ id: suppliedId, label, hint, error, children }: {
   id?: string
   label: ReactNode

@@ -1,12 +1,17 @@
 import { Dialog } from '../../ui/overlay/dialog'
-import { useEffect, useRef, useState } from 'react'
+import { CreationOrbit } from '../../ui/feedback/creation-orbit'
+import creationStyles from '../../ui/feedback/creation-orbit.module.css'
+import { ProjectSteps } from './project-steps'
+import { ProjectWorkspacePicker } from './project-workspace-picker'
+import { WorkspaceCreateDialog } from '../../workspace/dialogs/workspace-create-dialog'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DatasetSummary, Person } from '../../../types'
-import { defaultProjectRole, emailForPerson, formatDataSize, formatRows, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
+import { defaultProjectRole, emailForPerson, formatDataSize, formatRows, projectRoleOptions } from '../../../hooks/workbench/workbench-presentation'
 import { useProjectCsvParser } from '../../../hooks/project/use-project-csv-parser'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Avatar } from '../../resource'
-import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 
 // Four-step 2D import flow. The selected CSV is previewed locally, then uploaded by the
 // manager store. Only members of the selected workspace can be added to the project.
@@ -54,7 +59,10 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   const parseLocalCsv = useProjectCsvParser()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState(0)
+  const [previousStep, setPreviousStep] = useState(0)
   const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId ?? '')
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+  const [restoreWorkspaceFocus, setRestoreWorkspaceFocus] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<PickedCsv | null>(null)
@@ -80,6 +88,19 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
   // Wizard mở từ trang Projects khi chưa chọn không gian nào thì người dùng PHẢI chỉ định nơi
   // chứa project ở bước 1; các bước sau luôn có workspace thật để đọc roster.
   const workspace = session.state.workspaces.find(item => item.id === workspaceId) ?? null
+  const selectWorkspace = (id: string): void => {
+    if (id !== workspaceId) {
+      setWorkspaceId(id)
+      setSelected([])
+      setSearch('')
+      setRosterResult(undefined)
+    }
+    setError(null)
+  }
+  const closeWorkspaceCreation = useCallback(() => {
+    setRestoreWorkspaceFocus(true)
+    setCreatingWorkspace(false)
+  }, [])
 
   // Roster của workspace = chủ sở hữu + memberPreview. Chủ sở hữu KHÔNG nằm trong danh sách chọn:
   // ảnh ghi "Chủ sở hữu luôn thuộc project" nên để họ tự tick là một dòng bỏ đi, và project đã
@@ -160,7 +181,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
         columns: file.columns,
         sizeMb: file.sizeMb,
       },
-    })
+    }, setError)
     setPending(false)
     if (!success) return
     setCreatedName(name.trim())
@@ -169,22 +190,32 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
 
   // Ràng buộc của TỪNG bước dồn về một chỗ để nút "Tiếp theo" không bao giờ đưa người dùng sang
   // một màn mà họ rồi không quay lại được.
-  const goNext = (): void => {
-    if (step === 0) {
-      if (!workspace) { setError('Chọn Workspace sẽ chứa project này trước đã.'); return }
-      if (!name.trim()) { setError('Tên project không được để trống.'); return }
+  const goToStep = (next: number): boolean => {
+    if (pending || next === step || next < 0 || next >= steps.length) return false
+    if (next > step && next > step + 1) return false
+    if (next > step && step === 0) {
+      if (!workspace) { setError('Chọn Workspace sẽ chứa project này trước đã.'); return false }
+      if (!name.trim()) { setError('Tên project không được để trống.'); return false }
     }
-    if (step === 1 && !file) {
+    if (next > step && step === 1 && !file) {
       setError('Mỗi project phải gắn với một tập dữ liệu ngay khi tạo — hãy chọn tệp .csv.')
-      return
+      return false
     }
     setError(null)
-    if (step === steps.length - 1) void submit()
-    else setStep(value => value + 1)
+    setRestoreWorkspaceFocus(false)
+    setPreviousStep(step)
+    setStep(next)
+    return true
+  }
+
+  const goNext = (): void => {
+    if (step < steps.length - 1) { goToStep(step + 1); return }
+    setError(null)
+    void submit()
   }
 
   const reset = (): void => {
-    setStep(0); setName(''); setDescription(''); setSelected([]); setSearch('')
+    setStep(0); setPreviousStep(0); setRestoreWorkspaceFocus(false); setName(''); setDescription(''); setSelected([]); setSearch('')
     setFile(null); setError(null); setCreatedName('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -198,6 +229,12 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
     else onClose()
   }
 
+  if (creatingWorkspace) return <WorkspaceCreateDialog existingNames={session.state.workspaces.map(item => item.name)}
+    onClose={closeWorkspaceCreation} onUseWorkspace={id => {
+      selectWorkspace(id)
+      closeWorkspaceCreation()
+    }} />
+
   return <Dialog open onClose={onClose} busy={pending} className="is-wide" role="dialog" aria-labelledby="pv-wizard-title">
     <header className="dialog-head">
       <span className="dialog-head-icon" aria-hidden="true"><PreviewIcon name="projects" /></span>
@@ -210,36 +247,23 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
       </button>
     </header>
 
-    {!isDone && <ol className="pv-wizard-steps" aria-label="Các bước tạo project">
-      {steps.map((label, index) => <li key={label}
-        className={`pv-wizard-step${index === step ? ' is-active' : ''}${index < step ? ' is-done' : ''}`}
-        aria-current={index === step ? 'step' : undefined}>
-        <span className="pv-step-dot" aria-hidden="true">{index < step ? <PreviewIcon name="check" /> : index + 1}</span>
-        <span className="pv-step-label">{label}</span>
-      </li>)}
-    </ol>}
+    {!isDone && <ProjectSteps labels={steps} step={step} previousStep={previousStep} pending={pending} onStep={goToStep} />}
+    {(pending || isDone) && <CreationOrbit completed={isDone}
+      label={isDone ? 'Tạo Project thành công!' : 'Đang tạo Project…'} />}
 
     {isDone ? <div className="pv-wizard-success">
-      <span className="pv-success-icon" aria-hidden="true"><PreviewIcon name="check" /></span>
-      <h3>Tạo Project thành công!</h3>
-      <p>Project “{createdName}” đã được thêm vào Workspace “{workspace?.name ?? ''}” cùng {selected.length + 1} thành viên (gồm chủ sở hữu) và tập dữ liệu “{file?.fileName ?? ''}”.</p>
-      <footer className="dialog-actions">
+      <p className={creationStyles['creationSummary']}>Project “{createdName}” đã được thêm vào Workspace “{workspace?.name ?? ''}” cùng {selected.length + 1} thành viên (gồm chủ sở hữu) và tập dữ liệu “{file?.fileName ?? ''}”.</p>
+      <footer className={`dialog-actions ${creationStyles['creationActions']}`}>
         <button type="button" className="button-secondary" onClick={reset}>Tạo Project khác</button>
         <button type="button" className="button-primary" onClick={viewProject}><PreviewIcon name="arrow" /> Xem Project</button>
       </footer>
     </div> : <>
-      <div className="pv-wizard-body">
+      {!pending && <div className="pv-wizard-body">
         {step === 0 && <div className="ws-edit-fields">
           {!initialWorkspaceId && <div className="ws-edit-field">
-            <label className="dialog-field">
-              <span>Workspace <em className="field-required" aria-hidden="true">*</em></span>
-              <select value={workspaceId} onChange={event => { setWorkspaceId(event.target.value); setError(null) }}
-                aria-invalid={error !== null && !workspaceId ? 'true' : undefined}
-                aria-describedby={error && !workspaceId ? 'pv-wizard-error' : undefined}>
-                <option value="">— Chọn Workspace —</option>
-                {session.state.workspaces.filter(item => item.canManage !== false).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </label>
+            <ProjectWorkspacePicker workspaces={session.state.workspaces.filter(item => item.canManage !== false)}
+              workspaceId={workspaceId} invalid={error !== null && !workspaceId} restoreFocus={restoreWorkspaceFocus}
+              onSelect={selectWorkspace} onCreate={() => setCreatingWorkspace(true)} />
           </div>}
           <div className="ws-edit-field">
             <label className="dialog-field">
@@ -318,7 +342,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
                     <label className="chip-select inline">
                       <span className="visually-hidden">Vai trò của {person.name} trong project</span>
                       <select value={picked?.role ?? defaultProjectRole} onChange={event => setRole(person, event.target.value)}>
-                        {projectRoleOptions.filter(role => !workspace?.currentUserId || role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
+                        {projectRoleOptions.filter(role => session.state.source !== 'api' || role !== 'Admin').map(option => <option key={option} value={option}>{option}</option>)}
                       </select>
                     </label>
                   </li>
@@ -353,16 +377,16 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
             <dd><span className="pv-review-member"><Avatar initials={workspace?.owner.initials ?? ''} size="sm" /> {workspace?.owner.name ?? '—'} <em className="pv-review-owner-tag">(chủ sở hữu)</em></span>
               {selected.map(item => <span key={item.person.id} className="pv-review-member"><Avatar initials={item.person.initials} size="sm" /> {item.person.name} <em className="pv-review-owner-tag">({item.role})</em></span>)}</dd></div>
         </dl>}
-      </div>
+      </div>}
 
       {error && <p className="dialog-error" id="pv-wizard-error" role="alert">{error}</p>}
-      <footer className="dialog-actions pv-wizard-foot">
+      <footer className={`dialog-actions pv-wizard-foot ${creationStyles['creationActions']}`}>
         <button type="button" className="button-secondary" disabled={pending} onClick={onClose}>Hủy</button>
-        <div className="pv-wizard-nav">
-          {step > 0 && <button type="button" className="button-secondary" onClick={() => { setError(null); setStep(value => Math.max(0, value - 1)) }}>Quay lại</button>}
+        <div className={`pv-wizard-nav ${creationStyles['creationActions']}`}>
+          {step > 0 && <button type="button" className="button-secondary" disabled={pending} onClick={() => { goToStep(step - 1) }}>Quay lại</button>}
           <button type="button" className="button-primary" disabled={pending} onClick={goNext}>
             {step === steps.length - 1
-              ? <><PreviewIcon name="check" /> Tạo Project</>
+              ? pending ? 'Đang tạo Project…' : <><PreviewIcon name="check" /> Tạo Project</>
               : <>Tiếp theo <PreviewIcon name="chevron" /></>}
           </button>
         </div>

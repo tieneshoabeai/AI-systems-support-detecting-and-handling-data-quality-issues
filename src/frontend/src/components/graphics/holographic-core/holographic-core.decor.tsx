@@ -1,3 +1,4 @@
+import type { SparkOptions } from './type'
 import { isDrawable } from '../../../graphics/common/typed-objects'
 import { useEffect, useMemo } from 'react'
 import { applyLightChartAppearance } from '../../../graphics/holographic-core/light-chart-appearance'
@@ -135,13 +136,6 @@ const SPARK_FRAGMENT = /* glsl */ `
 
 type Spark = { x: number; y: number; z: number; size: number; phase: number; color: Color }
 
-type SparkOptions = {
-  pixelScale: number
-  drift: number
-  flare: number
-  opacity: number
-  near: readonly [number, number]
-}
 
 function createSparkPoints(
   sparks: readonly Spark[],

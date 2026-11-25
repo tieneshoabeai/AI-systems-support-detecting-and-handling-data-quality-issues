@@ -11,7 +11,6 @@
 | [`resource-connection-profile.ts`](workspace-3d/resource-connection-profile.ts) | Tập trung thông số đường nối và tính bán kính theo danh sách node. |
 | [`resource-camera.ts`](workspace-3d/resource-camera.ts) | Tính góc tổng quan, fit camera vào nhóm node, giới hạn pan và cập nhật projection. |
 | [`resource-label-policy.ts`](workspace-3d/resource-label-policy.ts) | Tính số lượng nhãn phù hợp và quyết định nhãn nào được hiển thị. |
-| [`local-csv.ts`](workspace-3d/local-csv.ts) | Parse nội dung CSV cục bộ và chuyển tài liệu CSV thành cây tài nguyên. |
 
 Import các hàm dùng chung qua [`math/index.ts`](index.ts). Danh sách export riêng của nhóm nằm tại [`workspace-3d/index.ts`](workspace-3d/index.ts).
 
@@ -33,17 +32,12 @@ export function prepareWorkspaceLayout(input: unknown) {
 }
 ```
 
-## CSV cục bộ
-
-`parseLocalCsv(text)` dò dấu phân cách từ hàng tiêu đề, xử lý ô có dấu nháy và trả `delimiter`, `headers`, `rows`. Hàm ném lỗi khi thiếu tiêu đề hợp lệ, dấu nháy sai hoặc số ô lệch với tiêu đề. Caller thêm ID và tên tài liệu. `localCsvResources(documents)` dùng các tài liệu này để tạo node workspace, project và dataset cho scene.
-
 ## Cấu trúc thư mục hiện tại
 
 ```text
 src/math/
 ├── workspace-3d/
 │   ├── index.ts
-│   ├── local-csv.ts
 │   ├── resource-camera.ts
 │   ├── resource-connection-profile.ts
 │   ├── resource-label-policy.ts
@@ -55,4 +49,4 @@ src/math/
 
 ## Kiểm thử
 
-Từ `src/frontend`, chạy `yarn test src/__tests__/workspace-3d`. Bắt đầu từ [test layout](../__tests__/workspace-3d/resource-layout.test.ts), [test nhãn](../__tests__/workspace-3d/resource-label-policy.test.ts) hoặc [test CSV](../__tests__/workspace-3d/local-csv.test.ts) tùy phần đang sửa.
+Từ `src/frontend`, chạy `yarn test src/__tests__/workspace-3d`. Bắt đầu từ [test layout](../__tests__/workspace-3d/resource-layout.test.ts) hoặc [test nhãn](../__tests__/workspace-3d/resource-label-policy.test.ts) tùy phần đang sửa.

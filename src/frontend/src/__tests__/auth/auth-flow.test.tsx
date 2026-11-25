@@ -14,17 +14,21 @@ import { createQueryClient, clearSessionQueries } from '../../lib/query-client'
 import { createSessionStorage } from '../../lib/session-storage'
 import { UploadDraftDatabase } from '../../repositories/datasets/upload-draft.database'
 import { validReturnTarget } from '../../app/router/return-target'
+import { ManagementStoreContext } from '../../hooks/management/use-management-store'
+import { previewMockStore } from '../support/management-mock-store'
 
 // Auth tests exercise session/return-target behavior, not WebGL or fixture screens.
 // Route UI is covered by preview-entry/theme suites with the real application frame.
-vi.mock('../../views/application/application-frame', () => ({ ApplicationFrame: () => <Outlet /> }))
+vi.mock('../../views/application/application-frame', () => ({
+  ApplicationFrame: () => <ManagementStoreContext.Provider value={previewMockStore}><Outlet /></ManagementStoreContext.Provider>,
+}))
 vi.mock('../../views/processing/processing.view', () => ({ ProcessingView: () => <h1>AI Data Processing</h1> }))
-vi.mock('../../views/preview/project-workspace-2d.view', () => ({ ProjectWorkspaceView: () => <h1>Project</h1> }))
+vi.mock('../../views/processing/project/project-workspace.view', () => ({ ProjectWorkspaceView: () => <h1>Project</h1> }))
 // Keep the real session controls while isolating the fixture-heavy management UI.
-vi.mock('../../views/preview/preview-entry', async () => {
-  const { PreviewTopbar } = await import('../../views/preview/components/preview-topbar')
-  const { PreviewSessionProvider } = await import('../../views/preview/preview-session')
-  const { usePreviewSession } = await import('../../views/preview/preview-session-context')
+vi.mock('../../views/management/management-area', async () => {
+  const { PreviewTopbar } = await import('../../views/application/components/workbench-topbar')
+  const { PreviewSessionProvider } = await import('../../views/application/workbench-session')
+  const { usePreviewSession } = await import('../../hooks/workbench/workbench-session-context')
   const { WorkspaceView } = await import('../../views/workspace/workspace.view')
   function AccountTopbar() {
     const { state } = usePreviewSession()

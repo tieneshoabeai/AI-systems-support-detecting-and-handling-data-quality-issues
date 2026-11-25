@@ -1,6 +1,6 @@
 import { isRecord } from '../../lib/api-error'
 import type { ApiClient } from '../../types/api/api.types'
-import type { ProjectStatus } from '../../types/preview/preview.types'
+import type { ProjectStatus } from '../../types/management/management.types'
 import type { getProjectsAllParamsQuery } from '../../types/services-type/projects'
 
 export const recentProjectsPageSize = 10

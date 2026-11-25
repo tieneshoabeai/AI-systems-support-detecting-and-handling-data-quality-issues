@@ -8,12 +8,8 @@
 - `processing/records`: shopping demo records.
 - `auth/login`: login view; provider buttons and scene error boundary live in `sections/`.
 - `workspace`: account workspace UI; `app/pages/private/workspace-page.tsx` only exports the view.
-- `workspace-3d/sections/local-csv-viewer.tsx`: CSV viewer specific to the 3D preview.
 
-Each moved screen has an explicit `index.ts`. Old view paths are compatibility
-exports for existing route entries and test mocks, with no duplicate implementation.
-Pages remain in `app/pages/public` and `app/pages/private`; route guards and layouts
-are unchanged.
+Private and public pages load their feature views directly.
 
 Processing, Project, Workspaces hero and Dataset 3D own CSS Modules. Legacy DOM
 classes remain for theme and scene integration. A local `screen` class gates each
@@ -23,24 +19,13 @@ Login CSS is shared with the eager loading skeleton; workbench shell/theme, shar
 hero, shopping demo and Workspace 3D area CSS remain shared during this migration.
 Do not delete those global styles until all consumers have migrated.
 
-## Phase 4 compatibility paths
-
-Shared Project, Workspace, Resource, Notification, Report and Result Review
-implementations now live under the corresponding `components/<domain>` directory.
-Their old `preview/components/*` entries remain explicit compatibility exports.
-`preview-data`, `preview-card`, `preview-menu` and `preview-session-context` likewise
-forward to the shared view-model modules under `hooks/preview`. The provider stays
-in views and uses the same context instance. Shared shell, hero and shopping demo
-stay here. Per-screen project actions and workspace creation now
-live under their screen's `sections/`.
-
 ## 1. Mục đích
 
 Hiển thị màn hình và giữ state tương tác của màn hình. Gửi request, quản lý phiên, tính geometry và ghi IndexedDB được giao cho tầng tương ứng.
 
 ## 2. Vị trí & phụ thuộc
 
-`app/router/app-router.tsx` mở login và Dataset 3D. `app/main.tsx` lazy load các entry preview dev. View ghép [hooks](../hooks/README.md), [services](../services/README.md), [graphics](../graphics/README.md), math và asset.
+`app/router/app-router.tsx` mở login và Dataset 3D. View ghép [hooks](../hooks/README.md), [services](../services/README.md), [graphics](../graphics/README.md), math và asset.
 
 ## 3. Public API
 
@@ -61,32 +46,16 @@ Vật liệu có blur đĩa, saturation/luminance thích ứng, khúc xạ rìa,
 `HolographicBloomPass` giữ thứ tự màu trước khi thêm kính Project: tone mapping/chuyển màu base trước, cộng bloom sau. Không tone-map tổng base+bloom lần nữa. Cùng một ảnh đầu ra được dùng khi panel đóng hoặc mở; pass kính chỉ thay đổi pixel trong panel. Giữ nguyên cường độ ánh sáng/vật liệu và cấu hình bloom riêng của light/dark trong lần sửa pipeline này.
 
 - `LoginView()`, `Dataset3DView()`, `Workspace3DPreview()`, `ManagementArea()` và `ProcessingView()` trả JSX. Management/Processing cần React Router; WorkbenchRoutes bọc cả hai bằng `ApplicationFrame` để dùng một UI session/theme. Login cần AuthProvider và router. Dataset 3D cần router và trình duyệt hỗ trợ WebGL để thấy scene.
-- `ResourceMap(props: ResourceMapProps)` nhận resources, ID chọn, callback chọn/mở dataset và `localFileMode?`. `Workspace3DView` nhận `resources`, `onOpenDataset`, `localFileMode?`. `LocalCsvViewer({ document: LocalCsvDocument, onClose: () => void })` render bảng mẫu.
 - `HomePreviewView` và `UniverseHero` nhận `UniverseHeroProps` với scene tùy chọn. `WorkspacesPreviewView({ workspaceId? })`, `ProjectsPreviewView()`, `ProjectWorkspaceView({ projectId, scene? })`, `NotificationsPreviewView({ notificationId })`, `SettingsPreviewView({ section })` trả JSX theo phạm vi preview. `WorkspaceCard({ workspace, selected, view })` và `ProjectCard({ project, selected, view })` render thẻ cho view tương ứng.
-- `PreviewSessionProvider({ routeIds, navigateUniverse?, children })` cấp model tương tác. Các export con về menu, card, dialog, icon và URL là điểm dùng trong preview, xem file tương ứng ở mục 5 để tra props và kiểu trả về.
-
-## 4. Cách dùng (ví dụ)
-
-```tsx
-import { LocalCsvViewer } from './views/workspace-3d/local-csv-viewer'
-
-export const CsvExample = () => (
-  <LocalCsvViewer
-    document={{ id: 'demo', name: 'demo.csv', delimiter: ',', headers: ['id'], rows: [['1']] }}
-    onClose={() => console.log('Đã đóng')}
-  />
-)
-```
-
-Render bằng React/Vite. Viewer hiện cột `id` và một dòng `1`. Nút đóng gọi callback.
+- `PreviewSessionProvider({ routeIds, navigateSection?, children })` cấp model tương tác. Các export con về menu, card, dialog, icon và URL là điểm dùng trong preview, xem file tương ứng ở mục 5 để tra props và kiểu trả về.
 
 ## 5. Cấu trúc thư mục
 
 **Khi thêm code.** Màn hình, bố cục và state riêng của màn hình nằm trong thư mục tính năng dưới `views/`. Đưa logic gọi API sang [services](../services/README.md) và geometry sang [graphics](../graphics/README.md).
 
-`application/application-frame.tsx` ghép provider và CSS chung; `preview/components/preview-shell.tsx` nhận `area` và `context` để dùng chung header/theme. Management có sidebar; Processing chỉ có header và nội dung rộng toàn trang, không render sidebar hoặc nút thu gọn. `preview/components/topbar-color-mode.tsx` mở bộ chọn Sáng/Tối/Theo hệ thống trên header; `processing/home/processing.module.css` chỉ định dạng nội dung và dùng token theme hiện có, không tạo nền hay palette riêng.
+`application/application-frame.tsx` ghép provider và CSS chung; `application/components/workbench-shell.tsx` nhận `area` và `context` để dùng chung header/theme. Management có sidebar; Processing chỉ có header và nội dung rộng toàn trang, không render sidebar hoặc nút thu gọn. `application/components/topbar-color-mode.tsx` mở bộ chọn Sáng/Tối/Theo hệ thống trên header; `processing/home/processing.module.css` chỉ định dạng nội dung và dùng token theme hiện có, không tạo nền hay palette riêng.
 
-Processing và Home Management dùng chung `preview/components/universe-hero.tsx` và `recent-projects.tsx`; bảng giữ sắp xếp, phân trang, menu và đường dẫn project như Home hiện có. Processing thêm nút Tạo Project ở tiêu đề bảng. `project-data-actions.tsx` cung cấp hộp chọn tệp và khu vực lưu kết quả của Project; `result-review-dialog.tsx` kiểm tra sao/nội dung và đợi callback lưu, không tự gọi endpoint. Trạng thái dataset mẫu không đủ để bật lưu: cần kết quả đã được server xác nhận.
+Processing và Home Management dùng chung `../components/project/list/universe-hero.tsx` và `recent-projects.tsx`; bảng giữ sắp xếp, phân trang, menu và đường dẫn project như Home hiện có. Processing thêm nút Tạo Project ở tiêu đề bảng. `project-data-actions.tsx` cung cấp hộp chọn tệp và khu vực lưu kết quả của Project; `result-review-dialog.tsx` kiểm tra sao/nội dung và đợi callback lưu, không tự gọi endpoint. Trạng thái dataset mẫu không đủ để bật lưu: cần kết quả đã được server xác nhận.
 
 ### Auth, Dataset 3D và Workspace 3D
 
@@ -94,47 +63,15 @@ Processing và Home Management dùng chung `preview/components/universe-hero.tsx
 - [auth/login-glass.css](auth/login-glass.css) — bố cục và nền login.
 - [dataset-3d/dataset-3d.view.tsx](dataset-3d/dataset-3d.view.tsx) — legend, focus cube, tách và chọn part.
 - [dataset-3d/dataset-3d.module.css](dataset-3d/dataset-3d.module.css) — canvas, overlay và bảng chi tiết part.
-- [workspace-3d/sections/local-csv-viewer.tsx](workspace-3d/sections/local-csv-viewer.tsx) — bảng CSV và phân trang.
-- [workspace-3d/preview-resources.ts](workspace-3d/preview-resources.ts) — cung cấp hai danh sách node mẫu. Chuyển CSV thành node thuộc [math](../math/workspace-3d/local-csv.ts).
-- [workspace-3d/workspace-3d-preview.tsx](workspace-3d/workspace-3d-preview.tsx) — entry preview Workspace 3D.
 - [workspace-3d/workspace-3d.view.tsx](workspace-3d/workspace-3d.view.tsx) — resource map, scope, camera command và file cục bộ.
 - [workspace-3d/workspace-3d.css](workspace-3d/workspace-3d.css) — bố cục map, nhãn và fallback.
 
-### Preview 2D
+### Management và bố cục dùng chung
 
-- [home-2d.view.tsx](management/home/home.view.tsx) — Home và Universe hero.
-- [notifications-2d.view.tsx](management/notifications/notifications.view.tsx) — danh sách và chi tiết thông báo.
-- [preview-card.ts](preview/preview-card.ts) — logic trình bày/thao tác thẻ.
-- [preview-data.ts](preview/preview-data.ts) — dữ liệu và cấu hình hiển thị suy ra từ fixture.
-- [preview-entry.tsx](preview/preview-entry.tsx) — đọc route và ghép màn hình preview.
-- [preview-menu.ts](preview/preview-menu.ts) — các mục menu theo loại đích.
-- [preview-session-context.ts](preview/preview-session-context.ts) — context tương tác.
-- [preview-session.tsx](preview/preview-session.tsx) — provider và UI dùng chung của phiên preview.
-- [preview-url.ts](preview/preview-url.ts) — re-export helper điều hướng.
-- [preview.css](preview/preview.css) — style preview 2D.
-- [project-workspace-2d.view.tsx](processing/project/project-workspace.view.tsx) — chi tiết project trong workspace.
-- [projects-2d.view.tsx](management/projects/projects.view.tsx) — danh sách và thẻ project.
-- [settings-2d.view.tsx](management/settings/settings.view.tsx) — hồ sơ, bảo mật, thiết bị và tùy chọn thông báo.
-- [workspaces-2d.view.tsx](management/workspaces/workspaces.view.tsx) — danh sách, thẻ và chi tiết workspace.
-
-### Thành phần cục bộ trong `preview/components`
-
-- [notification-center.tsx](preview/components/notification-center.tsx) — panel thông báo.
-- [preview-context-menu.tsx](preview/components/preview-context-menu.tsx) — menu thao tác theo vị trí.
-- [preview-dialog.tsx](preview/components/preview-dialog.tsx) — dialog đổi tên và xóa.
-- [preview-icons.tsx](preview/components/preview-icons.tsx) — SVG icon preview.
-- [preview-popover.tsx](preview/components/preview-popover.tsx) — khung popover dùng lại.
-- [preview-primitives.tsx](preview/components/preview-primitives.tsx) — badge, tab, phân trang, card và biểu đồ nhỏ.
-- [preview-shell.tsx](preview/components/preview-shell.tsx) — khung điều hướng và nội dung.
-- [preview-surface.ts](preview/components/preview-surface.ts) — helper định vị surface.
-- [preview-toaster.tsx](preview/components/preview-toaster.tsx) — thông báo kết quả và dismiss.
-- [preview-topbar.tsx](preview/components/preview-topbar.tsx) — thanh trên, chọn scope và hành động nhanh.
-- [project-info-card.tsx](preview/components/project-info-card.tsx) — thông tin project.
-- [project-members-dialog.tsx](preview/components/project-members-dialog.tsx) — quản lý thành viên project.
-- [project-wizard.tsx](preview/components/project-wizard.tsx) — wizard tạo project.
-- [report-center.tsx](preview/components/report-center.tsx) — luồng báo cáo giả lập.
-- [workspace-create-dialog.tsx](management/workspaces/sections/workspace-create-dialog.tsx) — form tạo workspace.
-- [workspace-detail-dialogs.tsx](preview/components/workspace-detail-dialogs.tsx) — chỉnh thông tin và thành viên workspace.
+- [management-area.tsx](management/management-area.tsx) ghép màn hình Management theo URL.
+- [workbench-session.tsx](application/workbench-session.tsx) cấp context tương tác cho Management và Processing.
+- [workbench-shell.tsx](application/components/workbench-shell.tsx) chứa khung điều hướng và nội dung.
+- [workbench.css](../styles/workbench/workbench.css) và [workbench-theme.css](../styles/workbench/workbench-theme.css) định dạng workbench.
 
 `.gitkeep` giữ thư mục.
 
@@ -146,12 +83,10 @@ Login nhập dữ liệu → hook submit → coordinator cập nhật snapshot �
 
 | Tham số | Mặc định | Tác dụng |
 | --- | --- | --- |
-| `localFileMode` | `false` | Cho phép luồng file cục bộ khi bật ở caller |
 | Dataset `detached`, `legendOpen` | `false` | Khởi đầu ở góc tổng quan và legend thu gọn |
 | `?glassDebug=` (dev) | Tắt | Các mode `sdf`, `normal`, `offset` để xem shader |
 | `?glassThickness=` (dev) | Giá trị scene | Ghi đè độ dày kính, clamp 0–200 |
 | `?quality=low`, `?overlay=1` | Tắt | Chế độ nhẹ và overlay đối chiếu ở nhánh hỗ trợ |
-| `?data=` (preview dev) | `demo` | Chọn bộ fixture |
 
 ## 8. Quy ước & bất biến
 
@@ -159,7 +94,7 @@ Giữ thao tác API qua hook/service. Page entry trong app/pages phân loại pu
 
 ## 9. Test & debug
 
-Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview src/__tests__/workspace-3d src/__tests__/dataset-3d/dataset-3d-view.test.tsx`. Review bằng `/auth/login?preview=display-base`, `/management/workspaces`, `/preview/workspaces-3d` (chỉ dev) và `/processing/projects/:projectId` với ID project có sẵn.
+Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/management src/__tests__/processing src/__tests__/workspace-3d src/__tests__/dataset-3d/dataset-3d-view.test.tsx`. Review bằng `/auth/login`, `/management/workspaces` và `/processing/projects/:projectId` với ID project có sẵn.
 
 ## 10. Giới hạn & lưu ý
 

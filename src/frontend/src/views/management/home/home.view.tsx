@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import type { PreviewMenuOrigin, Workspace } from '../../../types'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { WorkspaceOverview } from '../../../services/management/management.types'
-import {
-  byNewestFirst, homeOverviewStats, pluralEn,
-  projectsOf, projectsPerWorkspaceFor, projectStatusShareFor,
-} from '../../preview/preview-data'
-import { PreviewShell } from '../../preview/components/preview-shell'
-import { PreviewIcon } from '../../preview/components/preview-icons'
-import { ResourceAvatar } from '../../preview/components/resource-avatar'
-import { Pagination, Panel, ProgressBar, StatRow, StatusDonut, TextLink } from '../../preview/components/preview-primitives'
-import { usePreviewSession } from '../../preview/preview-session-context'
-import { workspaceMenu } from '../../preview/preview-menu'
-import { previewCardProps, stopCardBubble } from '../../preview/preview-card'
-import { UniverseHero } from '../../preview/components/universe-hero'
-import type { UniverseHeroProps } from '../../preview/components/universe-hero'
-import { RecentProjects } from '../../preview/components/recent-projects'
-export { UniverseHero } from '../../preview/components/universe-hero'
-export type { UniverseHeroProps } from '../../preview/components/universe-hero'
+import { byNewestFirst, homeOverviewStats, pluralEn, projectsOf, projectsPerWorkspaceFor, projectStatusShareFor } from '../../../hooks/workbench/workbench-presentation'
+import { PreviewShell } from '../../application/components/workbench-shell'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { ResourceAvatar } from '../../../components/resource/avatar/resource-avatar'
+import { Pagination, Panel, ProgressBar, StatCard, StatusDonut, TextLink } from '../../../components/resource/presentation/resource-presentation'
+import { ManagementLoadingContext, ManagementOverviewLoaderContext } from '../../../hooks/management/management-loading-context'
+import { DataRegionStatus } from '../../../components/loading/data-region-status'
+import { Skeleton } from '../../../components/ui/feedback/skeleton'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { workspaceMenu } from '../../../hooks/resource/resource-menu'
+import { previewCardProps, stopCardBubble } from '../../../hooks/resource/resource-card'
+import { UniverseHero } from '../../../components/project/list/universe-hero'
+import type { UniverseHeroProps } from '../../../components/project/list/universe-hero'
+import { RecentProjects } from '../../../components/project/list/recent-projects'
+export { UniverseHero } from '../../../components/project/list/universe-hero'
+export type { UniverseHeroProps } from '../../../components/project/list/universe-hero'
 
 // Trang Home theo UI-UX/home + Global Application Shell, nhưng toàn bộ số liệu và danh
 // sách đọc từ mock store. ĐÚNG NĂM khối của ảnh — hero chào mừng, Activity Overview,
@@ -80,9 +80,14 @@ function WorkspaceTile({ workspace }: { workspace: Workspace }) {
 export function HomePreviewView({ scene }: UniverseHeroProps) {
   const session = usePreviewSession()
   const store = useManagementStore()
+  const coreStatus = useContext(ManagementLoadingContext)
+  const overviewLoader = useContext(ManagementOverviewLoaderContext) ?? (coreStatus ? undefined : store.getWorkspaceOverview)
   const [range, setRange] = useState('30 ngày gần nhất')
-  const [serverOverview, setServerOverview] = useState<WorkspaceOverview | null>(null)
-  const [overviewError, setOverviewError] = useState('')
+  const [overviewResult, setOverviewResult] = useState<{
+    loader: NonNullable<typeof overviewLoader>
+    data?: WorkspaceOverview
+    error?: string
+  } | null>(null)
   // Workspaces phân trang trong khung; Projects giữ logic riêng trong RecentProjects.
   const [wsPage, setWsPage] = useState(1)
   const wsPerPage = 24
@@ -97,16 +102,19 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
   const statusShare = projectStatusShareFor(state)
   const perWorkspace = projectsPerWorkspaceFor(state, 5)
   useEffect(() => {
-    if (state.source !== 'api' || !store.getWorkspaceOverview) return
+    if (state.source !== 'api' || !overviewLoader) return
     let active = true
-    void store.getWorkspaceOverview().then(overview => {
-      if (active) { setServerOverview(overview); setOverviewError('') }
+    void overviewLoader().then(overview => {
+      if (active) setOverviewResult({ loader: overviewLoader, data: overview })
     }).catch((error: unknown) => {
-      if (active) setOverviewError(error instanceof Error ? error.message : 'Không tải được tổng quan workspace.')
+      if (active) setOverviewResult({ loader: overviewLoader, error: error instanceof Error ? error.message : 'Không tải được tổng quan workspace.' })
     })
     return () => { active = false }
-  }, [state.source, state.workspaces, state.projects, store])
-  const activeOverview = state.source === 'api' ? serverOverview : null
+  }, [state.source, state.workspaces, state.projects, overviewLoader])
+  const currentOverview = state.source === 'api' && overviewResult?.loader === overviewLoader ? overviewResult : null
+  const activeOverview = currentOverview?.data
+  const overviewError = currentOverview?.error ?? ''
+  const overviewPending = state.source === 'api' && Boolean(overviewLoader) && !activeOverview && !overviewError
   const overviewStats = homeOverviewStats(state).map(stat => {
     if (!activeOverview) return stat
     if (stat.id === 'ov-ws') return { ...stat, value: String(activeOverview.totalWorkspaces) }
@@ -124,26 +132,44 @@ export function HomePreviewView({ scene }: UniverseHeroProps) {
             <option value="30 ngày gần nhất">30 ngày gần nhất</option>
             <option value="90 ngày gần nhất">90 ngày gần nhất</option>
           </select></label>}>
-        <StatRow stats={overviewStats} />
-        {state.source === 'api' && overviewError !== '' && <p className="panel-sub" role="status">{overviewError} Đang hiển thị số liệu từ danh sách đã tải.</p>}
+        <div className="stat-row" aria-busy={overviewPending || coreStatus?.phase === 'loading'}>
+          {overviewStats.map(stat => {
+            const usesOverview = stat.id === 'ov-ws' || stat.id === 'ov-prj'
+            if (usesOverview && activeOverview) return <StatCard key={stat.id} stat={stat} />
+            if ((usesOverview && overviewPending) || coreStatus?.phase === 'loading') {
+              return <Skeleton key={stat.id} className="skeleton-home-stat" />
+            }
+            return coreStatus ? null : <StatCard key={stat.id} stat={stat} />
+          })}
+        </div>
+        {coreStatus?.phase === 'error' && <DataRegionStatus status={coreStatus} label="Tổng quan hoạt động">{null}</DataRegionStatus>}
+        {!coreStatus && state.source === 'api' && overviewError !== '' && <p className="panel-sub" role="status">{overviewError} Đang hiển thị số liệu từ danh sách đã tải.</p>}
       </Panel>
 
       <Panel title="Projects by Status">
-        <StatusDonut total={statusShare.total} unit="projects"
-          rows={statusShare.rows.map(row => ({ label: row.label, value: row.value }))} />
+        {coreStatus ? <DataRegionStatus status={coreStatus} label="Đang tải trạng thái Project">
+          <Skeleton className="skeleton-home-chart" />
+        </DataRegionStatus> : <StatusDonut total={statusShare.total} unit="projects"
+          rows={statusShare.rows.map(row => ({ label: row.label, value: row.value }))} />}
       </Panel>
 
       <Panel title="Projects per Workspace">
-        <ProgressBar data={perWorkspace} />
+        {coreStatus ? <DataRegionStatus status={coreStatus} label="Đang tải Project theo Workspace">
+          <Skeleton className="skeleton-home-chart" />
+        </DataRegionStatus> : <ProgressBar data={perWorkspace} />}
       </Panel>
     </div>
 
     <Panel title="Workspace gần đây" action={<TextLink onClick={() => session.openSection('workspaces')}>View all</TextLink>}>
-      <div className="mini-cards ws-tiles">
-        {workspacesShown.map(workspace => <WorkspaceTile key={workspace.id} workspace={workspace} />)}
-        {workspacesShown.length === 0 && <p className="panel-sub">{emptyFor('workspace')}</p>}
-      </div>
-      <Pagination label="Workspaces pagination" total={wsSorted.length} page={wsSafePage} perPage={wsPerPage} onPage={setWsPage} hideWhenSinglePage />
+      {coreStatus ? <DataRegionStatus status={coreStatus} label="Đang tải Workspace gần đây">
+        <div className="skeleton-home-workspaces"><Skeleton /><Skeleton /><Skeleton /></div>
+      </DataRegionStatus> : <>
+        <div className="mini-cards ws-tiles">
+          {workspacesShown.map(workspace => <WorkspaceTile key={workspace.id} workspace={workspace} />)}
+          {workspacesShown.length === 0 && <p className="panel-sub">{emptyFor('workspace')}</p>}
+        </div>
+        <Pagination label="Workspaces pagination" total={wsSorted.length} page={wsSafePage} perPage={wsPerPage} onPage={setWsPage} hideWhenSinglePage />
+      </>}
     </Panel>
 
     <RecentProjects />

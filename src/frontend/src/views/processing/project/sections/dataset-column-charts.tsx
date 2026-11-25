@@ -1,4 +1,4 @@
-import type { ColumnBoxPlot, ColumnCategoryChart } from '../../../../services/processing/dataset.service'
+import type { ColumnBoxPlot, ColumnCategoryChart } from '../../../../types/processing/dataset-records.types'
 import styles from '../../../../components/ui/diagnostics.module.css'
 import chartStyles from './project-charts.module.css'
 

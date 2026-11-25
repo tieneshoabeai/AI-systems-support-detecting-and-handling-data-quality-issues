@@ -1,13 +1,13 @@
 import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
 import { useEffect, useState } from 'react'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { WorkspaceDetailOverview } from '../../../services/management/management.types'
 import type { Person, PreviewWorkspacePanel, Project, Workspace, WorkspaceEdit } from '../../../types'
 import {
-  directory, emailForPerson, personFromEmail, previewNoteIds, previewReasons, workspaceMemberRows,
-} from '../../../hooks/preview/preview-presentation'
-import type { WorkspaceMemberRow } from '../../../hooks/preview/preview-presentation'
+  personFromEmail, previewNoteIds, previewReasons, workspaceMemberRows,
+} from '../../../hooks/workbench/workbench-presentation'
+import type { WorkspaceMemberRow } from '../../../hooks/workbench/workbench-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Avatar } from '../../resource'
 import { CoverArt, Pagination } from '../../resource'
@@ -196,17 +196,8 @@ export function WorkspaceMembersDialog({ workspace, rows, onClose, onAddMember, 
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState('')
 
-  // Ứng viên = người trong danh bạ mẫu mà roster CHƯA có. Không loại trừ "tôi" như form Tạo
-  // Workspace: ở đó "tôi" mặc định là chủ sở hữu nên chọn mình thành hai dòng, còn đây là
-  // workspace của người khác thì "tôi" là một lời mời hợp lệ.
-  const inRoster = new Set(rows.map(row => row.id))
-  const pick = search.trim().toLowerCase()
-  const matches = (workspace.currentUserId ? [] : directory).filter(person => !inRoster.has(person.id)
-    && (!pick || person.name.toLowerCase().includes(pick) || emailForPerson(person).toLowerCase().includes(pick)))
-  // Giữ nguyên email để máy chủ xác thực tài khoản và quyền tham gia workspace.
   const typed = search.trim()
-  const typedIsKnown = matches.some(person => emailForPerson(person).toLowerCase() === typed.toLowerCase())
-  const custom = typed.includes('@') && !typed.startsWith('@') && !typed.endsWith('@') && !typedIsKnown
+  const custom = typed.includes('@') && !typed.startsWith('@') && !typed.endsWith('@')
     ? personFromEmail(typed)
     : null
 
@@ -254,28 +245,18 @@ export function WorkspaceMembersDialog({ workspace, rows, onClose, onAddMember, 
         <span className="visually-hidden">Tìm người để thêm vào Workspace</span>
         <PreviewIcon name="search" />
         <input value={search} autoFocus onChange={event => setSearch(event.target.value)}
-          placeholder="Tìm theo tên hoặc nhập email…" autoComplete="off"
-          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); const first = matches[0] ?? custom; if (first) add(first) } }} />
+          placeholder="Nhập email…" autoComplete="off"
+          onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (custom) add(custom) } }} />
       </label>
-      {matches.length === 0 && custom === null && <p className="panel-sub">
-        {workspace.currentUserId ? 'Nhập email tài khoản đã đăng ký để thêm thành viên.' : pick ? `Không tìm thấy ai khớp với “${typed}” trong danh bạ mẫu — nhập email đầy đủ (có dấu @) để thêm người mới.`
-          : 'Cả danh bạ mẫu đều đã thuộc Workspace này.'}
-      </p>}
-      {(matches.length > 0 || custom !== null) && <ul className="pv-suggest-list">
-        {matches.map(person => <li key={person.id} className="pv-suggest-row">
-          <Avatar initials={person.initials} size="sm" />
-          <span className="pv-chip-text"><span className="pv-chip-name">{person.name}</span><span className="pv-chip-email">{emailForPerson(person)}</span></span>
-          <button type="button" className="button-secondary pv-suggest-add" onClick={() => add(person)}>
-            <PreviewIcon name="plus" /> Thêm
-          </button>
-        </li>)}
-        {custom && <li className="pv-suggest-row">
+      {custom === null && <p className="panel-sub">Nhập email tài khoản đã đăng ký để thêm thành viên.</p>}
+      {custom && <ul className="pv-suggest-list">
+        <li className="pv-suggest-row">
           <Avatar initials={custom.initials} size="sm" />
           <span className="pv-chip-text"><span className="pv-chip-name">{custom.name}</span><span className="pv-chip-email">{typed}</span></span>
           <button type="button" className="button-secondary pv-suggest-add" onClick={() => add(custom)}>
             <PreviewIcon name="plus" /> Thêm
           </button>
-        </li>}
+        </li>
       </ul>}
     </div>}
 
@@ -302,7 +283,7 @@ export function WorkspaceMembersDialog({ workspace, rows, onClose, onAddMember, 
           <td>{(safePage - 1) * perPage + index + 1}</td>
           <th scope="row"><span className="member-cell"><Avatar initials={row.initials} size="sm" />
             <span className="member-id"><span className="row-name">{row.name}</span><span className="row-sub">{row.email}</span></span></span></th>
-          {workspace.canManage === false ? <><td>{row.role}</td><td>{row.joinedAt}</td><td>Chỉ xem</td></> : <WorkspaceMemberRowCells live={Boolean(workspace.currentUserId)} row={row} onChangeRole={onChangeMemberRole} onRemove={onRemoveMember} />}
+          {workspace.canManage === false ? <><td>{row.role}</td><td>{row.joinedAt}</td><td>Chỉ xem</td></> : <WorkspaceMemberRowCells live={workspace.canManage !== undefined} row={row} onChangeRole={onChangeMemberRole} onRemove={onRemoveMember} />}
         </tr>)}</tbody>
       </table>
       {visible.length === 0 && <p className="panel-sub">Không có thành viên nào khớp bộ lọc.</p>}
@@ -313,7 +294,7 @@ export function WorkspaceMembersDialog({ workspace, rows, onClose, onAddMember, 
       onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
 
     <ResourceAccessActions kind="workspace" resource={workspace} onClose={onClose} />
-    <p className="dialog-note" id={previewNoteIds.wsMembers}>{workspace.currentUserId
+    <p className="dialog-note" id={previewNoteIds.wsMembers}>{workspace.canManage !== undefined
       ? 'Chỉ chủ Workspace được quản lý thành viên. Muốn đổi chủ sở hữu, hãy dùng chức năng chuyển quyền; các thành viên còn lại có vai trò Member.'
       : previewReasons.wsMembers}</p>
   </Dialog>

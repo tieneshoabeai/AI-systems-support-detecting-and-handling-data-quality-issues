@@ -1,3 +1,4 @@
+import type { SurfaceBand, ColorGradientStop } from './type'
 import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -184,13 +185,6 @@ function periodicValueNoise(u: number, v: number, seed: number, periodX: number,
   return THREE.MathUtils.lerp(THREE.MathUtils.lerp(a, b, tx), THREE.MathUtils.lerp(c, d, tx), ty);
 }
 
-type SurfaceBand = {
-  frequency: number;
-  amplitude: number;
-  stretchX: number;
-  stretchY: number;
-  ridge: boolean;
-};
 
 function surfaceBands(spec: SculptMaterialSpec): SurfaceBand[] {
   const source = Array.isArray(spec['surfaceFrequencyBands']) ? spec['surfaceFrequencyBands'] : [];
@@ -246,7 +240,6 @@ function mixPalette(colors: [number, number, number][], value: number): [number,
   ];
 }
 
-type ColorGradientStop = { offset: number; color: string };
 type ColorGradientSpec = {
   type: 'linear' | 'radial';
   axis: [number, number];

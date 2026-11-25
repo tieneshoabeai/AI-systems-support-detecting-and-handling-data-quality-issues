@@ -1,9 +1,9 @@
+import type { AdminTab } from './type'
 import { useEffect, useState } from 'react'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { AdminIssue, AdminUser } from '../../../services/management/admin.service'
-import { Panel } from '../../preview/components/preview-primitives'
+import { Panel } from '../../../components/resource/presentation/resource-presentation'
 
-type AdminTab = 'users' | 'issues'
 const statuses: AdminIssue['status'][] = ['new', 'needs_info', 'in_progress', 'resolved', 'closed']
 const dateLabel = (value: string): string => {
   const date = new Date(value)

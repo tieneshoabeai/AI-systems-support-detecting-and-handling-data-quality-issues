@@ -1,32 +1,12 @@
 import type { ApiClient } from '../../types/api/api.types'
+import type { CategoryFrequency, ColumnBoxPlot, ColumnCategoryChart, ColumnChart, ColumnStats, DatasetColumn, DatasetRow, HistogramBucket, RecordPage } from '../../types/processing/dataset-records.types'
 import type { postDatasetsByDatasetIdQueryRecordsRequestBody as RecordQuery } from '../../types/services-type/dataViewVirtualGrid'
 import { ApiError, isRecord } from '../../lib/api-error'
+import type { DatasetDetail } from './type'
 
-export type DatasetColumn = { key: string; name: string; dataType: string; originalName?: string; isPii?: boolean }
-export type DatasetDetail = { id: string; name: string; rowCount: number; columnCount: number }
-export type DatasetRow = { rowIndex: number; props: Record<string, unknown> }
-export type RecordPage = { items: DatasetRow[]; meta: { hasMore: boolean; nextCursor: string | null } }
-export type DatasetPreview = { columns: DatasetColumn[]; page: RecordPage }
 export const firstRecordQuery: RecordQuery = { limit: 50 }
-export type HistogramBucket = { bucket_start: number; bucket_end: number; count: number }
-export type ColumnBoxPlot = {
-  q1: number; median: number; q3: number; whiskerLow: number; whiskerHigh: number; outsideCount: number; n: number
-}
-type CategoryFrequency = { count: number; rate: number }
-export type ColumnCategoryChart = { masked: true } | {
-  masked: false; topN: number; distinctCount: number
-  items: ({ value: string } & CategoryFrequency)[]
-  other: CategoryFrequency | null
-}
-export type ColumnChart = {
-  histogram: HistogramBucket[]
-  boxPlot: ColumnBoxPlot | null
-  sampledRecords: number
-  truncated: boolean
-  category: ColumnCategoryChart | null
-}
-export type ColumnStats = { column_name: string; total_records: number; null_count: number; missing_ratio: number; min?: number; max?: number; average?: number; histogram?: HistogramBucket[] }
-export type { RecordQuery }
+export type { ColumnBoxPlot, ColumnCategoryChart, ColumnChart, ColumnStats, DatasetColumn, DatasetPreview, DatasetRow, HistogramBucket, RecordPage } from '../../types/processing/dataset-records.types'
+export type { DatasetDetail, RecordQuery }
 const invalid = (message: string) => new ApiError({ kind: 'invalid-response', message })
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)

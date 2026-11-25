@@ -1,15 +1,13 @@
-import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProjectModuleId } from '../../../types'
 import type { CubeFocus, NeonCubeThemeId } from '../../../types'
-import {
-  formatCount, formatDataSize, formatRows, projectModules,
-} from '../../preview/preview-data'
-import { PreviewShell } from '../../preview/components/preview-shell'
-import { PreviewIcon } from '../../preview/components/preview-icons'
-import { EmptyHint } from '../../preview/components/preview-primitives'
-import { usePreviewSession } from '../../preview/preview-session-context'
-import { projectDatasetMenu } from '../../preview/preview-menu'
+import { formatCount, formatDataSize, formatRows, projectModules } from '../../../hooks/workbench/workbench-presentation'
+import { PreviewShell } from '../../application/components/workbench-shell'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { EmptyHint } from '../../../components/resource/presentation/resource-presentation'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { projectDatasetMenu } from '../../../hooks/resource/resource-menu'
 import { ProjectUploadDialog, ProjectResultDownload } from './sections/project-data-actions'
 import type { ConfirmedProjectResult } from '../../../types'
 import { bindProjectGlassMotion } from '../../../graphics/holographic-core'
@@ -17,15 +15,17 @@ import styles from './project-workspace.module.css'
 import { LiveDatasetPanel } from './sections/live-dataset-panel'
 import { LiveAnalysisPanel } from './sections/live-analysis-panel'
 import { Dialog } from '../../../components/ui/overlay/dialog'
-import { firstRecordQuery, type DatasetPreview } from '../../../services/processing/dataset.service'
+import { ProjectHeaderSkeleton, ProjectSceneSkeleton } from '../../../components/loading/page-skeleton'
+import { firstRecordQuery } from '../../../services/processing/dataset.service'
+import type { DatasetPreview } from '../../../types/processing/dataset-records.types'
 import { ProcessingDataContext } from '../../application/processing-data-context'
 import { ProjectPanelResize, useProjectPanelMove } from './sections/project-panel-controls'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 
 // Project chrome and actions stay in this view; Dataset3DView owns scene interactions.
 const Dataset3DView = lazy(() => import('../../dataset-3d/dataset-3d.view').then(module => ({ default: module.Dataset3DView })))
 
-const sceneLoading = <p role="status" className={styles['sceneLoading']}>Đang mở cảnh 3D…</p>
+const sceneLoading = <ProjectSceneSkeleton message="Đang mở cảnh 3D…" />
 
 const MODULE_CUBES = {
   overview: 'violet', 'data-view': 'blue', 'data-analysis': 'cyan',
@@ -61,6 +61,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   }, [focus])
   const panelOpen = focus !== null && completedFocus === focus
   const panelMove = useProjectPanelMove(panelOpen ? glassPanel : null)
+  const panelMoveHintId = useId()
   useLayoutEffect(() => {
     if (!glassPanel) return
     const ready = () => panelClose.current?.focus({ preventScroll: true })
@@ -99,6 +100,9 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   }, [panelFocus, selectFocus])
   const selected = activeModules.find(module => MODULE_CUBES[module.id] === focus?.theme)?.id ?? null
   const [uploading, setUploading] = useState(false)
+  const closeUpload = useCallback(() => setUploading(false), [])
+  const [completionProjectId, setCompletionProjectId] = useState<string | null>(null)
+  const closeCompletion = useCallback(() => setCompletionProjectId(null), [])
   const project = processing?.loading || processing?.error
     ? null : session.state.projects.find(item => item.id === projectId) ?? null
   const permissionsPending = processing?.permissionsPending === true
@@ -117,6 +121,8 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
     }
   }, [sceneEligibleProjectId, scene])
   const dataset = project?.dataset
+  const completeProject = store.completeProject
+  const canCompleteProject = project?.status === 'processing' && project.canComplete && completeProject
   const datasetId = dataset?.id
   const [preview, setPreview] = useState<{ datasetId: string; value: DatasetPreview | null } | null>(null)
   const prefetch = Boolean(processing && datasetId)
@@ -146,7 +152,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
     <h1 id="page-heading" tabIndex={-1} className="visually-hidden">{project?.name ?? 'Project'}</h1>
     {!project && (processing?.error
       ? <div role="alert">{processing.error} <button type="button" onClick={processing.retry}>Thử lại</button></div>
-      : <p role="status">Đang tải thông tin project…</p>)}
+      : <><p role="status" className="visually-hidden">Đang tải thông tin project…</p><ProjectHeaderSkeleton /></>)}
     {project && <div className="pj-head-row">
       <nav className="ws-crumb" aria-label="Path điều hướng">
         <button type="button" className="crumb-link" onClick={() => session.openSection('workspaces')}>Workspaces</button>
@@ -158,27 +164,26 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
       <div className="pj-dataset">
         <span className="pj-dataset-icon" aria-hidden="true"><PreviewIcon name="file" /></span>
         <div className="pj-dataset-text">
-          <strong>{dataset ? `Dataset: ${dataset.fileName}` : 'Dataset'}</strong>
+          <strong title={dataset?.fileName}>{dataset ? `Dataset: ${dataset.fileName}` : 'Dataset'}</strong>
           {/* "dung lượng bao gồm luôn shape()" = kích thước tệp + số dòng + số cột, đúng ba vế
               ảnh vẽ: '124.6 MB | 1,250,000 dòng | 24 cột'. */}
           <span>{dataset
             ? `${formatDataSize(dataset.sizeMb)} | ${formatRows(dataset.rows)} | ${formatCount(dataset.columns)} cột`
             : 'Project chưa có tập dữ liệu.'}</span>
         </div>
-        {!dataset && project.canUpload !== false && <button type="button" className="button-primary" onClick={() => setUploading(true)}>Upload data</button>}
-        {project.status === 'processing' && project.canComplete && store.completeProject &&
-          <CompleteProjectAction key={project.id} onComplete={async () => {
-            const response = await store.completeProject!(project.id)
-            session.notify(response.message, 'success')
-          }} />}
-        <button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
-          aria-haspopup="menu" disabled={permissionsPending} onClick={event => menuButton(event.currentTarget)}>
-          <PreviewIcon name="more" />
-        </button>
+        <div className={styles['datasetActions']}>
+          {!dataset && project.canUpload !== false && <button type="button" className="button-primary" onClick={() => setUploading(true)}>Upload data</button>}
+          {canCompleteProject && <button type="button" className="button-secondary"
+            onClick={() => setCompletionProjectId(project.id)}>Hoàn thành Project</button>}
+          <button type="button" className="icon-button pj-dataset-menu" aria-label={`Thao tác với ${project.name}`}
+            aria-haspopup="menu" disabled={permissionsPending} onClick={event => menuButton(event.currentTarget)}>
+            <PreviewIcon name="more" />
+          </button>
+        </div>
       </div>
     </div>}
 
-    <section key="project-stage" className="pj-stage" aria-label={project ? `Vũ trụ dữ liệu của ${project.name}` : 'Vũ trụ dữ liệu'}>
+    {!processing?.error && <section key="project-stage" className="pj-stage" aria-label={project ? `Vũ trụ dữ liệu của ${project.name}` : 'Vũ trụ dữ liệu'}>
       {scene ?? (sceneEligibleProjectId && sceneProjectId === sceneEligibleProjectId ? <Suspense fallback={sceneLoading}>
         <Dataset3DView embedded colorMode={session.appearance.resolved} focus={focus}
         glassPanel={glassPanel}
@@ -195,8 +200,10 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
             <h2 id="project-module-title">{activeModules.find(module => MODULE_CUBES[module.id] === panelFocus.theme)?.label}</h2>
             <div className={styles['panelHeaderActions']}>
               <button type="button" className="icon-button" aria-label="Khôi phục vị trí và kích thước mặc định"
-                title="Khôi phục bảng. Dùng phím mũi tên để di chuyển."
+                aria-describedby={panelMoveHintId}
+                title="Mũi tên để di chuyển, Shift để tăng bước, Home để đặt lại."
                 onClick={panelMove?.reset} onKeyDown={panelMove?.onKeyDown}>↺</button>
+              <span id={panelMoveHintId} className="visually-hidden">Dùng phím mũi tên để di chuyển. Giữ Shift để tăng bước. Nhấn Home để đặt lại vị trí và kích thước.</span>
               <button ref={panelClose} type="button" className="icon-button" aria-label="Đóng bảng module"
                 onClick={event => selectFocus(null, event.detail === 0)}>×</button>
             </div>
@@ -225,9 +232,14 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
           </button>
         })}
       </nav>
-    </section>
+    </section>}
 
-    {uploading && project && !dataset && <ProjectUploadDialog onClose={() => setUploading(false)} />}
+    {uploading && project && <ProjectUploadDialog onClose={closeUpload} />}
+    {project && completionProjectId === project.id && canCompleteProject && <CompleteProjectDialog
+      key={project.id} onClose={closeCompletion} onComplete={async () => {
+        const response = await canCompleteProject(project.id)
+        session.notify(response.message, 'success')
+      }} />}
 
     {/* Trang không còn dải lý do cho "Quản lý thành viên" hay các control của trang Projects:
         mục đó đã BẬT THẬT và chính modal của nó mang ghi chú ở chân (id `projectMembersPage`).
@@ -235,26 +247,21 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   </PreviewShell>
 }
 
-function CompleteProjectAction({ onComplete }: { onComplete: () => Promise<void> }) {
-  const [open, setOpen] = useState(false)
+function CompleteProjectDialog({ onClose, onComplete }: { onClose: () => void; onComplete: () => Promise<void> }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
-  const close = () => { setOpen(false); setError('') }
-  return <>
-    <button type="button" className="button-secondary" onClick={() => setOpen(true)}>Hoàn thành Project</button>
-    <Dialog open={open} onClose={close} busy={pending} aria-labelledby="complete-project-title">
+  return <Dialog open onClose={onClose} busy={pending} aria-labelledby="complete-project-title">
       <h2 id="complete-project-title">Hoàn thành Project</h2>
       <p>Lưu trạng thái hiện tại và đánh dấu Project là đã hoàn thành.</p>
       {error && <p role="alert">{error}</p>}
       <div className="form-actions">
-        <button type="button" className="button-secondary" onClick={close} disabled={pending}>Hủy</button>
+        <button type="button" className="button-secondary" onClick={onClose} disabled={pending}>Hủy</button>
         <button type="button" className="button-primary" disabled={pending} onClick={() => {
           setPending(true); setError('')
-          void onComplete().then(close).catch((cause: unknown) => {
+          void onComplete().then(onClose).catch((cause: unknown) => {
             setError(cause instanceof Error ? cause.message : 'Không lưu được trạng thái Project.')
           }).finally(() => setPending(false))
         }}>Xác nhận hoàn thành</button>
       </div>
-    </Dialog>
-  </>
+  </Dialog>
 }

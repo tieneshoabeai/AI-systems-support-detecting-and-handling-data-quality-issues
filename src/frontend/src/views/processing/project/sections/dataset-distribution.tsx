@@ -2,7 +2,7 @@ import { useId } from 'react'
 import { Button } from '../../../../components/ui/primitives/button'
 import { Icon } from '../../../../components/ui/primitives/icon'
 import styles from '../../../../components/ui/diagnostics.module.css'
-import type { ColumnChart, ColumnStats } from '../../../../services/processing/dataset.service'
+import type { ColumnChart, ColumnStats } from '../../../../types/processing/dataset-records.types'
 import { DatasetBoxPlot, DatasetTopCategories } from './dataset-column-charts'
 import { DatasetHistogram } from './dataset-histogram'
 

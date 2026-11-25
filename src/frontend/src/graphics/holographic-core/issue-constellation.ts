@@ -1,3 +1,4 @@
+import type { LaneSamples, ParticleSeed, BeadSeed } from './type'
 import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
@@ -26,28 +27,8 @@ export type IssueConstellation = {
   dispose(): void
 }
 
-type LaneSamples = {
-  points: Float32Array
-  segments: number
-  closed: boolean
-}
 
-type ParticleSeed = {
-  laneIndex: number
-  phase: number
-  speed: number
-  size: number
-  issue: boolean
-}
 
-type BeadSeed = {
-  angle: number
-  radius: number
-  yOffset: number
-  phase: number
-  size: number
-  direction: number
-}
 
 const IDENTITY_QUATERNION = new THREE.Quaternion()
 

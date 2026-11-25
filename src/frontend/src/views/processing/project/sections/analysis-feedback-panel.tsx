@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, CompletionButton } from '../../../../components/ui/primitives/button'
-import { usePreviewSession } from '../../../../hooks/preview/preview-session-context'
+import { usePreviewSession } from '../../../../hooks/workbench/workbench-session-context'
 import { Textarea } from '../../../../components/ui/primitives/textarea'
 import { Select } from '../../../../components/ui/form/select'
 import { ApiError, isRecord } from '../../../../lib/api-error'
@@ -61,6 +61,7 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
   const { notify } = usePreviewSession()
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<FeedbackItem[]>([])
+  const [hasFindingFeedback, setHasFindingFeedback] = useState(false)
   const [next, setNext] = useState<string | null>(null)
   const [pageRequest, setPageRequest] = useState<{ cursor: string | null }>({ cursor: null })
   const [listStatus, setListStatus] = useState<'loading' | 'ready' | 'forbidden' | 'error'>('loading')
@@ -73,6 +74,7 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
   const [mutationError, setMutationError] = useState('')
   const [notice, setNotice] = useState('')
   const visited = useRef(new Set<string>())
+  const checkedFinding = useRef(false)
   const mutation = useRef<AbortController | null>(null)
   const completionTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => {
@@ -81,11 +83,11 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
   }, [])
 
   useEffect(() => {
-    if (!open || !runId) return
+    if (!runId || (!open && (!findingId || checkedFinding.current))) return
     const controller = new AbortController()
-    const { cursor } = pageRequest
+    const cursor = open ? pageRequest.cursor : null
     if (!cursor) visited.current.clear()
-    const query = { limit: 20, ...(cursor ? { cursor } : {}) }
+    const query = { limit: open ? 20 : 1, ...(cursor ? { cursor } : {}) }
     const request = findingId
       ? service.listFindingFeedback(runId, findingId, query, controller.signal)
       : service.listRunFeedback(runId, query, controller.signal)
@@ -96,6 +98,11 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
         if (page.next && (page.next === cursor || visited.current.has(page.next))) {
           throw new Error('Máy chủ trả con trỏ phản hồi lặp lại.')
         }
+        if (findingId && !cursor) {
+          checkedFinding.current = true
+          setHasFindingFeedback(page.items.length > 0 || page.next !== null)
+        }
+        if (!open) return
         if (cursor) visited.current.add(cursor)
         setItems(previous => cursor
           ? [...new Map([...previous, ...page.items].map(item => [item.id, item])).values()] : page.items)
@@ -103,8 +110,9 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
         setListStatus('ready')
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return
+        if (controller.signal.aborted || !open) return
         if (error instanceof ApiError && error.status === 403) {
+          if (findingId) setHasFindingFeedback(false)
           setListStatus('forbidden')
           return
         }
@@ -160,6 +168,7 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
         return
       }
       setSubmitted(true)
+      if (findingId) setHasFindingFeedback(true)
       notify('Đã gửi phản hồi.', 'success')
       completionTimer.current = window.setTimeout(() => {
         setDraft(null)
@@ -170,7 +179,11 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
   }
 
   return <details className={styles['disclosure']} onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary className={finding ? feedbackStyles['findingTrigger'] : undefined}>{finding ? 'Feedback' : 'Phản hồi'}</summary>
+    <summary className={finding ? feedbackStyles['findingTrigger'] : undefined}
+      data-has-feedback={finding && hasFindingFeedback ? 'true' : undefined}
+      aria-label={finding && hasFindingFeedback ? `Đã có phản hồi · ${finding.title}` : undefined}>
+      {finding ? hasFindingFeedback ? <span aria-hidden="true">✓</span> : 'Feedback' : 'Phản hồi'}
+    </summary>
     {open && <div className={styles['disclosureBody']}>
       {!runId ? <ModuleNotice>Chạy phân tích hoặc tải kết quả trước khi gửi phản hồi.</ModuleNotice>
         : listStatus === 'forbidden' ? <ModuleNotice>Tài khoản này không có quyền xem hoặc gửi phản hồi.</ModuleNotice>
@@ -250,6 +263,7 @@ export function AnalysisFeedbackPanel({ runId, service, finding }: {
                       if (!isRecord(result) || result['deleted'] !== true) throw new Error('Chưa xác nhận được phản hồi đã xóa.')
                     }, () => {
                       setItems(previous => previous.filter(entry => entry.id !== item.id))
+                      if (findingId && items.length === 1 && !next) setHasFindingFeedback(false)
                       setDeleteId(null)
                       setNotice('Đã xóa phản hồi.')
                     }) }}>Xác nhận xóa</Button>

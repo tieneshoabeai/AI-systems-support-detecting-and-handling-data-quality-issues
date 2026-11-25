@@ -1,3 +1,4 @@
+import type { Member, DatasetDto } from './type'
 import type { postWorkspacesWorkspaceRequestBody as CreateWorkspaceBody, patchWorkspacesByIdWorkspaceRequestBody as UpdateWorkspaceBody, postWorkspacesByIdMemberRequestBody as WorkspaceMemberBody, postWorkspacesByIdTransferOwnerRequestBody as WorkspaceTransferBody } from '../../types/services-type/workspaces'
 import type { postWorkspacesByWorkspaceIdProjectRequestBody as CreateProjectBody, patchProjectsByIdProjectRequestBody as UpdateProjectBody, postProjectsByIdMemberRequestBody as ProjectMemberBody, patchProjectsByIdAndUserIdMemberRequestBody as UpdateProjectMemberBody, postProjectsByIdTransferOwnerRequestBody as ProjectTransferBody } from '../../types/services-type/projects'
 import type { postIssuesReportRequestBody as CreateReportBody } from '../../types/services-type/issues'
@@ -6,15 +7,15 @@ import type { patchUsersPreferencesRequestBody as PreferencesBody } from '../../
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
 import type { ManagementStore, WorkspaceDetailOverview, WorkspaceOverview } from './management.types'
 import { validateCsvFile } from './upload-validation'
+import { mutationRefreshFailedCode } from './management.types'
 import { createAdminService } from './admin.service'
 import { createDatasetService } from '../processing/dataset.service'
 import { createAnalysisService } from '../processing/analysis.service'
 import { listRecentProjects } from '../processing/recent-projects.service'
 import { ApiError, isRecord, normalizeApiError } from '../../lib/api-error'
 import { mapSessionDetail } from './session.mapper'
-import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/preview/preview.types'
+import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/management/management.types'
 
-type Member = { userId: string; role: string; email?: string | null; name?: string; firstName?: string | null; lastName?: string | null; joinedAt?: string }
 // Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
 // ({ items, meta: { hasMore, nextCursor } }). Đọc được cả hai để một bản frontend chạy với cả hai.
 type PageResult<T> = { items?: T[]; total?: number; meta?: { hasMore?: boolean; nextCursor?: string | null } }
@@ -30,7 +31,6 @@ const memberRows = (result: MembersResult): Member[] => {
 }
 type WorkspaceDto = { id: string; name: string; description: string; ownerId: string; members: Member[]; storageUsedBytes: number; createdAt: string; updatedAt: string; lastAccessedAt: string | null; version: number }
 type ProjectDto = { id: string; workspaceId: string; workspaceName?: string | null; name: string; description: string; createdBy: string; members: Member[]; status: string; hasDataset: boolean; createdAt: string; updatedAt: string; version: number }
-type DatasetDto = { id: string; originalFileName: string; rowCount: number; columnCount: number; fileSizeBytes: number; createdAt: string; status: string }
 function validateWorkspace(value: unknown): asserts value is WorkspaceDto {
   if (!isRecord(value) || !['id', 'name', 'description', 'ownerId', 'createdAt', 'updatedAt'].every(key => typeof value[key] === 'string')
     || !Array.isArray(value['members']) || !Number.isInteger(value['version']) || (value['version'] as number) < 1
@@ -465,7 +465,14 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
           selection: state.selection.projectId === deletedId ? { ...state.selection, projectId: '' } : state.selection })
       }
     }
-    try { await load() } catch { throw new Error('Đã lưu trên máy chủ nhưng chưa tải lại được danh sách. Hãy tải lại trang, không gửi lại thao tác.') }
+    try { await load() }
+    catch {
+      throw new ApiError({
+        kind: 'invalid-response',
+        code: mutationRefreshFailedCode,
+        message: 'Đã lưu trên máy chủ nhưng chưa tải lại được danh sách. Hãy tải lại trang, không gửi lại thao tác.',
+      })
+    }
     return saved('Đã lưu thay đổi trên máy chủ.')
   }
   const issueTypes = { system: 'display_error', feature: 'function_error', data: 'data_error', suggestion: 'feature_feedback', other: 'other' } as const
@@ -722,7 +729,7 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
         for (const p of input.members) await request(`/workspaces/${workspace.id}/members`, { method: 'POST', data: { email: email(p), role: 'member' } satisfies WorkspaceMemberBody })
         await load()
       } catch { await load().catch(() => {}); throw new Error(`Workspace “${input.name}” đã được tạo, nhưng chưa hoàn tất thêm thành viên hoặc tải lại. Mở workspace để kiểm tra, không tạo lại.`) }
-      return saved('Đã tạo Workspace.')
+      return { ...saved('Đã tạo Workspace.'), workspaceId: workspace.id }
     },
     createProject: async input => {
       if (!input.dataset.file) throw new Error('Hãy chọn lại tệp CSV để tải lên máy chủ.')
@@ -805,7 +812,6 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       await request('/users/me/notification-preferences', { method: 'PATCH', data: { notificationsEnabled: value } satisfies PreferencesBody })
       await loadPersonal(); return saved('Đã lưu tùy chọn thông báo.')
     },
-    reset: () => saved('Dữ liệu thật không thể đặt lại bằng dữ liệu mẫu.'), getFixtureSet: () => 'demo',
   }
   const createProject = store.createProject
   store.createProject = input => {

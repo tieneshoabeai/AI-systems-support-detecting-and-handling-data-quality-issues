@@ -11,8 +11,7 @@
 | `users` | Đọc hồ sơ và xóa tài khoản qua `/users/me` | [`users.service.ts`](users/users.service.ts) |
 | `management` | Store workspace/project, mapping phiên, chức năng quản trị, đọc CSV xem trước và kiểm tra upload | [`management.store.ts`](management/management.store.ts), [`session.mapper.ts`](management/session.mapper.ts), [`admin.service.ts`](management/admin.service.ts) |
 | `processing` | Chi tiết, schema và records của dataset, thống kê cột, cờ PII, xóa dataset, tải CSV gốc, project gần đây và kiểm tra đánh giá kết quả | [`dataset.service.ts`](processing/dataset.service.ts), [`recent-projects.service.ts`](processing/recent-projects.service.ts), [`result-review.ts`](processing/result-review.ts) |
-| `navigation` | Tạo và phân tích URL Management/Processing | [`application-route.ts`](navigation/application-route.ts) |
-| `preview` | Fixture, store giả lập và điều hướng preview cũ | [`preview-mock.service.ts`](preview/preview-mock.service.ts), [`preview-fixtures.ts`](preview/preview-fixtures.ts), [`preview-route.ts`](preview/preview-route.ts) |
+| `navigation` | Tạo và phân tích URL Management/Processing, chuyển hướng URL cũ | [`application-route.ts`](navigation/application-route.ts) |
 
 [`services/index.ts`](index.ts) export một số factory và helper, gồm `createAuthService`, `createSessionCoordinator`, `createHealthService`, `createUsersService` và `validateResultReview`. Factory dataset, factory admin và loader project gần đây được import từ file triển khai tương ứng. Kiểm tra `index.ts` của nhóm trước khi chọn đường dẫn import.
 
@@ -45,7 +44,7 @@ export function loadDatasetColumns(api: ApiClient, datasetId: string, signal: Ab
 - Giữ đường dẫn endpoint, request và kiểm tra response cạnh service sở hữu nghiệp vụ. Dùng `auth: 'public'` hoặc `auth: 'session'` theo endpoint.
 - Tách kiểu hợp đồng và dữ liệu chạy thật. Với phản hồi cần kiểm tra, nhận `unknown` rồi xác thực hoặc map trước khi trả model. Xem [`types/README.md`](../types/README.md).
 - Truyền `AbortSignal` tại những thao tác có hỗ trợ hủy. Giữ việc ghi phiên và phát snapshot trong coordinator.
-- Workbench trực tuyến báo lỗi API cho UI. Fixture và thao tác giả lập thuộc luồng preview riêng.
+- Workbench trực tuyến báo lỗi API cho UI. Test cấp fixture và store giả từ `src/__tests__/support/`.
 
 ## Cấu trúc thư mục hiện tại
 
@@ -70,13 +69,8 @@ src/services/
 │   └── upload-validation.ts
 ├── navigation/
 │   ├── application-route.ts
+│   ├── legacy-workbench-route.ts
 │   └── index.ts
-├── preview/
-│   ├── index.ts
-│   ├── preview-fixtures.ts
-│   ├── preview-mock.service.ts
-│   ├── preview-route.ts
-│   └── preview-worst-case.ts
 ├── processing/
 │   ├── dataset.service.ts
 │   ├── index.ts

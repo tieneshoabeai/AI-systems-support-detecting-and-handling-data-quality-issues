@@ -9,7 +9,7 @@ import './workspace-3d.css'
 const kindLabels: Record<ResourceKind, string> = { workspace: 'Workspace', project: 'Project', dataset: 'Dataset' }
 const kindMarks: Record<ResourceKind, string> = { workspace: '⬡', project: '▣', dataset: '◉' }
 
-export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, localFileMode = false }: ResourceMapProps) {
+export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset }: ResourceMapProps) {
   const validation = useMemo(() => validateResources(resources), [resources])
   const [scopeId, setScopeId] = useState<string | null>(null)
   const [resetKey, setResetKey] = useState(0)
@@ -60,7 +60,7 @@ export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, lo
               <span className={`resource-kind resource-kind-${selected.kind}`}><span aria-hidden="true">{kindMarks[selected.kind]}</span> {kindLabels[selected.kind]}</span>
               <dl><dt>Tên</dt><dd>{selected.kind === 'dataset' && onOpenDataset
                 ? <button type="button" className="text-link" onClick={() => onOpenDataset(selected.id)}>{selected.name}</button> : selected.name}</dd>
-              <dt>Đường dẫn</dt><dd>{selectedTrail.map(node => node.name).join(' / ')}</dd><dt>Nguồn</dt><dd>{localFileMode ? 'File trên máy · Chưa upload' : 'Dữ liệu demo'}</dd></dl>
+              <dt>Đường dẫn</dt><dd>{selectedTrail.map(node => node.name).join(' / ')}</dd></dl>
               {selected.kind === 'dataset' && onOpenDataset && <button type="button" className="button-primary" onClick={() => onOpenDataset(selected.id)}>Xem dữ liệu</button>}
               {selected.kind !== 'dataset' && <button type="button" className="button-primary" onClick={() => changeScope(selected.id)}>Khám phá {kindLabels[selected.kind]} <span aria-hidden="true">→</span></button>}
               <button type="button" className="text-link" onClick={() => onSelect(null)}>Bỏ chọn</button>
@@ -86,12 +86,12 @@ export function ResourceMap({ resources, selectedId, onSelect, onOpenDataset, lo
   </>
 }
 
-export function Workspace3DView({ resources, onOpenDataset, localFileMode = false }: Pick<ResourceMapProps, 'resources' | 'onOpenDataset' | 'localFileMode'>) {
+export function Workspace3DView({ resources, onOpenDataset }: Pick<ResourceMapProps, 'resources' | 'onOpenDataset'>) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   return <main className="resource-page">
     <header className="resource-page-header"><a href="/" className="resource-brand" aria-label="Về ứng dụng"><img src={logo} alt="8DA AI Network" width="48" height="48" /><span>Resource explorer</span></a><span className="resource-demo-badge">DEMO · CHỈ XEM THỬ</span></header>
-    <div className="resource-intro"><div><span className="eyebrow"><span className="brand-dot" /> WORKSPACE 3D</span><h1>Bản đồ tài nguyên</h1></div><p>Khám phá Workspace, Project và Dataset.<br />{localFileMode ? 'Đọc file CSV trực tiếp trong tab này.' : 'Dữ liệu minh họa trong bộ nhớ tab.'}</p></div>
-    <ResourceMap resources={resources} selectedId={selectedId} onSelect={setSelectedId} {...(onOpenDataset === undefined ? {} : { onOpenDataset: onOpenDataset })} localFileMode={localFileMode} />
+    <div className="resource-intro"><div><span className="eyebrow"><span className="brand-dot" /> WORKSPACE 3D</span><h1>Bản đồ tài nguyên</h1></div><p>Khám phá Workspace, Project và Dataset.</p></div>
+    <ResourceMap resources={resources} selectedId={selectedId} onSelect={setSelectedId} {...(onOpenDataset === undefined ? {} : { onOpenDataset: onOpenDataset })} />
     <footer className="resource-footer">Preview phát triển · Không upload hoặc thay đổi dữ liệu thật</footer>
   </main>
 }

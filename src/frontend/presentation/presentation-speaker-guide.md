@@ -15,15 +15,15 @@ Mạch kể đi từ bài toán CSV và người sử dụng, sang cách dựng 
 
 | Chương | Slide | Mạch trình bày | Ngân sách nói và thao tác |
 | --- | --- | --- | --- |
-| 1. Tổng quan và mức bằng chứng | 01–04 | Đặt bài toán và xác định mức chắc chắn. | 3:30 |
-| 2. Design System | 05–07 | Giải thích màu, chữ và component. | 2:25 |
-| 3. Tổ chức kiến trúc | 08–14 | Lần từ sơ đồ tầng đến file và bootstrap. | 6:40 |
-| 4. Phiên và xác thực | 15–19 | Theo phiên từ khởi tạo đến kết thúc. | 5:55 |
-| 5. Luồng nghiệp vụ | 20–26 | Theo CSV từ workspace đến issue và draft. | 7:30 |
-| 6. HTTP và hợp đồng API | 27–33 | Đọc request, kiểu và bốn bảng API. | 7:35 |
-| 7. Truy vết và kiểm thử | 34–38 | Đọc ma trận, test, browser và coverage. | 5:00 |
+| 1. Tổng quan | 01 | Giới thiệu bài toán. | 0:45 |
+| 2. Design System | 02–04 | Màu, chữ, component, trạng thái Button và bố cục Home. | 2:25 |
+| 3. Tổ chức kiến trúc | 05–12 | Từ sơ đồ tầng đến file, Strict, ESLint và bootstrap. | 7:40 |
+| 4. Phiên và xác thực | 13–17 | Theo phiên từ khởi tạo đến kết thúc. | 5:55 |
+| 5. Luồng nghiệp vụ | 18–24 | Workspace, Project Wizard, phân quyền, Liquid Glass, issue và bản nháp. | 7:30 |
+| 6. HTTP và hợp đồng API | 25–32 | Đọc request, ví dụ Data View, kiểu và bốn bảng API. | 8:35 |
+| 7. Truy vết, kiểm thử và hiệu năng | 33–38 | Đọc ma trận, test, coverage và mốc hiệu năng. | 6:30 |
 | 8. Giới hạn và nghiệm thu | 39–42 | Chuyển giới hạn thành điều kiện nghiệm thu. | 3:50 |
-| | **42** | | **42:25** |
+| | **42** | | **43:10** |
 
 ## 3. Slide-by-Slide Speaker Guide
 
@@ -60,130 +60,13 @@ Hình trên trang bìa minh họa sản phẩm. Việc xử lý do các luồng 
 
 #### G. Chuyển tiếp
 
-Bắt đầu bằng bức tranh tiến độ để biết các bằng chứng thuộc phạm vi nào.
+Tiếp theo, xem cách bảng màu giúp người dùng nhận diện trạng thái trên giao diện.
 
 #### H. Thời lượng
 
 Khoảng 45 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 02 — 3 Trụ Cột Đạt Chuẩn: Nghiệp Vụ, Kiểm Thử & Tích Hợp Live
-
-#### A. Bối cảnh trình bày
-
-Chương 1, tổng quan và mức bằng chứng. Tóm tắt tình trạng bàn giao qua ba khối số liệu.
-
-#### B. Thông điệp cốt lõi
-
-Cần đọc riêng phạm vi tích hợp, kết quả kiểm thử và các phần còn giới hạn.
-
-#### C. Giải thích nội dung
-
-Thẻ 66/86 là tỷ lệ số operation slide báo đã nối trên tổng operation. Thẻ 864/864 là số ca pass của lần chạy được báo. Thẻ 4 là bốn nhóm cần làm rõ ranh giới, gồm cả lưu cục bộ.
-
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: inventory 66 operation, log 864/864, 71 suite và 162 giây.]
-
-#### D. Lời thoại thuyết trình
-
-Ba con số ở đây trả lời ba câu hỏi khác nhau. Bao nhiêu operation đã được nối vào frontend? Bao nhiêu ca kiểm thử đã đạt trong lần chạy được ghi trên slide? Những phần nào người dùng vẫn gặp dữ liệu mẫu hoặc hành vi cục bộ? Swagger trong repo cho ta 86 operation. Để khẳng định 66 đã chạy live, cần danh sách từng operation gắn với kết quả gọi thật. Cũng vậy, số test pass phải đi kèm phiên bản code và lần chạy.
-
-#### E. Điểm cần nhấn mạnh
-
-- Operation là cặp method và path.
-- 86 là tổng kiểm được.
-- 4 nhóm có bản chất khác nhau.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**76,7% có nghĩa là 76,7% tính năng hoàn thành không?**  
-Đó là tỷ lệ 66 chia 86 theo cách đếm operation của slide. Một tính năng có thể cần nhiều operation.
-
-#### G. Chuyển tiếp
-
-Để đọc tiến độ đúng, ta cần quy ước về mức bằng chứng.
-
-#### H. Thời lượng
-
-Khoảng 50 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 03 — Cam Kết Minh Bạch: Khung 7 Cấp Độ Bằng Chứng Kỹ Thuật
-
-#### A. Bối cảnh trình bày
-
-Chương 1, tổng quan và mức bằng chứng. Đặt quy ước bằng chứng cho mọi chương sau.
-
-#### B. Thông điệp cốt lõi
-
-Mỗi kết luận phải nói rõ dựa trên source, test, chạy thật hay dữ liệu mẫu.
-
-#### C. Giải thích nội dung
-
-Đi từ trên bảng xuống: IMPLEMENTED là có triển khai, TESTED là có test được chạy có kết quả, VERIFIED LIVE cần log chạy thật. MOCKED dùng mẫu, PARTIAL còn thiếu một phần. NOT FOUND giới hạn ở phạm vi đã tìm, UNVERIFIED là thiếu bằng chứng.
-
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: log chạy live để nâng nhãn cho các operation trên bảng.]
-
-#### D. Lời thoại thuyết trình
-
-Ví dụ, một màn hình hiện danh sách project có thể đã được viết và chạy được với dữ liệu mẫu. Khi test dùng adapter giả, ta biết UI xử lý các tình huống đã mô phỏng. Để nói đã chạy live, ta cần gọi đúng server, với dữ liệu và quyền phù hợp, rồi lưu kết quả. Trong phần còn lại, hãy nghe mức bằng chứng đi cùng với từng kết luận, đặc biệt ở các bảng API.
-
-#### E. Điểm cần nhấn mạnh
-
-- Source và log là hai bằng chứng khác nhau.
-- Mock có giá trị cho demo và test.
-- Nêu phạm vi khi nói chưa tìm thấy.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Có file Playwright đã được xem là TESTED chưa?**  
-Có file chứng minh đã viết test. Cần kết quả chạy tương ứng mới xác nhận TESTED.
-
-#### G. Chuyển tiếp
-
-Áp dụng các nhãn đó vào bản đồ tích hợp và bốn nhóm ngoại lệ.
-
-#### H. Thời lượng
-
-Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 04 — Hiện Trạng: 66/86 API Đã Nối Thật & Ranh Giới Phần Còn Mock
-
-#### A. Bối cảnh trình bày
-
-Chương 1, tổng quan và mức bằng chứng. Vẽ ranh giới giữa phần có API, phần demo và phần chạy cục bộ.
-
-#### B. Thông điệp cốt lõi
-
-Có caller API trong các nhóm chính. Mỗi phần còn lại cần mô tả theo cơ chế thật.
-
-#### C. Giải thích nội dung
-
-Cột trái chia Auth/User, Workspace, Project, Dataset và Issues/Admin. Cột phải gồm Workspace 3D fixture, notification/worker và Dexie. Fixture là dữ liệu mẫu. IndexedDB là cơ sở dữ liệu trong trình duyệt, có giá trị cho chế độ cục bộ.
-
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: tỷ lệ từng nhóm, polling và phạm vi realtime của deployment.]
-
-#### D. Lời thoại thuyết trình
-
-Nhìn cột trái như bản đồ từ đăng nhập đến xử lý dữ liệu và báo sự cố. Cột bên phải là nơi dễ hiểu nhầm khi demo: cảnh 3D có thể dùng cây mẫu, trạng thái realtime cần kiểm mức tích hợp, còn bản nháp Dexie là dữ liệu thật của người dùng nằm cục bộ. Khi mô tả demo, hãy chỉ rõ thao tác nào tạo request đến server và thao tác nào chỉ cập nhật giao diện hoặc dữ liệu trong trình duyệt.
-
-#### E. Điểm cần nhấn mạnh
-
-- Đếm theo method và path.
-- Dexie là lưu cục bộ.
-- Realtime và polling là hai cơ chế khác nhau.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Vì sao offline nằm cùng nhóm trên slide?**  
-Slide nhóm theo ranh giới tích hợp. Bản nháp là tính năng lưu thật trong browser.
-
-#### G. Chuyển tiếp
-
-Sau phạm vi tính năng, ta xem hệ thống giao diện giúp người dùng nhận diện trạng thái thế nào.
-
-#### H. Thời lượng
-
-Khoảng 1 phút , gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 05 — Bảng Màu Frontend Theo Ba Nhóm Sử Dụng
+### Slide 02 — Bảng Màu Frontend Theo Ba Nhóm Sử Dụng
 
 #### A. Bối cảnh trình bày
 
@@ -196,6 +79,10 @@ Chương 2, design system. Mở chương Design System bằng một yếu tố d
 #### C. Giải thích nội dung
 
 Đọc trái sang phải: nhóm nền/bề mặt xác lập độ sâu, nhóm thương hiệu đánh dấu hành động hoặc nhận diện, nhóm tín hiệu thể hiện trạng thái. Hex mã hóa màu, rgba có thêm độ trong suốt. Một mã có thể xuất hiện ở hai tên theo vai trò.
+
+- [`src/styles/tokens.css`](../src/styles/tokens.css) khai báo các biến dùng chung tại `:root` và được [`main.tsx`](../src/app/main.tsx) nạp. Ví dụ [Button](../src/components/ui/primitives/button/button.module.css) dùng `background: var(--color-action)` cho nút chính. Khi chỉnh token, các nút cùng tham chiếu nhận màu mới.
+- [`src/styles/workbench/workbench.css`](../src/styles/workbench/workbench.css) khai báo nhóm `--pv-*` cho Management và Processing. [`workbench-theme.css`](../src/styles/workbench/workbench-theme.css) ghi đè token theo theme. [`ApplicationFrame`](../src/views/application/application-frame.tsx) nạp CSS nền trước rồi nạp theme.
+- Màu thương hiệu `#00a878` được khai báo tại `--color-brand`. Workbench dùng `--pv-brand: var(--color-brand)`, nên các component dùng `var(--pv-brand)` nhận cùng màu. Bề mặt, chữ trên nút và ô xem trước theme có token theo vai trò để có thể điều chỉnh độc lập.
 
 **Đối chiếu bằng chứng.** IMPLEMENTED trong bảng HTML, có 23 swatch. [NEEDS VERIFICATION: kết luận tương phản cho từng cặp màu nếu dùng khi nghiệm thu.]
 
@@ -216,91 +103,25 @@ Có thể cùng màu nhưng tên ngữ nghĩa khác, ví dụ nhận diện thư
 
 #### G. Chuyển tiếp
 
-Màu giúp nhận diện, còn chữ, khoảng cách và chuyển động định hướng cách đọc.
+Màu giúp nhận diện trạng thái. Tiếp theo là cách dùng font, cỡ chữ và độ đậm để người dùng biết nên đọc gì trước.
 
 #### H. Thời lượng
 
 Khoảng 45 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 06 — Nhịp Điệu Typography, Spacing & Chuyển Động Vi Mô
+### Slide 03 — Chữ và thư viện component
 
-#### A. Bối cảnh trình bày
+Chỉ từng mẫu typography bên trái. Plus Jakarta Sans lấy từ `--font-ui`; các hàng bên dưới lấy kích thước của thẻ thống kê và bảng Workbench. Bên phải là các nhóm trong `src/components/ui`. Với Button, nói thêm về chiều cao tối thiểu 48 px, padding 12 × 23 px và gap 14 px.
 
-Chương 2, design system. Giải thích vì sao giao diện có thứ bậc và phản hồi dễ theo dõi.
+[Nguồn token](../src/styles/tokens.css) · [Workbench CSS](../src/styles/workbench/workbench.css) · [Thư viện UI](../src/components/ui/README.md)
 
-#### B. Thông điệp cốt lõi
+### Slide 04 — Trạng thái Button và bố cục Home
 
-Typography và chuyển động nên phục vụ đọc, nhận biết và xác nhận thao tác.
+Bên trái, minh họa một thao tác Lưu qua mặc định, hover, focus-visible, disabled và loading. `loading` khóa nút và đặt `aria-busy`. Dấu ✓ là minh họa riêng của `CompletionButton`. Bên phải, chỉ cách `.home-overview` chuyển từ ba cột sang một cột ở chiều rộng 960 px trở xuống.
 
-#### C. Giải thích nội dung
+[Button](../src/components/ui/primitives/button/button.tsx) · [CompletionButton](../src/components/ui/primitives/button/completion-button.tsx) · [Workbench CSS](../src/styles/workbench/workbench.css)
 
-Cụm mẫu Aa Bb và số thể hiện vai trò font đọc và monospace cho code. Spacing tạo nhóm nội dung. Đường cong easing mô tả tốc độ theo thời gian, chuỗi 160–240 ms là ví dụ trên slide.
-
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: phạm vi áp dụng chính xác của các token motion trong từng màn hình.]
-
-#### D. Lời thoại thuyết trình
-
-Khi người dùng nhìn một bảng, trước hết họ cần nhận ra tiêu đề, sau đó là nhãn và giá trị. Font giao diện phục vụ câu dài. Font monospace giúp nhìn dấu gạch, ID và đường dẫn rõ hơn. Tương tự, khi mở dialog, chuyển động ngắn giúp mắt theo dõi điểm thay đổi. Nếu người dùng giảm chuyển động, điều quan trọng nhất vẫn là trạng thái và khả năng thực hiện thao tác.
-
-#### E. Điểm cần nhấn mạnh
-
-- Monospace có độ rộng ký tự đều.
-- Easing khác duration.
-- Kiểm tra reduced motion.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**160–240 ms có phải thời gian tải API không?**  
-Đó là khoảng thời lượng chuyển trạng thái UI minh họa trên slide.
-
-#### G. Chuyển tiếp
-
-Từ những quy tắc thị giác, ta chuyển sang cách tổ chức linh kiện.
-
-#### H. Thời lượng
-
-Khoảng 45 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 07 — Cấu Trúc Linh Kiện 4 Tầng Theo Nguyên Lý Atomic Design
-
-#### A. Bối cảnh trình bày
-
-Chương 2, design system. Chuyển từ thiết kế thị giác sang cách tái sử dụng UI.
-
-#### B. Thông điệp cốt lõi
-
-Phân nhóm theo trách nhiệm giúp sửa UI chung và thay đổi nghiệp vụ ở đúng chỗ.
-
-#### C. Giải thích nội dung
-
-Tháp bốn tầng là cách đọc từ primitive, composite đến layout và feature. Button/Input là nguyên liệu, Dialog là tổ hợp, ApplicationFrame là khung, ProjectWizard là chức năng. ProtectedRoute thuộc phân luồng truy cập.
-
-**Đối chiếu bằng chứng.** IMPLEMENTED có cấu trúc components, hooks, app và views. Sơ đồ là phân loại giải thích.
-
-#### D. Lời thoại thuyết trình
-
-Ví dụ, nút xác nhận dùng kiểu Button chung. Dialog ghép nút, nội dung và cách đóng. Khung ứng dụng bố trí topbar và vùng hiển thị. Wizard đi xa hơn: nó có bước nhập, file và xác nhận. Khi thay đổi bố cục nút dùng chung ta tìm Design System. Khi thay đổi cách tạo project ta tìm wizard, hook và service liên quan.
-
-#### E. Điểm cần nhấn mạnh
-
-- Primitive nhỏ và tái sử dụng.
-- Layout đặt khung.
-- Feature phối hợp hành vi nghiệp vụ.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Có phải mỗi tầng là một thư mục tương ứng không?**  
-Đây là sơ đồ giải thích cách ghép thành phần. Hãy tra đường dẫn thật theo module.
-
-#### G. Chuyển tiếp
-
-Sau cấu trúc linh kiện, xem các tầng phối hợp với API và storage thế nào.
-
-#### H. Thời lượng
-
-Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 08 — Phân Loại Kiến Trúc: Layered Kết Hợp Hexagonal Ports & Adapters
+### Slide 05 — Phân Loại Kiến Trúc: Layered Kết Hợp Hexagonal Ports & Adapters
 
 #### A. Bối cảnh trình bày
 
@@ -339,7 +160,7 @@ Tiếp theo hãy theo một request đi xuống và kết quả đi ngược lê
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 09 — Nguyên Tắc Phụ Thuộc Một Chiều & Dòng Chảy Dữ Liệu Xuyên Tầng
+### Slide 06 — Nguyên Tắc Phụ Thuộc Một Chiều & Dòng Chảy Dữ Liệu Xuyên Tầng
 
 #### A. Bối cảnh trình bày
 
@@ -378,7 +199,9 @@ Từ mũi tên trừu tượng, chuyển sang chỗ tìm code trong src.
 
 Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 10 — Cấu Trúc Thư Mục Cấp 1 (Root Architecture): 14 Folder Tại src/
+### Slide 07 — Cấp 1 · 16 thư mục trong src/
+
+**Nội dung trình bày phiên bản 42 slide.** 16 thư mục: app, assets, components, configs, graphics, hooks, lib, math, repositories, services, styles, sync, types, utils, views và __tests__. sync là thư mục dự kiến.
 
 #### A. Bối cảnh trình bày
 
@@ -392,11 +215,11 @@ Bảng cho thấy một số thư mục cốt lõi và trách nhiệm của chú
 
 Đọc từ app, views/components/hooks đến services, repositories và lib. Cột ví dụ chỉ đường đến file cụ thể. Source hiện có 17 thư mục cấp một, gồm thêm types, math, graphics và các nhóm hỗ trợ.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: tiêu đề 14 folder. Working tree kiểm được 17 thư mục trực tiếp dưới src.]
+**Đối chiếu bằng chứng.** 16 thư mục trực tiếp dưới `src/` trong working tree được rà.
 
 #### D. Lời thoại thuyết trình
 
-Khi muốn tìm một chức năng, đừng mở mọi thư mục cùng lúc. Bắt đầu ở app để biết route, sang views hoặc components để tìm điểm bấm, rồi services để thấy thao tác dữ liệu. Nếu vấn đề là lưu bản nháp, qua repositories. Nếu lỗi nằm ở việc gắn token hay xử lý response, qua lib. Bảng trên slide liệt kê các nhóm chính. Con số 14 ở tiêu đề lệch với 17 thư mục hiện thấy trong source.
+Đọc hai bảng từ trái sang phải. Mỗi thư mục có một hàng, kèm biểu tượng và trách nhiệm. Lần từ app đến views hoặc components để tìm giao diện, rồi đến services cho thao tác dữ liệu. Xem repositories khi cần hiểu bản nháp, lib cho HTTP client, styles cho CSS dùng chung và types cho kiểu TypeScript.
 
 #### E. Điểm cần nhấn mạnh
 
@@ -417,7 +240,7 @@ View gắn với màn hình hoặc route. Component có thể được dùng l�
 
 Khoảng 50 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 11 — Cấu Trúc Thư Mục Cấp 2 (Module Architecture): Phân Bổ Nghiệp Vụ
+### Slide 08 — Cấu Trúc Thư Mục Cấp 2 (Module Architecture): Phân Bổ Nghiệp Vụ
 
 #### A. Bối cảnh trình bày
 
@@ -456,7 +279,9 @@ Từ nhóm con, ta chọn bốn file trung tâm để thấy đầu vào và đ�
 
 Khoảng 50 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 12 — Cấu Trúc Cấp 3 (File-Level Structure): Trách Nhiệm Từng File Cốt Lõi
+### Slide 09 — Cấu Trúc Cấp 3 (File-Level Structure): Trách Nhiệm Từng File Cốt Lõi
+
+**Nội dung trình bày phiên bản 42 slide.** Chỉ ví dụ `views/processing/project/sections/type.ts` nằm cạnh `project-panel-controls.tsx` và `live-dataset-panel.tsx`. `Position` chứa row/column, `Grip` là edge/corner/move, `RecordValue` dùng `unknown` khi đọc trường. Kiểu chia sẻ rộng hơn nằm trong `src/types/`.
 
 #### A. Bối cảnh trình bày
 
@@ -489,13 +314,23 @@ Lần theo service và client trước để sửa tại nơi sở hữu endpoin
 
 #### G. Chuyển tiếp
 
-Ta phóng to runtime để giải thích lúc tạo và hủy tài nguyên.
+**Chuyển Slide 10**
+
+Chỉ hai đoạn code cạnh nhau. Khi tham số thiếu kiểu, TypeScript báo TS7006. Khi ghi kiểu `any` trực tiếp, ESLint báo theo quy tắc `no-explicit-any`. Với response API, Dataset service dùng `unknown` và kiểm tra cấu trúc trước khi đọc.
+
+Tiếp theo, xem runtime tạo và dọn tài nguyên như thế nào.
 
 #### H. Thời lượng
 
 Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 13 — Composition Root & Vòng Đời AppRuntime: Cơ Chế retain / release
+### Slide 10 — TypeScript Strict và ESLint bắt hai loại lỗi khác nhau
+
+Chỉ hai ví dụ trên slide. Bỏ kiểu tham số sẽ gặp TS7006 do noImplicitAny. Gắn `any` sẽ gặp `@typescript-eslint/no-explicit-any`. Trong Dataset service, `api.request<unknown>()` và `isRecord()` kiểm tra cấu trúc rồi mới truy cập `items`/`meta`. Nếu thiếu hai trường này, service báo dữ liệu từ máy chủ không hợp lệ.
+
+[TypeScript](../tsconfig.app.json) · [ESLint](../eslint.config.js) · [Dataset service](../src/services/processing/dataset.service.ts)
+
+### Slide 11 — Composition Root & Vòng Đời AppRuntime: Cơ Chế retain / release
 
 #### A. Bối cảnh trình bày
 
@@ -534,7 +369,7 @@ Bây giờ đặt runtime vào thứ tự ứng dụng khởi động.
 
 Khoảng 1 phút , gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 14 — Quy Trình Khởi Động Ứng Dụng (Bootstrap Sequence) 5 Bước
+### Slide 12 — Quy Trình Khởi Động Ứng Dụng (Bootstrap Sequence) 5 Bước
 
 #### A. Bối cảnh trình bày
 
@@ -573,7 +408,9 @@ Ta cần đọc kỹ những pha mà guard và dialog dựa vào.
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 15 — Bộ Điều Phối Phiên (Session Coordinator) & State Machine 7 Pha
+### Slide 13 — Session Coordinator điều phối 9 trạng thái phiên
+
+**Nội dung trình bày phiên bản 42 slide.** Đếm 9 pha: bootstrapping, anonymous, signing-in, authenticated, checking-health, awaiting-consent, refreshing, local-limited và signing-out.
 
 #### A. Bối cảnh trình bày
 
@@ -612,7 +449,7 @@ Sau trạng thái, xem dữ liệu nhỏ nhất cần lưu để khôi phục ph
 
 Khoảng 1 phút 10 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 16 — Cơ Chế Lưu Trữ Token An Toàn Trong sessionStorage
+### Slide 14 — Đọc và lưu bản ghi phiên trong sessionStorage
 
 #### A. Bối cảnh trình bày
 
@@ -651,7 +488,7 @@ Dùng cấu trúc vừa giới thiệu để đọc sơ đồ đăng nhập và 
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 17 — Sơ Đồ Tuần Tự: Đăng Nhập & Khôi Phục Phiên (Session Restoration)
+### Slide 15 — Sơ Đồ Tuần Tự: Đăng Nhập & Khôi Phục Phiên (Session Restoration)
 
 #### A. Bối cảnh trình bày
 
@@ -690,7 +527,7 @@ Phiên có thể hết hạn, vậy lần gia hạn diễn ra như thế nào?
 
 Khoảng 1 phút 15 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 18 — Vòng Đời Gia Hạn Token: Health Check Ping & Awaiting-Consent
+### Slide 16 — Vòng Đời Gia Hạn Token: Health Check Ping & Awaiting-Consent
 
 #### A. Bối cảnh trình bày
 
@@ -729,7 +566,7 @@ Từ nhánh dừng gia hạn, phân biệt với thao tác đăng xuất chủ �
 
 Khoảng 1 phút 20 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 19 — Luồng Đăng Xuất An Toàn & Thu Hồi Phiên Trực Tiếp Trên Server
+### Slide 17 — Luồng Đăng Xuất An Toàn & Thu Hồi Phiên Trực Tiếp Trên Server
 
 #### A. Bối cảnh trình bày
 
@@ -768,7 +605,7 @@ Có phiên hợp lệ rồi, ta chuyển sang luồng quản lý workspace.
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 20 — Luồng Quản Lý Workspace & Kiểm Soát Xung Đột Phiên Bản (Version)
+### Slide 18 — Luồng Quản Lý Workspace & Kiểm Soát Xung Đột Phiên Bản (Version)
 
 #### A. Bối cảnh trình bày
 
@@ -801,13 +638,23 @@ Cho phép nhiều người đọc và chỉ kiểm xung đột tại lúc ghi.
 
 #### G. Chuyển tiếp
 
-Khi đã có workspace, ta đi vào quy trình tạo một project và nạp CSV.
+**Chuyển Slide 19**
+
+Chỉ trạng thái tổng quan đã hiện số trong khi danh sách và biểu đồ còn skeleton. Khi một vùng tải lỗi, chỉ vị trí hiển thị thông báo của vùng đó.
+
+Tiếp theo là luồng tạo Project và nạp CSV.
 
 #### H. Thời lượng
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 21 — Project Wizard: Luồng Khởi Tạo Dự Án 4 Bước Có Khả Năng Khôi Phục
+### Slide 19 — Trang Home tải dữ liệu theo từng vùng
+
+Theo `ApplicationFrame → ManagementDataProvider → Home`. Dừng ở trạng thái tổng quan đã sẵn sàng nhưng danh sách còn skeleton. Nếu overview lỗi và danh sách đã có dữ liệu, chỉ thông báo ở phần tổng quan và dùng số liệu từ danh sách.
+
+[Provider](../src/views/application/management-data-provider.tsx) · [Test](../src/__tests__/management/management-data-provider.test.tsx)
+
+### Slide 20 — Project Wizard: Luồng Khởi Tạo Dự Án 4 Bước Có Khả Năng Khôi Phục
 
 #### A. Bối cảnh trình bày
 
@@ -846,7 +693,7 @@ Project đã tồn tại thì câu hỏi tiếp theo là ai được thao tác �
 
 Khoảng 1 phút 10 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 22 — Luồng Quản Lý Thành Viên & Phân Quyền Phân Cấp Đa Tầng
+### Slide 21 — Luồng Quản Lý Thành Viên & Phân Quyền Phân Cấp Đa Tầng
 
 #### A. Bối cảnh trình bày
 
@@ -885,241 +732,49 @@ Khi người dùng được phép mở project, họ có thể xem cấu trúc v
 
 Khoảng 1 phút , gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 23 — Luồng Quản Lý Dataset: Ingestion, Parse Schema, Thống Kê & Cột PII
+### Slide 22 — Liquid Glass trên Login và Project
 
-#### A. Bối cảnh trình bày
+Form Login và Đăng ký dùng `@ybouane/liquidglass` với cấu hình Sáng và Tối. Nền kính mở rộng tới mép bo panel 3D, còn nội dung form giữ khoảng đệm.
 
-Chương 5, luồng nghiệp vụ. Giải thích giá trị nghiệp vụ sau khi CSV đã được nạp.
+Bản thử panel Project lấy vùng ảnh ngay sau panel sau khi Three.js vẽ xong. Lần kiểm tra mở `http://127.0.0.1:4173/auth/login` làm trang chủ để nạp module từ Vite, rồi gắn canvas tổng hợp hoặc cảnh `HolographicCoreCanvas` cùng panel thử trực tiếp trong Chromium. Phép đo cùng cảnh trên Chromium headless dùng GPU mô phỏng cho trung vị khoảng cách giữa hai frame là 150 ms với shader cũ và 267 ms với bản thử. Route Project và backend nằm ngoài lần kiểm tra này. Cờ `?projectLiquidGlass=1` bật bản thử khi mở Project trong môi trường dev. Shader cũ vẫn là mặc định.
 
-#### B. Thông điệp cốt lõi
+Ảnh trên slide lấy từ baseline Project và minh họa bốn nhãn cube dùng shader Three.js. Shader lấy mẫu nền qua mép cong và dùng depth để bỏ pixel bị che. IOR RGB là `1.47 / 1.50 / 1.53`. Hỏi khi xoay camera thì độ lệch nền và viền thay đổi ở đâu?
 
-Schema cho biết có cột nào và kiểu gì. Stats và cờ PII giúp người dùng đánh giá cột.
+[Shader](../src/graphics/holographic-core/liquid-glass-pass.ts) · [Composer](../src/components/graphics/holographic-core/holographic-core.scene.tsx)
 
-#### C. Giải thích nội dung
+### Slide 23 — Luồng báo cáo và xử lý sự cố
 
-Khối code schema có key kỹ thuật, tên hiển thị, dataType, isPii. Thống kê lấy riêng theo key. PATCH gửi danh sách cột cập nhật. PII là thông tin có thể nhận diện cá nhân, như email.
+Chỉ luồng tạo Issue bằng `POST /issues`, sau đó tải tệp ở `POST /issues/{id}/attachments`. Admin có thể chuyển trạng thái bằng `PATCH /admin/issues/{id}/status`. Người báo cập nhật nội dung bằng `PATCH /issues/{id}`. Nửa dưới là minh họa tình huống báo cáo đã tạo nhưng upload tệp thất bại. Khi thử lại trong cùng hộp thoại, store dùng ID đã lưu để tiếp tục tải tệp.
 
-**Đối chiếu bằng chứng.** IMPLEMENTED trong dataset.service.ts. [NEEDS VERIFICATION: phạm vi masking khi chia sẻ hoặc tải file.]
+[Management store](../src/services/management/management.store.ts) · [Admin service](../src/services/management/admin.service.ts)
 
-#### D. Lời thoại thuyết trình
+### Slide 24 — Dexie lưu và dọn bản nháp upload
 
-Nếu cần kiểm chất lượng một cột email, trước tiên xem tên và kiểu trong schema. Dùng key kỹ thuật của cột để gọi thống kê, chẳng hạn số ô trống. Người có quyền có thể gắn cờ PII cho cột để hệ thống biết đây là dữ liệu nhạy cảm. Cờ là thông tin phân loại. Việc dữ liệu được che ở màn hình hoặc báo cáo nào cần kiểm từng đường hiển thị và xuất file.
+`drafts` lưu metadata và `files` lưu file trong IndexedDB. Repository dùng tài khoản hiện hành để kiểm quyền. `confirmUploaded` đối chiếu tài khoản, Project và Dataset. Nó commit trạng thái `uploaded` trước rồi dọn file trong transaction riêng. Nếu dọn lỗi, registry vẫn ghi nhận upload thành công và có thể dọn sau.
 
-#### E. Điểm cần nhấn mạnh
+[Draft repository](../src/repositories/datasets/upload-draft.repository.ts)
 
-- Schema mô tả cột.
-- Stats tính theo key.
-- Đánh dấu và che dữ liệu là hai bước.
+### Slide 25 — Luồng HTTP từ người dùng qua frontend và backend
 
-#### F. Câu hỏi người nghe có thể đặt
+Đọc tám bước ở phần trên như mục lục của phần diễn giải bên dưới. Bước 1–3 khởi tạo HTTP request. Bước 4–5 là vòng đời NestJS và xử lý nghiệp vụ. Bước 6–8 trả HTTP response, kiểm tra dữ liệu và cập nhật giao diện. Slide 26 minh họa các bước bằng luồng lọc bản ghi Data View.
 
-**Gắn cờ PII có tự xóa email trong file gốc không?**  
-Thao tác trên slide cập nhật metadata cột. Muốn biết hành vi tải file hoặc che dữ liệu cần kiểm đúng endpoint và quyền.
+Đọc theo hai chiều. Client tương tác với Component. Tùy feature, Hook và Service chuẩn bị lời gọi API. HTTP client gửi request, sau đó Node.js và NestJS/Express nhận request. Middleware, Guard, interceptor chiều vào và Pipe chạy trước Controller. Handler gọi Service, Repository và Database khi cần. Kết quả quay lại Controller, interceptor chiều ra đóng gói hoặc ghi log, rồi HTTP adapter gửi status và body. Frontend đọc phản hồi, kiểm dữ liệu và cập nhật state để render. Lỗi chưa xử lý có thể chuyển qua exception filter.
 
-#### G. Chuyển tiếp
+[NestJS Request Lifecycle](https://docs.nestjs.com/faq/request-lifecycle)
 
-Schema nói về cột. Slide tiếp theo nói về cách đọc từng trang dữ liệu hàng.
+### Slide 26 — Data View lọc bản ghi qua các lớp nào?
 
-#### H. Thời lượng
+Khi người dùng áp dụng bộ lọc, effect trong `LiveDatasetPanel` gọi `service.records()`. Dataset service chọn POST `/records/query` khi có search, filter hoặc sort, còn duyệt trang thường dùng GET. Axios `instance.request()` gửi HTTP và gắn Bearer. Backend gắn request ID, kiểm JWT và policy, chạy interceptor chiều vào, kiểm body với Zod, rồi Controller gọi `DataViewService.queryRecords()`. Repository truy vấn MongoDB và trả kết quả qua service/controller. Interceptor xử lý chiều ra, Axios mở envelope, Dataset service kiểm `items`, `meta` và cursor rồi component gọi `setPage()`. Đây là truy vết source.
 
-Khoảng 1 phút , gồm thời gian chỉ vào nội dung minh họa.
+[Data View](../src/views/processing/project/sections/live-dataset-panel.tsx) · [Dataset service](../src/services/processing/dataset.service.ts) · [Axios client](../src/lib/axios-client.ts) · [Controller](../../backend/src/modules/data-view/data-view.controller.ts)
 
-### Slide 24 — Luồng Lưới Dữ Liệu Ảo (Virtual Grid) & Phân Trang Con Trỏ (Cursor)
+### Slide 27 — Từ OpenAPI đến kiểu TypeScript dùng trong service
 
-#### A. Bối cảnh trình bày
+Đi từ đặc tả OpenAPI đến `yarn gen:types`. Generator chuẩn hóa spec và ghi `src/lib/openapi.json`, `src/lib/openapi.ts` cùng các alias trong `src/types/services-type/`. Ví dụ Dataset service nhập kiểu request body cho `POST /records/query` với tên `RecordQuery`. Compiler kiểm input tĩnh. Runtime kiểm response thật trước khi UI dùng.
 
-Chương 5, luồng nghiệp vụ. Phân biệt tối ưu tải dữ liệu và tối ưu DOM.
+[Generator](../scripts/generate-swagger-types.mjs) · [Dataset service](../src/services/processing/dataset.service.ts)
 
-#### B. Thông điệp cốt lõi
-
-Cursor pagination chia dữ liệu thành trang. Virtual scrolling giới hạn hàng được dựng nếu UI đó triển khai ảo hóa.
-
-#### C. Giải thích nội dung
-
-Khối trên minh họa limit, cursor và response items/meta. Source dùng GET /records cho trang thường, POST /records/query khi có search/filter/sort. Khối dưới là mục tiêu về DOM và RAM cần dữ liệu đo.
-
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: 30–40 DOM, dưới 80 MB và 500.000 dòng. POST query chỉ là một nhánh thực tế.]
-
-#### D. Lời thoại thuyết trình
-
-Với file lớn, lý tưởng là trình duyệt chỉ xin một phần hàng. Server trả items và một con trỏ để xin trang tiếp theo. Nếu người dùng thêm lọc hoặc sắp xếp, service hiện gửi điều kiện qua nhánh query. Một câu hỏi khác là mỗi lần trình duyệt vẽ bao nhiêu hàng. Điều đó thuộc virtual scrolling và cần kiểm implementation cùng số đo. Phần chắc chắn từ source là cách lấy trang và kiểm response, kể cả con trỏ lặp.
-
-#### E. Điểm cần nhấn mạnh
-
-- Cursor là mốc mờ.
-- GET và POST tùy điều kiện.
-- Benchmark phải ghi điều kiện đo.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Cursor có cần parse ở frontend để tính trang tiếp không?**  
-Frontend dùng nextCursor do server cấp và kiểm tính hợp lệ theo contract.
-
-#### G. Chuyển tiếp
-
-Nếu từ dữ liệu phát hiện lỗi, người dùng có thể tạo báo cáo sự cố.
-
-#### H. Thời lượng
-
-Khoảng 1 phút 10 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 25 — Luồng Báo Cáo Sự Cố (Issues) & Xử Lý Trạng Thái Needs-Info
-
-#### A. Bối cảnh trình bày
-
-Chương 5, luồng nghiệp vụ. Kết nối phát hiện vấn đề dữ liệu với quy trình xử lý giữa người dùng và quản trị.
-
-#### B. Thông điệp cốt lõi
-
-Báo cáo và tệp đính kèm là các bước riêng. Admin thay đổi trạng thái khi cần làm rõ hoặc xử lý.
-
-#### C. Giải thích nội dung
-
-Đọc bốn ô từ tạo báo cáo đến admin review, bổ sung và đóng. needs_info nghĩa là cần dữ liệu bổ sung. Source FE tạo qua POST /issues, tải tệp qua endpoint con. Cần kiểm riêng caller của nhánh bổ sung.
-
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: path /issues/report, caller của additional-info và trạng thái cuối ở môi trường live.]
-
-#### D. Lời thoại thuyết trình
-
-Giả sử một dòng dữ liệu có giá trị ngày bất thường. Người dùng báo vấn đề bằng tiêu đề, mô tả và có thể gửi tệp minh họa. Store tạo issue để có ID, rồi mới tải tệp vào issue đó. Khi quản trị cần thêm thông tin, trạng thái giúp hai bên hiểu việc gì còn thiếu. Trong demo, hãy nói rõ bước nào giao diện hiện có caller và bước nào cần xác nhận lại với backend.
-
-#### E. Điểm cần nhấn mạnh
-
-- Issue là báo cáo sự cố.
-- Attachment tải riêng.
-- Trạng thái điều phối trao đổi.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Nếu tệp lỗi, issue có thể vẫn tồn tại không?**  
-Có. Store có thông báo riêng để người dùng thử lại tải tệp ở hộp thoại.
-
-#### G. Chuyển tiếp
-
-Bước lỗi giữa chừng dẫn tới câu hỏi lưu bản nháp và đồng bộ cục bộ.
-
-#### H. Thời lượng
-
-Khoảng 1 phút , gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 26 — Cơ Chế Bản Nháp Ngoại Tuyến (Dexie DB) & Chống Partial Failure
-
-#### A. Bối cảnh trình bày
-
-Chương 5, luồng nghiệp vụ. Tách bản nháp cục bộ khỏi lỗi giữa nhiều request backend.
-
-#### B. Thông điệp cốt lõi
-
-Dexie quản lý dữ liệu nháp qua IndexedDB. Transaction bảo vệ tính nhất quán trong browser.
-
-#### C. Giải thích nội dung
-
-Khối code có bảng drafts và files. DraftAccessPort cung cấp quyền theo phiên, transaction nhóm thay đổi và confirmUploaded đối chiếu account, project và dataset. ACK là xác nhận kết quả đã được nhận.
-
-**Đối chiếu bằng chứng.** IMPLEMENTED trong upload-draft.repository.ts. [NEEDS VERIFICATION: tích hợp mỗi màn hình và tuyên bố chỉ HTTP 201.]
-
-#### D. Lời thoại thuyết trình
-
-Nếu người dùng cần giữ một file nháp, repository lưu metadata và file trong hai bảng liên quan. Quyền đọc hoặc ghi dựa trên snapshot của phiên. Nếu giao dịch IndexedDB lỗi, các thao tác trong giao dịch được xử lý cùng nhau. Khi có xác nhận upload trùng với draft và phiên, repository cập nhật trạng thái và dọn nội dung theo luồng hiện tại. Đây là biên cục bộ, nên không thay thế idempotency hay cơ chế khôi phục phía server.
-
-#### E. Điểm cần nhấn mạnh
-
-- Dexie bọc IndexedDB.
-- Transaction có phạm vi cục bộ.
-- ACK cần đúng tài khoản và dự án.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**HTTP 201 tự nó có đủ để dọn bản nháp không?**  
-Repository nhận confirmation với định danh cần đối chiếu. Nó không đọc status HTTP trực tiếp.
-
-#### G. Chuyển tiếp
-
-Sau các luồng nghiệp vụ, ta xem chúng dùng chung pipeline request ra sao.
-
-#### H. Thời lượng
-
-Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 27 — Kiến Trúc Giao Tiếp Request–Response Toàn Trình (FE → BE)
-
-#### A. Bối cảnh trình bày
-
-Chương 6, http và hợp đồng api. Tổng hợp các luồng nghiệp vụ thành một mô hình gọi API chung.
-
-#### B. Thông điệp cốt lõi
-
-Một request đi từ thao tác đến backend, rồi qua hai mức đọc dữ liệu trước khi cập nhật UI.
-
-#### C. Giải thích nội dung
-
-Đọc pipeline 1–5 từ UI, hook, service, Axios tới NestJS. Đọc 6–8 khi dữ liệu quay về: unwrap envelope, kiểm kiểu nghiệp vụ, cập nhật state. DTO là hợp đồng dữ liệu qua biên.
-
-**Đối chiếu bằng chứng.** IMPLEMENTED qua axios-client và dataset.service. Pipeline là mô hình, số bước tùy feature.
-
-#### D. Lời thoại thuyết trình
-
-Giả sử người dùng mở schema một dataset. UI biết ID nhưng giao việc gọi API cho service. Axios thêm đường dẫn và token, gửi sang backend. Khi trả về, lớp HTTP mở phần bọc chung. Sau đó service kiểm xem danh sách cột có hợp lệ hay không. Nếu kiểm qua, caller đưa dữ liệu vào state và render. Nếu fail, UI có thể đưa ra lỗi cụ thể thay vì vẽ bảng thiếu trường.
-
-#### E. Điểm cần nhấn mạnh
-
-- Envelope khác DTO.
-- Bearer gắn ở client.
-- Lỗi runtime được xử lý trước khi render.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Vì sao cần hai bước kiểm response?**  
-Lớp HTTP chỉ hiểu cấu trúc chung. Service biết trường nào có nghĩa đối với nghiệp vụ.
-
-#### G. Chuyển tiếp
-
-Muốn hai phía thống nhất DTO, xem quy trình đồng bộ OpenAPI.
-
-#### H. Thời lượng
-
-Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 28 — Chuỗi Chuyển Đổi: openapi.json → TypeScript Types → Services
-
-#### A. Bối cảnh trình bày
-
-Chương 6, http và hợp đồng api. Giải thích cách giảm lệch hợp đồng khi backend sửa API.
-
-#### B. Thông điệp cốt lõi
-
-Generator tạo kiểu từ đặc tả. Service vẫn kiểm dữ liệu thực tế tại runtime.
-
-#### C. Giải thích nội dung
-
-Ba khối nguồn, chuyển hóa và đích. VITE_SWAGGER_URL dẫn tới đặc tả. Script chuẩn hóa operationId trùng, ghi JSON và openapi.ts, rồi sinh alias nhóm trong services-type. Operation là một method/path.
-
-**Đối chiếu bằng chứng.** VERIFIED cấu trúc snapshot có 66 paths và 86 operations. Quy trình codegen xác nhận qua script, không chạy lại trong audit này.
-
-#### D. Lời thoại thuyết trình
-
-Khi backend thay input của một endpoint, nhóm cập nhật đầu vào Swagger cho generator. Lệnh gen:types tạo bản đặc tả đã chuẩn hóa và kiểu TypeScript theo nhóm. Ví dụ body query records có thể dùng alias này để kiểm thuộc tính lúc biên dịch. Kiểu đó hỗ trợ người sửa code phát hiện lỗi sớm. Khi server thật trả response, mapper vẫn kiểm trường cần dùng vì kiểu TypeScript không kiểm nội dung mạng.
-
-#### E. Điểm cần nhấn mạnh
-
-- 86 operations ở snapshot.
-- Codegen tạo lại alias.
-- Kiểm runtime vẫn cần.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**Có nên sửa alias sinh tự động bằng tay không?**  
-Thay nguồn đặc tả hoặc generator để lần sinh lại giữ được điều chỉnh.
-
-#### G. Chuyển tiếp
-
-Giờ ta đọc contract qua bốn bảng, bắt đầu từ Auth và User.
-
-#### H. Thời lượng
-
-Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 29 — Ma Trận Khế Ước API: Nhóm Authentication & User Profile (6/6 LIVE)
+### Slide 28 — Auth và hồ sơ cá nhân
 
 #### A. Bối cảnh trình bày
 
@@ -1133,7 +788,7 @@ Chương 6, http và hợp đồng api. Dạy cách đọc bảng API bằng nh�
 
 Login/refresh công khai theo client, logout gắn Bearer, GET /health đi ngoài prefix. GET /users/me đọc hồ sơ, DELETE /users/me thuộc luồng xóa tài khoản. Hai hàng /users/me là hai operations. Trường token và body cần đối chiếu contract.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: 6/6 live, status/body chính xác và refresh rotation theo deployment.]
+**Đối chiếu bằng chứng.** Xem Auth, Health và Users services để xác nhận payload và phương thức cụ thể. Refresh rotation live cần log deployment.
 
 #### D. Lời thoại thuyết trình
 
@@ -1158,7 +813,7 @@ Phiên cung cấp danh tính. Bảng kế tiếp cho thấy danh tính đó đư
 
 Khoảng 1 phút 10 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 30 — Ma Trận Khế Ước API: Nhóm Workspace & Thành Viên (12/14 LIVE)
+### Slide 29 — Workspace và thành viên
 
 #### A. Bối cảnh trình bày
 
@@ -1172,7 +827,7 @@ Nhìn bảng để tách đọc, thay đổi workspace và quản lý thành vi�
 
 Dòng GET nói về cursor, POST tạo workspace, PATCH cập nhật có version. Các dòng members và transfer-owner là thay đổi người có quyền. Store hiện gửi email và expectedVersion cho transfer-owner.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: 12/14 live và các field minh họa như newOwnerId, kiểu member page.]
+**Đối chiếu bằng chứng.** Thêm thành viên dùng `email` và `role`. Chuyển quyền gửi `email` và `expectedVersion`.
 
 #### D. Lời thoại thuyết trình
 
@@ -1197,7 +852,7 @@ Từ workspace ta đi vào project và dataset là tài nguyên con.
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 31 — Ma Trận Khế Ước API: Projects & Dataset Virtual Grid (34/40 LIVE)
+### Slide 30 — Projects, Dataset và Analysis
 
 #### A. Bối cảnh trình bày
 
@@ -1211,7 +866,7 @@ Project dẫn tới dataset. Một màn hình có thể dùng nhiều API phục
 
 Đọc lần lượt project gần đây, detail, schema, records, stats và PII. Detail có số dòng/cột, schema mô tả cột, records lấy trang, stats đọc một cột, PATCH đổi metadata. Request query dùng khi có điều kiện.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: 34/40 live, tham số sort của ví dụ và schema từ môi trường thử.]
+**Đối chiếu bằng chứng.** Đối chiếu lọc, sắp xếp và cursor trong `dataset.service.ts`, kết quả job trong `analysis.service.ts`.
 
 #### D. Lời thoại thuyết trình
 
@@ -1236,7 +891,7 @@ Nếu người dùng phát hiện sự cố, nhóm API tiếp theo hỗ trợ g�
 
 Khoảng 1 phút 10 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 32 — Ma Trận Khế Ước API: Nhóm Issues & Admin Service (14/20 LIVE)
+### Slide 31 — Issues, Notification và Admin
 
 #### A. Bối cảnh trình bày
 
@@ -1250,7 +905,7 @@ Người dùng gửi vấn đề và tệp. Admin có màn hình đọc theo tra
 
 Đọc từ issue create và multipart attachment sang hai danh sách admin rồi PATCH status. Multipart là định dạng form hỗ trợ file. Source tạo issue dùng /issues, admin service gọi /admin/users và /admin/issues.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: 14/20 live, POST /issues/report trên slide và payload minh họa.]
+**Đối chiếu bằng chứng.** Tạo Issue bằng `POST /issues` và gửi file bằng `POST /issues/{id}/attachments`.
 
 #### D. Lời thoại thuyết trình
 
@@ -1275,7 +930,7 @@ Bảng chỉ mô tả đường thành công. Tiếp theo xem frontend xử lý 
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 33 — Chiến Lược Chuẩn Hóa & Kiểm Soát Lỗi Hệ Thống Toàn Diện
+### Slide 32 — Chiến Lược Chuẩn Hóa & Kiểm Soát Lỗi Hệ Thống Toàn Diện
 
 #### A. Bối cảnh trình bày
 
@@ -1314,7 +969,7 @@ QueryClient tắt retry mặc định. UI có thể cung cấp thử lại theo 
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 34 — Ma Trận Truy Vết Toàn Trình (Technical Traceability Matrix)
+### Slide 33 — Ma Trận Truy Vết Toàn Trình (Technical Traceability Matrix)
 
 #### A. Bối cảnh trình bày
 
@@ -1353,7 +1008,11 @@ Sau khi biết tìm test nào, ta xem cách diễn giải tổng số test.
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 35 — Bằng Chứng Kiểm Thử Đạt Chuẩn Tuyệt Đối: 864/864 Tests PASS
+### Slide 34 — Vitest toàn bộ và kiểm tra sau chuyển module
+
+Lượt kiểm tra theo phạm vi chuyển module ghi 650/653 ca pass. Test scene pass khi chạy lại với assertion chờ scene tải xong. Hai lỗi đã thấy từ trước liên quan đến thang cỡ chữ và theme khi storage bị chặn. Build pass.
+
+**Nội dung trình bày phiên bản 42 slide.** Ngày 25/11/2026, working tree `ThuongFEAI` trên `3a49455`: `yarn test` chạy 81 file, 77 pass và 4 fail. 942/949 ca pass, 7 fail. Có lỗi sai khác fingerprint Dataset 3D và ca Project không tìm thấy scene. `yarn build` thành công. Kết quả 864/864 là số từ deck lịch sử.
 
 #### A. Bối cảnh trình bày
 
@@ -1367,7 +1026,7 @@ Số test pass thuộc một lần chạy và tập test xác định.
 
 Ba thẻ gồm số case, số suite và thời lượng. Case là một kỳ vọng, suite là nhóm ca hoặc file, giây là thời gian thực thi. 0 flaky cần nhiều lần chạy hoặc dữ liệu theo dõi.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: log 864/864, 71 suite, 162 giây, Node v26 và 0 flaky.]
+**Đối chiếu bằng chứng.** Lượt chạy `yarn test` hoàn thành trong 151,3 giây. `yarn build` thành công. Coverage và Playwright E2E cần lượt chạy riêng.
 
 #### D. Lời thoại thuyết trình
 
@@ -1392,46 +1051,13 @@ Tổng số ca có ý nghĩa hơn khi biết mỗi tầng test đang kiểm gì.
 
 Khoảng 1 phút , gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 36 — Kim Tự Tháp Kiểm Thử 4 Tầng: Từ Đáy Mã Nguồn Đến Live Retest
+### Slide 35 — Bốn tầng kiểm thử từ hàm đến môi trường live
 
-#### A. Bối cảnh trình bày
+Đọc từ dưới lên. Unit kiểm hàm riêng như đọc token. Integration và contract kiểm module ghép với nhau và dữ liệu trả đúng cấu trúc. Playwright theo thao tác trên trình duyệt. Live retest xác nhận hành vi với backend mục tiêu, tài khoản và dữ liệu của đợt nghiệm thu.
 
-Chương 7, truy vết và kiểm thử. Đặt từng loại test vào mục đích kiểm chứng.
+[Vitest](../vitest.config.ts) · [Playwright](../playwright.config.ts)
 
-#### B. Thông điệp cốt lõi
-
-Kết hợp unit, integration, browser E2E và live retest cho các loại bằng chứng khác nhau.
-
-#### C. Giải thích nội dung
-
-Đọc kim tự tháp từ đáy: hàm nhỏ, phối hợp module, trình duyệt, môi trường nghiệm thu. Unit kiểm ví dụ token parser. Integration ghép coordinator với port giả. Live retest dùng đúng deployment và tài khoản.
-
-**Đối chiếu bằng chứng.** IMPLEMENTED có file Vitest và Playwright. [NEEDS VERIFICATION: số suite chạy thành công và retest live.]
-
-#### D. Lời thoại thuyết trình
-
-Khi sửa hàm parse token, unit test là điểm bắt đầu nhanh. Khi muốn biết coordinator có dọn storage và cache đúng không, ghép nhiều phụ thuộc trong integration test. Khi muốn xem guard hoặc dialog hoạt động đúng qua thao tác, dùng trình duyệt. Cuối cùng dùng môi trường live để kiểm hợp đồng và quyền thực tế. Tầng trên đắt hơn về dữ liệu và thời gian nên cần chọn hành trình đại diện.
-
-#### E. Điểm cần nhấn mạnh
-
-- Unit nhanh và hẹp.
-- Browser thật có thể vẫn mô phỏng mạng.
-- Live retest cần điều kiện riêng.
-
-#### F. Câu hỏi người nghe có thể đặt
-
-**E2E có đồng nghĩa backend thật không?**  
-E2E mô tả phạm vi luồng. Tùy cấu hình, backend có thể là mock hoặc live.
-
-#### G. Chuyển tiếp
-
-Ta xem cấu hình Playwright hiện tại để biết frontend dùng loại bằng chứng nào.
-
-#### H. Thời lượng
-
-Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
-
-### Slide 37 — Kiểm Thử Trình Duyệt Thực Tế Với Playwright E2E Suite
+### Slide 36 — Kiểm Thử Trình Duyệt Thực Tế Với Playwright E2E Suite
 
 #### A. Bối cảnh trình bày
 
@@ -1470,7 +1096,7 @@ Tiếp theo, đọc coverage như một số đo khác với số test pass.
 
 Khoảng 1 phút 5 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 38 — Báo Cáo Phủ Mã Nguồn Lịch Sử 70.83% & Kế Hoạch CI/CD
+### Slide 37 — Báo Cáo Phủ Mã Nguồn Lịch Sử 70.83% & Kế Hoạch CI/CD
 
 #### A. Bối cảnh trình bày
 
@@ -1508,6 +1134,19 @@ Từ chất lượng kiểm thử, chuyển sang những tích hợp vẫn cần
 #### H. Thời lượng
 
 Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
+
+### Slide 38 — Lighthouse trên bốn màn hình DataVerse
+
+Bốn ảnh Chrome DevTools tại `https://127.0.0.1:4181` ghi kết quả từng URL. Đọc điểm Performance theo thứ tự Login, Processing, Project và Management. Accessibility, Best Practices và SEO đều đạt 100 ở bốn báo cáo.
+
+| URL | Performance | Accessibility | Best Practices | SEO | FCP | LCP | TBT | CLS | SI |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
+| `/auth/login` | 90/100 | 100 | 100 | 100 | 0,6 s | 0,8 s | — | — | — |
+| `/processing` | 89/100 | 100 | 100 | 100 | 0,8 s | 1,8 s | — | — | — |
+| `/processing/projects/6b055032fcd83f4149065a3b` | 60/100 | 100 | 100 | 100 | 0,9 s | 2,7 s | — | — | — |
+| `/management` | 88/100 | 100 | 100 | 100 | 0,7 s | 1,9 s | — | — | — |
+
+Project có LCP 2,7 s và Performance 60/100 trong ảnh. Dấu — biểu thị chỉ số nằm ngoài vùng chụp. Các số trên là giá trị đọc trực tiếp từ từng ảnh.
 
 ### Slide 39 — Khoảng Trống Hiện Tại: Các Phần Chờ Hoàn Thiện Phía Backend
 
@@ -1626,7 +1265,7 @@ Khép lại bằng những gì frontend đã dựng và điều kiện để ch�
 
 Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
 
-### Slide 42 — Hệ Thống Đạt Chuẩn Kiến Trúc & Sẵn Sàng Nghiệm Thu
+### Slide 42 — Kết quả triển khai và phạm vi xác minh
 
 #### A. Bối cảnh trình bày
 
@@ -1640,7 +1279,7 @@ Frontend có kiến trúc và luồng nghiệp vụ có thể truy vết. Nghi�
 
 Biểu tượng dấu kiểm là hình kết luận. Đọc thông điệp về luồng dữ liệu, kiến trúc, quản lý phiên, test và khoảng trống theo bằng chứng ở các chương trước. Đưa câu hỏi về slide chi tiết phù hợp.
 
-**Đối chiếu bằng chứng.** [NEEDS VERIFICATION: kết luận PASSED 100%, mức an toàn tuyệt đối và sẵn sàng nghiệm thu.]
+**Đối chiếu bằng chứng.** Nêu rõ bằng chứng đã có và phần cần xác minh trước khi nghiệm thu.
 
 #### D. Lời thoại thuyết trình
 
@@ -1667,95 +1306,73 @@ Khoảng 55 giây, gồm thời gian chỉ vào nội dung minh họa.
 
 ## 4. Complete Presentation Script
 
-Kịch bản có khoảng 4075 đơn vị cách trắng. Giả định nói 125 đơn vị/phút, phần lời thoại mất khoảng 33 phút. Ngân sách 42 phút 25 giây trong bảng chương gồm thêm thời gian chỉ vào bảng, giải thích hình và chuyển slide. Hỏi đáp sau bài tính riêng.
+Ngân sách trình bày dự kiến là 43 phút 10 giây, gồm phần chỉ vào bảng, giải thích hình và chuyển slide. Hỏi đáp tính riêng.
 
 Mở HTML ở Slide 01 và chào người nghe: “Chào thầy cô và các bạn. Nhóm xin trình bày cách frontend hỗ trợ kiểm tra chất lượng dữ liệu, từ lúc đưa một file CSV vào đến khi theo dõi và xác minh kết quả.”
 
-### Chương 1 — Tổng quan và mức bằng chứng (3:30)
+### Chương 1 — Tổng quan (0:45)
 
 **Hiển thị 01**
 
 Giả sử một nhóm có file CSV khách hàng và muốn biết cột nào thiếu dữ liệu hoặc chứa thông tin cá nhân. Họ cần một nơi đưa file vào dự án, xem cấu trúc và theo dõi vấn đề. Phần trình bày hôm nay đi từ trải nghiệm đó đến cách frontend gọi backend, quản lý phiên và kiểm tra phần đã làm. Trước hết, hãy nhìn ba dấu hiệu trên trang bìa như các chủ đề sẽ được kiểm chứng trong bài: phạm vi tích hợp, kiểm thử và hợp đồng dữ liệu.
 
-Bắt đầu bằng bức tranh tiến độ để biết các bằng chứng thuộc phạm vi nào.
-
-**Chuyển Slide 02**
-
-Ba con số ở đây trả lời ba câu hỏi khác nhau. Bao nhiêu operation đã được nối vào frontend? Bao nhiêu ca kiểm thử đã đạt trong lần chạy được ghi trên slide? Những phần nào người dùng vẫn gặp dữ liệu mẫu hoặc hành vi cục bộ? Swagger trong repo cho ta 86 operation. Để khẳng định 66 đã chạy live, cần danh sách từng operation gắn với kết quả gọi thật. Cũng vậy, số test pass phải đi kèm phiên bản code và lần chạy.
-
-Để đọc tiến độ đúng, ta cần quy ước về mức bằng chứng.
-
-**Chuyển Slide 03**
-
-Ví dụ, một màn hình hiện danh sách project có thể đã được viết và chạy được với dữ liệu mẫu. Khi test dùng adapter giả, ta biết UI xử lý các tình huống đã mô phỏng. Để nói đã chạy live, ta cần gọi đúng server, với dữ liệu và quyền phù hợp, rồi lưu kết quả. Trong phần còn lại, hãy nghe mức bằng chứng đi cùng với từng kết luận, đặc biệt ở các bảng API.
-
-Áp dụng các nhãn đó vào bản đồ tích hợp và bốn nhóm ngoại lệ.
-
-**Chuyển Slide 04**
-
-Nhìn cột trái như bản đồ từ đăng nhập đến xử lý dữ liệu và báo sự cố. Cột bên phải là nơi dễ hiểu nhầm khi demo: cảnh 3D có thể dùng cây mẫu, trạng thái realtime cần kiểm mức tích hợp, còn bản nháp Dexie là dữ liệu thật của người dùng nằm cục bộ. Khi mô tả demo, hãy chỉ rõ thao tác nào tạo request đến server và thao tác nào chỉ cập nhật giao diện hoặc dữ liệu trong trình duyệt.
-
-Sau phạm vi tính năng, ta xem hệ thống giao diện giúp người dùng nhận diện trạng thái thế nào.
+Tiếp theo, xem cách bảng màu giúp người dùng nhận diện trạng thái.
 
 ### Chương 2 — Design System (2:25)
 
-**Chuyển Slide 05**
+**Chuyển Slide 02**
 
 Hãy nhìn cột nền trước: canvas là mặt chung, surface là bề mặt đặt nội dung như thẻ. Sau đó nhìn nhóm màu chủ đạo để tìm hành động chính. Cuối cùng là tín hiệu nghiệp vụ, ví dụ màu cảnh báo nên đi kèm chữ để người dùng biết tác vụ cần chú ý gì. Cách đặt tên theo vai trò giúp người sửa giao diện hiểu màu dùng ở đâu và giúp kiểm tra tương phản theo từng cặp chữ và nền.
 
-Màu giúp nhận diện, còn chữ, khoảng cách và chuyển động định hướng cách đọc.
+Màu giúp nhận diện trạng thái. Tiếp theo là cách dùng font và cỡ chữ để tổ chức thông tin.
 
-**Chuyển Slide 06**
+**Chuyển Slide 03**
 
-Khi người dùng nhìn một bảng, trước hết họ cần nhận ra tiêu đề, sau đó là nhãn và giá trị. Font giao diện phục vụ câu dài. Font monospace giúp nhìn dấu gạch, ID và đường dẫn rõ hơn. Tương tự, khi mở dialog, chuyển động ngắn giúp mắt theo dõi điểm thay đổi. Nếu người dùng giảm chuyển động, điều quan trọng nhất vẫn là trạng thái và khả năng thực hiện thao tác.
+Ở bên trái, giải thích thứ bậc font và cỡ chữ. Bên phải, chỉ nơi tìm component thật và lấy Button làm ví dụ về kích thước.
 
-Từ những quy tắc thị giác, ta chuyển sang cách tổ chức linh kiện.
+**Chuyển Slide 04**
 
-**Chuyển Slide 07**
+Giải thích cách một Button báo trạng thái đang xử lý. Sau đó chỉ sơ đồ Home chuyển từ ba cột thành một cột khi màn hình hẹp.
 
-Ví dụ, nút xác nhận dùng kiểu Button chung. Dialog ghép nút, nội dung và cách đóng. Khung ứng dụng bố trí topbar và vùng hiển thị. Wizard đi xa hơn: nó có bước nhập, file và xác nhận. Khi thay đổi bố cục nút dùng chung ta tìm Design System. Khi thay đổi cách tạo project ta tìm wizard, hook và service liên quan.
+### Chương 3 — Tổ chức kiến trúc (7:40)
 
-Sau cấu trúc linh kiện, xem các tầng phối hợp với API và storage thế nào.
-
-### Chương 3 — Tổ chức kiến trúc (6:40)
-
-**Chuyển Slide 08**
+**Chuyển Slide 05**
 
 Khi người dùng mở dataset, view cần dữ liệu nhưng không nên phải biết mọi chi tiết Axios. Hook hoặc provider điều phối nhu cầu, service biết endpoint và kiểm tra dữ liệu. HTTP client lo đường dẫn, token và lỗi chung. Với phiên, runtime ghép storage thật vào coordinator. Trong test có thể thay storage hoặc transport để kiểm từng tình huống. Đây là cách đọc sáu vùng trách nhiệm trong sơ đồ.
 
 Tiếp theo hãy theo một request đi xuống và kết quả đi ngược lên.
 
-**Chuyển Slide 09**
+**Chuyển Slide 06**
 
 Lấy ví dụ người dùng yêu cầu danh sách workspace. UI báo thao tác, service biết endpoint và lớp HTTP gửi request. Khi dữ liệu quay lại, client đọc cấu trúc chung, service kiểm tra mục cần dùng rồi store cập nhật để màn hình render. Dữ liệu đi hai chiều qua cùng các lớp. Hướng import là câu hỏi khác, cần dựa vào cấu trúc source và kiểm tra dependency riêng.
 
 Từ mũi tên trừu tượng, chuyển sang chỗ tìm code trong src.
 
-**Chuyển Slide 10**
+**Chuyển Slide 07**
 
-Khi muốn tìm một chức năng, đừng mở mọi thư mục cùng lúc. Bắt đầu ở app để biết route, sang views hoặc components để tìm điểm bấm, rồi services để thấy thao tác dữ liệu. Nếu vấn đề là lưu bản nháp, qua repositories. Nếu lỗi nằm ở việc gắn token hay xử lý response, qua lib. Bảng trên slide liệt kê các nhóm chính. Con số 14 ở tiêu đề lệch với 17 thư mục hiện thấy trong source.
+Đọc hai bảng từ trái sang phải. Mỗi thư mục có một hàng, kèm biểu tượng và trách nhiệm. Lần từ app đến views hoặc components để tìm giao diện, rồi đến services cho thao tác dữ liệu. Xem repositories khi cần hiểu bản nháp, lib cho HTTP client, styles cho CSS dùng chung và types cho kiểu TypeScript.
 
 Đã biết cấp thư mục chính, ta mở xuống các nhóm con.
 
-**Chuyển Slide 11**
+**Chuyển Slide 08**
 
 Nếu chức năng đang sửa là gia hạn phiên, vị trí tự nhiên là services/auth. Nếu là bảng dataset, xem processing và provider tương ứng. Nếu route chuyển hướng nhầm, kiểm tra app/router và app/guards. Cách chia này giúp một lỗi có địa chỉ rõ ràng. Bảng mô tả các nhóm đại diện, ví dụ health gọi kiểm tra do backend cung cấp nên ý nghĩa chi tiết phải đọc contract.
 
 Từ nhóm con, ta chọn bốn file trung tâm để thấy đầu vào và đầu ra.
 
-**Chuyển Slide 12**
+**Chuyển Slide 09**
 
 Hãy đọc bảng theo dạng ai nhận gì và ai dùng kết quả. Runtime dựng các thành phần rồi giao chúng cho ứng dụng. Coordinator nhận lời gọi của người dùng và trả snapshot để UI biết phiên đang ở đâu. Management store cập nhật dữ liệu nghiệp vụ cho các màn hình. Repository draft giữ dữ liệu cục bộ theo quyền phiên. Khi debug, câu hỏi đầu tiên là lỗi nằm ở bước ghép phụ thuộc, xử lý phiên, tải dữ liệu hay lưu bản nháp.
 
 Ta phóng to runtime để giải thích lúc tạo và hủy tài nguyên.
 
-**Chuyển Slide 13**
+**Chuyển Slide 11**
 
 Trong dev, React có thể chạy lại setup và cleanup của effect để phát hiện lỗi vòng đời. Nếu đóng database ngay khi thấy cleanup đầu tiên, lần setup kế tiếp có thể gặp runtime đã bị hủy. Ở đây retain trả về hàm giải phóng. Việc kiểm tra ở microtask cho setup cùng lượt cơ hội nhận lại runtime. Khi thực sự hết owner, runtime dọn coordinator và database. Điều này giải thích một rủi ro cụ thể, còn kết luận về rò rỉ cần đo thêm.
 
 Bây giờ đặt runtime vào thứ tự ứng dụng khởi động.
 
-**Chuyển Slide 14**
+**Chuyển Slide 12**
 
 Khi mở ứng dụng, trình duyệt tải trang SPA và entry JavaScript. Entry có nhánh preview dev, còn luồng chính đi vào bootstrap để lắp runtime và query client. Trong lúc chưa biết trạng thái phiên, UI có thể hiện skeleton. Coordinator đọc bản ghi phiên rồi xác thực hồ sơ với token còn hạn. Guard dùng kết quả để cho qua hoặc chuyển về đăng nhập. Nếu không có đích hợp lệ để quay lại, source hiện đặt mặc định là Processing.
 
@@ -1763,31 +1380,31 @@ Ta cần đọc kỹ những pha mà guard và dialog dựa vào.
 
 ### Chương 4 — Phiên và xác thực (5:55)
 
-**Chuyển Slide 15**
+**Chuyển Slide 13**
 
 Một người đang đăng nhập có thể đóng màn hình hoặc bắt đầu luồng phiên khác trước khi request cũ hoàn tất. Coordinator lưu số generation lúc bắt đầu và so lại trước khi cập nhật. UI dựa vào phase: đang khôi phục thì chờ, đang chờ consent thì mở dialog, có phiên trực tuyến thì tiếp tục. Local-limited diễn tả một số tình huống mất kết nối với phiên còn hạn. Hãy đọc các nhãn như một bản đồ trạng thái thay vì đếm theo tiêu đề.
 
 Sau trạng thái, xem dữ liệu nhỏ nhất cần lưu để khôi phục phiên.
 
-**Chuyển Slide 16**
+**Chuyển Slide 14**
 
 Khối JSON trên slide là ví dụ cấu trúc, hãy tránh đọc token mẫu như một giá trị dùng thật. Adapter kiểm phiên bản schema, tài khoản và hạn token trước khi trả dữ liệu. Khi gửi request bảo vệ, client gắn Bearer theo code của ứng dụng. Cách này có đặc tính khác cookie tự gửi, còn an toàn tổng thể phụ thuộc việc bảo vệ JavaScript trên trang và xác thực phía backend. Khi cần kết thúc quyền trên server, ta dùng luồng logout sẽ nói sau.
 
 Dùng cấu trúc vừa giới thiệu để đọc sơ đồ đăng nhập và reload.
 
-**Chuyển Slide 17**
+**Chuyển Slide 15**
 
 Bắt đầu ở Client, nơi người dùng gửi form. Coordinator gọi API đăng nhập công khai. Nếu phản hồi chứa phiên và user khớp, nó có thể lưu và phát authenticated cho UI. Khi tải lại, đầu vào khác: coordinator đọc dữ liệu lưu rồi dùng access token còn hạn để hỏi hồ sơ server và đối chiếu tài khoản. Hai đoạn trên SVG giúp hiểu các vai, nhưng khi mô tả code hãy giữ hai luồng riêng. Cuối cùng guard chọn đích hợp lệ, mặc định là Processing.
 
 Phiên có thể hết hạn, vậy lần gia hạn diễn ra như thế nào?
 
-**Chuyển Slide 18**
+**Chuyển Slide 16**
 
 Hãy nhìn ba vai như trước, nhưng lần này người dùng đã có bản ghi phiên. Khi coordinator xử lý một access token hết hạn, nó kiểm tra health. Nếu dịch vụ sẵn sàng, UI hỏi người dùng có gia hạn hay không. Sau khi đồng ý, coordinator dùng refresh token lấy candidate session. Nó còn dùng access token ứng viên đọc hồ sơ để xác nhận cùng tài khoản trước khi ghi và phục hồi UI. Nếu từ chối hoặc gia hạn thất bại, code hiện đi qua luồng kết thúc phiên cục bộ.
 
 Từ nhánh dừng gia hạn, phân biệt với thao tác đăng xuất chủ động.
 
-**Chuyển Slide 19**
+**Chuyển Slide 17**
 
 Khi nhấn đăng xuất, điều người dùng thấy trước là UI kết thúc phiên. Coordinator giữ lời gọi logout gắn với đúng access token cũ nếu còn dùng được. Nó kết thúc phiên cục bộ rồi thực hiện yêu cầu thu hồi. Nhờ tách hai kết quả, mất mạng không biến thành khẳng định server đã thu hồi. Việc dọn cache giúp dữ liệu của người cũ không xuất hiện khi người tiếp theo đăng nhập.
 
@@ -1795,87 +1412,85 @@ Có phiên hợp lệ rồi, ta chuyển sang luồng quản lý workspace.
 
 ### Chương 5 — Luồng nghiệp vụ (7:30)
 
-**Chuyển Slide 20**
+**Chuyển Slide 18**
 
 Ví dụ hai thành viên cùng nhìn workspace ở phiên bản 2. Người đầu tiên sửa tên và server cập nhật phiên bản. Khi người thứ hai gửi thay đổi dựa trên bản cũ, expectedVersion giúp backend phát hiện và trả xung đột thay vì âm thầm chồng dữ liệu. Người dùng cần xem lại bản mới rồi quyết định chỉnh tiếp. Khi minh họa chuyển chủ, nên đọc payload hiện hành từ service vì trường hiển thị trên bảng có thể đã cũ.
 
 Khi đã có workspace, ta đi vào quy trình tạo một project và nạp CSV.
 
-**Chuyển Slide 21**
+**Chuyển Slide 20**
 
 Người dùng chọn workspace, đặt tên và chọn CSV. Tại lúc xác nhận, hãy hình dung một chuỗi request: tạo project trước để có ID, dùng ID tải file, sau đó thêm thành viên theo lựa chọn. Nếu upload thất bại, project vừa tạo có thể đã tồn tại. UI hướng người dùng vào project để kiểm tra, và store có trạng thái tiến độ của lần thao tác. Đây là khác biệt quan trọng so với giả định cả chuỗi được rollback như một giao dịch duy nhất.
 
 Project đã tồn tại thì câu hỏi tiếp theo là ai được thao tác ở mỗi cấp.
 
-**Chuyển Slide 22**
+**Chuyển Slide 21**
 
 Một người thuộc workspace chưa chắc thực hiện được mọi thao tác trong mọi project. Khi người trình bày chỉ vào bảng, hãy hỏi quyền nào, trên tài nguyên nào, do ai thực hiện. UI có thể ẩn thao tác dựa trên ngữ cảnh. Khi người dùng gửi request, backend vẫn cần xác nhận quyền ở tài nguyên cụ thể. Một ca test thật nên dùng cả tài khoản được phép và tài khoản bị từ chối để chứng minh hai nhánh.
 
-Khi người dùng được phép mở project, họ có thể xem cấu trúc và chất lượng của dataset.
+Form Login đã dùng thư viện Liquid Glass. Project có bản thử cho panel module. Bốn nhãn cube dùng shader Three.js để khúc xạ nền khi người dùng đổi góc nhìn.
+
+**Chuyển Slide 22**
+
+Chỉ vùng viền nhãn trong ảnh canvas rồi lần theo RenderPass, LiquidGlassPass và Bloom.
+
+Tiếp theo là luồng báo cáo sự cố.
 
 **Chuyển Slide 23**
 
-Nếu cần kiểm chất lượng một cột email, trước tiên xem tên và kiểu trong schema. Dùng key kỹ thuật của cột để gọi thống kê, chẳng hạn số ô trống. Người có quyền có thể gắn cờ PII cho cột để hệ thống biết đây là dữ liệu nhạy cảm. Cờ là thông tin phân loại. Việc dữ liệu được che ở màn hình hoặc báo cáo nào cần kiểm từng đường hiển thị và xuất file.
-
-Schema nói về cột. Slide tiếp theo nói về cách đọc từng trang dữ liệu hàng.
-
-**Chuyển Slide 24**
-
-Với file lớn, lý tưởng là trình duyệt chỉ xin một phần hàng. Server trả items và một con trỏ để xin trang tiếp theo. Nếu người dùng thêm lọc hoặc sắp xếp, service hiện gửi điều kiện qua nhánh query. Một câu hỏi khác là mỗi lần trình duyệt vẽ bao nhiêu hàng. Điều đó thuộc virtual scrolling và cần kiểm implementation cùng số đo. Phần chắc chắn từ source là cách lấy trang và kiểm response, kể cả con trỏ lặp.
-
-Nếu từ dữ liệu phát hiện lỗi, người dùng có thể tạo báo cáo sự cố.
-
-**Chuyển Slide 25**
-
-Giả sử một dòng dữ liệu có giá trị ngày bất thường. Người dùng báo vấn đề bằng tiêu đề, mô tả và có thể gửi tệp minh họa. Store tạo issue để có ID, rồi mới tải tệp vào issue đó. Khi quản trị cần thêm thông tin, trạng thái giúp hai bên hiểu việc gì còn thiếu. Trong demo, hãy nói rõ bước nào giao diện hiện có caller và bước nào cần xác nhận lại với backend.
+Chỉ luồng tạo Issue bằng `POST /issues`, sau đó tải tệp ở `POST /issues/{id}/attachments`. Admin có thể chuyển trạng thái bằng `PATCH /admin/issues/{id}/status`. Người báo cập nhật nội dung bằng `PATCH /issues/{id}`. Nửa dưới là minh họa tình huống báo cáo đã tạo nhưng upload tệp thất bại. Khi thử lại trong cùng hộp thoại, store dùng ID đã lưu để tiếp tục tải tệp.
 
 Bước lỗi giữa chừng dẫn tới câu hỏi lưu bản nháp và đồng bộ cục bộ.
 
-**Chuyển Slide 26**
+**Chuyển Slide 24**
 
-Nếu người dùng cần giữ một file nháp, repository lưu metadata và file trong hai bảng liên quan. Quyền đọc hoặc ghi dựa trên snapshot của phiên. Nếu giao dịch IndexedDB lỗi, các thao tác trong giao dịch được xử lý cùng nhau. Khi có xác nhận upload trùng với draft và phiên, repository cập nhật trạng thái và dọn nội dung theo luồng hiện tại. Đây là biên cục bộ, nên không thay thế idempotency hay cơ chế khôi phục phía server.
+`drafts` lưu metadata và `files` lưu file trong IndexedDB. Repository dùng tài khoản hiện hành để kiểm quyền. `confirmUploaded` đối chiếu tài khoản, Project và Dataset. Nó commit trạng thái `uploaded` trước rồi dọn file trong transaction riêng. Nếu dọn lỗi, registry vẫn ghi nhận upload thành công và có thể dọn sau.
 
 Sau các luồng nghiệp vụ, ta xem chúng dùng chung pipeline request ra sao.
 
-### Chương 6 — HTTP và hợp đồng API (7:35)
+### Chương 6 — HTTP và hợp đồng API (8:35)
 
-**Chuyển Slide 27**
+**Chuyển Slide 25**
 
-Giả sử người dùng mở schema một dataset. UI biết ID nhưng giao việc gọi API cho service. Axios thêm đường dẫn và token, gửi sang backend. Khi trả về, lớp HTTP mở phần bọc chung. Sau đó service kiểm xem danh sách cột có hợp lệ hay không. Nếu kiểm qua, caller đưa dữ liệu vào state và render. Nếu fail, UI có thể đưa ra lỗi cụ thể thay vì vẽ bảng thiếu trường.
+Đọc theo hai chiều. Client tương tác với Component. Tùy feature, Hook và Service chuẩn bị lời gọi API. HTTP client gửi request, sau đó Node.js và NestJS/Express nhận request. Middleware, Guard, interceptor chiều vào và Pipe chạy trước Controller. Handler gọi Service, Repository và Database khi cần. Kết quả quay lại Controller, interceptor chiều ra đóng gói hoặc ghi log, rồi HTTP adapter gửi status và body. Frontend đọc phản hồi, kiểm dữ liệu và cập nhật state để render. Lỗi chưa xử lý có thể chuyển qua exception filter.
+
+**Chuyển Slide 26**
+
+Khi người dùng áp dụng bộ lọc, effect trong `LiveDatasetPanel` gọi `service.records()`. Dataset service chọn POST `/records/query` khi có search, filter hoặc sort, còn duyệt trang thường dùng GET. Axios `instance.request()` gửi HTTP và gắn Bearer. Backend gắn request ID, kiểm JWT và policy, chạy interceptor chiều vào, kiểm body với Zod, rồi Controller gọi `DataViewService.queryRecords()`. Repository truy vấn MongoDB và trả kết quả qua service/controller. Interceptor xử lý chiều ra, Axios mở envelope, Dataset service kiểm `items`, `meta` và cursor rồi component gọi `setPage()`. Đây là truy vết source.
 
 Muốn hai phía thống nhất DTO, xem quy trình đồng bộ OpenAPI.
 
-**Chuyển Slide 28**
+**Chuyển Slide 27**
 
-Khi backend thay input của một endpoint, nhóm cập nhật đầu vào Swagger cho generator. Lệnh gen:types tạo bản đặc tả đã chuẩn hóa và kiểu TypeScript theo nhóm. Ví dụ body query records có thể dùng alias này để kiểm thuộc tính lúc biên dịch. Kiểu đó hỗ trợ người sửa code phát hiện lỗi sớm. Khi server thật trả response, mapper vẫn kiểm trường cần dùng vì kiểu TypeScript không kiểm nội dung mạng.
+Đi từ đặc tả OpenAPI đến `yarn gen:types`. Generator chuẩn hóa spec và ghi `src/lib/openapi.json`, `src/lib/openapi.ts` cùng các alias trong `src/types/services-type/`. Ví dụ Dataset service nhập kiểu request body cho `POST /records/query` với tên `RecordQuery`. Compiler kiểm input tĩnh. Runtime kiểm response thật trước khi UI dùng.
 
 Giờ ta đọc contract qua bốn bảng, bắt đầu từ Auth và User.
 
-**Chuyển Slide 29**
+**Chuyển Slide 28**
 
 Bắt đầu từ login và refresh: một thao tác nhận thông tin đăng nhập, thao tác sau dùng refresh token. Đến logout, client dùng access token của phiên. Health là đường công khai để kiểm dịch vụ. Hai hàng users/me có cùng đường dẫn nhưng một hàng đọc hồ sơ và hàng kia xóa tài khoản. Khi trình bày nhãn live, chỉ đánh dấu những thao tác có dữ liệu chứng minh ở môi trường được nêu.
 
 Phiên cung cấp danh tính. Bảng kế tiếp cho thấy danh tính đó được dùng ở workspace.
 
-**Chuyển Slide 30**
+**Chuyển Slide 29**
 
 Danh sách workspace cần tham số phân trang khi nhiều bản ghi. Khi ghi, ví dụ chỉnh tên, frontend gửi expectedVersion để backend so với phiên bản mới nhất. Tác vụ thêm thành viên hoặc chuyển chủ có tác động đến quyền, vì vậy cần đọc payload đúng từ source và thử với tài khoản phù hợp. Bảng cho ta bản đồ nhanh. Ví dụ riêng về transfer-owner trên slide phải được so với service trước khi dùng làm hợp đồng.
 
 Từ workspace ta đi vào project và dataset là tài nguyên con.
 
-**Chuyển Slide 31**
+**Chuyển Slide 30**
 
 Trên giao diện, người dùng thấy một màn hình dataset nhưng dữ liệu đến từ nhiều nguồn. Detail cho biết quy mô, schema dựng cột, records cấp từng nhóm hàng. Khi chọn một cột, stats trả thông tin như tỷ lệ thiếu. Nếu người dùng đổi cờ PII, đó là một thao tác ghi riêng. Khi đọc bảng, hãy ghép mỗi hàng với một mục tiêu của người dùng thay vì đọc nguyên payload.
 
 Nếu người dùng phát hiện sự cố, nhóm API tiếp theo hỗ trợ gửi và quản trị báo cáo.
 
-**Chuyển Slide 32**
+**Chuyển Slide 31**
 
 Sau khi gửi báo cáo, người dùng có thể đính kèm bằng chứng. Frontend cần ID issue trước để biết tệp thuộc báo cáo nào. Ở phía quản trị, danh sách người dùng và issue tải theo trang để xử lý từng nhóm. Đổi trạng thái issue gửi expectedVersion nhằm tránh ghi đè khi hai quản trị viên cùng xem. Tên đường dẫn và body trong bảng cần đọc cùng service đang chạy để demo đúng.
 
 Bảng chỉ mô tả đường thành công. Tiếp theo xem frontend xử lý đường lỗi.
 
-**Chuyển Slide 33**
+**Chuyển Slide 32**
 
 Mã 400 thường yêu cầu kiểm input, 403 liên quan quyền, 409 báo xung đột ghi. Với timeout hoặc mất mạng, hãy xem thao tác đã gửi là đọc hay ghi. Đọc có thể cung cấp nút thử lại theo caller. Với ghi, nếu server đã xử lý nhưng phản hồi bị mất, bấm lại có thể tạo thêm bản ghi. Cấu hình query hiện không tự retry mặc định. Hành vi cụ thể của từng màn cần tìm trong caller.
 
@@ -1883,31 +1498,31 @@ Mã 400 thường yêu cầu kiểm input, 403 liên quan quyền, 409 báo xung
 
 ### Chương 7 — Truy vết và kiểm thử (5:00)
 
-**Chuyển Slide 34**
+**Chuyển Slide 33**
 
 Chọn ví dụ gia hạn phiên. Người dùng thấy SessionRenewalDialog, lựa chọn được chuyển qua AuthContext, coordinator xử lý rồi auth service gọi endpoint refresh. Nếu kiểm một lỗi, hãy tìm bài test theo hành vi ở mắt xích cần kiểm. Cách đọc ngang này áp dụng được cho tạo workspace và đọc records. Với đính kèm, hãy theo caller tạo issue, sau đó request upload. Mục đích là tìm bằng chứng đủ sát tình huống thực tế.
 
 Sau khi biết tìm test nào, ta xem cách diễn giải tổng số test.
 
-**Chuyển Slide 35**
+**Chuyển Slide 34**
 
 Slide ghi 864 ca, 71 suite và 162 giây. Khi nói, hãy gọi đó là số liệu được báo trong bản slide và đề nghị trích log của đúng commit khi dùng làm bằng chứng. Một lượt pass cho thấy các kỳ vọng của lượt chạy đó đạt. Kết quả không tự đo các hành vi ngoài phạm vi test, chẳng hạn tải lớn hay sự ổn định qua nhiều lần chạy. Cùng một dự án có thể có số ca khác khi thêm test hoặc chỉ chạy một nhóm.
 
 Tổng số ca có ý nghĩa hơn khi biết mỗi tầng test đang kiểm gì.
 
-**Chuyển Slide 36**
+**Chuyển Slide 35**
 
 Khi sửa hàm parse token, unit test là điểm bắt đầu nhanh. Khi muốn biết coordinator có dọn storage và cache đúng không, ghép nhiều phụ thuộc trong integration test. Khi muốn xem guard hoặc dialog hoạt động đúng qua thao tác, dùng trình duyệt. Cuối cùng dùng môi trường live để kiểm hợp đồng và quyền thực tế. Tầng trên đắt hơn về dữ liệu và thời gian nên cần chọn hành trình đại diện.
 
 Ta xem cấu hình Playwright hiện tại để biết frontend dùng loại bằng chứng nào.
 
-**Chuyển Slide 37**
+**Chuyển Slide 36**
 
 Muốn kiểm hành trình người dùng, Playwright khởi động server frontend riêng và mở trang trên Chromium. Một ca kiểm guard không cần đăng nhập, còn những ca live cần backend thử và tài khoản phù hợp. Trong repo hiện có ca auth, quản trị, theme và vòng đời tài nguyên. Hãy phân biệt danh sách spec với danh sách test đã đạt. Nếu trình bày kết quả pass, dùng báo cáo của lần chạy trên đúng môi trường.
 
 Tiếp theo, đọc coverage như một số đo khác với số test pass.
 
-**Chuyển Slide 38**
+**Chuyển Slide 37**
 
 Khi chạy test, report coverage có thể cho biết test đi qua bao nhiêu dòng, nhánh hoặc hàm. Hỏi trước: 70,83% đang đo loại nào và ở commit nào? Sau đó nhìn các nhánh nghiệp vụ có rủi ro, như xung đột cập nhật và lỗi quyền. Kế hoạch CI/CD giúp lặp lại việc đo và lưu báo cáo. Dùng coverage để tìm chỗ thiếu bằng chứng, đồng thời giữ các test có assertion sát hành vi.
 
@@ -2029,7 +1644,7 @@ Qua một ví dụ từ file CSV đến báo cáo sự cố, chúng ta đã th�
 | Câu hỏi | Trả lời |
 | --- | --- |
 | Dự án giúp ai làm việc gì? | Analyst đưa CSV vào workspace/project, xem schema và records, rồi báo vấn đề chất lượng dữ liệu. |
-| Đếm 66/86 thế nào? | Đặc tả kiểm được 86 operation và 66 paths. Số 66 operation live trên slide cần inventory theo method/path và log riêng. |
+| Đếm OpenAPI thế nào? | Đặc tả kiểm được 84 thao tác HTTP trên 65 paths. Tích hợp cần caller theo method/path; xác minh live cần log. |
 | Vì sao giữ HTTP client và service riêng? | Client xử lý transport và envelope. Service kiểm dữ liệu theo nghiệp vụ để UI dùng. |
 | Reload khác refresh ở đâu? | Reload khởi động ứng dụng và khôi phục bản ghi phiên. Refresh dùng refresh token để xin credential mới khi đủ điều kiện. |
 | Upload lỗi sau khi tạo project thì làm gì? | Mở project đã được tạo để kiểm tra trạng thái file và thành viên trước khi chạy thêm thao tác. |
@@ -2054,12 +1669,103 @@ Qua một ví dụ từ file CSV đến báo cáo sự cố, chúng ta đã th�
 
 | Slide | Nguồn đối chiếu | Bằng chứng |
 | --- | --- | --- |
-| 01–07 | [HTML](index.html), [Design System](../src/components/ui/README.md), [token màu](../src/styles/tokens.css) | Nội dung slide và cấu trúc UI. Badge và báo cáo lịch sử cần nguồn chạy riêng. |
-| 08–14 | [Bản đồ source](../src/README.md), [runtime](../src/app/app-runtime.ts), [bootstrap](../src/app/application-bootstrap.tsx), [router](../src/app/router/workbench-routes.tsx), [đích đăng nhập](../src/services/navigation/application-route.ts) | Trách nhiệm, vòng đời runtime và thứ tự khởi động. |
-| 15–19 | [Kiểu snapshot](../src/types/auth/session-coordinator.types.ts), [coordinator](../src/services/auth/session-coordinator.ts), [auth service](../src/services/auth/auth.service.ts), [storage](../src/lib/session-storage.ts), [query client](../src/lib/query-client.ts) | Pha, generation, login, restore, refresh, dọn phiên và revoke. |
-| 20–26 | [Management store](../src/services/management/management.store.ts), [dataset service](../src/services/processing/dataset.service.ts), [admin service](../src/services/management/admin.service.ts), [draft repository](../src/repositories/datasets/upload-draft.repository.ts) | Request, con trỏ, version, lỗi một phần và xác nhận draft. |
-| 27–33 | [HTTP client](../src/lib/axios-client.ts), [ApiError](../src/lib/api-error.ts), [OpenAPI snapshot](../src/lib/openapi.json), [generator](../scripts/generate-swagger-types.mjs), [users service](../src/services/users/users.service.ts) | 66 paths và 86 operations trong đặc tả, codegen và xử lý response. |
-| 34–38 | [Bản đồ test](../src/__tests__/README.md), [test coordinator](../src/__tests__/auth/session-coordinator.test.ts), [test contract](../src/__tests__/management/backend-contract.test.ts), [Playwright config](../playwright.config.ts), [spec guard](../tests/e2e/auth/anonymous-guard.spec.ts), [spec lifecycle](../tests/e2e/management/workspace-project-lifecycle.spec.ts) | Các suite và cài đặt tồn tại trong source. Cần log để xác nhận số trên slide. |
+| 01–04 | [HTML](index.html), [Design System](../src/components/ui/README.md), [token màu](../src/styles/tokens.css) | Nội dung slide và cấu trúc UI. Badge và báo cáo lịch sử cần nguồn chạy riêng. |
+| 05–12 | [Bản đồ source](../src/README.md), [runtime](../src/app/app-runtime.ts), [bootstrap](../src/app/application-bootstrap.tsx), [router](../src/app/router/workbench-routes.tsx), [đích đăng nhập](../src/services/navigation/application-route.ts) | Trách nhiệm, vòng đời runtime và thứ tự khởi động. |
+| 13–17 | [Kiểu snapshot](../src/types/auth/session-coordinator.types.ts), [coordinator](../src/services/auth/session-coordinator.ts), [auth service](../src/services/auth/auth.service.ts), [storage](../src/lib/session-storage.ts), [query client](../src/lib/query-client.ts) | Pha, generation, login, restore, refresh, dọn phiên và revoke. |
+| 18–24 | [Management store](../src/services/management/management.store.ts), [dataset service](../src/services/processing/dataset.service.ts), [admin service](../src/services/management/admin.service.ts), [draft repository](../src/repositories/datasets/upload-draft.repository.ts) | Request, con trỏ, version, lỗi một phần và xác nhận draft. |
+| 25–32 | [HTTP client](../src/lib/axios-client.ts), [ApiError](../src/lib/api-error.ts), [OpenAPI snapshot](../src/lib/openapi.json), [generator](../scripts/generate-swagger-types.mjs), [users service](../src/services/users/users.service.ts) | 65 paths và 84 thao tác HTTP trong đặc tả, codegen và xử lý response. |
+| 33–38 | [Bản đồ test](../src/__tests__/README.md), [test coordinator](../src/__tests__/auth/session-coordinator.test.ts), [test contract](../src/__tests__/management/backend-contract.test.ts), [Playwright config](../playwright.config.ts), [spec guard](../tests/e2e/auth/anonymous-guard.spec.ts), [spec lifecycle](../tests/e2e/management/workspace-project-lifecycle.spec.ts) | Các suite và cài đặt tồn tại trong source. Cần log để xác nhận số trên slide. |
 | 39–42 | [README frontend](../README.md), [kế hoạch nội dung slide](planning/content-plan.md), [QA bản trình bày](qa/qa-report.md) | Phạm vi và đề xuất. QA bản trình bày ghi nhận bài HTML. |
 
-**Tổng hợp xác minh.** Có 36/42 slide chứa ít nhất một điểm cần xác minh (01, 02, 03, 04, 05, 06, 09, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42). Các nhóm chính gồm inventory và log API live, log kiểm thử và coverage lịch sử, benchmark grid, phạm vi realtime và tiêu chí bàn giao. Audit này đọc HTML, source và snapshot OpenAPI. Vitest, Playwright, build và benchmark chưa được chạy lại.
+**Tổng hợp xác minh.** Rà source, chạy build và Vitest trên working tree. Các mẫu API trên deck có caller đối chiếu; số tích hợp tổng thể, coverage hiện tại và phạm vi E2E live cần bằng chứng riêng.
+
+## 9. Danh mục thao tác OpenAPI để truy vết
+
+84 thao tác trên 65 đường dẫn của snapshot local. Cột module và suite chỉ điểm bắt đầu tra cứu theo nhóm. Khi xác minh một dòng, cần khớp method, path, màn hình gọi và assertion cụ thể. Có dòng được định nghĩa trong OpenAPI mà chưa xác nhận caller hoặc test riêng. Thêm log môi trường và mã phản hồi khi nghiệm thu live.
+
+| Method | Path (sau prefix) | Màn hình hoặc luồng cần kiểm | Module bắt đầu dò | Suite bắt đầu dò |
+| --- | --- | --- | --- | --- |
+| GET | `/health` | Kiểm tra dịch vụ | [health.service.ts](../src/services/health/health.service.ts) | [session-coordinator.test.ts](../src/__tests__/auth/session-coordinator.test.ts) |
+| GET | `/health/ready` | Kiểm tra dịch vụ | [health.service.ts](../src/services/health/health.service.ts) | [session-coordinator.test.ts](../src/__tests__/auth/session-coordinator.test.ts) |
+| GET | `/users/me` | Hồ sơ / khôi phục phiên | [users.service.ts](../src/services/users/users.service.ts) | [auth-flow.test.tsx](../src/__tests__/auth/auth-flow.test.tsx) |
+| PATCH | `/users/me` | Hồ sơ / khôi phục phiên | [users.service.ts](../src/services/users/users.service.ts) | [auth-flow.test.tsx](../src/__tests__/auth/auth-flow.test.tsx) |
+| DELETE | `/users/me` | Hồ sơ / khôi phục phiên | [users.service.ts](../src/services/users/users.service.ts) | [auth-flow.test.tsx](../src/__tests__/auth/auth-flow.test.tsx) |
+| GET | `/admin/users` | Management / Admin | [admin.service.ts](../src/services/management/admin.service.ts) | [backend-contract.test.ts](../src/__tests__/management/backend-contract.test.ts) |
+| GET | `/admin/users/{id}` | Management / Admin | [admin.service.ts](../src/services/management/admin.service.ts) | [backend-contract.test.ts](../src/__tests__/management/backend-contract.test.ts) |
+| POST | `/auth/register` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| POST | `/auth/login` | Login / điều phối phiên | [auth.service.ts](../src/services/auth/auth.service.ts) | [session-coordinator.test.ts](../src/__tests__/auth/session-coordinator.test.ts) |
+| POST | `/auth/refresh` | Login / điều phối phiên | [auth.service.ts](../src/services/auth/auth.service.ts) | [session-coordinator.test.ts](../src/__tests__/auth/session-coordinator.test.ts) |
+| POST | `/auth/forgot-password` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| POST | `/auth/reset-password` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| POST | `/auth/change-password` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| GET | `/auth/google` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| GET | `/auth/google/callback` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| POST | `/auth/logout` | Login / điều phối phiên | [auth.service.ts](../src/services/auth/auth.service.ts) | [session-coordinator.test.ts](../src/__tests__/auth/session-coordinator.test.ts) |
+| GET | `/auth/sessions` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| GET | `/auth/sessions/me` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| GET | `/auth/sessions/{id}` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| DELETE | `/auth/sessions/{id}` | Tài khoản hoặc phiên | [account.service.ts](../src/services/auth/account.service.ts) | — |
+| POST | `/workspaces` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/workspaces` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/workspaces/{id}` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PATCH | `/workspaces/{id}` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| DELETE | `/workspaces/{id}` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/workspaces/{id}/members` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/workspaces/{id}/members` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| DELETE | `/workspaces/{id}/members/{userId}` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/workspaces/{id}/transfer-owner` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/workspaces/{id}/leave` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/workspaces/{workspaceId}/projects` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/workspaces/{workspaceId}/projects` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/projects` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/projects/{id}` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PATCH | `/projects/{id}` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| DELETE | `/projects/{id}` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PUT | `/projects/{id}/snapshot` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/projects/{id}/members` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/projects/{id}/members` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PATCH | `/projects/{id}/members/{userId}` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| DELETE | `/projects/{id}/members/{userId}` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/projects/{id}/transfer-owner` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/projects/{projectId}/datasets/upload` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/projects/{projectId}/datasets` | Processing / Project | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/datasets/{id}` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| DELETE | `/datasets/{id}` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| GET | `/datasets/{id}/file` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| GET | `/datasets/{id}/schema` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| GET | `/datasets/{datasetId}/records` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| POST | `/datasets/{datasetId}/records/query` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| GET | `/datasets/{datasetId}/columns/{columnKey}/stats` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| GET | `/datasets/{datasetId}/charts` | Project / Dataset | [dataset.service.ts](../src/services/processing/dataset.service.ts) | [connected-panels.test.tsx](../src/__tests__/management/connected-panels.test.tsx) |
+| POST | `/projects/{projectId}/analysis` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/projects/{projectId}/analysis/result` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/analysis/jobs/{jobId}` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| POST | `/analysis/jobs/{jobId}/retry` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| POST | `/analysis/jobs/{jobId}/result` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| POST | `/projects/{projectId}/summary` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/projects/{projectId}/summary` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| POST | `/projects/{projectId}/report` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/projects/{projectId}/report/{reportId}/file` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/notifications` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/notifications/unread-count` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/notifications/{id}` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PATCH | `/notifications/{id}/read` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PATCH | `/users/me/notification-preferences` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/issues` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/issues` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| POST | `/issues/{id}/attachments` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/issues/{id}/attachments/{attachmentId}` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/issues/{id}` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| PATCH | `/issues/{id}` | Management / Thông báo và Issues | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/admin/issues` | Management / Admin | [admin.service.ts](../src/services/management/admin.service.ts) | [backend-contract.test.ts](../src/__tests__/management/backend-contract.test.ts) |
+| GET | `/admin/issues/{id}` | Management / Admin | [admin.service.ts](../src/services/management/admin.service.ts) | [backend-contract.test.ts](../src/__tests__/management/backend-contract.test.ts) |
+| PATCH | `/admin/issues/{id}/status` | Management / Admin | [admin.service.ts](../src/services/management/admin.service.ts) | [backend-contract.test.ts](../src/__tests__/management/backend-contract.test.ts) |
+| POST | `/analyses/{analysisId}/findings/{findingId}/feedback` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/analyses/{analysisId}/findings/{findingId}/feedback` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| POST | `/analyses/{analysisId}/feedback` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/analyses/{analysisId}/feedback` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| PATCH | `/feedback/{id}` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| DELETE | `/feedback/{id}` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/projects/{projectId}/ai-quality-metrics` | Project / Analysis | [analysis.service.ts](../src/services/processing/analysis.service.ts) | [live-analysis-panel.test.tsx](../src/__tests__/processing/live-analysis-panel.test.tsx) |
+| GET | `/overview/workspaces` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |
+| GET | `/workspaces/{id}/overview` | Management / Workspace | [management.store.ts](../src/services/management/management.store.ts) | [connected-api.test.ts](../src/__tests__/management/connected-api.test.ts) |

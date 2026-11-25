@@ -11,8 +11,8 @@
 | [`health`](health/index.ts), [`users`](users/index.ts) | Kết quả kiểm tra sức khỏe backend và hồ sơ người dùng hiện tại. |
 | [`datasets`](datasets/index.ts) | Kiểu điểm chất lượng dữ liệu, bản nháp upload và xác nhận upload. |
 | [`processing`](processing/index.ts) | Các bước Processing và kiểu đánh giá kết quả. |
-| [`dataset-3d`](dataset-3d/index.ts), [`workspace-3d`](workspace-3d/index.ts) | Trạng thái chọn khối, camera, sơ đồ tài nguyên và mô hình CSV cục bộ dùng trong các scene. |
-| [`preview`](preview/index.ts) | Model workspace, project, thông báo, route và UI session. Các kiểu này cũng được workbench dùng qua mapping từ API. |
+| [`dataset-3d`](dataset-3d/index.ts), [`workspace-3d`](workspace-3d/index.ts) | Trạng thái chọn khối, camera, và sơ đồ tài nguyên dùng trong các scene. |
+| `management`, `navigation`, `workbench` | Kiểu dữ liệu nghiệp vụ, URL và trạng thái UI dùng chung. |
 | [`services-type`](services-type/index.ts) | Alias sinh từ OpenAPI theo nhóm endpoint. |
 | [`vite-env.d.ts`](vite-env.d.ts) | Khai báo kiểu cho môi trường Vite và các module mà frontend import. |
 
@@ -65,11 +65,9 @@ src/types/
 ├── health/
 │   ├── health.types.ts
 │   └── index.ts
-├── preview/
-│   ├── index.ts
-│   ├── preview-route.types.ts
-│   ├── preview-session.types.ts
-│   └── preview.types.ts
+├── management/management.types.ts
+├── navigation/workbench-route.types.ts
+├── workbench/workbench-session.types.ts
 ├── processing/
 │   ├── index.ts
 │   ├── processing-route.types.ts
@@ -97,7 +95,6 @@ src/types/
 ├── workspace-3d/
 │   ├── camera-pose.types.ts
 │   ├── index.ts
-│   ├── local-csv.types.ts
 │   └── resource-map.types.ts
 ├── README.md
 ├── index.ts

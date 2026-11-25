@@ -13,19 +13,16 @@ Vitest thu thập test qua `vitest.config.ts`. Suites dùng source frontend, Tes
 
 ## 3. Public API
 
-Không có API production. [preview-test-kit.tsx](preview/preview-test-kit.tsx) và helper trong `dataset-3d/support` cung cấp công cụ riêng cho các test.
-
-## 4. Cách dùng (ví dụ)
+Không có API production. [workbench-test-kit.tsx](support/workbench-test-kit.tsx) và helper trong `dataset-3d/support` cung cấp công cụ riêng cho các test.
 
 ```sh
-yarn test src/__tests__/workspace-3d/local-csv.test.ts
 ```
 
 Chạy từ thư mục frontend sau khi đã cài dependency. Vitest chạy bộ input CSV nhỏ và báo kết quả parse hoặc lỗi theo các assertion của file.
 
 ## 5. Cấu trúc thư mục
 
-**Khi thêm test.** Chọn thư mục theo hành vi cần kiểm như `auth/`, `preview/` hay `dataset-3d/`. Đặt fixture/helper chỉ dùng trong một suite cạnh suite đó.
+**Khi thêm test.** Chọn thư mục theo hành vi cần kiểm như `auth/`, `management/` hay `dataset-3d/`. Đặt fixture/helper chỉ dùng trong một suite cạnh suite đó.
 
 ### Foundation và Auth
 
@@ -43,25 +40,22 @@ Chạy từ thư mục frontend sau khi đã cài dependency. Vitest chạy bộ
 Chạy nhóm thay đổi bằng `yarn test src/__tests__/auth src/__tests__/foundation src/__tests__/management`. Xem [README frontend](../../README.md) để chạy Playwright với backend thử nghiệm.
 - [upload-draft.repository.test.ts](auth/upload-draft.repository.test.ts) — draft theo tài khoản, quota và ACK.
 
-### Preview 2D
+### Workbench, Management và Processing
 
-- [preview-constraints.test.ts](preview/preview-constraints.test.ts) — ràng buộc của preview.
-- [preview-entry.test.tsx](preview/preview-entry.test.tsx) — entry, URL và scope.
-- [preview-interactions.test.tsx](preview/preview-interactions.test.tsx) — tương tác thẻ, menu và dialog.
-- [preview-notifications.test.tsx](preview/preview-notifications.test.tsx) — trạng thái và thao tác thông báo.
-- [preview-reports.test.tsx](preview/preview-reports.test.tsx) — thao tác với report mẫu.
-- [preview-settings.test.tsx](preview/preview-settings.test.tsx) — thao tác cài đặt.
-- [preview-shell.test.tsx](preview/preview-shell.test.tsx) — bố cục và điều hướng shell.
-- [preview-test-kit.tsx](preview/preview-test-kit.tsx) — tiện ích render và setup test preview.
-- [preview-views.test.tsx](preview/preview-views.test.tsx) — các màn hình preview.
-- [preview-worst-case.test.tsx](preview/preview-worst-case.test.tsx) — dữ liệu biên, rỗng và danh sách lớn.
+- [workbench-style-constraints.test.ts](components/workbench-style-constraints.test.ts) — ràng buộc CSS của workbench.
+- [workbench-routes.test.tsx](navigation/workbench-routes.test.tsx) — entry, URL và scope.
+- [management-interactions.test.tsx](management/management-interactions.test.tsx) — tương tác thẻ, menu và dialog.
+- [notifications.test.tsx](management/notifications.test.tsx) — trạng thái và thao tác thông báo.
+- [reports.test.tsx](management/reports.test.tsx) — thao tác với report mẫu.
+- [settings.test.tsx](management/settings.test.tsx) — thao tác cài đặt.
+- [workbench-shell.test.tsx](components/workbench-shell.test.tsx) — bố cục và điều hướng shell.
+- [workbench-test-kit.tsx](support/workbench-test-kit.tsx) — tiện ích render và setup test workbench.
+- [management-views.test.tsx](management/management-views.test.tsx) — các màn hình Management.
+- [management-edge-cases.test.tsx](management/management-edge-cases.test.tsx) — dữ liệu biên, rỗng và danh sách lớn.
 
 ### Workspace 3D
 
 - [connection-geometry.test.ts](workspace-3d/connection-geometry.test.ts) — cổng và đường nối.
-- [local-csv-viewer.test.tsx](workspace-3d/local-csv-viewer.test.tsx) — bảng và phân trang CSV.
-- [local-csv.test.ts](workspace-3d/local-csv.test.ts) — parser và cây tài nguyên CSV.
-- [preview-entry.test.tsx](workspace-3d/preview-entry.test.tsx) — entry 3D preview.
 - [resource-label-policy.test.ts](workspace-3d/resource-label-policy.test.ts) — quy tắc hiển thị nhãn.
 - [resource-layout.test.ts](workspace-3d/resource-layout.test.ts) — validation, bố cục và đường dẫn cây.
 - [resource-map.test.tsx](workspace-3d/resource-map.test.tsx) — render và lựa chọn trên bản đồ.

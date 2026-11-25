@@ -1,3 +1,4 @@
+import type { View } from './type'
 import { isMesh } from '../common/typed-objects'
 import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
@@ -8,7 +9,6 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { NEON_CUBE, createNeonCubeModel } from './neon-cube.model'
 
-type View = { azimuth: number; elevation: number }
 
 const VIEWS: Record<string, View> = {
   '45': { azimuth: 45, elevation: 24 },

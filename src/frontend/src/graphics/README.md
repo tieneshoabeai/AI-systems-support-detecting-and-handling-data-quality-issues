@@ -30,8 +30,6 @@ Dựng model, geometry, vật liệu, shader và render pass bằng TypeScript v
 
 Các builder con được export để scene và suite hình học lắp riêng. Xem source ở mục 5 khi cần gọi trực tiếp geometry, material, render pass hoặc cấu hình chuyên biệt.
 
-## 4. Cách dùng (ví dụ)
-
 ```ts
 import { createNeonCubeModel } from './graphics/neon-cube/neon-cube.model'
 
@@ -114,7 +112,7 @@ Giữ ID part/theme nhất quán giữa model, legend và picking. Label kính d
 
 ## 9. Test & debug
 
-Chạy `yarn test src/__tests__/dataset-3d src/__tests__/neon-cube src/__tests__/workspace-3d`. Review qua `/workspaces/3d-dataset`, `/preview/workspaces-3d`, `/auth/login?preview=display-base` hoặc `/src/graphics/neon-cube/preview.html?angle=45` trên Vite dev server.
+Chạy `yarn test src/__tests__/dataset-3d src/__tests__/neon-cube src/__tests__/workspace-3d`. Review qua luồng Dataset 3D từ Project hoặc `/src/graphics/neon-cube/preview.html?angle=45` trên Vite dev server.
 
 ## 10. Giới hạn & lưu ý
 

@@ -1,6 +1,5 @@
 export type { CameraCommand } from './resource-map.types'
 export type { CameraPose } from './camera-pose.types'
-export type { LocalCsvDocument } from './local-csv.types'
 export type { Point3 } from './resource-map.types'
 export type { PositionedResource } from './resource-map.types'
 export type { ResourceKind } from './resource-map.types'

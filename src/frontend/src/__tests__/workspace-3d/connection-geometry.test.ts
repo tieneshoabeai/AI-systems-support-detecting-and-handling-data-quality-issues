@@ -4,7 +4,7 @@ import { DoubleSide, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three'
 import { hubSocketWall, socketPanel } from '../../graphics/workspace-3d/connection-geometry'
 import { CONNECTION } from '../../math/workspace-3d/resource-connection-profile'
 import { layoutResources } from '../../math/workspace-3d/resource-layout'
-import { extendedPreviewResources, previewResources } from '../../views/workspace-3d/preview-resources'
+import { extendedPreviewResources, previewResources } from './resource-fixtures'
 
 it('cuts a real through-hole in the side panel instead of placing a dark disk on a closed wall', () => {
   const radius = CONNECTION.pipeRadius * 1.32

@@ -2,10 +2,10 @@ import { lazy, Suspense, useContext } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router'
 import { PageSkeleton } from '../../components/loading'
 import { NotFoundPage } from '../pages/public/not-found-page'
-import { legacyManagementRedirect } from '../../services/preview/preview-route'
+import { legacyManagementRedirect } from '../../services/navigation/legacy-workbench-route'
 import { ProtectedRoute } from '../guards/protected-route'
 import { managementHref } from '../../services/navigation'
-import { usePreviewStore } from '../../hooks/preview/use-preview-store'
+import { usePreviewStore } from '../../hooks/management/use-management-store'
 import { ProcessingDataContext } from '../../views/application/processing-data-context'
 
 const ManagementPage = lazy(() => import('../pages/private/management-page').then(module => ({ default: module.ManagementPage })))

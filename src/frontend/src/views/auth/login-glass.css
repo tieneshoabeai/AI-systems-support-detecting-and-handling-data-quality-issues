@@ -234,6 +234,7 @@
   --sign-in-control: #fff;
   --sign-in-primary: #17253f;
   position: relative;
+  isolation: isolate;
   width: min(100%, 420px);
   min-block-size: 560px;
   padding: 78px 32px;
@@ -242,6 +243,56 @@
   background: #f8faff;
   box-shadow: 0 18px 44px #020a2090;
   color: var(--sign-in-text);
+}
+
+.login-glass-surface {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  isolation: isolate;
+  opacity: 0.72;
+}
+
+.login-glass-surface-backdrop,
+.login-glass-surface-effect {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+}
+
+.login-glass-surface-backdrop {
+  background: radial-gradient(ellipse at 10% 0%, #c5d9fa, transparent 56%),
+    radial-gradient(ellipse at 90% 100%, #c4d7fa, transparent 53%), #f4f8ff;
+}
+
+.login-glass-surface[data-glass-theme='light'] .login-glass-surface-backdrop {
+  background: radial-gradient(ellipse at 12% 0%, #fff, transparent 62%),
+    radial-gradient(ellipse at 90% 100%, #bcdcff, transparent 63%), #edf6ff;
+}
+
+.auth-glass-form-panel[data-on-panel] .login-glass-surface {
+  inset: var(--login-glass-panel-top) auto auto var(--login-glass-panel-left);
+  width: var(--login-glass-panel-width);
+  height: var(--login-glass-panel-height);
+  border-radius: var(--login-glass-panel-radius);
+  overflow: clip;
+  opacity: 0.24;
+}
+
+.auth-glass-form-panel[data-on-panel] .login-glass-surface-backdrop {
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 8% 0%, #4b79bf, transparent 64%),
+    radial-gradient(ellipse at 92% 100%, #30528d, transparent 60%), #101d38;
+}
+
+.auth-glass-form-panel[data-on-panel] .login-glass-surface[data-glass-theme='light'] {
+  opacity: 0.58;
+}
+
+.auth-glass-form-panel[data-on-panel] .login-glass-surface[data-glass-theme='light'] .login-glass-surface-backdrop {
+  background: radial-gradient(ellipse at 8% 0%, #f7fbff, transparent 60%),
+    radial-gradient(ellipse at 92% 100%, #a5cbf7, transparent 60%), #e5f1ff;
 }
 
 .auth-glass-form-panel:not([hidden]) {

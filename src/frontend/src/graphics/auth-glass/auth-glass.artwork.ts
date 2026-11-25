@@ -1,8 +1,8 @@
+import type { PanelKind } from './type'
 import { CanvasTexture, SRGBColorSpace } from 'three'
 import { authGlassConfig } from './auth-glass.config'
 import { authGlassProviderIcons } from './auth-glass.provider-icons'
 
-type PanelKind = 'login' | 'register'
 const { pixelsWide, pixelsHigh } = authGlassConfig.artwork
 const ink = '#f3f8ff'
 const muted = '#c1d3ea'

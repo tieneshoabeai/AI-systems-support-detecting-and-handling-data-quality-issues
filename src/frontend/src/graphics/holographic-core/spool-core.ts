@@ -1,3 +1,4 @@
+import type { ParticleKind } from './type'
 import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
@@ -19,7 +20,6 @@ export type SpoolCore = {
   dispose(): void
 }
 
-type ParticleKind = 'chamber' | 'floating' | 'spark'
 
 type ParticleSeed = {
   kind: ParticleKind

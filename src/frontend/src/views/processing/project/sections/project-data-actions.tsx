@@ -1,13 +1,16 @@
 import { Dialog } from '../../../../components/ui/overlay/dialog'
-import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
-import { usePreviewSession } from '../../../preview/preview-session-context'
+import { useManagementStore } from '../../../../hooks/management/use-management-store'
+import { usePreviewSession } from '../../../../hooks/workbench/workbench-session-context'
 import { validateCsvFile } from '../../../../services/management/upload-validation'
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ConfirmedProjectResult } from '../../../../types'
-import { Panel } from '../../../preview/components/preview-primitives'
-import { ResultReviewDialog } from '../../../preview/components/result-review-dialog'
+import { Panel } from '../../../../components/resource/presentation/resource-presentation'
+import { ResultReviewDialog } from '../../../../components/processing/result-review/result-review-dialog'
 import styles from './project-data-actions.module.css'
-import { PreviewIcon } from '../../../preview/components/preview-icons'
+import { Icon as PreviewIcon } from '../../../../components/ui/primitives/icon'
+import { ProjectCsvDropZone } from './project-csv-drop-zone'
+import { ApiError } from '../../../../lib/api-error'
+import { mutationRefreshFailedCode } from '../../../../services/management/management.types'
 
 export function ProjectResultDownload({ result }: { result: ConfirmedProjectResult | null }) {
   const [busy, setBusy] = useState(false)
@@ -36,28 +39,64 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
   const store = useManagementStore()
   const session = usePreviewSession()
   const [file, setFile] = useState<File | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'pending' | 'success' | 'refresh-failed'>('idle')
   const [error, setError] = useState('')
+  const inFlight = useRef(false)
   const projectId = session.state.selection.projectId
+  const busy = phase === 'pending'
+  const locked = phase !== 'idle'
+  const id = useId()
+
+  useEffect(() => {
+    if (phase !== 'success') return
+    const timer = window.setTimeout(onClose, 550)
+    return () => window.clearTimeout(timer)
+  }, [onClose, phase])
+
+  const selectFile = (next: File | null) => {
+    setError('')
+    try {
+      if (next) validateCsvFile(next)
+      setFile(next)
+    } catch (error) {
+      setFile(null)
+      setError(error instanceof Error ? error.message : 'Tệp không hợp lệ.')
+    }
+  }
+
   const upload = async () => {
-    if (!file || busy || !store.uploadDataset) return
-    setBusy(true); setError('')
+    if (!file || locked || inFlight.current || !store.uploadDataset) return
+    inFlight.current = true
+    setPhase('pending')
+    setError('')
     try {
       validateCsvFile(file)
       const result = await store.uploadDataset(projectId, file)
-      session.notify(result.message, 'success'); onClose()
-    } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được tệp.') }
-    finally { setBusy(false) }
+      session.notify(result.message, 'success')
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) onClose()
+      else setPhase('success')
+    } catch (error) {
+      setPhase(error instanceof ApiError && error.code === mutationRefreshFailedCode ? 'refresh-failed' : 'idle')
+      setError(error instanceof Error ? error.message : 'Không tải được tệp.')
+    } finally {
+      inFlight.current = false
+    }
   }
-  const id = useId()
-  return <Dialog open onClose={onClose} busy={busy} className={styles['screen']} aria-labelledby={`${id}-title`}>
+  const closingLocked = busy || phase === 'success'
+  return <Dialog open onClose={onClose} busy={closingLocked} className={styles['screen']} aria-labelledby={`${id}-title`}>
     <h2 id={`${id}-title`}>Upload data</h2>
-    <label className="dialog-field"><span>Chọn tệp dữ liệu</span><input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => setFile(e.target.files?.[0] ?? null)} /></label>
-    {file && <p>Đã chọn trên thiết bị: {file.name}</p>}
-    <p className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
+    <ProjectCsvDropZone file={file} phase={phase === 'refresh-failed' ? 'idle' : phase} disabled={locked}
+      descriptionId={`${id}-note`} onSelect={selectFile} />
+    <p id={`${id}-note`} className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
     {!store.uploadDataset && <p className="action-note">Chưa kết nối dịch vụ upload trong chế độ xem trước.</p>}
     {error && <p role="alert" className="form-error">{error}</p>}
-    <div className="dialog-actions"><button className="button-secondary" disabled={busy} onClick={onClose}>Đóng</button><button className="button-primary" aria-busy={busy} disabled={busy || !file || !store.uploadDataset} onClick={() => { void upload() }}>Upload data</button></div>
+    <div className="dialog-actions">
+      <button type="button" className="button-secondary" disabled={closingLocked} onClick={onClose}>Đóng</button>
+      <button type="button" className={`button-primary ${styles['uploadSubmit']}`} aria-busy={busy}
+        disabled={locked || !file || !store.uploadDataset} onClick={() => { void upload() }}>
+        {busy ? 'Đang tải lên…' : phase === 'success' ? 'Đã tải lên' : 'Upload data'}
+      </button>
+    </div>
   </Dialog>
 }
 

@@ -1,18 +1,15 @@
+import type { ViewMode, SortKey } from './type'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { PreviewMenuOrigin, Project, ProjectFilterTab } from '../../../types'
-import {
-  formatCount, formatDataSize, formatRows, projectStatsFor, projectTabsFor, projectsOf,
-} from '../../preview/preview-data'
-import { Avatar, PreviewShell } from '../../preview/components/preview-shell'
-import { PreviewIcon } from '../../preview/components/preview-icons'
-import { CoverArt, EmptyHint, FilterTabs, Pagination, StatRow, StatusBadge } from '../../preview/components/preview-primitives'
-import { usePreviewSession } from '../../preview/preview-session-context'
-import { projectMenu } from '../../preview/preview-menu'
-import { previewCardProps } from '../../preview/preview-card'
+import { formatCount, formatDataSize, formatRows, projectStatsFor, projectTabsFor, projectsOf } from '../../../hooks/workbench/workbench-presentation'
+import { Avatar, PreviewShell } from '../../application/components/workbench-shell'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { CoverArt, EmptyHint, FilterTabs, Pagination, StatRow, StatusBadge } from '../../../components/resource/presentation/resource-presentation'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { projectMenu } from '../../../hooks/resource/resource-menu'
+import { previewCardProps } from '../../../hooks/resource/resource-card'
 
-type ViewMode = 'grid' | 'list'
-type SortKey = 'recent' | 'name' | 'rows'
 
 const sortLabels: Record<SortKey, string> = { recent: 'Mới nhất', name: 'Tên A→Z', rows: 'Số bản ghi' }
 

@@ -2,17 +2,15 @@ import { SystemStatus } from './system-status'
 import { Fragment, useContext, useEffect, useState } from 'react'
 import { Dialog } from '../../../components/ui/overlay/dialog'
 import { AuthContext } from '../../../hooks/auth/auth-context'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { ReactNode } from 'react'
 import type { DeviceSession, SettingsNavLeaf, SettingsNavItem, SettingsSectionId } from '../../../types'
-import { isSettingsNavGroup } from '../../../types/preview'
-import {
-  notificationPrefRows, settingsModules, settingsSectionsOfModule,
-} from '../../preview/preview-data'
-import { PreviewShell } from '../../preview/components/preview-shell'
-import { PreviewIcon } from '../../preview/components/preview-icons'
-import { Panel } from '../../preview/components/preview-primitives'
-import { usePreviewSession } from '../../preview/preview-session-context'
+import { isSettingsNavGroup } from '../../../types/management/management.types'
+import { notificationPrefRows, settingsModules, settingsSectionsOfModule } from '../../../hooks/workbench/workbench-presentation'
+import { PreviewShell } from '../../application/components/workbench-shell'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { Panel } from '../../../components/resource/presentation/resource-presentation'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
 
 // Màn Settings theo Design Board nhóm 04 (đặc tả Shell dòng 9). Khác chuông/báo cáo: hai mục
 // "Hồ sơ cá nhân" và "Cài đặt tài khoản" ĐIỀU HƯỚNG sang đây (màn thật, có hash riêng

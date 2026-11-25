@@ -1,1 +1,1 @@
-export { ProjectWorkspaceView as ProjectWorkspacePage } from '../../../views/preview/project-workspace-2d.view'
+export { ProjectWorkspaceView as ProjectWorkspacePage } from '../../../views/processing/project/project-workspace.view'

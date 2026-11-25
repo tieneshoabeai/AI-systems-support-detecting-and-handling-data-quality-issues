@@ -1,23 +1,12 @@
 # hooks
 
-## Shared view-model ownership after Phase 4
+## Hook dùng chung
 
-`preview/preview-session-context.ts` owns the single workbench React context.
-`preview/preview-presentation.ts` contains existing fixture-backed labels, formatting
-and selectors; `preview-card.ts` and `preview-menu.ts` contain interaction helpers.
-These are supporting modules of the preview view model, not API implementations.
-The application surface adapter is `preview/use-preview-surface.ts`; browser-only
-surface mechanics remain in `ui/use-surface.ts`.
-
-`resource/use-resource-avatar.ts` owns the existing avatar storage helpers and hook.
-`processing/use-result-review.ts` preserves review validation, duplicate-submit
-guard, pending/error state and the caller-provided save callback.
-`project/use-project-csv-parser.ts` supplies the unchanged local CSV parser to the
-wizard. Compatibility exports in `views/preview` refer to these same implementations.
-
-`ui/use-surface.ts` chứa hook position/dismiss/focus thuần cho DOM surface. Sự kiện
-navigation riêng của ứng dụng nằm trong `preview/use-preview-surface.ts`; đường dẫn
-`views/preview/components/preview-surface.ts` chỉ còn là compatibility export.
+- `workbench/workbench-session-context.ts` cấp context cho Management và Processing.
+- `management/use-management-store.ts` đọc store được cấp qua provider.
+- `workbench/workbench-presentation.ts` chứa nhãn, formatter và selector.
+- `resource/resource-card.ts` và `resource/resource-menu.ts` xử lý tương tác trên thẻ và menu tài nguyên.
+- `ui/use-workbench-surface.ts` kết nối sự kiện điều hướng với `ui/use-surface.ts`.
 
 ## 1. Mục đích
 
@@ -30,11 +19,9 @@ Login, guard và dialog dùng hook auth. `AuthProvider` cung cấp giá trị ch
 ## 3. Public API
 
 - `useAuth(): AuthContextValue` đọc context, ném `Error` ngoài provider. `useLogin()` trả input email/password, setters, `submit(): Promise<void>`, trạng thái pending/lỗi và `signOut`.
-- `usePreviewSessionModel(routeIds: PreviewRouteIds, navigateUniverse?: PreviewUniverseNavigator): PreviewSessionModel` ghép trạng thái panel/dialog và thao tác preview. `statusLabels` là bảng nhãn trạng thái.
+- `usePreviewSessionModel(routeIds: PreviewRouteIds, appearance: PreviewAppearance, navigateSection?: PreviewSectionNavigator): PreviewSessionModel` ghép trạng thái panel/dialog và thao tác workbench. `ApplicationFrame` giữ theme qua các nhánh data provider.
 - `usePreviewStore(): PreviewStoreState` đăng ký snapshot. `findWorkspace(state, workspaceId): Workspace | null`, `findProject(state, projectId): Project | null` và `projectsOfWorkspace(state, workspaceId): Project[]` nhận store và ID chuỗi.
 - `useSceneMotion(): { reducedMotion: boolean; tabHidden: boolean; moving: boolean }` theo dõi môi trường trình duyệt.
-
-## 4. Cách dùng (ví dụ)
 
 ```tsx
 import { useSceneMotion } from './hooks/workspace-3d/use-scene-motion'
@@ -49,13 +36,13 @@ Mount trong React ở trình duyệt. Tab đang hiển thị và tùy chọn gi�
 
 ## 5. Cấu trúc thư mục
 
-**Khi thêm code.** Đặt hook theo tính năng trong `auth/`, `preview/` hoặc `workspace-3d/`. Logic thuần dùng ngoài React đặt ở tầng sở hữu. Kiểu chỉ dùng trong một hook giữ cạnh hook.
+**Khi thêm code.** Đặt hook theo tính năng trong `auth/`, `management/`, `workbench/` hoặc `workspace-3d/`. Logic thuần dùng ngoài React đặt ở tầng sở hữu. Kiểu chỉ dùng trong một hook giữ cạnh hook.
 
 - [auth/use-auth.ts](auth/use-auth.ts) — đọc AuthContext có kiểm tra provider.
 - [auth/auth-context.ts](auth/auth-context.ts) — context dùng chung cho provider và hook.
 - [auth/use-login.ts](auth/use-login.ts) — state biểu mẫu và xử lý submit.
-- [preview/use-preview-session.ts](preview/use-preview-session.ts) — trạng thái tương tác và thao tác mock của preview.
-- [preview/use-preview-store.ts](preview/use-preview-store.ts) — subscription và selector workspace/project.
+- [workbench/use-management-session.ts](workbench/use-management-session.ts) — trạng thái tương tác của workbench.
+- [management/use-management-store.ts](management/use-management-store.ts) — subscription và selector workspace/project.
 - [workspace-3d/use-scene-motion.ts](workspace-3d/use-scene-motion.ts) — theo dõi giảm chuyển động và visibility.
 - `.gitkeep` — giữ thư mục.
 
@@ -68,7 +55,6 @@ AuthProvider → `useAuth()` → `useLogin()` → submit → coordinator cập n
 | Tham số | Mặc định | Tác dụng |
 | --- | --- | --- |
 | Email/password ban đầu | Chuỗi rỗng | Giá trị form trước nhập |
-| `navigateUniverse` | `defaultUniverseNavigator` | Điều hướng từ preview tới Universe |
 | `moving` | Tính từ media query và visibility | Chỉ true khi cho phép motion và tab đang hiển thị |
 
 ## 8. Quy ước & bất biến
@@ -77,11 +63,11 @@ Gọi hook ở cấp trên cùng của function component hoặc hook. Hook khô
 
 ## 9. Test & debug
 
-Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/preview/preview-interactions.test.tsx src/__tests__/workspace-3d/scene-lifecycle.test.tsx`. Có thể đổi Reduce Motion hoặc chuyển tab để kiểm tra thủ công.
+Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/management/management-interactions.test.tsx src/__tests__/workspace-3d/scene-lifecycle.test.tsx`. Có thể đổi Reduce Motion hoặc chuyển tab để kiểm tra thủ công.
 
 ## 10. Giới hạn & lưu ý
 
-`use-preview-session.ts` đọc snapshot từ store được cấp cho workbench. Store trực tuyến lấy dữ liệu qua service. Preview dev và Demo có store fixture riêng. [ManagementLoadingContext](preview/management-loading-context.ts) chuyển trạng thái tải hoặc lỗi kèm callback thử lại từ provider tới từng vùng UI. Hook motion cần API trình duyệt hoặc stub thích hợp trong jsdom.
+`use-management-session.ts` đọc snapshot từ store được cấp cho workbench. Store trực tuyến lấy dữ liệu qua service. Test cấp store giả từ `src/__tests__/support/`. [ManagementLoadingContext](management/management-loading-context.ts) chuyển trạng thái tải hoặc lỗi kèm callback thử lại từ provider tới từng vùng UI. Hook motion cần API trình duyệt hoặc stub thích hợp trong jsdom.
 
 ## 11. Hướng cải tiến
 

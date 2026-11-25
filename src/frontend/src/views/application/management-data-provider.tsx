@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AuthContext } from '../../hooks/auth/auth-context'
-import { ManagementStoreContext, type ManagementStore } from '../../hooks/preview/use-preview-store'
-import { ManagementLoadingContext, ManagementPersonalLoadingContext, type ManagementLoading } from '../../hooks/preview/management-loading-context'
+import { ManagementStoreContext, type ManagementStore } from '../../hooks/management/use-management-store'
+import { ManagementLoadingContext, ManagementOverviewLoaderContext, ManagementPersonalLoadingContext, type ManagementLoading } from '../../hooks/management/management-loading-context'
 import { createAxiosClient } from '../../lib/axios-client'
 import { createSessionStorage } from '../../lib/session-storage'
 import { createManagementStore } from '../../services/management/management.store'
@@ -9,7 +9,7 @@ import type { SessionSnapshot } from '../../types/auth/session-coordinator.types
 import { readAccessToken } from '../../utils/auth/access-token'
 import { normalizeApiError } from '../../lib/api-error'
 import { ProcessingDataContext } from './processing-data-context'
-import type { Person } from '../../types/preview/preview.types'
+import type { Person } from '../../types/management/management.types'
 
 type LoadResult = {
   snapshot: SessionSnapshot
@@ -20,6 +20,7 @@ type LoadResult = {
   missing?: boolean
   projectPermissionsPending?: boolean
   personalStatus?: ManagementLoading | null
+  overviewLoader?: ManagementStore['getWorkspaceOverview']
 }
 
 const sessionAccount = (snapshot: SessionSnapshot | undefined): Person => {
@@ -70,7 +71,9 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       } })
       dispose = data.dispose
       const scope = { ...(projectId === undefined ? {} : { projectId }), progressiveProjects }
-      const loaded = { snapshot, ...scope, store: data.store }
+      const overviewLoader = !recent && projectId === undefined ? data.store.getWorkspaceOverview : undefined
+      if (overviewLoader) setResult({ snapshot, ...scope, overviewLoader })
+      const loaded = { snapshot, ...scope, store: data.store, overviewLoader }
       void (recent ? Promise.resolve() : data.loadCore(() => {
         if (active) setResult({ ...loaded, projectPermissionsPending: true })
       })).then(() => {
@@ -94,7 +97,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
       }).catch((error: unknown) => {
         if (!active) return
         const failure = normalizeApiError(error)
-        setResult({ snapshot, ...scope, error: error instanceof Error ? error.message : failure.message, missing: failure.status === 404 })
+        setResult({ snapshot, ...scope, overviewLoader, error: error instanceof Error ? error.message : failure.message, missing: failure.status === 404 })
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không kết nối được máy chủ.'
@@ -103,8 +106,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
     return () => { active = false; controller.abort(); dispose?.() }
   }, [snapshot, attempt, projectId, recent, progressiveProjects])
 
-  // Isolated previews retain their fixture store.
-  // The route guard remains responsible for admission; API failures never select fixtures.
+  // Standalone mounts can supply their own ManagementStoreContext.
   if (!auth) return children
   const current = result?.snapshot === snapshot && result?.projectId === projectId && result?.progressiveProjects === progressiveProjects ? result : null
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
@@ -123,7 +125,9 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
 
   return <ManagementLoadingContext.Provider value={status}>
     <ManagementPersonalLoadingContext.Provider value={current?.personalStatus ?? null}>
-      <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
+      <ManagementOverviewLoaderContext.Provider value={current?.overviewLoader}>
+        <ManagementStoreContext.Provider value={current?.store ?? pendingStore}>{children}</ManagementStoreContext.Provider>
+      </ManagementOverviewLoaderContext.Provider>
     </ManagementPersonalLoadingContext.Provider>
   </ManagementLoadingContext.Provider>
 }

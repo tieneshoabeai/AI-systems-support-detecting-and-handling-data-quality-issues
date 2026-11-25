@@ -1,8 +1,8 @@
 import { useRef } from 'react'
 import type { PreviewInfoRequest, PreviewMenuOrigin, PreviewSurfaceSide, Project } from '../../../types'
-import { formatCount, formatDataSize, formatRows, pluralEn } from '../../../hooks/preview/preview-presentation'
+import { formatCount, formatDataSize, formatRows, pluralEn } from '../../../hooks/workbench/workbench-presentation'
 import { StatusBadge } from '../../resource'
-import { anchorFromOrigin, useSurfaceDismiss, useSurfacePosition } from '../../../hooks/preview/use-preview-surface'
+import { anchorFromOrigin, useSurfaceDismiss, useSurfacePosition } from '../../../hooks/ui/use-workbench-surface'
 
 // Thẻ "Xem thông tin" của project — bản tóm tắt xem nhanh, không phải màn chi tiết.
 //

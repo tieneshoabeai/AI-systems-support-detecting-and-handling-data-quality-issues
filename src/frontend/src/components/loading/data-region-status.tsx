@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ManagementLoading } from '../../hooks/preview/management-loading-context'
+import type { ManagementLoading } from '../../hooks/management/management-loading-context'
 
 export function DataRegionStatus({ status, label, children }: {
   status: ManagementLoading

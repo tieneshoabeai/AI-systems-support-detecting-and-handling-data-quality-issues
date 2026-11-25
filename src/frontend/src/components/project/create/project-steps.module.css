@@ -1,0 +1,66 @@
+.u444 {
+  --ease: cubic-bezier(.2,.8,.2,1);
+  display: flex;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 16px;
+  list-style: none;
+  isolation: isolate;
+}
+.u444 li { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.u444 li:not(:last-child)::before, .u444 li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 17px;
+  left: calc(50% + 22px);
+  width: calc(100% - 44px);
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pv-line-strong);
+  z-index: -1;
+}
+.u444 li:not(:last-child)::after { background: var(--pv-blue-fill); transform: scaleX(0); transform-origin: left; transition: transform .32s cubic-bezier(.5,0,.4,1) var(--line-delay); }
+.u444 li[data-done='true']::after { transform: none; }
+.u444 button {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--pv-ink);
+  background: var(--pv-surface);
+  box-shadow: inset 0 0 0 2px var(--pv-line-strong);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: background-color .25s var(--ease), box-shadow .25s var(--ease), color .25s, transform .45s cubic-bezier(.34,1.7,.5,1);
+  transition-delay: var(--check-delay);
+}
+@media (hover: hover) and (pointer: fine) { .u444 button:not(:disabled):hover { transform: scale(1.07); } }
+.u444 button:not(:disabled):active { transform: scale(.9); }
+.u444 button:focus-visible { outline: 2px solid var(--pv-blue-fill); outline-offset: 6px; }
+.u444 button b, .u444 button svg { grid-area: 1 / 1; transition: opacity .2s, transform .5s cubic-bezier(.3,1.8,.5,1); }
+.u444 button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.2) rotate(-30deg); }
+.u444 [data-done='true'] button { background: var(--pv-blue-fill); color: var(--pv-on-fill); box-shadow: none; }
+.u444 [data-done='true'] button b { opacity: 0; transform: scale(.4); transition-delay: var(--check-delay); }
+.u444 [data-done='true'] button svg { opacity: 1; transform: none; transition-delay: var(--check-delay); }
+.u444 [aria-current] button { box-shadow: inset 0 0 0 2px var(--pv-blue-fill); color: var(--pv-ink-accent); }
+.u444 [aria-current] button::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--pv-blue-fill) 28%, transparent);
+  animation: breathe 2s ease-in-out infinite;
+}
+.u444 li span { font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; color: var(--pv-faint); transition: color .25s var(--check-delay); }
+.u444 [data-done='true'] span { color: var(--pv-muted); }
+.u444 [aria-current] span { color: var(--pv-ink); font-weight: 700; }
+@keyframes breathe { 50% { transform: scale(1.12); opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  .u444 li:not(:last-child)::after, .u444 button, .u444 [aria-current] button::after, .u444 button b, .u444 button svg, .u444 li span { animation: none; transition: none; }
+  .u444 button:not(:disabled):hover, .u444 button:not(:disabled):active { transform: none; }
+}

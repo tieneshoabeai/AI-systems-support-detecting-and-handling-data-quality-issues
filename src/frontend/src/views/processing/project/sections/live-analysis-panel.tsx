@@ -1,18 +1,17 @@
+import type { RecordValue } from './type'
 import { useEffect, useRef, useState } from 'react'
 
-import { useManagementStore } from '../../../../hooks/preview/use-preview-store'
-import type { Project } from '../../../../types/preview/preview.types'
+import { useManagementStore } from '../../../../hooks/management/use-management-store'
+import type { Project } from '../../../../types/management/management.types'
 import { AnalysisFeedbackPanel } from './analysis-feedback-panel'
 import { ApiError } from '../../../../lib/api-error'
 import { ModuleNotice } from './module-notice'
 import { AnalysisResultOverview } from './analysis-result-overview'
-import { AnalysisJobPanel } from './analysis-job-panel'
 import { Button } from '../../../../components/ui/primitives/button'
 import { Input } from '../../../../components/ui/primitives/input'
 import { Select } from '../../../../components/ui/form/select'
 import styles from './module-content.module.css'
 
-type RecordValue = Record<string, unknown>
 const asRecord = (value: unknown): RecordValue | null =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? value as RecordValue : null
 const readString = (value: unknown): string => typeof value === 'string' ? value : ''
@@ -43,13 +42,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
   const [resultError, setResultError] = useState('')
   const analysisId = objectId(latestResult?.['analysisRunId'])
   const [jobId, setJobId] = useState('')
-  const [job, setJob] = useState<unknown>(null)
-  const assessment = latestResult?.['aiCorrelationAssessment']
-  const [polling, setPolling] = useState(false)
   const mutationActive = useRef(false)
-  const [jobOperation, setJobOperation] = useState<'check' | 'retry' | null>(null)
-  const [jobCheckedAt, setJobCheckedAt] = useState<Date | null>(null)
-  const [jobError, setJobError] = useState('')
   const [reportId, setReportId] = useState('')
   const [response, setResponse] = useState<unknown>(null)
   const [technicalOpen, setTechnicalOpen] = useState(false)
@@ -70,14 +63,13 @@ export function LiveAnalysisPanel({ project, canExecute }: {
   }, [datasetId, project.id, service])
 
   useEffect(() => {
-    if (!service || !jobId || !analysisId || jobOperation !== null) return
+    if (!service || !jobId || !analysisId) return
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let checks = 0
     const serviceForJob = service
 
     const check = async () => {
-      setPolling(true)
       try {
         const payload = await serviceForJob.getJob(jobId, controller.signal)
         if (controller.signal.aborted) return
@@ -85,8 +77,6 @@ export function LiveAnalysisPanel({ project, canExecute }: {
         if (record?.['jobId'] !== jobId || record['analysisRunId'] !== analysisId) {
           throw new Error('Máy chủ trả về tác vụ không khớp với lần phân tích hiện tại.')
         }
-        setJob(record)
-        setJobCheckedAt(new Date())
         const jobStatus = record['status']
         if (jobStatus === 'pending' || jobStatus === 'running') {
           checks += 1
@@ -94,7 +84,6 @@ export function LiveAnalysisPanel({ project, canExecute }: {
             timer = setTimeout(() => { void check() }, pollIntervalMs)
             return
           }
-          setJobError('Đã tạm dừng theo dõi. Bạn có thể kiểm tra lại trạng thái.')
         } else if (jobStatus === 'succeeded') {
           const result = asRecord(await serviceForJob.getResult(project.id, controller.signal))
           if (!controller.signal.aborted && result?.['analysisRunId'] === analysisId) {
@@ -102,9 +91,8 @@ export function LiveAnalysisPanel({ project, canExecute }: {
           }
         }
       } catch (cause) {
-        if (!controller.signal.aborted) setJobError(message(cause))
+        if (!controller.signal.aborted) setError(message(cause))
       }
-      if (!controller.signal.aborted) setPolling(false)
     }
 
     timer = setTimeout(() => { void check() }, 0)
@@ -112,7 +100,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
       controller.abort()
       clearTimeout(timer)
     }
-  }, [analysisId, jobId, jobOperation, project.id, service])
+  }, [analysisId, jobId, project.id, service])
 
   const action = async (operation: () => Promise<void>) => {
     if (mutationActive.current) return
@@ -132,10 +120,6 @@ export function LiveAnalysisPanel({ project, canExecute }: {
     setResultError('')
     setReportId('')
     setJobId(jobFromResult(record))
-    setJob(null)
-    setPolling(false)
-    setJobCheckedAt(null)
-    setJobError('')
     setResponse(null); setStatus('Đã nhận kết quả chạy phân tích.')
   })
   const loadResult = () => action(async () => {
@@ -144,37 +128,10 @@ export function LiveAnalysisPanel({ project, canExecute }: {
     if (objectId(record?.['analysisRunId']) !== analysisId) {
       setReportId('')
       setJobId('')
-      setJob(null)
-      setPolling(false)
     }
     setLatestResult(record)
     setResultError('')
     setResponse(null)
-  })
-
-  const changeJob = (operation: 'check' | 'retry') => action(async () => {
-    const id = jobId.trim()
-    if (!service || !id || (operation === 'retry' && !canExecute)) return
-    setPolling(false)
-    setJobOperation(operation)
-    setJobError('')
-    try {
-      const result = operation === 'check' ? await service.getJob(id) : await service.retryJob(id)
-      const record = asRecord(result)
-      const nextId = objectId(record?.['jobId'])
-      if (operation === 'retry') {
-        if (!nextId) throw new Error('Máy chủ chưa trả mã tác vụ mới.')
-        setJobId(nextId)
-      } else if (nextId !== id || record?.['analysisRunId'] !== analysisId) {
-        throw new Error('Máy chủ trả về tác vụ không khớp với lần phân tích hiện tại.')
-      }
-      setJob(result)
-      setJobCheckedAt(new Date())
-    } catch (cause) {
-      setJobError(message(cause))
-    } finally {
-      setJobOperation(null)
-    }
   })
 
   if (!service) return <p>Analysis API chỉ khả dụng trong chế độ đăng nhập trực tuyến.</p>
@@ -227,11 +184,6 @@ export function LiveAnalysisPanel({ project, canExecute }: {
           : latestResult ? <AnalysisResultOverview result={latestResult} runId={analysisId} service={service} />
             : <ModuleNotice>Chưa có kết quả phân tích cho project này.</ModuleNotice>}
     </section>
-
-    {(Boolean(jobId) || asRecord(assessment) !== null) && <AnalysisJobPanel jobId={jobId} job={job} assessment={assessment} busy={busy} operation={jobOperation} polling={polling}
-      checkedAt={jobCheckedAt} error={jobError} canRetry={canExecute}
-      onCheck={() => { void changeJob('check') }} onRetry={() => { void changeJob('retry') }}
-      onResult={() => { void loadResult() }} />}
 
     <details className={styles['disclosure']}>
       <summary>Tổng kết và PDF</summary>

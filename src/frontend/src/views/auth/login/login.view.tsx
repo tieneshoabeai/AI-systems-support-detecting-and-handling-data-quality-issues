@@ -7,12 +7,12 @@ import { LoginSceneSkeleton } from '../../../components/loading'
 import { DataVerseMark } from '../../../components/branding'
 import { authGlassDebugModes, parseAuthGlassView } from '../../../graphics/auth-glass/auth-glass.config'
 import type { AuthGlassPanel } from '../../../types'
-import { parseDisplayBaseView } from '../../../graphics/auth-glass/display-base/display-base.config'
 import '../login-glass.css'
 import { createAccountService } from '../../../services/auth/account.service'
 import { PasswordRecoveryDialog } from './sections/password-recovery-dialog'
-import { usePreviewColorScheme } from '../../../hooks/preview/use-preview-color-scheme'
+import { usePreviewColorScheme } from '../../../hooks/ui/use-workbench-color-scheme'
 import { ColorModeSelect } from '../../../components/appearance/color-mode-select'
+import { LoginGlassSurface } from './sections/login-glass-surface'
 
 const compactLoginQuery = '(width < 992px)'
 const sceneLoadTimeoutMs = 10_000
@@ -25,11 +25,6 @@ const AuthGlassStage = lazy(async () => {
 const AuthGlassReview = lazy(async () => {
   const { AuthGlassReview } = await import('../../../components/graphics/auth-glass/auth-glass.scene')
   return { default: AuthGlassReview }
-})
-
-const DisplayBaseReview = lazy(async () => {
-  const { DisplayBaseReview } = await import('../../../components/graphics/auth-glass/display-base/display-base.review')
-  return { default: DisplayBaseReview }
 })
 
 export const LoginView = () => {
@@ -101,12 +96,6 @@ export const LoginView = () => {
   const thickness = thicknessParam?.trim() ? Number(thicknessParam) : NaN
   const lensThickness = Number.isFinite(thickness) ? Math.min(200, Math.max(0, thickness)) : undefined
   const reviewView = parseAuthGlassView(searchParams.get('view')) ?? (overlay ? 'hero' : undefined)
-  if (import.meta.env.DEV && searchParams.get('preview') === 'display-base') {
-    const view = parseDisplayBaseView(searchParams.get('view'))
-    return <Suspense fallback={null}>
-      <DisplayBaseReview view={view} overlay={overlay && view === 'front'} slabs={searchParams.get('slabs') === '1'} />
-    </Suspense>
-  }
   if (import.meta.env.DEV && reviewView) {
     return <Suspense fallback={null}><AuthGlassReview view={reviewView} overlay={overlay && reviewView === 'hero'} low={low} /></Suspense>
   }
@@ -140,6 +129,7 @@ export const LoginView = () => {
           </LoginSceneBoundary>
         </div>}
         {activePanel === 'login' ? <section className="auth-glass-login-form auth-glass-form-panel" ref={formElement} hidden={sceneLoading} aria-labelledby="page-heading">
+          {!sceneLoading && <LoginGlassSurface key={appearance.resolved} theme={appearance.resolved} />}
           <DataVerseMark className="auth-glass-sign-in-mark" />
           <div className="auth-glass-sign-in-content">
             <header className="auth-glass-form-header">
@@ -196,6 +186,7 @@ export const LoginView = () => {
           hidden={sceneLoading}
           aria-labelledby="register-heading"
         >
+          {!sceneLoading && <LoginGlassSurface key={appearance.resolved} theme={appearance.resolved} />}
           <DataVerseMark className="auth-glass-sign-in-mark" />
           <div className="auth-glass-sign-in-content">
             <header className="auth-glass-form-header">

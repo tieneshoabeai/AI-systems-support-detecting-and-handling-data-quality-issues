@@ -18,8 +18,6 @@ Là điểm lắp ráp ứng dụng. Tầng này chọn entry, tạo runtime, g�
 - `WorkbenchRoutes()` đăng ký route 2D chính thức và chuyển hướng URL cũ. Các route Management/Processing luôn yêu cầu phiên, không có cờ bỏ guard. `WorkbenchEntry()` chỉ ghép BrowserRouter và vẫn cần AuthProvider từ caller.
 - Các route Management/Processing nằm dưới `ApplicationFrame` (tầng views), giữ chung phiên UI/theme qua `Outlet`. Guard vẫn bao bên ngoài; việc dùng chung giao diện không thay đổi xác thực hay kết nối API.
 
-## 4. Cách dùng (ví dụ)
-
 ```ts
 import { validReturnTarget } from './app/router/return-target'
 
@@ -56,7 +54,7 @@ Các folder chuẩn được giữ theo trách nhiệm. Đặt file trong `pages
 
 ## 6. Luồng hoạt động
 
-`index.html` → `main.tsx` → `Application` → providers → router → guard/page → view. Management, Processing và Dataset 3D đi qua runtime auth cả dev lẫn production. Chỉ `/preview/workspaces-3d` còn là công cụ preview riêng ở dev. AuthProvider giữ runtime, khôi phục phiên và đăng ký snapshot.
+`index.html` → `main.tsx` → `Application` → providers → router → guard/page → view. Management, Processing và Dataset 3D đi qua runtime auth cả dev lẫn production. AuthProvider giữ runtime, khôi phục phiên và đăng ký snapshot.
 
 ## 7. Cấu hình
 
@@ -72,7 +70,7 @@ Provider sở hữu vòng đời runtime, còn `dispose()` đóng tài nguyên. 
 
 ## 9. Test & debug
 
-Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/auth-flow.test.tsx src/__tests__/auth/private-pages.test.tsx src/__tests__/auth/workbench-return-target.test.ts`. Kiểm `/`, `/auth/login`, `/processing`, `/processing/projects/:projectId` và 404 tại `/workspaces`, `/workspaces/3d-dataset`. Preview dev có `/preview/workspaces-3d`; URL 2D cũ `/#/preview/workspaces` chuyển về `/management/workspaces`.
+Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/auth-flow.test.tsx src/__tests__/auth/private-pages.test.tsx src/__tests__/auth/workbench-return-target.test.ts`. Kiểm `/`, `/auth/login`, `/processing`, `/processing/projects/:projectId` và 404 tại `/workspaces`, `/workspaces/3d-dataset`. URL 2D cũ `/#/preview/workspaces` chuyển về `/management/workspaces`.
 
 ## 10. Giới hạn & lưu ý
 

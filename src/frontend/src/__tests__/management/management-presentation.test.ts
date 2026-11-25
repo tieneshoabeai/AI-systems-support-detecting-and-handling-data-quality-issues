@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { byNewestFirst, monthlyProgressFor, workspaceStatsFor } from '../../hooks/preview/preview-presentation'
-import { previewMockStore } from '../../services/preview/preview-mock.service'
+import { byNewestFirst, monthlyProgressFor, workspaceStatsFor } from '../../hooks/workbench/workbench-presentation'
+import { previewMockStore } from '../support/management-mock-store'
 
 afterEach(() => vi.useRealTimers())
 

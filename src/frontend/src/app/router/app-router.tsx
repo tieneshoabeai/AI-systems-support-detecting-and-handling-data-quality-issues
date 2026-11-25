@@ -5,7 +5,7 @@ import { SessionStatus } from '../guards/protected-route'
 import { PublicOnlyRoute } from '../guards/public-only-route'
 import { LoginPage } from '../pages/public/login-page'
 import { PageSkeleton } from '../../components/loading'
-import { legacyManagementRedirect } from '../../services/preview/preview-route'
+import { legacyManagementRedirect } from '../../services/navigation/legacy-workbench-route'
 import { defaultAuthenticatedPath } from '../../services/navigation'
 import { LOGIN_PATH } from '../constants'
 

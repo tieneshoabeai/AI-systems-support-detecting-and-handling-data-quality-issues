@@ -12,8 +12,6 @@ Lưu ảnh, logo và font tĩnh được React/CSS tham chiếu. Tầng này kh�
 
 Không có hàm hoặc component. Import ảnh từ TypeScript cho URL kiểu `string`. CSS dùng đường dẫn tương đối qua `url(...)`.
 
-## 4. Cách dùng (ví dụ)
-
 ```tsx
 import logo from './assets/8DA AI Network Logo.png'
 
@@ -59,7 +57,7 @@ Giữ đúng tên file và chữ hoa/thường. Khi đổi ảnh hoặc font, ki
 
 ## 9. Test & debug
 
-Chạy `yarn dev`, mở `/auth/login` để kiểm nền, `/preview/workspaces-3d` để kiểm logo và `/#/preview/workspaces` để kiểm ảnh thẻ. Dùng Network/Computed để kiểm URL và font.
+Chạy `yarn dev`, mở `/auth/login` để kiểm nền và `/#/preview/workspaces` để kiểm ảnh thẻ. Dùng Network/Computed để kiểm URL và font.
 
 ## 10. Giới hạn & lưu ý
 

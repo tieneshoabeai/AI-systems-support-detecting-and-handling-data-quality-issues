@@ -1,3 +1,4 @@
+import type { SceneStatusListener } from './type'
 import { requireDefined } from '../../../utils/required-value'
 import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react'
@@ -20,7 +21,6 @@ import './auth-glass.css'
 
 const { camera: cameraConfig, viewport, panels, seamPosition, slab, dragThreshold } = authGlassConfig
 type FormRef = RefObject<HTMLElement | null>
-type SceneStatusListener = (status: 'ready' | 'failed') => void
 
 type StartAssemblyDrag = (event: ThreeEvent<PointerEvent>, invalidate: () => void) => void
 

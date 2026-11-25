@@ -1,3 +1,4 @@
+import type { CameraEditorProps, HeroHover } from './type'
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -57,10 +58,6 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure(): void }
   override render() { return this.state.failed ? null : this.props.children }
 }
 
-type CameraEditorProps = {
-  cameraEditing: boolean
-  onCameraSnapshot(this: void, value: string): void
-}
 
 function CameraControls({ reducedMotion, cubeFocus, setConnection, cameraEditing, onCameraSnapshot, onFocusComplete }: CameraEditorProps & {
   onFocusComplete?: (theme: NeonCubeThemeId) => void
@@ -241,7 +238,6 @@ function setCanvasCursor(element: HTMLCanvasElement, value: string) {
   if (element.style.cursor !== value) element.style.cursor = value
 }
 
-type HeroHover = { id: string; label: string; x: number; y: number }
 
 type CoreStructureProps = {
   reducedMotion: boolean

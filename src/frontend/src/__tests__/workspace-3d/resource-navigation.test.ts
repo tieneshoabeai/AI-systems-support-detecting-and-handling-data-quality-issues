@@ -4,7 +4,7 @@ import { PerspectiveCamera, Vector3 } from 'three'
 import { layoutResources } from '../../math/workspace-3d/resource-layout'
 import { routeCurve, routeResources } from '../../math/workspace-3d/resource-routing'
 import { fitPose, nodeCorners, overviewDirection, overviewPose, panPose } from '../../math/workspace-3d/resource-camera'
-import { extendedPreviewResources, previewResources } from '../../views/workspace-3d/preview-resources'
+import { extendedPreviewResources, previewResources } from './resource-fixtures'
 import type { ResourceNode } from '../../types'
 
 const many: ResourceNode[] = [requireDefined(previewResources[0], 'resource-navigation.test.ts:10'), { id: 'p', name: 'Project', kind: 'project', parentId: requireDefined(previewResources[0], 'resource-navigation.test.ts:10').id },

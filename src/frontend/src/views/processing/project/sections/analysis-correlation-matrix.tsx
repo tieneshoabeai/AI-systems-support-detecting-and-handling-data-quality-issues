@@ -1,3 +1,4 @@
+import type { Position } from './type'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
@@ -38,7 +39,6 @@ function parseCell(value: unknown) {
 }
 
 type Cell = NonNullable<ReturnType<typeof parseCell>>
-type Position = { row: number; column: number }
 
 function readMatrix(matrix: Record<string, unknown>) {
   const cells = new Map<string, Map<string, Cell>>()

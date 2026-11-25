@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { HistogramBucket } from '../../../../services/processing/dataset.service'
+import type { HistogramBucket } from '../../../../types/processing/dataset-records.types'
 import styles from './project-charts.module.css'
 
 const rangeNumber = new Intl.NumberFormat('vi-VN', { maximumSignificantDigits: 6 })

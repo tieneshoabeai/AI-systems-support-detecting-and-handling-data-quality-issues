@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import type { NotificationFilterTab, PreviewNotification } from '../../../types'
-import {
-  matchNotificationTab, notificationIcon, notificationKindLabels,
-  notificationTabsFor, noticeDetailReason,
-  previewNoteIds, previewReasons,
-} from '../../preview/preview-data'
-import type { NoticeOpenGap } from '../../preview/preview-data'
-import { PreviewShell } from '../../preview/components/preview-shell'
-import { PreviewIcon } from '../../preview/components/preview-icons'
-import { ActionNote, EmptyHint, FilterTabs, Pagination, Panel } from '../../preview/components/preview-primitives'
-import { usePreviewSession } from '../../preview/preview-session-context'
+import { matchNotificationTab, notificationIcon, notificationKindLabels, notificationTabsFor, noticeDetailReason, previewNoteIds, previewReasons } from '../../../hooks/workbench/workbench-presentation'
+import type { NoticeOpenGap } from '../../../hooks/workbench/workbench-presentation'
+import { PreviewShell } from '../../application/components/workbench-shell'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { ActionNote, EmptyHint, FilterTabs, Pagination, Panel } from '../../../components/resource/presentation/resource-presentation'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
 
 // Màn Thông báo theo nhóm 01 của UI-UX/Global Application Shell/Design Board:
 //   1.1 dropdown chuông (đã có ở topbar) → 1.2 danh sách → 1.3 chi tiết.

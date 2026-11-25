@@ -1,13 +1,14 @@
+import type { CenterView } from './type'
 import { useMemo, useRef, useState } from 'react'
 import type { NotificationFilterTab, PreviewNotification } from '../../../types'
 import {
   matchNotificationQuery, matchNotificationTab, notificationIcon, notificationKindLabels,
   notificationTabsFor, noticeDetailReason, previewNoteIds, previewReasons,
-} from '../../../hooks/preview/preview-presentation'
-import type { NoticeOpenGap } from '../../../hooks/preview/preview-presentation'
+} from '../../../hooks/workbench/workbench-presentation'
+import type { NoticeOpenGap } from '../../../hooks/workbench/workbench-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { FilterTabs, Pagination } from '../../resource'
-import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
 
 // Trung tâm thông báo chạy HOÀN TOÀN trong ô popover chuông, theo đặc tả
 // `UI-UX/Global Application Shell/đặc tả.txt` dòng 5: "hiện thông báo chưa đọc trong 1 ô khi
@@ -28,7 +29,6 @@ const perPage = 10
 // Số bản chưa đọc hiển thị ngay ở dropdown (Design Board 1.1 vẽ 5 dòng).
 const quickLimit = 5
 
-type CenterView = 'quick' | 'list' | 'detail'
 
 // Một dòng ở dropdown nhanh: icon · tiêu đề · bối cảnh · thời gian · chấm chưa đọc.
 // Bấm dòng KHÔNG tự đánh dấu đã đọc — Design Board 1.3 đặt nút "Đánh dấu đã đọc" riêng, nghĩa

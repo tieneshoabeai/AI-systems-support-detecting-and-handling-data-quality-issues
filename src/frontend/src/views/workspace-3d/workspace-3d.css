@@ -61,25 +61,6 @@
 .resource-empty h2 { font-size: 24px; }
 .resource-empty p { color: var(--color-muted); }
 .resource-footer { margin: 24px 0 0; text-align: center; font-size: 10px; color: var(--color-muted); }
-.resource-fixture-control { display: flex; justify-content: center; padding: 0 20px 28px; }
-.local-csv-picker { max-width: 1000px; margin: 20px auto 0; padding: 20px; border: 1px solid var(--color-line); border-radius: 16px; background: white; }
-.local-csv-picker label { display: block; font-weight: 650; margin-bottom: 12px; }
-.local-csv-picker input { max-width: 100%; font: inherit; font-size: 12px; }
-.local-csv-picker p { color: var(--color-muted); font-size: 12px; line-height: 1.6; }
-.local-csv-dialog { width: min(1100px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; border: 1px solid var(--color-line); border-radius: 20px; padding: 24px; color: var(--color-ink); background: white; }
-.local-csv-dialog::backdrop { background: rgb(10 35 28 / 45%); }
-.local-csv-dialog header, .local-csv-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.local-csv-dialog h2 { font-size: 21px; overflow-wrap: anywhere; margin: 8px 0; }
-.local-csv-dialog p, .local-csv-dialog footer { font-size: 12px; color: var(--color-muted); }
-.local-csv-dialog footer { margin-top: 16px; }
-.local-csv-table { max-height: 55dvh; overflow: auto; border: 1px solid var(--color-line); border-radius: 10px; }
-.local-csv-table table { border-collapse: separate; border-spacing: 0; min-width: 100%; font-size: 12px; text-align: left; }
-.local-csv-table th, .local-csv-table td { padding: 10px 14px; border-bottom: 1px solid var(--color-line); max-width: 320px; min-width: 90px; overflow-wrap: anywhere; white-space: pre-wrap; vertical-align: top; }
-.local-csv-table thead th { position: sticky; top: 0; z-index: 1; background: #e9f4ee; color: #234739; }
-.local-csv-table tbody th { min-width: 40px; color: var(--color-muted); }
-.local-csv-table tr:last-child > * { border-bottom: 0; }
-.local-csv-empty { color: var(--color-muted); font-style: italic; }
-.local-csv-caption { padding: 10px; text-align: left; }
 @media (max-width: 850px) {
   .resource-map-layout { grid-template-columns: minmax(0, 1fr); }
   .resource-intro { align-items: start; flex-direction: column; gap: 18px; }

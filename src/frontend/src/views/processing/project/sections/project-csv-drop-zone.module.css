@@ -1,0 +1,96 @@
+.u432 {
+  --ux-surface: var(--pv-surface);
+  --ux-surface-2: var(--pv-surface-2);
+  --ux-ink: var(--pv-ink);
+  --ux-ink-2: var(--pv-muted);
+  --ux-line: var(--pv-line);
+  --ux-line-2: var(--pv-line-strong);
+  --ux-accent: var(--pv-ink-link);
+  --ux-accent-soft: color-mix(in srgb, var(--ux-accent) 12%, transparent);
+  --ux-mint: var(--pv-ink-green);
+  --ux-ease: cubic-bezier(.2, .8, .2, 1);
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.u432 .zone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 280px);
+  min-height: 228px;
+  padding: 12px;
+  border: 0;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--ux-ink) 2.5%, transparent);
+  color: var(--ux-ink);
+  cursor: pointer;
+  font: inherit;
+  transform: scale(var(--zone-scale, 1));
+  transition: background-color .25s var(--ux-ease), transform .5s cubic-bezier(.3, 1.5, .5, 1);
+}
+.u432 .zone::before {
+  position: absolute;
+  inset: 0;
+  border: 1.5px dashed var(--ux-line-2);
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+  transition: border-color .25s var(--ux-ease);
+}
+.u432 .zone:disabled { cursor: default; }
+.u432 .zone:focus-visible { outline: 2px solid var(--ux-accent); outline-offset: 3px; }
+@media (hover: hover) {
+  .u432 .zone:enabled:hover::before { border-color: color-mix(in srgb, var(--ux-ink) 30%, transparent); }
+}
+.u432[data-dragging='true'] .zone { --zone-scale: 1.03; background: var(--ux-accent-soft); }
+.u432[data-dragging='true'] .zone::before { border-style: solid; border-color: var(--ux-accent); }
+.u432 .idle, .u432 .selected { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; max-width: 100%; }
+.u432 .idle strong { font-size: 14.5px; font-weight: 650; letter-spacing: -.015em; }
+.u432 .idle small { margin-top: 5px; color: var(--ux-ink-2); font-size: 12px; }
+.u432 .uploadIcon {
+  display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 14px;
+  border-radius: 18px; background: light-dark(var(--ux-surface), var(--ux-surface-2));
+  color: var(--ux-ink-2); box-shadow: 0 0 0 1px var(--ux-line), 0 10px 22px -12px var(--ux-ink-2);
+  animation: bob 2.6s ease-in-out infinite;
+  transition: color .2s, transform .4s cubic-bezier(.3, 1.6, .5, 1);
+}
+.u432[data-dragging='true'] .uploadIcon { color: var(--ux-accent); animation: none; transform: translateY(-8px) scale(1.08); }
+.u432 .uploadIcon svg, .u432 .check svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+.u432 .uploadIcon svg { width: 24px; height: 24px; stroke-width: 2; }
+.u432 .stage { position: relative; display: grid; place-items: center; width: 112px; height: 112px; }
+.u432 .ring { position: absolute; inset: 0; width: 112px; height: 112px; transform: rotate(-90deg); }
+.u432 .ring circle { fill: none; stroke-width: 4; stroke-linecap: round; }
+.u432 .track { stroke: var(--ux-line); }
+.u432 .arc { stroke: var(--ux-accent); stroke-dasharray: 76 289; transform-origin: center; }
+.u432[data-phase='pending'] .arc { animation: spin 1s linear infinite; }
+.u432[data-phase='success'] .arc { stroke: var(--ux-mint); stroke-dasharray: 289; }
+.u432 .document { width: 50px; height: 62px; overflow: visible; animation: drop .75s cubic-bezier(.3, 1.2, .5, 1) both; }
+.u432 .paper { fill: var(--ux-surface-2); stroke: var(--ux-line-2); stroke-width: 1.4; }
+.u432 .fold, .u432 .inkLine { fill: var(--ux-line-2); }
+.u432 .tag { fill: var(--ux-accent); }
+.u432 .document text { fill: var(--ux-surface); font: 800 8.5px/1 system-ui, sans-serif; letter-spacing: .02em; }
+.u432 .check {
+  position: absolute; right: 18px; bottom: 16px; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 50%; background: var(--ux-mint); color: var(--ux-surface);
+  box-shadow: 0 0 0 3px var(--ux-surface), 0 6px 14px -6px var(--ux-mint);
+  animation: check-opacity .15s both, check-pop .55s cubic-bezier(.3, 1.9, .5, 1) both;
+}
+.u432 .check svg { width: 15px; height: 15px; stroke-width: 3; }
+.u432 .filename { margin-top: 12px; max-width: min(100%, 240px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.u432 .file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+@keyframes bob { 50% { transform: translateY(-5px); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes check-opacity { from { opacity: 0; } to { opacity: 1; } }
+@keyframes check-pop { from { transform: scale(.2); } to { transform: none; } }
+@keyframes drop {
+  0% { transform: translateY(-150px) rotate(-14deg); opacity: 0; }
+  45% { transform: translateY(4px) rotate(2deg) scale(1.06, .9); opacity: 1; }
+  65% { transform: translateY(-3px) scale(.98, 1.03); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .u432 *, .u432 *::before { animation: none !important; transition: none !important; }
+  .u432[data-dragging='true'] .zone, .u432[data-dragging='true'] .uploadIcon { transform: none; }
+}

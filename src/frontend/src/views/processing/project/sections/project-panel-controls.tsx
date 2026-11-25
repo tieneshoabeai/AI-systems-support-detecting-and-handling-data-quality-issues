@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import type { Grip } from './type'
+import { useEffect, useId, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { queueProjectGlassGeometry } from '../../../../graphics/holographic-core/project-glass-motion'
 import styles from '../project-workspace.module.css'
@@ -25,7 +26,6 @@ function measure(panel: HTMLElement, stage: HTMLElement) {
 
 type Geometry = Partial<Pick<ReturnType<typeof measure>, 'width' | 'height' | 'right' | 'top'>>
 type Drag = ReturnType<typeof measure> & { pointer: number; x: number; y: number }
-type Grip = 'edge' | 'corner' | 'move'
 
 function usePanelGrip(panel: HTMLElement | null, kind: Grip) {
   const drag = useRef<Drag | null>(null)
@@ -149,11 +149,17 @@ function usePanelGrip(panel: HTMLElement | null, kind: Grip) {
 
 function ResizeGrip({ panel, kind }: { panel: HTMLElement; kind: 'edge' | 'corner' }) {
   const grip = usePanelGrip(panel, kind)
+  const hintId = useId()
   if (!grip) return null
   const label = kind === 'corner' ? 'Đổi chiều rộng và chiều cao cửa sổ' : 'Đổi chiều rộng cửa sổ'
-  return <button type="button" className={`${styles['resizeGrip']} ${styles[kind === 'corner' ? 'resizeCorner' : 'resizeEdge']}`}
-    aria-label={label} title={`${label}. Kéo hoặc dùng phím mũi tên. Bấm để mở rộng hoặc đặt lại.`}
-    {...grip.pointerProps} onKeyDown={grip.onKeyDown} onClick={event => grip.click(event.detail)} />
+  const direction = kind === 'corner' ? 'phím mũi tên' : 'phím mũi tên trái hoặc phải'
+  const hint = `Dùng ${direction} để đổi kích thước. Giữ Shift để tăng bước. Nhấn Home để đặt lại.`
+  return <>
+    <button type="button" className={`${styles['resizeGrip']} ${styles[kind === 'corner' ? 'resizeCorner' : 'resizeEdge']}`}
+      aria-label={label} aria-describedby={hintId} title={hint}
+      {...grip.pointerProps} onKeyDown={grip.onKeyDown} onClick={event => grip.click(event.detail)} />
+    <span id={hintId} className="visually-hidden">{hint}</span>
+  </>
 }
 
 export function ProjectPanelResize({ panel }: { panel: HTMLElement | null }) {

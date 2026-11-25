@@ -1,4 +1,4 @@
-type Vec3 = [number, number, number]
+import type { Vec3 } from './type'
 
 export type DisplayBaseTier = {
   name: string

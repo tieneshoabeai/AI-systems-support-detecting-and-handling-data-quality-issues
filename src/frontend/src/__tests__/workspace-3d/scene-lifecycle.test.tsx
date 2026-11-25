@@ -8,7 +8,7 @@ import type { RootState } from '@react-three/fiber'
 import { ResourceScene, SceneController } from '../../components/graphics/workspace-3d/resource-scene'
 import { ResourceCameraController } from '../../components/graphics/workspace-3d/resource-camera-controller'
 import { layoutResources } from '../../math/workspace-3d/resource-layout'
-import { extendedPreviewResources, previewResources } from '../../views/workspace-3d/preview-resources'
+import { extendedPreviewResources, previewResources } from './resource-fixtures'
 import { fitPose, overviewDirection, overviewPose } from '../../math/workspace-3d/resource-camera'
 
 const mode = vi.hoisted(() => ({ fail: false }))

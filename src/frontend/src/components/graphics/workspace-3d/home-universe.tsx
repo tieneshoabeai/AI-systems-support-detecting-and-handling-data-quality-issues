@@ -1,3 +1,4 @@
+import type { Palette } from './type'
 import { requireDefined } from '../../../utils/required-value'
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -5,7 +6,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { AdditiveBlending, Color, DoubleSide, NormalBlending } from 'three'
 import type { Group, Mesh } from 'three'
 import { useSceneMotion } from '../../../hooks/workspace-3d'
-import { setNumberUniform, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
+import { setNumberUniform, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/scene-runtime'
 import { HeroSpaceHole } from './hero-space-hole'
 
 class UniverseBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
@@ -27,7 +28,6 @@ class UniverseBoundary extends Component<{ children: ReactNode; fallback: ReactN
 
 type Mix = { value: number }
 
-type Palette = { a: string; b: string; rim: string }
 
 type PlanetSpec = {
   size: number

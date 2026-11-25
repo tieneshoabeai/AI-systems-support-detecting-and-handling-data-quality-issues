@@ -13,7 +13,6 @@ export type ResourceMapProps = {
   selectedId: string | null
   onSelect: (id: string | null) => void
   onOpenDataset?: (id: string) => void
-  localFileMode?: boolean
 }
 
 export type PositionedResource = {

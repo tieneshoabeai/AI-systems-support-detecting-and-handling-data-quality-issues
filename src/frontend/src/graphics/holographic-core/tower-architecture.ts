@@ -1,3 +1,4 @@
+import type { TowerFace } from './type'
 import { requireDefined } from '../../utils/required-value'
 // One tower, as a function of its own dimensions (CODE ARCHITECTURE IMPROVEMENT PLAN, Phase 4 / S1).
 // It takes no ids and no angles — placement belongs to tower-ring.ts — and its material values come from
@@ -71,7 +72,6 @@ export function createTowerMaterials(): TowerMaterials {
   }
 }
 
-type TowerFace = { axis: 'x' | 'z'; sign: 1 | -1; index: number; rotation: number }
 
 const TOWER_FACES: TowerFace[] = [
   { axis: 'z', sign: 1, index: 0, rotation: 0 },

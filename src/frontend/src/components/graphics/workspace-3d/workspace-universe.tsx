@@ -7,7 +7,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import type { Group } from 'three'
 import { useSceneMotion } from '../../../hooks/workspace-3d'
-import { setPreviewEnvironment, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/preview-scene-runtime'
+import { setPreviewEnvironment, updatePreviewCameraZoom } from '../../../graphics/workspace-3d/scene-runtime'
 
 class Boundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   override state = { failed: false }

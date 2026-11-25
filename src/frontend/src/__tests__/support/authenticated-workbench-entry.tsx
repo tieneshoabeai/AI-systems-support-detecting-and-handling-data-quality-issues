@@ -1,3 +1,6 @@
+import { useContext } from 'react'
+import { ManagementStoreContext } from '../../hooks/management/use-management-store'
+import { previewMockStore } from './management-mock-store'
 import { AuthContext } from '../../hooks/auth/auth-context'
 import { WorkbenchEntry } from '../../app/router/workbench-routes'
 import type { AuthContextValue } from '../../types/auth/auth-context.types'
@@ -24,6 +27,9 @@ const routingSession: AuthContextValue = {
   confirmRenewal: () => Promise.resolve(),
 }
 
-export const AuthenticatedWorkbenchEntry = () => (
-  <AuthContext.Provider value={routingSession}><WorkbenchEntry /></AuthContext.Provider>
-)
+export function AuthenticatedWorkbenchEntry() {
+  const store = useContext(ManagementStoreContext) ?? previewMockStore
+  return <ManagementStoreContext.Provider value={store}>
+    <AuthContext.Provider value={routingSession}><WorkbenchEntry /></AuthContext.Provider>
+  </ManagementStoreContext.Provider>
+}

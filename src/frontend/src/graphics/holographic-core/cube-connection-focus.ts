@@ -1,10 +1,10 @@
+import type { Stage } from './type'
 import { PerspectiveCamera, Vector3 } from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { NeonCubeThemeId } from '../../types'
 import { cubeConnectionOverview } from './cube-connection-paths'
 
 type Pose = { position: Vector3; target: Vector3 }
-type Stage = 'idle' | 'overview' | 'drawing' | 'focused'
 
 export const CONNECTION_REVEAL_SECONDS = 1.2
 

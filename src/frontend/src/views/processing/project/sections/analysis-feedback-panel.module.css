@@ -24,4 +24,12 @@ details > summary.findingTrigger {
   background: var(--pv-blue-fill);
   box-shadow: 0 4px 12px var(--pv-blue-soft);
 }
-:global([data-theme='light']) details > summary.findingTrigger:hover { background: var(--pv-blue-fill-hover); }
+:global([data-theme='light']) details > summary.findingTrigger:not([data-has-feedback]):hover { background: var(--pv-blue-fill-hover); }
+details > summary.findingTrigger[data-has-feedback='true'] {
+  min-inline-size: 44px;
+  box-sizing: border-box;
+  text-align: center;
+  color: var(--pv-ink-green);
+  background: color-mix(in srgb, var(--pv-green) 16%, var(--pv-bg-0));
+  box-shadow: none;
+}

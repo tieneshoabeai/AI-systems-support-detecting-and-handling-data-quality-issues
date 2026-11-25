@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "packageManager": "yarn@1.22.22",
   "type": "module",
+  "allowScripts": {
+    "@ybouane/liquidglass": false
+  },
   "scripts": {
     "gen:types": "node scripts/generate-swagger-types.mjs",
     "dev": "vite",
@@ -21,6 +24,7 @@
   "dependencies": {
     "@react-three/fiber": "9.8.2",
     "@tanstack/react-query": "5.104.5",
+    "@ybouane/liquidglass": "1.0.3",
     "axios": "1.20.0",
     "dexie": "4.4.7",
     "react": "^19.3.1",

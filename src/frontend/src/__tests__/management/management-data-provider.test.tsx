@@ -1,17 +1,17 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../hooks/auth/auth-context'
-import { usePreviewStore } from '../../hooks/preview/use-preview-store'
+import { usePreviewStore } from '../../hooks/management/use-management-store'
 import { createSessionStorage } from '../../lib/session-storage'
 import { useContext, type ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 import { ManagementDataProvider, ProcessingDataProvider } from '../../views/application/management-data-provider'
 import { ProcessingDataContext } from '../../views/application/processing-data-context'
-import { PreviewSessionProvider } from '../../views/preview/preview-session'
+import { PreviewSessionProvider } from '../../views/application/workbench-session'
 import { ProjectWorkspaceView } from '../../views/processing/project/project-workspace.view'
 import { ProcessingView } from '../../views/processing/home/processing.view'
-import { ManagementArea } from '../../views/preview/preview-entry'
-import { ManagementLoadingContext, ManagementPersonalLoadingContext } from '../../hooks/preview/management-loading-context'
+import { ManagementArea } from '../../views/management/management-area'
+import { ManagementLoadingContext, ManagementPersonalLoadingContext } from '../../hooks/management/management-loading-context'
 import { DataRegionStatus } from '../../components/loading/data-region-status'
 import type { AuthContextValue } from '../../types/auth/auth-context.types'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
@@ -103,6 +103,10 @@ it('shows a live card while both supplementary requests are pending and keeps vi
   const menu = within(card).getByRole<HTMLButtonElement>('button', { name: 'Thao tác với Project 1' })
   expect(menu.disabled).toBe(true)
 
+  await waitFor(() => {
+    expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/members' }))
+    expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/projects/p1/datasets' }))
+  })
   await act(async () => {
     finishMembers({ members: [{ userId: 'u1', role: 'viewer', name: 'Viewer' }] })
     finishDataset({ dataset: null })
@@ -294,6 +298,39 @@ it('renders project rows before workspace names and reuses one lookup across row
   expect(await screen.findByText('p3')).toBeDefined()
   expect(await screen.findByText('Workspace chung')).toBeDefined()
   expect(transport.request.mock.calls.filter(([r]) => r.path === '/workspaces/shared')).toHaveLength(1)
+})
+
+it('shows Home and publishes overview totals while other Management data is still loading', async () => {
+  transport.request.mockImplementation(r => {
+    if (r.path === '/workspaces') return new Promise(() => {})
+    if (r.path === '/overview/workspaces') return Promise.resolve({
+      totalWorkspaces: 24, totalProjects: 42, ownedWorkspaces: 12, sharedWorkspaces: 12, myProjects: 13,
+    })
+    return response(r)
+  })
+  render(tree(authenticated, undefined, <MemoryRouter initialEntries={['/management']}>
+    <PreviewSessionProvider routeIds={{}}><ManagementArea /></PreviewSessionProvider>
+  </MemoryRouter>))
+
+  expect(screen.getByRole('complementary', { name: 'Điều hướng chính' })).toBeDefined()
+  expect(screen.getByText('Chào mừng đến với DataVerse')).toBeDefined()
+  expect(await screen.findByText('42')).toBeDefined()
+  expect(screen.getByRole('status', { name: 'Đang tải trạng thái Project' })).toBeDefined()
+  expect(screen.getByRole('status', { name: 'Đang tải Workspace gần đây' })).toBeDefined()
+})
+
+it('keeps the Workspaces introduction and filters visible while workspace data loads', () => {
+  transport.request.mockImplementation(r => r.path === '/workspaces' ? new Promise(() => {}) : response(r))
+  render(tree(authenticated, undefined, <MemoryRouter initialEntries={['/management/workspaces']}>
+    <PreviewSessionProvider routeIds={{}}><ManagementArea /></PreviewSessionProvider>
+  </MemoryRouter>))
+
+  expect(screen.getByRole('complementary', { name: 'Điều hướng chính' })).toBeDefined()
+  expect(screen.getByRole('heading', { name: 'Workspaces', level: 1 })).toBeDefined()
+  expect(screen.getByPlaceholderText('Tìm kiếm Workspace…')).toBeDefined()
+  expect(screen.getByRole('status', { name: 'Đang tải thống kê Workspace' })).toBeDefined()
+  expect(screen.getByRole('status', { name: 'Đang tải danh sách Workspace' })).toBeDefined()
+  expect(screen.queryByText('Không có kết quả')).toBeNull()
 })
 
 it('shows Management navigation and waits for workspace data before reporting a missing workspace', async () => {

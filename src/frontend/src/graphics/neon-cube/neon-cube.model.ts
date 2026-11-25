@@ -1,3 +1,4 @@
+import type { Vec3, ThemeLinear, Hotspot } from './type'
 import { isMesh } from '../common/typed-objects'
 import { requireDefined } from '../../utils/required-value'
 import type { NeonCubeThemeId } from '../../types'
@@ -155,9 +156,6 @@ export type NeonCubeOptions = {
   theme?: NeonCubeThemeId | NeonCubeTheme
 }
 
-type Vec3 = readonly [number, number, number]
-type ThemeLinear = readonly [number, number, number]
-type Hotspot = { x: number; z: number; radius: number; strength: number }
 
 const UNIT_SCALE = new THREE.Vector3(1, 1, 1)
 

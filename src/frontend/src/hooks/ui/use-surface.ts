@@ -1,8 +1,7 @@
+import type { SurfaceSide, SurfaceOrigin } from './type'
 import { requireDefined } from '../../utils/required-value'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import type { RefObject } from 'react'
-type SurfaceSide = 'bottom' | 'right'
-type SurfaceOrigin = { kind: 'pointer'; x: number; y: number } | { kind: 'anchor'; element: HTMLElement }
 
 // Browser-only positioning, focus and dismissal. No application navigation dependency.
 // useLayoutEffect clamps the surface before its first painted frame.

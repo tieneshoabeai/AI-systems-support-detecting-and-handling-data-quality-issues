@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
-import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
-import type { Workspace, Project } from '../../../types/preview/preview.types'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import type { Workspace, Project } from '../../../types/management/management.types'
 
 export function ResourceAccessActions({ resource, kind, onClose }: { resource: Workspace | Project; kind: 'workspace' | 'project'; onClose: () => void }) {
   const store = useManagementStore()

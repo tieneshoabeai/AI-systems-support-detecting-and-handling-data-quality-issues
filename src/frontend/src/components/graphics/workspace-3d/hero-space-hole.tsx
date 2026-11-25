@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { setNumberUniform } from '../../../graphics/workspace-3d/preview-scene-runtime'
+import { setNumberUniform } from '../../../graphics/workspace-3d/scene-runtime'
 
 // A separate screen-facing lens effect: a dark silhouette, thin photon ring,
 // asymmetric accretion disk and a bent image of the disk above the horizon.

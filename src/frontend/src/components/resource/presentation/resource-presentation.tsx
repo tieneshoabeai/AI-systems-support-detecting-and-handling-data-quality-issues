@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { CoverHue, DatasetStatus, ProjectStatus, TrendStat, WorkspaceStatus } from '../../../types'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { SelectedResourceArt } from '../avatar/resource-avatar'
-import { useResourceAvatar } from '../../../hooks/resource/use-resource-avatar'
+import { pictures, useResourceAvatar } from '../../../hooks/resource/use-resource-avatar'
 import { AdaptiveArt } from '../artwork/adaptive-art'
 import { Badge } from '../../ui/primitives/badge'
 import { Tabs } from '../../ui/data-display/tabs'
@@ -12,6 +12,7 @@ import { EmptyState } from '../../ui/feedback/empty-state'
 import { Pagination as UiPagination } from '../../ui/data-display/pagination'
 
 const workspaceLabels: Record<WorkspaceStatus, string> = { active: 'Đang hoạt động', paused: 'Tạm dừng', archived: 'Đã lưu trữ' }
+const workspaceCoverMotifs = pictures.map(picture => picture.id)
 const projectLabels: Record<ProjectStatus, string> = {
   active: 'Đang hoạt động', paused: 'Tạm dừng', processing: 'Đang xử lý', completed: 'Đã hoàn thành', archived: 'Đã lưu trữ',
 }
@@ -75,8 +76,13 @@ export function CoverArt({ hue, seed, kind = 'workspace' }: { hue: CoverHue; see
   // ID ổn định giữ ảnh nhất quán giữa danh sách, chi tiết và hộp sửa;
   // không chọn ảnh theo vị trí hiện tại hay tên có thể đổi của bản ghi.
   const hash = Array.from(String(seed)).reduce((value, char) => (Math.imul(value, 31) + char.charCodeAt(0)) >>> 0, 0)
-  const motif = requireDefined((kind === 'workspace' ? ['network', 'orbits', 'lattice'] : ['flow', 'scan', 'branches'])[hash % 3], 'cover motif')
-  return avatar ? <SelectedResourceArt value={avatar} /> : <span className={`cover-art adaptive-cover cover-${hue} cover-kind-${kind}`} aria-hidden="true" data-seed={seed} data-art={hash % 3}><AdaptiveArt motif={motif} tone={hue} /></span>
+  if (avatar) return <SelectedResourceArt value={avatar} />
+  const variants = kind === 'workspace'
+    ? typeof seed === 'string' ? workspaceCoverMotifs : ['network', 'orbits', 'lattice']
+    : ['flow', 'scan', 'branches']
+  const artIndex = hash % variants.length
+  const motif = requireDefined(variants[artIndex], 'cover motif')
+  return <span className={`cover-art adaptive-cover cover-${hue} cover-kind-${kind}`} aria-hidden="true" data-seed={seed} data-art={artIndex}><AdaptiveArt motif={motif} tone={hue} /></span>
 }
 
 export function Panel({ title, action, children, className }: {

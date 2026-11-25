@@ -1,13 +1,14 @@
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import type { CenterView } from './type'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import { useMemo, useState } from 'react'
 import type { PreviewReport, ReportAttachment, ReportFilterTab, ReportIssueType, ReportStatus } from '../../../types'
 import {
   matchReportQuery, matchReportTab,
   reportIssueTypeLabels, reportIssueTypeOptions, reportStatusMeta, reportTabsFor,
-} from '../../../hooks/preview/preview-presentation'
+} from '../../../hooks/workbench/workbench-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { FilterTabs, Pagination } from '../../resource'
-import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
 
 // Trung tâm báo cáo vấn đề chạy HOÀN TOÀN trong ô popover của nút "?" trên topbar, theo đặc tả
 // `UI-UX/Global Application Shell/đặc tả.txt` dòng 7: bấm "?" có 2 nút (tạo báo cáo mới · xem tất
@@ -23,7 +24,6 @@ import { usePreviewSession } from '../../../hooks/preview/preview-session-contex
 // 6 dòng/trang theo đúng con số đặc tả nêu ("chuyển trang hiển thị 6 cái là được").
 const perPage = 6
 
-type CenterView = 'landing' | 'create' | 'list' | 'detail'
 
 // Định dạng dung lượng tệp người dùng vừa chọn. Frame không đọc nội dung tệp (chưa có API upload)
 // nên chỉ hiển thị tên + cỡ do trình duyệt báo lại — không bịa "đã tải lên".

@@ -15,20 +15,8 @@ if (!rootElement) {
 const root = createRoot(rootElement)
 root.render(<PageSkeleton pathname={window.location.pathname} message="Đang mở ứng dụng" />)
 
-// The standalone Workspace 3D preview remains a separate development tool.
-// Management, Processing and Dataset 3D always use the application auth runtime.
-const is3DPreview = import.meta.env.DEV && window.location.pathname === '/preview/workspaces-3d'
-
-if (is3DPreview) {
-  void import('../views/workspace-3d/workspace-3d-preview').then(({ Workspace3DPreview }) => {
-    root.render(<React.StrictMode><Workspace3DPreview /></React.StrictMode>)
-  }).catch(() => {
-    root.render(<main className="session-wait" role="alert"><h1>Không thể mở preview 3D</h1><p>Hãy tải lại trang hoặc kiểm tra dev server.</p></main>)
-  })
-} else {
-  void import('./application-bootstrap').then(({ Application }) => {
-    root.render(<React.StrictMode><Application /></React.StrictMode>)
-  }).catch(() => {
-    root.render(<main className="session-wait" role="alert"><h1>Không thể khởi tạo ứng dụng</h1><p>Hãy tải lại trang hoặc kiểm tra kết nối.</p></main>)
-  })
-}
+void import('./application-bootstrap').then(({ Application }) => {
+  root.render(<React.StrictMode><Application /></React.StrictMode>)
+}).catch(() => {
+  root.render(<main className="session-wait" role="alert"><h1>Không thể khởi tạo ứng dụng</h1><p>Hãy tải lại trang hoặc kiểm tra kết nối.</p></main>)
+})

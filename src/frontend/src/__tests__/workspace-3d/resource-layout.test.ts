@@ -1,7 +1,7 @@
 import { requireDefined } from '../../utils/required-value'
 import { describe, expect, it } from 'vitest'
 import { advanceFlow, layoutResources, resourceTrail, validateResources } from '../../math/workspace-3d/resource-layout'
-import { extendedPreviewResources, previewResources } from '../../views/workspace-3d/preview-resources'
+import { extendedPreviewResources, previewResources } from './resource-fixtures'
 
 describe('resource model and deterministic layout', () => {
   it('maps every parent relation, including the 30-resource fixture, without mutating input', () => {

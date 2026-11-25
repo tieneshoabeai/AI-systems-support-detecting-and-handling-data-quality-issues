@@ -1,27 +1,24 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import type { ViewMode, DetailSort } from './type'
+import { lazy, Suspense, useContext, useMemo, useRef, useState } from 'react'
+import { ManagementLoadingContext } from '../../../hooks/management/management-loading-context'
+import { DataRegionStatus } from '../../../components/loading/data-region-status'
+import { WorkspaceCardsSkeleton, WorkspaceStatsSkeleton } from '../../../components/loading/page-skeleton'
 import { Button } from '../../../components/ui/primitives/button'
-import { PreviewPopover } from '../../preview/components/preview-popover'
-import { ResourceBreadcrumb } from '../../preview/components/resource-breadcrumb'
+import { PreviewPopover } from '../../../components/ui/overlay/workbench-popover'
+import { ResourceBreadcrumb } from '../../application/components/resource-breadcrumb'
 import styles from './workspaces.module.css'
 import type { PreviewMenuOrigin, Project, ProjectStatus, Workspace, WorkspaceOwnershipFilter, WorkspaceRoleFilter, WorkspaceSort } from '../../../types'
-import {
-  byNewestFirst, datasetCountOf, matchWorkspaceOwnership, matchWorkspaceQuery, matchWorkspaceRole, monthlyProgressFor,
-  projectStatusBuckets, projectsOf, sortWorkspaces,
-  workspaceOwnershipOptions, workspaceRoleOptions, workspaceSortOptions, workspaceStatsFor,
-} from '../../preview/preview-data'
-import { Avatar, PreviewShell } from '../../preview/components/preview-shell'
-import { PreviewIcon } from '../../preview/components/preview-icons'
-import { CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut } from '../../preview/components/preview-primitives'
-import { ResourceAvatarPicker } from '../../preview/components/resource-avatar'
-import { WorkspaceCreateDialog } from './sections/workspace-create-dialog'
-import { usePreviewSession } from '../../preview/preview-session-context'
-import { projectMenu, workspaceMenu } from '../../preview/preview-menu'
-import { previewCardProps, stopCardBubble } from '../../preview/preview-card'
+import { byNewestFirst, datasetCountOf, matchWorkspaceOwnership, matchWorkspaceQuery, matchWorkspaceRole, monthlyProgressFor, projectStatusBuckets, projectsOf, sortWorkspaces, workspaceOwnershipOptions, workspaceRoleOptions, workspaceSortOptions, workspaceStatsFor } from '../../../hooks/workbench/workbench-presentation'
+import { Avatar, PreviewShell } from '../../application/components/workbench-shell'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { CoverArt, EmptyHint, Pagination, Panel, ProgressBar, StatRow, StatusBadge, StatusDonut } from '../../../components/resource/presentation/resource-presentation'
+import { WorkspaceCreateDialog } from '../../../components/workspace/dialogs/workspace-create-dialog'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { projectMenu, workspaceMenu } from '../../../hooks/resource/resource-menu'
+import { previewCardProps, stopCardBubble } from '../../../hooks/resource/resource-card'
 
-type ViewMode = 'grid' | 'list'
 const WorkspaceUniverse = lazy(() => import('../../../components/graphics/workspace-3d/workspace-universe'))
 const cubeFallback = <div className="workspace-hero-fallback">{Array.from({ length: 7 }, (_, i) => <i key={i} />)}</div>
-type DetailSort = 'recent' | 'name'
 
 const statusFilterLabels: Record<ProjectStatus, string> = {
   active: 'Đang hoạt động', paused: 'Tạm dừng', processing: 'Đang xử lý',
@@ -212,7 +209,6 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
     <ResourceBreadcrumb
       parents={[{ label: 'Workspaces', icon: 'workspaces', onClick: () => session.openSection('workspaces') }]}
       current={{ label: workspace.name, icon: 'workspaces' }} />
-    <ResourceAvatarPicker key={workspace.id} kind="workspace" id={workspace.id} />
     <StatRow stats={stats} />
 
     <div className="detail-charts">
@@ -279,6 +275,7 @@ function WorkspaceDetailView({ workspace }: { workspace: Workspace }) {
 
 export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | null }) {
   const session = usePreviewSession()
+  const status = useContext(ManagementLoadingContext)
   const [query, setQuery] = useState('')
   const [ownership, setOwnership] = useState<WorkspaceOwnershipFilter>('all')
   const [role, setRole] = useState<WorkspaceRoleFilter>('all')
@@ -334,7 +331,9 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
       </button>
     </section>
 
-    <StatRow stats={workspaceStatsFor(state)} />
+    {status?.phase === 'loading' ? <DataRegionStatus status={status} label="Đang tải thống kê Workspace">
+      <WorkspaceStatsSkeleton />
+    </DataRegionStatus> : !status && <StatRow stats={workspaceStatsFor(state)} />}
 
     <div className="toolbar">
       <div className="toolbar-right">
@@ -365,7 +364,9 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
       </div>
     </div>
 
-    {visible.length === 0
+    {status ? <DataRegionStatus status={status} label="Đang tải danh sách Workspace">
+      <WorkspaceCardsSkeleton list={view === 'list'} />
+    </DataRegionStatus> : visible.length === 0
       ? <EmptyHint title="Không có kết quả" note="Thử đổi một trong ba bộ lọc (quyền sở hữu · vai trò · sắp xếp) hoặc từ khóa tìm kiếm." />
       : <div className={`card-grid${view === 'list' ? ' is-list' : ''}`}>
         {visible.map(workspace => <WorkspaceCard key={workspace.id} workspace={workspace}
@@ -374,9 +375,9 @@ export function WorkspacesPreviewView({ workspaceId }: { workspaceId?: string | 
 
     {/* Ảnh khung 1: chân trang có dòng "Hiển thị … của … Workspaces", nút lật và ô "Số dòng".
         28 là TRẦN một trang theo yêu cầu chủ batch; ô chọn chỉ cho 10 · 20 · 28. */}
-    <Pagination label="Phân trang workspace" total={filtered.length} page={safePage} perPage={perPage}
+    {!status && <Pagination label="Phân trang workspace" total={filtered.length} page={safePage} perPage={perPage}
       unit="Workspaces" perPageOptions={workspacePerPageOptions} onPage={setPage}
-      onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />
+      onPerPage={size => { setPerPage(size); setPage(1) }} hideWhenEmpty />}
 
     {creating && <WorkspaceCreateDialog existingNames={state.workspaces.map(item => item.name)}
       onClose={() => setCreating(false)} />}

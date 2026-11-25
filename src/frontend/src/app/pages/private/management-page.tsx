@@ -1,1 +1,1 @@
-export { ManagementArea as ManagementPage } from '../../../views/preview/preview-entry'
+export { ManagementArea as ManagementPage } from '../../../views/management/management-area'

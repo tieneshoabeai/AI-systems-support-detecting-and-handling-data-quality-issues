@@ -1,17 +1,17 @@
 import { useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PreviewMenuOrigin, Project } from '../../../types'
-import { byNewestFirst } from '../../../hooks/preview/preview-presentation'
-import { originFromEvent } from '../../../hooks/preview/preview-card'
-import { projectMenu } from '../../../hooks/preview/preview-menu'
-import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
+import { byNewestFirst } from '../../../hooks/workbench/workbench-presentation'
+import { originFromEvent } from '../../../hooks/resource/resource-card'
+import { projectMenu } from '../../../hooks/resource/resource-menu'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Pagination, Panel, StatusBadge } from '../../resource'
-import { ManagementLoadingContext, type ManagementLoading } from '../../../hooks/preview/management-loading-context'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { ManagementLoadingContext, type ManagementLoading } from '../../../hooks/management/management-loading-context'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 import { recentProjectsPageSize, type RecentProject, type RecentProjectsPage } from '../../../services/processing/recent-projects.service'
 import { DataRegionStatus } from '../../loading/data-region-status'
-import { Skeleton } from '../../ui/feedback/skeleton'
+import { RecentProjectSkeletonRows } from '../../loading/page-skeleton'
 
 // Both landing pages share sorting, pagination and project/menu navigation.
 export function RecentProjects({ action, onOpenProject }: { action?: ReactNode; onOpenProject?: (id: string) => void }) {
@@ -79,11 +79,12 @@ export function RecentProjects({ action, onOpenProject }: { action?: ReactNode; 
         <thead><tr><th scope="col">#</th><th scope="col">Project</th><th scope="col">Workspace</th>
           <th scope="col">Status</th><th scope="col">Last Updated</th><th scope="col">Data File</th>
           <th scope="col"><span className="visually-hidden">Actions</span></th></tr></thead>
-        <tbody>{loading ? <tr><td colSpan={7}>
-          <DataRegionStatus status={loading} label="Đang tải Projects gần đây">
-            {[1, 2, 3].map(row => <Skeleton key={row} style={{ height: '1.75rem', marginBlock: '0.5rem' }} />)}
-          </DataRegionStatus>
-        </td></tr> : visible.map((project, index) => {
+        <tbody>{loading ? <>
+          <tr className={loading.phase === 'loading' ? 'visually-hidden' : undefined}><td colSpan={7}>
+            <DataRegionStatus status={loading} label="Đang tải Projects gần đây">Đang tải Projects gần đây…</DataRegionStatus>
+          </td></tr>
+          {loading.phase === 'loading' && <RecentProjectSkeletonRows />}
+        </> : visible.map((project, index) => {
           const selection = project.selection
           const target = { kind: 'project' as const, id: project.id, name: project.name }
           const open = () => onOpenProject ? onOpenProject(project.id) : session.run('open', target)

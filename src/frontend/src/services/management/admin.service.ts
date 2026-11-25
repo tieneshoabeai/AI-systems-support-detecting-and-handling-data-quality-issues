@@ -1,3 +1,4 @@
+import type { CursorPage } from './type'
 import type { ApiClient } from '../../types/api/api.types'
 
 export type AdminUser = {
@@ -23,7 +24,6 @@ export type AdminIssue = {
   updatedAt: string
 }
 
-type CursorPage<T> = { items: T[]; meta?: { hasMore?: boolean; nextCursor?: string | null } }
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 

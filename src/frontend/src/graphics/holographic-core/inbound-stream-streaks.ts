@@ -1,3 +1,4 @@
+import type { GrainClass, StreakProfile } from './type'
 import { requireDefined } from '../../utils/required-value'
 import * as THREE from 'three'
 import type { InboundPath } from './inbound-stream-paths'
@@ -38,15 +39,6 @@ const VANISH_START = 0.9
 const VANISH_END = 1
 const STATIC_PHASE_OFFSET = 0.1
 
-type GrainClass = {
-  headRadius: number
-  tailRadius: number
-  spread: number
-  brightness: number
-  visibleWisps: number
-  bodyColor: readonly [number, number, number]
-  headColor: readonly [number, number, number]
-}
 
 // Six grain sizes, each with a fixed colour. Colours are normalised to the same body/head
 // luminance so hue, not brightness, is what distinguishes the classes.
@@ -102,16 +94,6 @@ function hash01(a: number, b: number) {
   return value - Math.floor(value)
 }
 
-type StreakProfile = {
-  jitter: number
-  bodyColor: readonly [number, number, number]
-  headColor: readonly [number, number, number]
-  visibleWisps: number
-  headRadius: number
-  tailRadius: number
-  spread: number
-  brightness: number
-}
 
 type Lane = {
   path: InboundPath

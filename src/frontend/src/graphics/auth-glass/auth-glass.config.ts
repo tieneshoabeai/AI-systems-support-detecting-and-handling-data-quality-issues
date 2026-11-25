@@ -1,7 +1,7 @@
+import type { Vec3 } from './type'
 export const authGlassViews = ['hero', 'left', 'right', 'top', 'bottom'] as const
 export type AuthGlassView = (typeof authGlassViews)[number]
 export const authGlassDebugModes = ['off', 'sdf', 'normal', 'offset'] as const
-type Vec3 = [number, number, number]
 
 const width = 2
 

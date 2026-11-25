@@ -5,6 +5,8 @@ import { AppRouter } from '../../app/router/app-router'
 import { AuthContext } from '../../hooks/auth/auth-context'
 import type { AuthContextValue } from '../../types/auth/auth-context.types'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
+import { ManagementStoreContext } from '../../hooks/management/use-management-store'
+import { previewMockStore } from '../support/management-mock-store'
 
 const calls = vi.hoisted(() => ({ dataset: vi.fn() }))
 // This suite checks route admission; data loading is covered by management-data-provider.test.
@@ -17,7 +19,7 @@ vi.mock('../../views/dataset-3d/dataset-3d.view', () => {
   calls.dataset()
   return { Dataset3DView: () => <h1>Private Dataset 3D</h1> }
 })
-vi.mock('../../views/preview/preview-entry', () => ({ ManagementArea: () => <h1>Private Management</h1> }))
+vi.mock('../../views/management/management-area', () => ({ ManagementArea: () => <h1>Private Management</h1> }))
 vi.mock('../../views/processing/processing.view', () => ({ ProcessingView: () => <h1>Private Processing</h1> }))
 
 const base = { generation: 1, sessionEnded: false, error: null, cleanupError: null }
@@ -40,7 +42,9 @@ function mount(path: string, snapshot: SessionSnapshot) {
     confirmRenewal: () => Promise.resolve(),
   }
   return render(<AuthContext.Provider value={value}>
-    <MemoryRouter initialEntries={[path]}><AppRouter /><Location /></MemoryRouter>
+    <ManagementStoreContext.Provider value={previewMockStore}>
+      <MemoryRouter initialEntries={[path]}><AppRouter /><Location /></MemoryRouter>
+    </ManagementStoreContext.Provider>
   </AuthContext.Provider>)
 }
 

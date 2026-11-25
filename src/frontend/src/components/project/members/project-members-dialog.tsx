@@ -2,12 +2,12 @@ import { Dialog } from '../../ui/overlay/dialog'
 import { ResourceAccessActions } from '../../resource/access'
 import { useEffect, useState } from 'react'
 import type { Person, PreviewProjectPanel, Project, Workspace } from '../../../types'
-import { defaultProjectRole, emailForPerson, previewNoteIds, previewReasons, projectRoleOptions } from '../../../hooks/preview/preview-presentation'
+import { defaultProjectRole, emailForPerson, previewNoteIds, previewReasons, projectRoleOptions } from '../../../hooks/workbench/workbench-presentation'
 import { Icon as PreviewIcon } from '../../ui/primitives/icon'
 import { Button } from '../../ui/primitives/button'
 import { Avatar } from '../../resource'
-import { usePreviewSession } from '../../../hooks/preview/preview-session-context'
-import { useManagementStore } from '../../../hooks/preview/use-preview-store'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
 
 // Panel "Quản lý thành viên" của PROJECT — mục thứ hai trong ⋯ của thẻ dataset
 // (ảnh DataVerse_Project_Actions_Details_v1, panel 3). Chủ batch 03/11 yêu cầu bật thật: ảnh vẽ
