@@ -34,7 +34,7 @@ const MODULE_CUBES = {
 
 const activeModules = projectModules.flatMap(module => module.id === 'detection' ? [] : [{ ...module, id: module.id }])
 const moduleForTheme = (theme: NeonCubeThemeId | undefined) =>
-  activeModules.find(module => MODULE_CUBES[module.id] === (theme === 'orange' ? 'cyan' : theme))
+  activeModules.find(module => MODULE_CUBES[module.id] === theme)
 
 // Temporarily disable the project panel while comparing page-load performance.
 const PROJECT_PANEL_ENABLED = true
@@ -60,6 +60,7 @@ export function ProjectWorkspaceView({ projectId, scene, result = null }: { proj
   const [glassPanel, setGlassPanel] = useState<HTMLElement | null>(null)
   const [panelSurface, setPanelSurface] = useState<PanelSurface>('glass')
   const selectFocus = useCallback((next: CubeFocus | null, immediate = false) => {
+    if (next?.theme === 'orange') return
     setInstant(immediate)
     setCompletedFocus(null)
     setFocus(next)

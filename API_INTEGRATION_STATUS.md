@@ -1,18 +1,42 @@
-# Tích hợp trên TaiFE — 25/11/2026
+# Rà soát nút và IndexedDB runtime — 25/11/2026
+
+## Căn cứ giữ/bỏ nút
+
+Đã fetch `origin/frontend` và xác minh commit `3a49455`. Người dùng xác nhận giữ danh sách/hành vi nút như nhánh này, giữ hình thức TaiFE. Không lấy nhận xét chung “nhiều nút” làm căn cứ tự bỏ chức năng.
+
+- Full stack yêu cầu bỏ cấu hình cột/lưu-tải cấu hình phân tích và chỉnh PII thủ công; bốn tham số phương pháp vẫn gửi trong POST phân tích.
+- Chính `frontend` đã bỏ tab/nút Detection riêng, nút Chỉ số chất lượng AI, các ô nhập ID job/run/finding/feedback và thay nhóm feedback rời rạc bằng `AnalysisFeedbackPanel`. Những thay đổi này không phải yêu cầu gộp Detection trong tài liệu full stack.
+- Đối chiếu tại `src/frontend/src/views/processing/project/project-workspace.view.tsx`, `sections/live-analysis-panel.tsx` và `sections/analysis-job-panel.tsx` của commit trên. Giữ ba tab như frontend. Đã gỡ cách ánh xạ tự thêm orange → Data Analysis; khối cam không mở module, đúng handler frontend. Các nút Kính/Nền trắng và điều khiển 3D TaiFE được giữ.
+
+## Kiểm chứng runtime IndexedDB
+
+Production app, service worker và IndexedDB native chạy thật trên Chrome; ca độc lập dùng HTTP API mô phỏng đã qua **8 tình huống**. Đã sửa duy nhất bản ghi QA trong IndexedDB thành marker không có trên API, reload để tạo runtime mới rồi kiểm tra UI hiển thị marker đó. Đo được 7 lần đọc store `reads` khi API mất kết nối nhưng navigator vẫn online, và 5 lần đọc khi ngắt toàn bộ mạng. Đây là đọc dữ liệu bền vững từ IndexedDB, không phải giữ state của runtime cũ.
+
+Đã xác minh bản ghi, kết quả phân tích, PDF hoàn chỉnh, danh sách Project đọc được ngoại tuyến; thao tác chạy mới bị khóa; Project chưa từng tải báo chưa có bản lưu; kết nối lại lấy lại giá trị API và thay marker cũ. Bằng chứng local: `temp/frontend-integration/runtime-offline-proof.json` và ảnh `runtime-*.png`.
+
+Server mới: [Swagger QA](https://additions-kid-soft-pond.trycloudflare.com/api/v1/docs). Health/ready/docs-json đều 200; vẫn 84 thao tác, `paths` và schema giống snapshot hiện tại. Cấu hình local và bản production đã chuyển sang origin mới.
+
+**E2E với API thật: 1/1 qua, gồm cả teardown (53,1 giây).** CSV tổng hợp được upload lên server, Data View gọi stats/charts, chạy phân tích với đúng bốn tham số, gửi/đọc feedback, tạo tổng kết và tải PDF có chữ ký `%PDF-`. Khi ngắt API nhưng navigator vẫn online, runtime mới đọc store `reads` 7 lần. Khi ngắt toàn bộ mạng và reload, runtime mới đọc 5 lần, UI hiển thị marker chỉ có trong IndexedDB; PDF hoàn chỉnh đã có trong cache; không nhận phản hồi API nào trong giai đoạn offline. Kết nối lại hiển thị `QA001` từ API thay marker. Lần này không còn lỗi cleanup của lượt test trước.
+
+Bộ hồi quy liên quan: **48/48 qua**; build production và TypeScript E2E qua; lint bốn tệp thay đổi không có lỗi (9 cảnh báo). Dữ liệu Workspace/Project/dataset/feedback của ca live đã được teardown dọn theo ID; đã xóa thêm hai tài khoản QA tạm và credential local. Bản xem tại `http://127.0.0.1:5179/` nối tunnel mới. Artifact live: `src/frontend/temp/runtime-live-indexeddb.log` và các attachment `indexeddb-network-error-fallback`, `indexeddb-runtime-proof` trong report local; không commit artifact/credential.
+
+---
+
+# Lượt tích hợp trước trên TaiFE — 25/11/2026
 
 ## Phạm vi và thứ tự ưu tiên
 
 Code được cập nhật trực tiếp trên `TaiFE`, giữ nền giao diện tại `511f5f9`; chọn lọc phần API từ `b2c80bb` trên nhánh tích hợp và cập nhật theo Swagger server mới. Thứ tự xử lý: hợp đồng full stack trong `API_ANSWER_24-11.md` → luồng nghiệp vụ/gộp nút từ `frontend` → hình thức và thao tác đặc trưng của TaiFE. Tài liệu trả lời full stack và thư mục yêu cầu riêng không được đưa vào commit.
 
 - Giữ theme Sáng/Tối/Theo hệ thống, bố cục Management/Processing, avatar, nền/vật liệu/mô hình 3D, Kính/Nền trắng, kéo/đổi kích thước/khôi phục panel, toàn màn hình, tách/ghép mô hình, camera và Đăng xuất.
-- Gộp Detection vào Data Analysis; khối cam vẫn mở phần phân tích. Giữ ba tab Tổng quan, Data View và Data Analysis, không thêm nút chạy Detection trùng chức năng.
+- Giữ ba tab Tổng quan, Data View và Data Analysis theo nhánh frontend. Sau lượt rà soát ở đầu tài liệu, khối cam không mở module theo đúng frontend.
 - Bỏ lưu/tải cấu hình phân tích, chọn cột/vai trò cột và chỉnh PII theo quyết định full stack. Bốn tham số phương pháp đi trực tiếp trong body chạy phân tích. PII là thông tin đọc.
 - Feedback gắn với lần chạy/phát hiện đang xem, không yêu cầu nhập ID thủ công. Kết quả có tổng quan chất lượng, thống kê và ma trận tương quan. PDF đọc trạng thái thực, báo lỗi khi `failed`; job retry theo dõi ID mới.
 - Thành viên Project được tải khi mở dialog; không tải thêm roster Workspace cho Viewer. Admin giữ hai tab TaiFE, tải theo trang với nút Tải thêm.
 - File nháp được nối vào wizard và màn upload: khôi phục/xóa nháp, giữ khi upload lỗi, dọn sau ACK, tiếp tục Project đã tạo dở. Dữ liệu Project/dataset/phân tích/PDF đã tải được lưu theo tài khoản và API origin; ngoại tuyến chỉ đọc trong phiên hợp lệ. Cache không thay thế lỗi 401/403/404, không chứa mật khẩu/refresh token hoặc trang Admin.
 - Production có service worker chỉ cache tài nguyên tĩnh để reload khi mất mạng. API và dữ liệu tài khoản dùng IndexedDB riêng. Mục chưa xem/tải khi có mạng không tự có bản ngoại tuyến.
 
-## Server QA hiện tại và kết quả đã xác minh
+## Server QA của lượt tích hợp trước và kết quả đã xác minh
 
 [Swagger mới](https://sustained-folder-europe-invest.trycloudflare.com/api/v1/docs), origin `https://sustained-folder-europe-invest.trycloudflare.com`, prefix `/api/v1`. Đã cập nhật `.env` local và sinh lại snapshot/type từ `/api/v1/docs-json`: **84 thao tác HTTP**. Con số này là inventory hợp đồng, **không phải 84 ca live đã đạt ngày 25/11**.
 
@@ -29,7 +53,7 @@ Code được cập nhật trực tiếp trên `TaiFE`, giữ nền giao diện 
 
 Build production và kiểm tra TypeScript E2E đã qua. Đã chụp sáu màn TaiFE trên Chrome (Workspace, Project, Kính, Analysis tối/sáng/mobile). Test production với API mô phỏng đã qua bảy tình huống: tải/lưu online, reload offline, bản ghi, kết quả phân tích, tải PDF, danh sách Project và kết nối lại. Các bằng chứng này tách khỏi E2E server thật.
 
-Lượt local cuối: **978/978 test qua, 0 lỗi**; hồi quy bốn suite UI liên quan 94/94. Build production và TypeScript E2E qua. Lint phần thay đổi: 79 tệp, 0 lỗi, 78 cảnh báo. Lượt chạy cùng nhiều Chrome trước đó có 5 timeout; chạy lại tuần tự đã qua toàn bộ, không tăng timeout của Vitest để che lỗi.
+Lượt local trước khi rà soát runtime: **978/978 test qua, 0 lỗi**; hồi quy bốn suite UI liên quan 94/94. Build production và TypeScript E2E qua. Lint phần thay đổi: 79 tệp, 0 lỗi, 78 cảnh báo. Lượt chạy cùng nhiều Chrome trước đó có 5 timeout; chạy lại tuần tự đã qua toàn bộ, không tăng timeout của Vitest để che lỗi.
 
 Đã xóa hai tài khoản Analyst QA tạm và các tài nguyên test còn lại theo ID/owner đã xác minh; credential tạm đã được xóa khỏi env và file trạng thái. Bản xem production tại `http://127.0.0.1:5179/` nối backend mới, yêu cầu tài khoản của người xem.
 

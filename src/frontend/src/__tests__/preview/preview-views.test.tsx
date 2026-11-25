@@ -708,7 +708,8 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   fireEvent.click(screen.getByRole('button', { name: 'Data View' }))
   fireEvent.click(screen.getByRole('button', { name: 'Chọn khối cam' }))
   expect(screen.queryByRole('button', { name: 'Detection' })).toBeNull()
-  expect(screen.getByRole('button', { name: 'Data Analysis' }).getAttribute('aria-current')).toBe('true')
+  expect(screen.getByRole('button', { name: 'Data View' }).getAttribute('aria-current')).toBe('true')
+  expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBe('blue')
   fireEvent.click(screen.getByRole('button', { name: 'Về góc tổng quan' }))
   expect(screen.getByRole('button', { name: 'Data Analysis' }).hasAttribute('aria-current')).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: 'Tách mô hình' }))
@@ -723,7 +724,7 @@ it('trang Project: chọn module cập nhật nav, giữ scene và không đổi
   expect(window.location.hash).toBe('')
 })
 
-it('trang Project: khối cam mở Data Analysis và không mở panel của focus cũ', async () => {
+it('trang Project: khối cam không mở module theo frontend và không nhận focus hoàn tất cũ', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-sales" />)
   expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull()
   expect(document.querySelector('.pj-band')).toBeNull()
@@ -732,6 +733,10 @@ it('trang Project: khối cam mở Data Analysis và không mở panel của foc
   expect((screen.getByRole<HTMLButtonElement>('button', { name: 'Tải file kết quả' })).disabled).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Chọn khối cam' }))
   expect(screen.queryByRole('complementary', { name: 'Data Analysis' })).toBeNull()
+  fireEvent.click(screen.getByText('Focus hoàn tất'))
+  expect(screen.queryByRole('complementary', { name: 'Data Analysis' })).toBeNull()
+  expect(screen.getByTestId('dataset-scene').getAttribute('data-focus')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Data Analysis' }))
   fireEvent.click(screen.getByText('Focus hoàn tất'))
   const panel = await screen.findByRole('complementary', { name: 'Data Analysis' })
   expect(within(panel).getByText(/Analysis API chỉ khả dụng/)).toBeDefined()

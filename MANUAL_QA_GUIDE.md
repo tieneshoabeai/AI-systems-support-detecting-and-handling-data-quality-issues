@@ -2,11 +2,11 @@
 
 Dùng file này để kiểm tra chức năng, giao diện và request thực tế. Phần cuối có inventory **84 thao tác HTTP**, gồm cả route nội bộ không dành cho frontend. Kết quả đã thu trước đó nằm trong [báo cáo tích hợp](API_INTEGRATION_STATUS.md). Ghi kết quả của lần chạy mới vào checklist, kể cả các ca bị chặn hoặc chưa chạy.
 
-**Chuẩn hiện tại (25/11):** ưu tiên hợp đồng full stack trong `API_ANSWER_24-11.md`, tiếp theo luồng API và cách gộp nút trên `frontend`; giữ giao diện TaiFE tại `511f5f9`. Code được cập nhật trực tiếp trên `TaiFE`. Backend đã có URL mới; kết quả chạy thực tế và giới hạn hiện tại nằm ở đầu [báo cáo tích hợp](API_INTEGRATION_STATUS.md). Checklist bên dưới là phạm vi nghiệm thu, không phải danh sách tất cả ca đã qua.
+**Chuẩn hiện tại (25/11):** ưu tiên hợp đồng full stack trong `API_ANSWER_24-11.md`, tiếp theo danh sách/hành vi nút đã đối chiếu trên `origin/frontend` tại `3a49455`; giữ giao diện TaiFE tại `511f5f9`. Người dùng đã xác nhận theo frontend về các nút. Code được cập nhật trực tiếp trên `TaiFE`. Kết quả runtime IndexedDB và API thật nằm ở đầu [báo cáo tích hợp](API_INTEGRATION_STATUS.md). Checklist bên dưới là phạm vi nghiệm thu, không phải danh sách tất cả ca đã qua.
 
 ## 1. Chuẩn bị
 
-- [ ] Mở [Swagger QA](https://sustained-folder-europe-invest.trycloudflare.com/api/v1/docs). Nếu tunnel đã đổi, lấy link mới của **cùng môi trường QA**. Kiểm tra `/health` và `/health/ready` trên origin backend. Nếu Swagger không mở hoặc `/health` lỗi kết nối, ghi `BLOCKED`, giữ nguyên số liệu cũ và báo người vận hành trước khi thử mutation.
+- [ ] Mở [Swagger QA](https://additions-kid-soft-pond.trycloudflare.com/api/v1/docs). Nếu tunnel đã đổi, lấy link mới của **cùng môi trường QA**. Kiểm tra `/health` và `/health/ready` trên origin backend. Nếu Swagger không mở hoặc `/health` lỗi kết nối, ghi `BLOCKED`, giữ nguyên số liệu cũ và báo người vận hành trước khi thử mutation.
 - [ ] Kiểm tra `src/frontend/.env`: `VITE_API_BASE_URL` là origin backend HTTPS, `VITE_API_PREFIX=/api/v1`, `VITE_SWAGGER_URL` là URL trang docs. Khởi động lại Vite sau khi đổi cấu hình. Dùng URL Vite in ra, thường là `localhost:5173`. Lệnh PowerShell khi cần chạy HTTP local: `cd src/frontend`, `$env:DEV_HTTPS = 'false'`, `npm run dev`.
 - [ ] Chuẩn bị hai profile trình duyệt cho **Analyst A** và **Analyst B**, một profile cho **Admin**, và một tài khoản QA mới để thử đăng ký, OTP, đổi mật khẩu, thu hồi phiên và xóa tài khoản. Dùng hộp thư QA có thể nhận OTP. Đăng nhập Google bằng tài khoản QA của bạn khi kiểm tra OAuth.
 - [ ] Đặt tên dữ liệu thử theo `QA-YYYYMMDD-<tên>-<số>` và ghi lại ID của Workspace, Project, dataset, report và feedback vừa tạo. Dùng CSV, ảnh PNG hoặc PDF tổng hợp. Chỉ đổi quyền hoặc xóa dữ liệu vừa tạo cho lần test; bỏ qua xóa nếu chưa xác minh được ID. Issue QA và tệp có thể còn lại vì Swagger chưa có DELETE; dùng issue dành riêng cho test và đánh dấu `resolved` sau khi thử.
@@ -52,7 +52,7 @@ Q010,A,90,905,2026-11-10
 
 ### C. Processing, 3D, Data View và phân tích
 
-- [ ] Mở trực tiếp `/processing/projects/<projectId>` và qua danh sách. Kiểm tra breadcrumb, tổng quan dataset, menu Project, ba module **Tổng quan / Data View / Data Analysis**, đóng/mở panel. Detection đã được gộp vào kết quả phân tích; không yêu cầu nút riêng. Thử điều hướng bàn phím, màn hẹp, tải chậm và khi scene 3D không khả dụng.
+- [ ] Mở trực tiếp `/processing/projects/<projectId>` và qua danh sách. Kiểm tra breadcrumb, tổng quan dataset, menu Project, ba module **Tổng quan / Data View / Data Analysis**, đóng/mở panel. Theo frontend `3a49455`, Detection không có tab riêng và khối cam không mở module; không được mở trùng Data Analysis. Thử điều hướng bàn phím, màn hẹp, tải chậm và khi scene 3D không khả dụng.
 - [ ] **Data View:** so sánh số dòng/cột với CSV, lấy trang trước/sau bằng mẫu đủ lớn, lọc/tìm `A`, sắp xếp `score`, áp dụng nhiều điều kiện, thử không có kết quả rồi tải lại. Tải CSV gốc và mở file để kiểm tra tên và nội dung.
 - [ ] **Phân bố dữ liệu:** chọn `score`, bấm **Tải thống kê cột** và xem cả `/stats` lẫn `/charts`. Kiểm tra histogram ở chế độ Số bản ghi/Tỷ trọng, Box Plot có hộp/râu/trung vị và số điểm ngoài râu, kể cả cột có giá trị giống nhau. Chọn `nhom` và tải lại, kiểm tra Top N cùng số bản ghi/tỷ trọng/nhóm còn lại. Cột bị ẩn phải không hiện nhãn giá trị. Nếu charts lỗi nhưng stats thành công, UI phải báo fallback.
 - [ ] **Data Analysis:** thử tải kết quả trước lần đầu; chạy phân tích với bốn tham số phương pháp và kiểm tra body POST. Không có lưu/tải cấu hình cột hay nút sửa PII. Đối chiếu `analysisRunId` và job; thử lại trên job QA, xác nhận UI theo dõi ID mới. Kết quả hiển thị chỉ số chất lượng, thống kê, tương quan và feedback đúng lần chạy/phát hiện; JSON nằm trong Chi tiết kỹ thuật.
@@ -229,5 +229,7 @@ Dùng tài khoản và dữ liệu QA được phép. Để thử refresh khi m�
 6. Trong Data Analysis → Tổng kết và PDF → chọn “PDF đã lưu trên thiết bị” → tải PDF khi đang Offline. PDF mới còn HTTP 202 hoặc job failed không được xuất hiện trong danh sách bản hoàn chỉnh.
 7. Khi Offline, thử tạo/sửa/xóa/upload/chạy phân tích → không có thao tác ghi thành công giả. Bật mạng, chọn “Kết nối lại” → đọc dữ liệu mới; không tự gửi lại thao tác ghi đã bị chặn.
 8. Đăng xuất tài khoản A, đăng nhập B → B không thấy dữ liệu hoặc nháp của A. Cache đọc của A được dọn; đăng nhập lại A còn hạn mới được khôi phục nháp của A. Xác minh 401/403/404 từ server không bị thay bằng cache.
+
+Ca tự động `tests/e2e/api/analysis-offline.spec.ts` kiểm tra nguồn dữ liệu ở runtime mới: chỉ thay bản ghi tổng hợp của chính ca test trong IndexedDB bằng marker, reload và xác nhận marker xuất hiện khi offline; có đếm các lệnh đọc IndexedDB native. Ca còn chặn riêng API trong khi `navigator.onLine` vẫn true để kiểm tra fallback lỗi mạng. Khi nối lại, giá trị gốc từ server phải thay marker. API HTTP không được mock trong ca E2E này; ca production dùng HTTP mô phỏng được ghi riêng trong báo cáo.
 
 Ghi rõ URL QA, kết quả thực tế và dữ liệu thử đã dọn. Tách ca dùng HTTP giả khỏi ca chạy server thật; riêng worker AI, OTP, Google OAuth và quyền Admin cần đủ hạ tầng/tài khoản mới kết luận đầu cuối.

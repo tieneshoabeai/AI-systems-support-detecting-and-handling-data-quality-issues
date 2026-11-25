@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { expect } from '@playwright/test'
+import type { Route } from '@playwright/test'
 import { test } from '../support/live-fixture'
 import { apiUrl, data, directRequest, get, matchesApi, record, responseFor, text } from '../support/live-api'
+import { installOfflineRuntimeProbe, markOwnedIndexedDbRecord, readOfflineRuntimeProbe } from '../support/offline-runtime-probe'
 
 test('runs analysis, feedback and offline reads using only its own synthetic CSV', async ({ page, live }) => {
   test.setTimeout(180_000)
   const prefix = `TaiFE-E2E-${randomUUID()}`
+  await installOfflineRuntimeProbe(page)
   const headers = { Authorization: `Bearer ${live.session.token}` }
   const network: { method: string; path: string; status: number }[] = []
   page.on('response', response => {
@@ -132,12 +135,42 @@ test('runs analysis, feedback and offline reads using only its own synthetic CSV
 
   const productionShell = test.info().project.use.serviceWorkers === 'allow'
   if (productionShell) await page.evaluate(async () => { await navigator.serviceWorker.ready })
+  const marker = `IDB-ONLY-${prefix}`
+  const persisted = await markOwnedIndexedDbRecord(page, {
+    accountId: live.session.accountId, namespace: apiUrl('/').replace(/\/$/, ''), datasetId, marker,
+  })
+  expect(persisted.patched).toBeGreaterThan(0)
+  expect(persisted.paths).toContain(`/projects/${projectId}/analysis/result`)
+  const onlineRuntime = await readOfflineRuntimeProbe(page)
+  await page.waitForLoadState('networkidle')
+  const receivedBeforeOffline = network.length
+  const backendPattern = `${new URL(apiUrl('/')).origin}/**`
+  const disconnectBackend = (route: Route) => route.abort('connectionfailed')
+  await page.route(backendPattern, disconnectBackend)
+  // A disconnected backend does not always change navigator.onLine. Reload with
+  // only API traffic blocked to exercise the runtime's network-error fallback too.
+  try {
+    await page.reload()
+    await expect(page.getByText('Đang xem ngoại tuyến · Chỉ đọc', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Data View', exact: true }).click()
+    await expect(page.getByRole('cell', { name: marker, exact: true })).toBeVisible()
+    const disconnectedRuntime = await readOfflineRuntimeProbe(page)
+    expect(disconnectedRuntime.online).toBe(true)
+    expect(disconnectedRuntime.boot).not.toBe(onlineRuntime.boot)
+    expect(disconnectedRuntime.reads).toBeGreaterThan(0)
+    expect(network.length).toBe(receivedBeforeOffline)
+    await test.info().attach('indexeddb-network-error-fallback', { body: Buffer.from(JSON.stringify(disconnectedRuntime)), contentType: 'application/json' })
+  } finally { await page.unroute(backendPattern, disconnectBackend) }
   await page.context().setOffline(true)
   try {
     if (productionShell) await page.reload()
     await expect(page.getByText('Đang xem ngoại tuyến · Chỉ đọc', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Data View', exact: true }).click()
-    await expect(page.getByRole('cell', { name: 'QA001', exact: true })).toBeVisible()
+    await expect(page.getByRole('cell', { name: marker, exact: true })).toBeVisible()
+    const offlineRuntime = await readOfflineRuntimeProbe(page)
+    expect(offlineRuntime.online).toBe(false)
+    expect(offlineRuntime.reads).toBeGreaterThan(0)
+    if (productionShell) expect(offlineRuntime.boot).not.toBe(onlineRuntime.boot)
     await page.getByRole('button', { name: 'Data Analysis', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Chạy phân tích', exact: true })).toBeDisabled()
     await expect(page.getByText('Dòng đã quét', { exact: true })).toBeVisible()
@@ -152,7 +185,15 @@ test('runs analysis, feedback and offline reads using only its own synthetic CSV
       await page.goto('/management/projects')
       await expect(page.getByRole('heading', { name: `${prefix}-project`, exact: true })).toBeVisible()
     }
+    expect(network.length).toBe(receivedBeforeOffline)
+    await test.info().attach('indexeddb-runtime-proof', {
+      body: Buffer.from(JSON.stringify({ freshRuntime: productionShell, onlineRuntime, offlineRuntime, persisted, serverResponsesWhileOffline: network.length - receivedBeforeOffline })),
+      contentType: 'application/json',
+    })
   } finally { await page.context().setOffline(false) }
-  await page.getByRole('button', { name: 'Kết nối lại', exact: true }).click().catch(() => {})
   await expect(page.getByText('Đang xem ngoại tuyến · Chỉ đọc', { exact: true })).toHaveCount(0)
+  await page.goto(`/processing/projects/${projectId}`)
+  await page.getByRole('button', { name: 'Data View', exact: true }).click()
+  await expect(page.getByRole('cell', { name: 'QA001', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: marker, exact: true })).toHaveCount(0)
 })
