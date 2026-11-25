@@ -1,0 +1,465 @@
+import type { LaneSamples, ParticleSeed, BeadSeed } from './type'
+import { requireDefined } from '../../utils/required-value'
+import * as THREE from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import type { NeonCubeThemeId } from '../../types'
+import { CUBE_CONNECTIONS } from './cube-connection-paths'
+import {
+  CLEAN_LOOP_POINTS,
+  CORE_VISUAL_REVISION,
+  DETECTION_ANCHOR,
+  ISSUE_CONSTELLATION,
+  resolveCoreNucleus,
+  resolveIssueLanes,
+  type Vec3,
+} from './core-visual-config'
+
+// Resolved once per build; the revision is a compile-time switch.
+const CORE_NUCLEUS = resolveCoreNucleus(CORE_VISUAL_REVISION)
+const ISSUE_LANES = resolveIssueLanes(CORE_VISUAL_REVISION)
+
+export type IssueConstellation = {
+  root: THREE.Group
+  update(elapsedSeconds: number, deltaSeconds: number): void
+  reset(): void
+  setDetached(detached: boolean): void
+  setConnection(theme: NeonCubeThemeId | null, progress: number): void
+  dispose(): void
+}
+
+
+
+
+const IDENTITY_QUATERNION = new THREE.Quaternion()
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)))
+  return t * t * (3 - 2 * t)
+}
+
+function buildLaneSamples(points: readonly Vec3[], closed: boolean, segments: number): LaneSamples {
+  const curve = new THREE.CatmullRomCurve3(points.map(point => new THREE.Vector3(...point)), closed, 'catmullrom', 0.5)
+  const count = closed ? segments : segments + 1
+  const array = new Float32Array(count * 3)
+  const sample = new THREE.Vector3()
+  for (let index = 0; index < count; index += 1) {
+    curve.getPoint(index / segments, sample)
+    array[index * 3] = sample.x
+    array[index * 3 + 1] = sample.y
+    array[index * 3 + 2] = sample.z
+  }
+  return { points: array, segments, closed }
+}
+
+function sampleLane(lane: LaneSamples, t: number, target: THREE.Vector3) {
+  const wrapped = ((t % 1) + 1) % 1
+  const scaled = wrapped * lane.segments
+  const i0 = lane.closed ? Math.floor(scaled) % lane.segments : Math.min(Math.floor(scaled), lane.segments - 1)
+  const i1 = lane.closed ? (i0 + 1) % lane.segments : i0 + 1
+  const blend = scaled - Math.floor(scaled)
+  const a = i0 * 3
+  const b = i1 * 3
+  target.set(
+    requireDefined(lane.points[a], 'issue-constellation.ts:82') + (requireDefined(lane.points[b], 'issue-constellation.ts:82') - requireDefined(lane.points[a], 'issue-constellation.ts:82')) * blend,
+    requireDefined(lane.points[a + 1], 'issue-constellation.ts:83') + (requireDefined(lane.points[b + 1], 'issue-constellation.ts:83') - requireDefined(lane.points[a + 1], 'issue-constellation.ts:83')) * blend,
+    requireDefined(lane.points[a + 2], 'issue-constellation.ts:84') + (requireDefined(lane.points[b + 2], 'issue-constellation.ts:84') - requireDefined(lane.points[a + 2], 'issue-constellation.ts:84')) * blend,
+  )
+}
+
+function createGlowTexture(): THREE.DataTexture {
+  const size = 64
+  const data = new Uint8Array(size * size * 4)
+  const center = (size - 1) / 2
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const radius = Math.hypot(x - center, y - center) / center
+      const alpha = Math.round(255 * Math.pow(Math.max(0, 1 - radius), 2.2))
+      const offset = (y * size + x) * 4
+      data[offset] = 255
+      data[offset + 1] = 255
+      data[offset + 2] = 255
+      data[offset + 3] = alpha
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.magFilter = THREE.LinearFilter
+  texture.minFilter = THREE.LinearFilter
+  texture.generateMipmaps = false
+  texture.needsUpdate = true
+  return texture
+}
+
+export type IssueConstellationOptions = {
+  // v4 draws its chamber rings inside the spool, so the constellation skips the old bands.
+  nucleusBands?: boolean
+}
+
+export function createIssueConstellation(options: IssueConstellationOptions = {}): IssueConstellation {
+  const root = new THREE.Group()
+  root.name = 'issue-constellation'
+
+  const disposables: Array<{ dispose(): void }> = []
+  const particlePosition = new THREE.Vector3()
+  const particleScale = new THREE.Vector3()
+  const particleMatrix = new THREE.Matrix4()
+  const beadPosition = new THREE.Vector3()
+  const beadScale = new THREE.Vector3()
+  const beadMatrix = new THREE.Matrix4()
+  const color = new THREE.Color()
+
+  // 1. Horizontal nucleus bands: three thin HDR rings merged into one draw call.
+  if (options.nucleusBands !== false) {
+    const bandGeometries = CORE_NUCLEUS.bands.map(band => {
+      const geometry = new THREE.TorusGeometry(band.radius, band.tube, 6, 64)
+      geometry.rotateX(Math.PI / 2)
+      geometry.translate(0, band.y, 0)
+      const count = geometry.getAttribute('position').count
+      const colors = new Float32Array(count * 3)
+      for (let index = 0; index < count; index += 1) {
+        colors[index * 3] = band.linear[0]
+        colors[index * 3 + 1] = band.linear[1]
+        colors[index * 3 + 2] = band.linear[2]
+      }
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+      return geometry
+    })
+    const bandGeometry = mergeGeometries(bandGeometries, false)
+    for (const geometry of bandGeometries) geometry.dispose()
+    if (!bandGeometry) throw new Error('Không gộp được geometry dải nucleus')
+    const bandMaterial = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    })
+    const bands = new THREE.Mesh(bandGeometry, bandMaterial)
+    bands.name = 'nucleus-bands'
+    bands.renderOrder = 7
+    bands.raycast = () => {}
+    root.add(bands)
+    disposables.push(bandGeometry, bandMaterial)
+  }
+
+  // 2. Record beads: two counter-rotating rings of tiny octahedra around the nucleus.
+  const beadSeeds: BeadSeed[] = []
+  CORE_NUCLEUS.beadRings.forEach((ring, ringIndex) => {
+    for (let index = 0; index < ring.count; index += 1) {
+      beadSeeds.push({
+        angle: (index / ring.count) * Math.PI * 2 + ringIndex * 0.31,
+        radius: ring.radius,
+        yOffset: (index % 2 === 0 ? 1 : -1) * 0.05 + (ringIndex === 1 ? -0.02 : 0),
+        phase: (index / ring.count) * Math.PI * 2 + ringIndex,
+        size: CORE_NUCLEUS.beadSize * (0.85 + 0.3 * ((index * 0.37 + ringIndex * 0.61) % 1)),
+        direction: ring.direction,
+      })
+    }
+  })
+  const beadGeometry = new THREE.OctahedronGeometry(1, 0)
+  const beadMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  })
+  const beads = new THREE.InstancedMesh(beadGeometry, beadMaterial, beadSeeds.length)
+  beads.name = 'nucleus-beads'
+  beads.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  beads.frustumCulled = false
+  beads.renderOrder = 8
+  beads.raycast = () => {}
+  beadSeeds.forEach((_seed, index) => {
+    const tone = CORE_NUCLEUS.beadPalette[index % CORE_NUCLEUS.beadPalette.length]
+    color.setRGB(requireDefined(tone, 'issue-constellation.ts:195')[0], requireDefined(tone, 'issue-constellation.ts:195')[1], requireDefined(tone, 'issue-constellation.ts:195')[2])
+    beads.setColorAt(index, color)
+  })
+  if (beads.instanceColor) beads.instanceColor.needsUpdate = true
+  root.add(beads)
+  disposables.push(beadGeometry, beadMaterial)
+
+  // All four bundles exist, but only the selected bundle is drawn. The clean loop
+  // stays independent so revealing a connection never clips the core decoration.
+  const connectionBundles = CUBE_CONNECTIONS.map(connection => {
+    const samples = connection.curves.map(curve => buildLaneSamples(
+      curve.points.map(point => [point.x, point.y, point.z] as Vec3), false, ISSUE_CONSTELLATION.laneSegments,
+    ))
+    const material = new THREE.LineBasicMaterial({
+      color: new THREE.Color().setRGB(...connection.color), transparent: true,
+      opacity: ISSUE_CONSTELLATION.laneOpacity, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false,
+    })
+    const group = new THREE.Group()
+    group.name = `cube-connection-${connection.theme}`
+    group.visible = false
+    const lines = samples.map((lane, index) => {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(lane.points.slice(), 3))
+      geometry.setDrawRange(0, 0)
+      const line = new THREE.Line(geometry, material)
+      line.name = `connection-lane-${index}`
+      line.renderOrder = 6
+      line.raycast = () => {}
+      group.add(line)
+      disposables.push(geometry)
+      return line
+    })
+    root.add(group)
+    disposables.push(material)
+    return { ...connection, samples, group, lines }
+  })
+  let activeBundle: (typeof connectionBundles)[number] | undefined
+  let connectionProgress = 0
+  const cleanLane = buildLaneSamples(CLEAN_LOOP_POINTS, true, ISSUE_CONSTELLATION.laneSegments)
+  const lanePositions: number[] = []
+  const laneColors: number[] = []
+  const laneColorBanks = [
+    ISSUE_CONSTELLATION.laneColors.clean,
+  ]
+  ;[cleanLane].forEach((lane, laneIndex) => {
+    const laneColor = laneColorBanks[laneIndex]
+    const count = lane.closed ? lane.segments : lane.segments + 1
+    for (let index = 0; index < lane.segments; index += 1) {
+      const next = lane.closed ? (index + 1) % count : index + 1
+      if (next >= count) continue
+      lanePositions.push(
+        requireDefined(lane.points[index * 3], 'issue-constellation.ts:247'), requireDefined(lane.points[index * 3 + 1], 'issue-constellation.ts:247'), requireDefined(lane.points[index * 3 + 2], 'issue-constellation.ts:247'),
+        requireDefined(lane.points[next * 3], 'next lane x'), requireDefined(lane.points[next * 3 + 1], 'next lane y'), requireDefined(lane.points[next * 3 + 2], 'next lane z'),
+      )
+      laneColors.push(requireDefined(laneColor, 'issue-constellation.ts:250')[0], requireDefined(laneColor, 'issue-constellation.ts:250')[1], requireDefined(laneColor, 'issue-constellation.ts:250')[2], requireDefined(laneColor, 'issue-constellation.ts:250')[0], requireDefined(laneColor, 'issue-constellation.ts:250')[1], requireDefined(laneColor, 'issue-constellation.ts:250')[2])
+    }
+  })
+  const laneGeometry = new THREE.BufferGeometry()
+  laneGeometry.setAttribute('position', new THREE.Float32BufferAttribute(lanePositions, 3))
+  laneGeometry.setAttribute('color', new THREE.Float32BufferAttribute(laneColors, 3))
+  const laneMaterial = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: ISSUE_CONSTELLATION.laneOpacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  })
+  const laneLines = new THREE.LineSegments(laneGeometry, laneMaterial)
+  laneLines.name = 'constellation-lanes'
+  laneLines.renderOrder = 6
+  laneLines.frustumCulled = false
+  laneLines.raycast = () => {}
+  root.add(laneLines)
+  disposables.push(laneGeometry, laneMaterial)
+
+  // 4. Particles: 18 issue motes across the three lanes and 30 clean motes on the loop.
+  const particleSeeds: ParticleSeed[] = []
+  ISSUE_LANES.forEach((lane, laneIndex) => {
+    for (let index = 0; index < ISSUE_CONSTELLATION.issueParticlesPerLane; index += 1) {
+      particleSeeds.push({
+        laneIndex,
+        phase: (lane.phaseOffset + index / ISSUE_CONSTELLATION.issueParticlesPerLane) % 1,
+        speed: lane.speed,
+        size: ISSUE_CONSTELLATION.particleSize.issue * (0.85 + 0.3 * ((index * 0.41 + laneIndex * 0.23) % 1)),
+        issue: true,
+      })
+    }
+  })
+  for (let index = 0; index < ISSUE_CONSTELLATION.cleanParticleCount; index += 1) {
+    particleSeeds.push({
+      laneIndex: 3,
+      phase: index / ISSUE_CONSTELLATION.cleanParticleCount,
+      speed: ISSUE_CONSTELLATION.cleanSpeed,
+      size: ISSUE_CONSTELLATION.particleSize.clean * (0.8 + 0.4 * ((index * 0.618) % 1)),
+      issue: false,
+    })
+  }
+  const particleGeometry = new THREE.OctahedronGeometry(1, 0)
+  const particleMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  })
+  const particles = new THREE.InstancedMesh(particleGeometry, particleMaterial, particleSeeds.length)
+  particles.name = 'constellation-particles'
+  particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  particles.frustumCulled = false
+  particles.renderOrder = 9
+  particles.raycast = () => {}
+  particleSeeds.forEach((seed, index) => {
+    const palette = seed.issue ? ISSUE_CONSTELLATION.issuePalette : ISSUE_CONSTELLATION.cleanPalette
+    const tone = palette[index % palette.length]
+    color.setRGB(requireDefined(tone, 'issue-constellation.ts:311')[0], requireDefined(tone, 'issue-constellation.ts:311')[1], requireDefined(tone, 'issue-constellation.ts:311')[2])
+    particles.setColorAt(index, color)
+  })
+  if (particles.instanceColor) particles.instanceColor.needsUpdate = true
+  root.add(particles)
+  disposables.push(particleGeometry, particleMaterial)
+
+  // 5. Arrival beacon: follows the selected satellite and its theme color.
+  const [beaconX, beaconY, beaconZ] = DETECTION_ANCHOR.center
+  const beaconRingGeometry = new THREE.TorusGeometry(
+    ISSUE_CONSTELLATION.beacon.ringRadius,
+    ISSUE_CONSTELLATION.beacon.ringTube,
+    6,
+    64,
+  )
+  const beaconRingMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.35,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  })
+  beaconRingMaterial.color.setRGB(...ISSUE_CONSTELLATION.beacon.ringLinear)
+  const beaconRing = new THREE.Mesh(beaconRingGeometry, beaconRingMaterial)
+  beaconRing.name = 'detection-beacon-ring'
+  beaconRing.position.set(beaconX, beaconY, beaconZ)
+  beaconRing.lookAt(0, beaconY, 0)
+  beaconRing.renderOrder = 9
+  beaconRing.raycast = () => {}
+  root.add(beaconRing)
+
+  const glowTexture = createGlowTexture()
+  const beaconSpriteMaterial = new THREE.SpriteMaterial({
+    map: glowTexture,
+    transparent: true,
+    opacity: 0.2,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  })
+  beaconSpriteMaterial.color.setRGB(1.4, 0.75, 0.3)
+  const beaconSprite = new THREE.Sprite(beaconSpriteMaterial)
+  beaconSprite.name = 'detection-beacon-sprite'
+  beaconSprite.position.set(beaconX, beaconY, beaconZ)
+  beaconSprite.scale.setScalar(ISSUE_CONSTELLATION.beacon.spriteSize)
+  beaconSprite.renderOrder = 9
+  beaconSprite.raycast = () => {}
+  root.add(beaconSprite)
+  disposables.push(beaconRingGeometry, beaconRingMaterial, beaconSpriteMaterial, glowTexture)
+
+  let beaconLevel = ISSUE_CONSTELLATION.beacon.baseLevel
+  let staticApplied = false
+
+  function syncBeads(elapsedSeconds: number) {
+    beadSeeds.forEach((seed, index) => {
+      const angle = seed.angle + elapsedSeconds * CORE_NUCLEUS.beadOrbitSpeed * seed.direction
+      const radius = seed.radius + Math.sin(elapsedSeconds * 0.6 + seed.phase) * 0.012
+      beadPosition.set(
+        Math.cos(angle) * radius,
+        CORE_NUCLEUS.centerY + seed.yOffset + Math.sin(elapsedSeconds * 0.9 + seed.phase) * 0.02,
+        Math.sin(angle) * radius,
+      )
+      beadScale.setScalar(seed.size * (0.9 + Math.sin(elapsedSeconds * 1.2 + seed.phase) * 0.1))
+      beadMatrix.compose(beadPosition, IDENTITY_QUATERNION, beadScale)
+      beads.setMatrixAt(index, beadMatrix)
+    })
+    beads.instanceMatrix.needsUpdate = true
+  }
+
+  function applyParticles(elapsedSeconds: number) {
+    let arrival = 0
+    particleSeeds.forEach((seed, index) => {
+      const lane = seed.issue ? activeBundle?.samples[seed.laneIndex] : cleanLane
+      const progress = (seed.phase + elapsedSeconds * seed.speed) % 1
+      if (lane) sampleLane(lane, progress, particlePosition)
+      let scale = seed.size
+      if (seed.issue) {
+        if (!activeBundle || progress > connectionProgress) scale = 0
+        const fade = ISSUE_CONSTELLATION.edgeFade
+        scale *= smoothstep(0, fade, progress) * smoothstep(0, fade, 1 - progress)
+        if (scale > 0 && progress > 0.9) arrival = Math.max(arrival, smoothstep(0.9, 1, progress))
+      } else {
+        scale *= 0.9 + Math.sin(elapsedSeconds * 1.7 + seed.phase * Math.PI * 2) * 0.1
+      }
+      particleScale.setScalar(scale)
+      particleMatrix.compose(particlePosition, IDENTITY_QUATERNION, particleScale)
+      particles.setMatrixAt(index, particleMatrix)
+    })
+    particles.instanceMatrix.needsUpdate = true
+    return arrival
+  }
+
+  function applyBeacon() {
+    beaconRing.visible = beaconSprite.visible = !!activeBundle && connectionProgress === 1
+    beaconRing.scale.setScalar(1 + beaconLevel * 0.18)
+    beaconRingMaterial.opacity = 0.2 + beaconLevel * 0.6
+    beaconSpriteMaterial.opacity = 0.12 + beaconLevel * 0.4
+  }
+
+  function reset() {
+    if (staticApplied) return
+    beaconLevel = ISSUE_CONSTELLATION.beacon.baseLevel
+    syncBeads(0)
+    applyParticles(0)
+    applyBeacon()
+    staticApplied = true
+  }
+
+  reset()
+
+  return {
+    root,
+    setConnection(theme, progress) {
+      const next = connectionBundles.find(bundle => bundle.theme === theme)
+      const value = Number.isFinite(progress) ? THREE.MathUtils.clamp(progress, 0, 1) : 0
+      if (activeBundle === next && connectionProgress === value) return
+      if (activeBundle !== next && next) {
+        color.setRGB(...next.color)
+        particleSeeds.forEach((seed, index) => { if (seed.issue) particles.setColorAt(index, color) })
+        if (particles.instanceColor) particles.instanceColor.needsUpdate = true
+        beaconRing.position.copy(next.center)
+        beaconRing.lookAt(0, next.center.y, 0)
+        beaconSprite.position.copy(next.center)
+        beaconRingMaterial.color.copy(color)
+        beaconSpriteMaterial.color.copy(color)
+      }
+      activeBundle = next
+      connectionProgress = value
+      connectionBundles.forEach(bundle => {
+        bundle.group.visible = bundle === next && value > 0
+        if (bundle !== next) return
+        bundle.lines.forEach((line, index) => {
+          const lane = bundle.samples[index]
+          const scaled = value * requireDefined(lane, 'issue-constellation.ts:444').segments
+          const complete = Math.floor(scaled)
+          const attribute = line.geometry.getAttribute('position') as THREE.BufferAttribute
+          attribute.array.set(requireDefined(lane, 'issue-constellation.ts:447').points)
+          // Interpolate the tip between samples: spatial reveal, not whole-line fading.
+          if (complete < requireDefined(lane, 'issue-constellation.ts:449').segments) {
+            const start = complete * 3
+            const tip = (complete + 1) * 3
+            for (let axis = 0; axis < 3; axis += 1) {
+              attribute.array[tip + axis] = requireDefined(requireDefined(lane, 'issue-constellation.ts:453').points[start + axis], 'issue-constellation.ts:453')
+                + (requireDefined(requireDefined(lane, 'issue-constellation.ts:454').points[tip + axis], 'issue-constellation.ts:454') - requireDefined(requireDefined(lane, 'issue-constellation.ts:454').points[start + axis], 'issue-constellation.ts:454')) * (scaled - complete)
+            }
+          }
+          attribute.needsUpdate = true
+          line.geometry.setDrawRange(0, value === 0 ? 0 : Math.min(complete + 2, requireDefined(lane, 'issue-constellation.ts:458').segments + 1))
+        })
+      })
+      staticApplied = false
+      applyParticles(0)
+      applyBeacon()
+    },
+    update(elapsedSeconds, deltaSeconds) {
+      if (!root.visible) return
+      staticApplied = false
+      syncBeads(elapsedSeconds)
+      const arrival = applyParticles(elapsedSeconds)
+      const target = Math.max(ISSUE_CONSTELLATION.beacon.baseLevel, arrival)
+      const blend = 1 - Math.exp(-Math.min(deltaSeconds, 0.1) * ISSUE_CONSTELLATION.beacon.smoothing)
+      beaconLevel += (target - beaconLevel) * blend
+      applyBeacon()
+    },
+    reset,
+    setDetached(detached) {
+      root.visible = !detached
+    },
+    dispose() {
+      root.clear()
+      disposables.forEach(disposable => disposable.dispose())
+    },
+  }
+}

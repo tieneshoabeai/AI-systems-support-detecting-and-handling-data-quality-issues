@@ -1,0 +1,165 @@
+import { Vector2 as UniformVector2 } from 'three'
+import { uniformValue } from '../../../graphics/common/typed-objects'
+import { requireDefined } from '../../../utils/required-value'
+import { useEffect, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import type { RefObject } from 'react'
+import { HalfFloatType, UnsignedByteType, Vector2, Vector3, WebGLRenderTarget } from 'three'
+import type { Group, Mesh, MeshPhysicalMaterial, WebGLRenderer } from 'three'
+import { authGlassConfig } from '../../../graphics/auth-glass/auth-glass.config'
+import { createAuthLensMaterial } from '../../../graphics/auth-glass/auth-glass.materials'
+
+function createRenderResources(gl: WebGLRenderer) {
+  // Three's WebGLRenderer requires WebGL 2.
+  const context = gl.getContext() as WebGL2RenderingContext
+  const halfFloat = gl.extensions.has('EXT_color_buffer_float')
+  const type = halfFloat ? HalfFloatType : UnsignedByteType
+  const colorFormat = halfFloat ? context.RGBA16F : context.RGBA8
+  const supportedSamples = (format: number): Int32Array => {
+    const values: unknown = context.getInternalformatParameter(context.RENDERBUFFER, format, context.SAMPLES)
+    if (!(values instanceof Int32Array)) throw new Error('WebGL did not return sample counts')
+    return values
+  }
+  const colorSamples = supportedSamples(colorFormat)
+  const depthSamples = supportedSamples(context.DEPTH_COMPONENT24)
+  const samples = [4, 2].find(count => colorSamples.includes(count) && depthSamples.includes(count)) ?? 0
+  return {
+    backdrop: new WebGLRenderTarget(1, 1, { type, samples }),
+    behindGlass: new WebGLRenderTarget(1, 1, { type, samples }),
+    loginLens: createAuthLensMaterial(),
+    registerLens: createAuthLensMaterial(),
+    size: new Vector2(),
+    eye: new Vector3(),
+  }
+}
+
+export function useAuthGlassRender(fallback: MeshPhysicalMaterial, low: boolean, dragLight?: RefObject<Vector2>, debug = 0, thickness?: number, colorMode: 'light' | 'dark' = 'dark') {
+  const invalidate = useThree(state => state.invalidate)
+  const gl = useThree(state => state.gl)
+  const assembly = useRef<Group>(null)
+  const loginGroup = useRef<Group>(null)
+  const registerGroup = useRef<Group>(null)
+  const loginMesh = useRef<Mesh>(null)
+  const registerMesh = useRef<Mesh>(null)
+  const pipeline = useRef<ReturnType<typeof createRenderResources>>(null)
+  const lensFailed = useRef(false)
+
+  useEffect(() => {
+    if (low) return
+    const resources = createRenderResources(gl)
+    lensFailed.current = false
+    pipeline.current = resources
+    invalidate()
+    return () => {
+      pipeline.current = null
+      resources.backdrop.dispose()
+      resources.behindGlass.dispose()
+      resources.loginLens.dispose()
+      resources.registerLens.dispose()
+    }
+  }, [gl, invalidate, low])
+
+  useEffect(() => {
+    const resources = pipeline.current
+    if (!resources) return
+    const { loginLens, registerLens } = resources
+    requireDefined(loginLens.uniforms['uDebug'], 'auth-glass.render.ts:61').value = requireDefined(registerLens.uniforms['uDebug'], 'auth-glass.render.ts:61').value = debug
+    requireDefined(loginLens.uniforms['uThickness'], 'auth-glass.render.ts:62').value = requireDefined(registerLens.uniforms['uThickness'], 'auth-glass.render.ts:62').value = thickness ?? authGlassConfig.glass.thicknessPixels
+    for (const lens of [loginLens, registerLens]) {
+      requireDefined(lens.uniforms['uLightMode'], 'auth glass theme').value = colorMode === 'light'
+      requireDefined(lens.uniforms['uTint'], 'auth glass tint').value = colorMode === 'light' ? .14 : authGlassConfig.glass.tint
+    }
+    invalidate()
+  }, [colorMode, debug, invalidate, low, thickness])
+
+  useFrame(({ gl, scene, camera, size: layout }) => {
+    const root = assembly.current
+    const login = loginGroup.current
+    const register = registerGroup.current
+    const loginBody = loginMesh.current
+    const registerBody = registerMesh.current
+    if (!root || !login || !register || !loginBody || !registerBody) {
+      gl.render(scene, camera)
+      return
+    }
+
+    function renderFallback() {
+      if (loginBody) loginBody.material = fallback
+      if (registerBody) registerBody.material = fallback
+      gl.render(scene, camera)
+    }
+
+    const resources = pipeline.current
+    if (!resources || lensFailed.current) {
+      renderFallback()
+      return
+    }
+
+    const { backdrop, behindGlass, loginLens, registerLens, size, eye } = resources
+    const light = dragLight?.current
+    const uvX = 1 / Math.max(layout.width, 1)
+    const uvY = 1 / Math.max(layout.height, 1)
+    uniformValue(requireDefined(loginLens.uniforms['uUvPerPixel'], 'auth-glass.render.ts:93'), UniformVector2).set(uvX, uvY)
+    uniformValue(requireDefined(registerLens.uniforms['uUvPerPixel'], 'auth-glass.render.ts:94'), UniformVector2).set(uvX, uvY)
+    uniformValue(requireDefined(loginLens.uniforms['uLightDir'], 'auth-glass.render.ts:95'), UniformVector2).set(-0.6 + (light?.x ?? 0) * 0.65, 0.8 + (light?.y ?? 0) * 0.35)
+    uniformValue(registerLens.uniforms['uLightDir'], Vector2).copy(uniformValue(loginLens.uniforms['uLightDir'], Vector2))
+    loginBody.material = loginLens
+    registerBody.material = registerLens
+    gl.getDrawingBufferSize(size)
+    const scale = authGlassConfig.glass.targetScale
+    const width = Math.max(1, Math.round(size.x * scale))
+    const height = Math.max(1, Math.round(size.y * scale))
+    backdrop.setSize(width, height)
+    behindGlass.setSize(width, height)
+
+    // The seam plane separates the two closed slabs. If a ray crosses both,
+    // the slab on the camera's side of that plane is the first one it hits.
+    root.worldToLocal(camera.getWorldPosition(eye))
+    const registerNear = eye.x > 0
+    const near = registerNear ? register : login
+    const far = registerNear ? login : register
+    const nearLens = registerNear ? registerLens : loginLens
+    const farLens = registerNear ? loginLens : registerLens
+    const previousTarget = gl.getRenderTarget()
+    const previousShaderHandler = gl.debug.onShaderError
+
+    gl.debug.onShaderError = (...args) => {
+      lensFailed.current = true
+      previousShaderHandler?.(...args)
+    }
+    try {
+      near.visible = false
+      far.visible = false
+      gl.setRenderTarget(backdrop)
+      gl.render(scene, camera)
+
+      far.visible = true
+      requireDefined(farLens.uniforms['tBackdrop'], 'auth-glass.render.ts:128').value = backdrop.texture
+      uniformValue(requireDefined(farLens.uniforms['uViewport'], 'auth-glass.render.ts:129'), UniformVector2).set(width, height)
+      gl.setRenderTarget(behindGlass)
+      gl.render(scene, camera)
+
+      near.visible = true
+      requireDefined(nearLens.uniforms['tBackdrop'], 'auth-glass.render.ts:134').value = behindGlass.texture
+      uniformValue(requireDefined(nearLens.uniforms['uViewport'], 'auth-glass.render.ts:135'), UniformVector2).copy(size)
+      uniformValue(requireDefined(farLens.uniforms['uViewport'], 'auth-glass.render.ts:136'), UniformVector2).copy(size)
+    } catch {
+      lensFailed.current = true
+    } finally {
+      near.visible = true
+      far.visible = true
+      gl.setRenderTarget(previousTarget)
+      gl.debug.onShaderError = previousShaderHandler
+    }
+
+    if (lensFailed.current) {
+      // eslint-disable-next-line no-console -- Keep the approved refraction fallback diagnostic observable.
+      console.warn('Auth glass: using the physical material after a refraction pass failed.')
+      renderFallback()
+    } else {
+      gl.render(scene, camera)
+    }
+  }, 1)
+
+  return { assembly, loginGroup, registerGroup, loginMesh, registerMesh }
+}

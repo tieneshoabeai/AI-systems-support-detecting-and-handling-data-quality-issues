@@ -1,0 +1,3 @@
+:where(.scrim) { position: fixed; inset: 0; display: grid; place-items: center; }
+:where(.panel) { min-width: 0; }
+:global([data-theme='light']) :where(.panel) { color: var(--color-ink); }

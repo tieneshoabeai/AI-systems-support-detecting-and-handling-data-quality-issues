@@ -1,0 +1,182 @@
+import { Button } from '../../../components/ui/controls'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Link, useInRouterContext } from 'react-router'
+import type { PreviewSectionId } from '../../../types'
+import { useManagementStore } from '../../../hooks/management/use-management-store'
+import { navItems, sectionLabels } from '../../../hooks/workbench/workbench-presentation'
+import { readSidebarCollapsed, sidebarPreferenceKey } from '../../../hooks/workbench/sidebar-preference'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { PreviewTopbar } from './workbench-topbar'
+import { DataVerseMark } from '../../../components/branding'
+import { OfflineNotice } from '../../../components/offline/offline-notice'
+
+// Shell chỉ còn phần khung trái + vùng cuộn. Toàn bộ chrome phía trên (Design Board nhóm 01)
+// nằm ở preview-topbar.tsx vì nó cần đọc scope thật.
+type PreviewShellProps = {
+  active: PreviewSectionId
+  children: ReactNode
+  area?: 'management' | 'processing'
+  context?: ReactNode
+  contentClassName?: string
+  headerAction?: ReactNode
+}
+
+// Sidebar của shell mới chỉ có 3 module (Home · Workspaces · Settings — xem navItems).
+// Settings giờ đã có màn 2D (nhánh Accounts, Design Board nhóm 04) nên nó nằm trong danh sách
+// dựng thật; bấm vào điều hướng sang '/management/settings'.
+// 'notifications' có trong danh sách này dù không nằm ở nav: màn Thông báo mở từ chuông
+// topbar (Design Board 1.1 → 1.2), không phải một module điều hướng.
+const builtSections: readonly PreviewSectionId[] = ['home', 'workspaces', 'projects', 'notifications', 'members', 'settings']
+
+// Ngưỡng màn hình hẹp: sidebar buộc thu gọn. Để JS biết mà đồng bộ
+// aria-expanded và nút toggle (CSS không đổi được thuộc tính DOM) — xem preview.css.
+const narrowQuery = '(max-width: 820px)'
+
+const readNarrow = (): boolean =>
+  typeof window.matchMedia === 'function' && window.matchMedia(narrowQuery).matches
+
+export { Avatar } from '../../../components/resource/avatar/avatar'
+
+// Sidebar nhớ trạng thái thu gọn giữa các lần tải trang.
+export function PreviewShell({
+  active, children, area = 'management', context, contentClassName = '', headerAction,
+}: PreviewShellProps) {
+  const session = usePreviewSession()
+  const { adminService } = useManagementStore()
+  const { state } = session
+  const [collapsed, setCollapsed] = useState(readSidebarCollapsed)
+  const [narrow, setNarrow] = useState(readNarrow)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
+  const compact = collapsed || narrow
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const list = window.matchMedia(narrowQuery)
+    const onChange = (event: MediaQueryListEvent) => setNarrow(event.matches)
+    list.addEventListener('change', onChange)
+    return () => list.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(sidebarPreferenceKey, collapsed ? 'compact' : 'expanded')
+    } catch {
+      // Storage bị chặn (private mode) thì sidebar vẫn hoạt động, chỉ mất nhớ trạng thái.
+    }
+  }, [collapsed])
+
+  // Panel chi tiết sticky cần biết đúng chiều cao còn lại của vùng cuộn. Đo thực tế thay vì
+  // đoán hằng số: dải demo/topbar/dải lý do/toast đều có thể đổi chiều cao (thu gọn cửa sổ,
+  // toast xuất hiện) và mỗi px đoán sai là một phần panel bị cắt dưới đáy màn hình.
+  // Observe the available height for sticky panels and only write when it changes.
+  useEffect(() => {
+    const element = contentRef.current
+    if (!element) return
+    let padTop = 0
+    let lastHeight = -1
+    const measure = () => {
+      // Trừ padding-top: panel nằm ở y = padding-top lúc chưa dính, chỉ lấy clientHeight thì
+      // chữ đầu trang vẫn bị cắt trước khi sticky bắt đầu.
+      const height = Math.max(240, Math.round(element.clientHeight - padTop - 8))
+      if (height === lastHeight) return
+      lastHeight = height
+      element.style.setProperty('--pv-viewport-h', `${height}px`)
+    }
+    const remeasure = () => {
+      // Padding đến từ media query nên chỉ đổi khi resize cửa sổ, không đổi khi sidebar co:
+      // đọc lại ở đây là đủ, không đọc trong callback của RO.
+      padTop = parseFloat(window.getComputedStyle(element).paddingTop) || 0
+      measure()
+    }
+    remeasure()
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => measure()) : null
+    observer?.observe(element)
+    window.addEventListener('resize', remeasure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', remeasure)
+    }
+  }, [])
+
+  const navigate = (id: PreviewSectionId, label: string) => {
+    if (builtSections.includes(id)) { session.openSection(id); return }
+    // Module chưa thuộc batch 2D: báo rõ qua cùng một vùng toast mà mọi thao tác khác
+    // dùng, thay vì một đoạn <p> riêng lẻ rồi tự ẩn sau 2,6 giây.
+    session.notify(`${label} chưa khả dụng.`, 'info')
+  }
+
+  // Dự án và Thông báo là hai màn thật nhưng không nằm trong nav (nav đúng 3 mục theo ảnh
+  // shell), nên vào đó thì sidebar vẫn sáng Home — người dùng báo lại đúng điểm này. Dải
+  // ngữ cảnh dưới nav trả lời "đang ở đâu" và cho luôn một lối về Home mà không thêm mục nav.
+  const processing = area === 'processing'
+  const visibleNavItems = adminService
+    ? navItems.flatMap(item => item.id === 'settings' ? [{ id: 'members' as const, label: 'Quản trị' }, item] : [item])
+    : navItems
+  const isContextual = !processing && !visibleNavItems.some(item => item.id === active)
+  const inRouter = useInRouterContext()
+  const processingLink = <>
+    <span className="nav-icon" aria-hidden="true"><PreviewIcon name="processing" /></span>
+    <span className="nav-label">Xử lý dữ liệu</span>
+  </>
+
+  return <div className={`preview-root${!processing && compact ? ' is-compact' : ''}`} data-section={processing ? 'processing' : active}>
+    {!processing && <aside className="preview-sidebar" aria-label="Điều hướng chính">
+      <div className="sidebar-brand">
+        <DataVerseMark className="brand-mark" />
+        <span className="brand-text"><strong>DataVerse</strong><small>Your Data. Our Universe.</small></span>
+      </div>
+      <nav className="sidebar-nav">
+        {inRouter
+          ? <Link className="nav-item" to="/processing" title="AI Data Processing">{processingLink}</Link>
+          : <a className="nav-item" href="/processing" title="AI Data Processing">{processingLink}</a>}
+        {visibleNavItems.map(item => {
+          const selected = item.id === active
+          return <Button type="button" key={item.id}
+            className={`nav-item${selected ? ' is-active' : ''}`}
+            data-nav={item.id}
+            aria-current={selected ? 'page' : undefined} title={item.label}
+            onClick={() => navigate(item.id, item.label)}>
+            <span className="nav-icon" aria-hidden="true"><PreviewIcon name={item.id === 'members' ? 'users' : item.id} /></span>
+            <span className="nav-label">{item.label}</span>
+          </Button>
+        })}
+      </nav>
+      {isContextual && <div className="nav-context">
+        <span className="nav-context-label">Đang mở</span>
+        <strong>{sectionLabels[active] ?? active}</strong>
+        <Button type="button" className="text-link" onClick={() => navigate('home', 'Home')}>Về Home</Button>
+      </div>}
+    </aside>}
+
+    <div className="preview-main" ref={mainRef}>
+      {/* Màn hẹp thì sidebar đã buộc thu nên nút toggle ẩn đi — để lại nút
+          "thu gọn" khi đang ở 64px sẽ nói dối người dùng (aria-expanded sai). */}
+      <PreviewTopbar
+        active={active}
+        context={processing ? <span className="processing-brand-actions">
+          {inRouter ? <Link to="/processing" aria-label="Trang chủ Processing"><DataVerseMark className="processing-brand-mark" /><strong>DataVerse</strong></Link>
+            : <a href="/processing" aria-label="Trang chủ Processing"><DataVerseMark className="processing-brand-mark" /><strong>DataVerse</strong></a>}
+          {headerAction}
+          {inRouter ? <Link className="button-secondary" to="/management"><PreviewIcon name="workspaces" /> Quản lý</Link>
+            : <a className="button-secondary" href="/management"><PreviewIcon name="workspaces" /> Quản lý</a>}
+        </span> : context}
+        sidebarToggle={!processing && !narrow && <Button type="button" className="sidebar-toggle"
+          aria-label={compact ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+          aria-expanded={!compact}
+          onClick={() => setCollapsed(value => !value)}>
+          <PreviewIcon name={compact ? 'expand' : 'collapse'} />
+        </Button>}
+        state={state}
+      />
+      <div className={`preview-content ${contentClassName}`} ref={contentRef}>
+        {/* Chỉ nói "dữ liệu mẫu" khi đúng là fixture; khi store đã là API thì dòng này nói sai. */}
+        {!processing && state.source !== 'api' && <p className="management-data-notice">Quản lý · Dữ liệu mẫu, chưa kết nối API</p>}
+        <OfflineNotice />
+        {children}
+      </div>
+    </div>
+  </div>
+}

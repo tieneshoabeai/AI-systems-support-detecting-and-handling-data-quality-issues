@@ -1,0 +1,4644 @@
+{
+  "targetName": "Neon Glass Cube",
+  "targetId": "neon-glass-cube",
+  "schemaVersion": "2.1",
+  "terminologyProfile": {
+    "domain": "real-time procedural Three.js asset",
+    "geometryTerms": [
+      "silhouette",
+      "topology",
+      "primitive",
+      "bevel",
+      "chamfer",
+      "extrude",
+      "through-opening",
+      "edge loop",
+      "surface normal",
+      "instanced lattice"
+    ],
+    "materialTerms": [
+      "albedo",
+      "baseColor",
+      "roughness",
+      "metalness",
+      "clearcoat",
+      "emissive",
+      "opacity",
+      "additive blending",
+      "ambient occlusion"
+    ],
+    "lightingTerms": [
+      "key light",
+      "fill light",
+      "rim light",
+      "environment glow",
+      "exposure",
+      "tone mapping",
+      "bloom threshold",
+      "contact shadow"
+    ],
+    "descriptionRule": "Use measurable 3D graphics terms. Avoid vague words unless they are paired with concrete geometry/material/shader parameters."
+  },
+  "sourceImage": "/Users/mac/Documents/JS-TS-AI/AI-systems-support-detecting-and-handling-data-quality-issues/src/frontend/.agents/neon-cube/reference/reference.png",
+  "referenceCamera": {
+    "solved": false,
+    "fovDegrees": 8.0,
+    "aspect": 1.3135,
+    "target": [
+      0.0,
+      0.6,
+      0.0
+    ],
+    "azimuthDegrees": 45.0,
+    "elevationDegrees": 24.0,
+    "distance": 20.0,
+    "orientation": {
+      "yaw": 45.0,
+      "pitch": -24.0,
+      "roll": 0.0
+    },
+    "positionHint": [
+      12.92,
+      8.73,
+      12.92
+    ],
+    "note": "Solved from the reference silhouette: the top-face diamond implies elevation ~24 degrees, and the near-orthographic look with generous margins implies a long lens (fov 8 at distance 20). Screen-space cube/base ratio measures 0.69 against the reference 0.68; the model is not baked to this view."
+  },
+  "suitability": "pass",
+  "scores": {
+    "object_isolation": 3,
+    "silhouette_readability": 3,
+    "depth_inference": 2,
+    "primitive_decomposition": 3,
+    "material_procedurality": 3,
+    "occlusion_risk": 2,
+    "interaction_fit": 2
+  },
+  "preSpecAssessment": {
+    "objectClass": {
+      "primaryType": "decorative-display-object",
+      "primaryDomain": "object",
+      "formLanguage": [
+        "hard-surface",
+        "cubic-lattice",
+        "nested-transparent-solids"
+      ],
+      "structureKind": [
+        "stacked-assembly",
+        "square-frame-with-through-opening",
+        "symmetric-module"
+      ],
+      "motionPotential": [
+        "exploded-view-along-Y",
+        "inner-core-rotation",
+        "emissive-pulse"
+      ],
+      "materialFamilies": [
+        "transparent-dielectric",
+        "emissive-neon",
+        "dark-glass"
+      ],
+      "notes": "A single-view neon display object: a 3x3 glass lattice cube resting on a two-tier drilled platform with a smaller glowing cube suspended at its centre."
+    },
+    "complexity": {
+      "tier": "moderate",
+      "scores": {
+        "silhouetteComplexity": 1,
+        "componentCount": 3,
+        "hierarchyDepth": 2,
+        "repetitionDensity": 3,
+        "materialLayerCount": 2,
+        "localDetailDensity": 2,
+        "occlusionRisk": 2,
+        "actionReadinessNeed": 1
+      },
+      "estimatedCounts": {
+        "macroComponents": 5,
+        "mesoComponents": 7,
+        "microFeatureGroups": 19,
+        "materialLayers": 5,
+        "repetitionSystems": 4
+      },
+      "reasoning": [
+        "Four primary solids plus a transform root form a shallow but exact hierarchy that must not be collapsed into one mesh.",
+        "The identity comes from repetition: 54 panes, 24 seam bars, 12 outer edge rods, 12 inner edge rods, and three emissive perimeter rims.",
+        "Transparency creates layered occlusion; the inner cube must remain readable through the outer lattice, so material order and depthWrite flags are part of the structure."
+      ]
+    },
+    "specDepthDecision": {
+      "requiredDepth": "moderate",
+      "minimumComponentLevels": [
+        "macro",
+        "meso",
+        "micro"
+      ],
+      "needsRepetitionSystems": true,
+      "needsMaterialLocalOverrides": true,
+      "needsMultipleReviewViews": true,
+      "needsActionReadyHierarchy": true,
+      "rationale": "The object is geometrically simple but identity-defining detail is dense and repetitive, so the spec needs macro parts, meso lattice groups, micro emissive features, and local material overrides."
+    },
+    "unknownsToResolveBeforeImplementation": [],
+    "detailInventory": {
+      "scanMethod": "component-zones",
+      "targetMinDetails": 12,
+      "note": "Every identity-defining detail maps to a component.localFeatures entry, a component id, or a material.localOverrides entry.",
+      "details": [
+        {
+          "id": "outer-platform-bevel",
+          "kind": "bevel",
+          "zone": "base-outer top perimeter",
+          "description": "45-degree chamfer about 0.02 wide along the outer top edge; catches a bright violet highlight.",
+          "mapsTo": {
+            "ref": "base-outer/outer-bevel-frame"
+          },
+          "evidenceRefs": [
+            "full-object",
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "hole-wall-lip",
+          "kind": "bevel",
+          "zone": "base-outer inner opening",
+          "description": "Rounded lip r=0.04 around the 1.64 square opening; the wall is vertical and dark.",
+          "mapsTo": {
+            "ref": "base-outer/hole-wall"
+          },
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "true-square-opening",
+          "kind": "hole",
+          "zone": "base-outer centre",
+          "description": "The opening is a real through-hole, not a decal; the inner platform is visible inside it with a 0.08 gap.",
+          "mapsTo": {
+            "ref": "base-outer/through-opening"
+          },
+          "evidenceRefs": [
+            "full-object",
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "inner-platform-step",
+          "kind": "groove",
+          "zone": "base-inner top face",
+          "description": "The inner platform top sits 0.02 below the outer platform top, producing a visible step ring.",
+          "mapsTo": {
+            "ref": "base-inner/step-lip"
+          },
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "floor-seated-slab",
+          "kind": "seam",
+          "zone": "base-inner bottom",
+          "description": "The inner slab sits on the floor plane inside the opening, so the recess reads dry and the two platforms never intersect.",
+          "mapsTo": {
+            "ref": "base-inner/floor-seat"
+          },
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "cube-face-3x3-lattice",
+          "kind": "linework",
+          "zone": "all six cube faces",
+          "description": "Nine panes per face, 0.424 square with 0.012 gaps; the pattern repeats on every face.",
+          "mapsTo": {
+            "ref": "cube-outer/face-lattice-3x3"
+          },
+          "evidenceRefs": [
+            "full-object",
+            "cube-face"
+          ]
+        },
+        {
+          "id": "seam-cross",
+          "kind": "linework",
+          "zone": "cube faces",
+          "description": "Four seam bars per face (two horizontal, two vertical) at +/-0.218 from the face centre.",
+          "mapsTo": {
+            "ref": "cube-outer/seam-cross"
+          },
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        },
+        {
+          "id": "outer-cube-edge-frame",
+          "kind": "emissive",
+          "zone": "cube edges",
+          "description": "Twelve 0.014 rods trace the cube silhouette and read brighter than the panes.",
+          "mapsTo": {
+            "ref": "cube-outer/edge-frame-12"
+          },
+          "evidenceRefs": [
+            "full-object"
+          ]
+        },
+        {
+          "id": "inner-cube-edge-frame",
+          "kind": "emissive",
+          "zone": "inner cube edges",
+          "description": "Twelve 0.010 rods on the 0.88 core cube; visibly hotter than the outer edges when seen through the glass.",
+          "mapsTo": {
+            "ref": "cube-inner/core-edge-glow-12"
+          },
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        },
+        {
+          "id": "outer-rim-neon",
+          "kind": "emissive",
+          "zone": "base-outer perimeter",
+          "description": "Closed rounded-square tube r=0.012 lying on the outer top edge.",
+          "mapsTo": {
+            "ref": "rim-outer/outer-rim-tube"
+          },
+          "evidenceRefs": [
+            "full-object",
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "hole-rim-neon",
+          "kind": "emissive",
+          "zone": "base-outer opening",
+          "description": "Closed rounded-square tube r=0.010 around the opening edge.",
+          "mapsTo": {
+            "ref": "rim-hole/hole-rim-tube"
+          },
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "inner-rim-neon",
+          "kind": "emissive",
+          "zone": "base-inner perimeter",
+          "description": "Closed rounded-square tube r=0.010 around the inner platform top.",
+          "mapsTo": {
+            "ref": "rim-inner/inner-rim-tube"
+          },
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "glass-pane-gloss",
+          "kind": "gloss",
+          "zone": "cube panes",
+          "description": "Low-roughness clearcoat highlight sweeping across the front-facing panes.",
+          "mapsTo": {
+            "ref": "glass-panel"
+          },
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        },
+        {
+          "id": "base-glass-gloss",
+          "kind": "gloss",
+          "zone": "platform surfaces",
+          "description": "Semi-translucent dark-violet platform with a broad top-face highlight and darker hole wall.",
+          "mapsTo": {
+            "ref": "glass-base"
+          },
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "core-glow",
+          "kind": "emissive",
+          "zone": "inner cube centre",
+          "description": "A point light plus 0.30 sprite gives the core its hot centre and halo through the glass.",
+          "mapsTo": {
+            "ref": "core-glow/core-light"
+          },
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        },
+        {
+          "id": "panel-instance-variation",
+          "kind": "contour",
+          "zone": "cube panes",
+          "description": "Per-instance brightness varies about 6 percent so the lattice does not read as a flat repeated shader.",
+          "mapsTo": {
+            "ref": "panel-grid/panel-jitter"
+          },
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        },
+        {
+          "id": "front-corner-bloom-source",
+          "kind": "gloss",
+          "zone": "front-right base corner",
+          "description": "The brightest bloom point sits on the near base corner where the outer rim meets the bevel.",
+          "mapsTo": {
+            "ref": "rim-outer/front-corner-bloom"
+          },
+          "evidenceRefs": [
+            "full-object"
+          ]
+        },
+        {
+          "id": "inner-cube-ratio",
+          "kind": "contour",
+          "zone": "inner cube",
+          "description": "The core cube is 0.88 across, 0.667 of the outer cube, centred on the same axes.",
+          "mapsTo": {
+            "ref": "cube-inner/core-cube-88"
+          },
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        }
+      ]
+    },
+    "anatomy": {
+      "applies": false,
+      "styleHeads": 0.0,
+      "proportions": {
+        "headUnit": 0.0,
+        "torso": 0.0,
+        "legs": 0.0,
+        "shoulderWidth": 0.0,
+        "hipWidth": 0.0
+      },
+      "pose": {
+        "type": "unassessed",
+        "jointAngles": {}
+      },
+      "faceLandmarks": {
+        "eyeLine": 0.0,
+        "eyeSpacing": 0.0,
+        "noseBase": 0.0,
+        "mouthLine": 0.0,
+        "hairline": 0.0
+      },
+      "features": [],
+      "confidence": 0.0,
+      "note": "Not a character; anatomy does not apply."
+    }
+  },
+  "qualityContract": {
+    "qualityBar": "Reference-fidelity neon glass cube: exact four-part hierarchy (outer cube, inner core cube, drilled outer platform, inner platform), 3x3 pane lattice on all six faces, two-tier platform with a true through-opening, emissive violet-only palette, and a static bloom composition whose brightest point is the front base corner.",
+    "definitionOfDone": [
+      "The render shows four separable parts in the correct parent-child order with the cube resting on the inner platform.",
+      "All six faces carry a 3x3 pane lattice, 24 seam bars and 12 emissive edge rods; the inner core cube reads through the glass.",
+      "Palette stays inside hue 250-315 degrees plus white; no cyan or green pixels are visible.",
+      "The preview is static, renders at 60 fps at 1280x900 with at most 12 draw calls, and the spec validator plus semantic checker pass."
+    ],
+    "minimumSpecDepth": {
+      "macroComponents": 5,
+      "mesoComponents": 7,
+      "microFeatureGroups": 12,
+      "materialLayers": 5,
+      "repetitionSystems": 4,
+      "reviewViewpoints": 5
+    },
+    "featureGroups": [
+      {
+        "id": "overall-silhouette",
+        "name": "Overall silhouette and proportions",
+        "required": true,
+        "qualityCriteria": [
+          "Cube side / base side is 0.66 +/- 0.03 and the cube is a true cube, not vertically stretched.",
+          "Platform thickness / base side is 0.08 +/- 0.01 and total model height is 1.46 relative units.",
+          "The two-tier platform step of 0.02 and the 0.08 ring gap are visible at review distance."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "cube reads as a generic box on a flat slab",
+          "platform thickness or cube ratio is guessed without measurement",
+          "inner platform is welded to the outer platform with no step"
+        ]
+      },
+      {
+        "id": "four-part-hierarchy",
+        "name": "Four-part hierarchy and contact points",
+        "required": true,
+        "qualityCriteria": [
+          "base-outer -> base-inner -> cube-outer -> cube-inner parent chain is explicit in the component tree.",
+          "Each primary part has its own pivot group, socket and collider proxy.",
+          "The cube bottom rests at the inner platform top (y=0.14) with a 0.001 seat tolerance, not floating and not sunk."
+        ],
+        "evidenceRefs": [
+          "full-object",
+          "base-closeup"
+        ],
+        "failureModes": [
+          "all geometry merged into one mesh",
+          "cube floats above or sinks through the platform",
+          "inner cube is off-centre"
+        ]
+      },
+      {
+        "id": "two-tier-platform-opening",
+        "name": "Drilled two-tier platform",
+        "required": true,
+        "qualityCriteria": [
+          "The outer platform has a real 1.64 square through-opening with rounded corners r=0.04.",
+          "The 1.48 inner platform sits inside it with a 0.08 gap on all four sides.",
+          "Three emissive perimeter tubes trace the outer edge, the opening edge and the inner platform edge."
+        ],
+        "evidenceRefs": [
+          "base-closeup",
+          "full-object"
+        ],
+        "failureModes": [
+          "opening is a dark decal rather than geometry",
+          "inner platform fills the opening completely with no visible gap",
+          "rim tubes are missing or float off the surface"
+        ]
+      },
+      {
+        "id": "lattice-and-seam-system",
+        "name": "3x3 pane lattice and seam system",
+        "required": true,
+        "qualityCriteria": [
+          "54 panes (6 faces x 9) with 0.424 size and 0.012 gaps.",
+          "24 seam bars at +/-0.218 from each face centre plus 12 outer edge rods.",
+          "The 12 inner edge rods on the core cube read hotter than the outer edges."
+        ],
+        "evidenceRefs": [
+          "cube-face",
+          "inner-core"
+        ],
+        "failureModes": [
+          "fewer than 9 panes on a visible face",
+          "seams disappear at the face edges",
+          "inner cube is subdivided instead of solid"
+        ]
+      },
+      {
+        "id": "neon-glass-material-response",
+        "name": "Neon glass material response",
+        "required": true,
+        "qualityCriteria": [
+          "Panes use additive low-opacity violet glass with clearcoat and no transmission.",
+          "Platform glass is semi-opaque, depth-writing, with darker hole walls.",
+          "Neon material is HDR white-violet above the bloom threshold and uses additive blending.",
+          "All materials declare textureless with evidence because the reference is a synthetic neon render."
+        ],
+        "evidenceRefs": [
+          "full-object",
+          "cube-face",
+          "base-closeup"
+        ],
+        "failureModes": [
+          "panes read as flat opaque purple",
+          "inner cube disappears behind the glass",
+          "neon rods bloom into a white screen"
+        ]
+      },
+      {
+        "id": "emissive-bloom-lighting",
+        "name": "Reference lighting and bloom composition",
+        "required": true,
+        "qualityCriteria": [
+          "Key, fill, rim and core lights plus exposure 1.05, ACES tone mapping and background #04010a are specified.",
+          "UnrealBloom strength 0.05, radius 0.25, threshold 1.00 keeps the background dark while matching the reference halo width; the HDR composer target plus OutputPass makes even a small strength bloom strongly, so the nominal pass values are the tuned ones.",
+          "The front base corner is the brightest region and the frame corners stay above 90 percent dark."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "ambient-only lighting with no key/rim structure",
+          "background washes grey or white",
+          "bloom is uniform instead of concentrated at the near base corner"
+        ]
+      }
+    ],
+    "visualDeltaChecks": [
+      "silhouette and negative-space delta",
+      "component hierarchy depth delta",
+      "3x3 lattice repetition density delta",
+      "material albedo/opacity/emissive response delta",
+      "bloom concentration and palette hue delta"
+    ],
+    "antiShallowSpecRules": [
+      "Do not proceed to code if qualityContract.qualityBar is unassessed.",
+      "Do not proceed to code if the spec only contains a root component for a moderate or complex object.",
+      "Do not proceed to code if required featureGroups are not represented by componentTree, materials, or repetitionSystems.",
+      "Do not proceed to code if visible local features are described only in prose and not attached to components/materials/evidenceRefs.",
+      "Do not proceed past structural-pass if attached child parts lack attachment.parentSocket, localStart, localEnd, embedDepth/overlap, and gapTolerance.",
+      "Do not pass material look-dev when albedo is reused as roughness, height, normal, or AO.",
+      "Do not pass material look-dev without macro, meso, and micro surface frequency bands for close-up materials.",
+      "Do not pass reference-fidelity material look-dev from a source image without usable referencePbr maps or an explicit documented limitation.",
+      "Do not patch a spec with extracted PBR maps when extraction confidence is below the target threshold unless the user explicitly accepts lower fidelity.",
+      "Do not place adjacent separate-geometry parts below 0.02 world-unit seam overlap (source: grimoire/build/geometry_patterns.md).",
+      "Do not satisfy raised or recessed relief, fasteners, or grip structure with a map alone when the feature affects form; use geometry or displacement (source: grimoire/build/geometry_patterns.md).",
+      "Adjacent components must overlap by at least 0.02 world units at shared seams (source: grimoire/build/geometry_patterns.md).",
+      "Raised or recessed relief and fasteners must be geometry, instanced micro-parts, or displacement; a map alone is an approximation (source: grimoire/build/geometry_patterns.md)."
+    ],
+    "mustNotDo": [
+      "Do not proceed to code if qualityContract.qualityBar is unassessed.",
+      "Do not proceed to code if the spec only contains a root component for a moderate or complex object.",
+      "Do not proceed to code if required featureGroups are not represented by componentTree, materials, or repetitionSystems.",
+      "Do not proceed to code if visible local features are described only in prose and not attached to components/materials/evidenceRefs.",
+      "Do not proceed past structural-pass if attached child parts lack attachment.parentSocket, localStart, localEnd, embedDepth/overlap, and gapTolerance.",
+      "Do not pass material look-dev when albedo is reused as roughness, height, normal, or AO.",
+      "Do not pass material look-dev without macro, meso, and micro surface frequency bands for close-up materials.",
+      "Do not pass reference-fidelity material look-dev from a source image without usable referencePbr maps or an explicit documented limitation.",
+      "Do not patch a spec with extracted PBR maps when extraction confidence is below the target threshold unless the user explicitly accepts lower fidelity.",
+      "Do not place adjacent separate-geometry parts below 0.02 world-unit seam overlap (source: grimoire/build/geometry_patterns.md).",
+      "Do not satisfy raised or recessed relief, fasteners, or grip structure with a map alone when the feature affects form; use geometry or displacement (source: grimoire/build/geometry_patterns.md).",
+      "Adjacent components must overlap by at least 0.02 world units at shared seams (source: grimoire/build/geometry_patterns.md).",
+      "Raised or recessed relief and fasteners must be geometry, instanced micro-parts, or displacement; a map alone is an approximation (source: grimoire/build/geometry_patterns.md)."
+    ]
+  },
+  "qualityTargets": {
+    "targetFidelity": 0.8,
+    "mustMatch": [
+      "four-part hierarchy and two-tier platform",
+      "cube side / base side ratio 0.66",
+      "3x3 pane lattice on all six faces",
+      "inner core cube at 0.667 of the outer cube",
+      "violet-only palette with no cyan or green",
+      "neon edge and rim emission above the bloom threshold",
+      "front base corner as the brightest bloom point"
+    ],
+    "niceToHave": [
+      "per-pane brightness jitter",
+      "subtle fog depth behind the model",
+      "soft contact darkening where the cube meets the platform"
+    ],
+    "fpsTarget": 60,
+    "reviewViewpoints": [
+      "hero-azimuth-45",
+      "orbit-azimuth-135",
+      "orbit-azimuth-225",
+      "orbit-azimuth-315",
+      "top-elevation-60"
+    ]
+  },
+  "selfCorrectLoop": {
+    "enabled": true,
+    "visualAcceptance": {
+      "reviewer": "ai-vision",
+      "threshold": 0.7,
+      "comparisonArtifactRequired": true,
+      "layerScoresRequired": true,
+      "codePixelDiffIsAcceptanceAuthority": false,
+      "scoringRule": "AI vision must inspect a side-by-side reference/render sheet and score the current pass from 0 to 1. Pixel-diff code may assist diagnostics but cannot approve a pass.",
+      "requiredLayerScores": [
+        "silhouetteProportion",
+        "componentStructure",
+        "formDetail",
+        "materialSurface",
+        "lightingCamera"
+      ],
+      "featureReviewPolicy": {
+        "enabled": true,
+        "reviewUnit": "semantic-subsystem",
+        "maxCriticalFeaturesPerPass": 5,
+        "maxImportantFeaturesPerPass": 3,
+        "criticalDefaultThreshold": 0.8,
+        "importantAverageThreshold": 0.65,
+        "adaptiveEscalation": true,
+        "singleImagePairOnly": true,
+        "selectionRule": "Choose only the most visually salient, identity-defining, user-prioritized, or high-risk semantic systems. Group repeated parts instead of reviewing every mesh."
+      }
+    },
+    "reviewAfterPasses": [
+      "blockout",
+      "structural-pass",
+      "form-refinement",
+      "material-pass",
+      "surface-pass",
+      "lighting-pass",
+      "interaction-pass",
+      "optimization-pass"
+    ],
+    "allowedActions": [
+      "continue",
+      "refine-spec",
+      "refine-code",
+      "request-input",
+      "stop"
+    ],
+    "specRefineTriggers": [
+      "missing component",
+      "wrong primitive family",
+      "wrong proportions",
+      "material layer under-specified",
+      "local feature not traceable to viewEvidence",
+      "reference ambiguity discovered during implementation"
+    ],
+    "codeRefineTriggers": [
+      "spec is adequate but generated geometry/material does not match",
+      "browser render differs from reference",
+      "performance budget exceeded",
+      "lighting hides geometry or material response"
+    ],
+    "stopCriteria": [
+      "target fidelity reached or user accepts current approximation",
+      "remaining gaps require new reference images or manual art"
+    ],
+    "screenshotPolicy": {
+      "requiredForPasses": [
+        "blockout",
+        "structural-pass",
+        "form-refinement",
+        "material-pass",
+        "surface-pass",
+        "lighting-pass",
+        "interaction-pass"
+      ],
+      "preferredCapture": "in-app-browser-screenshot",
+      "fallbackCapture": "user-supplied-screenshot-path",
+      "minimumEvidence": "Each visual pass needs a reference image, rendered screenshot, side-by-side comparison sheet, AI vision score, layer scores, and critique before choosing continue.",
+      "reviewPairRule": "Compare the same camera/viewpoint whenever possible; do not judge a front reference against a random render angle.",
+      "acceptanceAuthority": "AI vision review of the comparison sheet. Code-generated pixel similarity is not sufficient evidence."
+    }
+  },
+  "featureReviewTargets": [
+    {
+      "id": "four-part-hierarchy",
+      "name": "Four-part parent-child hierarchy",
+      "tier": "critical",
+      "passIds": [
+        "structural-pass"
+      ],
+      "minimumScore": 0.85,
+      "mustPass": true,
+      "componentRefs": [
+        "root",
+        "base-outer",
+        "base-inner",
+        "cube-outer",
+        "cube-inner"
+      ],
+      "evidenceRefs": [
+        "full-object"
+      ]
+    },
+    {
+      "id": "two-tier-base-opening",
+      "name": "Two-tier drilled platform with ring gap",
+      "tier": "critical",
+      "passIds": [
+        "structural-pass",
+        "form-refinement"
+      ],
+      "minimumScore": 0.8,
+      "mustPass": true,
+      "componentRefs": [
+        "base-outer",
+        "base-inner",
+        "rim-outer",
+        "rim-hole",
+        "rim-inner"
+      ],
+      "evidenceRefs": [
+        "base-closeup",
+        "full-object"
+      ]
+    },
+    {
+      "id": "outer-cube-3x3-lattice",
+      "name": "Outer cube 3x3 pane lattice and edge frame",
+      "tier": "critical",
+      "passIds": [
+        "form-refinement",
+        "material-pass"
+      ],
+      "minimumScore": 0.85,
+      "mustPass": true,
+      "componentRefs": [
+        "cube-outer",
+        "panel-grid",
+        "seam-grid",
+        "cube-edges"
+      ],
+      "evidenceRefs": [
+        "cube-face",
+        "full-object"
+      ]
+    },
+    {
+      "id": "inner-core-cube-visibility",
+      "name": "Inner core cube visibility through glass",
+      "tier": "critical",
+      "passIds": [
+        "form-refinement",
+        "material-pass"
+      ],
+      "minimumScore": 0.8,
+      "mustPass": true,
+      "componentRefs": [
+        "cube-inner",
+        "inner-edges",
+        "core-glow"
+      ],
+      "evidenceRefs": [
+        "inner-core",
+        "full-object"
+      ]
+    },
+    {
+      "id": "neon-glass-palette-and-bloom",
+      "name": "Violet neon palette and bloom concentration",
+      "tier": "critical",
+      "passIds": [
+        "material-pass",
+        "surface-pass",
+        "lighting-pass"
+      ],
+      "minimumScore": 0.8,
+      "mustPass": true,
+      "componentRefs": [
+        "panel-grid",
+        "seam-grid",
+        "cube-edges",
+        "inner-edges",
+        "rim-outer",
+        "core-glow"
+      ],
+      "evidenceRefs": [
+        "full-object",
+        "cube-face",
+        "base-closeup"
+      ]
+    },
+    {
+      "id": "cube-to-inner-base-contact",
+      "name": "Cube resting on the inner platform",
+      "tier": "important",
+      "passIds": [
+        "structural-pass"
+      ],
+      "minimumScore": 0.7,
+      "mustPass": false,
+      "componentRefs": [
+        "cube-outer",
+        "base-inner"
+      ],
+      "evidenceRefs": [
+        "base-closeup"
+      ]
+    }
+  ],
+  "sculptPipeline": {
+    "passGateMode": "locked-sequential",
+    "passOrder": [
+      "blockout",
+      "structural-pass",
+      "form-refinement",
+      "material-pass",
+      "surface-pass",
+      "lighting-pass",
+      "interaction-pass",
+      "optimization-pass"
+    ],
+    "currentPass": "blockout",
+    "completedPasses": [],
+    "lastCompletedPass": "",
+    "blockedReason": "blockout requires a browser screenshot and self-correction review before structural-pass unlocks",
+    "nextRequiredEvidence": [
+      "blockout browser render screenshot from the agent browser/screenshot tool",
+      "side-by-side reference/render comparison sheet",
+      "AI vision score >= 0.7 with layer scores and mismatch critique",
+      "critical semantic feature scores from the same image pair meeting their individual thresholds",
+      "reviewHistory entry for blockout with action=continue"
+    ]
+  },
+  "lookDevTargets": {
+    "qualityPriority": "reference-fidelity",
+    "materialPass": {
+      "albedoPaletteRequired": true,
+      "roughnessVariationRequired": true,
+      "normalOrBumpRequired": true,
+      "localOverridesRequired": true,
+      "minimumTextureResolution": 1024,
+      "preferredTextureResolution": 2048,
+      "independentMapChannels": [
+        "albedo",
+        "roughness",
+        "height",
+        "normal",
+        "ambient-occlusion"
+      ],
+      "requiredSurfaceFrequencyBands": [
+        "macro",
+        "meso",
+        "micro"
+      ],
+      "geometryReliefRequiredWhenSilhouetteAffected": true,
+      "referencePbrExtraction": {
+        "requiredWhenSourceImagePresent": true,
+        "targetThreshold": 0.7,
+        "stopOnLowConfidence": true,
+        "script": "forge/stage1_intake/extract_pbr_evidence.py",
+        "acceptedLimitation": "The reference is a synthetic neon render with no sampled surface detail; every material documents textureless with evidence instead of fabricating PBR maps."
+      },
+      "mustAvoid": [
+        "single flat albedo per material without local overrides",
+        "uniform roughness",
+        "albedo texture reused as roughness/height/normal/AO",
+        "single-frequency random noise",
+        "plastic-looking glass or neon",
+        "local color/detail described only in prose without material masks",
+        "claiming exact PBR recovery when confidence is below the target threshold"
+      ]
+    },
+    "lightingPass": {
+      "requiredTerms": [
+        "key light",
+        "fill light",
+        "rim or environment light",
+        "exposure",
+        "tone mapping",
+        "background",
+        "contact shadow"
+      ],
+      "mustAvoid": [
+        "ambient-only lighting",
+        "flat value range",
+        "missing contact shadow",
+        "reference lighting copied without separating material readability"
+      ]
+    },
+    "screenshotReview": [
+      "Compare palette and local color zones.",
+      "Compare glass opacity, clearcoat highlight and neon emission under light.",
+      "Compare rim and seam emission at the base.",
+      "Compare key/fill/rim structure, exposure, tone mapping, background, and contact shadows.",
+      "Capture a neutral-light render to verify material readability without reference lighting.",
+      "Capture a grazing-light close-up to expose flat normals and plastic highlights.",
+      "Capture a reference-matched render from the same camera framing as the source."
+    ]
+  },
+  "actionReadiness": {
+    "contract": "Every macro/meso component should be generated as a stable named Object3D pivot node with a mesh child, action metadata, optional sockets, collider proxy, and destruction metadata.",
+    "defaultRigType": "action-ready-static-rig",
+    "rootMotionNode": "root",
+    "requiredComponentFields": [
+      "id",
+      "parent",
+      "transform",
+      "attachment for child appendages, connectors, limbs, tubes, handles, legs, horns, wings, branches, or cables",
+      "actionProfile.animationRole",
+      "actionProfile.pivot",
+      "actionProfile.collider",
+      "actionProfile.destruction"
+    ],
+    "transformChannels": [
+      "translate",
+      "rotate",
+      "scale",
+      "bend",
+      "twist",
+      "detach",
+      "visibility",
+      "material-state"
+    ],
+    "authoringRules": [
+      "Do not collapse independently movable parts into one mesh.",
+      "Put transforms on component pivot groups, not only on raw meshes.",
+      "For attached child parts, put the pivot at the semantic root/socket and build visible geometry from localStart to localEnd.",
+      "Represent hinge, socket, detachable, and breakable intent even when no animation is implemented yet.",
+      "Use simplified collider proxies for runtime physics instead of visual mesh colliders by default."
+    ],
+    "destructionPolicy": {
+      "defaultBreakable": false,
+      "fractureGroupNaming": "Use stable semantic names such as glass-panel-array, outer-edge-frame, inner-core.",
+      "debrisStrategy": "Prefer detachable component groups and a small number of procedural fragments over random mesh explosion."
+    }
+  },
+  "assumptions": [
+    "Only one reference view exists; the back, bottom and inner cavity are assumed symmetric.",
+    "The 3x3 pane lattice continues on all six faces.",
+    "The platform opening is a true through-hole with rounded corners r=0.04.",
+    "The floor grid belongs to the preview harness, not to the model.",
+    "Bloom is a post effect; emissive geometry supplies the HDR values but not the glow itself."
+  ],
+  "coordinateFrame": {
+    "front": "+Z faces the camera in the reference; +X right; +Y up; right-handed.",
+    "up": "+Y",
+    "origin": "centre of the floor plane under the model at y = 0",
+    "scaleReference": "base-outer edge = 2.00 relative units",
+    "units": "relative"
+  },
+  "silhouette": {
+    "boundingShape": "Square platform 2.00 x 2.00 with a chamfered edge, a 1.48 inner platform inside a 1.64 opening, and a 1.32 cube centred on top; overall height 1.46.",
+    "aspectRatios": [
+      "cube side / base side = 0.66",
+      "platform thickness / base side = 0.08",
+      "model height / base width = 0.73",
+      "inner cube side / outer cube side = 0.667",
+      "ring gap / base side = 0.04"
+    ],
+    "symmetry": "Four-fold rotational symmetry about Y and mirror symmetry about the XZ and YZ planes; back and bottom assumed symmetric from the single view.",
+    "dominantCurves": [
+      "rounded-square platform perimeter r=0.06",
+      "rounded opening corners r=0.04",
+      "3x3 lattice at 0.436 pitch",
+      "12 straight cube edges"
+    ],
+    "negativeSpaces": [
+      "0.08 ring gap between base-inner and the opening wall",
+      "0.012 pane gaps and 0.006 seam bars",
+      "0.22 clear depth between the inner cube face and the outer glass"
+    ],
+    "landmarks": [
+      "front base corner at (1.00, 0.16, 1.00)",
+      "cube top centre (0, 1.46, 0)",
+      "inner cube centre (0, 0.80, 0)",
+      "platform step ring at y = 0.14"
+    ]
+  },
+  "viewEvidence": [
+    {
+      "id": "full-object",
+      "view": "primary",
+      "imageRegion": {
+        "x": 0.03,
+        "y": 0.08,
+        "width": 0.94,
+        "height": 0.84,
+        "units": "normalized"
+      },
+      "observations": [
+        "Large transparent cube with a 3x3 pane lattice on every visible face.",
+        "Smaller hotter cube at the centre, visible through the glass.",
+        "Outer platform is a thick square frame with a real central opening.",
+        "Inner platform sits inside the opening with a visible gap and a 0.02 step.",
+        "Three neon perimeter rims and 12 glowing cube edges.",
+        "Dark violet background with a faint floor grid.",
+        "Brightest bloom at the front base corner."
+      ],
+      "confidence": 0.9
+    },
+    {
+      "id": "base-closeup",
+      "view": "detail-base",
+      "imageRegion": {
+        "x": 0.04,
+        "y": 0.72,
+        "width": 0.92,
+        "height": 0.24,
+        "units": "normalized"
+      },
+      "observations": [
+        "Platform has a chamfered top edge and a darker vertical hole wall.",
+        "Inner platform is lower than the outer top by about one percent of the base width.",
+        "The gap around the inner platform is visible on all four sides.",
+        "Outer, opening and inner rims are separate emissive tubes."
+      ],
+      "confidence": 0.85
+    },
+    {
+      "id": "cube-face",
+      "view": "detail-face",
+      "imageRegion": {
+        "x": 0.26,
+        "y": 0.1,
+        "width": 0.48,
+        "height": 0.55,
+        "units": "normalized"
+      },
+      "observations": [
+        "Nine panes per face with thin seam lines.",
+        "Pane brightness varies slightly across the lattice.",
+        "Edges are brighter than the panes.",
+        "Clearcoat highlight sweeps across the front-facing panes."
+      ],
+      "confidence": 0.85
+    },
+    {
+      "id": "inner-core",
+      "view": "detail-core",
+      "imageRegion": {
+        "x": 0.34,
+        "y": 0.22,
+        "width": 0.32,
+        "height": 0.36,
+        "units": "normalized"
+      },
+      "observations": [
+        "Inner cube is about one third of the outer cube.",
+        "Its edges are brighter than the outer edges.",
+        "It is centred and does not touch the outer glass.",
+        "Its faces are not subdivided."
+      ],
+      "confidence": 0.6
+    }
+  ],
+  "componentTree": [
+    {
+      "id": "root",
+      "name": "Neon Glass Cube assembly",
+      "level": "macro",
+      "role": "assembly",
+      "importance": 1.0,
+      "confidence": 0.9,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Root is a transform-only assembly group whose children are the four visible solids, so the cluster is assembled rather than one continuous surface.",
+      "geometryDescriptor": {
+        "topologyIntent": "empty transform group anchoring the whole module",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "none; children own their coordinates",
+        "normalStrategy": "child mesh vertex normals"
+      },
+      "parent": null,
+      "attachment": null,
+      "dimensions": {
+        "width": 2.0,
+        "height": 1.46,
+        "depth": 2.0,
+        "units": "relative",
+        "confidence": 0.9
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "root",
+        "pivot": {
+          "mode": "floor-center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": false,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [
+          {
+            "id": "origin",
+            "localPosition": [
+              0,
+              0,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0.73,
+            0
+          ],
+          "scale": [
+            2.0,
+            1.46,
+            2.0
+          ],
+          "isTrigger": false,
+          "notes": "Whole-assembly pick proxy; children provide finer hit tests."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "whole-assembly",
+          "seamRefs": [],
+          "detachableFragments": [],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "glass-base"
+        }
+      },
+      "material": "glass-base",
+      "materialLayers": [
+        "glass-base",
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Assembly root has no surface."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(90, 27, 219, 1.0)",
+        "secondaryAlbedo": "rgba(255, 255, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.9
+      },
+      "evidenceRefs": [
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "blockout"
+    },
+    {
+      "id": "base-outer",
+      "name": "Outer platform frame",
+      "level": "macro",
+      "role": "platform-frame",
+      "importance": 1.0,
+      "confidence": 0.9,
+      "primitive": "extrude",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A 2.00 square slab with a real 1.64 square hole is a closed extruded solid with an inner boundary; the chamfer and hole wall are visible in the base close-up.",
+      "geometryDescriptor": {
+        "topologyIntent": "rounded-square frame extruded 0.12 with a 0.02 bevel (0.16 total height) and a true square through-opening",
+        "profile2D": {
+          "shape": "rounded-square",
+          "size": [
+            2.0,
+            2.0
+          ],
+          "cornerRadius": 0.06,
+          "depth": 0.12,
+          "bevel": 0.02,
+          "hole": {
+            "size": [
+              1.64,
+              1.64
+            ],
+            "cornerRadius": 0.04,
+            "through": true
+          }
+        },
+        "openings": [
+          {
+            "id": "square-hole",
+            "width": 1.64,
+            "depth": 1.64,
+            "cornerRadius": 0.04,
+            "through": true
+          }
+        ],
+        "edgeTreatment": {
+          "type": "bevel",
+          "bevelRadius": 0.02,
+          "segments": 4
+        },
+        "deformationStack": [],
+        "uvStrategy": "generated procedural coordinates",
+        "normalStrategy": "vertex normals from extrude geometry"
+      },
+      "parent": "root",
+      "attachment": null,
+      "dimensions": {
+        "width": 2.0,
+        "height": 0.16,
+        "depth": 2.0,
+        "units": "relative",
+        "confidence": 0.9
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "outer-platform",
+        "pivot": {
+          "mode": "floor-center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [
+          {
+            "id": "top-center",
+            "localPosition": [
+              0,
+              0.16,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "id": "hole-seat",
+            "localPosition": [
+              0,
+              0,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0.08,
+            0
+          ],
+          "scale": [
+            2.0,
+            0.16,
+            2.0
+          ],
+          "isTrigger": false,
+          "notes": "Solid frame proxy; the hole is not carved into the collider."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-platform",
+          "seamRefs": [
+            "outer-rim-seam"
+          ],
+          "detachableFragments": [
+            "rim-outer"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "glass-base"
+        }
+      },
+      "material": "glass-base",
+      "materialLayers": [
+        "glass-base",
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [
+        {
+          "id": "outer-rim-seam",
+          "with": "rim-outer",
+          "type": "emissive-inlay"
+        },
+        {
+          "id": "hole-rim-seam",
+          "with": "rim-hole",
+          "type": "emissive-inlay"
+        }
+      ],
+      "localFeatures": [
+        {
+          "id": "outer-bevel-frame",
+          "name": "Chamfered outer top edge",
+          "kind": "bevel",
+          "description": "0.02 chamfer at 45 degrees around the top perimeter; catches the key light.",
+          "evidenceRefs": [
+            "full-object",
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "hole-wall",
+          "name": "Vertical opening wall with rounded lip",
+          "kind": "bevel",
+          "description": "The opening wall is vertical and darker than the top face; a 0.04 rounded lip softens the top edge.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "through-opening",
+          "name": "True 1.64 square through-opening",
+          "kind": "hole",
+          "description": "Real boolean opening in the extruded frame; the inner platform and floor are visible through it.",
+          "evidenceRefs": [
+            "full-object",
+            "base-closeup"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.12,
+        "microRoughness": 0.05,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none; geometry carries the chamfer",
+        "displacementPattern": "none",
+        "occlusionPattern": "dark hole wall and seam contact",
+        "edgeWearPattern": "none",
+        "notes": "Semi-translucent dark violet glass."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(90, 27, 219, 0.72)",
+        "secondaryAlbedo": "rgba(42, 10, 102, 0.72)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.88,
+        "colorGradient": {
+          "type": "linear",
+          "stops": [
+            {
+              "position": 0.0,
+              "color": "rgba(139, 61, 255, 0.72)"
+            },
+            {
+              "position": 1.0,
+              "color": "rgba(42, 10, 102, 0.72)"
+            }
+          ]
+        }
+      },
+      "evidenceRefs": [
+        "full-object",
+        "base-closeup"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "base-inner",
+      "name": "Inner platform slab",
+      "level": "macro",
+      "role": "inner-platform",
+      "importance": 1.0,
+      "confidence": 0.85,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A 1.48 rounded slab seated inside the opening; its top face is 0.02 below the outer platform and it rests directly on the floor plane.",
+      "geometryDescriptor": {
+        "topologyIntent": "rounded slab 1.48 x 0.14 x 1.48 seated on the floor at y=0",
+        "edgeTreatment": {
+          "type": "bevel",
+          "bevelRadius": 0.04,
+          "segments": 4
+        },
+        "deformationStack": [],
+        "uvStrategy": "generated procedural coordinates",
+        "normalStrategy": "vertex normals from rounded box"
+      },
+      "parent": "base-outer",
+      "attachment": {
+        "parentSocket": "hole-seat",
+        "contactType": "seated-in-opening",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0.14,
+          0
+        ],
+        "embedDepth": 0.0,
+        "gapTolerance": 0.002,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup"
+        ]
+      },
+      "dimensions": {
+        "width": 1.48,
+        "height": 0.14,
+        "depth": 1.48,
+        "units": "relative",
+        "confidence": 0.85
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "inner-platform",
+        "pivot": {
+          "mode": "floor-center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [
+          {
+            "id": "top-center",
+            "localPosition": [
+              0,
+              0.14,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0.07,
+            0
+          ],
+          "scale": [
+            1.48,
+            0.14,
+            1.48
+          ],
+          "isTrigger": false,
+          "notes": "Slab proxy; seated on the floor inside the opening."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "inner-platform",
+          "seamRefs": [
+            "inner-rim-seam"
+          ],
+          "detachableFragments": [
+            "rim-inner"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "glass-base-inner"
+        }
+      },
+      "material": "glass-base-inner",
+      "materialLayers": [
+        "glass-base-inner",
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [
+        {
+          "id": "inner-rim-seam",
+          "with": "rim-inner",
+          "type": "emissive-inlay"
+        }
+      ],
+      "localFeatures": [
+        {
+          "id": "step-lip",
+          "name": "0.02 platform step",
+          "kind": "groove",
+          "description": "The inner top face sits 0.02 below the outer top, creating a visible step ring.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "floor-seat",
+          "name": "Floor-seated slab base",
+          "kind": "seam",
+          "description": "The slab bottom sits on the floor plane at y=0, so the opening reads as a dry recess rather than a floating insert.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.12,
+        "microRoughness": 0.05,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none; geometry carries the bevel",
+        "displacementPattern": "none",
+        "occlusionPattern": "contact darkening at the step ring",
+        "edgeWearPattern": "none",
+        "notes": "Near-black violet glass, clearly darker than the outer platform."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(23, 5, 40, 0.94)",
+        "secondaryAlbedo": "rgba(42, 10, 68, 0.94)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.88
+      },
+      "evidenceRefs": [
+        "base-closeup",
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "cube-outer",
+      "name": "Outer glass cube",
+      "level": "macro",
+      "role": "glass-shell",
+      "importance": 1.0,
+      "confidence": 0.9,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A 1.32 cube assembled from 54 flat panes plus a rod frame; it is a hollow assembly of planar pieces, not a continuous sculpted volume.",
+      "geometryDescriptor": {
+        "topologyIntent": "six-face hollow cube from a 3x3 pane lattice and a rod edge frame",
+        "edgeTreatment": {
+          "type": "bevel",
+          "bevelRadius": 0.004,
+          "segments": 2
+        },
+        "deformationStack": [],
+        "uvStrategy": "instance matrices; per-pane local coordinates",
+        "normalStrategy": "vertex normals from rounded pane geometry"
+      },
+      "parent": "base-inner",
+      "attachment": {
+        "parentSocket": "top-center",
+        "contactType": "rest",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          1.32,
+          0
+        ],
+        "embedDepth": 0.001,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup"
+        ]
+      },
+      "dimensions": {
+        "width": 1.32,
+        "height": 1.32,
+        "depth": 1.32,
+        "units": "relative",
+        "confidence": 0.9
+      },
+      "transform": {
+        "position": [
+          0,
+          0.14,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "outer-cube-shell",
+        "pivot": {
+          "mode": "bottom-center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [
+          {
+            "id": "bottom-center",
+            "localPosition": [
+              0,
+              0,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "id": "center",
+            "localPosition": [
+              0,
+              0.66,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0.66,
+            0
+          ],
+          "scale": [
+            1.32,
+            1.32,
+            1.32
+          ],
+          "isTrigger": false,
+          "notes": "Cube shell proxy; pane instances provide per-pane hits."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-cube-shell",
+          "seamRefs": [
+            "pane-lattice",
+            "edge-frame"
+          ],
+          "detachableFragments": [
+            "panel-grid",
+            "cube-edges"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "glass-panel"
+        }
+      },
+      "material": "glass-panel",
+      "materialLayers": [
+        "glass-panel",
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [
+        {
+          "id": "pane-lattice",
+          "with": "panel-grid",
+          "type": "pane-grid"
+        },
+        {
+          "id": "edge-frame",
+          "with": "cube-edges",
+          "type": "emissive-frame"
+        },
+        {
+          "id": "seam-lattice",
+          "with": "seam-grid",
+          "type": "groove-lattice"
+        }
+      ],
+      "localFeatures": [
+        {
+          "id": "face-lattice-3x3",
+          "name": "3x3 pane lattice",
+          "kind": "linework",
+          "description": "Nine 0.424 panes per face with 0.012 gaps; repeats on all six faces.",
+          "evidenceRefs": [
+            "full-object",
+            "cube-face"
+          ]
+        },
+        {
+          "id": "seam-cross",
+          "name": "Seam cross per face",
+          "kind": "linework",
+          "description": "Two horizontal and two vertical seam bars at +/-0.218 from each face centre.",
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        },
+        {
+          "id": "edge-frame-12",
+          "name": "Twelve emissive cube edges",
+          "kind": "emissive",
+          "description": "0.010 rods on all 12 cube edges; brighter than the panes.",
+          "evidenceRefs": [
+            "full-object"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.06,
+        "microRoughness": 0.02,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none; geometry carries pane and seam relief",
+        "displacementPattern": "none",
+        "occlusionPattern": "pane gaps and seam contact darkening",
+        "edgeWearPattern": "none",
+        "notes": "Low-opacity additive panes with clearcoat."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(122, 44, 255, 0.10)",
+        "secondaryAlbedo": "rgba(75, 18, 168, 0.10)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.9,
+        "colorGradient": {
+          "type": "radial",
+          "stops": [
+            {
+              "position": 0.0,
+              "color": "rgba(164, 92, 255, 0.10)"
+            },
+            {
+              "position": 1.0,
+              "color": "rgba(75, 18, 168, 0.10)"
+            }
+          ]
+        }
+      },
+      "evidenceRefs": [
+        "full-object",
+        "cube-face",
+        "inner-core"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "cube-inner",
+      "name": "Inner core cube",
+      "level": "macro",
+      "role": "core-cube",
+      "importance": 0.95,
+      "confidence": 0.8,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A solid 0.88 cube with 12 rod edges suspended at the centre of the outer cube; it is not subdivided and does not touch the glass.",
+      "geometryDescriptor": {
+        "topologyIntent": "solid core cube plus 12 rod edges, centred on the outer cube",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "generated procedural coordinates",
+        "normalStrategy": "vertex normals from box geometry"
+      },
+      "parent": "cube-outer",
+      "attachment": {
+        "parentSocket": "center",
+        "contactType": "suspended",
+        "localStart": [
+          0,
+          -0.44,
+          0
+        ],
+        "localEnd": [
+          0,
+          0.44,
+          0
+        ],
+        "embedDepth": 0.0,
+        "gapTolerance": 0.22,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "inner-core"
+        ]
+      },
+      "dimensions": {
+        "width": 0.88,
+        "height": 0.88,
+        "depth": 0.88,
+        "units": "relative",
+        "confidence": 0.8
+      },
+      "transform": {
+        "position": [
+          0,
+          0.66,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "core-cube",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.85
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [
+          {
+            "id": "center",
+            "localPosition": [
+              0,
+              0,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "id": "bottom-center",
+            "localPosition": [
+              0,
+              -0.44,
+              0
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.88,
+            0.88,
+            0.88
+          ],
+          "isTrigger": true,
+          "notes": "Core pick proxy; suspended inside the shell."
+        },
+        "constraints": [
+          "rotation about Y is free",
+          "position is fixed at the outer cube centre"
+        ],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "inner-core",
+          "seamRefs": [
+            "core-edge-frame"
+          ],
+          "detachableFragments": [
+            "inner-edges",
+            "core-glow"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "core-glass"
+        }
+      },
+      "material": "core-glass",
+      "materialLayers": [
+        "core-glass",
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [
+        {
+          "id": "core-edge-frame",
+          "with": "inner-edges",
+          "type": "emissive-frame"
+        }
+      ],
+      "localFeatures": [
+        {
+          "id": "core-cube-88",
+          "name": "0.88 solid core cube",
+          "kind": "contour",
+          "description": "Solid inner cube at 0.667 of the outer cube, centred at (0, 0.80, 0).",
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        },
+        {
+          "id": "core-edge-glow-12",
+          "name": "Twelve hot core edges",
+          "kind": "emissive",
+          "description": "0.007 rods on the 0.88 core edges, visibly hotter than the outer frame.",
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.12,
+        "microRoughness": 0.02,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none; core is emissive",
+        "edgeWearPattern": "none",
+        "notes": "Semi-opaque emissive core glass."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(139, 61, 255, 0.85)",
+        "secondaryAlbedo": "rgba(192, 77, 255, 0.85)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.85
+      },
+      "evidenceRefs": [
+        "inner-core",
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "panel-grid",
+      "name": "Glass pane lattice",
+      "level": "meso",
+      "role": "glass-panel-array",
+      "importance": 0.9,
+      "confidence": 0.85,
+      "primitive": "instanced-cluster",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Fifty-four separate flat panes tiled over six planar faces; the repetition is an instanced cluster, not a continuous glass surface.",
+      "geometryDescriptor": {
+        "topologyIntent": "one InstancedMesh holding 6 x 9 rounded panes",
+        "edgeTreatment": {
+          "type": "bevel",
+          "bevelRadius": 0.004,
+          "segments": 2
+        },
+        "deformationStack": [],
+        "uvStrategy": "instance matrices; no per-pane UV mapping",
+        "normalStrategy": "vertex normals from rounded pane geometry"
+      },
+      "parent": "cube-outer",
+      "attachment": null,
+      "dimensions": {
+        "width": 1.32,
+        "height": 1.32,
+        "depth": 1.32,
+        "units": "relative",
+        "confidence": 0.9
+      },
+      "transform": {
+        "position": [
+          0,
+          0.66,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "pane-array",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [
+          {
+            "id": "face-center-front",
+            "localPosition": [
+              0,
+              0,
+              0.66
+            ],
+            "localRotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.32,
+            1.32,
+            1.32
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the pane array."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "glass-panel-array",
+          "seamRefs": [
+            "pane-lattice"
+          ],
+          "detachableFragments": [
+            "panel-grid"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "glass-panel"
+        }
+      },
+      "material": "glass-panel",
+      "materialLayers": [
+        "glass-panel"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "panel-jitter",
+          "name": "Per-pane brightness jitter",
+          "kind": "contour",
+          "description": "instanceColor varies about 6 percent so the lattice does not read as a flat repeated shader.",
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.06,
+        "microRoughness": 0.02,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "gap darkening",
+        "edgeWearPattern": "none",
+        "notes": "Panes are 0.020 thick with their outer face flush at radius 0.660."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(122, 44, 255, 0.10)",
+        "secondaryAlbedo": "rgba(164, 92, 255, 0.10)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.9
+      },
+      "evidenceRefs": [
+        "cube-face",
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "seam-grid",
+      "name": "Seam bar lattice",
+      "level": "meso",
+      "role": "seam-lattice",
+      "importance": 0.8,
+      "confidence": 0.8,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Twenty-four thin solid bars merged into one mesh; each bar is a rectangular rod sitting proud of a face.",
+      "geometryDescriptor": {
+        "topologyIntent": "24 box rods merged into one emissive mesh",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "merged world-space coordinates",
+        "normalStrategy": "vertex normals from box geometry"
+      },
+      "parent": "cube-outer",
+      "attachment": null,
+      "dimensions": {
+        "width": 1.32,
+        "height": 1.32,
+        "depth": 1.32,
+        "units": "relative",
+        "confidence": 0.9
+      },
+      "transform": {
+        "position": [
+          0,
+          0.66,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "seam-lattice",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.32,
+            1.32,
+            1.32
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the seam lattice."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "seam-lattice",
+          "seamRefs": [
+            "seam-lattice"
+          ],
+          "detachableFragments": [
+            "seam-grid"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "seam-proud",
+          "name": "Proud seam bars",
+          "kind": "linework",
+          "description": "0.006 bars sit 0.010 proud of the pane outer face (outer radius 0.670) so the lattice catches the key light.",
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive rods; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(210, 190, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.85
+      },
+      "evidenceRefs": [
+        "cube-face"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "cube-edges",
+      "name": "Outer cube edge frame",
+      "level": "meso",
+      "role": "edge-frame",
+      "importance": 0.9,
+      "confidence": 0.85,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Twelve solid rods merged into one mesh along the cube silhouette; the frame is the brightest part of the outer shell.",
+      "geometryDescriptor": {
+        "topologyIntent": "12 box rods merged into one emissive mesh",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "merged world-space coordinates",
+        "normalStrategy": "vertex normals from box geometry"
+      },
+      "parent": "cube-outer",
+      "attachment": null,
+      "dimensions": {
+        "width": 1.32,
+        "height": 1.32,
+        "depth": 1.32,
+        "units": "relative",
+        "confidence": 0.9
+      },
+      "transform": {
+        "position": [
+          0,
+          0.66,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "outer-edge-frame",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.9
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.32,
+            1.32,
+            1.32
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the edge frame."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-edge-frame",
+          "seamRefs": [
+            "edge-frame"
+          ],
+          "detachableFragments": [
+            "cube-edges"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "edge-proud",
+          "name": "Proud outer edge rods",
+          "kind": "emissive",
+          "description": "0.010 rods protrude 0.007 from each cube edge.",
+          "evidenceRefs": [
+            "full-object"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive rods; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(200, 180, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.85
+      },
+      "evidenceRefs": [
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "inner-edges",
+      "name": "Inner core edge frame",
+      "level": "meso",
+      "role": "core-edge-frame",
+      "importance": 0.85,
+      "confidence": 0.8,
+      "primitive": "box",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Twelve solid rods merged into one mesh along the core cube edges; they read through the outer glass.",
+      "geometryDescriptor": {
+        "topologyIntent": "12 box rods merged into one emissive mesh",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "merged world-space coordinates",
+        "normalStrategy": "vertex normals from box geometry"
+      },
+      "parent": "cube-inner",
+      "attachment": null,
+      "dimensions": {
+        "width": 0.88,
+        "height": 0.88,
+        "depth": 0.88,
+        "units": "relative",
+        "confidence": 0.85
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "core-edge-frame",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.85
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.88,
+            0.88,
+            0.88
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the core edge frame."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "inner-core",
+          "seamRefs": [
+            "core-edge-frame"
+          ],
+          "detachableFragments": [
+            "inner-edges"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "inner-edge-proud",
+          "name": "Proud core edge rods",
+          "kind": "emissive",
+          "description": "0.007 rods on the 0.88 core edges; hotter than the outer frame.",
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive rods; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(255, 200, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.8
+      },
+      "evidenceRefs": [
+        "inner-core"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "rim-outer",
+      "name": "Outer platform neon rim",
+      "level": "meso",
+      "role": "emissive-rim",
+      "importance": 0.9,
+      "confidence": 0.85,
+      "primitive": "tube",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A closed rounded-square tube swept along the outer top edge; it is a solid tube, not a flat decal.",
+      "geometryDescriptor": {
+        "topologyIntent": "closed tube along a rounded-square path at y=0.16",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "tube-generated coordinates",
+        "normalStrategy": "tube normals"
+      },
+      "parent": "base-outer",
+      "attachment": {
+        "parentSocket": "top-center",
+        "contactType": "surface-inlay",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0,
+          0.988
+        ],
+        "embedDepth": 0.004,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup"
+        ]
+      },
+      "dimensions": {
+        "width": 2.0,
+        "height": 0.024,
+        "depth": 2.0,
+        "units": "relative",
+        "confidence": 0.85
+      },
+      "transform": {
+        "position": [
+          0,
+          0.16,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "outer-rim",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.85
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            2.0,
+            0.024,
+            2.0
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the outer rim."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-platform",
+          "seamRefs": [
+            "outer-rim-seam"
+          ],
+          "detachableFragments": [
+            "rim-outer"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "outer-rim-tube",
+          "name": "Outer perimeter tube",
+          "kind": "emissive",
+          "description": "r=0.009 tube on a 2.00 rounded-square path; corner radius 0.06.",
+          "evidenceRefs": [
+            "full-object",
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "front-corner-bloom",
+          "name": "Front-corner bloom source",
+          "kind": "gloss",
+          "description": "The near base corner is the brightest point of the composition.",
+          "evidenceRefs": [
+            "full-object"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive tube; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(210, 190, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.85
+      },
+      "evidenceRefs": [
+        "full-object",
+        "base-closeup"
+      ],
+      "details": [],
+      "fidelityTier": "material"
+    },
+    {
+      "id": "rim-hole",
+      "name": "Opening neon rim",
+      "level": "meso",
+      "role": "emissive-rim",
+      "importance": 0.8,
+      "confidence": 0.8,
+      "primitive": "tube",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A closed tube swept around the 1.64 opening edge; it follows the hole wall and sits on the top face.",
+      "geometryDescriptor": {
+        "topologyIntent": "closed tube around the opening at y=0.16",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "tube-generated coordinates",
+        "normalStrategy": "tube normals"
+      },
+      "parent": "base-outer",
+      "attachment": {
+        "parentSocket": "hole-seat",
+        "contactType": "edge-inlay",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0,
+          0.82
+        ],
+        "embedDepth": 0.004,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup"
+        ]
+      },
+      "dimensions": {
+        "width": 1.64,
+        "height": 0.02,
+        "depth": 1.64,
+        "units": "relative",
+        "confidence": 0.8
+      },
+      "transform": {
+        "position": [
+          0,
+          0.16,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "hole-rim",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.8
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.64,
+            0.02,
+            1.64
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the opening rim."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-platform",
+          "seamRefs": [
+            "hole-rim-seam"
+          ],
+          "detachableFragments": [
+            "rim-hole"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "hole-rim-tube",
+          "name": "Opening perimeter tube",
+          "kind": "emissive",
+          "description": "r=0.007 tube on a 1.64 rounded-square path; corner radius 0.04.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive tube; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(210, 190, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.8
+      },
+      "evidenceRefs": [
+        "base-closeup"
+      ],
+      "details": [],
+      "fidelityTier": "material"
+    },
+    {
+      "id": "rim-inner",
+      "name": "Inner platform neon rim",
+      "level": "meso",
+      "role": "emissive-rim",
+      "importance": 0.8,
+      "confidence": 0.8,
+      "primitive": "tube",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A closed tube swept around the 1.48 inner platform top; it sits 0.02 below the outer rim.",
+      "geometryDescriptor": {
+        "topologyIntent": "closed tube around the inner platform at y=0.14",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "tube-generated coordinates",
+        "normalStrategy": "tube normals"
+      },
+      "parent": "base-inner",
+      "attachment": {
+        "parentSocket": "top-center",
+        "contactType": "edge-inlay",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0,
+          0.74
+        ],
+        "embedDepth": 0.004,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup"
+        ]
+      },
+      "dimensions": {
+        "width": 1.48,
+        "height": 0.02,
+        "depth": 1.48,
+        "units": "relative",
+        "confidence": 0.8
+      },
+      "transform": {
+        "position": [
+          0,
+          0.14,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "inner-rim",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.8
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.48,
+            0.02,
+            1.48
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy for the inner rim."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "inner-platform",
+          "seamRefs": [
+            "inner-rim-seam"
+          ],
+          "detachableFragments": [
+            "rim-inner"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "inner-rim-tube",
+          "name": "Inner platform perimeter tube",
+          "kind": "emissive",
+          "description": "r=0.007 tube on a 1.48 rounded-square path; corner radius 0.04.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive tube; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(210, 190, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.8
+      },
+      "evidenceRefs": [
+        "base-closeup"
+      ],
+      "details": [],
+      "fidelityTier": "material"
+    },
+    {
+      "id": "core-glow",
+      "name": "Core glow and halo",
+      "level": "micro",
+      "role": "emissive-core",
+      "importance": 0.75,
+      "confidence": 0.7,
+      "primitive": "plane-card",
+      "topologyClass": "material-only",
+      "topologyRationale": "A billboard sprite plus a point light; the identity is entirely emissive material, with no surface geometry.",
+      "geometryDescriptor": {
+        "topologyIntent": "billboard glow card and point light",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "sprite billboard coordinates",
+        "normalStrategy": "none; sprite is camera-facing"
+      },
+      "parent": "cube-inner",
+      "attachment": null,
+      "dimensions": {
+        "width": 0.3,
+        "height": 0.3,
+        "depth": 0.0,
+        "units": "relative",
+        "confidence": 0.7
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "core-light",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.8
+        },
+        "transformChannels": {
+          "translate": true,
+          "rotate": true,
+          "scale": true,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.3,
+            0.3,
+            0.3
+          ],
+          "isTrigger": true,
+          "notes": "Glow is not a physical collider; trigger-only pick proxy."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "inner-core",
+          "seamRefs": [],
+          "detachableFragments": [
+            "core-glow"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "glow-sprite"
+        }
+      },
+      "material": "glow-sprite",
+      "materialLayers": [
+        "glow-sprite"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "core-light",
+          "name": "Core point light and halo",
+          "kind": "emissive",
+          "description": "Point light distance 2.2 plus a 0.30 radial-gradient sprite at the core centre (0, 0.80, 0).",
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Material-only glow."
+      },
+      "evidenceRefs": [
+        "inner-core",
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "material"
+    },
+    {
+      "id": "corner-markers-base",
+      "name": "Outer base corner emitters",
+      "level": "meso",
+      "role": "corner-emitters",
+      "importance": 0.8,
+      "confidence": 0.8,
+      "primitive": "instanced-cluster",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Four small solid cubes embedded at the top-face corners of the 2.00 base, each straddling the surface by 0.001 so its emissive edges read from every angle.",
+      "geometryDescriptor": {
+        "topologyIntent": "four 0.03 cubes inset 0.94 from the base centre on x/z",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "box-generated coordinates",
+        "normalStrategy": "box normals"
+      },
+      "parent": "base-outer",
+      "attachment": {
+        "parentSocket": "top-center",
+        "contactType": "surface-inlay",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0.03,
+          0
+        ],
+        "embedDepth": 0.001,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup"
+        ]
+      },
+      "dimensions": {
+        "width": 1.91,
+        "height": 0.03,
+        "depth": 1.91,
+        "units": "relative",
+        "confidence": 0.8
+      },
+      "transform": {
+        "position": [
+          0,
+          0.16,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "base-corner-emitters",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.8
+        },
+        "transformChannels": {
+          "translate": false,
+          "rotate": false,
+          "scale": false,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.91,
+            0.03,
+            1.91
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy envelope for the four base corner emitters."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-platform",
+          "seamRefs": [],
+          "detachableFragments": [
+            "corner-markers-base"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "base-corner-studs",
+          "name": "Base top corner emitters",
+          "kind": "emissive",
+          "description": "Four 0.03 cubes at (±0.94, 0.174, ±0.94); centre y = 0.16 + 0.015 - 0.001.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive solids; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(210, 190, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.8
+      },
+      "evidenceRefs": [
+        "base-closeup"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "corner-markers-cube",
+      "name": "Outer cube corner emitters",
+      "level": "meso",
+      "role": "corner-emitters",
+      "importance": 0.8,
+      "confidence": 0.8,
+      "primitive": "instanced-cluster",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Four small solid cubes embedded at the top-face corners of the 1.32 cube, inset 0.66 so they sit inboard of the glowing edge frame.",
+      "geometryDescriptor": {
+        "topologyIntent": "four 0.03 cubes inset 0.66 from the cube centre on x/z at the top face",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "box-generated coordinates",
+        "normalStrategy": "box normals"
+      },
+      "parent": "cube-outer",
+      "attachment": {
+        "parentSocket": "center",
+        "contactType": "surface-inlay",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0.03,
+          0
+        ],
+        "embedDepth": 0.001,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ]
+      },
+      "dimensions": {
+        "width": 1.35,
+        "height": 0.03,
+        "depth": 1.35,
+        "units": "relative",
+        "confidence": 0.8
+      },
+      "transform": {
+        "position": [
+          0,
+          1.32,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "cube-corner-emitters",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.8
+        },
+        "transformChannels": {
+          "translate": false,
+          "rotate": false,
+          "scale": false,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1.35,
+            0.03,
+            1.35
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy envelope for the four cube corner emitters."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-cube",
+          "seamRefs": [],
+          "detachableFragments": [
+            "corner-markers-cube"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "neon-edge"
+        }
+      },
+      "material": "neon-edge",
+      "materialLayers": [
+        "neon-edge"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "cube-corner-studs",
+          "name": "Cube top corner emitters",
+          "kind": "emissive",
+          "description": "Four 0.03 cubes at local (±0.66, 1.334, ±0.66); world y = 0.8 + 1.334.",
+          "evidenceRefs": [
+            "full-object"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "none",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Emissive solids; no surface texture."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(255, 255, 255, 1.0)",
+        "secondaryAlbedo": "rgba(210, 190, 255, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.8
+      },
+      "evidenceRefs": [
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "form"
+    },
+    {
+      "id": "light-sheets",
+      "name": "Base rim uplight sheets",
+      "level": "meso",
+      "role": "uplight-curtain",
+      "importance": 0.85,
+      "confidence": 0.75,
+      "primitive": "instanced-cluster",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "Four 2.00-wide, 0.44-tall solid sheets only 0.004 thick standing on the four base rims; the sharp core plus soft radial falloff reads as uplighting, not as extra walls.",
+      "geometryDescriptor": {
+        "topologyIntent": "four 2.00 x 0.44 x 0.004 sheets at x/z = ±1.026, standing from y=0.16 to y=0.60",
+        "edgeTreatment": {
+          "type": "none",
+          "bevelRadius": 0.0,
+          "segments": 1
+        },
+        "deformationStack": [],
+        "uvStrategy": "vertical gradient canvas texture plus ray streaks",
+        "normalStrategy": "box normals"
+      },
+      "parent": "base-outer",
+      "attachment": {
+        "parentSocket": "top-center",
+        "contactType": "rest",
+        "localStart": [
+          0,
+          0,
+          0
+        ],
+        "localEnd": [
+          0,
+          0.44,
+          0
+        ],
+        "embedDepth": 0.0,
+        "gapTolerance": 0.001,
+        "contactNormal": [
+          0,
+          1,
+          0
+        ],
+        "evidenceRefs": [
+          "base-closeup",
+          "full-object"
+        ]
+      },
+      "dimensions": {
+        "width": 2.056,
+        "height": 0.44,
+        "depth": 2.056,
+        "units": "relative",
+        "confidence": 0.75
+      },
+      "transform": {
+        "position": [
+          0,
+          0.16,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "actionProfile": {
+        "animationRole": "uplight-curtain",
+        "pivot": {
+          "mode": "center",
+          "localPosition": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "confidence": 0.8
+        },
+        "transformChannels": {
+          "translate": false,
+          "rotate": false,
+          "scale": false,
+          "bend": false,
+          "twist": false,
+          "detach": true,
+          "visibility": true,
+          "materialState": true
+        },
+        "sockets": [],
+        "collider": {
+          "type": "box",
+          "offset": [
+            0,
+            0.22,
+            0
+          ],
+          "scale": [
+            2.056,
+            0.44,
+            2.056
+          ],
+          "isTrigger": true,
+          "notes": "Pick proxy envelope for the four uplight sheets."
+        },
+        "constraints": [],
+        "destruction": {
+          "breakable": false,
+          "fractureGroup": "outer-platform",
+          "seamRefs": [],
+          "detachableFragments": [
+            "light-sheets"
+          ],
+          "breakImpulse": 0.0,
+          "debrisMaterial": "light-sheet"
+        }
+      },
+      "material": "light-sheet",
+      "materialLayers": [
+        "light-sheet"
+      ],
+      "deformations": [],
+      "joints": [],
+      "seams": [],
+      "localFeatures": [
+        {
+          "id": "uplight-falloff",
+          "name": "Sharp rays with soft volumetric falloff",
+          "kind": "emissive",
+          "description": "Vertical gradient (opaque bottom, transparent top) with six ray streaks; additive and depthWrite false so it glows without hiding the base.",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "surfaceDetail": {
+        "macroRoughness": 0.0,
+        "microRoughness": 0.0,
+        "bumpAmplitude": 0.0,
+        "normalPattern": "vertical emissive gradient with ray streaks",
+        "displacementPattern": "none",
+        "occlusionPattern": "none",
+        "edgeWearPattern": "none",
+        "notes": "Texture is a 16x256 canvas gradient generated in code; no sampled image."
+      },
+      "colorMaterialRecipe": {
+        "dominantAlbedo": "rgba(120, 70, 210, 1.0)",
+        "secondaryAlbedo": "rgba(60, 20, 140, 1.0)",
+        "materialClass": "glass",
+        "materialClassConfidence": 0.7
+      },
+      "evidenceRefs": [
+        "base-closeup",
+        "full-object"
+      ],
+      "details": [],
+      "fidelityTier": "material"
+    }
+  ],
+  "materials": [
+    {
+      "id": "glass-panel",
+      "name": "Transparent violet glass pane",
+      "type": "physical",
+      "shaderModel": "MeshPhysicalMaterial",
+      "family": "glass",
+      "baseColor": "#6e1eff",
+      "color": "#6e1eff",
+      "albedo": {
+        "dominant": "#6e1eff",
+        "secondary": [
+          "#985cff",
+          "#3a0690"
+        ],
+        "samplingNotes": "Panes read saturated violet because the emissive term dominates; lights are dim so additive stacking cannot desaturate them toward white."
+      },
+      "colorVariation": {
+        "palette": [
+          "#6e1eff",
+          "#985cff",
+          "#3a0690"
+        ],
+        "pattern": "per-instance brightness jitter across the 3x3 lattice",
+        "amplitude": 0.06,
+        "heightCorrelation": 0.0
+      },
+      "emissive": "#6e1eff",
+      "emissiveIntensity": 0.9,
+      "opacity": 0.15,
+      "transparent": true,
+      "blending": "additive",
+      "depthWrite": false,
+      "side": "DoubleSide",
+      "toneMapped": false,
+      "roughness": {
+        "base": 0.5,
+        "variation": 0.0,
+        "localResponse": "uniform dielectric roughness; emissive-dominant panes carry the violet read so dim lights cannot desaturate them"
+      },
+      "metalness": {
+        "base": 0.0,
+        "variation": 0.0
+      },
+      "clearcoat": 1.0,
+      "clearcoatRoughness": 0.5,
+      "ior": 1.45,
+      "ambientOcclusion": {
+        "cavityStrength": 0.12,
+        "contactShadowBias": 0.08,
+        "notes": "Geometry-driven darkening at pane gaps; no AO texture."
+      },
+      "localOverrides": [
+        {
+          "id": "front-corner-hotspot",
+          "scope": "front-right panes",
+          "roughness": 0.04,
+          "emissiveIntensity": 0.55,
+          "color": "#c9a8ff",
+          "evidenceRefs": [
+            "full-object"
+          ]
+        },
+        {
+          "id": "instance-brightness-jitter",
+          "scope": "all 54 panes",
+          "emissiveIntensityDelta": 0.06,
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        }
+      ],
+      "textureless": {
+        "declared": true,
+        "evidence": [
+          "The reference is a synthetic neon render: panes show a flat violet tint with no grain, print, pores, or wear patches at 1437x1094.",
+          "Pane-to-pane brightness differences are captured by instanceColor jitter and local overrides, not by a sampled texture."
+        ]
+      },
+      "shaderNotes": [
+        "Additive low-opacity panes create depth without screen-space transmission.",
+        "Emissive #6e1eff at 0.9 carries the pane colour; the violet hue matches the reference's saturated panes instead of drifting toward pink.",
+        "DoubleSide is required because the pane array is seen from both sides."
+      ],
+      "notes": "Hero pane material for the 54-pane lattice."
+    },
+    {
+      "id": "glass-base",
+      "name": "Semi-opaque violet platform glass",
+      "type": "physical",
+      "shaderModel": "MeshPhysicalMaterial",
+      "family": "glass",
+      "baseColor": "#5614c8",
+      "color": "#5614c8",
+      "albedo": {
+        "dominant": "#5614c8",
+        "secondary": [
+          "#7a2cff",
+          "#1a0640"
+        ],
+        "samplingNotes": "Platform faces read saturated violet from the emissive term; the hole wall stays darker through geometry AO rather than a light gradient."
+      },
+      "colorVariation": {
+        "palette": [
+          "#5614c8",
+          "#7a2cff",
+          "#1a0640"
+        ],
+        "pattern": "top-face-to-hole-wall gradient",
+        "amplitude": 0.18,
+        "heightCorrelation": 0.2
+      },
+      "emissive": "#5614c8",
+      "emissiveIntensity": 0.85,
+      "opacity": 0.88,
+      "transparent": true,
+      "blending": "normal",
+      "depthWrite": true,
+      "side": "FrontSide",
+      "toneMapped": true,
+      "roughness": {
+        "base": 0.18,
+        "variation": 0.0,
+        "localResponse": "uniform dielectric roughness; the platform read comes from emissive violet rather than a light-driven top-face gradient"
+      },
+      "metalness": {
+        "base": 0.1,
+        "variation": 0.0
+      },
+      "clearcoat": 1.0,
+      "clearcoatRoughness": 0.5,
+      "ior": 1.45,
+      "ambientOcclusion": {
+        "cavityStrength": 0.4,
+        "contactShadowBias": 0.25,
+        "notes": "Darken the hole wall, step ring, and cube contact line."
+      },
+      "localOverrides": [
+        {
+          "id": "top-face-glow",
+          "scope": "base top faces",
+          "emissiveIntensity": 0.5,
+          "roughness": 0.08,
+          "color": "#8b3dff",
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "hole-wall-darkening",
+          "scope": "opening wall",
+          "color": "#1a0640",
+          "roughness": 0.2,
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "textureless": {
+        "declared": true,
+        "evidence": [
+          "Platform surfaces are flat dark violet glass with no sampled grain or print at reference resolution.",
+          "The visible value change from top face to hole wall is a geometry/lighting gradient, captured by local overrides."
+        ]
+      },
+      "shaderNotes": [
+        "depthWrite true so the platform occludes the floor grid correctly.",
+        "No transmission; opacity 0.88 with emissive #5614c8 at 0.85 gives the saturated violet platform read, and the rims plus the under-base light supply the bright edge."
+      ],
+      "notes": "Used by base-outer only; base-inner uses the darker glass-base-inner material."
+    },
+    {
+      "id": "glass-base-inner",
+      "name": "Near-black violet inner platform glass",
+      "type": "physical",
+      "shaderModel": "MeshPhysicalMaterial",
+      "family": "glass",
+      "baseColor": "#170528",
+      "color": "#170528",
+      "albedo": {
+        "dominant": "#170528",
+        "secondary": [
+          "#2a0a44",
+          "#0a0212"
+        ],
+        "samplingNotes": "The small platform reads almost black-violet, clearly darker than the outer ring."
+      },
+      "colorVariation": {
+        "palette": [
+          "#170528",
+          "#2a0a44",
+          "#0a0212"
+        ],
+        "pattern": "top-face to side-wall darkening",
+        "amplitude": 0.2,
+        "heightCorrelation": 0.2
+      },
+      "emissive": "#0a0212",
+      "emissiveIntensity": 0.6,
+      "opacity": 0.94,
+      "transparent": true,
+      "blending": "normal",
+      "depthWrite": true,
+      "side": "FrontSide",
+      "toneMapped": true,
+      "roughness": {
+        "base": 0.24,
+        "variation": 0.0,
+        "localResponse": "uniform matte-dark dielectric; contrast against the outer ring comes from albedo, not light"
+      },
+      "metalness": {
+        "base": 0.15,
+        "variation": 0.0
+      },
+      "clearcoat": 1.0,
+      "clearcoatRoughness": 0.45,
+      "ior": 1.45,
+      "ambientOcclusion": {
+        "cavityStrength": 0.55,
+        "contactShadowBias": 0.3,
+        "notes": "Deepen the 0.08 gap between the inner slab and the hole wall."
+      },
+      "localOverrides": [
+        {
+          "id": "inner-slab-darkening",
+          "scope": "inner slab top and walls",
+          "color": "#0a0212",
+          "emissiveIntensity": 0.35,
+          "roughness": 0.28,
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "textureless": {
+        "declared": true,
+        "evidence": [
+          "The inner platform is a flat dark violet glass with no sampled grain or print.",
+          "Contrast with the outer ring comes from albedo and the shadowed 0.08 gap."
+        ]
+      },
+      "shaderNotes": [
+        "Near-black violet at opacity 0.94 so the slab reads as a solid dark plinth.",
+        "depthWrite true keeps the inner slab occluding the hole floor correctly."
+      ],
+      "notes": "Inner platform material; intentionally darker than glass-base."
+    },
+    {
+      "id": "neon-edge",
+      "name": "HDR white-violet neon",
+      "type": "basic",
+      "shaderModel": "MeshBasicMaterial",
+      "family": "glass",
+      "baseColor": "#ffffff",
+      "color": "#ffffff",
+      "albedo": {
+        "dominant": "#ffffff",
+        "secondary": [
+          "#d2beff",
+          "#985cff"
+        ],
+        "samplingNotes": "Rods read white-violet in the image; the HDR line below drives the bloom rather than the sRGB colour."
+      },
+      "colorVariation": {
+        "palette": [
+          "#ffffff",
+          "#d2beff",
+          "#985cff"
+        ],
+        "pattern": "constant HDR white-violet with local intensity boosts",
+        "amplitude": 0.0,
+        "heightCorrelation": 0.0
+      },
+      "emissiveLinear": [
+        1.35,
+        1.15,
+        1.85
+      ],
+      "opacity": 1.0,
+      "transparent": true,
+      "blending": "additive",
+      "depthWrite": false,
+      "toneMapped": false,
+      "ambientOcclusion": {
+        "cavityStrength": 0.0,
+        "contactShadowBias": 0.0,
+        "notes": "Emissive rods do not receive AO."
+      },
+      "localOverrides": [
+        {
+          "id": "outer-rim",
+          "intensity": 2.1,
+          "evidenceRefs": [
+            "full-object"
+          ]
+        },
+        {
+          "id": "hole-rim",
+          "intensity": 2.6,
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "inner-rim",
+          "intensity": 2.2,
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        },
+        {
+          "id": "seam-line",
+          "intensity": 1.4,
+          "evidenceRefs": [
+            "cube-face"
+          ]
+        },
+        {
+          "id": "cube-edge-line",
+          "intensity": 2.9,
+          "evidenceRefs": [
+            "full-object"
+          ]
+        },
+        {
+          "id": "front-corner-boost",
+          "intensity": 3.4,
+          "position": [
+            1.0,
+            0.16,
+            1.0
+          ],
+          "evidenceRefs": [
+            "full-object"
+          ]
+        }
+      ],
+      "textureless": {
+        "declared": true,
+        "evidence": [
+          "Neon rods are uniform emissive lines in the reference; there is no paint, grain, or texture detail on them.",
+          "Intensity differences are authored as local overrides, not as a sampled albedo map."
+        ]
+      },
+      "shaderNotes": [
+        "Additive blending with depthWrite false keeps the rods readable through the glass.",
+        "Linear RGB above 1.0 is intentional: the bloom pass consumes the excess.",
+        "toneMapped:false preserves the HDR values before ACES."
+      ],
+      "notes": "Shared by seam-grid, cube-edges, inner-edges and the three rims."
+    },
+    {
+      "id": "core-glass",
+      "name": "Emissive core glass",
+      "type": "physical",
+      "shaderModel": "MeshPhysicalMaterial",
+      "family": "glass",
+      "baseColor": "#8b3dff",
+      "color": "#8b3dff",
+      "albedo": {
+        "dominant": "#8b3dff",
+        "secondary": [
+          "#c04dff",
+          "#5a1bdb"
+        ],
+        "samplingNotes": "Core reads as a flat emissive violet solid through the panes; the core light adds a faint halo but no visible face gradient."
+      },
+      "colorVariation": {
+        "palette": [
+          "#8b3dff",
+          "#c04dff",
+          "#5a1bdb"
+        ],
+        "pattern": "core-centre radial brightening",
+        "amplitude": 0.2,
+        "heightCorrelation": 0.0
+      },
+      "emissive": "#a83cff",
+      "emissiveIntensity": 1.15,
+      "opacity": 0.9,
+      "transparent": true,
+      "blending": "normal",
+      "depthWrite": true,
+      "side": "FrontSide",
+      "toneMapped": true,
+      "roughness": {
+        "base": 0.12,
+        "variation": 0.02,
+        "localResponse": "slightly lower roughness on the front face"
+      },
+      "metalness": {
+        "base": 0.0,
+        "variation": 0.0
+      },
+      "clearcoat": 1.0,
+      "clearcoatRoughness": 0.5,
+      "ior": 1.45,
+      "ambientOcclusion": {
+        "cavityStrength": 0.0,
+        "contactShadowBias": 0.0,
+        "notes": "Core is emissive; no contact AO."
+      },
+      "localOverrides": [
+        {
+          "id": "core-inner-glow",
+          "scope": "front core face",
+          "emissiveIntensity": 1.8,
+          "color": "#d06aff",
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        }
+      ],
+      "textureless": {
+        "declared": true,
+        "evidence": [
+          "The inner cube reads as a flat emissive violet solid through the glass; no surface pattern is visible.",
+          "The centre-to-edge brightening is a gradient from the core light, captured by the local override."
+        ]
+      },
+      "shaderNotes": [
+        "Semi-opaque so the core reads as a solid, not as another pane layer.",
+        "depthWrite true prevents the core edges from z-fighting with its faces.",
+        "Emissive #a83cff at 1.15 keeps the core brighter than the panes without clipping to white."
+      ],
+      "notes": "Inner cube material."
+    },
+    {
+      "id": "glow-sprite",
+      "name": "Core halo sprite",
+      "type": "sprite",
+      "shaderModel": "SpriteMaterial",
+      "qualityTier": "utility",
+      "family": "glass",
+      "baseColor": "#b36bff",
+      "color": "#b36bff",
+      "albedo": {
+        "dominant": "#b36bff",
+        "secondary": [
+          "#ff5ce0",
+          "#5a1bdb"
+        ],
+        "samplingNotes": "Radial gradient from white-violet centre to transparent edge."
+      },
+      "colorVariation": {
+        "palette": [
+          "#ffffff",
+          "#b36bff",
+          "#ff5ce0"
+        ],
+        "pattern": "radial gradient",
+        "amplitude": 0.5,
+        "heightCorrelation": 0.0
+      },
+      "opacity": 0.4,
+      "transparent": true,
+      "blending": "additive",
+      "depthWrite": false,
+      "toneMapped": false,
+      "localOverrides": [
+        {
+          "id": "core-halo",
+          "scale": 0.3,
+          "opacity": 0.4,
+          "evidenceRefs": [
+            "inner-core"
+          ]
+        }
+      ],
+      "shaderNotes": [
+        "CanvasTexture 256x256 radial gradient generated in code; no sampled image.",
+        "Additive blending and toneMapped:false keep the halo in the bloom range."
+      ],
+      "notes": "Utility sprite for the core halo; excluded from the texture-authoring bar. The front-corner brightness comes from the painted rim hotspot, not a sprite, so the model stays symmetric from every angle."
+    },
+    {
+      "id": "light-sheet",
+      "name": "Additive uplight sheet",
+      "type": "basic",
+      "shaderModel": "MeshBasicMaterial",
+      "qualityTier": "utility",
+      "family": "glass",
+      "baseColor": "#ffffff",
+      "color": "#ffffff",
+      "albedo": {
+        "dominant": "#ffffff",
+        "secondary": [
+          "#c9a6ff",
+          "#6e1eff"
+        ],
+        "samplingNotes": "A sharp emitter line at the base diffuses upward into a soft violet haze with thin bright rays."
+      },
+      "colorVariation": {
+        "palette": [
+          "#ffffff",
+          "#c9a6ff",
+          "#6e1eff"
+        ],
+        "pattern": "vertical gradient with discrete ray streaks",
+        "amplitude": 0.6,
+        "heightCorrelation": 0.9
+      },
+      "emissiveLinear": [
+        0.75,
+        0.38,
+        1.35
+      ],
+      "opacity": 0.8,
+      "transparent": true,
+      "blending": "additive",
+      "depthWrite": false,
+      "side": "FrontSide",
+      "toneMapped": false,
+      "localOverrides": [
+        {
+          "id": "uplight-fade",
+          "scope": "sheet height 0.16..0.60",
+          "opacity": 0.8,
+          "emissiveIntensity": 1.0,
+          "evidenceRefs": [
+            "base-closeup"
+          ]
+        }
+      ],
+      "shaderNotes": [
+        "CanvasTexture 16x256 generated in code: sharp bottom line, exponential upward falloff and six vertical ray streaks.",
+        "FrontSide avoids stacking the two faces of the 0.004 sheet additively.",
+        "Additive, depthWrite false and toneMapped false keep the sheet in the bloom range without occluding the base."
+      ],
+      "notes": "Preview-only light curtain feature; four sheets share one merged mesh and one material."
+    }
+  ],
+  "repetitionSystems": [
+    {
+      "id": "glass-panel-grid",
+      "name": "3x3 glass pane lattice",
+      "componentRef": "panel-grid",
+      "count": 54,
+      "perFaceCount": 9,
+      "faces": 6,
+      "realization": "instanced-mesh",
+      "buildsGeometry": true,
+      "geometry": {
+        "type": "RoundedBoxGeometry",
+        "width": 0.424,
+        "height": 0.02,
+        "depth": 0.424,
+        "cornerRadius": 0.004,
+        "segments": 2
+      },
+      "pitch": 0.436,
+      "gap": 0.012,
+      "material": "glass-panel"
+    },
+    {
+      "id": "seam-lattice",
+      "name": "Seam bar lattice",
+      "componentRef": "seam-grid",
+      "count": 24,
+      "perFaceCount": 4,
+      "faces": 6,
+      "realization": "merged-geometry",
+      "buildsGeometry": true,
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 0.006,
+        "height": 0.006,
+        "length": 1.308
+      },
+      "offset": 0.218,
+      "material": "neon-edge"
+    },
+    {
+      "id": "outer-edge-frame",
+      "name": "Outer cube edge frame",
+      "componentRef": "cube-edges",
+      "count": 12,
+      "realization": "merged-geometry",
+      "buildsGeometry": true,
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 0.01,
+        "height": 0.01,
+        "length": 1.32
+      },
+      "material": "neon-edge"
+    },
+    {
+      "id": "inner-edge-frame",
+      "name": "Inner cube edge frame",
+      "componentRef": "inner-edges",
+      "count": 12,
+      "realization": "merged-geometry",
+      "buildsGeometry": true,
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 0.007,
+        "height": 0.007,
+        "length": 0.88
+      },
+      "material": "neon-edge"
+    },
+    {
+      "id": "corner-markers",
+      "name": "Eight emissive corner markers",
+      "componentRef": "corner-markers-base",
+      "count": 8,
+      "perFaceCount": 4,
+      "faces": 2,
+      "realization": "merged-geometry",
+      "buildsGeometry": true,
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 0.03,
+        "height": 0.03,
+        "length": 0.03
+      },
+      "material": "neon-edge"
+    },
+    {
+      "id": "light-sheet-curtain",
+      "name": "Four thin uplight sheets",
+      "componentRef": "light-sheets",
+      "count": 4,
+      "perFaceCount": 1,
+      "faces": 4,
+      "realization": "merged-geometry",
+      "buildsGeometry": true,
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 2,
+        "height": 0.44,
+        "length": 0.004
+      },
+      "material": "light-sheet"
+    }
+  ],
+  "buildPasses": [
+    {
+      "id": "blockout",
+      "goal": "Match macro silhouette and proportions: base, inner base, cube, inner cube.",
+      "componentRefs": [
+        "root",
+        "base-outer",
+        "base-inner",
+        "cube-outer",
+        "cube-inner"
+      ],
+      "acceptance": [
+        "Cube side / base side reads 0.66 and the model height is 1.46.",
+        "The two-tier platform and the 0.02 step are visible without materials.",
+        "AI vision comparison score meets selfCorrectLoop.visualAcceptance.threshold."
+      ]
+    },
+    {
+      "id": "structural-pass",
+      "goal": "Build the four-part hierarchy, openings, sockets and contact points.",
+      "componentRefs": [
+        "root",
+        "base-outer",
+        "base-inner",
+        "cube-outer",
+        "cube-inner",
+        "rim-outer",
+        "rim-hole",
+        "rim-inner"
+      ],
+      "acceptance": [
+        "Parent-child chain base-outer -> base-inner -> cube-outer -> cube-inner is explicit.",
+        "The 1.64 opening is a true hole with a 0.08 ring gap.",
+        "Cube bottom rests at the inner platform top (y=0.14) with a 0.001 seat tolerance.",
+        "Every attached child has parentSocket, localStart/localEnd, contactType, embedDepth or overlap, and gapTolerance."
+      ]
+    },
+    {
+      "id": "form-refinement",
+      "goal": "Refine bevels, pane lattice, seam bars, edge rods and rim paths.",
+      "componentRefs": [
+        "base-outer",
+        "cube-outer",
+        "panel-grid",
+        "seam-grid",
+        "cube-edges",
+        "cube-inner",
+        "inner-edges"
+      ],
+      "acceptance": [
+        "54 panes, 24 seam bars and 12 outer edge rods are present and aligned.",
+        "Rim tubes follow the rounded-square paths without cracks at the corners.",
+        "Inner cube is 0.88 (2/3 of the outer cube) and centred on the outer cube.",
+        "Eight 0.03 corner markers sit on the outer base and cube top faces."
+      ]
+    },
+    {
+      "id": "material-pass",
+      "goal": "Match glass opacity, emissive palette, clearcoat and local material overrides.",
+      "componentRefs": [
+        "base-outer",
+        "base-inner",
+        "panel-grid",
+        "cube-inner",
+        "rim-outer",
+        "core-glow"
+      ],
+      "acceptance": [
+        "Panes are additive at opacity 0.15; the outer base is semi-opaque at 0.88.",
+        "The inner base uses the darker glass-base-inner material instead of the outer base glass.",
+        "Neon rods use additive HDR white-violet above the bloom threshold.",
+        "Four 2.00 x 0.44 x 0.004 light sheets fade upward from y=0.16 with additive blending.",
+        "Core cube stays readable through the glass.",
+        "All materials declare textureless with evidence or are utility sprites."
+      ]
+    },
+    {
+      "id": "surface-pass",
+      "goal": "Add geometry-driven AO, contact darkening and pane-instance variation.",
+      "componentRefs": [
+        "base-outer",
+        "base-inner",
+        "panel-grid",
+        "seam-grid"
+      ],
+      "acceptance": [
+        "Hole wall and step ring darken through local overrides, not a texture.",
+        "Pane jitter breaks the flat repeated shader.",
+        "No albedo map is reused as roughness or AO."
+      ]
+    },
+    {
+      "id": "lighting-pass",
+      "goal": "Match the key/fill/rim structure, exposure, background and bloom.",
+      "componentRefs": [
+        "root",
+        "rim-outer",
+        "core-glow"
+      ],
+      "acceptance": [
+        "Key, fill, rim, core and under-base lights are present with the specified colours and distances.",
+        "ACES exposure 1.05, background #04010a and bloom 0.05/0.25/1.00 are set.",
+        "The front base corner is the brightest region and the frame corners stay dark."
+      ]
+    },
+    {
+      "id": "interaction-pass",
+      "goal": "Expose stable pivots, sockets and collider proxies for future actions.",
+      "componentRefs": [
+        "root",
+        "base-outer",
+        "base-inner",
+        "cube-outer",
+        "cube-inner"
+      ],
+      "acceptance": [
+        "Each primary part has a named pivot group and socket.",
+        "Colliders are simplified boxes with trigger flags where appropriate.",
+        "Exploded-view translations do not break the parent-child transforms."
+      ]
+    },
+    {
+      "id": "optimization-pass",
+      "goal": "Keep the model inside the triangle and draw-call budget.",
+      "componentRefs": [
+        "panel-grid",
+        "seam-grid",
+        "cube-edges",
+        "inner-edges",
+        "rim-outer",
+        "rim-hole",
+        "rim-inner"
+      ],
+      "acceptance": [
+        "Triangles <= 25000 and draw calls <= 12.",
+        "Panels are instanced; rods and rims are merged.",
+        "No shadow map, transmission or per-frame allocation."
+      ]
+    }
+  ],
+  "visualEvidence": [],
+  "reviewHistory": [],
+  "lodPlan": [
+    {
+      "tier": "near",
+      "distance": 0,
+      "strategy": "full component tree and material layers"
+    },
+    {
+      "tier": "far",
+      "distance": 30,
+      "strategy": "hide pane jitter and merge the pane instances with the edge frame"
+    }
+  ],
+  "performanceBudget": {
+    "qualityPriority": "reference-fidelity",
+    "targetTriangles": 25000,
+    "maxDrawCalls": 14,
+    "textureSize": 1024,
+    "fpsTarget": 60,
+    "optimizationPolicy": "Reach accepted visual fidelity first, then optimize without removing the 3x3 lattice, the two-tier platform or the inner core."
+  },
+  "lightingFromPhoto": [
+    "key light: broad violet-white key from front-left-high at (-2.6, 3.4, 2.8) (#b07bff, intensity 1.5, distance 12) producing the left-face highlight sweep seen in the reference.",
+    "fill light: dim magenta fill from rear-right (#ff4fd8, intensity 0.15, distance 10) keeping the back edges readable without flattening the core.",
+    "rim/environment light: violet ambient (#341470, intensity 0.35) plus an under-base point at (0, 0.12, 0.85) (#b23cff, intensity 1.8, distance 3) that brightens the near base corner as in the reference.",
+    "core light: #ff5ce0 point at the core centre (0, 0.80, 0), intensity 1.5, distance 2.2, feeding the inner cube and the halo sprite.",
+    "exposure 1.05 with ACESFilmic tone mapping; background #04010a and FogExp2 #060212 density 0.012 (kept low because the long-lens camera sits 20 units away).",
+    "contact shadow/ambient occlusion: no shadow map; a dark contact gradient at the platform seam plus geometry AO at the hole wall anchors the base."
+  ],
+  "proceduralStrategy": [
+    "Block out the four primary solids and the two-tier platform first.",
+    "Cut the 1.64 opening as a real hole in the extruded frame.",
+    "Build the pane lattice as one InstancedMesh and the seam/edge rods as merged meshes.",
+    "Build the three rim tubes from rounded-square paths and merge them.",
+    "Place the inner cube at the outer cube centre with 12 merged edge rods.",
+    "Add the core light and the halo sprite.",
+    "Apply textureless neon glass materials with local overrides for the hole wall and front corner.",
+    "Add key/fill/rim lighting, ACES exposure and bloom; verify the front base corner is the brightest point."
+  ],
+  "animationAnchors": [
+    "root pivot supports whole-assembly translation, rotation, scale and visibility",
+    "base-inner pivot supports lifting the inner platform out of the opening",
+    "cube-outer pivot at bottom-centre supports exploded views along Y",
+    "cube-inner pivot at centre supports core rotation and visibility toggling"
+  ],
+  "destructionAnchors": [
+    "panel-grid instances can detach as individual glass shards",
+    "cube-edges, seam-grid and inner-edges are separate merged meshes and can be hidden as groups",
+    "base-inner lifts out of the hole-seat socket"
+  ],
+  "risks": []
+}

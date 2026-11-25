@@ -1,0 +1,3 @@
+:where(.root) { display: block; border-radius: 8px; background: var(--skeleton-fill, var(--color-surface-soft)); animation: pulse 1.6s ease-in-out infinite alternate; }
+@keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .root { animation: none; } }

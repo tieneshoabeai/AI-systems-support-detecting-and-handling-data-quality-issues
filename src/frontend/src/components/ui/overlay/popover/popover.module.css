@@ -1,0 +1,2 @@
+:where(.root) { position: fixed; }
+:global([data-theme='light']) :where(.root) { color: var(--color-ink); }

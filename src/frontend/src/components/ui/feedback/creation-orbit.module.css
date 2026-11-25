@@ -1,0 +1,70 @@
+.u080 {
+  --ease: cubic-bezier(.2,.8,.2,1);
+  width: min(100%, 340px);
+  margin-inline: auto;
+  text-align: center;
+  overflow: hidden;
+  background: radial-gradient(80% 60% at 50% 35%, color-mix(in srgb, var(--pv-blue-fill) 14%, transparent), transparent 70%);
+}
+
+.u080 .system { position: relative; width: min(100%, 230px); height: 200px; margin-inline: auto; }
+.u080 h3 { margin: 0; font-size: 18px; color: var(--pv-ink); }
+
+.creationActions { flex-wrap: wrap; }
+.creationSummary { overflow-wrap: anywhere; }
+.u080 .orbit, .u080 .wave, .u080 .core { position: absolute; inset: 50% auto auto 50%; translate: -50% -50%; border-radius: 50%; }
+.u080 .orbit {
+  width: var(--diameter);
+  height: var(--diameter);
+  border: 1.5px solid var(--pv-line-strong);
+  transform: rotate(var(--tilt)) scaleY(.38);
+  transition: transform .7s var(--ease), opacity .5s;
+}
+.u080 .orbit::before, .u080 .orbit::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  width: var(--size);
+  height: calc(var(--size) / .38);
+  border-radius: 50%;
+  background: var(--planet, var(--pv-blue-fill));
+  box-shadow: 0 0 12px var(--planet, var(--pv-blue-fill));
+  --phase: 0deg;
+  animation: orbit var(--period) linear infinite;
+}
+.u080 .orbit::after { --phase: 180deg; scale: .66; opacity: .7; }
+.u080 .core {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  color: var(--pv-on-fill);
+  background: radial-gradient(circle at 38% 32%, var(--pv-on-fill), var(--pv-ink-violet) 40%, var(--pv-violet-fill));
+  box-shadow: 0 0 30px color-mix(in srgb, var(--pv-blue-fill) 60%, transparent);
+  animation: breathe 2.2s ease-in-out infinite;
+  transition: transform .6s cubic-bezier(.34,1.45,.64,1), background .5s;
+}
+.u080 .core svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.u080 .core path { stroke-dasharray: 30; stroke-dashoffset: 30; transition: stroke-dashoffset .5s var(--ease) .35s; }
+.u080 .wave { width: 84px; height: 84px; border: 2px solid var(--pv-green); opacity: 0; }
+.u080[data-complete='true'] .orbit { transform: rotate(var(--tilt)) scaleY(.38) scale(0); opacity: 0; }
+.u080[data-complete='true'] .orbit::before, .u080[data-complete='true'] .orbit::after { animation-play-state: paused; }
+.u080[data-complete='true'] .core { transform: scale(1.5); color: var(--pv-surface); background: var(--pv-green); box-shadow: none; animation: none; }
+.u080[data-complete='true'] .core path { stroke-dashoffset: 0; }
+.u080[data-complete='true'] .wave { animation: wave 1.1s var(--ease) .3s 2; }
+
+@keyframes orbit {
+  from { transform: rotate(var(--phase)) translateX(calc(var(--diameter) / 2)); }
+  to { transform: rotate(calc(var(--phase) + 360deg)) translateX(calc(var(--diameter) / 2)); }
+}
+@keyframes breathe { 50% { transform: scale(1.08); } }
+@keyframes wave { from { transform: scale(1); opacity: .7; } to { transform: scale(2.4); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .u080 .orbit, .u080 .orbit::before, .u080 .orbit::after, .u080 .core, .u080 .core path, .u080 .wave {
+    animation: none !important;
+    transition: none !important;
+  }
+  .u080 .orbit::before, .u080 .orbit::after { transform: rotate(var(--phase)) translateX(calc(var(--diameter) / 2)); }
+}

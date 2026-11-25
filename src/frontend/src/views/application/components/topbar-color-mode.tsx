@@ -1,0 +1,45 @@
+import { Button, Input } from '../../../components/ui/controls'
+import { useId, useRef, useState } from 'react'
+import type { PreviewColorPreference } from '../../../types'
+import { usePreviewSession } from '../../../hooks/workbench/workbench-session-context'
+import { Icon as PreviewIcon } from '../../../components/ui/primitives/icon'
+import { PreviewPopover } from '../../../components/ui/overlay/workbench-popover'
+
+const modes: readonly { value: PreviewColorPreference; label: string; icon: string }[] = [
+  { value: 'light', label: 'Sáng', icon: 'sun' },
+  { value: 'dark', label: 'Tối', icon: 'moon' },
+  { value: 'system', label: 'Theo hệ thống', icon: 'monitor' },
+]
+
+export function TopbarColorMode() {
+  const { appearance } = usePreviewSession()
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [trigger, setTrigger] = useState<HTMLElement | null>(null)
+  const [open, setOpen] = useState(false)
+  const name = useId()
+  const selected = modes.find(mode => mode.value === appearance.preference)!
+  return <>
+    <Button type="button" ref={triggerRef} className="icon-button" aria-label="Chế độ màu"
+      title={`Chế độ màu: ${selected.label}`} aria-haspopup="dialog" aria-expanded={open}
+      onClick={() => { setTrigger(triggerRef.current); setOpen(value => !value) }}>
+      <PreviewIcon name={selected.icon} />
+    </Button>
+    <PreviewPopover open={open} label="Chế độ màu" trigger={trigger} align="end" onClose={() => setOpen(false)}>
+      <fieldset className="topbar-color-options" onKeyDown={event => {
+        if (event.key !== 'Escape') return
+        event.stopPropagation()
+        setOpen(false)
+        triggerRef.current?.focus()
+      }}>
+        <legend>Chế độ màu</legend>
+        {modes.map(mode => <label key={mode.value} className="topbar-color-option">
+          <Input type="radio" name={name} value={mode.value} checked={appearance.preference === mode.value}
+            autoFocus={appearance.preference === mode.value}
+            onChange={() => appearance.setColorPreference(mode.value)} />
+          <PreviewIcon name={mode.icon} />
+          <span>{mode.label}</span>
+        </label>)}
+      </fieldset>
+    </PreviewPopover>
+  </>
+}

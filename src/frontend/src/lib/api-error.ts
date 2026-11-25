@@ -1,0 +1,112 @@
+import axios from 'axios'
+import type { AppError, AppErrorKind } from '../types'
+
+// Không giữ cause/config/response thô vì chúng có thể chứa credential.
+export class ApiError extends Error implements AppError {
+  readonly kind: AppErrorKind
+  readonly status?: number
+  readonly code?: string
+  readonly fieldErrors?: Record<string, string[]>
+  readonly retryAfterMs?: number
+
+  constructor(details: AppError) {
+    super(details.message)
+    this.name = 'ApiError'
+    this.kind = details.kind
+    if (details.status !== undefined) this.status = details.status
+    if (details.code !== undefined) this.code = details.code
+    if (details.fieldErrors !== undefined) this.fieldErrors = details.fieldErrors
+    if (details.retryAfterMs !== undefined) this.retryAfterMs = details.retryAfterMs
+  }
+}
+
+export const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const readServerError = (body: unknown): Record<string, unknown> | null => {
+  if (!isRecord(body) || body['success'] !== false || !isRecord(body['error'])) {
+    return null
+  }
+
+  return body['error']
+}
+
+const readFieldErrors = (message: unknown): Record<string, string[]> | undefined => {
+  if (!Array.isArray(message)) return undefined
+
+  const fields = new Map<string, string[]>()
+
+  for (const item of message) {
+    if (
+      isRecord(item)
+      && typeof item['field'] === 'string'
+      && item['field'].length > 0
+      && typeof item['message'] === 'string'
+    ) {
+      const messages = fields.get(item['field']) ?? []
+      messages.push(item['message'])
+      fields.set(item['field'], messages)
+    }
+  }
+
+  return fields.size > 0 ? Object.fromEntries(fields) : undefined
+}
+
+export const normalizeApiError = (error: unknown): ApiError => {
+  if (error instanceof ApiError) return error
+
+  if (axios.isCancel(error)) {
+    return new ApiError({ kind: 'cancelled', message: 'Yêu cầu đã bị hủy ở phía client.' })
+  }
+
+  if (axios.isAxiosError<unknown>(error)) {
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return new ApiError({ kind: 'timeout', message: 'Đã hết thời gian chờ phản hồi.' })
+    }
+
+    if (error.response) {
+      const status = error.response.status
+      const serverError = readServerError(error.response.data)
+      // Lỗi 5xx không đưa message nội bộ của backend ra giao diện.
+      const isClientError = status >= 400 && status < 500
+      const message = isClientError && typeof serverError?.['message'] === 'string'
+        ? serverError['message']
+        : status >= 500
+          ? 'Máy chủ chưa xử lý được yêu cầu. Vui lòng thử lại sau.'
+          : 'Yêu cầu không được máy chủ chấp nhận.'
+
+      const code = isClientError && typeof serverError?.['code'] === 'string' ? serverError['code'] : undefined
+      const details = serverError?.['details']
+      const retryHeader: unknown = error.response.headers['retry-after']
+      const seconds = typeof retryHeader === 'string' && /^\d+$/.test(retryHeader.trim())
+        ? Number(retryHeader) : typeof retryHeader === 'number' ? retryHeader : undefined
+      const retryDate = typeof retryHeader === 'string' && seconds === undefined ? Date.parse(retryHeader) : NaN
+      const retryAfterMs = status === 429
+        ? seconds !== undefined && Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000
+          : Number.isFinite(retryDate) ? Math.max(0, retryDate - Date.now())
+            : isRecord(details) && typeof details['retryAfterSeconds'] === 'number' && Number.isFinite(details['retryAfterSeconds']) && details['retryAfterSeconds'] >= 0
+              ? details['retryAfterSeconds'] * 1000 : undefined
+        : undefined
+      const fieldErrors = isClientError
+        ? readFieldErrors(serverError?.['message']) ?? readFieldErrors(isRecord(details) ? details['fields'] : undefined)
+        : undefined
+      return new ApiError({
+        kind: 'http',
+        status,
+        message,
+        ...(code === undefined ? {} : { code }),
+        // Chỉ map field khi response thực sự có danh sách field/message.
+        ...(fieldErrors === undefined ? {} : { fieldErrors }),
+        ...(retryAfterMs === undefined || !Number.isFinite(retryAfterMs) ? {} : { retryAfterMs }),
+      })
+    }
+
+    return new ApiError({ kind: 'network', message: 'Không thể nhận phản hồi từ API.' })
+  }
+
+  return new ApiError({
+    kind: 'invalid-response',
+    message: 'Không thể xử lý phản hồi API.',
+  })
+}

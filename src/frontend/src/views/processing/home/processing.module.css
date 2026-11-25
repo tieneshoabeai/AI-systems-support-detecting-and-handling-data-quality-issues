@@ -1,0 +1,7 @@
+/* Keep legacy theme/scene selectors; the local gate adds zero specificity. */
+/* The shared shell owns the page background, typography and light/dark tokens. */
+:global([data-preview='2d'] .processing-content):where(.screen, .screen *) { width: min(1040px, 100%); margin-inline: auto; min-width: 0; }
+:global([data-preview='2d'] .processing-content h1):where(.screen, .screen *) { margin: 12px 0 20px; font-size: clamp(28px, 4vw, 42px); }
+:global([data-preview='2d'] .processing-panel):where(.screen, .screen *) { margin-top: 32px; padding: clamp(20px, 4vw, 40px); }
+:global([data-preview='2d'] .processing-panel p):where(.screen, .screen *) { color: var(--pv-muted); line-height: 1.7; }
+:global([data-preview='2d'] .processing-panel .text-link):where(.screen, .screen *) { display: inline-block; margin: 16px; }

@@ -1,0 +1,346 @@
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('../assets/fonts/plus-jakarta-sans/plus-jakarta-sans-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+/* =============================================================================
+   Design tokens — DataVerse UI
+   Tầng 1 (primitive): giá trị thô, không dùng trực tiếp trong component.
+   Tầng 2 (semantic): API cho component, đổi giá trị theo theme light/dark.
+   Tầng 3 (component): component chỉ đọc token semantic, không hard-code màu.
+   ============================================================================= */
+
+:root {
+  /* ---- Palette: brand emerald ---- */
+  --brand-50: #e8faf2;
+  --brand-100: #c9f3e2;
+  --brand-200: #96e8cb;
+  --brand-300: #5cd7ae;
+  --brand-400: #23c18f;
+  --brand-500: #00a878;
+  --brand-600: #008b64;
+  --brand-700: #007a57;
+  --brand-800: #006146;
+  --brand-900: #04503c;
+
+  /* ---- Palette: neutral, hơi ngả xanh để hoà với brand ---- */
+  --neutral-0: #ffffff;
+  --neutral-25: #fbfcfb;
+  --neutral-50: #f6f8f7;
+  --neutral-100: #eef3f0;
+  --neutral-200: #dfe6e3;
+  --neutral-300: #c8d3ce;
+  --neutral-400: #9aa9a3;
+  --neutral-500: #788b82;
+  --neutral-600: #576660;
+  --neutral-700: #3f4e49;
+  --neutral-800: #2b3835;
+  --neutral-900: #202a29;
+  --neutral-950: #131c1b;
+
+  /* ---- Palette: accent phụ ---- */
+  --accent-sky: #2f7cf6;
+  --accent-violet: #7c5cf0;
+  --accent-amber: #d98a0b;
+  --accent-rose: #d43f6a;
+
+  /* ---- Typography ---- */
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Consolas, monospace;
+
+  /* ---- Spacing scale: 4px base ---- */
+  --space-0: 0;
+  --space-px: 1px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ---- Radius ---- */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-input: 14px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-panel: 32px;
+  --radius-pill: 999px;
+
+  /* ---- Layers ---- */
+  --layer-base: 0;
+  --layer-raised: 1;
+  --layer-sticky: 5;
+  --layer-dialog: 10;
+  --layer-popover: 20;
+  --layer-toast: 30;
+}
+
+/* =============================================================================
+   Light theme (mặc định)
+   ============================================================================= */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* Surfaces */
+  --color-canvas: var(--neutral-50);
+  --color-surface: var(--neutral-0);
+  --color-surface-soft: var(--neutral-100);
+  --color-surface-raised: var(--neutral-0);
+  --color-surface-sunken: #f1f5f3;
+
+  /* Ink */
+  --color-ink: var(--neutral-900);
+  --color-ink-soft: var(--neutral-800);
+  --color-muted: var(--neutral-600);
+  --color-faint: var(--neutral-500);
+
+  /* Lines */
+  --color-line: var(--neutral-200);
+  --color-line-strong: var(--neutral-300);
+  --color-input-line: var(--neutral-500);
+
+  /* Brand + action */
+  --color-brand: var(--brand-500);
+  --color-brand-ink: var(--brand-700);
+  --color-brand-soft: var(--brand-50);
+  --color-action: var(--brand-700);
+  --color-action-hover: var(--brand-800);
+  --color-action-active: var(--brand-900);
+  --color-action-soft: color-mix(in srgb, var(--brand-500) 12%, var(--neutral-0));
+  --color-on-action: var(--neutral-0);
+
+  /* Feedback */
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-ink: #a51d1d;
+  --color-danger-surface: #fff0f0;
+  --color-warning: var(--accent-amber);
+  --color-warning-ink: #7a4a05;
+  --color-warning-surface: #fff8e6;
+  --color-success: var(--brand-600);
+  --color-success-ink: var(--brand-800);
+  --color-success-surface: var(--brand-50);
+  --color-info: var(--accent-sky);
+  --color-info-ink: #1c4f9e;
+  --color-info-surface: #eff5ff;
+
+  /* Disabled + layers */
+  --color-disabled: var(--neutral-100);
+  --color-disabled-ink: #52615a;
+  --color-scrim: rgb(17 31 26 / 55%);
+  --color-overlay: rgb(32 42 41 / 8%);
+  --color-selection: color-mix(in srgb, var(--brand-500) 24%, transparent);
+
+  /* Liquid glass */
+  --glass-bg: rgb(255 255 255 / 52%);
+  --glass-bg-raised: rgb(255 255 255 / 72%);
+  --glass-bg-sunken: rgb(255 255 255 / 38%);
+  --glass-border: rgb(255 255 255 / 82%);
+  --glass-border-strong: rgb(120 139 130 / 32%);
+  --glass-highlight: rgb(255 255 255 / 96%);
+  --glass-shade: rgb(32 42 41 / 7%);
+  --glass-sheen: rgb(255 255 255 / 88%);
+  --glass-blur: 26px;
+  --glass-blur-strong: 48px;
+  --glass-saturate: 190%;
+  --glass-shadow: 0 1px 1px rgb(32 42 41 / 4%), 0 8px 24px -12px rgb(32 42 41 / 18%), 0 24px 48px -32px rgb(32 42 41 / 26%);
+  --glass-inner: inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 var(--glass-shade);
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgb(32 42 41 / 6%);
+  --shadow-sm: 0 2px 6px -2px rgb(32 42 41 / 12%);
+  --shadow-md: 0 10px 24px -16px rgb(32 42 41 / 28%);
+  --shadow-lg: 0 24px 48px -28px rgb(32 42 41 / 30%);
+  --shadow-xl: 0 40px 80px -40px rgb(32 42 41 / 34%);
+  --shadow-action: inset 0 1px 0 rgb(255 255 255 / 22%), 0 8px 20px -12px color-mix(in srgb, var(--color-action) 70%, transparent);
+  --shadow-inset: inset 0 1px 2px rgb(32 42 41 / 6%);
+
+  /* Type scale */
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 36px;
+  --text-3xl: clamp(40px, 4.6vw, 62px);
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --line-body: 1.5;
+  --leading-relaxed: 1.75;
+  --tracking-tight: -0.045em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-eyebrow: 0.16em;
+  --weight-body: 400;
+  --weight-medium: 500;
+  --weight-label: 600;
+  --weight-heading: 700;
+  --weight-bold: 750;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-ui: 160ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --duration-slower: 480ms;
+  --ease-ui: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* 3D scene — chỉ dùng hex/rgb đặc vì THREE.Color không đọc được color-mix() */
+  --scene-bg: #eef4f1;
+  --scene-floor: #e4ede8;
+  --scene-grid: #cbdad2;
+  --scene-grid-alt: #dfeae4;
+  --scene-shadow: #1f3d33;
+  --scene-accent: #007a57;
+  --scene-accent-alt: #268fdd;
+  --scene-ink: #202a29;
+
+  /* Interaction states */
+  --state-hover: color-mix(in srgb, var(--color-ink) 5%, transparent);
+  --state-active: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  --state-selected: color-mix(in srgb, var(--color-action) 12%, transparent);
+  --state-disabled-opacity: 0.55;
+  --press-scale: 0.98;
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-action), transparent 65%);
+  --focus-ring-danger: 0 0 0 3px color-mix(in srgb, var(--color-danger), transparent 68%);
+  --focus-ring-offset: 2px;
+
+  /* Con trỏ: dùng lại con trỏ mặc định của hệ điều hành. Bộ SVG tự vẽ trước đây làm con trỏ
+     lệch khỏi cảm giác quen thuộc của máy; token giữ nguyên tên để các rule sẵn có không phải sửa. */
+  --cursor-arrow: auto;
+  --cursor-pointer: pointer;
+  --cursor-grab: grab;
+  --cursor-grabbing: grabbing;
+}
+
+[data-theme='dark'] {
+  --cursor-arrow: auto;
+  --cursor-pointer: pointer;
+  --cursor-grab: grab;
+  --cursor-grabbing: grabbing;
+}
+
+/* =============================================================================
+   Dark theme — đặt data-theme="dark" trên bất kỳ phần tử nào để đổi cả nhánh.
+   ============================================================================= */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-canvas: var(--neutral-950);
+  --color-surface: #1a2422;
+  --color-surface-soft: #223029;
+  --color-surface-raised: #1f2b28;
+  --color-surface-sunken: #16201e;
+
+  --color-ink: #eff5f2;
+  --color-ink-soft: #dbe5e0;
+  --color-muted: #a9b8b2;
+  --color-faint: #87978f;
+
+  --color-line: rgb(255 255 255 / 12%);
+  --color-line-strong: rgb(255 255 255 / 20%);
+  --color-input-line: #6f857c;
+
+  --color-brand: var(--brand-400);
+  --color-brand-ink: var(--brand-200);
+  --color-brand-soft: color-mix(in srgb, var(--brand-400) 16%, transparent);
+  --color-action: var(--brand-400);
+  --color-action-hover: var(--brand-300);
+  --color-action-active: var(--brand-200);
+  --color-action-soft: color-mix(in srgb, var(--brand-400) 20%, transparent);
+  --color-on-action: #08251c;
+
+  --color-danger: #f26060;
+  --color-danger-hover: #ff8080;
+  --color-danger-ink: #ffc9c9;
+  --color-danger-surface: color-mix(in srgb, #f26060 18%, transparent);
+  --color-warning-ink: #ffdda6;
+  --color-warning-surface: color-mix(in srgb, var(--accent-amber) 22%, transparent);
+  --color-success-ink: var(--brand-200);
+  --color-success-surface: color-mix(in srgb, var(--brand-400) 18%, transparent);
+  --color-info-ink: #c3dcff;
+  --color-info-surface: color-mix(in srgb, var(--accent-sky) 20%, transparent);
+
+  --color-disabled: rgb(255 255 255 / 8%);
+  --color-disabled-ink: rgb(233 242 238 / 55%);
+  --color-scrim: rgb(4 10 8 / 68%);
+  --color-overlay: rgb(0 0 0 / 28%);
+  --color-selection: color-mix(in srgb, var(--brand-400) 34%, transparent);
+
+  --glass-bg: rgb(26 38 36 / 46%);
+  --glass-bg-raised: rgb(30 44 40 / 68%);
+  --glass-bg-sunken: rgb(16 24 22 / 44%);
+  --glass-border: rgb(255 255 255 / 16%);
+  --glass-border-strong: rgb(255 255 255 / 30%);
+  --glass-highlight: rgb(255 255 255 / 26%);
+  --glass-shade: rgb(0 0 0 / 36%);
+  --glass-sheen: rgb(255 255 255 / 16%);
+  --glass-shadow: 0 1px 1px rgb(0 0 0 / 28%), 0 12px 28px -14px rgb(0 0 0 / 55%), 0 32px 64px -36px rgb(0 0 0 / 65%);
+  --glass-inner: inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 var(--glass-shade);
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-sm: 0 2px 8px -2px rgb(0 0 0 / 45%);
+  --shadow-md: 0 12px 28px -18px rgb(0 0 0 / 60%);
+  --shadow-lg: 0 26px 52px -30px rgb(0 0 0 / 70%);
+  --shadow-xl: 0 44px 88px -44px rgb(0 0 0 / 75%);
+  --shadow-action: inset 0 1px 0 rgb(255 255 255 / 26%), 0 8px 22px -12px color-mix(in srgb, var(--color-action) 60%, transparent);
+  --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 40%);
+
+  /* 3D scene — nền tối dùng hố trắng và lưới sáng để khác hẳn bản sáng */
+  --scene-bg: #0b1513;
+  --scene-floor: #0f1c19;
+  --scene-grid: #22332d;
+  --scene-grid-alt: #16241f;
+  --scene-shadow: #000000;
+  --scene-accent: #23c18f;
+  --scene-accent-alt: #58b6ff;
+  --scene-ink: #eff5f2;
+
+  --state-hover: rgb(255 255 255 / 7%);
+  --state-active: rgb(255 255 255 / 12%);
+  --state-selected: color-mix(in srgb, var(--color-action) 22%, transparent);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-action), transparent 55%);
+  --focus-ring-danger: 0 0 0 3px color-mix(in srgb, var(--color-danger), transparent 58%);
+}
+
+@media (prefers-contrast: more) {
+  :root,
+  [data-theme='light'],
+  [data-theme='dark'] {
+    --glass-blur: 8px;
+    --glass-bg: var(--color-surface);
+    --glass-bg-raised: var(--color-surface);
+    --glass-bg-sunken: var(--color-surface);
+    --glass-border: var(--color-line-strong);
+    --glass-border-strong: var(--color-ink-soft);
+    --glass-shadow: var(--shadow-sm);
+    --glass-inner: inset 0 0 0 1px var(--color-line-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-ui: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --duration-slower: 0ms;
+  }
+}

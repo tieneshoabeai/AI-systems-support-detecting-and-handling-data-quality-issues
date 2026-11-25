@@ -1,0 +1,38 @@
+:where(.root) { font: inherit; }
+:where(.root) {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-input-line);
+  border-radius: var(--radius-input);
+  box-shadow: var(--shadow-inset);
+  line-height: var(--line-body);
+  resize: vertical;
+  transition:
+    border-color var(--duration-ui) var(--ease-ui),
+    box-shadow var(--duration-ui) var(--ease-ui),
+    background-color var(--duration-ui) var(--ease-ui);
+}
+:where(.root)::placeholder { color: var(--color-faint); opacity: 1; }
+:where(.root:hover:not(:disabled, :focus)) {
+  border-color: color-mix(in srgb, var(--color-input-line) 62%, var(--color-action));
+}
+:where(.root:focus-visible) {
+  outline: none;
+  border-color: var(--color-action);
+  box-shadow: var(--shadow-inset), var(--focus-ring);
+}
+:where(.root[aria-invalid='true']) {
+  border-color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger-surface) 55%, var(--color-surface));
+}
+:where(.root[aria-invalid='true']:focus-visible) { box-shadow: var(--shadow-inset), var(--focus-ring-danger); }
+:where(.root:disabled) {
+  background-color: var(--color-disabled);
+  color: var(--color-disabled-ink);
+  border-color: var(--color-line);
+  cursor: not-allowed;
+  opacity: var(--state-disabled-opacity);
+}

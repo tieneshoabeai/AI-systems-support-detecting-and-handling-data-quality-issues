@@ -1,0 +1,35 @@
+.list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.item, .form { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--pv-line); border-radius: 9px; background: var(--pv-bg-2); }
+.identity { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; overflow-wrap: anywhere; }
+.identity time { color: var(--pv-muted); font-size: 11px; }
+.reason { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.form textarea { width: 100%; resize: vertical; color: var(--pv-ink); background: var(--pv-bg-1); }
+.form p { margin: 0; }
+.item .more { min-width: 32px; min-height: 32px; border-radius: 6px; color: var(--pv-ink); }
+.item .more:is(:hover, :focus-visible) { background: var(--pv-blue-soft); }
+.item .danger { color: var(--pv-ink-rose); padding: 5px 8px; }
+
+details > summary.findingTrigger {
+  display: block;
+  width: fit-content;
+  padding: 7px 15px;
+  border-radius: 10px;
+  color: var(--pv-on-fill);
+  background: var(--pv-gloss-action, var(--pv-blue-fill));
+  box-shadow: var(--pv-gloss-action-shadow, none);
+  font-weight: 700;
+}
+.findingTrigger::-webkit-details-marker { display: none; }
+:global([data-theme='light']) details > summary.findingTrigger {
+  background: var(--pv-blue-fill);
+  box-shadow: 0 4px 12px var(--pv-blue-soft);
+}
+:global([data-theme='light']) details > summary.findingTrigger:not([data-has-feedback]):hover { background: var(--pv-blue-fill-hover); }
+details > summary.findingTrigger[data-has-feedback='true'] {
+  min-inline-size: 44px;
+  box-sizing: border-box;
+  text-align: center;
+  color: var(--pv-ink-green);
+  background: color-mix(in srgb, var(--pv-green) 16%, var(--pv-bg-0));
+  box-shadow: none;
+}
