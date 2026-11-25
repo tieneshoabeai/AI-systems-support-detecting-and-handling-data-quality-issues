@@ -1,0 +1,346 @@
+{
+  "candidateId": "M5",
+  "ollama": "mistral:7b",
+  "family": "mistral",
+  "params": "7B",
+  "quant": "Q4_K_M",
+  "think": false,
+  "generatedAt": "2026-11-25T15:47:09.191Z",
+  "metrics": {
+    "f1_micro": 0.4,
+    "f1_macro": 0,
+    "json_valid_rate": 1,
+    "hallucination_rate": 0.16666666666666666,
+    "explanation_quality": 3.8,
+    "p95_latency_ms": 59462.2,
+    "throughput_tok_s": 9.599990380155864,
+    "peak_rss_bytes": 3475767296,
+    "failure_rate": 0
+  },
+  "failedThresholds": [
+    "f1_micro",
+    "f1_macro",
+    "hallucination_rate",
+    "explanation_quality"
+  ],
+  "repeats": [
+    {
+      "repeat": 1,
+      "f1_micro": 0.4,
+      "json_valid_rate": 1,
+      "hallucination_rate": 0.16666666666666666,
+      "p95_latency_ms": 59462.2,
+      "throughput_tok_s": 9.599990380155864,
+      "failure_rate": 0
+    }
+  ],
+  "raw": [
+    {
+      "durationMs": 20395,
+      "evalTokens": 198,
+      "promptTokens": 1124,
+      "tokensPerSecond": 9.760433126614261,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"DQ-01: Ty le thieu < 1%, DQ-02: Ty le trung lap < 0,5%, DQ-03: Ty le sai dinh dang < 1%, DQ-04: Ty le bat thuong vuot IQR 1,5x hoặc Modified Z-score > 3,5\",\n  \"nextSteps\": \"Kiểm tra và sửa các dữ liệu sai theo quy tắc mức ánh hưởng và kiểm tra các dữ liệu có vif lớn hơn 5 (flag khác 'ok')\"\n}"
+    },
+    {
+      "durationMs": 67320,
+      "evalTokens": 414,
+      "promptTokens": 1538,
+      "tokensPerSecond": 9.407711182721316,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\n      \"colA\": \"ma_khach_hang\",\n      \"colB\": \"ty_le_chi_muc\",\n      \"coef\": 0.147\n    },\n    {\n      \"colA\": \"ngay_cap_nhat\",\n      \"colB\": \"ty_le_chi_muc\",\n      \"coef\": 0.167\n    },\n    {\n      \"colA\": \"dia_chi\",\n      \"colB\": \"ty_le_chi_muc\",\n      \"coef\": -0.016\n    },\n    {\n      \"colA\": \"ma_khach_hang\",\n      \"colB\": \"trang_thai_don\",\n      \"coef\": -0.381\n    },\n    {\n      \"colA\": \"ngay_cap_nhat\",\n      \"colB\": \"trang_thai_don\",\n      \"coef\": 0.074\n    }\n  ],\n  \"highVif\": [],\n  \"issues\": [\n    {\n      \"code\": \"DQ-04\",\n      \"column\": \"trang_thai_don\",\n      \"severity\": \"high\"\n    }\n  ],\n  \"limits\": \"DQ-01: low; DQ-02: low; DQ-03: low; DQ-04: high\",\n  \"nextSteps\": \"Xoa cot 'trang_thai_don' vì nó có trường hợp outlier (DQ-04) và có độ VIF lớn hơn 5 (highVif)\"\n}"
+    },
+    {
+      "durationMs": 28031,
+      "evalTokens": 41,
+      "promptTokens": 1521,
+      "tokensPerSecond": 10.067323383543904,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"\",\n  \"nextSteps\": \"\"\n}"
+    },
+    {
+      "durationMs": 23599,
+      "evalTokens": 41,
+      "promptTokens": 1323,
+      "tokensPerSecond": 8.875465528990734,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"\",\n  \"nextSteps\": \"\"\n}"
+    },
+    {
+      "durationMs": 26783,
+      "evalTokens": 41,
+      "promptTokens": 1516,
+      "tokensPerSecond": 9.88901867890911,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"\",\n  \"nextSteps\": \"\"\n}"
+    }
+  ],
+  "scored": [
+    {
+      "sampleId": "G001",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G002",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": true,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 1,
+      "totalClaims": 6,
+      "correctPairs": 0,
+      "claimedPairs": 5,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 1,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 0,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G003",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G004",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G005",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    }
+  ]
+}

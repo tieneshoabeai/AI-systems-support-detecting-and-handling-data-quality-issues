@@ -1,0 +1,1264 @@
+{
+  "candidateId": "M2",
+  "ollama": "gemma3:12b",
+  "family": "gemma3",
+  "params": "12B",
+  "quant": "Q4_K_M",
+  "think": false,
+  "generatedAt": "2026-11-25T20:01:37.644Z",
+  "metrics": {
+    "f1_micro": 0,
+    "f1_macro": 0,
+    "json_valid_rate": 0,
+    "hallucination_rate": 0,
+    "explanation_quality": null,
+    "p95_latency_ms": 14966.600000000002,
+    "throughput_tok_s": null,
+    "peak_rss_bytes": null,
+    "failure_rate": 1
+  },
+  "failedThresholds": [
+    "f1_micro",
+    "f1_macro",
+    "json_valid_rate",
+    "explanation_quality",
+    "throughput_tok_s",
+    "peak_rss_bytes",
+    "failure_rate"
+  ],
+  "repeats": [
+    {
+      "repeat": 1,
+      "f1_micro": 0,
+      "json_valid_rate": 0,
+      "hallucination_rate": 0,
+      "p95_latency_ms": 14966.600000000002,
+      "throughput_tok_s": null,
+      "failure_rate": 1
+    }
+  ],
+  "raw": [
+    {
+      "durationMs": 14776,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "an error was encountered while running the model: unexpected EOF",
+      "rawText": ""
+    },
+    {
+      "durationMs": 18588,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "an error was encountered while running the model: unexpected EOF",
+      "rawText": ""
+    },
+    {
+      "durationMs": 8876,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "an error was encountered while running the model: unexpected EOF",
+      "rawText": ""
+    },
+    {
+      "durationMs": 11119,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "an error was encountered while running the model: unexpected EOF",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 2,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 2,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 2,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 2,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    },
+    {
+      "durationMs": 1,
+      "evalTokens": 0,
+      "promptTokens": 0,
+      "tokensPerSecond": 0,
+      "jsonValid": false,
+      "error": "connect ECONNREFUSED 127.0.0.1:11434",
+      "rawText": ""
+    }
+  ],
+  "scored": [
+    {
+      "sampleId": "G001",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G002",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G003",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G004",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G005",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G006",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G007",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G008",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G009",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G010",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G011",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G012",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G013",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G014",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G015",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G016",
+      "kind": "corr",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G017",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G018",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G019",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    },
+    {
+      "sampleId": "G020",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": null
+    }
+  ]
+}

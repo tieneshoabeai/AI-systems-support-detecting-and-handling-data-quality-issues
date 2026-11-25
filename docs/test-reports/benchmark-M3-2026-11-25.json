@@ -1,0 +1,1261 @@
+{
+  "candidateId": "M3",
+  "ollama": "qwen3:8b",
+  "family": "qwen3",
+  "params": "8B",
+  "quant": "Q4_K_M",
+  "think": false,
+  "generatedAt": "2026-11-25T18:09:29.214Z",
+  "metrics": {
+    "f1_micro": 0.43478260869565216,
+    "f1_macro": 0.20512820512820515,
+    "json_valid_rate": 0.8,
+    "hallucination_rate": 0,
+    "explanation_quality": 3.05,
+    "p95_latency_ms": 105909.15000000004,
+    "throughput_tok_s": 7.2036488371731435,
+    "peak_rss_bytes": 6060072960,
+    "failure_rate": 0
+  },
+  "failedThresholds": [
+    "f1_micro",
+    "f1_macro",
+    "json_valid_rate",
+    "explanation_quality"
+  ],
+  "repeats": [
+    {
+      "repeat": 1,
+      "f1_micro": 0.43478260869565216,
+      "json_valid_rate": 0.8,
+      "hallucination_rate": 0,
+      "p95_latency_ms": 105909.15000000004,
+      "throughput_tok_s": 7.2036488371731435,
+      "failure_rate": 0
+    }
+  ],
+  "raw": [
+    {
+      "durationMs": 19619,
+      "evalTokens": 140,
+      "promptTokens": 983,
+      "tokensPerSecond": 7.191252437256708,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các giá trị thiếu, trùng lặp, sai định dạng, và bất thường đều ở mức thấp (thiếu <1%, trùng lặp <0,5%, sai định dạng <1%, bất thường <1%).\",\n  \"nextSteps\": \"Không cần xử lý dữ liệu vì không có lỗi theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04. Tuy nhiên, nên kiểm tra lại mối quan hệ giữa các biến nếu cần phân tích sâu hơn.\"\n}"
+    },
+    {
+      "durationMs": 39803,
+      "evalTokens": 131,
+      "promptTokens": 1321,
+      "tokensPerSecond": 6.779209829792154,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột không có lỗi theo tiêu chí DQ-01, DQ-02, DQ-03, DQ-04. Tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều ở mức 0%\",\n  \"nextSteps\": \"Không cần xử lý dữ liệu vì không có lỗi theo các tiêu chí đã nêu. Tuy nhiên, nên kiểm tra lại các mối quan hệ giữa các biến nếu cần phân tích sâu hơn.\"\n}"
+    },
+    {
+      "durationMs": 45327,
+      "evalTokens": 172,
+      "promptTokens": 1319,
+      "tokensPerSecond": 6.921252603467395,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [\"trang_thai_don\", \"ma_khach_hang\"],\n  \"issues\": [],\n  \"limits\": \"Các cột không có lỗi theo tiêu chí DQ-01, DQ-02, DQ-03, DQ-04 do tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều bằng 0%\",\n  \"nextSteps\": \"Xóa cột 'trang_thai_don' và 'ma_khach_hang' do có VIF cao (>=5) và tương quan cao với các cột khác. Kiểm tra lại mô hình sau khi loại bỏ các cột đa cộng tuyến để đảm bảo tính chính xác và hiệu quả của mô hình.\"\n}"
+    },
+    {
+      "durationMs": 41155,
+      "evalTokens": 164,
+      "promptTokens": 1148,
+      "tokensPerSecond": 7.003122880381025,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các chỉ số chất lượng dữ liệu đều đạt mức thấp (low) theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04. Không có cột nào vi phạm quy tắc DQ-05 (không có cột nào có tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường > 0).\",\n  \"nextSteps\": \"Dữ liệu đạt yêu cầu về chất lượng, không cần xử lý. Tuy nhiên, cần kiểm tra kỹ hơn nếu có yêu cầu phân tích sâu hơn hoặc nếu dữ liệu có sự thay đổi lớn trong tương lai.\"\n}"
+    },
+    {
+      "durationMs": 45928,
+      "evalTokens": 179,
+      "promptTokens": 1299,
+      "tokensPerSecond": 6.896570855446026,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột đều đạt tiêu chuẩn DQ-01, DQ-02, DQ-03, DQ-04 với tỷ lệ lỗi đều ở mức thấp (thiếu dữ liệu <1%, trùng lặp <0,5%, sai định dạng <1%, bất thường <1%).\",\n  \"nextSteps\": \"Không cần xử lý dữ liệu vì không có lỗi nghiêm trọng. Tuy nhiên, nên kiểm tra lại dữ liệu cho cột 'ty_le_chi_muc' do tỷ lệ thiếu dữ liệu là 5%, có thể ảnh hưởng đến độ chính xác của mô hình. Nếu cần, có thể xem xét điền giá trị trung bình hoặc loại bỏ các mẫu thiếu dữ liệu.\"\n}"
+    },
+    {
+      "durationMs": 81391,
+      "evalTokens": 300,
+      "promptTokens": 1119,
+      "tokensPerSecond": 6.384282475387208,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các chỉ số chất lượng dữ liệu được kiểm tra theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04. DQ-01: tỷ lệ thiếu < 1% = low; 1%-10% = medium; > 10% = high. DQ-02: tỷ lệ trùng lặp < 0,5% = low; 0,5%-5% = medium; > 5% = high. DQ-03: tỷ lệ sai định dạng < 1% = low; 1%-10% = medium; > 10% = high. DQ-04: vượt IQR 1,5x = low; vượt IQR 3x hoặc Modified Z-score > 3,5 = medium; cả hai = high.\",\n  \"nextSteps\": \"Dữ liệu không có lỗi theo các tiêu chí đã nêu. Tuy nhiên, cần kiểm tra thêm mối quan hệ giữa các biến để đảm bảo tính hợp lệ của mô hình. Các cột có VIF cao cần được xem xét để loại bỏ nếu không cần thiết. Các cặp biến có hệ số tương quan cao cũng cần được xử lý để tránh đa cộng tuyến.\"\n}"
+    },
+    {
+      "durationMs": 49601,
+      "evalTokens": 219,
+      "promptTokens": 953,
+      "tokensPerSecond": 6.212648754285913,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\"colA\": \"so_luong_hang\", \"colB\": \"so_don_duong\", \"coef\": 0.93, \"n\": 134}\n  ],\n  \"highVif\": [\"so_luong_hang\", \"so_don_duong\"],\n  \"issues\": [],\n  \"limits\": \"Các cột không có lỗi theo tiêu chí DQ-01, DQ-02, DQ-03, DQ-04 do tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều bằng 0.\",\n  \"nextSteps\": \"Xóa cột 'so_don_duong' do có hệ số tương quan cao với 'so_luong_hang' (r = 0.93) và VIF cao (11.13). Kiểm tra lại mối quan hệ giữa 'so_luong_hang' và 'tuoi' để xác định có cần giữ lại hay không.\"\n}"
+    },
+    {
+      "durationMs": 156471,
+      "evalTokens": 640,
+      "promptTokens": 1289,
+      "tokensPerSecond": 5.030839241064886,
+      "jsonValid": false,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\"colA\": \"ngay_cap_nhat\", \"colB\": \"tuoi\", \"coef\": -0.905, \"n\": 534},\n    {\"colA\": \"ngay_cap_nhat\", \"colB\": \"ty_le_chi_muc\", \"coef\": 0.285, \"n\": 526},\n    {\"colA\": \"ngay_cap_nhat\", \"colB\": \"thu_nhap\", \"coef\": -0.367, \"n\": 532},\n    {\"colA\": \"tuoi\", \"colB\": \"nam_sinh\", \"coef\": 0.259, \"n\": 528},\n    {\"colA\": \"tuoi\", \"colB\": \"thu_nhap\", \"coef\": 0.168, \"n\": 523},\n    {\"colA\": \"nam_sinh\", \"colB\": \"ty_le_chi_muc\", \"coef\": -0.126, \"n\": 529},\n    {\"colA\": \"nam_sinh\", \"colB\": \"thu_nhap\", \"coef\": -0.126, \"n\": 531},\n    {\"colA\": \"ty_le_chi_muc\", \"colB\": \"thu_nhap\", \"coef\": -0.161, \"n\": 530}\n  ],\n  \"highVif\": [\"ngay_cap_nhat\", \"tuoi\"],\n  \"issues\": [\n    {\"code\": \"DQ-05\", \"column\": \"ngay_cap_nhat\", \"severity\": \"medium\", \"evidence\": \"He so tuong quan cao (r = -0.905) voi tuoi, vi pham DQ-05: thong tin trung lap hoac thieu tinh duy nhat.\"},\n    {\"code\": \"DQ-05\", \"column\": \"tuoi\", \"severity\": \"medium\", \"evidence\": \"He so tuong quan cao (r = -0.905) voi ngay_cap_nhat, vi pham DQ-05: thong tin trung lap hoac thieu tinh duy nhat.\"}\n  ],\n  \"limits\": \"Cot ngay_cap_nhat, tuoi co he so tuong quan cao voi nhau, vi pham DQ-05. Cot ngay_cap_nhat, tuoi co VIF cao (15.68, 10.86), can xoa cot de giai quyet vi pham thong tin trung lap.\",\n  \"nextSteps\": [\n    \"Xoa cot ngay_cap_nhat hoac tuoi do co he so tuong quan cao va VIF cao, vi pham DQ-05.\",\n    \"Kiem tra lai cac cot"
+    },
+    {
+      "durationMs": 46828,
+      "evalTokens": 196,
+      "promptTokens": 966,
+      "tokensPerSecond": 6.152538763505451,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [\"dia_chi\", \"so_dien_thoai\"],\n  \"issues\": [],\n  \"limits\": \"dia_chi: 25, 37, 76, 36, 45, 15; so_dien_thoai: 57, 96, 19, 15, 28, 46; so_luong_hang: 15, 53, 2, 59, 92, 42\",\n  \"nextSteps\": \"Xóa cột 'dia_chi' và 'so_dien_thoai' do có VIF cao (>=5) và có mối tương quan mạnh với nhau (r=0.92). Kiểm tra lại các cột còn lại để đảm bảo không có lỗi chất lượng dữ liệu.\"\n}"
+    },
+    {
+      "durationMs": 40865,
+      "evalTokens": 134,
+      "promptTokens": 1310,
+      "tokensPerSecond": 6.61528499116736,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột đều đạt tiêu chuẩn về thiếu dữ liệu, trùng lặp, sai định dạng và bất thường theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04. Không có cột nào vi phạm quy tắc.\",\n  \"nextSteps\": \"Không cần xử lý dữ liệu vì không có lỗi hoặc vấn đề cần khắc phục. Tuy nhiên, nên tiếp tục theo dõi và kiểm tra định kỳ để đảm bảo chất lượng dữ liệu.\"\n}"
+    },
+    {
+      "durationMs": 48538,
+      "evalTokens": 222,
+      "promptTokens": 1091,
+      "tokensPerSecond": 6.921091390018901,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột không có lỗi theo tiêu chí DQ-01, DQ-02, DQ-03, DQ-04 do tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều bằng 0.\",\n  \"nextSteps\": [\n    \"Kiểm tra lại mối quan hệ giữa các biến để xác định các cặp biến có tương quan cao (|r| ≥ 0.75) để xem có cần loại bỏ biến nào không.\",\n    \"Xác định các biến có VIF ≥ 5 để kiểm tra hiện tượng đa cộng tuyến.\",\n    \"Đảm bảo dữ liệu không có lỗi theo các tiêu chí DQ-01 đến DQ-04 trước khi phân tích sâu hơn.\",\n    \"Nếu cần, xóa cột 'thu_nhap' nếu có sự phụ thuộc quá cao với các cột khác.\"\n  ]\n}"
+    },
+    {
+      "durationMs": 103248,
+      "evalTokens": 640,
+      "promptTokens": 1298,
+      "tokensPerSecond": 7.687180841613939,
+      "jsonValid": false,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\"colA\": \"so_luong_hang\", \"colB\": \"so_don_duong\", \"coef\": -0.889, \"n\": 449},\n    {\"colA\": \"so_luong_hang\", \"colB\": \"tuoi\", \"coef\": -0.355, \"n\": 438},\n    {\"colA\": \"so_don_duong\", \"colB\": \"tuoi\", \"coef\": 0.342, \"n\": 443},\n    {\"colA\": \"diem_toan\", \"colB\": \"trang_thai_don\", \"coef\": 0.239, \"n\": 454}\n  ],\n  \"highVif\": [\"so_luong_hang\", \"so_don_duong\"],\n  \"issues\": [\n    {\"code\": \"DQ-01\", \"column\": \"so_luong_hang\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"so_don_duong\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"diem_toan\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"trang_thai_don\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"so_luong_hang\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"so_don_duong\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"diem_toan\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"trang_thai_don\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"so_luong_hang\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code"
+    },
+    {
+      "durationMs": 99807,
+      "evalTokens": 640,
+      "promptTokens": 1129,
+      "tokensPerSecond": 7.859479482147248,
+      "jsonValid": false,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\"colA\": \"ngay_cap_nhat\", \"colB\": \"so_dien_thoai\", \"coef\": 0.889},\n    {\"colA\": \"ngay_cap_nhat\", \"colB\": \"tuoi\", \"coef\": 0.111}\n  ],\n  \"highVif\": [\"ngay_cap_nhat\", \"so_dien_thoai\"],\n  \"issues\": [\n    {\"code\": \"DQ-01\", \"column\": \"ngay_cap_nhat\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"so_dien_thoai\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"so_luong_hang\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"ngay_cap_nhat\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"so_dien_thoai\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"so_luong_hang\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"ngay_cap_nhat\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"so_dien_thoai\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"so_luong_hang\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code\": \"DQ-04\", \"column\": \"ngay_cap_nhat\", \"severity\": \"low\", \"evidence\": \"Ty le bat thuong = 0%\"},\n"
+    },
+    {
+      "durationMs": 44452,
+      "evalTokens": 209,
+      "promptTokens": 1142,
+      "tokensPerSecond": 8.129154133896582,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [\"so_dien_thoai\", \"thu_nhap\"],\n  \"issues\": [],\n  \"limits\": \"Các chỉ số chất lượng dữ liệu đều đạt mức thấp (low) theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04. Không có lỗi nào cần báo cáo.\",\n  \"nextSteps\": [\n    \"Xóa cột 'so_dien_thoai' và 'thu_nhap' do có giá trị VIF cao (>5), gây đa cộng tuyến trong mô hình.\",\n    \"Kiểm tra lại mối quan hệ giữa các biến nếu cần giữ lại các cột này bằng phương pháp khác (ví dụ: PCA, LASSO).\",\n    \"Đảm bảo dữ liệu không có lỗi về thiếu giá trị, trùng lặp, sai định dạng, và bất thường trước khi phân tích sâu hơn.\"\n  ]\n}"
+    },
+    {
+      "durationMs": 50087,
+      "evalTokens": 229,
+      "promptTokens": 1286,
+      "tokensPerSecond": 8.019798044675179,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\"colA\": \"tuoi\", \"colB\": \"diem_toan\", \"coef\": 0.27, \"n\": 378},\n    {\"colA\": \"tuoi\", \"colB\": \"diem_toan\", \"coef\": 0.27, \"n\": 378}\n  ],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột đều đạt tiêu chuẩn DQ-01, DQ-02, DQ-03, DQ-04 với tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều bằng 0, không cần báo cáo lỗi.\",\n  \"nextSteps\": \"Không cần xử lý dữ liệu vì không có lỗi về thiếu dữ liệu, trùng lặp, sai định dạng hay bất thường. Tuy nhiên, có thể xem xét loại bỏ cột 'ma_khach_hang' nếu không cần thiết do không có mối tương quan mạnh với các cột khác.\"\n}"
+    },
+    {
+      "durationMs": 41415,
+      "evalTokens": 160,
+      "promptTokens": 1297,
+      "tokensPerSecond": 8.058041671255973,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các chỉ số thiếu, trùng lặp, sai định dạng, bất thường đều ở mức 0% nên không có lỗi theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04.\",\n  \"nextSteps\": \"Không có lỗi dữ liệu cần xử lý. Tuy nhiên, nên kiểm tra thêm mối quan hệ giữa các biến thông qua mô hình hồi quy để đảm bảo tính hợp lệ của dữ liệu. Ngoài ra, cần xác minh thêm các giá trị trong cột 'ty_le_chi_muc' để đảm bảo tính hợp lý của tỷ lệ chi tiêu.\"\n}"
+    },
+    {
+      "durationMs": 43863,
+      "evalTokens": 203,
+      "promptTokens": 1105,
+      "tokensPerSecond": 7.742783068234553,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các chỉ số giới hạn được kiểm tra theo quy tắc DQ-01, DQ-02, DQ-03, DQ-04. Tuy nhiên, không có cột nào có tỷ lệ thiếu, trùng lặp, sai định dạng, hoặc bất thường vượt quá ngưỡng cảnh báo.\",\n  \"nextSteps\": [\n    \"Kiểm tra lại các mối quan hệ giữa các biến để đảm bảo tính hợp lệ của dữ liệu.\",\n    \"Xác minh các giá trị ngoại lai nếu có, đặc biệt là trong các biến liên tục như thu nhập.\",\n    \"Đảm bảo tính nhất quán trong việc ghi nhận các biến định danh như số điện thoại.\",\n    \"Tiến hành phân tích sâu hơn về mối tương quan giữa các biến để hỗ trợ mô hình phân tích.\"\n  ]\n}"
+    },
+    {
+      "durationMs": 47619,
+      "evalTokens": 207,
+      "promptTokens": 1294,
+      "tokensPerSecond": 7.938388593785791,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột không có lỗi theo tiêu chí DQ-01, DQ-02, DQ-03, DQ-04 do tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều bằng 0.\",\n  \"nextSteps\": [\n    \"Kiểm tra lại các mối quan hệ giữa các biến để đảm bảo tính hợp lệ của mô hình.\",\n    \"Duy trì chất lượng dữ liệu bằng cách kiểm soát việc nhập liệu và xử lý dữ liệu đầu vào.\",\n    \"Xem xét việc loại bỏ cột 'ma_khach_hang' nếu không cần thiết, vì nó có thể gây ra sự phụ thuộc không cần thiết trong mô hình.\",\n    \"Tiếp tục theo dõi và đánh giá chất lượng dữ liệu định kỳ để đảm bảo tính chính xác và tin cậy của dữ liệu.\"\n  ]\n}"
+    },
+    {
+      "durationMs": 95650,
+      "evalTokens": 640,
+      "promptTokens": 1100,
+      "tokensPerSecond": 8.219739318673513,
+      "jsonValid": false,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [\n    {\"colA\": \"tuoi\", \"colB\": \"nam_sinh\", \"coef\": -0.826, \"n\": 287},\n    {\"colA\": \"tuoi\", \"colB\": \"trang_thai_don\", \"coef\": -0.39, \"n\": 286}\n  ],\n  \"highVif\": [\"tuoi\", \"nam_sinh\"],\n  \"issues\": [\n    {\"code\": \"DQ-01\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-01\", \"column\": \"nam_sinh\", \"severity\": \"low\", \"evidence\": \"Ty le thieu = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-02\", \"column\": \"nam_sinh\", \"severity\": \"low\", \"evidence\": \"Ty le trung lap = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code\": \"DQ-03\", \"column\": \"nam_sinh\", \"severity\": \"low\", \"evidence\": \"Ty le sai dinh dang = 0%\"},\n    {\"code\": \"DQ-04\", \"column\": \"tuoi\", \"severity\": \"low\", \"evidence\": \"Ty le bat thuong = 0%\"},\n    {\"code\": \"DQ-04\", \"column\": \"nam_sinh\", \"severity\": \"low\", \"evidence\": \"Ty le bat thuong = 0%\"}\n  ],\n  \"limits\": \"Cot 'tuoi' va 'nam_sinh' co he so tuong quan cao (|r| >= 0.75), va co gia tri VIF cao (>=5), co the la cac bien thay the cho nhau. Kiem tra xem co can xoa cot nao khong.\",\n  \"nextSteps\": [\n    \"Xem xet xoa cot 'tuoi' hoac 'nam_sinh' do co he so tuong quan cao va VIF cao.\",\n    \"Kiem tra lai cac gia tri trong cot 'tuoi' va 'nam_sinh' de xac minh co thuc su la bien thay the.\",\n    \"Kiem tra lai cac gia tri trong cot 'trang_thai_don' va 'diem_toan' de xac minh khong co gia tri bat thuong.\",\n    \"Kiem tra lai cac gia tri trong cot 'tuoi' va 'nam_sinh' de xac"
+    },
+    {
+      "durationMs": 40831,
+      "evalTokens": 161,
+      "promptTokens": 1277,
+      "tokensPerSecond": 8.310317367407078,
+      "jsonValid": true,
+      "error": null,
+      "rawText": "{\n  \"notablePairs\": [],\n  \"highVif\": [],\n  \"issues\": [],\n  \"limits\": \"Các cột đều đạt tiêu chuẩn DQ-01, DQ-02, DQ-03, DQ-04 với tỷ lệ thiếu, trùng lặp, sai định dạng, bất thường đều bằng 0, không có lỗi cần báo cáo.\",\n  \"nextSteps\": [\n    \"Không cần loại bỏ cột nào do không có cột nào vi phạm DQ-05.\",\n    \"Dữ liệu đủ sạch và không có lỗi, có thể tiến hành phân tích mô hình.\",\n    \"Nên kiểm tra lại mối quan hệ giữa các biến để đảm bảo tính hợp lệ của mô hình.\"\n  ]\n}"
+    }
+  ],
+  "scored": [
+    {
+      "sampleId": "G001",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G002",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G003",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": true,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 2,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 2,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G004",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G005",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G006",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G007",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": true,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 3,
+      "correctPairs": 1,
+      "claimedPairs": 1,
+      "truthPairs": 1,
+      "correctVif": 2,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G008",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G009",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": true,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 2,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 2,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G010",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G011",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": true,
+      "correct": false,
+      "falsePositive": true,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G012",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 2
+    },
+    {
+      "sampleId": "G013",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 2
+    },
+    {
+      "sampleId": "G014",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": true,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 2,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 2,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 4
+    },
+    {
+      "sampleId": "G015",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": true,
+      "correct": false,
+      "falsePositive": true,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 2,
+      "correctPairs": 0,
+      "claimedPairs": 2,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 0,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 2
+    },
+    {
+      "sampleId": "G016",
+      "kind": "corr",
+      "truthPositive": false,
+      "predPositive": false,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 2
+    },
+    {
+      "sampleId": "G017",
+      "kind": "dq",
+      "truthPositive": true,
+      "predPositive": true,
+      "correct": true,
+      "falsePositive": false,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 1,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G018",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": true,
+      "correct": false,
+      "falsePositive": true,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    },
+    {
+      "sampleId": "G019",
+      "kind": "corr",
+      "truthPositive": true,
+      "predPositive": false,
+      "correct": false,
+      "falsePositive": false,
+      "missedIssue": true,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 1,
+      "correctVif": 0,
+      "truthVif": 2,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 2
+    },
+    {
+      "sampleId": "G020",
+      "kind": "clean",
+      "truthPositive": false,
+      "predPositive": true,
+      "correct": false,
+      "falsePositive": true,
+      "missedIssue": false,
+      "droppedClaims": 0,
+      "totalClaims": 0,
+      "correctPairs": 0,
+      "claimedPairs": 0,
+      "truthPairs": 0,
+      "correctVif": 0,
+      "truthVif": 0,
+      "correctIssues": 0,
+      "claimedIssues": 0,
+      "truthIssues": 0,
+      "classScores": {
+        "corr_vif": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-01": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-02": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-03": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        },
+        "DQ-04": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "tn": 1
+        }
+      },
+      "judgeScore": 3
+    }
+  ]
+}
