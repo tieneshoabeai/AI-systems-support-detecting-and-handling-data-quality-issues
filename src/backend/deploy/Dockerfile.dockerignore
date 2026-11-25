@@ -1,0 +1,13 @@
+# Áp dụng cho deploy/Dockerfile (BuildKit đọc <Dockerfile>.dockerignore)
+node_modules
+dist
+coverage
+storage
+test
+.env
+.env.*
+!.env.example
+*.log
+dump.rdb
+.git
+*.tsbuildinfo

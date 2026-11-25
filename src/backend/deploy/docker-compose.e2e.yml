@@ -1,0 +1,82 @@
+# Hệ thống đầy đủ cho E2E / k6 / demo: api + mongo (replica set rs0) + redis (+ ollama tuỳ chọn).
+# Chạy từ src/backend:
+#   docker compose -f deploy/docker-compose.e2e.yml up -d --build
+#   curl http://localhost:3100/health/ready
+#   docker compose -f deploy/docker-compose.e2e.yml down -v      # xoá luôn dữ liệu
+# Bật AI (Ollama): thêm --profile ai và đặt AI_WORKER_ENABLED=true trong deploy/.env.e2e
+# Ghi đè biến: cp deploy/env.e2e.example deploy/.env.e2e rồi sửa (file này không commit).
+#
+# Lưu trữ tệp: dùng chế độ cục bộ (volume api-storage) vì S3Client hiện không bật
+# forcePathStyle nên chưa chạy được với MinIO. Muốn dùng R2 thật: điền S3_* trong .env.e2e.
+
+name: dq-e2e
+
+services:
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      # Khởi tạo replica set lần đầu (transaction cần rs), sau đó chỉ kiểm tra trạng thái
+      test: ["CMD", "mongosh", "--quiet", "--eval",
+             "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongo:27017'}]}).ok }"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: dq-backend:e2e
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "${E2E_API_PORT:-3100}:3000"
+    env_file:
+      - path: .env.e2e
+        required: false
+    environment:
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+      API_PREFIX: api/v1
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/dq_e2e?replicaSet=rs0}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # Chỉ dùng cho môi trường test — KHÔNG dùng cho production
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-e2e-access-secret-change-me-0123456789}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-e2e-refresh-secret-change-me-0123456789}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@e2e.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      WORKER_MODE: all
+      OUTBOX_RELAY_ENABLED: "true"
+      REPORT_WORKER_ENABLED: "true"
+      AI_WORKER_ENABLED: ${AI_WORKER_ENABLED:-false}
+      AI_ENGINE: ${AI_ENGINE:-ollama}
+      AI_INFERENCE_BASE_URL: ${AI_INFERENCE_BASE_URL:-http://ollama:11434}
+    volumes:
+      - api-storage:/app/storage
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  mongo-data:
+  api-storage:
+  ollama-models:
