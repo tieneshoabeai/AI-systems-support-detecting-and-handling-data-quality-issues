@@ -78,7 +78,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
   }, [datasetId, project.id, service])
 
   useEffect(() => {
-    if (!service || !jobId || !analysisId || jobOperation !== null) return
+    if (!service || !jobId || !analysisId || jobOperation !== null || offline) return
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let checks = 0
@@ -120,7 +120,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
       controller.abort()
       clearTimeout(timer)
     }
-  }, [analysisId, jobId, jobOperation, project.id, service])
+  }, [analysisId, jobId, jobOperation, offline, project.id, service])
 
   const action = async (operation: () => Promise<void>) => {
     if (mutationActive.current) return
@@ -147,6 +147,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
     setResponse(null); setStatus('Đã nhận kết quả chạy phân tích.')
   })
   const loadResult = () => action(async () => {
+    if (offline) return
     const result = await service!.getResult(project.id)
     const record = asRecord(result)
     if (objectId(record?.['analysisRunId']) !== analysisId) {
@@ -162,7 +163,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
 
   const changeJob = (operation: 'check' | 'retry') => action(async () => {
     const id = jobId.trim()
-    if (!service || !id || (operation === 'retry' && !canExecute)) return
+    if (offline || !service || !id || (operation === 'retry' && !canExecute)) return
     setPolling(false)
     setJobOperation(operation)
     setJobError('')
@@ -229,7 +230,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
     <section className={styles['card']} aria-label="Kết quả phân tích">
       <div className={styles['cardHeading']}>
         <h3>Kết quả gần nhất</h3>
-        <Button className="button-secondary" disabled={busy || loadingResult} onClick={() => { void loadResult() }}>Tải lại kết quả</Button>
+        <Button className="button-secondary" disabled={offline || busy || loadingResult} onClick={() => { void loadResult() }}>Tải lại kết quả</Button>
       </div>
       {loadingResult ? <ModuleNotice tone="loading">Đang tải kết quả…</ModuleNotice>
         : resultError ? <ModuleNotice tone="error">{resultError}</ModuleNotice>
@@ -237,7 +238,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
             : <ModuleNotice>Chưa có kết quả phân tích cho project này.</ModuleNotice>}
     </section>
 
-    {(Boolean(jobId) || asRecord(assessment) !== null) && <AnalysisJobPanel jobId={jobId} job={job} assessment={assessment} busy={busy} operation={jobOperation} polling={polling}
+    {(Boolean(jobId) || asRecord(assessment) !== null) && <AnalysisJobPanel jobId={jobId} job={job} assessment={assessment} busy={busy} operation={jobOperation} polling={polling && !offline} offline={offline}
       checkedAt={jobCheckedAt} error={jobError} canRetry={canExecute}
       onCheck={() => { void changeJob('check') }} onRetry={() => { void changeJob('retry') }}
       onResult={() => { void loadResult() }} />}

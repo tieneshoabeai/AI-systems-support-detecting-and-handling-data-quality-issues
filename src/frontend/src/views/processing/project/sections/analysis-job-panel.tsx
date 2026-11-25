@@ -17,13 +17,14 @@ const statusLabels: Record<string, { title: string; stage: number; error?: boole
   skipped: { title: 'Tác vụ đã được bỏ qua', stage: -1 },
 }
 
-export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, polling, checkedAt, error, canRetry, onCheck, onRetry, onResult }: {
+export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, polling, offline, checkedAt, error, canRetry, onCheck, onRetry, onResult }: {
   jobId: string
   job: unknown
   assessment: unknown
   busy: boolean
   operation: 'check' | 'retry' | null
   polling: boolean
+  offline: boolean
   checkedAt: Date | null
   error: string
   canRetry: boolean
@@ -53,6 +54,7 @@ export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, poll
           ?? (polling || operation === 'check' ? 'Đang kiểm tra…' : jobId ? 'Chưa kiểm tra trạng thái' : 'Không có mã tác vụ để theo dõi')}
       </span>
     </header>
+    {offline && <p className={styles['note']} role="status">Đang ngoại tuyến. Kết quả đã tải vẫn xem được; tự động theo dõi sẽ tiếp tục khi có kết nối.</p>}
     {summary && summary.stage >= 0 && <ol className={styles['steps']} aria-label="Các bước phân tích">
       {stages.map((label, index) => <li key={label} data-reached={index <= summary.stage}
         aria-current={index === summary.stage ? 'step' : undefined}><span className={styles['stepMark']} aria-hidden="true">{index < summary.stage ? '✓' : index + 1}</span>{label}</li>)}
@@ -62,10 +64,10 @@ export function AnalysisJobPanel({ jobId, job, assessment, busy, operation, poll
       {checkedAt && <span>Cập nhật lúc <time dateTime={checkedAt.toISOString()}>{clock.format(checkedAt)}</time></span>}
     </div>}
     <div className={styles['actions']}>
-      {jobId && <Button className="button-secondary" disabled={busy || polling} onClick={onCheck}>Kiểm tra lại trạng thái</Button>}
+      {jobId && <Button className="button-secondary" disabled={offline || busy || polling} onClick={onCheck}>Kiểm tra lại trạng thái</Button>}
       {jobId && canRetry && (key === 'failed' || key === 'skipped') &&
-        <Button className="button-secondary" disabled={busy} onClick={onRetry}>Thử lại job</Button>}
-      {key === 'succeeded' && <Button className="button-secondary" disabled={busy} onClick={onResult}>Tải lại kết quả</Button>}
+        <Button className="button-secondary" disabled={offline || busy} onClick={onRetry}>Thử lại job</Button>}
+      {key === 'succeeded' && <Button className="button-secondary" disabled={offline || busy} onClick={onResult}>Tải lại kết quả</Button>}
     </div>
     {error && <p role="alert" className={styles['empty']}>{error}</p>}
     {typeof jobFailure === 'string' && jobFailure && <p className={styles['empty']}>{jobFailure}</p>}

@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../hooks/auth/auth-context'
@@ -16,12 +17,18 @@ import { DataRegionStatus } from '../../components/loading/data-region-status'
 import type { AuthContextValue } from '../../types/auth/auth-context.types'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
 import type { ApiRequestOptions } from '../../types/api/api.types'
+import { OfflineReadDatabase } from '../../repositories/offline/offline-read.database'
+import { createOfflineReadRepository } from '../../repositories/offline/offline-read.repository'
+import { createOfflineDataService } from '../../services/offline/offline-data.service'
+import { ApiError } from '../../lib/api-error'
+import type { DraftAccess } from '../../types/datasets/upload-draft.types'
 
 // Only the transport is replaced; provider, session storage and API store are real.
 const transport = vi.hoisted(() => ({
   request: vi.fn<(options: ApiRequestOptions) => Promise<unknown>>(),
   token: undefined as (() => string | null) | undefined,
 }))
+const offlineResources: { db: OfflineReadDatabase; service: ReturnType<typeof createOfflineDataService> }[] = []
 vi.mock('../../lib/axios-client', () => ({
   createAxiosClient: (options: { readToken: () => string | null }) => {
     transport.token = options.readToken
@@ -45,9 +52,19 @@ function Probe() {
   if (status) return <DataRegionStatus status={status} label="Đang tải dữ liệu"><span /></DataRegionStatus>
   return <output data-testid="source">{state.source === 'api' ? `api:${state.workspaces.length}` : 'fixture'}</output>
 }
-function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false, progressiveProjects = false) {
+function ManagementRowsProbe() {
+  const state = usePreviewStore()
+  const status = useContext(ManagementLoadingContext)
+  if (status) return <DataRegionStatus status={status} label="Đang tải dữ liệu"><span /></DataRegionStatus>
+  return <div>
+    {state.workspaces.map(workspace => <span key={workspace.id}>{workspace.name}</span>)}
+    {state.projects.map(project => <span key={project.id}>{project.name}</span>)}
+  </div>
+}
+function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false,
+  progressiveProjects = false, localData?: AuthContextValue['localData']) {
   const value: AuthContextValue = {
-    snapshot, configurationError: null,
+    snapshot, configurationError: null, ...(localData ? { localData } : {}),
     signIn: () => Promise.resolve(), confirmRenewal: () => Promise.resolve(),
     signOut: () => Promise.resolve({ serverRevoked: true, revokeError: null, cleanupError: null }),
   }
@@ -74,7 +91,10 @@ beforeEach(() => {
   window.sessionStorage.clear()
   persist('first')
 })
-afterEach(() => { cleanup(); window.sessionStorage.clear() })
+afterEach(async () => {
+  cleanup(); window.sessionStorage.clear()
+  for (const resource of offlineResources.splice(0)) { resource.service.dispose(); await resource.db.delete() }
+})
 
 it('shows a live card while both supplementary requests are pending and keeps viewer actions disabled', async () => {
   let finishMembers!: (value: unknown) => void
@@ -194,6 +214,53 @@ it('waits for API data and exposes the real store without fixture records', asyn
   expect(screen.queryByTestId('source')).toBeNull()
   await waitFor(() => expect(screen.getByTestId('source').textContent).toBe('api:0'))
   expect(transport.request.mock.calls.map(([r]) => r.path)).toEqual(['/workspaces', '/projects', '/users/me', '/notifications', '/issues', '/notifications/unread-count'])
+})
+
+it('renders cached workspace and project names in the UI after the backend stops responding', async () => {
+  const db = new OfflineReadDatabase(`management-ui-offline-${crypto.randomUUID()}`)
+  const scope: DraftAccess = { accountId: 'u1', generation: 1, expiresAtMs: 4_000_000_000_000 }
+  const access = { read: () => scope, subscribe: () => () => {} }
+  const offline = createOfflineDataService({
+    cache: createOfflineReadRepository({ db, access, namespace: 'qa-main' }), access,
+  })
+  offlineResources.push({ db, service: offline })
+  const localData: NonNullable<AuthContextValue['localData']> = {
+    drafts: {} as NonNullable<AuthContextValue['localData']>['drafts'],
+    offline,
+    migration: { getSnapshot: () => ({ state: 'complete', conflicts: 0, unlistedNamespaces: 0, message: null }), subscribe: () => () => {} },
+    wrapApi: offline.wrapApi,
+  }
+  const workspace = {
+    id: 'w1', name: 'Workspace đã lưu', description: '', ownerId: 'u1', members: [], storageUsedBytes: 0,
+    createdAt: '2026-11-01', updatedAt: '2026-11-01', lastAccessedAt: null, version: 1,
+  }
+  const project = {
+    id: 'p1', workspaceId: 'w1', workspaceName: workspace.name, name: 'Project đã lưu', description: '',
+    createdBy: 'u1', members: [], status: 'not_started', hasDataset: false,
+    createdAt: '2026-11-01', updatedAt: '2026-11-01', version: 1,
+  }
+  transport.request.mockImplementation(r => {
+    if (r.path === '/workspaces') return Promise.resolve({ items: [workspace], meta: { hasMore: false, nextCursor: null } })
+    if (r.path === '/projects') return Promise.resolve({ items: [project], meta: { hasMore: false, nextCursor: null } })
+    if (r.path === '/workspaces/w1/members' || r.path === '/projects/p1/members') {
+      return Promise.resolve({ members: [{ userId: 'u1', role: 'owner', name: 'Test User' }] })
+    }
+    return response(r)
+  })
+  const online = render(tree(authenticated, undefined, <ManagementRowsProbe />, false, false, localData))
+  expect(await screen.findByText(workspace.name)).toBeDefined()
+  expect(screen.getByText(project.name)).toBeDefined()
+  await waitFor(() => expect(transport.request).toHaveBeenCalledTimes(8))
+  const onlineRequestCount = transport.request.mock.calls.length
+  online.unmount()
+
+  transport.request.mockRejectedValueOnce(new ApiError({ kind: 'network', message: 'Backend stopped' }))
+  render(tree(authenticated, undefined, <ManagementRowsProbe />, false, false, localData))
+
+  expect(await screen.findByText(workspace.name)).toBeDefined()
+  expect(screen.getByText(project.name)).toBeDefined()
+  expect(offline.getSnapshot()).toMatchObject({ offline: true, reason: 'backend' })
+  expect(transport.request.mock.calls.slice(onlineRequestCount).map(([r]) => r.path)).toEqual(['/workspaces'])
 })
 
 it('keeps core data visible when notifications fail and retries only personal data', async () => {

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OfflineReadDatabase } from '../../repositories/offline/offline-read.database'
 import { createOfflineReadRepository } from '../../repositories/offline/offline-read.repository'
 import { createOfflineDataService } from '../../services/offline/offline-data.service'
+import { createManagementStore } from '../../services/management/management.store'
 import { ApiError } from '../../lib/api-error'
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
 import type { DraftAccess } from '../../types/datasets/upload-draft.types'
@@ -215,6 +216,44 @@ describe('durable offline reads', () => {
     expect(await s.api.request(projects)).toEqual(value)
     expect(s.request).toHaveBeenCalledOnce()
     expect(s.service.getSnapshot()).toMatchObject({ offline: true, savedAt: 1000 })
+  })
+
+  it('loads cached workspaces and projects from IndexedDB when the backend stops responding', async () => {
+    const s = setup()
+    const workspace = {
+      id: 'w1', name: 'Workspace đã lưu', description: '', ownerId: 'a', members: [], storageUsedBytes: 0,
+      createdAt: '2026-11-01', updatedAt: '2026-11-01', lastAccessedAt: null, version: 1,
+    }
+    const project = {
+      id: 'p1', workspaceId: 'w1', workspaceName: workspace.name, name: 'Project đã lưu', description: '',
+      createdBy: 'a', members: [], status: 'not_started', hasDataset: false,
+      createdAt: '2026-11-01', updatedAt: '2026-11-01', version: 1,
+    }
+    s.request.mockImplementation(request => {
+      if (request.path === '/workspaces') return Promise.resolve({ items: [workspace], meta: { hasMore: false, nextCursor: null } })
+      if (request.path === '/projects') return Promise.resolve({ items: [project], meta: { hasMore: false, nextCursor: null } })
+      if (request.path === '/workspaces/w1/members' || request.path === '/projects/p1/members') {
+        return Promise.resolve({ members: [{ userId: 'a', role: 'owner', name: 'Test User' }] })
+      }
+      return Promise.reject(new Error(`Unexpected request: ${request.path}`))
+    })
+    const account = { id: 'a', name: 'Test User', role: 'analyst', initials: 'TU' }
+    const onlineStore = createManagementStore(s.api, account)
+    await onlineStore.loadCore()
+    expect(onlineStore.store.getState().workspaces.map(row => row.name)).toEqual([workspace.name])
+    expect(onlineStore.store.getState().projects.map(row => row.name)).toEqual([project.name])
+    const networkCalls = s.request.mock.calls.length
+    onlineStore.dispose()
+
+    s.request.mockRejectedValueOnce(failure('network'))
+    const offlineStore = createManagementStore(s.api, account, { readOnly: () => s.service.getSnapshot().offline })
+    await offlineStore.loadCore()
+
+    expect(offlineStore.store.getState().workspaces.map(row => row.name)).toEqual([workspace.name])
+    expect(offlineStore.store.getState().projects.map(row => row.name)).toEqual([project.name])
+    expect(s.service.getSnapshot()).toMatchObject({ offline: true, reason: 'backend' })
+    expect(s.request).toHaveBeenCalledTimes(networkCalls + 1)
+    offlineStore.dispose()
   })
 
   it('falls back on an outage, never on forbidden or missing resources', async () => {

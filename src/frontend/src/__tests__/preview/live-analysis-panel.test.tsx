@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { AuthContext } from '../../hooks/auth/auth-context'
 import { ManagementStoreContext } from '../../hooks/preview/use-preview-store'
 import { ApiError } from '../../lib/api-error'
 import { previewMockStore } from '../../services/preview/preview-mock.service'
@@ -7,12 +8,13 @@ import { createAnalysisService } from '../../services/processing/analysis.servic
 import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
 import { LiveAnalysisPanel } from '../../views/processing/project/sections/live-analysis-panel'
 import { PreviewSessionProvider } from '../../views/preview/preview-session'
+import type { AuthContextValue } from '../../types/auth/auth-context.types'
 
 const analysisRunId = '123456789012345678901234'
 const jobId = 'abcdefabcdefabcdefabcdef'
 const result = { analysisRunId, dqSummary: { totalScanned: 50 } }
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 
 function renderPanel(respond: (options: ApiRequestOptions) => unknown, canExecute = true) {
   const fixture = previewMockStore.getState().projects.find(project => project.dataset)
@@ -20,12 +22,31 @@ function renderPanel(respond: (options: ApiRequestOptions) => unknown, canExecut
   const project = { ...fixture, dataset: { ...fixture.dataset, status: 'processed' as const } }
   const request = vi.fn(async (options: ApiRequestOptions) => Promise.resolve(respond(options)))
   const store = { ...previewMockStore, analysisService: createAnalysisService({ request } as ApiClient) }
-  render(<ManagementStoreContext.Provider value={store}>
+  let offlineSnapshot = { offline: false, savedAt: null, storageError: null }
+  const offlineListeners = new Set<() => void>()
+  const localOffline = {
+    getSnapshot: () => offlineSnapshot,
+    subscribe: (listener: () => void) => { offlineListeners.add(listener); return () => offlineListeners.delete(listener) },
+    reconnect: () => {}, useSavedData: () => {}, listReports: () => Promise.resolve([]),
+  }
+  const auth = {
+    snapshot: { phase: 'authenticated', generation: 1, sessionEnded: false, accountId: 'test-user',
+      user: null, expiresAtMs: Date.now() + 60_000, error: null, cleanupError: null },
+    configurationError: null, signIn: () => Promise.resolve(), signOut: () => Promise.resolve({ serverRevoked: true, revokeError: null, cleanupError: null }),
+    confirmRenewal: () => Promise.resolve(),
+    localData: { drafts: {}, offline: localOffline, migration: { getSnapshot: () => ({ state: 'idle', conflicts: 0,
+      unlistedNamespaces: 0, message: null }), subscribe: () => () => {} }, wrapApi: (api: ApiClient) => api },
+  } as unknown as AuthContextValue
+  const setOffline = (value: boolean) => {
+    offlineSnapshot = { offline: value, savedAt: null, storageError: null, ...(value ? { reason: 'network' as const } : {}) }
+    offlineListeners.forEach(listener => listener())
+  }
+  render(<AuthContext.Provider value={auth}><ManagementStoreContext.Provider value={store}>
     <PreviewSessionProvider routeIds={{}}>
       <LiveAnalysisPanel project={project} canExecute={canExecute} />
     </PreviewSessionProvider>
-  </ManagementStoreContext.Provider>)
-  return { request, projectPath: `/projects/${project.id}` }
+  </ManagementStoreContext.Provider></AuthContext.Provider>)
+  return { request, projectPath: `/projects/${project.id}`, setOffline }
 }
 
 it('loads the latest result without running analysis for a viewer', async () => {
@@ -52,6 +73,49 @@ it('runs analysis on demand and follows the returned job until success', async (
     data: { correlation_method: 'pearson', outlier_method: 'iqr', top_n: 10, chart_top_n: 5 },
   }))
   expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(1)
+})
+
+it('pauses job polling offline and keeps the loaded correlation result usable', async () => {
+  vi.useFakeTimers()
+  const loadedResult = {
+    ...result,
+    correlationMatrix: {
+      columns: ['Tuổi', 'Điểm'],
+      cells: [
+        { colA: 'Tuổi', colB: 'Điểm', kind: 'pearson', coef: 0.82, n: 50 },
+        { colA: 'Điểm', colB: 'Tuổi', kind: 'pearson', coef: 0.82, n: 50 },
+      ],
+    },
+  }
+  const { request, projectPath, setOffline } = renderPanel(options => {
+    if (options.method === 'POST') return { ...loadedResult, pollUrl: `/api/v1/analysis/jobs/${jobId}` }
+    if (options.path === `/analysis/jobs/${jobId}`) return { jobId, analysisRunId, status: 'pending' }
+    return loadedResult
+  })
+
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy phân tích' }))
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(0)
+  })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: `${projectPath}/analysis`, method: 'POST' }))
+  expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(1)
+
+  act(() => { setOffline(true) })
+  expect(screen.getByText(/Đang ngoại tuyến\. Kết quả đã tải vẫn xem được/)).toBeDefined()
+  await act(async () => { await vi.advanceTimersByTimeAsync(6000) })
+  expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(1)
+
+  fireEvent.click(screen.getByText(/^Tương quan ·/))
+  expect(screen.getByRole('table', { name: 'Bảng màu hệ số theo cặp cột' })).toBeDefined()
+  expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(1)
+
+  act(() => { setOffline(false) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); await vi.advanceTimersByTimeAsync(0) })
+  expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(2)
 })
 
 it('shows an empty result when the project has no analysis run', async () => {
