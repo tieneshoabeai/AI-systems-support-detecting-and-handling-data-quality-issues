@@ -41,11 +41,35 @@ def fmt(value, key):
     return '%.3f' % value
 
 
+def ok_count(run):
+    """So luot suy luan THANH CONG (khong error, co rawText)."""
+    raw = run.get('raw') or []
+    return sum(1 for x in raw if not x.get('error') and x.get('rawText') is not None)
+
+
 def load_runs():
+    """Load cac lan chay DA HOAN TAT (>= 20 luot suy luan thanh cong).
+
+    Runner ghi checkpoint JSON sau moi lan lap ⇒ file cua luan chay bi kill
+    (OOM / het gio) van ton tai nhung khong dung du lieu. Chi dua nhung lan
+    chay day du vao bao cao; cac lan chay dung se duoc ghi rieng o muc "Bi loai".
+    """
     out = []
     for path in sorted(glob.glob(os.path.join(REPORTS, 'benchmark-M*-*.json'))):
         with open(path, encoding='utf-8') as fh:
-            out.append(json.load(fh))
+            run = json.load(fh)
+        if ok_count(run) >= 20:
+            out.append(run)
+    return out
+
+
+def load_incomplete():
+    out = []
+    for path in sorted(glob.glob(os.path.join(REPORTS, 'benchmark-M*-*.json'))):
+        with open(path, encoding='utf-8') as fh:
+            run = json.load(fh)
+        if ok_count(run) < 20:
+            out.append(run)
     return out
 
 
@@ -153,7 +177,18 @@ def main():
         ))
     add('')
 
-    add('## 6. Files tham chieu')
+    incomplete = load_incomplete()
+    if incomplete:
+        add('## 6. Luot chay bi loai (khong du mau)')
+        add('')
+        add('| Model | Ollama | Luot suy luan thanh cong | Ly do |')
+        add('|---|---|---|---|')
+        for run in incomplete:
+            add('| %s | %s | %d/20 | Qua trinh bi dung/OOM giua chung -> thieu mau |' % (
+                run.get('candidateId'), run.get('ollama'), ok_count(run)))
+        add('')
+
+    add('## 7. Files tham chieu')
     add('')
     for path in sorted(glob.glob(os.path.join(REPORTS, 'benchmark-*.md'))):
         add('- `%s`' % os.path.basename(path))

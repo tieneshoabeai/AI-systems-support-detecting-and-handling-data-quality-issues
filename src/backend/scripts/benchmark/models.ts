@@ -27,7 +27,17 @@ export const INFERENCE_PARAMS = Object.freeze({
   top_p: 0.9,
   seed: 42,
   num_predict: 640,
-  num_ctx: 8192,
+  /**
+   * `num_ctx` cho phép ghi đè qua biến môi trường.
+   *
+   * Mặc định 8192 (khớp `CorrV1Context` của production). Nhưng trên máy dev
+   * chạy song song nhiều tiến trình (Cursor + Chrome + NestJS), KV cache 8K của
+   * `gemma3:12b` (~9 GB model + ~1,2 GB KV) khiến runner bị **OOM-killer** giết
+   * ngay lúc load ⇒ `socket hang up` ⇒ mất toàn bộ mẫu của model đó.
+   * → `BENCH_NUM_CTX=4096` giảm KV cache một nửa, đủ cho prompt ~1.100 token
+   * + output 640 token, và giữ tổng RSS dưới ngưỡng máy dev.
+   */
+  num_ctx: Number(process.env.BENCH_NUM_CTX ?? 8192),
 });
 
 /**

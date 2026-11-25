@@ -9,7 +9,7 @@
 
 | Model | f1_micro | f1_macro | json_valid_rate | hallucination_rate | explanation_quality | p95_latency_ms | throughput_tok_s | peak_rss_bytes | failure_rate | Rớt ngưỡng |
 |---|---|---|---|---|---|---|---|---|---|---|
-| M2 gemma3:12b | 0.000 | 0.000 | 0.000 | 0.000 | n/a | 14966.600 | n/a | n/a | 1.000 | f1_micro, f1_macro, json_valid_rate, explanation_quality, throughput_tok_s, peak_rss_bytes, failure_rate |
+| M5 mistral:7b | 0.235 | 0.000 | 1.000 | 0.308 | 3.250 | 202414.100 | 7.894 | 3771449344.000 | 0.000 | f1_micro, f1_macro, hallucination_rate, explanation_quality, p95_latency_ms |
 
 ## Ngưỡng tuyệt đối
 
@@ -27,7 +27,7 @@
 
 ## Báo cáo từng model
 
-- benchmark-M2-2026-11-25.md
+- benchmark-M5-2026-11-25.md
 
 ## Đường Pareto
 
@@ -35,4 +35,4 @@ Trục X = p95 latency (ms), trục Y = F1 micro, kích thước điểm = RSS �
 
 | Model | p95 (ms) | F1 micro | RSS |
 |---|---|---|---|
-| M2 | 14966.600 | 0.000 | n/a |
+| M5 | 202414.100 | 0.235 | 3.51GB |

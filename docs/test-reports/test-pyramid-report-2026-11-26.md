@@ -38,10 +38,9 @@ Tau 1-9 da chay. Bao cao nay tong hop ket qua cac tang 4, 5-7, 8, 9.
 | Model | Ollama | f1_micro | f1_macro | json_valid_rate | hallucination_rate | explanation_quality | p95_latency_ms | throughput_tok_s | peak_rss_bytes | failure_rate |
 |---|---|---|---|---|---|---|---|---|---|---|
 | M1 | qwen3:14b | OK 0.875 | OK 0.714 | OK 1.000 | X 0.154 | OK 4.40 | X 216.4 s | X 2.895 | OK 9.06 GB | OK 0.000 |
-| M2 | gemma3:12b | OK 0.800 | X 0.222 | X 0.667 | X 0.231 | n/a | X 293.1 s | X 3.682 | n/a | OK 0.000 |
 | M3 | qwen3:8b | X 0.435 | X 0.205 | X 0.800 | OK 0.000 | X 3.05 | OK 105.9 s | OK 7.204 | OK 5.64 GB | OK 0.000 |
 | M4 | llama3.1:8b | OK 0.800 | X 0.578 | X 0.850 | X 0.543 | X 3.80 | OK 101.2 s | OK 7.735 | OK 5.15 GB | OK 0.000 |
-| M5 | mistral:7b | X 0.400 | X 0.000 | OK 1.000 | X 0.167 | X 3.80 | OK 59.5 s | OK 9.600 | OK 3.24 GB | OK 0.000 |
+| M5 | mistral:7b | X 0.235 | X 0.000 | OK 1.000 | X 0.308 | X 3.25 | X 202.4 s | OK 7.894 | OK 3.51 GB | OK 0.000 |
 
 Chu thich: `OK` = dat nguong, `X` = vuot nguong.
 
@@ -50,10 +49,9 @@ Chu thich: `OK` = dat nguong, `X` = vuot nguong.
 | Model | Chi so bi rot |
 |---|---|
 | M1 qwen3:14b | hallucination_rate, explanation_quality, p95_latency_ms, throughput_tok_s |
-| M2 gemma3:12b | f1_macro, json_valid_rate, hallucination_rate, explanation_quality, p95_latency_ms, throughput_tok_s, peak_rss_bytes |
 | M3 qwen3:8b | f1_micro, f1_macro, json_valid_rate, explanation_quality |
 | M4 llama3.1:8b | f1_macro, json_valid_rate, hallucination_rate, explanation_quality |
-| M5 mistral:7b | f1_micro, f1_macro, hallucination_rate, explanation_quality |
+| M5 mistral:7b | f1_micro, f1_macro, hallucination_rate, explanation_quality, p95_latency_ms |
 
 ## 5. Duong Pareto
 
@@ -61,13 +59,18 @@ Truc X = p95 latency, truc Y = F1 micro, kich thuoc diem = RSS dinh.
 
 | Model | p95 (s) | F1 micro | RSS | JSON | tok/s |
 |---|---|---|---|---|---|
-| M5 | 59.5 s | 0.400 | 3.24 GB | 1.000 | 9.600 |
 | M4 | 101.2 s | 0.800 | 5.15 GB | 0.850 | 7.735 |
 | M3 | 105.9 s | 0.435 | 5.64 GB | 0.800 | 7.204 |
+| M5 | 202.4 s | 0.235 | 3.51 GB | 1.000 | 7.894 |
 | M1 | 216.4 s | 0.875 | 9.06 GB | 1.000 | 2.895 |
-| M2 | 293.1 s | 0.800 | n/a | 0.667 | 3.682 |
 
-## 6. Files tham chieu
+## 6. Luot chay bi loai (khong du mau)
+
+| Model | Ollama | Luot suy luan thanh cong | Ly do |
+|---|---|---|---|
+| M2 | gemma3:12b | 0/20 | Qua trinh bi dung/OOM giua chung -> thieu mau |
+
+## 7. Files tham chieu
 
 - `benchmark-M1-2026-11-25.md`
 - `benchmark-M2-2026-11-25.md`

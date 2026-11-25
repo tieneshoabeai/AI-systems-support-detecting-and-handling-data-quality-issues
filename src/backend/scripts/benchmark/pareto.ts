@@ -23,6 +23,8 @@ interface StoredRun {
   params: string;
   metrics: Record<string, number | null>;
   failedThresholds: string[];
+  /** Phản hồi thô của từng lượt — dùng để đếm số lượt suy luận THÀNH CÔNG. */
+  raw?: { error?: string | null; jsonValid?: boolean; rawText?: string }[];
 }
 
 interface ParetoPoint {
@@ -69,7 +71,28 @@ if (runs.length === 0) {
   console.error('Chay truoc: pnpm run bench:models -- --samples=200 --repeats=3');
   process.exitCode = 1;
 } else {
-  const points: ParetoPoint[] = runs.map((r) => {
+  // ── Loại các lần chạy DỞ DANG ────────────────────────────────────────────
+  // Runner ghi checkpoint JSON sau mỗi lần lặp ⇒ nếu tiến trình bị kill giữa
+  // chừng (OOM, hết thời gian), file JSON vẫn tồn tại nhưng `raw` rỗng hoặc
+  // ít hơn số mẫu kỳ vọng ⇒ KHÔNG được đưa vào đường Pareto (sẽ cho ra
+  // điểm 0.000 gây hiểu nhầm). Báo cáo rõ ràng là "khong hoan tat".
+  const MIN_SAMPLES_FOR_PICTURE = 20;
+  // Đếm lượt suy luận THÀNH CÔNG (không có `error`) — nhiều lượt "thành công"
+  // về mặt HTTP nhưng `rawText` rỗng ⇒ model bị unload giữa chừng.
+  const okCount = (r: StoredRun): number =>
+    (r.raw ?? []).filter((x) => !x.error && x.rawText !== undefined).length;
+  const incomplete = runs.filter((r) => okCount(r) < MIN_SAMPLES_FOR_PICTURE);
+  const completeRuns = runs.filter((r) => okCount(r) >= MIN_SAMPLES_FOR_PICTURE);
+  for (const r of incomplete) {
+    console.log(
+      `> BO QUA ${r.candidateId} (${r.ollama}): chi ${okCount(r)}/${MIN_SAMPLES_FOR_PICTURE} lượt suy luan thanh cong — luan chay dung.`,
+    );
+  }
+  if (completeRuns.length === 0) {
+    console.error('Khong co model nao chay du mau de ve duong Pareto.');
+    process.exitCode = 1;
+  }
+  const points: ParetoPoint[] = completeRuns.map((r) => {
     const m = r.metrics;
     const failed = r.failedThresholds?.length ? r.failedThresholds : thresholdFailures(m);
     const rss = m['peak_rss_bytes'];
