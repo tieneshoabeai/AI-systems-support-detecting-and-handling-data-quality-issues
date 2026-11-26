@@ -85,7 +85,9 @@ ul.dash li:before{content:"–";position:absolute;left:0;color:var(--clay);font-
 .fr .ln b{font-family:var(--mono);font-size:11.5px;color:var(--clay)}
 /* S4 NFR */
 .nfr{display:grid;grid-template-columns:200px 1fr 290px;gap:0;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
-.nfr>div{padding:9px 14px;border-bottom:1px solid #EADDBF;font-size:12.3px;line-height:1.42}
+.mach{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:8px;padding:7px 14px;border-radius:10px;background:#E9DAB2;font-size:12px;color:var(--ink)}
+.mach>b{color:var(--clay);text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.nfr>div{padding:6px 14px;border-bottom:1px solid #EADDBF;font-size:12.3px;line-height:1.38}
 .nfr .hd{background:#EFE3C2;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:7px 14px}
 .nfr .g b.big{display:block;font-size:24px;color:var(--clay);line-height:1.1;margin-top:3px}
 .nfr .g .gn{font-weight:800;color:var(--ink);font-size:13.5px}
@@ -163,6 +165,7 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 .path{font-family:var(--mono);font-size:12px}
 /* ERD */
 .erd-tabs{display:flex;gap:6px;margin-bottom:8px;align-items:center}
+.erd-tabs .btn{white-space:nowrap}
 .erd{position:relative;height:430px;border-radius:12px;background:rgba(255,252,245,.5);border:1.5px solid var(--line)}
 .ent{position:absolute;width:262px;background:var(--card);border:2px solid var(--ink);border-radius:9px;overflow:hidden;font-size:11.5px;box-shadow:0 3px 0 rgba(30,30,50,.08)}
 .ent:hover{box-shadow:0 0 0 3px var(--clay-l)}
@@ -305,7 +308,7 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 .kpi.good{border-top:4px solid var(--green)}.kpi.mid{border-top:4px solid var(--amber)}
 .k6{width:100%;border-collapse:collapse;font-size:12px}
 .k6 th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:5px 6px;border-bottom:2px solid var(--ink)}
-.k6 td{padding:10px 6px;border-bottom:1px solid #EADDBF;vertical-align:middle}
+.k6 td{padding:7px 6px;border-bottom:1px solid #EADDBF;vertical-align:middle}
 .vu{display:flex;align-items:center;gap:6px}
 .vu .bar{height:10px;border-radius:3px;background:var(--blue)}
 .trk{position:relative;height:14px;background:#EADDBF;border-radius:3px;width:150px}
@@ -356,7 +359,7 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
   <div class="cstats">
     <div><b>13</b><span>module nghiệp vụ<br>Modular Monolith</span></div>
     <div><b>84</b><span>API HTTP<br>REST · prefix /api/v1</span></div>
-    <div><b>18</b><span>collection nghiệp vụ MongoDB<br>+ file trên Cloudflare R2</span></div>
+    <div><b>20</b><span>collection MongoDB<br>+ file trên Cloudflare R2</span></div>
     <div><b>1 362</b><span>ca test tự động đạt<br>unit · integration · e2e</span></div>
     <div><b>5</b><span>model AI cục bộ<br>đang so sánh (Ollama)</span></div>
   </div>
@@ -411,11 +414,10 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
         </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
-      <div class="card" style="padding:9px 12px;font-size:12.5px;line-height:1.4"><b>Người dùng chính: Data Analyst</b><br>người cần dữ liệu sạch trước khi phân tích hoặc huấn luyện mô hình</div>
-      <div class="card" style="padding:9px 12px;font-size:12.5px;line-height:1.4"><b>Dữ liệu chỉ đọc</b><br>hệ thống không sửa hay xoá ô nào, chỉ phát hiện và báo cáo</div>
-      <div class="card" style="padding:9px 12px;font-size:12.5px;line-height:1.4"><b>AI chạy cục bộ</b><br>Ollama / vLLM trong máy chủ, dữ liệu không gửi ra ngoài Internet</div>
-      <div class="card" style="padding:9px 12px;font-size:12.5px;line-height:1.4"><b>Che PII</b><br>chỉ tối đa 20 mẫu/cột đã che được đưa vào prompt cho AI</div>
+    <div style="display:grid;grid-template-columns:1.15fr 1fr 0.95fr;gap:14px;margin-top:12px">
+      <div class="card" style="padding:11px 14px;font-size:13.5px;line-height:1.45"><b>Người dùng chính: Data Analyst</b><br>người cần dữ liệu sạch trước khi phân tích hoặc huấn luyện mô hình</div>
+      <div class="card" style="padding:11px 14px;font-size:13.5px;line-height:1.45"><b>Dữ liệu chỉ đọc</b><br>hệ thống không sửa hay xoá ô nào, chỉ phát hiện và báo cáo</div>
+      <div class="card" style="padding:11px 14px;font-size:13.5px;line-height:1.45"><b>AI chạy cục bộ</b><br>Ollama / vLLM trong máy chủ, dữ liệu không gửi ra ngoài Internet</div>
     </div>
   </div>
   <div class="foot"><span>Nguồn: be-facts.md §9.5, §10.1, §11, NFR-14 · impact.util.ts:18-50 (ngưỡng mức độ) · bảng dữ liệu là ví dụ minh hoạ</span><span class="pg"></span></div>
@@ -430,10 +432,11 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 </section>
 
 <!-- ========== 4 · PHI CHỨC NĂNG ========== -->
-<section class="slide" data-notes="22 NFR gom 5 nhóm. Mỗi nhóm có một con số đại diện, danh sách NFR cụ thể và cột kiểm chứng: đã đo hoặc đã test ra sao. Chỉ có NFR-07 tải 50 người dùng là chưa đạt.">
+<section class="slide" data-notes="22 NFR gom 5 nhóm. Mỗi nhóm có một con số đại diện, danh sách NFR cụ thể và cột kiểm chứng: đã đo hoặc đã test ra sao. Chỉ có NFR-08 stress 80 người dùng là chưa đạt. Dải dưới cùng là cấu hình máy dùng để đo mọi con số hiệu năng và benchmark AI.">
   <div class="kicker">03 · Yêu cầu phi chức năng</div>
   <h1><em>22</em> yêu cầu, mỗi yêu cầu có <em>con số</em> và <em>cách kiểm chứng</em></h1>
   <div class="body"><div class="nfr" id="nfr"></div></div>
+  <div class="mach"><b>Máy đo</b><span>CPU <b>Intel Core i7-10850H</b> · 6 nhân / 12 luồng</span><span>RAM <b>32 GB</b></span><span>GPU <b>Quadro T1000</b> 4 GB</span><span>SSD <b>NVMe 1 TB</b></span><span><b>Ubuntu 26.04</b> · Node 22</span><span>Docker Desktop: <b>12 CPU · 7,5 GB</b> cho container</span></div>
   <div class="foot"><span>Nguồn: be-facts.md §16.2 · ket-qua-k6 / integration / unit-coverage -2026-11-25.md</span><span class="pg"></span></div>
 </section>
 
@@ -558,7 +561,7 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
       </div>
     </div>
   </div>
-  <div class="foot"><span>Nguồn: ByteByteGo — 8 tips for efficient API design · RFC 9110 §9.2.2 · data-view.controller.ts:116-121, 179-257 · data-view.service.ts:38-80 (cache) · commit d4d64b0</span><span class="pg"></span></div>
+  <div class="foot"><span>Nguồn: ByteByteGo — 8 tips for efficient API design · RFC 9110 §9.2.2 · data-view.controller.ts:116-121, 179-257 · data-view.service.ts:109-141 (LRU cache) · commit ecb5816</span><span class="pg"></span></div>
 </section>
 
 <!-- ========== 10 · DANH SÁCH API ========== -->
@@ -571,9 +574,9 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 </section>
 
 <!-- ========== 11 · ERD ========== -->
-<section class="slide" style="padding-top:24px" data-notes="18 collection nghiệp vụ chia 5 cụm. Đọc sơ đồ từ trái sang phải theo đúng luồng: User sở hữu Workspace, Workspace chứa Project, Project có 1 Dataset, Dataset tách từng dòng ra DatasetRecord; mỗi lần phân tích tạo một AnalysisRun. Members nhúng trong Workspace/Project vì luôn đọc cùng nhau; DatasetRecord tách riêng vì có thể hàng trăm nghìn dòng. Bấm từng cụm để xem đủ thuộc tính.">
+<section class="slide" style="padding-top:24px" data-notes="MongoDB có 20 collection. Sơ đồ vẽ 18 collection nghiệp vụ chia 5 cụm; 2 collection kỹ thuật dùng nội bộ nên không vẽ. Đọc sơ đồ từ trái sang phải theo đúng luồng: User sở hữu Workspace, Workspace chứa Project, Project có 1 Dataset, Dataset tách từng dòng ra DatasetRecord; mỗi lần phân tích tạo một AnalysisRun. Members nhúng trong Workspace/Project vì luôn đọc cùng nhau; DatasetRecord tách riêng vì có thể hàng trăm nghìn dòng. Bấm từng cụm để xem đủ thuộc tính.">
   <div class="kicker">10 · Schema — ERD</div>
-  <h1 style="font-size:26px;margin-bottom:8px"><em>18</em> collection nghiệp vụ · <em>embed</em> khi đọc cùng nhau, <em>ref</em> khi lớn hoặc sống riêng</h1>
+  <h1 style="font-size:26px;margin-bottom:8px"><em>20</em> collection MongoDB · <em>embed</em> khi đọc cùng nhau, <em>ref</em> khi lớn hoặc sống riêng</h1>
   <div class="erd-tabs" id="erdtabs"></div>
   <div class="erd" id="erd"></div>
   <div class="erdnotes">
@@ -649,7 +652,7 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 <!-- ========== 15 · LUỒNG 1 TÍNH NĂNG ========== -->
 <section class="slide" style="padding-top:22px" data-notes="Theo chân một cú click Chạy phân tích. Mỗi bước, cây thư mục mở ra đúng file đang chạy, bên phải là code thật rút gọn. Màu cam là chiều đi, màu xanh là chiều về.">
   <div class="kicker">14 · Luồng 1 tính năng</div>
-  <h1 style="font-size:26px;margin-bottom:8px">"<em>Chạy phân tích</em>" — mở từng thư mục theo đường đi của request</h1>
+  <h1 style="font-size:26px;margin-bottom:8px">"<em>Run Analysis</em>" — mở từng thư mục theo đường đi của request</h1>
   <div class="ctrl">
     <button class="btn" id="pPrev">◀</button><button class="btn on" id="pPlay">Play</button><button class="btn" id="pNext">▶</button>
     <span class="stepno" id="pNo">0 / 16</span><div class="ticks" id="pTicks"></div>
@@ -675,15 +678,15 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 </section>
 
 <!-- ========== 16 · TEST BE ========== -->
-<section class="slide" style="padding-top:24px" data-notes="Kim tự tháp 9 tầng kiểm thử. Bốn tầng chức năng (unit, kiến trúc, integration, E2E + bảo mật) đều đạt 100%. Bảng giữa là k6, lần chạy MỚI NHẤT 2026-11-26 sau khi cấp token còn hạn và SAU KHI TỐI ƯU: không kịch bản nào có lỗi 5xx và tất cả threshold đều đạt. Điểm quan trọng nhất của slide này là A/B đo được: trước khi tối ưu, ở 50 VU thì dataview p95 là 13,09 s — vượt ngưỡng 2 s — vì GET charts quét lại 50.000 dòng mỗi request, chưa có cache. Sau khi thêm batch query (đọc nhiều cột trong một lần quét) và LRU cache 60 giây thì p95 rơi còn 350 ms, tức là nhanh hơn 37 lần; throughput tăng từ 13,9 lên 130,6 request/giây. Threshold k6 chuyển từ FAIL sang PASS. Ngoài ra phải nói rõ số 32 ms trên slide cũ là số ảo, do access token hết hạn 15 phút nên API trả 401 tức thì. Tầng 9 benchmark AI ở slide sau.">
+<section class="slide" style="padding-top:24px" data-notes="Kim tự tháp 9 tầng kiểm thử. Bốn tầng chức năng đều đạt 100%. Bảng k6 có cặp A/B cùng 50 VU, 5 phút: trước tối ưu p95 toàn bộ 13,09 s, data-view 20,68 s vì GET charts quét lại 50 000 dòng cho từng cột; sau batch query + LRU cache 60 giây p95 còn 372 ms, nhanh hơn 35 lần, throughput 13,9 lên 127,7 request/giây. Lần đo load này nới throttler để đo đúng service. Kịch bản còn rớt là stress 80 VU: read_records p95 3,3 s, vượt ngưỡng 2 s. Benchmark AI ở slide sau.">
   <div class="kicker">15 · Kết quả test Backend — 9 tầng</div>
-  <h1 style="font-size:26px;margin-bottom:10px">Chức năng <em>đạt 100%</em> · k6 đo lại <em>không lỗi 5xx</em> — sau tối ưu, <em>p95 giảm 37×</em></h1>
+  <h1 style="font-size:26px;margin-bottom:10px">Chức năng <em>đạt 100%</em> · cache biểu đồ giảm p95 tải 50 VU <em>35×</em> · stress 80 VU <em>còn rớt</em></h1>
   <div class="kpis" style="grid-template-columns:repeat(6,1fr)">
     <div class="card kpi good"><div class="l">Tầng 1–3 · Unit</div><div class="v">1 090<small> / 1 092</small></div><div class="d"><code>pnpm test:unit</code></div></div>
     <div class="card kpi good"><div class="l">Tầng 6 · Kiến trúc</div><div class="v">23<small> / 23</small></div><div class="d">5 suite · ranh giới tầng, module</div></div>
     <div class="card kpi good"><div class="l">Tầng 4 · Integration</div><div class="v">138<small> / 138</small></div><div class="d">7 suite · Mongo replica set + S3</div></div>
     <div class="card kpi good"><div class="l">Tầng 5–7 · E2E</div><div class="v">94<small> / 94</small></div><div class="d">12 suite · + security: guard, Zod, quyền</div></div>
-    <div class="card kpi good"><div class="l">Tầng 8 · k6</div><div class="v">0<small> lỗi 5xx</small></div><div class="d">5 kịch bản · 1 → 80 VU · threshold đạt</div></div>
+    <div class="card kpi mid"><div class="l">Tầng 8 · k6</div><div class="v">5<small> / 6 lượt đạt</small></div><div class="d">1 → 80 VU · stress 80 VU còn rớt ngưỡng</div></div>
     <div class="card kpi mid"><div class="l">Tầng 9 · AI</div><div class="v">4<small> / 5 model</small></div><div class="d">chưa model nào đạt đủ 9 ngưỡng · slide sau</div></div>
   </div>
   <div class="body" style="margin-top:10px">
@@ -694,10 +697,10 @@ svg.wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
   <div class="concl">
     <div class="g"><span class="ct">Chức năng đúng</span>Unit, kiến trúc, integration, E2E + bảo mật đều đạt 100% — phân quyền và validate chặn đúng qua HTTP thật.</div>
     <div class="g"><span class="ct">Tải đạt ngưỡng</span>5 VU: p95 đọc dữ liệu 44 ms (ngưỡng 1 s). Phân tích 50 000 dòng 1,60 s (ngưỡng 8 s). 50 VU: p95 data-view <b>383 ms</b> (ngưỡng 2 s).</div>
-    <div class="g"><span class="ct">Đã tối ưu có đo</span>Batch query + LRU cache biểu đồ: p95 <b>13,09 s → 350 ms</b> (37×), throughput <b>13,9 → 130,6 req/s</b> (9,4×), thresholds k6 chuyển từ FAIL → PASS.</div>
-    <div class="a"><span class="ct">Số cũ là số ảo</span>Lần chạy 25/11 báo p95 32 ms vì access token hết hạn 15 phút → API trả 401 tức thì. Đo lại 26/11 mới là số thật.</div>
+    <div class="g"><span class="ct">Đã tối ưu có đo</span>Batch query + LRU cache biểu đồ (50 VU): p95 <b>13,09 s → 372 ms</b> (35×), throughput <b>13,9 → 127,7 req/s</b>; threshold FAIL → PASS.</div>
+    <div class="r"><span class="ct">Stress 80 VU chưa đạt</span><code>read_records</code> p95 <b>3,30 s</b> &gt; 2 s khi 50 VU đọc + 20 VU upload 10 MB cùng lúc; 242 lượt upload lỗi phía k6.</div>
   </div>
-  <div class="foot"><span>Nguồn: docs/test-reports/test-pyramid-report-2026-11-26.md · src/backend/test-results/k6/load-20261126-065140-cached.txt · load-20261126-065859-baseline.txt · stress-20261126-070452.txt · full-journey-20261126-070714.txt · ngưỡng p95: test/k6/*.js</span><span class="pg"></span></div>
+  <div class="foot"><span>Nguồn: test-pyramid-report-2026-11-26.md · test-results/k6/*-20261126-*.txt + *-stats.csv (load: -baseline / -cached, throttler nới khi đo) · smoke, analysis-latency: 25/11 · commit ecb5816</span><span class="pg"></span></div>
 </section>
 
 <!-- ========== 17 · TEST AI ========== -->
@@ -797,8 +800,8 @@ $('#frgrid').innerHTML=FR.map(g=>`<div class="card fr${g[2]?' core':''}"><h3>${g
 const NFR=[
  ['Hiệu năng','< 8 s','p95 phân tích 1 dataset',[['NFR-05','p95 phân tích đơn lẻ < 8 s'],['NFR-06','5 VU: health < 100 ms, login / workspaces < 500 ms, records < 1 s'],['NFR-07','50 VU: đọc < 1 s, data-view < 2 s, checks > 99%'],['NFR-08','Stress: đọc record p95 < 2 s, checks > 98%']],[['ok','NFR-05: 1,60 s / 50k dòng'],['ok','NFR-06: 4,7 / 8,0 / 22,4 / 29,5 ms'],['ok','NFR-07: data-view 0,38 s / 2 s (đo lại 26/11, sau tối ưu)'],['warn','NFR-08: 3,30 s / 2 s (80 VU), checks 96,0% — xem slide 16']]],
  ['Giới hạn & tài nguyên','50 MB · 50k','file CSV · dòng / lần phân tích',[['NFR-01','CSV ≤ 50 MB, ≤ 1000 cột; đính kèm ≤ 10 MB'],['NFR-02','Upload dạng stream: mẫu 500 dòng + ghi batch 5000'],['NFR-03','Phân tích ≤ 50 000 dòng, vượt → 413'],['NFR-04','1 phân tích / instance, vượt → 429 + Retry-After'],['NFR-18','Quota 10 GB hệ thống, 500 MB / workspace']],[['ok','429 + Retry-After: check k6 đạt'],['ok','413 kiểm trước khi đọc record']]],
- ['Bảo mật','15 phút','hạn access token',[['NFR-11','Rate limit 200 req / phút; auth 100–500 req / giờ'],['NFR-12','bcrypt 12 vòng, mật khẩu 8–100 ký tự, refresh lưu SHA-256'],['NFR-13','Phiên 7 / 30 ngày, TTL tự xoá phiên hết hạn'],['NFR-22','HSTS 1 năm, CORS whitelist, cookie OAuth httpOnly']],[['ok','E2E: 26 ca phân quyền OWASP đạt'],['warn','token còn dùng sau logout']]],
- ['AI an toàn','± 0,01','sai số tối đa AI được phép',[['NFR-09','Job AI timeout 180 s, ≤ 3 lần thử, lease 10 phút + heartbeat'],['NFR-10','Chặn job khi RAM dùng > 90% hoặc còn < 4 GB'],['NFR-14','Che PII, ≤ 20 mẫu / cột đưa vào prompt AI'],['NFR-15','Hệ số AI nêu lệch > 0,01 so với ma trận thật → loại']],[['ok','Unit test grounding đạt'],['warn','Benchmark AI: chưa đo']]],
+ ['Bảo mật','15 phút','hạn access token',[['NFR-11','Rate limit 200 req / phút; auth 100–500 req / giờ'],['NFR-12','bcrypt 12 vòng, mật khẩu 8–100 ký tự, refresh lưu SHA-256'],['NFR-13','Phiên 7 / 30 ngày, TTL tự xoá phiên hết hạn'],['NFR-22','HSTS 1 năm, CORS whitelist, cookie OAuth httpOnly']],[['ok','E2E: 26 ca phân quyền OWASP đạt']]],
+ ['AI an toàn','± 0,01','sai số tối đa AI được phép',[['NFR-09','Job AI timeout 180 s, ≤ 3 lần thử, lease 10 phút + heartbeat'],['NFR-10','Chặn job khi RAM dùng > 90% hoặc còn < 4 GB'],['NFR-14','Che PII, ≤ 20 mẫu / cột đưa vào prompt AI'],['NFR-15','Hệ số AI nêu lệch > 0,01 so với ma trận thật → loại']],[['ok','Unit test grounding đạt'],['warn','Benchmark AI: chưa model nào đạt đủ 9 ngưỡng — slide 17']]],
  ['Tin cậy & chất lượng mã','0 any','kiểm bằng ESLint + test',[['NFR-16','Ghi nhiều collection trong transaction, lỗi giữa chừng thì rollback hết'],['NFR-17','Audit log và feedback giữ 365 ngày'],['NFR-19','SMTP / ntfy / RAG lỗi không làm hỏng luồng chính'],['NFR-20','Cấm any, ranh giới tầng / module kiểm bằng lint + test'],['NFR-21','Tách process API / worker bằng WORKER_MODE, dùng chung code']],[['ok','Integration: rollback transaction 5/5'],['ok','5 test kiến trúc đạt']]],
 ];
 const TG={ok:'<span class="tag t-ok">ĐẠT</span>',bad:'<span class="tag t-bad">CHƯA ĐẠT</span>',warn:'<span class="tag t-warn">LƯU Ý</span>'};
@@ -954,7 +957,7 @@ $('#apicard').innerHTML=`<span class="p" data-p="2">GET</span> <span class="p" d
   <span class="p" data-p="7">{ "column_key": "c1", "column_name": "nhom", "data_type": "string",
     "category": { "top_n": 5, "items": [{ "value": "A", "count": 13, "rate": 0.1667 }] } }</span>
 ] } }`;
-const P8BAD={"1": "<code>/charts?datasetId=…</code> hoặc <code>/getDatasetCharts</code> — mất quan hệ cha → con, khó phân quyền theo dataset.", "2": "<code>POST /charts</code> để đọc — trình duyệt / proxy không cache được, retry không an toàn.", "3": "Mỗi lần gọi trả kết quả khác → client không dám retry, không cache được, tốn lại 1 lần quét 50k dòng.", "4": "Luôn trả <code>200</code> kèm <code>{error}</code> → client phải đọc body mới biết lỗi, monitoring không đếm được lỗi.", "5": "Không có version → đổi shape response là làm hỏng FE đang chạy.", "6": "<code>/datasets/{id}/getCharts</code>, <code>/chart_data_list</code> — động từ trong path, không nhất quán.", "7": "Gọi N request cho N cột → N lần quét toàn bộ dataset (đúng lỗi k6 đã bắt được trước commit d4d64b0).", "8": "Trả toàn bộ dữ liệu rồi để client tự lọc → payload lớn, chậm, lộ dữ liệu không cần thiết."};
+const P8BAD={"1": "<code>/charts?datasetId=…</code> hoặc <code>/getDatasetCharts</code> — mất quan hệ cha → con, khó phân quyền theo dataset.", "2": "<code>POST /charts</code> để đọc — trình duyệt / proxy không cache được, retry không an toàn.", "3": "Mỗi lần gọi trả kết quả khác → client không dám retry, không cache được, tốn lại 1 lần quét 50k dòng.", "4": "Luôn trả <code>200</code> kèm <code>{error}</code> → client phải đọc body mới biết lỗi, monitoring không đếm được lỗi.", "5": "Không có version → đổi shape response là làm hỏng FE đang chạy.", "6": "<code>/datasets/{id}/getCharts</code>, <code>/chart_data_list</code> — động từ trong path, không nhất quán.", "7": "Gọi N request cho N cột → N lần quét toàn bộ dataset (đúng lỗi k6 đã bắt được trước commit ecb5816).", "8": "Trả toàn bộ dữ liệu rồi để client tự lọc → payload lớn, chậm, lộ dữ liệu không cần thiết."};
 $('#plist').innerHTML=P8.map(p=>`<div class="plabel" data-i="${p[0]}"><span class="num">${p[0]}</span><b>${p[1]}</b><span class="st2 tag t-ok">ĐẠT</span></div>`).join('')+'<div style="font-size:11.5px;color:var(--muted);line-height:1.4;margin-top:4px">Ví dụ response lấy từ <code>@ApiZodResponse</code> trong controller (tài liệu Swagger).</div>';
 function p8(n){$$('#plist .plabel').forEach(l=>l.classList.toggle('on',+l.dataset.i===n));$$('#apicard .p').forEach(s=>s.classList.toggle('hl',s.dataset.p.split(' ').includes(String(n))));
  const p=P8[n-1];$('#pexp').innerHTML=`<div class="row" style="gap:8px;align-items:center;margin-bottom:6px"><span class="num" style="background:var(--clay)">${n}</span><b style="font-size:16px">${p[1]}</b><span class="tag t-ok">ĐẠT</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px"><div style="padding:10px 12px;border-radius:10px;background:var(--green-l)"><div class="h5" style="color:var(--green)">API này làm</div>${p[2]}</div><div style="padding:10px 12px;border-radius:10px;background:var(--red-l)"><div class="h5" style="color:var(--red)">Nếu làm sai</div>${P8BAD[n]}</div></div>`;}
@@ -1048,7 +1051,7 @@ function drawERD(name){$$('#erdtabs .btn').forEach(b=>b.classList.toggle('on',b.
    const card=r[2]?`${r[2]}–${r[3]}`:'',txt=compact||(name!=='Tổng quan'&&hsep>0&&hsep<90)?card:`${card?`<tspan font-weight="800" fill="#C2571F">${card}</tspan> `:''}${r[4]||''}`;
    if(txt)h+=`<text class="rel-txt" x="${px}" y="${py}" text-anchor="${al}" style="paint-order:stroke;stroke:#FAF2DC;stroke-width:4px">${txt}</text>`;});
   svg.innerHTML=h;});}
-$('#erdtabs').innerHTML=Object.keys(V).map(n=>`<button class="btn" data-v="${n}">${n==='Tổng quan'?'':'<span style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;background:'+Object.values(CL).find(c=>c[0]===n)[1]+'"></span>'}${n}</button>`).join('')+`<span style="font-size:12px;color:var(--muted);margin-left:6px">rê chuột lên dòng để xem ghi chú</span>`;
+$('#erdtabs').innerHTML=Object.keys(V).map(n=>`<button class="btn" data-v="${n}">${n==='Tổng quan'?'':'<span style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;background:'+Object.values(CL).find(c=>c[0]===n)[1]+'"></span>'}${n}</button>`).join('')+`<span style="font-size:12px;color:var(--muted);margin-left:6px">vẽ 18 collection nghiệp vụ · 2 collection kỹ thuật nội bộ không vẽ</span>`;
 $$('#erdtabs .btn').forEach(b=>b.onclick=()=>drawERD(b.dataset.v));
 hooks[10]=()=>drawERD($('#erdtabs .btn.on')?.dataset.v||'Tổng quan');
 
@@ -1307,9 +1310,10 @@ renderTree(FE_T,$('#feTree'),[],visited);renderTree(BE_T,$('#beTree'),[],visited
 const K6=[
  ['smoke','5','5','30 s','155','records',44.5,1000,'44 ms / 1 s','checks 100% · 401/429 3,2%','12% / 577 MiB','ok'],
  ['analysis-latency','1','1 VU × 5 lần','13 s','5','phân tích 50k dòng',1.60,8,'1,60 s / 8 s','201: 100%','113% / 580 MiB','ok'],
- ['full-journey','3','3','1 phút','1 800','data-view',0.042,1.5,'42 ms / 1,5 s','checks 100% · 72×(401+404+403)','174% / 781 MiB','ok'],
- ['load','50','0 → 20 → 50','5 phút','38 320','data-view',0.383,2,'383 ms / 2 s','checks 100% · 0 lỗi 5xx','219% / 996 MiB','ok'],
- ['stress','80','50 đọc · 20 upload · 10 phân tích','2 phút','5 693','read_records',3.30,2,'3,30 s / 2 s','checks 96,0% · upload 409 (đúng nghiệp vụ)','139% / 865 MiB','warn'],
+ ['full-journey','3','3','1 phút','1 800','data-view',0.040,1.5,'40 ms / 1,5 s','checks 100% · 12% là 401/403/404 cố ý','49% / 750 MiB','ok'],
+ ['load · trước tối ưu','50','0 → 20 → 50','5 phút','4 207','data-view',20.68,2,'20,68 s / 2 s','checks 100% · 0% lỗi','258% / 1 562 MiB','bad'],
+ ['load · có cache 60 s','50','0 → 20 → 50','5 phút','38 320','data-view',0.383,2,'383 ms / 2 s','checks 100% · 0% lỗi','142% / 1 341 MiB','ok'],
+ ['stress','80','50 đọc · 20 upload · 10 phân tích','2 phút','5 693','read_records',3.30,2,'3,30 s / 2 s','checks 96% · 242 upload 10 MB lỗi','177% / 721 MiB','bad'],
 ];
 $('#k6').innerHTML='<tr><th>Kịch bản k6</th><th>Người dùng đồng thời (VU đỉnh)</th><th>Thời lượng</th><th>Request</th><th>p95 so ngưỡng (vạch = 100%)</th><th>Mã HTTP</th><th>API CPU / RAM đỉnh</th><th>Kết quả</th></tr>'+
  K6.map(k=>{const vmax=+k[1];const r=k[6]/k[7];const w=Math.min(r,2)/2*100;
