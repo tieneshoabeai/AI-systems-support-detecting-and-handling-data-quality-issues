@@ -595,6 +595,43 @@ export class RecordQueryRepository implements RecordQueryPort {
     };
   }
 
+  async getColumnValuesBatch(
+    datasetId: string,
+    columns: { columnKey: string; dataType: ColumnDataType }[],
+    limit: number,
+  ): Promise<{ columnKey: string; values: unknown[]; totalRecords: number }[]> {
+    if (columns.length === 0) return [];
+    const objectDatasetId = new Types.ObjectId(datasetId);
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100_000) : 10_000;
+
+    const project: Record<string, unknown> = { _id: 0 };
+    for (const col of columns) {
+      const fieldPath = 'props.' + col.columnKey;
+      project[col.columnKey] =
+        col.dataType === 'number'
+          ? { $convert: { input: '$' + fieldPath, to: 'double', onError: null, onNull: null } }
+          : col.dataType === 'date'
+            ? { $convert: { input: '$' + fieldPath, to: 'date', onError: null, onNull: null } }
+            : '$' + fieldPath;
+    }
+
+    const docs = await this.recordModel
+      .aggregate<Record<string, unknown>>([
+        { $match: { dataset_id: objectDatasetId } },
+        { $project: project },
+        { $limit: safeLimit },
+      ])
+      .exec();
+
+    const totalRecords = await this.recordModel.countDocuments({ dataset_id: objectDatasetId }).exec();
+
+    return columns.map((col) => ({
+      columnKey: col.columnKey,
+      values: docs.map((d) => d[col.columnKey] ?? null),
+      totalRecords,
+    }));
+  }
+
   private buildFilterConditions(
     filters: { column: string; operator: string; value?: unknown }[],
     search: { columns: string[]; value: string } | undefined,

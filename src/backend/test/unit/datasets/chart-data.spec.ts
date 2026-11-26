@@ -124,7 +124,7 @@ describe('GĐ6 — chart-data.util (hàm thuần)', () => {
 
 describe('GĐ6 — DataViewService.getChartData', () => {
   let handler: DataViewService;
-  let records: { getColumnValues: jest.Mock };
+  let records: { getColumnValues: jest.Mock; getColumnValuesBatch: jest.Mock };
   let datasetsPort: { findById: jest.Mock };
 
   const columnValues = (key: string, values: unknown[], total = values.length) => ({
@@ -135,22 +135,27 @@ describe('GĐ6 — DataViewService.getChartData', () => {
     truncated: total > values.length,
   });
 
+  /** Dữ liệu mẫu cho từng cột — dùng cho cả mock cũ và batch. */
+  const SAMPLE_BY_KEY: Record<string, unknown[]> = {
+    c0: [10, 20, 30, 40, 50, null],
+    c1: ['A', 'A', 'B', 'C', 'D', 'E'],
+    c2: [true, false, true, null],
+    c3: [new Date(), null],
+  };
+
   beforeEach(async () => {
     records = {
-      getColumnValues: jest.fn().mockImplementation(async (_ds: string, key: string) => {
-        switch (key) {
-          case 'c0':
-            return columnValues('c0', [10, 20, 30, 40, 50, null]);
-          case 'c1':
-            return columnValues('c1', ['A', 'A', 'B', 'C', 'D', 'E']);
-          case 'c2':
-            return columnValues('c2', [true, false, true, null]);
-          case 'c3':
-            return columnValues('c3', [new Date(), null]);
-          default:
-            return columnValues(key, []);
-        }
-      }),
+      getColumnValues: jest.fn().mockImplementation(async (_ds: string, key: string) =>
+        columnValues(key, SAMPLE_BY_KEY[key] ?? []),
+      ),
+      // GĐ6-PERF: `getChartData` đọc TẤT CẢ cột trong MỘT lần quét ⇒ mock theo lô.
+      getColumnValuesBatch: jest.fn().mockImplementation(
+        async (_ds: string, cols: { columnKey: string }[]) =>
+          cols.map((c) => {
+            const values = SAMPLE_BY_KEY[c.columnKey] ?? [];
+            return { columnKey: c.columnKey, values, totalRecords: values.length };
+          }),
+      ),
     };
     datasetsPort = { findById: jest.fn().mockResolvedValue(mockDataset) };
 
@@ -246,13 +251,9 @@ describe('GĐ6 — DataViewService.getChartData', () => {
   });
 
   it('bao cao truncated khi du lieu bi gioi han', async () => {
-    records.getColumnValues.mockResolvedValueOnce({
-      columnKey: 'c0',
-      values: [1, 2, 3],
-      totalRecords: 1000,
-      sampledRecords: 3,
-      truncated: true,
-    });
+    records.getColumnValuesBatch.mockResolvedValueOnce([
+      { columnKey: 'c0', values: [1, 2, 3], totalRecords: 1000 },
+    ]);
     const charts = await handler.getChartData(datasetId, { columns: ['c0'] });
     expect(charts[0]!.truncated).toBe(true);
     expect(charts[0]!.total_records).toBe(1000);
@@ -262,7 +263,9 @@ describe('GĐ6 — DataViewService.getChartData', () => {
   // ── Phần 13 v15 mục 3.28 — DVT-12 (Phần 7 v13 DV-11, DV-15) ─────────────
 
   it('DVT-12: missing_count tinh ca chuoi rong / toan khoang trang', async () => {
-    records.getColumnValues.mockResolvedValueOnce(columnValues('c1', ['A', '', '   ', null, 'B']));
+    records.getColumnValuesBatch.mockResolvedValueOnce([
+      { columnKey: 'c1', values: ['A', '', '   ', null, 'B'], totalRecords: 5 },
+    ]);
     const charts = await handler.getChartData(datasetId, { columns: ['c1'] });
     const c = charts[0]!;
     expect(c.missing_count).toBe(3);
@@ -271,9 +274,13 @@ describe('GĐ6 — DataViewService.getChartData', () => {
   });
 
   it('DVT-12: cot boolean du lieu cu (True / 1 / yes / true) gop ve true / false', async () => {
-    records.getColumnValues.mockResolvedValueOnce(
-      columnValues('c2', [true, 'True', '1', 'yes', false, 'FALSE', 0, null]),
-    );
+    records.getColumnValuesBatch.mockResolvedValueOnce([
+      {
+        columnKey: 'c2',
+        values: [true, 'True', '1', 'yes', false, 'FALSE', 0, null],
+        totalRecords: 8,
+      },
+    ]);
     const charts = await handler.getChartData(datasetId, { columns: ['c2'] });
     const items = charts[0]!.category!.items;
     expect(items.map((i) => [i.value, i.count])).toEqual([
@@ -283,18 +290,38 @@ describe('GĐ6 — DataViewService.getChartData', () => {
     expect(charts[0]!.category!.distinct_count).toBe(2);
   });
 
-  it('DVT-12: nhieu cot -> chi cot dau dem tong, cac cot sau nhan knownTotal', async () => {
+  it('GĐ6-PERF: nhieu cot -> MOT lan quet (batch), khong goi getColumnValues theo cot', async () => {
     const charts = await handler.getChartData(datasetId);
     expect(charts.map((c) => c.column_key)).toEqual(['c0', 'c1', 'c2', 'c3']);
-    const calls = records.getColumnValues.mock.calls;
-    expect(calls).toHaveLength(4);
-    expect(calls[0]![4]).toBeUndefined();
-    for (const call of calls.slice(1)) expect(call[4]).toBe(6); // tổng của cột đầu (c0: 6 dòng)
+    // Batch: đúng 1 lần gọi cho toàn bộ 4 cột.
+    expect(records.getColumnValuesBatch).toHaveBeenCalledTimes(1);
+    const call = records.getColumnValuesBatch.mock.calls[0]!;
+    expect(call[1]).toEqual([
+      { columnKey: 'c0', dataType: 'number' },
+      { columnKey: 'c1', dataType: 'string' },
+      { columnKey: 'c2', dataType: 'boolean' },
+      { columnKey: 'c3', dataType: 'date' },
+    ]);
+    // Không còn đường N lần quét theo cột.
+    expect(records.getColumnValues).not.toHaveBeenCalled();
+  });
+
+  it('GĐ6-PERF: cache — goi lai cung tham so thi khong quet lai (chi 1 lan batch)', async () => {
+    await handler.getChartData(datasetId, { columns: ['c0'] });
+    await handler.getChartData(datasetId, { columns: ['c0'] });
+    await handler.getChartData(datasetId, { columns: ['c0'] });
+    expect(records.getColumnValuesBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('GĐ6-PERF: cache — tham so khac (topN) thi quet lai', async () => {
+    await handler.getChartData(datasetId, { columns: ['c0'], topN: 5 });
+    await handler.getChartData(datasetId, { columns: ['c0'], topN: 10 });
+    expect(records.getColumnValuesBatch).toHaveBeenCalledTimes(2);
   });
 
   it('max_rows duoc gioi han o MAX_CHART_SAMPLE_ROWS', async () => {
     await handler.getChartData(datasetId, { columns: ['c0'], maxRows: 999_999 });
-    const call = records.getColumnValues.mock.calls[0]!;
-    expect(call[3]).toBe(50_000);
+    const call = records.getColumnValuesBatch.mock.calls[0]!;
+    expect(call[2]).toBe(50_000);
   });
 });

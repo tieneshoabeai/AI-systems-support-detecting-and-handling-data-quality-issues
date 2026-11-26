@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backend API Flows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F4EF;--card:#FFFFFF;--ink:#16212E;--soft:#5E6B7A;--hair:#E3DED4;
+  --teal:#0F766E;--teal-l:#E3F1EF;--coral:#C2410C;--coral-l:#FBEADF;--gold:#B7791F;--gold-l:#FBF1DC;
+  --indigo:#3730A3;--indigo-l:#E8E7F7;
+  --mono:"JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#E9E5DC;overflow:hidden;font-family:"Be Vietnam Pro",system-ui,sans-serif;color:var(--ink)}
+#viewport{position:fixed;inset:0;display:grid;place-items:center}
+#stage{width:1280px;height:720px;position:relative;transform-origin:center center}
+.slide{position:absolute;inset:0;background:var(--paper);border-radius:6px;box-shadow:0 30px 80px rgba(22,33,46,.18);padding:52px 80px 64px;display:none;overflow:hidden}
+.slide.active{display:flex;flex-direction:column;justify-content:center}
+.slide.active>*{flex:none}
+.slide::after{content:attr(data-sec);position:absolute;left:80px;bottom:26px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--soft)}
+.pg{position:absolute;right:80px;bottom:26px;font-size:12px;color:var(--soft);font-variant-numeric:tabular-nums}
+.slide.active .r{animation:up .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0)*100ms + 80ms)}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+/* type */
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal)}
+h1{font-size:64px;font-weight:800;line-height:1.05;letter-spacing:-.02em}
+h2{font-size:32px;font-weight:700;letter-spacing:-.015em;line-height:1.15;margin:8px 0 12px}
+h3{font-size:17px;font-weight:700;margin-bottom:6px}
+h4{font-size:14px;font-weight:700;line-height:1.3}
+p,li{font-size:14px;line-height:1.5;color:#2E3B4A}
+.lead{font-size:22px;line-height:1.5;color:var(--soft);font-weight:300}
+code,.mono{font-family:var(--mono);font-size:.88em;background:rgba(22,33,46,.06);padding:1px 6px;border-radius:5px}
+pre{font-family:var(--mono);font-size:13px;line-height:1.55;background:var(--ink);color:#E7EEF5;border-radius:12px;padding:16px 18px;white-space:pre-wrap}
+pre b{color:#7DD3C7;font-weight:600}pre i{color:#F4B58F;font-style:normal}
+svg text{font-family:"Be Vietnam Pro",system-ui,sans-serif}
+/* layout */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g2>*,.g3>*,.g4>*{min-width:0}
+td.mono{background:none;padding:8px 10px}
+.card{background:var(--card);border:1px solid var(--hair);border-radius:14px;padding:16px 18px}
+.card.t{border-top:4px solid var(--teal)}.card.c{border-top:4px solid var(--coral)}.card.i{border-top:4px solid var(--indigo)}.card.g{border-top:4px solid var(--gold)}
+.card p{font-size:13px;color:var(--soft)}
+.card ul{margin-left:16px}.card li{font-size:13px;color:#2E3B4A;line-height:1.5}
+/* api header */
+.hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.api{font-family:var(--mono);font-size:15px;display:inline-flex;gap:10px;align-items:center;background:var(--ink);color:#fff;border-radius:9px;padding:6px 13px}
+.api i{font-style:normal;font-weight:700;color:#7DD3C7}
+.tag{font-size:12px;font-weight:600;padding:5px 11px;border-radius:99px;background:var(--teal-l);color:var(--teal)}
+.tag.pub{background:var(--gold-l);color:var(--gold)}.tag.lim{background:var(--indigo-l);color:var(--indigo)}.tag.no{background:var(--coral-l);color:var(--coral)}
+/* rail: happy path on top, exits hanging below */
+.rail{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:20px;position:relative;padding-top:18px}
+.rail::before{content:"";position:absolute;left:0;right:0;top:4px;height:2px;background:linear-gradient(90deg,var(--teal),#9FD3CB)}
+.rail::after{content:"";position:absolute;top:0;left:0;width:10px;height:10px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 4px rgba(194,65,12,.18);animation:run 5s linear infinite}
+@keyframes run{from{left:0}to{left:calc(100% - 10px)}}
+.col{display:flex;flex-direction:column;gap:9px;min-width:0}
+.st{background:#fff;border:1px solid var(--hair);border-radius:12px;padding:11px 12px;position:relative;min-height:var(--h,116px)}
+.st b.n{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--teal);color:#fff;font-size:12px;margin-bottom:7px}
+.st p{font-size:12.5px;line-height:1.42;color:var(--soft);margin-top:4px}
+.st h4,.st p{overflow-wrap:anywhere}
+.col:not(:last-child) .st::after{content:"";position:absolute;right:-14px;top:18px;width:8px;height:8px;border-top:2px solid var(--teal);border-right:2px solid var(--teal);transform:rotate(45deg)}
+.st.end{background:var(--ink);border-color:var(--ink);color:#fff}.st.end p{color:rgba(255,255,255,.72)}.st.end b.n{background:#7DD3C7;color:var(--ink)}
+.st.bg{background:var(--indigo-l);border-color:#C9C6EE}
+.exit{background:var(--coral-l);border:1px solid #F1C7AE;color:var(--coral);border-radius:10px;padding:7px 10px;font-size:12px;line-height:1.38;position:relative}
+.exit b{display:block;font-family:var(--mono);font-size:13px}
+.exit::before{content:"";position:absolute;left:22px;top:-10px;width:2px;height:9px;background:var(--coral)}
+.exit.ok{background:var(--teal-l);border-color:#B9DED8;color:var(--teal)}.exit.ok::before{background:var(--teal)}
+.note{background:var(--gold-l);border:1px solid #EED9A8;border-radius:12px;padding:10px 14px;font-size:13px;line-height:1.5;color:#6B4E12;margin-top:14px}
+.note b{font-weight:700}
+/* small parts */
+.chev{flex:none;width:9px;height:9px;border-top:2px solid var(--teal);border-right:2px solid var(--teal);transform:rotate(45deg);margin:0 4px}
+.hs{display:flex;align-items:center;gap:8px}
+.box{background:#fff;border:1px solid var(--hair);border-radius:11px;padding:9px 13px;font-size:13.5px;font-weight:600}
+.box small{display:block;font-weight:400;color:var(--soft);font-size:12px;margin-top:2px}
+.box.dark{background:var(--ink);color:#fff;border-color:var(--ink)}.box.dark small{color:rgba(255,255,255,.65)}
+.box.tl{background:var(--teal-l);border-color:#B9DED8}.box.dash{border-style:dashed;background:transparent;color:var(--soft)}
+.state{font-family:var(--mono);font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid var(--hair);background:#fff;white-space:nowrap}
+.state.ok{background:var(--teal-l);border-color:#B9DED8;color:var(--teal)}.state.bad{background:var(--coral-l);border-color:#F1C7AE;color:var(--coral)}.state.warn{background:var(--gold-l);border-color:#EED9A8;color:var(--gold)}
+.pulse{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(15,118,110,.35)}50%{box-shadow:0 0 0 9px rgba(15,118,110,0)}}
+.stat{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.stat+p{font-size:12.5px;color:var(--soft);margin-top:6px}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hair);font-size:13px;vertical-align:top}
+th{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:700}
+.ep{font-family:var(--mono);font-size:12px;padding:6px 9px;border-radius:8px;background:var(--teal-l);color:#0B4F4A;margin-top:6px;display:flex;gap:8px}
+.ep i{font-style:normal;font-weight:700;width:46px;flex:none}
+.ep.pub{background:var(--gold-l);color:#6B4E12}.ep.nyi{background:transparent;border:1px dashed #C9C2B4;color:var(--soft)}
+.bar{height:14px;border-radius:7px;background:var(--teal);transform-origin:left;animation:grow 1s cubic-bezier(.2,.7,.2,1) both}
+@keyframes grow{from{transform:scaleX(0)}to{transform:none}}
+.cell-miss{background:var(--gold-l);color:var(--gold);font-weight:700}.cell-bad{background:var(--coral-l);color:var(--coral);font-weight:700}
+.cell-out{background:var(--teal-l);color:var(--teal);font-weight:700}tr.dup td{background:var(--indigo-l)}
+.demo{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:700}
+.cover{background:radial-gradient(900px 500px at 85% 20%,#DCEFEA 0%,transparent 60%),radial-gradient(700px 500px at 0% 100%,#F6E3D6 0%,transparent 60%),var(--paper)}
+.divider{background:var(--ink);color:#fff}
+.divider::after{color:rgba(255,255,255,.5)}.divider .pg{color:rgba(255,255,255,.5)}
+.divider .num{font-size:220px;font-weight:800;line-height:.9;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.35);position:absolute;right:70px;bottom:50px}
+.divider h1{color:#fff;margin-top:14px;font-size:68px}
+.divider .lead{color:rgba(255,255,255,.7);margin-top:18px;max-width:680px}
+.divider .eyebrow{color:#7DD3C7}
+#bar{position:fixed;left:0;top:0;height:3px;background:var(--teal);transition:width .35s;z-index:10}
+#hint{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:var(--soft)}
+@media (prefers-reduced-motion:reduce){.slide.active .r,.rail::after,.pulse,.bar{animation:none}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="viewport"><div id="stage">
+
+<!-- 1 -->
+<section class="slide cover active" data-sec="Đồ án, phần Backend">
+  <div class="eyebrow r">Đi theo luồng xử lý trong mã nguồn</div>
+  <h1 class="r" style="--d:1;margin-top:14px">Backend làm gì<br>sau mỗi API<span style="color:var(--teal)">.</span></h1>
+  <p class="lead r" style="--d:2;margin-top:20px;max-width:760px">Từ lúc request chạm máy chủ tới lúc có phản hồi: kiểm tra gì, tính gì, ghi gì vào cơ sở dữ liệu, lỗi nào trả mã nào.</p>
+  <div class="g3 r" style="--d:3;margin-top:44px;max-width:860px">
+    <div><div class="stat">22</div><p>API được mổ xẻ</p></div>
+    <div><div class="stat">3</div><p>phần: lớp chung, Auth, Analysis</p></div>
+    <div><div class="stat">2</div><p>worker chạy nền: AI và PDF</p></div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-sec="Bản đồ API">
+  <div class="eyebrow r">Toàn cảnh</div>
+  <h2 class="r" style="--d:1">22 API của hai module</h2>
+  <div class="hd r" style="--d:2"><span class="tag pub">Nền vàng: công khai</span><span class="tag">Nền xanh: cần đăng nhập</span><span class="tag no">Viền đứt: chưa làm, trả 501</span><span class="tag lim">Mọi đường dẫn có tiền tố /api/v1</span></div>
+  <div class="g3" style="grid-template-columns:.76fr 1.12fr 1.12fr">
+    <div class="card t r" style="--d:3"><h3>Auth, 11 API</h3>
+      <div class="ep pub"><i>POST</i>/auth/register</div>
+      <div class="ep pub"><i>POST</i>/auth/login</div>
+      <div class="ep pub"><i>POST</i>/auth/refresh</div>
+      <div class="ep pub"><i>POST</i>/auth/forgot-password</div>
+      <div class="ep pub"><i>POST</i>/auth/reset-password</div>
+      <div class="ep"><i>POST</i>/auth/change-password</div>
+      <div class="ep"><i>POST</i>/auth/logout</div>
+      <div class="ep"><i>GET</i>/auth/sessions</div>
+      <div class="ep"><i>DELETE</i>/auth/sessions/:id</div>
+      <div class="ep nyi"><i>GET</i>/auth/google</div>
+      <div class="ep nyi"><i>GET</i>/auth/google/callback</div>
+    </div>
+    <div class="card i r" style="--d:4"><h3>Analysis, 7 API</h3>
+      <div class="ep"><i>POST</i>/projects/:projectId/analysis/config</div>
+      <div class="ep"><i>GET</i>/projects/:projectId/analysis/config</div>
+      <div class="ep"><i>POST</i>/projects/:projectId/analysis</div>
+      <div class="ep"><i>GET</i>/projects/:projectId/analysis/result</div>
+      <div class="ep"><i>GET</i>/analysis/jobs/:jobId</div>
+      <div class="ep"><i>POST</i>/analysis/jobs/:jobId/retry</div>
+      <div class="ep"><i>POST</i>/analysis/jobs/:jobId/result</div>
+    </div>
+    <div class="card g r" style="--d:5"><h3>Summary, 2 API</h3>
+      <div class="ep"><i>POST</i>/projects/:projectId/summary</div>
+      <div class="ep"><i>GET</i>/projects/:projectId/summary</div>
+      <h3 style="margin-top:22px">Report, 2 API</h3>
+      <div class="ep"><i>POST</i>/projects/:projectId/report</div>
+      <div class="ep"><i>GET</i>/projects/:projectId/report/:reportId/file</div>
+      <p style="margin-top:16px">Summary và Report nằm trong module analysis, dùng chung kho dữ liệu với phần phân tích.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide divider" data-sec="Phần 1: Lớp chung">
+  <div class="eyebrow r">Phần 1</div>
+  <h1 class="r" style="--d:1">Lớp chung</h1>
+  <p class="lead r" style="--d:2">Những chặng mà mọi request phải đi qua trước khi tới được nghiệp vụ, và khuôn phản hồi lúc trả về.</p>
+  <div class="num">01</div>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-sec="Phần 1: Lớp chung">
+  <div class="eyebrow r">Đường ống</div>
+  <h2 class="r" style="--d:1">Một request đi qua những chặng nào</h2>
+  <div class="rail" style="--h:104px">
+    <div class="col r" style="--d:2"><div class="st"><b class="n">1</b><h4>Helmet và CORS</h4><p>Gắn header bảo mật, HSTS một năm, lọc nguồn gọi.</p></div></div>
+    <div class="col r" style="--d:3"><div class="st"><b class="n">2</b><h4>Giới hạn tần suất</h4><p>Mặc định 200 lần trong 60 giây cho mọi API.</p></div><div class="exit"><b>429</b>LIMIT_EXCEEDED</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">3</b><h4>JwtAuthGuard</h4><p>Kiểm access token, nạp lại user từ DB.</p></div><div class="exit"><b>401</b>Token sai, hết hạn, user bị khoá</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">4</b><h4>PoliciesGuard</h4><p>Hỏi bộ quyền CASL: được đọc hay được chạy.</p></div><div class="exit"><b>403</b>Không đủ quyền</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">5</b><h4>Kiểm body bằng Zod</h4><p>Đối chiếu với schema, điền giá trị mặc định.</p></div><div class="exit"><b>400</b>VALIDATION_ERROR</div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">6</b><h4>Controller và Service</h4><p>Nghiệp vụ, gọi DB qua cổng và adapter.</p></div><div class="exit"><b>4xx, 5xx</b>Lỗi nghiệp vụ</div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">7</b><h4>Bọc phản hồi</h4><p>Interceptor đưa kết quả vào khuôn success và data.</p></div></div>
+  </div>
+  <div class="box dark r" style="--d:9;margin-top:16px">AllExceptionsFilter<small>Mọi lỗi ném ra ở bất kỳ chặng nào đều rơi về đây và được trả theo một khuôn lỗi duy nhất.</small></div>
+  <p class="r" style="--d:10;margin-top:10px;font-size:12.5px;color:var(--soft)">Nguồn: <code>main.ts</code>, <code>app.module.ts</code>. Chặng 3 và 4 chỉ chạy ở route có gắn guard; các route công khai của Auth không gắn.</p>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-sec="Phần 1: Lớp chung">
+  <div class="eyebrow r">Xác thực ở mỗi request</div>
+  <h2 class="r" style="--d:1">Access token được kiểm thế nào</h2>
+  <div class="rail" style="--h:124px">
+    <div class="col r" style="--d:2"><div class="st"><b class="n">1</b><h4>Lấy token</h4><p>Đọc header Authorization dạng Bearer.</p></div><div class="exit"><b>401</b>Không có token</div></div>
+    <div class="col r" style="--d:3"><div class="st"><b class="n">2</b><h4>Kiểm chữ ký và hạn</h4><p>Dùng khoá JWT_ACCESS_SECRET, không bỏ qua hạn dùng.</p></div><div class="exit"><b>401</b>Chữ ký sai hoặc quá 15 phút</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">3</b><h4>Nạp lại user từ DB</h4><p>Tìm theo trường sub trong token, mỗi request một lần.</p></div><div class="exit"><b>401</b>User không còn tồn tại</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">4</b><h4>Kiểm trạng thái</h4><p>Tài khoản bị khoá hoặc đã xoá mềm thì chặn.</p></div><div class="exit"><b>401</b>Bị khoá hoặc đã xoá mềm</div></div>
+    <div class="col r" style="--d:6"><div class="st end"><b class="n">5</b><h4>Gắn vào request</h4><p>userId, email, role, sessionId. Controller đọc qua CurrentUser.</p></div></div>
+  </div>
+  <div class="note r" style="--d:7"><b>Ghi nhận từ code.</b> Bước này kiểm user chứ không kiểm phiên. Sau khi đăng xuất, access token cũ vẫn qua được cho tới khi hết 15 phút; chỉ refresh token là bị chặn ngay.</div>
+  <p class="r" style="--d:8;margin-top:10px;font-size:12.5px;color:var(--soft)">Nguồn: <code>jwt.strategy.ts</code>, <code>jwt-auth.guard.ts</code>.</p>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-sec="Phần 1: Lớp chung">
+  <div class="eyebrow r">Phân quyền</div>
+  <h2 class="r" style="--d:1">PoliciesGuard kiểm quyền qua ba tầng</h2>
+  <div class="g3">
+    <div class="card t r" style="--d:2"><h3>Tầng 1: kiểm tĩnh</h3><p>Dựng bộ quyền cho user rồi hỏi theo tên chủ thể, ví dụ được chạy trên Analysis hay không. Trượt thì dừng ngay.</p><div class="exit" style="margin-top:12px"><b>403</b>Static check failed</div></div>
+    <div class="card i r" style="--d:3"><h3>Tầng 2: nạp tài nguyên</h3><p>Nếu route khai báo PolicyResource, guard tự nạp bản ghi theo tham số id và gắn vào request.</p><div class="exit" style="margin-top:12px"><b>404</b>Tài nguyên không tồn tại</div></div>
+    <div class="card g r" style="--d:4"><h3>Tầng 3: kiểm trên bản ghi</h3><p>Hỏi lại quyền với dữ liệu thật của bản ghi, ví dụ đúng workspace của user hay không.</p><div class="exit" style="margin-top:12px"><b>403</b>Policy check failed</div></div>
+  </div>
+  <div class="card r" style="--d:5;margin-top:16px;padding:8px 16px">
+    <table>
+      <tr><th style="width:26%">Vai trò</th><th>Quyền trên Analysis theo <span class="mono">casl-ability.factory.ts</span></th><th style="width:26%">API Analysis dùng được</th></tr>
+      <tr><td>Quản trị hệ thống</td><td>Toàn quyền trên mọi chủ thể</td><td>Tất cả</td></tr>
+      <tr><td>Chủ workspace</td><td>Toàn quyền trên Project, Dataset, DataRecord, Analysis của workspace đó</td><td>Tất cả trong workspace</td></tr>
+      <tr><td>Thành viên workspace</td><td>Chỉ đọc; bị cấm tạo, sửa, xoá, chạy</td><td>Chỉ các API GET</td></tr>
+    </table>
+  </div>
+  <div class="note r" style="--d:6"><b>Ghi nhận từ code.</b> <span class="mono">JwtStrategy</span> hiện chỉ gắn userId, email, role, sessionId vào request, chưa gắn workspaceId và workspaceRole. Chưa controller nào khai báo PolicyResource, nên tầng 2 chưa chạy ở đâu.</div>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-sec="Phần 1: Lớp chung">
+  <div class="eyebrow r">Kiểm dữ liệu vào</div>
+  <h2 class="r" style="--d:1">Zod chặn body sai trước khi vào nghiệp vụ</h2>
+  <div class="g2">
+    <div class="card t r" style="--d:2"><h3>Schema đăng ký</h3>
+      <table>
+        <tr><td class="mono">email</td><td>đúng định dạng, đổi về chữ thường, cắt khoảng trắng</td></tr>
+        <tr><td class="mono">password</td><td>từ 8 đến 100 ký tự</td></tr>
+        <tr><td class="mono">first_name</td><td>từ 1 đến 50 ký tự</td></tr>
+        <tr><td class="mono">last_name</td><td>từ 1 đến 50 ký tự</td></tr>
+        <tr><td class="mono">role</td><td>admin hoặc analyst, mặc định analyst</td></tr>
+      </table>
+    </div>
+    <div class="card i r" style="--d:3"><h3>Schema cấu hình phân tích</h3>
+      <table>
+        <tr><td class="mono">selected_columns</td><td>tối đa 200 cột</td></tr>
+        <tr><td class="mono">label, time, value</td><td>tên cột từ 1 đến 120 ký tự, cho phép null</td></tr>
+        <tr><td class="mono">time_granularity</td><td>day, week, month, year; mặc định day</td></tr>
+        <tr><td class="mono">correlation_method</td><td>pearson hoặc spearman; mặc định pearson</td></tr>
+        <tr><td class="mono">outlier_method</td><td>iqr, modified_zscore, both; mặc định iqr</td></tr>
+        <tr><td class="mono">top_n</td><td>số nguyên từ 1 đến 100; mặc định 10</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="g2 r" style="--d:4;margin-top:16px;grid-template-columns:1.1fr .9fr">
+<pre><b>400</b> { "success": false, "error": {
+  "code": <i>"VALIDATION_ERROR"</i>,
+  "message": "Dữ liệu gửi lên không hợp lệ.",
+  "details": { "fields": [ { "field": "password",
+     "message": "Mật khẩu phải có độ dài tối thiểu 8 ký tự" } ] } } }</pre>
+    <div class="note" style="margin-top:0"><b>Ghi nhận từ code.</b> API nạp kết quả AI <span class="mono">POST /analysis/jobs/:jobId/result</span> không gắn Zod ở cửa vào. Body của nó được kiểm sau, bằng schema nghiêm ngặt ở bước đối chiếu AI.</div>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-sec="Phần 1: Lớp chung">
+  <div class="eyebrow r">Khuôn phản hồi</div>
+  <h2 class="r" style="--d:1">Thành công và lỗi đều chỉ có một hình dạng</h2>
+  <div class="g2">
+    <div class="r" style="--d:2"><h3>Thành công, do TransformInterceptor bọc</h3>
+<pre>{
+  "success": <b>true</b>,
+  "data": { ... kết quả của service ... }
+}</pre>
+      <p style="margin-top:10px;color:var(--soft);font-size:13px">Phản hồi có header Content-Disposition, như file PDF, được trả nguyên trạng, không bọc.</p>
+    </div>
+    <div class="r" style="--d:3"><h3>Lỗi, do AllExceptionsFilter dựng</h3>
+<pre>{
+  "success": <b>false</b>,
+  "error": {
+    "code": <i>"..."</i>, "message": "...",
+    "details": { ... },
+    "timestamp": "...", "path": "/api/v1/..."
+  }
+}</pre>
+    </div>
+  </div>
+  <div class="g4 r" style="--d:4;margin-top:16px">
+    <div class="card"><div class="state bad">400</div><h4 style="margin-top:8px">VALIDATION_ERROR</h4><p>Zod trả danh sách trường sai.</p></div>
+    <div class="card"><div class="state bad">429</div><h4 style="margin-top:8px">LIMIT_EXCEEDED</h4><p>Vượt giới hạn tần suất.</p></div>
+    <div class="card"><div class="state bad">409</div><h4 style="margin-top:8px">DUPLICATE_RESOURCE</h4><p>MongoDB báo trùng khoá, mã 11000.</p></div>
+    <div class="card"><div class="state bad">500</div><h4 style="margin-top:8px">INTERNAL_ERROR</h4><p>Lỗi chưa lường trước, ghi log kèm stack.</p></div>
+  </div>
+  <p class="r" style="--d:5;margin-top:12px;font-size:12.5px;color:var(--soft)">Lỗi 5xx ghi log mức error kèm stack trace; lỗi 4xx ghi mức warn. Nguồn: <code>all-exceptions.filter.ts</code>, <code>transform.interceptor.ts</code>.</p>
+</section>
+
+<!-- 9 -->
+<section class="slide divider" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Phần 2</div>
+  <h1 class="r" style="--d:1">Module Auth</h1>
+  <p class="lead r" style="--d:2">11 API: đăng ký, đăng nhập, xoay vòng token, quên và đổi mật khẩu, quản lý phiên.</p>
+  <div class="num">02</div>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Cấu trúc</div>
+  <h2 class="r" style="--d:1">AuthService chỉ nói chuyện qua bốn cổng</h2>
+  <div class="g2" style="grid-template-columns:1.25fr .75fr">
+    <div class="r" style="--d:2">
+      <div class="hs" style="margin-bottom:12px"><div class="box">AuthController<small>11 route, kiểm body bằng Zod</small></div><span class="chev"></span><div class="box dark">AuthService<small>toàn bộ luật đăng nhập và phiên</small></div></div>
+      <div class="hs" style="margin-top:8px"><div class="box tl" style="width:200px">Cổng tra user</div><span class="chev"></span><div class="box" style="width:230px">UsersAuthLookupAdapter</div><span class="chev"></span><div class="box dash">Kho user, MongoDB</div></div>
+      <div class="hs" style="margin-top:8px"><div class="box tl" style="width:200px">Cổng phiên</div><span class="chev"></span><div class="box" style="width:230px">UsersAuthSessionAdapter</div><span class="chev"></span><div class="box dash">Kho phiên, MongoDB</div></div>
+      <div class="hs" style="margin-top:8px"><div class="box tl" style="width:200px">Cổng băm mật khẩu</div><span class="chev"></span><div class="box" style="width:230px">BcryptHasherAdapter</div><span class="chev"></span><div class="box dash">bcrypt, 12 vòng</div></div>
+      <div class="hs" style="margin-top:8px"><div class="box tl" style="width:200px">Cổng phát token</div><span class="chev"></span><div class="box" style="width:230px">JwtIssuerAdapter</div><span class="chev"></span><div class="box dash">JWT, hạn 15 phút</div></div>
+      <p style="margin-top:14px;font-size:12.5px;color:var(--soft)">User và phiên thuộc module Users. Auth không gọi thẳng kho của Users mà đi qua adapter. Nguồn: <code>auth.module.ts</code>, <code>auth-session.port.ts</code>.</p>
+    </div>
+    <div class="card r" style="--d:3"><h3>Giới hạn riêng, tính theo giờ</h3>
+      <p style="margin-bottom:10px">Ghi đè mức chung 200 lần mỗi phút.</p>
+      <p class="mono" style="background:none;padding:0">register, 5</p><div class="bar" style="width:50%;margin:3px 0 9px"></div>
+      <p class="mono" style="background:none;padding:0">login, 10</p><div class="bar" style="width:100%;margin:3px 0 9px"></div>
+      <p class="mono" style="background:none;padding:0">refresh, 10</p><div class="bar" style="width:100%;margin:3px 0 9px"></div>
+      <p class="mono" style="background:none;padding:0">forgot-password, 5</p><div class="bar" style="width:50%;margin:3px 0 9px"></div>
+      <p class="mono" style="background:none;padding:0">reset-password, 10</p><div class="bar" style="width:100%;margin:3px 0 9px"></div>
+      <p class="mono" style="background:none;padding:0">change-password, 5</p><div class="bar" style="width:50%;margin:3px 0 0"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Đăng ký</div>
+  <h2 class="r" style="--d:1">Tạo tài khoản mới</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/auth/register</span><span class="tag pub">Công khai</span><span class="tag lim">5 lần mỗi giờ</span></div>
+  <div class="rail">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Kiểm body</h4><p>Email, mật khẩu 8 đến 100 ký tự, họ và tên.</p></div><div class="exit"><b>400</b>Trường không hợp lệ</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Chuẩn hoá email</h4><p>Đổi về chữ thường, cắt khoảng trắng hai đầu.</p></div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>Tìm email trùng</h4><p>Tra user theo email đã chuẩn hoá.</p></div><div class="exit"><b>409</b>Email đã được dùng</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Băm mật khẩu</h4><p>bcrypt 12 vòng. Mật khẩu gốc không được lưu.</p></div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>Tạo user</h4><p>Vai trò luôn là analyst, bất kể body gửi gì.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">6</b><h4>Trả 201</h4><p>id, email, họ tên, role, created_at. Không kèm token.</p></div></div>
+  </div>
+  <div class="note r" style="--d:9"><b>Ghi nhận từ code.</b> Schema vẫn nhận trường role với giá trị admin, nhưng service ép về analyst: không có đường công khai nào để tự phong quản trị. Đăng ký xong phải gọi đăng nhập mới có token.</div>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Đăng nhập</div>
+  <h2 class="r" style="--d:1">Đổi email và mật khẩu lấy một phiên</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/auth/login</span><span class="tag pub">Công khai</span><span class="tag lim">10 lần mỗi giờ</span></div>
+  <div class="rail" style="gap:16px;--h:138px">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Tìm user</h4><p>Theo email, lấy kèm bản băm mật khẩu.</p></div><div class="exit"><b>401</b>Email hoặc mật khẩu không chính xác</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Kiểm khoá</h4><p>Trạng thái blocked thì dừng.</p></div><div class="exit"><b>401</b>Tài khoản đã bị khoá</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>So mật khẩu</h4><p>bcrypt so với bản băm trong DB.</p></div><div class="exit"><b>401</b>Cùng câu báo với bước 1</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Sinh refresh token</h4><p>40 byte ngẫu nhiên. DB chỉ lưu SHA-256 của nó.</p></div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>Tạo phiên</h4><p>Tên thiết bị từ user agent, địa chỉ IP, hạn 7 ngày.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st"><b class="n">6</b><h4>Ký access token</h4><p>Chứa sub, email, role, sessionId. Hạn 15 phút.</p></div></div>
+    <div class="col r" style="--d:9"><div class="st end"><b class="n">7</b><h4>Trả 200</h4><p>access_token, refresh_token, expires_in 900, device_name, user.</p></div></div>
+  </div>
+  <p class="r" style="--d:10;margin-top:14px;font-size:13px;color:var(--soft)">Sai email và sai mật khẩu trả cùng một câu, để người ngoài không dò được email nào đã đăng ký. Nguồn: <code>auth.service.ts</code>, hàm <code>login</code>.</p>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Kết quả của đăng nhập</div>
+  <h2 class="r" style="--d:1">Hai token, hai vai trò khác nhau</h2>
+  <div class="g2">
+    <div class="card t r" style="--d:2"><h3>Access token</h3><div class="stat" style="color:var(--teal)">15 phút</div><p>thời gian sống</p>
+      <table style="margin-top:10px">
+        <tr><td>Dạng</td><td>JWT có chữ ký</td></tr>
+        <tr><td>Bên trong</td><td>sub, email, role, sessionId</td></tr>
+        <tr><td>Lưu ở máy chủ</td><td>Không lưu</td></tr>
+        <tr><td>Dùng để</td><td>Gửi kèm mọi request cần đăng nhập</td></tr>
+        <tr><td>Thu hồi</td><td>Không thu hồi được, chờ hết hạn</td></tr>
+      </table>
+    </div>
+    <div class="card c r" style="--d:3"><h3>Refresh token</h3><div class="stat" style="color:var(--coral)">7 ngày</div><p>thời gian sống của phiên</p>
+      <table style="margin-top:10px">
+        <tr><td>Dạng</td><td>Chuỗi 40 byte ngẫu nhiên, viết dạng hex</td></tr>
+        <tr><td>Bên trong</td><td>Không mang thông tin gì</td></tr>
+        <tr><td>Lưu ở máy chủ</td><td>Chỉ bản băm SHA-256, trong bản ghi phiên</td></tr>
+        <tr><td>Dùng để</td><td>Đổi lấy cặp token mới</td></tr>
+        <tr><td>Thu hồi</td><td>Đánh dấu phiên là đã thu hồi, có hiệu lực ngay</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="r" style="--d:4;margin-top:14px;font-size:13px;color:var(--soft)">Vì DB chỉ giữ bản băm, lộ dữ liệu bảng phiên cũng không lấy lại được refresh token gốc. Nguồn: <code>auth-policy.vo.ts</code>.</p>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Gia hạn, nhánh bình thường</div>
+  <h2 class="r" style="--d:1">Mỗi lần gia hạn là một lần đổi phiên</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/auth/refresh</span><span class="tag pub">Công khai</span><span class="tag lim">10 lần mỗi giờ</span></div>
+  <div class="rail">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Băm token gửi lên</h4><p>SHA-256, cùng cách với lúc lưu.</p></div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Tìm phiên còn sống</h4><p>Khớp bản băm, chưa thu hồi, chưa hết hạn.</p></div><div class="exit"><b>Không thấy</b>Sang nhánh ở slide sau</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>Kiểm user</h4><p>Còn tồn tại, không bị khoá, chưa xoá mềm.</p></div><div class="exit"><b>401</b>Tài khoản không còn hoạt động</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Thu hồi phiên cũ</h4><p>Refresh token vừa dùng mất hiệu lực.</p></div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>Tạo phiên mới</h4><p>Token 40 byte mới, giữ thiết bị và IP cũ, hạn 7 ngày tính lại.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">6</b><h4>Trả 200</h4><p>access_token mới, refresh_token mới, expires_in 900.</p></div></div>
+  </div>
+  <p class="r" style="--d:9;margin-top:14px;font-size:13px;color:var(--soft)">Mỗi refresh token chỉ dùng được đúng một lần. Đó là cơ sở để phát hiện token bị dùng lại ở slide sau.</p>
+</section>
+
+<!-- 15 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Gia hạn, nhánh bất thường</div>
+  <h2 class="r" style="--d:1">Token cũ xuất hiện lần hai thì khoá mọi phiên</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/auth/refresh</span><span class="tag no">Phát hiện dùng lại</span></div>
+  <div class="hs r" style="--d:3;align-items:stretch">
+    <div class="card t" style="flex:1"><div class="demo">Lần 1</div><h3 style="margin-top:6px">Đăng nhập</h3><p>Máy chủ cấp refresh token A.</p><div class="state ok" style="margin-top:10px;display:inline-block">A còn sống</div></div>
+    <span class="chev" style="align-self:center"></span>
+    <div class="card t" style="flex:1"><div class="demo">Lần 2</div><h3 style="margin-top:6px">Gia hạn bằng A</h3><p>A bị thu hồi, máy chủ cấp token B.</p><div class="state warn" style="margin-top:10px;display:inline-block">A đã thu hồi</div></div>
+    <span class="chev" style="align-self:center;border-color:var(--coral)"></span>
+    <div class="card c" style="flex:1"><div class="demo">Lần 3</div><h3 style="margin-top:6px">A lại được gửi lên</h3><p>Không còn là phiên sống, nhưng bản băm vẫn có trong DB.</p><div class="state bad pulse" style="margin-top:10px;display:inline-block">Nghi bị lộ</div></div>
+    <span class="chev" style="align-self:center;border-color:var(--coral)"></span>
+    <div class="card" style="flex:1.1;background:var(--ink);border-color:var(--ink)"><div class="demo" style="color:#7DD3C7">Phản ứng</div><h3 style="margin-top:6px;color:#fff">Thu hồi toàn bộ phiên</h3><p style="color:rgba(255,255,255,.72)">Kể cả B. Ghi cảnh báo vào log. Trả 401, mã TOKEN_INVALID.</p></div>
+  </div>
+  <div class="g2 r" style="--d:4;margin-top:16px">
+    <div class="card"><h3>Token hoàn toàn lạ</h3><p>Bản băm không có trong DB: trả 401, mã <span class="mono">TOKEN_EXPIRED</span>, không đụng tới phiên nào.</p></div>
+    <div class="note" style="margin-top:0"><b>Ghi nhận từ code.</b> Bước tra lại tìm theo bản băm mà không xét trạng thái. Vì vậy một refresh token chỉ đơn thuần quá hạn 7 ngày, chưa hề bị thu hồi, cũng rơi vào nhánh này và làm mọi phiên của user bị thu hồi.</div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Quên mật khẩu</div>
+  <h2 class="r" style="--d:1">Xin mã OTP mà không lộ email nào có thật</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/auth/forgot-password</span><span class="tag pub">Công khai</span><span class="tag lim">5 lần mỗi giờ</span></div>
+  <div class="rail">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Tìm user</h4><p>Theo email đã chuẩn hoá.</p></div><div class="exit ok"><b>200</b>Không có hoặc bị khoá: vẫn trả câu trung tính</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Xét cửa sổ 1 giờ</h4><p>Quá 1 giờ kể từ lần đầu thì đếm lại từ 0.</p></div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>Đếm số lần gửi</h4><p>Đã đủ 5 lần trong cửa sổ thì từ chối.</p></div><div class="exit"><b>429</b>LIMIT_EXCEEDED, kèm số giây phải chờ</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Sinh OTP 6 chữ số</h4><p>Mã mới thay thế mã cũ.</p></div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>Lưu bản băm</h4><p>SHA-256 của email ghép OTP. Hạn 10 phút. Số lần gửi cộng 1.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">6</b><h4>Trả 200</h4><p>Luôn một câu: nếu email tồn tại, mã đã được gửi.</p></div></div>
+  </div>
+  <div class="note r" style="--d:9"><b>Ghi nhận từ code.</b> Chưa có adapter gửi email: OTP hiện chỉ được ghi ra log máy chủ để vận hành thủ công, không trả qua API. OTP sinh bằng <span class="mono">Math.random</span>, không phải bộ sinh ngẫu nhiên mật mã.</div>
+</section>
+
+<!-- 17 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Đặt lại mật khẩu</div>
+  <h2 class="r" style="--d:1">OTP chỉ cho sai ba lần</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/auth/reset-password</span><span class="tag pub">Công khai</span><span class="tag lim">10 lần mỗi giờ</span></div>
+  <div class="rail" style="gap:16px;--h:120px">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Kiểm body</h4><p>OTP đúng 6 chữ số, mật khẩu mới 8 đến 100 ký tự.</p></div><div class="exit"><b>400</b>Sai định dạng</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Tìm OTP đang chờ</h4><p>Theo email.</p></div><div class="exit"><b>400</b>Không có mã nào</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>Kiểm khoá</h4><p>Tài khoản blocked thì dừng.</p></div><div class="exit"><b>401</b>Tài khoản bị khoá</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Kiểm hạn</h4><p>Quá 10 phút thì xoá mã.</p></div><div class="exit"><b>400</b>Mã đã hết hạn</div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>So bản băm</h4><p>Băm lại email ghép OTP rồi so.</p></div><div class="exit"><b>400</b>Sai, báo số lần còn lại</div></div>
+    <div class="col r" style="--d:8"><div class="st"><b class="n">6</b><h4>Đổi mật khẩu</h4><p>Băm bcrypt, xoá OTP, thu hồi mọi phiên.</p></div></div>
+    <div class="col r" style="--d:9"><div class="st end"><b class="n">7</b><h4>Trả 200</h4><p>Yêu cầu đăng nhập lại.</p></div></div>
+  </div>
+  <div class="hs r" style="--d:10;margin-top:16px">
+    <span style="font-size:13px;font-weight:700;margin-right:6px">Bộ đếm ở bước 5</span>
+    <span class="state warn">Sai lần 1: còn 2 lần</span><span class="chev"></span>
+    <span class="state warn">Sai lần 2: còn 1 lần</span><span class="chev" style="border-color:var(--coral)"></span>
+    <span class="state bad pulse">Sai lần 3: huỷ OTP, phải xin mã mới</span>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide" data-sec="Phần 2: Auth">
+  <div class="eyebrow r">Sáu API còn lại</div>
+  <h2 class="r" style="--d:1">Đổi mật khẩu và quản lý phiên</h2>
+  <div class="g3">
+    <div class="card t r" style="--d:2;grid-row:span 2"><span class="api" style="font-size:13px"><i>POST</i>/auth/change-password</span>
+      <p style="margin:8px 0 4px"><span class="tag">Cần đăng nhập</span> <span class="tag lim">5 lần mỗi giờ</span></p>
+      <ul style="margin-top:8px">
+        <li>Hai lần nhập mật khẩu mới phải khớp, sai thì 400.</li>
+        <li>Mật khẩu hiện tại phải đúng, sai thì 400.</li>
+        <li>Mật khẩu mới phải khác mật khẩu cũ, trùng thì 400.</li>
+        <li>Băm và lưu mật khẩu mới.</li>
+        <li>Giữ phiên đang dùng, thu hồi mọi phiên khác.</li>
+      </ul>
+      <p style="margin-top:8px">Lỗi khi thu hồi phiên không làm hỏng việc đổi mật khẩu.</p>
+    </div>
+    <div class="card r" style="--d:3"><span class="api" style="font-size:13px"><i>POST</i>/auth/logout</span><p style="margin-top:8px">Lấy sessionId trong access token, đánh dấu phiên đó là đã thu hồi. Trả 200.</p></div>
+    <div class="card r" style="--d:4"><span class="api" style="font-size:13px"><i>GET</i>/auth/sessions</span><p style="margin-top:8px">Liệt kê phiên của chính user: chưa thu hồi, chưa hết hạn, mới nhất xếp trước.</p></div>
+    <div class="card r" style="--d:5"><span class="api" style="font-size:13px"><i>DELETE</i>/auth/sessions/:id</span><p style="margin-top:8px">Thu hồi từ xa một phiên của chính mình. Không tìm thấy hoặc đã thu hồi rồi thì 400.</p></div>
+    <div class="card r" style="--d:6;border-style:dashed;background:transparent"><span class="api" style="font-size:13px"><i>GET</i>/auth/google</span> <span class="api" style="font-size:13px;margin-top:6px"><i>GET</i>/auth/google/callback</span><p style="margin-top:8px"><span class="tag no">Chưa làm</span> Cả hai trả 501, mã <span class="mono">DEPENDENCY_UNAVAILABLE</span>.</p></div>
+  </div>
+  <p class="r" style="--d:7;margin-top:14px;font-size:13px;color:var(--soft)">Ba sự kiện làm thu hồi hàng loạt: đặt lại mật khẩu (mọi phiên), đổi mật khẩu (mọi phiên trừ phiên hiện tại), phát hiện refresh token bị dùng lại (mọi phiên).</p>
+</section>
+
+<!-- 19 -->
+<section class="slide divider" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Phần 3</div>
+  <h1 class="r" style="--d:1">Module Analysis</h1>
+  <p class="lead r" style="--d:2">11 API: cấu hình, chạy phân tích, nhận xét của AI, tổng kết và báo cáo PDF.</p>
+  <div class="num">03</div>
+</section>
+
+<!-- 20 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Cấu trúc</div>
+  <h2 class="r" style="--d:1">Tính toán là hàm thuần, AI và PDF chạy nền</h2>
+  <div class="g4">
+    <div class="card t r" style="--d:2"><h3>Cửa vào</h3><p>Ba controller, mọi route đều qua JwtAuthGuard và PoliciesGuard.</p><ul style="margin-top:8px"><li>AnalysisController</li><li>SummaryController</li><li>ReportController</li></ul><p style="margin-top:8px">POST cần quyền chạy, GET cần quyền đọc trên Analysis.</p></div>
+    <div class="card i r" style="--d:3"><h3>Điều phối</h3><ul><li>AnalysisService</li><li>SummaryService</li><li>ReportService</li><li>RagFewShotService</li></ul><p style="margin-top:8px">Chỉ gọi kho dữ liệu qua một cổng, không chạm Mongoose trực tiếp.</p></div>
+    <div class="card g r" style="--d:4"><h3>Hàm thuần trong domain</h3><ul><li>Kiểm chất lượng dữ liệu</li><li>Tương quan</li><li>VIF</li><li>Thống kê, mất cân bằng, thời gian</li><li>Che dữ liệu nhạy cảm</li><li>Đối chiếu câu trả lời AI</li></ul></div>
+    <div class="card c r" style="--d:5"><h3>Chạy nền</h3><ul><li>AiWorkerService</li><li>ReportWorkerService</li></ul><p style="margin-top:8px">AI gọi qua một cổng, adapter nói chuyện với Ollama hoặc vLLM chạy cục bộ.</p></div>
+  </div>
+  <div class="card r" style="--d:6;margin-top:16px"><h3>Tám loại bản ghi mà module ghi xuống</h3>
+    <div class="hs" style="flex-wrap:wrap;gap:8px;margin-top:4px"><span class="state">cấu hình phân tích</span><span class="state">lần chạy</span><span class="state">kết quả</span><span class="state">bằng chứng theo ô</span><span class="state">AI job</span><span class="state">bản tổng kết</span><span class="state">report job</span><span class="state">ví dụ few-shot</span></div>
+  </div>
+</section>
+
+<!-- 21 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Cấu hình</div>
+  <h2 class="r" style="--d:1">Chọn cột nào, đóng vai gì</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/projects/:projectId/analysis/config</span><span class="api"><i>GET</i>cùng đường dẫn</span><span class="tag">Cần đăng nhập</span></div>
+  <div class="rail" style="--h:124px">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Kiểm id và project</h4><p>Id phải đúng dạng ObjectId, project phải tồn tại.</p></div><div class="exit"><b>400</b>Id dự án không hợp lệ</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Lọc cột đã chọn</h4><p>Bỏ tên cột không có trong dataset.</p></div><div class="exit"><b>400</b>Không cột nào khớp</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>Cột nhãn</h4><p>Phải là cột phân loại: chuỗi hoặc đúng sai.</p></div><div class="exit"><b>400</b>Nhãn là số hoặc ngày</div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Cột thời gian, cột giá trị</h4><p>Thời gian phải là ngày. Giá trị phải là số.</p></div><div class="exit"><b>400</b>Sai kiểu cột</div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>Lưu cấu hình</h4><p>Mỗi project một bản, ghi đè bản cũ.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">6</b><h4>Đánh dấu kết quả cũ</h4><p>Mọi kết quả phân tích trước đó thành hết hạn. Trả 200.</p></div></div>
+  </div>
+  <p class="r" style="--d:9;margin-top:14px;font-size:13px;color:var(--soft)">GET trả cấu hình đã lưu. Chưa lưu lần nào thì trả mặc định: theo ngày, pearson, iqr, top 10, không chọn cột nào.</p>
+</section>
+
+<!-- 22 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy phân tích, toàn cảnh</div>
+  <h2 class="r" style="--d:1">Kết quả hệ thống có trước, AI bổ sung sau</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/projects/:projectId/analysis</span><span class="tag">Cần đăng nhập, quyền chạy</span></div>
+  <div class="r" style="--d:3">
+    <div style="display:grid;grid-template-columns:104px repeat(7,1fr) repeat(3,1.25fr);gap:12px 4px;align-items:stretch">
+      <div style="font-size:13px;font-weight:700;align-self:center">Client</div>
+      <div class="box dark" style="padding:8px;font-size:12.5px">Gửi POST</div>
+      <div style="grid-column:3/7;height:2px;background:#C9C2B4;align-self:center"></div>
+      <div class="box tl" style="grid-column:7/9;padding:8px;font-size:12.5px">Nhận 201 kèm pollUrl</div>
+      <div style="grid-column:9/11;border-top:2px dashed #C9C2B4;align-self:center"></div>
+      <div class="box" style="padding:8px;font-size:12.5px">Hỏi trạng thái job</div>
+
+      <div style="font-size:13px;font-weight:700;align-self:center">Trong request</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">1. Chuẩn bị cột</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">2. Đọc toàn bộ dòng</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">3. Tương quan, VIF</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">4. Bốn phép kiểm</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">5. Thống kê</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">6. Bằng chứng</div>
+      <div class="box tl" style="padding:8px;font-size:12.5px">7. Lưu, tạo AI job</div>
+      <div style="grid-column:9/12;align-self:center;font-size:12.5px;color:var(--soft);padding-left:8px">request đã trả xong</div>
+
+      <div style="font-size:13px;font-weight:700;align-self:center">Chạy nền</div>
+      <div style="grid-column:2/9;align-self:center;font-size:12.5px;color:var(--soft);text-align:right;padding-right:8px">AI job nằm chờ ở trạng thái pending</div>
+      <div class="box" style="padding:8px;font-size:12.5px;background:var(--indigo-l);border-color:#C9C6EE">8. Worker nhận job</div>
+      <div class="box" style="padding:8px;font-size:12.5px;background:var(--indigo-l);border-color:#C9C6EE">9. Gọi AI cục bộ</div>
+      <div class="box" style="padding:8px;font-size:12.5px;background:var(--indigo-l);border-color:#C9C6EE">10. Đối chiếu, gắn nhận xét</div>
+    </div>
+  </div>
+  <div class="g3 r" style="--d:4;margin-top:18px">
+    <div class="card"><h3>AI không chặn kết quả</h3><p>Lúc trả 201, phần nhận xét AI mang trạng thái pending. AI hỏng thì số liệu hệ thống vẫn nguyên.</p></div>
+    <div class="card"><h3>Báo qua kênh realtime</h3><p>Phát sự kiện <span class="mono">analysis.completed</span> hoặc <span class="mono">analysis.failed</span>. Lỗi realtime bị nuốt, không làm hỏng luồng chính.</p></div>
+    <div class="card"><h3>Khi tính toán lỗi</h3><p>Lần chạy chuyển sang failed, mã <span class="mono">ANALYSIS_FAILED</span>, ghi thời lượng, rồi ném lỗi ra cho bộ lọc chung.</p></div>
+  </div>
+</section>
+
+<!-- 23 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy phân tích, bước 1</div>
+  <h2 class="r" style="--d:1">Chốt cột và tính dấu vân tay đầu vào</h2>
+  <div class="g2">
+    <div class="r" style="--d:2">
+      <div class="card t"><h3>Chọn cột theo thứ tự ưu tiên</h3>
+        <div class="hs" style="margin-top:6px;flex-wrap:wrap"><span class="state ok">1. Cột gửi trong body</span><span class="chev"></span><span class="state">2. Cấu hình đã lưu</span><span class="chev"></span><span class="state">3. Mọi cột suy luận được</span></div>
+        <p style="margin-top:10px">Suy luận được là cột số, chuỗi, đúng sai. Cột ngày bị loại khỏi tương quan và VIF.</p>
+      </div>
+      <div class="card i" style="margin-top:14px"><h3>Cột thời gian và cột giá trị</h3><p>Cột thời gian lấy từ cấu hình nếu đúng kiểu ngày. Không cấu hình mà dataset có đúng một cột ngày thì tự dùng cột đó. Cột giá trị bắt buộc là số.</p></div>
+      <div class="hs" style="margin-top:14px;flex-wrap:wrap;gap:8px"><span class="state bad">400 Cột chọn không khớp</span><span class="state bad">400 Không có cột suy luận được</span><span class="state bad">404 Project chưa có dataset</span></div>
+    </div>
+    <div class="r" style="--d:3">
+      <div class="card g"><h3>Dấu vân tay SHA-256</h3>
+        <div class="hs" style="flex-wrap:wrap;gap:6px;margin:8px 0"><span class="state">id dataset</span><span class="state">checksum file</span><span class="state">số dòng</span><span class="state">cấu hình chạy</span></div>
+        <svg viewBox="0 0 480 70" width="100%" role="img" aria-label="Bốn đầu vào gộp thành một chuỗi băm">
+          <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0F766E"/></marker></defs>
+          <path d="M60 4V28H240V40M180 4V28M300 4V28H240M420 4V28H240" fill="none" stroke="#0F766E" stroke-width="2"/>
+          <path d="M240 28V42" stroke="#0F766E" stroke-width="2" marker-end="url(#a1)"/>
+          <rect x="60" y="44" width="360" height="24" rx="12" fill="#16212E"/>
+          <text x="240" y="61" text-anchor="middle" font-size="12" fill="#7DD3C7" style="font-family:monospace">input_fingerprint, 64 ký tự hex</text>
+        </svg>
+        <p style="margin-top:8px">Cùng dữ liệu và cùng cấu hình cho cùng dấu vân tay. Nó được gắn vào lần chạy, kết quả, AI job và bản tổng kết.</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Mở một lần chạy</h3><div class="hs" style="margin-top:4px"><span class="state warn pulse">running</span><span class="chev"></span><span class="state ok">succeeded</span><span style="font-size:13px;color:var(--soft)">hoặc</span><span class="state bad">failed</span></div><p style="margin-top:8px">Ghi người chạy, giờ bắt đầu, cấu hình thực dùng.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 24 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy phân tích, bốn phép kiểm</div>
+  <h2 class="r" style="--d:1">Thiếu, trùng, sai kiểu, ngoại lai</h2>
+  <div class="g2" style="grid-template-columns:.82fr 1.18fr">
+    <div class="r" style="--d:2">
+      <div class="demo" style="margin-bottom:6px">Dữ liệu minh hoạ</div>
+      <div class="card" style="padding:4px 10px">
+        <table>
+          <tr><th>dòng</th><th>tuoi</th><th>luong</th><th>hop_dong</th></tr>
+          <tr><td>1</td><td>34</td><td>1200</td><td>true</td></tr>
+          <tr><td>2</td><td class="cell-miss">trống</td><td>1150</td><td>false</td></tr>
+          <tr><td>3</td><td>29</td><td class="cell-bad">abc</td><td>yes</td></tr>
+          <tr class="dup"><td>4</td><td>31</td><td>1180</td><td>true</td></tr>
+          <tr class="dup"><td>5</td><td>31</td><td>1180</td><td>true</td></tr>
+          <tr><td>6</td><td>30</td><td class="cell-out">98000</td><td>no</td></tr>
+        </table>
+      </div>
+      <svg viewBox="0 0 440 78" width="100%" style="margin-top:10px" role="img" aria-label="Hàng rào IQR trên trục số">
+        <line x1="10" y1="40" x2="430" y2="40" stroke="#C9C2B4" stroke-width="2"/>
+        <rect x="120" y="26" width="110" height="28" rx="5" fill="#E3F1EF" stroke="#0F766E" stroke-width="2"/>
+        <line x1="60" y1="18" x2="60" y2="62" stroke="#C2410C" stroke-width="2" stroke-dasharray="4 3"/>
+        <line x1="290" y1="18" x2="290" y2="62" stroke="#C2410C" stroke-width="2" stroke-dasharray="4 3"/>
+        <circle cx="140" cy="40" r="4" fill="#16212E"/><circle cx="165" cy="40" r="4" fill="#16212E"/><circle cx="190" cy="40" r="4" fill="#16212E"/><circle cx="215" cy="40" r="4" fill="#16212E"/>
+        <circle cx="400" cy="40" r="6" fill="#C2410C"/>
+        <text x="175" y="20" text-anchor="middle" font-size="11" fill="#0F766E">Q1 tới Q3</text>
+        <text x="60" y="76" text-anchor="middle" font-size="11" fill="#C2410C">Q1 trừ 1,5 IQR</text>
+        <text x="290" y="76" text-anchor="middle" font-size="11" fill="#C2410C">Q3 cộng 1,5 IQR</text>
+        <text x="400" y="24" text-anchor="middle" font-size="11" fill="#C2410C">ngoại lai</text>
+      </svg>
+    </div>
+    <div class="g2" style="gap:12px">
+      <div class="card g r" style="--d:3"><h3>DQ-01 Thiếu</h3><p>Ô là null, rỗng, hoặc chỉ có khoảng trắng. Số 0, false và chuỗi NA không tính là thiếu. Đếm theo cột, kèm số dòng thiếu toàn bộ và thiếu một phần.</p></div>
+      <div class="card i r" style="--d:4"><h3>DQ-02 Trùng dòng</h3><p>Khớp chính xác trên toàn bộ cột được chọn. Dòng thiếu sạch mọi cột không được gom nhóm. Mỗi nhóm đếm số dòng thừa, tức kích thước nhóm trừ 1.</p></div>
+      <div class="card c r" style="--d:5"><h3>DQ-03 Sai kiểu</h3><p>Số phải đọc được thành số. Đúng sai nhận true, false, yes, no, 1, 0. Ngày phải phân tích được. Các chuỗi như NA, null, none, gạch ngang bị đếm ở đây.</p></div>
+      <div class="card t r" style="--d:6"><h3>DQ-04 Ngoại lai</h3><p>Chỉ cột số, cần ít nhất 4 giá trị. IQR: ngoài hàng rào 1,5 lần IQR. Modified Z-score: trị tuyệt đối trên 3,5. IQR hoặc MAD bằng 0 thì không kết luận.</p></div>
+    </div>
+  </div>
+  <p class="r" style="--d:7;margin-top:10px;font-size:13px;color:var(--soft)">DQ-05, quy tắc nghiệp vụ, luôn được ghi là chưa đánh giá vì chưa có quy tắc nào được xác nhận. Nguồn: <code>dq.util.ts</code>.</p>
+</section>
+
+<!-- 25 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy phân tích, quan hệ giữa các cột</div>
+  <h2 class="r" style="--d:1">Tương quan theo cặp kiểu cột, và VIF</h2>
+  <div class="g2">
+    <div class="card r" style="--d:2;padding:10px 14px"><h3>Cặp cột nào dùng phép đo nào</h3>
+      <table>
+        <tr><th></th><th>Số</th><th>Phân loại</th><th>Ngày</th></tr>
+        <tr><th>Số</th><td style="background:var(--teal-l)"><b>Pearson</b> hoặc <b>Spearman</b><br>cần ít nhất 3 cặp giá trị</td><td style="background:var(--indigo-l)"><b>Eta bình phương</b><br>cần ít nhất 4</td><td rowspan="2" style="color:var(--soft)">Loại khỏi tương quan và VIF, có ghi lý do</td></tr>
+        <tr><th>Phân loại</th><td style="background:var(--indigo-l)"><b>Eta bình phương</b></td><td style="background:var(--gold-l)"><b>Cramér's V</b><br>cần ít nhất 4</td></tr>
+      </table>
+      <p style="margin-top:10px;font-size:12.5px;color:var(--soft)">Mỗi ô ma trận lưu hệ số, số cặp dùng được, tổng số dòng đã quét, và ba con số mất mẫu: chỉ cột A hỏng, chỉ cột B hỏng, cả hai hỏng. Không đủ điều kiện thì ô ghi lý do thay vì hệ số.</p>
+    </div>
+    <div class="r" style="--d:3">
+      <div class="card"><h3>VIF, độ đa cộng tuyến của từng cột số</h3>
+        <div style="display:flex;height:30px;border-radius:8px;overflow:hidden;margin-top:8px;font-size:12.5px;font-weight:700;color:#fff">
+          <div style="flex:5;background:var(--teal);display:grid;place-items:center">ok</div>
+          <div style="flex:5;background:var(--gold);display:grid;place-items:center">review</div>
+          <div style="flex:4;background:var(--coral);display:grid;place-items:center">high</div>
+        </div>
+        <div style="display:flex;font-size:12px;color:var(--soft);margin-top:4px"><div style="flex:5">0</div><div style="flex:5">trên 5</div><div style="flex:4">trên 10</div></div>
+        <p style="margin-top:8px">Cần ít nhất hai cột số không hằng. Cột hằng bị loại. Phụ thuộc tuyến tính hoàn hảo thì không ra VIF, ghi lý do.</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Cảnh báo mất mẫu khi tính VIF</h3>
+        <div style="display:flex;height:22px;border-radius:8px;overflow:hidden;margin-top:8px">
+          <div style="flex:2;background:var(--teal-l)"></div><div style="flex:3;background:var(--gold-l)"></div><div style="flex:5;background:var(--coral-l)"></div>
+        </div>
+        <div style="display:flex;font-size:12px;color:var(--soft);margin-top:4px"><div style="flex:2">mất dưới 20%</div><div style="flex:3">từ 20%: đọc thận trọng</div><div style="flex:5">từ 50%: VIF kém tin</div></div>
+        <p style="margin-top:8px">VIF chỉ tính trên các dòng đủ giá trị ở mọi cột số. Tỉ lệ dòng bị bỏ quyết định mức cảnh báo.</p>
+      </div>
+    </div>
+  </div>
+  <p class="r" style="--d:4;margin-top:10px;font-size:12.5px;color:var(--soft)">Nguồn: <code>correlation.util.ts</code>, <code>vif.util.ts</code>.</p>
+</section>
+
+<!-- 26 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy phân tích, ba thống kê bổ sung</div>
+  <h2 class="r" style="--d:1">Mô tả cột, cân bằng nhãn, biến động theo thời gian</h2>
+  <div class="g3">
+    <div class="card t r" style="--d:2"><h3>Thống kê mô tả từng cột</h3>
+      <div class="hs" style="flex-wrap:wrap;gap:6px;margin-top:6px"><span class="state">số ô hợp lệ</span><span class="state">thiếu</span><span class="state">sai kiểu</span><span class="state">trung bình</span><span class="state">trung vị</span><span class="state">min, max</span><span class="state">độ lệch chuẩn</span><span class="state">Q1, Q3</span><span class="state">số giá trị khác nhau</span><span class="state">giá trị hay gặp</span></div>
+      <p style="margin-top:10px">Ô thiếu và ô sai kiểu bị tách ra trước khi tính, không bị điền thay.</p>
+    </div>
+    <div class="card g r" style="--d:3"><h3>Mất cân bằng nhãn</h3>
+      <div class="demo" style="margin:6px 0 4px">Minh hoạ</div>
+      <p style="font-size:12px">lớp lớn nhất</p><div class="bar" style="width:100%;margin:2px 0 6px"></div>
+      <p style="font-size:12px">lớp nhỏ nhất</p><div class="bar" style="width:25%;margin:2px 0 8px;background:var(--gold)"></div>
+      <p>Tỉ số bằng lớp lớn nhất chia lớp nhỏ nhất. Từ 3 trở lên thì cảnh báo xem lại phân bố.</p>
+      <p style="margin-top:6px">Không chọn nhãn, nhãn là số hoặc ngày, hoặc chỉ có một lớp: ghi trạng thái tương ứng, không tính tỉ số.</p>
+    </div>
+    <div class="card i r" style="--d:4"><h3>Phân tích theo thời gian</h3>
+      <svg viewBox="0 0 300 70" width="100%" role="img" aria-label="Chuỗi thời gian có một kỳ trống">
+        <polyline points="10,50 50,42 90,46" fill="none" stroke="#3730A3" stroke-width="2.5"/>
+        <polyline points="170,40 210,14 250,38 290,34" fill="none" stroke="#3730A3" stroke-width="2.5"/>
+        <rect x="100" y="8" width="60" height="54" rx="6" fill="#FBEADF" stroke="#F1C7AE"/>
+        <text x="130" y="39" text-anchor="middle" font-size="11" fill="#C2410C">kỳ trống</text>
+        <circle cx="210" cy="14" r="5" fill="#C2410C"/>
+      </svg>
+      <p>Gom theo ngày, tuần, tháng hoặc năm. Mỗi kỳ có số bản ghi, trung bình, trung vị, min, max, tổng.</p>
+      <p style="margin-top:6px">Tìm kỳ trống và chuỗi trống dài nhất, tính mức thay đổi giữa hai kỳ liền nhau, sàng kỳ biến động mạnh bằng IQR.</p>
+    </div>
+  </div>
+  <p class="r" style="--d:5;margin-top:12px;font-size:12.5px;color:var(--soft)">Dòng có ngày thiếu hoặc sai bị loại khỏi phép tính và được đếm trong lý do, không xoá, không điền thay. Nguồn: <code>stats.util.ts</code>.</p>
+</section>
+
+<!-- 27 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy phân tích, khép lại phần đồng bộ</div>
+  <h2 class="r" style="--d:1">Ghi bằng chứng, lưu kết quả, xếp hàng cho AI</h2>
+  <div class="rail" style="--h:150px">
+    <div class="col r" style="--d:2"><div class="st"><b class="n">1</b><h4>Ghi bằng chứng theo ô</h4><p>Bốn loại: thiếu, trùng, sai kiểu, ngoại lai. Tối đa 20 bằng chứng mỗi cột. Giá trị được che trước khi lưu.</p></div></div>
+    <div class="col r" style="--d:3"><div class="st"><b class="n">2</b><h4>Đóng lần chạy</h4><p>Chuyển sang succeeded, ghi giờ kết thúc và thời lượng tính bằng mili giây.</p></div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">3</b><h4>Lưu kết quả</h4><p>Ma trận, VIF, tổng hợp chất lượng, thống kê. Phần nhận xét AI đặt là pending.</p></div></div>
+    <div class="col r" style="--d:5"><div class="st bg"><b class="n" style="background:var(--indigo)">4</b><h4>Tạo AI job</h4><p>Trạng thái pending, lần thử 0, phiên bản prompt corr-v1.</p></div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">5</b><h4>Đánh dấu kết quả cũ</h4><p>Mọi kết quả của các lần chạy trước trong project thành hết hạn.</p></div></div>
+    <div class="col r" style="--d:7"><div class="st end"><b class="n">6</b><h4>Trả 201</h4><p>Toàn bộ kết quả hệ thống, kèm pollUrl của job và bản xem trước prompt.</p></div></div>
+  </div>
+  <div class="g2 r" style="--d:8;margin-top:16px">
+    <div class="card"><h3>API đọc lại kết quả</h3><p><span class="mono">GET /projects/:projectId/analysis/result</span> trả kết quả của lần chạy mới nhất. Chưa chạy lần nào hoặc chưa có kết quả thì 404.</p></div>
+    <div class="note" style="margin-top:0"><b>Ghi nhận từ code.</b> Giới hạn 20 tính chung cho mọi loại lỗi trong một cột. Cột đã có 20 ô thiếu sẽ không còn chỗ cho bằng chứng sai kiểu hay ngoại lai của chính cột đó.</div>
+  </div>
+</section>
+
+<!-- 28 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Trước khi gửi cho AI</div>
+  <h2 class="r" style="--d:1">Che dữ liệu nhạy cảm và dựng prompt</h2>
+  <div class="g2">
+    <div class="r" style="--d:2">
+      <div class="demo" style="margin-bottom:6px">Giá trị minh hoạ</div>
+      <div class="card" style="padding:4px 12px">
+        <table>
+          <tr><th>Ô gốc</th><th>Luật khớp</th><th>Vào prompt</th></tr>
+          <tr><td class="mono">an@mail.vn</td><td>Dạng email</td><td class="cell-out mono">***</td></tr>
+          <tr><td class="mono">0912345678</td><td>Số điện thoại Việt Nam</td><td class="cell-out mono">***</td></tr>
+          <tr><td class="mono">012345678901</td><td>Dãy 9 đến 13 chữ số</td><td class="cell-out mono">***</td></tr>
+          <tr><td class="mono">Nguyễn Văn A</td><td>Cột được đánh dấu PII</td><td class="cell-out mono">***</td></tr>
+          <tr><td class="mono">Hà Nội</td><td>Không khớp luật nào</td><td class="cell-bad">Loại khỏi prompt</td></tr>
+        </table>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:var(--soft)">Mặc định an toàn: ô không che được thì không gửi đi. Tối đa 20 mẫu mỗi cột. Hệ quả là AI đọc số liệu thống kê, không đọc giá trị gốc.</p>
+    </div>
+    <div class="r" style="--d:3">
+      <h3>Prompt corr-v1 gồm các khối, theo thứ tự</h3>
+      <div class="box dark" style="margin-top:6px">Luật cấm<small>không tính lại hệ số, không bịa số, không kết luận nhân quả, không kết luận DQ-05, không đòi xoá cột</small></div>
+      <div class="box" style="margin-top:6px">Danh sách cột<small>vai trò, số dòng dùng được, số dòng bị loại</small></div>
+      <div class="box" style="margin-top:6px">Ma trận tương quan và bảng VIF<small>kèm cảnh báo mất mẫu và danh sách cột bị loại</small></div>
+      <div class="box" style="margin-top:6px">Mẫu đã che</div>
+      <div class="box tl" style="margin-top:6px">Ví dụ từ phản hồi người dùng<small>tối đa 5 ví dụ giống nhất, độ tin cậy từ 0,6, không cũ quá 180 ngày, tiếng Việt</small></div>
+      <div class="box dark" style="margin-top:6px">Yêu cầu đầu ra<small>đúng một JSON với bốn khoá: notablePairs, highVif, limits, nextSteps</small></div>
+    </div>
+  </div>
+  <p class="r" style="--d:4;margin-top:10px;font-size:12.5px;color:var(--soft)">Khối ví dụ lấy lỗi thì bỏ trống, không chặn AI. Nguồn: <code>pii-mask.util.ts</code>, <code>ai-grounding.util.ts</code>, <code>rag-few-shot.service.ts</code>.</p>
+</section>
+
+<!-- 29 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Chạy nền</div>
+  <h2 class="r" style="--d:1">Vòng đời một AI job</h2>
+  <svg class="r" style="--d:2" viewBox="0 0 1120 205" width="100%" role="img" aria-label="Máy trạng thái của AI job">
+    <defs>
+      <marker id="mt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0F766E"/></marker>
+      <marker id="mc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#C2410C"/></marker>
+      <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#B7791F"/></marker>
+    </defs>
+    <rect x="30" y="75" width="160" height="50" rx="25" fill="#FBF1DC" stroke="#EED9A8" stroke-width="2"/><text x="110" y="105" text-anchor="middle" font-size="15" font-weight="700" fill="#B7791F">pending</text>
+    <rect x="430" y="75" width="160" height="50" rx="25" fill="#16212E"/><text x="510" y="105" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">running</text>
+    <rect x="930" y="8" width="160" height="46" rx="23" fill="#E3F1EF" stroke="#B9DED8" stroke-width="2"/><text x="1010" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#0F766E">succeeded</text>
+    <rect x="930" y="77" width="160" height="46" rx="23" fill="#FBEADF" stroke="#F1C7AE" stroke-width="2"/><text x="1010" y="105" text-anchor="middle" font-size="15" font-weight="700" fill="#C2410C">failed</text>
+    <rect x="930" y="146" width="160" height="46" rx="23" fill="#fff" stroke="#C9C2B4" stroke-width="2" stroke-dasharray="5 4"/><text x="1010" y="174" text-anchor="middle" font-size="15" font-weight="700" fill="#5E6B7A">skipped</text>
+    <path d="M190 100H426" stroke="#0F766E" stroke-width="2" marker-end="url(#mt)"/><text x="308" y="90" text-anchor="middle" font-size="12.5" fill="#0F766E">worker nhận job, thuê 10 phút</text>
+    <path d="M590 90L926 33" stroke="#0F766E" stroke-width="2" marker-end="url(#mt)"/><text x="752" y="44" text-anchor="middle" font-size="12.5" fill="#0F766E">AI trả JSON, đối chiếu đạt</text>
+    <path d="M590 100H926" stroke="#C2410C" stroke-width="2" marker-end="url(#mc)"/><text x="758" y="93" text-anchor="middle" font-size="12.5" fill="#C2410C">hết lượt thử, hoặc sai schema</text>
+    <path d="M590 110L926 167" stroke="#5E6B7A" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#mc)"/><text x="752" y="166" text-anchor="middle" font-size="12.5" fill="#5E6B7A">quá hạn thuê, mất nhịp tim</text>
+    <path d="M480 125C480 195 110 195 110 129" fill="none" stroke="#B7791F" stroke-width="2" marker-end="url(#mg)"/><text x="295" y="156" text-anchor="middle" font-size="12.5" fill="#B7791F">lỗi mà còn lượt: quay lại hàng chờ</text>
+  </svg>
+  <div class="g4 r" style="--d:3;margin-top:10px">
+    <div class="card"><div class="stat">10 giây</div><p>Chu kỳ quét hàng chờ. Mỗi lượt chỉ xử lý một job, lấy job cũ nhất trước.</p></div>
+    <div class="card"><div class="stat">10 phút</div><p>Hạn thuê job. Worker gửi nhịp tim mỗi một phần ba hạn thuê để gia hạn.</p></div>
+    <div class="card"><div class="stat">180 giây</div><p>Thời hạn một lần gọi model. Nhiệt độ 0, ép trả JSON. Ollama mặc định, hoặc vLLM.</p></div>
+    <div class="card"><div class="stat">3 lần</div><p>Một lần chạy đầu và tối đa 2 lần thử lại. Hết lượt thì failed, mã AI_FAILED.</p></div>
+  </div>
+  <div class="note r" style="--d:4"><b>Ghi nhận từ code.</b> Worker mặc định tắt, bật bằng <span class="mono">AI_WORKER_ENABLED</span>; khi tắt, job nằm chờ nạp thủ công. Khi AI trả về thứ không phải JSON, worker nạp một kết quả rỗng và job kết thúc ở succeeded với nhận xét trống.</div>
+</section>
+
+<!-- 30 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Đối chiếu</div>
+  <h2 class="r" style="--d:1">AI nói gì cũng phải khớp số của hệ thống</h2>
+  <div class="g2" style="grid-template-columns:1.15fr .85fr">
+    <div class="r" style="--d:2">
+      <div class="demo" style="margin-bottom:6px">Ba nhận định minh hoạ</div>
+      <div class="card" style="padding:4px 12px">
+        <table>
+          <tr><th>AI trả về</th><th>Hệ thống có gì</th><th>Xử lý</th></tr>
+          <tr><td>tuoi và luong, hệ số 0,82</td><td>Ô ma trận ghi 0,82</td><td class="cell-out">Giữ, dùng số của hệ thống</td></tr>
+          <tr><td>luong và diem, hệ số 0,95</td><td>Ô ma trận ghi 0,41</td><td class="cell-bad">Bỏ, lệch quá 0,01</td></tr>
+          <tr><td>VIF cao ở cột tuoi</td><td>Cột tuoi được xếp ok</td><td class="cell-bad">Bỏ, không vượt ngưỡng</td></tr>
+        </table>
+      </div>
+      <div class="hs" style="margin-top:12px;flex-wrap:wrap;gap:8px">
+        <span class="state bad">Không phải object: hỏng toàn bộ</span>
+        <span class="state bad">Thừa khoá hoặc sai kiểu: hỏng toàn bộ</span>
+        <span class="state ok">Cặp được giữ xếp theo trị tuyệt đối giảm dần</span>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:var(--soft)">Mọi nhận định bị bỏ được ghi lại trong <span class="mono">droppedClaims</span>. Xong thì cập nhật job, gắn nhận xét vào kết quả, phát sự kiện <span class="mono">ai.job.status</span>.</p>
+    </div>
+    <div class="r" style="--d:3">
+      <div class="card t"><span class="api" style="font-size:13px"><i>GET</i>/analysis/jobs/:jobId</span><p style="margin-top:8px">Trạng thái, lần thử, model, lỗi, giờ nhịp tim, hạn thuê. Không có thì 404.</p></div>
+      <div class="card g" style="margin-top:12px"><span class="api" style="font-size:13px"><i>POST</i>/analysis/jobs/:jobId/retry</span><p style="margin-top:8px">Trả 202. Đưa job về pending và tăng lần thử. Đã đủ 3 lần thì 400.</p></div>
+      <div class="card i" style="margin-top:12px"><span class="api" style="font-size:13px"><i>POST</i>/analysis/jobs/:jobId/result</span><p style="margin-top:8px">Nạp kết quả AI thủ công, đi qua đúng bộ đối chiếu trên. Trả 200.</p></div>
+      <div class="note" style="margin-top:12px"><b>Ghi nhận từ code.</b> API thử lại không xét trạng thái hiện tại của job, kể cả job đang chạy hay đã thành công.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 31 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Tổng kết</div>
+  <h2 class="r" style="--d:1">Gom kết quả thành danh sách vấn đề</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/projects/:projectId/summary</span><span class="api"><i>GET</i>cùng đường dẫn</span><span class="tag">Cần đăng nhập</span></div>
+  <div class="rail" style="--h:132px">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Tìm lần chạy mới nhất</h4><p>Của project này.</p></div><div class="exit"><b>404</b>Chưa chạy phân tích</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Kiểm trạng thái</h4><p>Lần chạy phải succeeded và phải có kết quả.</p></div><div class="exit"><b>400</b>Phân tích chưa thành công</div></div>
+    <div class="col r" style="--d:5"><div class="st"><b class="n">3</b><h4>Gom vấn đề</h4><p>Mỗi cột có thiếu, sai kiểu, ngoại lai là một mục. Trùng dòng là một mục cho cả bảng.</p></div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">4</b><h4>Xếp hạng</h4><p>Theo số lượng giảm dần, giữ tối đa 50 mục.</p></div></div>
+    <div class="col r" style="--d:7"><div class="st"><b class="n">5</b><h4>Đính kèm</h4><p>Số bằng chứng, hai khuyến nghị cố định, phần AI nếu AI đã thành công.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">6</b><h4>Lưu, trả 201</h4><p>Bản tổng kết mới là bản hiện hành, các bản cũ thành hết hạn.</p></div></div>
+  </div>
+  <p class="r" style="--d:9;margin-top:14px;font-size:13px;color:var(--soft)">GET trả bản tổng kết mới nhất kèm cờ hết hạn; chưa có thì 404. Hai khuyến nghị cố định: kiểm định nghĩa cột tại nguồn, và không tự xoá hay sửa dòng. Nguồn: <code>summary.service.ts</code>.</p>
+</section>
+
+<!-- 32 -->
+<section class="slide" data-sec="Phần 3: Analysis">
+  <div class="eyebrow r">Báo cáo PDF</div>
+  <h2 class="r" style="--d:1">API chỉ nhận yêu cầu, worker mới dựng file</h2>
+  <div class="hd r" style="--d:2"><span class="api"><i>POST</i>/projects/:projectId/report</span><span class="api"><i>GET</i>/projects/:projectId/report/:reportId/file</span></div>
+  <div class="rail" style="--h:132px">
+    <div class="col r" style="--d:3"><div class="st"><b class="n">1</b><h4>Kiểm bản tổng kết</h4><p>Project phải có tổng kết trước.</p></div><div class="exit"><b>404</b>Chưa có tổng kết</div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">2</b><h4>Tạo report job</h4><p>Trạng thái pending. Trả 202 kèm reportId và pollUrl.</p></div></div>
+    <div class="col r" style="--d:5"><div class="st bg"><b class="n" style="background:var(--indigo)">3</b><h4>Worker nhận job</h4><p>Quét mỗi 10 giây, lấy job cũ nhất, chuyển sang running.</p></div></div>
+    <div class="col r" style="--d:6"><div class="st bg"><b class="n" style="background:var(--indigo)">4</b><h4>Dựng PDF</h4><p>Tổng quan, tối đa 50 vấn đề, tối đa 20 khuyến nghị, phụ lục ngưỡng.</p></div><div class="exit"><b>failed</b>REPORT_BUILD_FAILED</div></div>
+    <div class="col r" style="--d:7"><div class="st bg"><b class="n" style="background:var(--indigo)">5</b><h4>Đẩy lên kho file</h4><p>Lưu khoá file và dung lượng, job thành succeeded.</p></div></div>
+    <div class="col r" style="--d:8"><div class="st end"><b class="n">6</b><h4>Tải về</h4><p>Trả luồng PDF dạng đính kèm, ghi nhật ký kiểm toán.</p></div><div class="exit ok"><b>202</b>Chưa xong: trả trạng thái job</div></div>
+  </div>
+  <div class="g2 r" style="--d:9;margin-top:14px">
+    <div class="card"><h3>Trạng thái report job</h3><div class="hs" style="margin-top:4px"><span class="state warn">pending</span><span class="chev"></span><span class="state warn pulse">running</span><span class="chev"></span><span class="state ok">succeeded</span><span style="font-size:13px;color:var(--soft)">hoặc</span><span class="state bad">failed</span></div></div>
+    <div class="note" style="margin-top:0"><b>Ghi nhận từ code.</b> Report worker mặc định tắt, bật bằng <span class="mono">REPORT_WORKER_ENABLED</span>. Mỗi lần tải file thành công ghi một dòng kiểm toán <span class="mono">REPORT_FILE_DOWNLOADED</span> kèm người tải, IP, dung lượng.</div>
+  </div>
+</section>
+
+<!-- 33 -->
+<section class="slide cover" data-sec="Kết">
+  <div class="eyebrow r">Nối lại thành một hành trình</div>
+  <h2 class="r" style="--d:1;font-size:38px">Từ đăng nhập tới file PDF</h2>
+  <div class="rail" style="--h:150px;margin-top:10px">
+    <div class="col r" style="--d:2"><div class="st"><b class="n">1</b><h4>Đăng nhập</h4><p>Nhận access token 15 phút và refresh token 7 ngày.</p><p class="mono" style="margin-top:6px">POST /auth/login</p></div></div>
+    <div class="col r" style="--d:3"><div class="st"><b class="n">2</b><h4>Cấu hình</h4><p>Chọn cột, nhãn, thời gian, giá trị.</p><p class="mono" style="margin-top:6px">POST .../analysis/config</p></div></div>
+    <div class="col r" style="--d:4"><div class="st"><b class="n">3</b><h4>Phân tích</h4><p>Bốn phép kiểm, tương quan, VIF, thống kê, bằng chứng.</p><p class="mono" style="margin-top:6px">POST .../analysis</p></div></div>
+    <div class="col r" style="--d:5"><div class="st bg"><b class="n" style="background:var(--indigo)">4</b><h4>AI nhận xét</h4><p>Chạy nền, che dữ liệu, đối chiếu với số hệ thống.</p><p class="mono" style="margin-top:6px">GET /analysis/jobs/:jobId</p></div></div>
+    <div class="col r" style="--d:6"><div class="st"><b class="n">5</b><h4>Tổng kết</h4><p>Tối đa 50 vấn đề, xếp theo số lượng.</p><p class="mono" style="margin-top:6px">POST .../summary</p></div></div>
+    <div class="col r" style="--d:7"><div class="st end"><b class="n">6</b><h4>Báo cáo</h4><p>Worker dựng PDF, client tải về.</p><p class="mono" style="margin-top:6px;background:rgba(255,255,255,.12)">POST .../report</p></div></div>
+  </div>
+  <div class="g3 r" style="--d:8;margin-top:22px">
+    <div class="card t"><h3>Lớp chung</h3><p>Một đường ống, một khuôn phản hồi, một khuôn lỗi cho mọi API.</p></div>
+    <div class="card c"><h3>Auth</h3><p>Token ngắn hạn, phiên xoay vòng, phát hiện token bị dùng lại, OTP có giới hạn.</p></div>
+    <div class="card i"><h3>Analysis</h3><p>Hệ thống tính trước và chịu trách nhiệm về con số; AI chỉ diễn giải và bị đối chiếu.</p></div>
+  </div>
+</section>
+
+</div></div>
+<div id="hint">Phím mũi tên trái phải để chuyển slide, phím F để toàn màn hình</div>
+<script>
+const s=[...document.querySelectorAll('.slide')];let i=0;
+s.forEach((e,k)=>{const p=document.createElement('div');p.className='pg';p.textContent=String(k+1).padStart(2,'0')+' / '+s.length;e.appendChild(p)});
+function fit(){const st=document.getElementById('stage');const k=Math.min(innerWidth/1340,innerHeight/770);st.style.transform='scale('+k+')'}
+function show(){s.forEach((e,k)=>e.classList.toggle('active',k===i));document.getElementById('bar').style.width=((i+1)/s.length*100)+'%';try{history.replaceState(null,'','#'+(i+1))}catch(e){}}
+function go(d){i=Math.max(0,Math.min(s.length-1,i+d));show()}
+addEventListener('resize',fit);
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(1)}if(['ArrowLeft','PageUp'].includes(e.key))go(-1);if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}});
+addEventListener('click',e=>{if(e.target.closest('a'))return;go(e.clientX>innerWidth/2?1:-1)});
+const h=parseInt(location.hash.slice(1));if(h>0&&h<=s.length)i=h-1;
+fit();show();
+</script>
+</body>
+</html>

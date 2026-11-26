@@ -16,6 +16,16 @@ export const EnvironmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
   API_PREFIX: z.string().default('api/v1'),
+  /**
+   * Số request/phút cho nhóm throttle `default` (mặc định 200 — xem `app.module.ts`).
+   * Chỉ nên nới trong môi trường đo tải (k6), vì throttle là hàng rào bảo vệ.
+   */
+  THROTTLE_DEFAULT_LIMIT: z.coerce.number().int().positive().default(200),
+  THROTTLE_DEFAULT_TTL_MS: z.coerce.number().int().positive().default(60_000),
+  /**
+   * TTL cache biểu đồ (ms). `0` = tắt cache (đo baseline hiệu năng / dữ liệu luôn tươi).
+   */
+  CHART_CACHE_TTL_MS: z.coerce.number().int().nonnegative().default(60_000),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   /** URL gốc của ứng dụng web — dùng cho link trong email (VD: link đặt lại mật khẩu). */
   APP_URL: z.string().optional(),

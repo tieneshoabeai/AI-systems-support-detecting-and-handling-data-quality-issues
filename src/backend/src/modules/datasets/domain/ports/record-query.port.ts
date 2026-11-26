@@ -143,4 +143,21 @@ export interface RecordQueryPort {
     limit: number,
     knownTotal?: number,
   ): Promise<ColumnValuesResult>;
+
+  /**
+   * GĐ6-PERF — đọc giá trị của **nhiều cột trong một lần quét** (batch).
+   *
+   * Vì sao cần: `getChartData()` dựng biểu đồ cho **mọi cột** của dataset.
+   * Gọi `getColumnValues()` lặp tạo N aggregation, mỗi cái một full scan
+   * `dataset_records` (50k dòng × 8 cột ⇒ p95 ~40s, đo được bằng k6).
+   * Batch gộp tất cả cột vào **một** `$project` ⇒ chỉ 1 lần quét.
+   *
+   * Cùng ngữ nghĩa với `getColumnValues()` cho từng cột (ép kiểu `$convert`
+   * theo `dataType`, `null` = thiếu, `limit` áp dụng cho toàn bộ lô).
+   */
+  getColumnValuesBatch(
+    datasetId: string,
+    columns: { columnKey: string; dataType: ColumnDataType }[],
+    limit: number,
+  ): Promise<{ columnKey: string; values: unknown[]; totalRecords: number }[]>;
 }

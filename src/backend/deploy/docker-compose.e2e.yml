@@ -67,6 +67,12 @@ services:
       AI_WORKER_ENABLED: ${AI_WORKER_ENABLED:-false}
       AI_ENGINE: ${AI_ENGINE:-ollama}
       AI_INFERENCE_BASE_URL: ${AI_INFERENCE_BASE_URL:-http://ollama:11434}
+      # Môi trường đo tải (k6): nới throttle toàn cục để p95 đo được là của
+      # service, không phải của rate limiter. Mặc định 200 req/phút như production.
+      THROTTLE_DEFAULT_LIMIT: ${THROTTLE_DEFAULT_LIMIT:-200}
+      THROTTLE_DEFAULT_TTL_MS: ${THROTTLE_DEFAULT_TTL_MS:-60000}
+      # TTL cache biểu đồ (ms). Đặt 0 để tắt cache khi đo baseline hiệu năng.
+      CHART_CACHE_TTL_MS: ${CHART_CACHE_TTL_MS:-60000}
     volumes:
       - api-storage:/app/storage
 

@@ -34,11 +34,43 @@ import {
 /** So ban ghi toi da doc cho moi cot khi dung bieu do. */
 export const MAX_CHART_SAMPLE_ROWS = 50_000;
 
+/**
+ * Đọc số nguyên từ biến môi trường, fallback về `fallback` khi thiếu/không hợp lệ.
+ */
+function readIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 /** So cot toi da tra ve trong mot lan goi. */
 export const MAX_CHART_COLUMNS = 50;
 
-/** So cot doc song song khi dung bieu do (gioi han tai len MongoDB). */
-const CHART_CONCURRENCY = 4;
+/**
+ * GĐ6-PERF — cache số liệu biểu đồ trong bộ nhớ (LRU + TTL ngắn).
+ *
+ * Vì sao: dataset là **bất biến** sau khi ingest (có `file_checksum` làm định
+ * danh) ⇒ số liệu biểu đồ của một dataset + bộ cột + topN **không đổi** giữa
+ * các request. Nhiều client (dashboard) gọi lại cùng một biểu đồ ⇒ mỗi lần
+ * lại quét 50k dòng `dataset_records` là tài nguyên.
+ *
+ * Key: `datasetId | checksum | columns | topN | maxRows` ⇒ tự động vô hiệu
+ * hoá khi dataset bị thay thế (checksum đổi).
+ */
+interface ChartCacheEntry {
+  at: number;
+  data: ChartDataResult[];
+}
+
+/**
+ * TTL cache biểu đồ (ms). Mặc định 60 giây; đặt `CHART_CACHE_TTL_MS=0` để tắt cache
+ * (hữu ích khi đo baseline hiệu năng và khi cần dữ liệu luôn tươi).
+ */
+const CHART_CACHE_TTL_MS = readIntEnv('CHART_CACHE_TTL_MS', 60_000);
+
+/** Số phần tử tối đa giữ trong cache. */
+const CHART_CACHE_MAX = 64;
 
 type DatasetColumns = readonly DatasetColumn[];
 
@@ -73,6 +105,9 @@ function page(
 
 @Injectable()
 export class DataViewService {
+  /** Cache biểu đồ (LRU theo phong tới + TTL). */
+  private readonly chartCache = new Map<string, ChartCacheEntry>();
+
   constructor(
     @Inject(DATASET_REPOSITORY_PORT)
     private readonly datasets: DatasetRepositoryPort,
@@ -80,7 +115,35 @@ export class DataViewService {
     private readonly records: RecordQueryPort,
   ) {}
 
-  private async loadDataset(datasetId: string): Promise<{ columns: DatasetColumns }> {
+  /**
+   * Đọc từ cache biểu đồ (GĐ6-PERF). Trả `null` khi hết hạn hoặc không có.
+   */
+  private readChartCache(key: string): ChartDataResult[] | null {
+    const hit = this.chartCache.get(key);
+    if (!hit) return null;
+    if (Date.now() - hit.at > CHART_CACHE_TTL_MS) {
+      this.chartCache.delete(key);
+      return null;
+    }
+    // LRU: đưa key lên đầu khi bị truy cập.
+    this.chartCache.delete(key);
+    this.chartCache.set(key, hit);
+    return hit.data;
+  }
+
+  /** Ghi vào cache biểu đồ (GĐ6-PERF), có cắt LRU. */
+  private writeChartCache(key: string, data: ChartDataResult[]): void {
+    this.chartCache.set(key, { at: Date.now(), data });
+    while (this.chartCache.size > CHART_CACHE_MAX) {
+      const oldest = this.chartCache.keys().next();
+      if (oldest.done) break;
+      this.chartCache.delete(oldest.value);
+    }
+  }
+
+  private async loadDataset(
+    datasetId: string,
+  ): Promise<{ columns: DatasetColumns; fileChecksum?: string }> {
     if (!isObjectIdHex(datasetId)) {
       throw new ValidationError('ID Tap du lieu khong hop le');
     }
@@ -226,23 +289,36 @@ export class DataViewService {
     }
     if (selected.length === 0) return [];
 
-    // ── Đọc giá trị: cột đầu lấy tổng số bản ghi, các cột sau dùng lại (không
-    //    `countDocuments` lặp theo cột) và đọc song song có giới hạn. ─────────
-    const [firstCol, ...restCols] = selected as [DatasetColumn, ...DatasetColumn[]];
-    const first = await this.records.getColumnValues(datasetId, firstCol.key, firstCol.dataType, maxRows);
-    const results: ChartDataResult[] = [this.buildChart(firstCol, first, topN)];
-    for (let i = 0; i < restCols.length; i += CHART_CONCURRENCY) {
-      const batch = restCols.slice(i, i + CHART_CONCURRENCY);
-      const values = await Promise.all(
-        batch.map((col) =>
-          this.records.getColumnValues(datasetId, col.key, col.dataType, maxRows, first.totalRecords),
-        ),
-      );
-      batch.forEach((col, j) => {
-        const v = values[j];
-        if (v) results.push(this.buildChart(col, v, topN));
-      });
+    // GĐ6-PERF: cache theo (dataset, checksum, cột, topN, maxRows) ⇒ tự vô hiệu
+    // hoá khi dataset bị thay thế (checksum đổi).
+    const cacheKey = [
+      datasetId,
+      dataset.fileChecksum ?? '',
+      selected.map((c) => c.key).join(','),
+      topN,
+      maxRows,
+    ].join('|');
+    const cached = this.readChartCache(cacheKey);
+    if (cached) return cached;
+
+    // ── Đọc giá trị: GĐ6-PERF — đọc **mọi cột trong một lần quét** thay vì N
+    //    aggregation (N × full scan 50k dòng ⇒ p95 ~40 s, đo bằng k6 tầng 8).
+    const batch = await this.records.getColumnValuesBatch(
+      datasetId,
+      selected.map((c) => ({ columnKey: c.key, dataType: c.dataType })),
+      maxRows,
+    );
+    const batchByKey = new Map(batch.map((b) => [b.columnKey, b]));
+    const totalRecords = batch[0]?.totalRecords ?? 0;
+
+    const results: ChartDataResult[] = [];
+    for (const col of selected) {
+      const values = batchByKey.get(col.key)?.values ?? [];
+      const sampledRecords = values.length;
+      const truncated = totalRecords > sampledRecords;
+      results.push(this.buildChart(col, { values, totalRecords, sampledRecords, truncated }, topN));
     }
+    this.writeChartCache(cacheKey, results);
     return results;
   }
 

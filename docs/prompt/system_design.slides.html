@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design Backend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F4EF;--card:#FFFFFF;--ink:#16212E;--soft:#5E6B7A;--hair:#E3DED4;
+  --teal:#0F766E;--teal-l:#E3F1EF;--coral:#C2410C;--coral-l:#FBEADF;--gold:#B7791F;--gold-l:#FBF1DC;
+  --indigo:#3730A3;--indigo-l:#E8E7F7;
+  --mono:"JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#E9E5DC;overflow:hidden;font-family:"Be Vietnam Pro",system-ui,sans-serif;color:var(--ink)}
+#viewport{position:fixed;inset:0;display:grid;place-items:center}
+#stage{width:1280px;height:720px;position:relative;transform-origin:center center}
+.slide{position:absolute;inset:0;background:var(--paper);border-radius:6px;box-shadow:0 30px 80px rgba(22,33,46,.18);padding:64px 80px;display:none;overflow:hidden}
+.slide.active{display:flex;flex-direction:column;justify-content:center}
+.slide.active>*{flex:none}
+.slide::after{content:attr(data-sec);position:absolute;left:80px;bottom:30px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--soft)}
+.pg{position:absolute;right:80px;bottom:30px;font-size:12px;color:var(--soft);font-variant-numeric:tabular-nums}
+/* reveal */
+.slide.active .r{animation:up .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0)*110ms + 80ms)}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.slide.active .r{animation:none}}
+/* type */
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal)}
+h1{font-size:64px;font-weight:800;line-height:1.05;letter-spacing:-.02em}
+h2{font-size:40px;font-weight:700;letter-spacing:-.015em;line-height:1.15;margin:10px 0 28px}
+h3{font-size:19px;font-weight:700;margin-bottom:6px}
+p,li{font-size:17px;line-height:1.6;color:#2E3B4A}
+.muted{color:var(--soft)}
+.lead{font-size:22px;line-height:1.5;color:var(--soft);font-weight:300}
+code,.mono{font-family:var(--mono);font-size:.86em;background:rgba(22,33,46,.06);padding:2px 7px;border-radius:5px}
+a{color:var(--teal);text-decoration:none;border-bottom:1px solid rgba(15,118,110,.3)}
+.src{position:absolute;right:80px;top:30px;font-size:11.5px;color:var(--soft);font-family:var(--mono)}
+/* layout */
+.row{display:flex;gap:22px}.col{flex:1}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:22px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:22px 24px}
+.card.t{border-top:4px solid var(--teal)}.card.c{border-top:4px solid var(--coral)}.card.i{border-top:4px solid var(--indigo)}.card.g{border-top:4px solid var(--gold)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:5px 12px;border-radius:99px;background:var(--teal-l);color:var(--teal);margin:3px 6px 3px 0}
+.pill.c{background:var(--coral-l);color:var(--coral)}.pill.g{background:var(--gold-l);color:var(--gold)}.pill.i{background:var(--indigo-l);color:var(--indigo)}
+/* 4-step tracker */
+.track{position:absolute;right:80px;top:64px;display:flex;gap:6px}
+.track span{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:99px;border:1px solid var(--hair);color:var(--soft);background:#fff}
+.track span.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* cover / divider */
+.cover{background:radial-gradient(900px 500px at 85% 20%,#DCEFEA 0%,transparent 60%),radial-gradient(700px 500px at 0% 100%,#F6E3D6 0%,transparent 60%),var(--paper)}
+.divider{background:var(--ink);color:#fff}
+.divider::after{color:rgba(255,255,255,.5)}.divider .pg{color:rgba(255,255,255,.5)}
+.divider .num{font-size:220px;font-weight:800;line-height:.9;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.35);position:absolute;right:70px;bottom:50px}
+.divider h1{color:#fff;margin-top:14px;font-size:72px}
+.divider .lead{color:rgba(255,255,255,.7);margin-top:18px;max-width:640px}
+.divider .eyebrow{color:#7DD3C7}
+/* source card */
+.srcard{display:flex;gap:16px;align-items:flex-start}
+.srcard .ic{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;background:var(--teal)}
+.srcard .ic.c{background:var(--coral)}.srcard .ic.i{background:var(--indigo)}.srcard .ic.g{background:var(--gold)}
+.srcard .lnk{font-size:12.5px;margin-top:8px;display:inline-block}
+/* tips grid */
+.tip{background:#fff;border:1px solid var(--hair);border-radius:14px;padding:16px 18px;position:relative;min-height:128px}
+.tip .n{font-size:12px;font-weight:700;color:var(--soft)}
+.tip h3{font-size:16.5px;margin:4px 0 6px}
+.tip p{font-size:13px;line-height:1.45;color:var(--soft)}
+.tip .st{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px}
+.st.ok{background:var(--teal-l);color:var(--teal)}.st.pa{background:var(--gold-l);color:var(--gold)}.st.no{background:var(--coral-l);color:var(--coral)}
+.tip.no{border-color:#F1C7AE}.tip.pa{border-color:#EED9A8}
+/* stepper */
+.stepper{display:flex;align-items:stretch;gap:0;margin-top:8px}
+.stp{flex:1;position:relative;padding:0 8px}
+.stp .dot{width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid var(--teal);display:grid;place-items:center;font-weight:800;color:var(--teal);position:relative;z-index:1}
+.stp:not(:last-child)::before{content:"";position:absolute;top:22px;left:52px;right:-8px;height:2px;background:linear-gradient(90deg,var(--teal),#9FD3CB)}
+.stp h3{font-size:15px;margin-top:14px}
+.stp p{font-size:13px;line-height:1.45;color:var(--soft);margin-top:4px}
+.stp.hl .dot{background:var(--teal);color:#fff}
+/* lanes / flow boxes */
+.box{background:#fff;border:1px solid var(--hair);border-radius:12px;padding:12px 16px;font-size:14.5px;font-weight:600}
+.box small{display:block;font-weight:400;color:var(--soft);font-size:12.5px;margin-top:2px}
+.box.dark{background:var(--ink);color:#fff;border-color:var(--ink)}.box.dark small{color:rgba(255,255,255,.65)}
+.box.tl{background:var(--teal-l);border-color:#B9DED8}
+.box.dash{border-style:dashed;background:transparent;color:var(--soft)}
+.arrow{color:var(--teal);font-size:20px;line-height:1;text-align:center;font-weight:700}
+.vstack{display:flex;flex-direction:column;gap:8px}
+.hstack{display:flex;align-items:center;gap:10px}
+/* journey */
+.journey{display:grid;grid-template-columns:repeat(5,1fr);gap:14px 18px}
+.jn{background:#fff;border:1px solid var(--hair);border-radius:14px;padding:16px;position:relative}
+.jn .k{font-size:30px;font-weight:800;color:var(--teal);line-height:1}
+.jn h3{font-size:15.5px;margin:8px 0 6px}
+.jn code{font-size:10.5px;padding:1px 5px;display:inline-block;line-height:1.5}
+/* funnel layers */
+.layer{display:flex;align-items:center;gap:18px;margin:0 auto;border-radius:12px;padding:11px 20px;color:#fff;font-weight:600;font-size:15px}
+.layer small{font-weight:400;opacity:.8;font-size:13px;margin-left:auto}
+/* state machine */
+.sm{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.state{font-family:var(--mono);font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid var(--hair);background:#fff}
+.state.ok{background:var(--teal-l);border-color:#B9DED8;color:var(--teal)}
+.state.bad{background:var(--coral-l);border-color:#F1C7AE;color:var(--coral)}
+.state.warn{background:var(--gold-l);border-color:#EED9A8;color:var(--gold)}
+.sm .ar{color:var(--soft)}
+/* sequence */
+.seq{font-size:14.5px}
+.seq li{list-style:none;display:flex;gap:12px;padding:9px 0;border-bottom:1px dashed var(--hair);font-size:15px}
+.seq li b{flex:none;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;display:grid;place-items:center;margin-top:2px}
+.seq li.alert b{background:var(--coral)}
+/* table */
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:13px 14px;border-bottom:1px solid var(--hair);font-size:15.5px;vertical-align:top}
+th{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:700}
+/* big stat */
+.stat{font-size:52px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.stat+p{font-size:14px;color:var(--soft);margin-top:6px}
+/* notes + nav */
+.notes{display:none}
+body.show-notes .notes{display:block;position:absolute;left:80px;right:80px;bottom:56px;background:#FFF8E6;border:1px solid #EED9A8;border-radius:10px;padding:10px 14px;font-size:14px;color:#6B4E12;z-index:5}
+#bar{position:fixed;left:0;top:0;height:3px;background:var(--teal);transition:width .35s;z-index:10}
+#hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--soft);opacity:.8}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="viewport"><div id="stage">
+
+<!-- 1 COVER -->
+<section class="slide cover active" data-sec="Đồ án • Backend">
+  <div class="eyebrow r">System Design</div>
+  <h1 class="r" style="--d:1;margin-top:22px;font-size:58px">Thiết kế hệ thống Backend<br><span style="color:var(--teal)">cho nền tảng chất lượng dữ liệu</span></h1>
+  <p class="lead r" style="--d:2;margin-top:24px;max-width:760px">AI hỗ trợ phát hiện &amp; xử lý vấn đề chất lượng dữ liệu — từ yêu cầu, kiến thức nền, tới thiết kế cụ thể.</p>
+  <div class="row r" style="--d:3;margin-top:70px;gap:60px">
+    <div><div class="stat">12</div><p>module nghiệp vụ</p></div>
+    <div><div class="stat">82</div><p>endpoint REST</p></div>
+    <div><div class="stat">/v1</div><p>API có phiên bản</p></div>
+    <div><div class="stat" style="color:var(--teal)">AI</div><p>chạy cục bộ, không gọi ra ngoài</p></div>
+  </div>
+  <div class="notes">Mở đầu: hôm nay em trình bày phần thiết kế backend. Mọi số liệu trên slide được đếm trực tiếp từ mã nguồn.</div>
+</section>
+
+<!-- 2 AGENDA -->
+<section class="slide" data-sec="Nội dung">
+  <div class="eyebrow r">Lộ trình</div>
+  <h2 class="r" style="--d:1">Năm phần, một cách kể</h2>
+  <div class="g2" style="gap:40px">
+    <div class="vstack r" style="--d:2;gap:12px">
+      <div class="hstack"><span class="pill i">00</span><b style="font-size:18px">Yêu cầu hệ thống</b></div>
+      <div class="hstack"><span class="pill">01</span><b style="font-size:18px">Thiết kế API</b></div>
+      <div class="hstack"><span class="pill">02</span><b style="font-size:18px">Pipeline phân tích dataset</b></div>
+      <div class="hstack"><span class="pill">03</span><b style="font-size:18px">Quy trình hoạt động</b></div>
+      <div class="hstack"><span class="pill">04</span><b style="font-size:18px">Module Auth</b></div>
+      <div class="hstack"><span class="pill">05</span><b style="font-size:18px">Module Analysis</b></div>
+    </div>
+    <div class="card r" style="--d:3">
+      <h3>Mỗi phần đi qua 4 bước</h3>
+      <div class="vstack" style="margin-top:14px;gap:10px">
+        <div class="box">① Giới thiệu<small>Phần này là gì</small></div>
+        <div class="box">② Yêu cầu<small>Hệ thống cần đạt điều gì</small></div>
+        <div class="box tl">③ Kiến thức áp dụng<small>Dựa trên nguồn nào — có link kiểm chứng</small></div>
+        <div class="box dark">④ Thiết kế rút ra<small>Kết quả trong code</small></div>
+      </div>
+      <p class="muted" style="font-size:13.5px;margin-top:14px">Ký hiệu: <span class="st ok" style="display:inline-grid;width:20px;height:20px;border-radius:50%;font-size:11px">✓</span> đã làm · <span class="st pa" style="display:inline-grid;width:20px;height:20px;border-radius:50%;font-size:11px">~</span> một phần · <span class="st no" style="display:inline-grid;width:20px;height:20px;border-radius:50%;font-size:11px">✕</span> chưa làm</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 PROBLEM -->
+<section class="slide" data-sec="00 • Yêu cầu hệ thống">
+  <div class="eyebrow r">Bài toán</div>
+  <h2 class="r" style="--d:1">Garbage in, garbage out</h2>
+  <p class="lead r" style="--d:2;max-width:820px">Người phân tích dữ liệu cần <b style="color:var(--ink);font-weight:600">phát hiện</b> lỗi, xem <b style="color:var(--ink);font-weight:600">bằng chứng</b> tới từng ô và nhận <b style="color:var(--ink);font-weight:600">đề xuất</b> — trước khi dùng dữ liệu.</p>
+  <div class="g4 r" style="--d:3;grid-template-columns:repeat(5,1fr);margin-top:48px">
+    <div class="card c"><div class="mono" style="background:none;padding:0;color:var(--coral)">DQ-01</div><h3 style="margin-top:8px">Thiếu</h3><p class="muted" style="font-size:14px">ô rỗng, null</p></div>
+    <div class="card c"><div class="mono" style="background:none;padding:0;color:var(--coral)">DQ-02</div><h3 style="margin-top:8px">Trùng</h3><p class="muted" style="font-size:14px">dòng giống hệt</p></div>
+    <div class="card c"><div class="mono" style="background:none;padding:0;color:var(--coral)">DQ-03</div><h3 style="margin-top:8px">Sai kiểu</h3><p class="muted" style="font-size:14px">sai định dạng</p></div>
+    <div class="card c"><div class="mono" style="background:none;padding:0;color:var(--coral)">DQ-04</div><h3 style="margin-top:8px">Ngoại lai</h3><p class="muted" style="font-size:14px">giá trị bất thường</p></div>
+    <div class="card g"><div class="mono" style="background:none;padding:0;color:var(--gold)">DQ-05</div><h3 style="margin-top:8px">Quy tắc</h3><p class="muted" style="font-size:14px">khi có quy tắc được xác nhận</p></div>
+  </div>
+  <div class="src">2_feature_catalog_v9.md §3.1, §3.5</div>
+</section>
+
+<!-- 4 REQUIREMENTS -->
+<section class="slide" data-sec="00 • Yêu cầu hệ thống">
+  <div class="eyebrow r">Yêu cầu</div>
+  <h2 class="r" style="--d:1">Những gì hệ thống phải làm được</h2>
+  <div class="g2">
+    <div class="card t r" style="--d:2">
+      <h3>Chức năng</h3>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>1 project = <b>1 file CSV</b>, kiểm tra ngay khi tải lên</li>
+        <li>Phát hiện DQ-01..05, thống kê, tương quan</li>
+        <li>AI giải thích &amp; đề xuất — <b>không tự sửa dữ liệu</b></li>
+        <li>Người dùng nhận xét → AI học lại</li>
+        <li>Cộng tác Workspace/Project, xuất PDF</li>
+      </ul>
+    </div>
+    <div class="card i r" style="--d:3">
+      <h3>Phi chức năng</h3>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>Dữ liệu <b>chỉ đọc</b></li>
+        <li>AI <b>chạy cục bộ</b>, che thông tin cá nhân trước khi đưa vào AI</li>
+        <li>AI lỗi <b>không làm hỏng</b> kết quả hệ thống</li>
+        <li>Phân quyền theo vai trò trong Workspace/Project</li>
+        <li>Phiên đăng nhập an toàn</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">feature_catalog_v9 · README §1 · processing_logic_ai_v8 §3.9</div>
+</section>
+
+<!-- 5 DIVIDER API -->
+<section class="slide divider" data-sec="01 • Thiết kế API">
+  <div class="eyebrow r">Phần 01</div>
+  <h1 class="r" style="--d:1">Thiết kế API</h1>
+  <p class="lead r" style="--d:2">REST trên NestJS · 82 endpoint · tiền tố <span class="mono" style="background:rgba(255,255,255,.12)">/api/v1</span> · tài liệu Swagger tại <span class="mono" style="background:rgba(255,255,255,.12)">/api/v1/docs</span></p>
+  <div class="num">01</div>
+</section>
+
+<!-- 6 API REQ + KNOWLEDGE -->
+<section class="slide" data-sec="01 • Thiết kế API">
+  <div class="track"><span>Giới thiệu</span><span class="on">Yêu cầu</span><span class="on">Kiến thức</span><span>Thiết kế</span></div>
+  <div class="eyebrow r">Yêu cầu → Kiến thức</div>
+  <h2 class="r" style="--d:1">API phải dễ hiểu, chịu tải, nâng cấp được</h2>
+  <div class="row r" style="--d:2;margin-bottom:30px">
+    <span class="pill">Đường dẫn theo nghiệp vụ</span><span class="pill">Khuôn response thống nhất</span><span class="pill">Duyệt hàng triệu dòng</span><span class="pill">Có phiên bản</span>
+  </div>
+  <div class="g2">
+    <div class="card r" style="--d:3"><div class="srcard"><div class="ic">8</div><div>
+      <h3>ByteByteGo — 8 Tips for Efficient API Design</h3>
+      <p class="muted" style="font-size:15px">Bộ nguyên tắc thầy gợi ý: domain model, method, idempotency, status code, versioning, semantic path, batch, query language.</p>
+      <a class="lnk" href="https://bytebytego.com/guides/guides/8-tips-for-efficient-api-design/">bytebytego.com → 8 tips</a></div></div></div>
+    <div class="card r" style="--d:4"><div class="srcard"><div class="ic i">RFC</div><div>
+      <h3>RFC 9110 — HTTP Semantics</h3>
+      <p class="muted" style="font-size:15px">Chuẩn gốc của HTTP: §9.2.2 phương thức idempotent, §15 ý nghĩa các status code.</p>
+      <a class="lnk" href="https://www.rfc-editor.org/rfc/rfc9110.html">rfc-editor.org/rfc/rfc9110</a></div></div></div>
+  </div>
+</section>
+
+<!-- 7 API 8 TIPS -->
+<section class="slide" data-sec="01 • Thiết kế API">
+  <div class="eyebrow r">Đối chiếu</div>
+  <h2 class="r" style="--d:1">8 tips — hệ thống đã áp dụng tới đâu?</h2>
+  <div class="g4">
+    <div class="tip r" style="--d:2"><span class="st ok">✓</span><div class="n">01</div><h3>Domain-model driven</h3><p><code>projects/:projectId/datasets</code></p></div>
+    <div class="tip r" style="--d:2"><span class="st ok">✓</span><div class="n">02</div><h3>HTTP method</h3><p>GET · POST · PATCH · PUT · DELETE</p></div>
+    <div class="tip pa r" style="--d:3"><span class="st pa">~</span><div class="n">03</div><h3>Idempotency</h3><p>Có PUT snapshot, fingerprint. Chưa có <code>Idempotency-Key</code></p></div>
+    <div class="tip r" style="--d:3"><span class="st ok">✓</span><div class="n">04</div><h3>Status code</h3><p>200 · 201 · 202 · 204, lỗi gom một filter</p></div>
+    <div class="tip r" style="--d:4"><span class="st ok">✓</span><div class="n">05</div><h3>Versioning</h3><p><code>/api/v1</code> — main.ts:96</p></div>
+    <div class="tip pa r" style="--d:4"><span class="st pa">~</span><div class="n">06</div><h3>Semantic paths</h3><p><code>analysis/jobs</code> vs <code>analyses/:id</code> chưa thống nhất</p></div>
+    <div class="tip no r" style="--d:5"><span class="st no">✕</span><div class="n">07</div><h3>Batch processing</h3><p>Chưa có endpoint <code>/bulk</code></p></div>
+    <div class="tip r" style="--d:5"><span class="st ok">✓</span><div class="n">08</div><h3>Query language</h3><p>Cursor (keyset) + lọc, sắp xếp</p></div>
+  </div>
+  <div class="row r" style="--d:6;margin-top:22px;gap:28px;align-items:center">
+    <div class="hstack"><span class="stat" style="font-size:34px;color:var(--teal)">5</span><span class="muted">đã làm</span></div>
+    <div class="hstack"><span class="stat" style="font-size:34px;color:var(--gold)">2</span><span class="muted">một phần</span></div>
+    <div class="hstack"><span class="stat" style="font-size:34px;color:var(--coral)">1</span><span class="muted">chưa làm</span></div>
+  </div>
+  <div class="notes">Trả lời thẳng câu hỏi của thầy: nhóm đã áp dụng 5/8 đầy đủ, 2 một phần, 1 chưa. Hướng cải tiến ở slide cuối.</div>
+</section>
+
+<!-- 8 API DESIGN -->
+<section class="slide" data-sec="01 • Thiết kế API">
+  <div class="track"><span>Giới thiệu</span><span>Yêu cầu</span><span>Kiến thức</span><span class="on">Thiết kế</span></div>
+  <div class="eyebrow r">Thiết kế rút ra</div>
+  <h2 class="r" style="--d:1">Tài nguyên lồng theo nghiệp vụ</h2>
+  <div class="row" style="gap:40px;align-items:flex-start">
+    <div class="col vstack r" style="--d:2;gap:10px">
+      <div class="box dark">workspaces/:id</div>
+      <div class="box" style="margin-left:36px">projects/:projectId</div>
+      <div class="hstack" style="margin-left:72px;gap:8px;flex-wrap:wrap">
+        <div class="box tl">datasets<small>records · columns</small></div>
+        <div class="box tl">analysis<small>config · result · jobs</small></div>
+        <div class="box tl">report · summary</div>
+      </div>
+      <div class="box" style="margin-left:72px">analyses/:analysisId/feedback</div>
+    </div>
+    <div class="col vstack r" style="--d:3;gap:14px">
+      <div class="card" style="padding:16px 20px"><h3 style="font-size:15px">Thành công</h3><code style="display:block;margin-top:6px;padding:8px 10px">{ success: true, data, meta }</code></div>
+      <div class="card" style="padding:16px 20px"><h3 style="font-size:15px">Lỗi</h3><code style="display:block;margin-top:6px;padding:8px 10px">{ success: false, error: { code, message, details } }</code></div>
+      <div class="card t" style="padding:16px 20px"><h3 style="font-size:15px">Việc chạy lâu → 202 Accepted</h3><p style="font-size:14px" class="muted">Tạo PDF, thử lại AI: trả ngay, theo dõi qua <code>GET analysis/jobs/:jobId</code> hoặc Socket.IO.</p></div>
+    </div>
+  </div>
+  <div class="src">transform.interceptor.ts · all-exceptions.filter.ts</div>
+</section>
+
+<!-- 9 DIVIDER PIPELINE -->
+<section class="slide divider" data-sec="02 • Pipeline phân tích">
+  <div class="eyebrow r">Phần 02</div>
+  <h1 class="r" style="--d:1">Pipeline phân tích dataset</h1>
+  <p class="lead r" style="--d:2">Một cú bấm "Phân tích" đi qua những bước nào? <span class="mono" style="background:rgba(255,255,255,.12)">POST /projects/:projectId/analysis</span></p>
+  <div class="num">02</div>
+</section>
+
+<!-- 10 PIPELINE REQ + KNOWLEDGE -->
+<section class="slide" data-sec="02 • Pipeline phân tích">
+  <div class="track"><span>Giới thiệu</span><span class="on">Yêu cầu</span><span class="on">Kiến thức</span><span>Thiết kế</span></div>
+  <div class="eyebrow r">Yêu cầu → Kiến thức</div>
+  <h2 class="r" style="--d:1">Số liệu hệ thống trước, AI bổ sung sau</h2>
+  <div class="row r" style="--d:2;margin-bottom:30px">
+    <span class="pill">AI lỗi không chặn kết quả</span><span class="pill">Bằng chứng tới từng ô</span><span class="pill">Trạng thái theo dõi được</span><span class="pill c">Che PII trước khi vào AI</span>
+  </div>
+  <div class="g2">
+    <div class="card r" style="--d:3"><div class="srcard"><div class="ic">⬡</div><div>
+      <h3>Hexagonal Architecture</h3>
+      <p class="muted" style="font-size:15px">Lõi ứng dụng chỉ nói chuyện qua <b>port</b>; công nghệ cụ thể là <b>adapter</b>.<br>→ Tính toán là hàm thuần trong <code>domain/</code>, AI gọi qua <code>AiInferencePort</code>.</p>
+      <a class="lnk" href="https://alistair.cockburn.us/hexagonal-architecture/">Alistair Cockburn</a></div></div></div>
+    <div class="card r" style="--d:4"><div class="srcard"><div class="ic i">RAG</div><div>
+      <h3>Retrieval-Augmented Generation</h3>
+      <p class="muted" style="font-size:15px">Truy xuất tài liệu liên quan rồi đưa vào mô hình sinh.<br>→ Lấy nhận xét cũ giống nhất làm ví dụ few-shot trong prompt.</p>
+      <a class="lnk" href="https://arxiv.org/abs/2005.11401">Lewis et al., 2020</a></div></div></div>
+  </div>
+</section>
+
+<!-- 11 PIPELINE SYNC -->
+<section class="slide" data-sec="02 • Pipeline phân tích">
+  <div class="eyebrow r">Phần đồng bộ — trong request</div>
+  <h2 class="r" style="--d:1">8 bước, trả kết quả ngay</h2>
+  <div class="stepper" style="margin-top:40px">
+    <div class="stp r" style="--d:2"><div class="dot">1</div><h3>Kiểm tra</h3><p>project, dataset, đọc cấu hình</p></div>
+    <div class="stp r" style="--d:3"><div class="dot">2</div><h3>Phân vai cột</h3><p>số · phân loại · loại trừ; tính fingerprint</p></div>
+    <div class="stp r" style="--d:4"><div class="dot">3</div><h3>Mở lần chạy</h3><p><code>analysis_run</code> = running</p></div>
+    <div class="stp hl r" style="--d:5"><div class="dot">4</div><h3>DQ-01..04</h3><p>thiếu, trùng, sai kiểu, ngoại lai</p></div>
+    <div class="stp hl r" style="--d:6"><div class="dot">5</div><h3>Thống kê</h3><p>mô tả, nhãn, thời gian</p></div>
+    <div class="stp hl r" style="--d:7"><div class="dot">6</div><h3>Tương quan</h3><p>ma trận + VIF</p></div>
+    <div class="stp r" style="--d:8"><div class="dot">7</div><h3>Bằng chứng</h3><p>≤ 20 ô/cột, đã che PII</p></div>
+    <div class="stp r" style="--d:9"><div class="dot">8</div><h3>Lưu &amp; giao việc</h3><p>đánh dấu kết quả cũ <code>stale</code>, tạo AI job</p></div>
+  </div>
+  <div class="card r" style="--d:10;margin-top:44px;display:flex;gap:16px;align-items:center;background:var(--teal-l);border-color:#B9DED8">
+    <span style="font-size:26px">◆</span><p style="font-size:15.5px">Bước <b>4–6</b> là <b>hàm thuần</b> trong <code>analysis/domain/</code> — không đụng DB, test độc lập được.</p>
+  </div>
+  <div class="src">analysis.service.ts:81–510</div>
+</section>
+
+<!-- 12 PIPELINE ASYNC -->
+<section class="slide" data-sec="02 • Pipeline phân tích">
+  <div class="eyebrow r">Phần bất đồng bộ — AI worker</div>
+  <h2 class="r" style="--d:1">Hai làn chạy song song</h2>
+  <div class="row" style="gap:28px;align-items:stretch">
+    <div class="col vstack r" style="--d:2">
+      <div class="muted" style="font-size:12px;letter-spacing:.16em;font-weight:700">LÀN REQUEST</div>
+      <div class="box">POST …/analysis</div><div class="arrow">↓</div>
+      <div class="box">Bước 1 → 8</div><div class="arrow">↓</div>
+      <div class="box dark">201 + kết quả hệ thống<small>Socket.IO: analysis.completed</small></div>
+    </div>
+    <div class="vstack r" style="--d:3;justify-content:center;width:150px">
+      <div class="box tl" style="text-align:center">ai_job<small>pending</small></div>
+      <div class="arrow">→</div>
+    </div>
+    <div class="col vstack r" style="--d:4">
+      <div class="muted" style="font-size:12px;letter-spacing:.16em;font-weight:700">LÀN WORKER</div>
+      <div class="box">Nhận job nguyên tử + lease<small>findOneAndUpdate trên MongoDB</small></div><div class="arrow">↓</div>
+      <div class="box">Prompt corr-v1 + few-shot<small>model cục bộ vLLM/Ollama · timeout 180s</small></div><div class="arrow">↓</div>
+      <div class="box tl">Grounding<small>Zod schema · hệ số lệch &gt; 0.01 bị loại</small></div>
+    </div>
+    <div class="vstack r" style="--d:5;width:230px;justify-content:flex-end">
+      <div class="card g" style="padding:16px">
+        <div class="pill g" style="margin:0 0 8px">Đích thiết kế</div>
+        <p style="font-size:14px">Outbox → Kafka topic <code>ai.jobs</code>. <b>Chưa triển khai</b> — hiện poll MongoDB.</p>
+      </div>
+      <p class="muted" style="font-size:13px">Retry tối đa 2 lần · hết lease → <code>skipped</code></p>
+    </div>
+  </div>
+  <div class="src">ai-worker.service.ts · analysis.repository.ts:220 · ai-grounding.util.ts</div>
+  <div class="notes">Nếu thầy hỏi vì sao chưa dùng Kafka: tài liệu đặt Kafka là đích; bản hiện tại poll MongoDB để chạy được trước, trạng thái job giữ nguyên nên chuyển sau không ảnh hưởng API.</div>
+</section>
+
+<!-- 13 DIVIDER PROCESS -->
+<section class="slide divider" data-sec="03 • Quy trình hoạt động">
+  <div class="eyebrow r">Phần 03</div>
+  <h1 class="r" style="--d:1">Quy trình hoạt động</h1>
+  <p class="lead r" style="--d:2">Hai góc nhìn: người dùng làm gì — và một request đi qua những lớp nào.</p>
+  <div class="num">03</div>
+</section>
+
+<!-- 14 PROCESS KNOWLEDGE -->
+<section class="slide" data-sec="03 • Quy trình hoạt động">
+  <div class="track"><span>Giới thiệu</span><span class="on">Yêu cầu</span><span class="on">Kiến thức</span><span class="on">Thiết kế</span></div>
+  <div class="eyebrow r">Kiến thức → Thiết kế</div>
+  <h2 class="r" style="--d:1">Nhiều module, một ứng dụng, không mất sự kiện</h2>
+  <div class="g2">
+    <div class="card r" style="--d:2"><div class="srcard"><div class="ic">M</div><div>
+      <h3>Monolith First — Martin Fowler</h3>
+      <p class="muted" style="font-size:15px">Bắt đầu bằng một khối; hiểu rõ nghiệp vụ rồi mới tách dịch vụ.</p>
+      <a class="lnk" href="https://martinfowler.com/bliki/MonolithFirst.html">martinfowler.com</a></div></div>
+      <div class="box tl" style="margin-top:16px">→ Modular Monolith: 12 module, mỗi module chia <code>domain · application · infrastructure</code></div></div>
+    <div class="card r" style="--d:3"><div class="srcard"><div class="ic c">⇄</div><div>
+      <h3>Transactional Outbox</h3>
+      <p class="muted" style="font-size:15px">Ghi sự kiện cùng lúc với dữ liệu nghiệp vụ; relay đọc rồi publish lên broker.</p>
+      <a class="lnk" href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io</a></div></div>
+      <div class="box tl" style="margin-top:16px">→ Upload CSV ghi <code>DATASET_INGESTED</code> vào outbox, <code>OutboxRelayService</code> đẩy sang Kafka</div></div>
+  </div>
+  <div class="src">datasets.service.ts:320 · shared/application/outbox/</div>
+</section>
+
+<!-- 15 BUSINESS JOURNEY -->
+<section class="slide" data-sec="03 • Quy trình hoạt động">
+  <div class="eyebrow r">Góc nhìn nghiệp vụ</div>
+  <h2 class="r" style="--d:1">Hành trình của người dùng</h2>
+  <div class="journey">
+    <div class="jn r" style="--d:2"><div class="k">01</div><h3>Đăng nhập</h3><code>POST /auth/login</code></div>
+    <div class="jn r" style="--d:3"><div class="k">02</div><h3>Workspace → Project</h3><code>POST /workspaces</code></div>
+    <div class="jn r" style="--d:4"><div class="k">03</div><h3>Upload CSV</h3><code>…/datasets/upload</code></div>
+    <div class="jn r" style="--d:5"><div class="k">04</div><h3>Xem lưới dữ liệu</h3><code>…/records/query</code></div>
+    <div class="jn r" style="--d:6"><div class="k">05</div><h3>Cấu hình cột</h3><code>…/analysis/config</code></div>
+    <div class="jn r" style="--d:7;background:var(--ink);color:#fff;border-color:var(--ink)"><div class="k" style="color:#7DD3C7">06</div><h3>Chạy phân tích</h3><code style="background:rgba(255,255,255,.12);color:#fff">POST …/analysis</code></div>
+    <div class="jn r" style="--d:8"><div class="k">07</div><h3>AI đánh giá (nền)</h3><code>GET analysis/jobs/:id</code></div>
+    <div class="jn r" style="--d:9"><div class="k">08</div><h3>Nhận xét kết quả</h3><code>…/feedback</code></div>
+    <div class="jn r" style="--d:10"><div class="k">09</div><h3>Xuất PDF</h3><code>POST …/report · 202</code></div>
+    <div class="jn r" style="--d:11;background:transparent;border-style:dashed"><div class="k" style="color:var(--soft)">↺</div><h3 class="muted">Nhận xét quay lại làm ví dụ cho AI</h3></div>
+  </div>
+</section>
+
+<!-- 16 REQUEST LAYERS -->
+<section class="slide" data-sec="03 • Quy trình hoạt động">
+  <div class="eyebrow r">Góc nhìn kỹ thuật</div>
+  <h2 class="r" style="--d:1">Một request đi qua 7 lớp</h2>
+  <div class="vstack" style="gap:7px">
+    <div class="layer r" style="--d:2;width:100%;background:#2A3A4D">Cloudflare Tunnel · HTTPS<small>chỉ mở cổng 443</small></div>
+    <div class="layer r" style="--d:3;width:94%;background:#27495A">Helmet + CORS<small>header bảo mật, origin hợp lệ</small></div>
+    <div class="layer r" style="--d:4;width:88%;background:#225766">ThrottlerGuard<small>200 req / 60s · auth giới hạn riêng</small></div>
+    <div class="layer r" style="--d:5;width:82%;background:#1C6570">JwtAuthGuard<small>xác thực access token</small></div>
+    <div class="layer r" style="--d:6;width:76%;background:#167173">PoliciesGuard (CASL)<small>quyền trên Workspace/Project</small></div>
+    <div class="layer r" style="--d:7;width:70%;background:#0F766E">ZodValidationPipe<small>kiểm tra body/query</small></div>
+    <div class="layer r" style="--d:8;width:64%;background:var(--ink)">Controller → Service → Repository<small>MongoDB</small></div>
+  </div>
+  <div class="hstack r" style="--d:9;justify-content:center;margin-top:16px;gap:12px">
+    <span class="pill">Outbox → Kafka</span><span class="pill i">Socket.IO → client</span><span class="pill g">Interceptor / Filter → khuôn response</span>
+  </div>
+  <div class="src">main.ts · app.module.ts · analysis.controller.ts:16</div>
+</section>
+
+<!-- 17 DIVIDER AUTH -->
+<section class="slide divider" data-sec="04 • Module Auth">
+  <div class="eyebrow r">Phần 04</div>
+  <h1 class="r" style="--d:1">Module Auth</h1>
+  <p class="lead r" style="--d:2">11 endpoint: đăng ký, đăng nhập, Google OAuth, refresh, quên/đổi mật khẩu bằng OTP, quản lý phiên.</p>
+  <div class="num">04</div>
+</section>
+
+<!-- 18 AUTH REQ + KNOWLEDGE -->
+<section class="slide" data-sec="04 • Module Auth">
+  <div class="track"><span>Giới thiệu</span><span class="on">Yêu cầu</span><span class="on">Kiến thức</span><span>Thiết kế</span></div>
+  <div class="eyebrow r">Yêu cầu → Kiến thức</div>
+  <h2 class="r" style="--d:1">Không lộ, không dò được, thu hồi được</h2>
+  <div class="g2">
+    <div class="card r" style="--d:2"><div class="srcard"><div class="ic c">OW</div><div>
+      <h3>OWASP Authentication Cheat Sheet</h3>
+      <ul style="padding-left:18px;margin-top:6px"><li style="font-size:15px">Thông báo lỗi đăng nhập chung chung</li><li style="font-size:15px">Băm mật khẩu an toàn</li><li style="font-size:15px">Giới hạn số lần thử, khóa tài khoản</li></ul>
+      <a class="lnk" href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html">cheatsheetseries.owasp.org</a></div></div></div>
+    <div class="card r" style="--d:3"><div class="srcard"><div class="ic i">RFC</div><div>
+      <h3>RFC 9700 §4.14.2 — OAuth 2.0 Security</h3>
+      <ul style="padding-left:18px;margin-top:6px"><li style="font-size:15px">Refresh token <b>xoay vòng</b> mỗi lần dùng</li><li style="font-size:15px">Token cũ bị dùng lại → thu hồi token đang hoạt động</li></ul>
+      <a class="lnk" href="https://datatracker.ietf.org/doc/html/rfc9700">datatracker.ietf.org/doc/html/rfc9700</a></div></div></div>
+  </div>
+</section>
+
+<!-- 19 AUTH DESIGN -->
+<section class="slide" data-sec="04 • Module Auth">
+  <div class="track"><span>Giới thiệu</span><span>Yêu cầu</span><span>Kiến thức</span><span class="on">Thiết kế</span></div>
+  <div class="eyebrow r">Thiết kế rút ra</div>
+  <h2 class="r" style="--d:1">Đăng nhập &amp; xoay vòng phiên</h2>
+  <div class="g2" style="gap:36px">
+    <div class="r" style="--d:2"><h3 style="color:var(--teal)">POST /auth/login</h3><ul class="seq">
+      <li><b>1</b>Tìm user, kiểm tra bị khóa</li>
+      <li><b>2</b>bcrypt so khớp mật khẩu</li>
+      <li class="alert"><b>!</b>Sai → cùng một câu "Email hoặc mật khẩu không chính xác"</li>
+      <li><b>3</b>Access token 15 phút · refresh 7 ngày</li>
+      <li><b>4</b>Lưu phiên dạng <code>SHA-256(refresh)</code></li></ul></div>
+    <div class="r" style="--d:3"><h3 style="color:var(--teal)">POST /auth/refresh</h3><ul class="seq">
+      <li><b>1</b>Tìm phiên theo hash token</li>
+      <li><b>2</b>Còn hiệu lực → thu hồi phiên cũ, cấp cặp token mới</li>
+      <li class="alert"><b>!</b>Token đã bị thu hồi mà vẫn gửi lên → <b>thu hồi toàn bộ phiên</b> của user</li></ul>
+      <div class="hstack" style="margin-top:18px;flex-wrap:wrap"><span class="pill c">OTP 10 phút · tối đa 3 lần sai</span><span class="pill c">@Throttle 5–10 lần/giờ</span></div></div>
+  </div>
+  <div class="src">auth.service.ts:64–127, 159–196 · auth-policy.vo.ts</div>
+  <div class="notes">Hai dấu chấm than đỏ chính là chỗ khớp OWASP (lỗi chung chung) và RFC 9700 (phát hiện dùng lại token).</div>
+</section>
+
+<!-- 20 DIVIDER ANALYSIS -->
+<section class="slide divider" data-sec="05 • Module Analysis">
+  <div class="eyebrow r">Phần 05</div>
+  <h1 class="r" style="--d:1">Module Analysis</h1>
+  <p class="lead r" style="--d:2">11 endpoint: cấu hình, chạy, kết quả, AI job, tổng kết, báo cáo PDF. Dùng lại kiến thức Phần 02: Hexagonal + RAG.</p>
+  <div class="num">05</div>
+</section>
+
+<!-- 21 ANALYSIS ARCH + STATES -->
+<section class="slide" data-sec="05 • Module Analysis">
+  <div class="track"><span>Giới thiệu</span><span>Yêu cầu</span><span>Kiến thức</span><span class="on">Thiết kế</span></div>
+  <div class="eyebrow r">Thiết kế rút ra</div>
+  <h2 class="r" style="--d:1">Ba tầng, ba vòng đời</h2>
+  <div class="row" style="gap:36px">
+    <div class="col vstack r" style="--d:2;gap:10px">
+      <div class="box dark">infrastructure<small>3 controller · schema MongoDB · LocalInferenceAdapter</small></div>
+      <div class="box">application<small>AnalysisService · AiWorkerService · RagFewShotService · Report</small></div>
+      <div class="box tl">domain<small>dq · stats · correlation · vif · pii-mask · ai-grounding — hàm thuần</small></div>
+    </div>
+    <div class="col vstack r" style="--d:3;gap:18px">
+      <div><h3 style="font-size:14px" class="muted">analysis_run · report_job</h3><div class="sm"><span class="state">pending</span><span class="ar">→</span><span class="state">running</span><span class="ar">→</span><span class="state ok">succeeded</span><span class="state bad">failed</span></div></div>
+      <div><h3 style="font-size:14px" class="muted">ai_job</h3><div class="sm"><span class="state">pending</span><span class="ar">→</span><span class="state">running</span><span class="ar">→</span><span class="state ok">succeeded</span><span class="state bad">failed</span><span class="state warn">skipped</span></div><p class="muted" style="font-size:13px;margin-top:6px">retry (202) đưa job về pending</p></div>
+      <div><h3 style="font-size:14px" class="muted">analysis_result</h3><p style="font-size:14.5px">Chạy lại → kết quả trước gắn <code>is_stale</code>; <code>input_fingerprint</code> cho biết kết quả ứng với dữ liệu + cấu hình nào.</p></div>
+    </div>
+  </div>
+  <div class="src">analysis-run / ai-job / report-job .schema.ts</div>
+</section>
+
+<!-- 22 LIMITS -->
+<section class="slide" data-sec="Kết">
+  <div class="eyebrow r">Nhìn lại</div>
+  <h2 class="r" style="--d:1">Hạn chế &amp; hướng cải tiến</h2>
+  <table class="r" style="--d:2">
+    <tr><th>Hiện tại</th><th>Hướng cải tiến</th></tr>
+    <tr><td>POST chưa chống gửi trùng</td><td>Header <code>Idempotency-Key</code></td></tr>
+    <tr><td>Chưa có xử lý hàng loạt</td><td>Endpoint <code>/bulk</code> khi có nhu cầu</td></tr>
+    <tr><td>Path chưa thống nhất <code>analysis</code> / <code>analyses</code></td><td>Chuẩn hoá ở <code>/api/v2</code></td></tr>
+    <tr><td>Pipeline chạy đồng bộ, nạp toàn bộ dòng vào bộ nhớ</td><td>Chuyển sang job nền, xử lý theo lô</td></tr>
+    <tr><td>AI job poll MongoDB</td><td>Outbox → Kafka <code>ai.jobs</code> như thiết kế</td></tr>
+  </table>
+</section>
+
+<!-- 23 REFERENCES + THANKS -->
+<section class="slide cover" data-sec="Tài liệu tham khảo">
+  <div class="eyebrow r">Tài liệu tham khảo</div>
+  <div class="g2 r" style="--d:1;margin-top:26px;gap:12px 40px">
+    <p style="font-size:15px"><b>API</b> · <a href="https://bytebytego.com/guides/guides/8-tips-for-efficient-api-design/">ByteByteGo — 8 Tips for Efficient API Design</a></p>
+    <p style="font-size:15px"><b>API</b> · <a href="https://www.rfc-editor.org/rfc/rfc9110.html">IETF — RFC 9110 HTTP Semantics</a></p>
+    <p style="font-size:15px"><b>Pipeline</b> · <a href="https://alistair.cockburn.us/hexagonal-architecture/">A. Cockburn — Hexagonal Architecture</a></p>
+    <p style="font-size:15px"><b>Pipeline</b> · <a href="https://arxiv.org/abs/2005.11401">P. Lewis et al. (2020) — RAG</a></p>
+    <p style="font-size:15px"><b>Quy trình</b> · <a href="https://martinfowler.com/bliki/MonolithFirst.html">M. Fowler — MonolithFirst</a></p>
+    <p style="font-size:15px"><b>Quy trình</b> · <a href="https://microservices.io/patterns/data/transactional-outbox.html">C. Richardson — Transactional Outbox</a></p>
+    <p style="font-size:15px"><b>Auth</b> · <a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html">OWASP — Authentication Cheat Sheet</a></p>
+    <p style="font-size:15px"><b>Auth</b> · <a href="https://datatracker.ietf.org/doc/html/rfc9700">IETF — RFC 9700 OAuth 2.0 Security BCP</a></p>
+  </div>
+  <h1 class="r" style="--d:2;margin-top:90px;font-size:56px">Em cảm ơn thầy<span style="color:var(--teal)">.</span></h1>
+  <p class="lead r" style="--d:3;margin-top:8px">Sẵn sàng nhận câu hỏi.</p>
+</section>
+
+</div></div>
+<div id="hint">← → chuyển slide · N ghi chú · F toàn màn hình</div>
+<script>
+const s=[...document.querySelectorAll('.slide')];let i=0;
+s.forEach((e,k)=>{const p=document.createElement('div');p.className='pg';p.textContent=String(k+1).padStart(2,'0')+' / '+s.length;e.appendChild(p)});
+function fit(){const st=document.getElementById('stage');const k=Math.min(innerWidth/1340,innerHeight/770);st.style.transform='scale('+k+')'}
+function show(){s.forEach((e,k)=>e.classList.toggle('active',k===i));document.getElementById('bar').style.width=((i+1)/s.length*100)+'%';try{history.replaceState(null,'','#'+(i+1))}catch(e){}}
+function go(d){i=Math.max(0,Math.min(s.length-1,i+d));show()}
+addEventListener('resize',fit);
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(1)}if(['ArrowLeft','PageUp'].includes(e.key))go(-1);if(e.key==='n'||e.key==='N')document.body.classList.toggle('show-notes');if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}});
+addEventListener('click',e=>{if(e.target.closest('a'))return;go(e.clientX>innerWidth/2?1:-1)});
+const h=parseInt(location.hash.slice(1));if(h>0&&h<=s.length)i=h-1;
+fit();show();
+</script>
+</body>
+</html>
