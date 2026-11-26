@@ -10,7 +10,7 @@
 | `health` | Kiểm tra backend trước khi gia hạn phiên | [`health.service.ts`](health/health.service.ts) |
 | `users` | Đọc hồ sơ và xóa tài khoản qua `/users/me` | [`users.service.ts`](users/users.service.ts) |
 | `management` | Store workspace/project, mapping phiên, chức năng quản trị, đọc CSV xem trước và kiểm tra upload | [`management.store.ts`](management/management.store.ts), [`session.mapper.ts`](management/session.mapper.ts), [`admin.service.ts`](management/admin.service.ts) |
-| `processing` | Chi tiết, schema và records của dataset, thống kê cột, cờ PII, xóa dataset, tải CSV gốc, project gần đây và kiểm tra đánh giá kết quả | [`dataset.service.ts`](processing/dataset.service.ts), [`recent-projects.service.ts`](processing/recent-projects.service.ts), [`result-review.ts`](processing/result-review.ts) |
+| `processing` | Dataset và project gần đây, phân tích, feedback, báo cáo và kiểm tra đánh giá kết quả | [`dataset.service.ts`](processing/dataset.service.ts), [`analysis.service.ts`](processing/analysis.service.ts), [`recent-projects.service.ts`](processing/recent-projects.service.ts), [`result-review.ts`](processing/result-review.ts) |
 | `navigation` | Tạo và phân tích URL Management/Processing, chuyển hướng URL cũ | [`application-route.ts`](navigation/application-route.ts) |
 
 [`services/index.ts`](index.ts) export một số factory và helper, gồm `createAuthService`, `createSessionCoordinator`, `createHealthService`, `createUsersService` và `validateResultReview`. Factory dataset, factory admin và loader project gần đây được import từ file triển khai tương ứng. Kiểm tra `index.ts` của nhóm trước khi chọn đường dẫn import.
@@ -66,16 +66,19 @@ src/services/
 │   ├── management.store.ts
 │   ├── management.types.ts
 │   ├── session.mapper.ts
+│   ├── type.ts
 │   └── upload-validation.ts
 ├── navigation/
 │   ├── application-route.ts
 │   ├── legacy-workbench-route.ts
 │   └── index.ts
 ├── processing/
+│   ├── analysis.service.ts
 │   ├── dataset.service.ts
 │   ├── index.ts
 │   ├── recent-projects.service.ts
-│   └── result-review.ts
+│   ├── result-review.ts
+│   └── type.ts
 ├── users/
 │   ├── index.ts
 │   └── users.service.ts
@@ -93,3 +96,28 @@ Chạy từ `src/frontend`.
 | Mapping, API Management và contract | `yarn test src/__tests__/management/connected-api.test.ts src/__tests__/management/backend-contract.test.ts` |
 
 Các suite trên dùng dữ liệu hoặc transport mô phỏng. Xem [README frontend](../../README.md) để chạy bài kiểm tra với backend thử nghiệm.
+
+## Danh mục luồng theo nhóm service
+
+Các thao tác HTTP bên dưới đi qua [API client](../lib/README.md). Service nhận lại dữ liệu hoặc lỗi đã được chuẩn hóa. Với helper và store cục bộ, kết quả quay về caller hoặc subscriber.
+
+| Chức năng | Caller → service → kết quả |
+| --- | --- |
+| Đăng nhập email, khôi phục và callback Google | LoginView/useLogin hoặc AuthProvider → [coordinator](auth/session-coordinator.ts) → AuthService hoặc UsersService → kiểm tra và lưu phiên → snapshot cho guard. |
+| Đăng ký, quên, đặt lại mật khẩu | Form auth → [account service](auth/account.service.ts) → endpoint public tương ứng → phản hồi hoặc lỗi về form. |
+| Kiểm tra phiên, gia hạn, đăng xuất, xóa tài khoản | AuthProvider/UI → coordinator → health, refresh, logout hoặc `deleteMe` theo thao tác → cập nhật hoặc dọn phiên, thông báo kết quả cho UI. |
+| Hồ sơ và trạng thái hệ thống | Coordinator → [users service](users/users.service.ts) đọc hồ sơ hiện tại. Settings → [health service](health/health.service.ts) đọc readiness → trạng thái MongoDB/storage hoặc lỗi. |
+| Overview, workspace, project và thông tin cá nhân | ManagementDataProvider → [store](management/management.store.ts) tải dữ liệu và phân trang → map sang model → publish snapshot theo vùng. |
+| Chọn hoặc đánh dấu yêu thích tài nguyên | View/card → store cập nhật selection/favorite trong snapshot. Mở workspace có thể gọi `touchWorkspace` để cập nhật dấu truy cập. |
+| Tạo, cập nhật, đổi tên, xóa, chuyển chủ và rời tài nguyên | Wizard/dialog → store gửi mutation; khi endpoint yêu cầu thì gửi version → làm mới snapshot hoặc trả lỗi. `completeProject` gửi cập nhật snapshot project. |
+| Quản lý thành viên | Dialog → store thêm/xóa member workspace và thêm/đổi vai trò/xóa member project. `setWorkspaceMemberRole` đi qua nhánh unsupported. |
+| CSV và upload | Wizard dùng [CSV preview](management/csv-preview.ts) và [upload validation](management/upload-validation.ts); sau xác nhận, store tạo project và upload nếu có file. Project detail có luồng upload riêng qua store → FormData → phản hồi và thông tin dataset. |
+| Project gần đây | RecentProjects → store → [loader](processing/recent-projects.service.ts) đọc danh sách theo cursor → bảng nhận items và con trỏ. |
+| Thông báo | Màn hình thông báo → store đọc chi tiết, đánh dấu một hoặc tất cả đã đọc → snapshot. Xóa thông báo trả lỗi chưa hỗ trợ. |
+| Issue và tệp | Report/workbench → store tạo, đọc, sửa issue và tải hoặc gửi tệp → kết quả về panel. |
+| Settings tài khoản | Settings → store map và cập nhật hồ sơ, đổi mật khẩu, tải/đọc chi tiết hoặc thu hồi phiên, cập nhật tùy chọn thông báo → dữ liệu trả về UI. |
+| Quản trị | AdminApiPanel → [admin service](management/admin.service.ts) lấy trang/danh sách và chi tiết user/issue, cập nhật trạng thái issue → kiểm tra dữ liệu rồi trả model hoặc lỗi. |
+| Dataset | LiveDatasetPanel → [dataset service](processing/dataset.service.ts) → chi tiết/schema/records, thống kê cột, dữ liệu biểu đồ, xóa hoặc tải CSV gốc → model, kết quả mutation hoặc Blob cho panel. |
+| Analysis | Project panel/store → [analysis service](processing/analysis.service.ts) → chạy/đọc kết quả, đọc/thử lại job, đọc/tạo tổng kết, yêu cầu/tải report, đọc chỉ số AI. Tải report trả trạng thái pending hoặc PDF đã kiểm tra. |
+| Feedback và đánh giá | Panel feedback → analysis service đọc/tạo feedback cấp run hoặc finding, sửa/xóa feedback. Dialog đánh giá riêng → [validation](processing/result-review.ts) → callback caller nếu dữ liệu hợp lệ. |
+| URL hiện tại và URL cũ | App/router/workbench → helper [application route](navigation/application-route.ts) hoặc [legacy redirect](navigation/legacy-workbench-route.ts) → URL/phạm vi hợp lệ hoặc kết quả không khớp. |

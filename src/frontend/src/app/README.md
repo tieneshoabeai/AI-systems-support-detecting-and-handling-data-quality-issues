@@ -81,3 +81,14 @@ Management, Processing và Dataset 3D yêu cầu phiên cả dev lẫn productio
 ## 11. Hướng cải tiến
 
 Kiểm tra tích hợp với server thật và xác thực quyền truy cập tài nguyên ở backend khi các API nghiệp vụ được kết nối.
+
+## Đường đi theo chức năng
+
+| Chức năng | Caller → xử lý trong app → đầu ra |
+| --- | --- |
+| Khởi động và cấu hình | [main](main.tsx) → [bootstrap](application-bootstrap.tsx) → [runtime](app-runtime.ts) ghép client, services, coordinator, storage và draft repository → React tree đọc qua provider. |
+| Khôi phục và cập nhật phiên | [AuthProvider](context/auth-provider.tsx) → coordinator restore/check → subscribe snapshot → các hook và guard render lại. |
+| Login và callback Google | [AppRouter](router/app-router.tsx) → login view; provider nhận callback Google khi khởi động → coordinator → snapshot → [PublicOnlyRoute](guards/public-only-route.tsx) điều hướng. |
+| Gia hạn, đăng xuất, xóa tài khoản | UI → Auth Context → coordinator → snapshot → guard và dialog cập nhật. |
+| Trang riêng tư và URL cũ | [WorkbenchRoutes](router/workbench-routes.tsx) → route guard, lazy page và fallback tải. Route cũ qua helper navigation. Project Processing lấy ID từ URL trước khi mở view. |
+| Đường dẫn không khớp | AppRouter chuyển các đường dẫn ngoài login và entry cho WorkbenchRoutes. Route wildcard ở WorkbenchRoutes hiển thị trang 404. |

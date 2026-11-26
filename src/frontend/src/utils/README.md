@@ -49,3 +49,9 @@ src/utils/
 ## Kiểm thử
 
 Từ `src/frontend`, chạy `yarn test src/__tests__/foundation/session.test.ts src/__tests__/auth/auth.service.test.ts` để kiểm tra helper token qua các luồng lưu phiên và xác thực. Dùng token mẫu khi debug.
+
+## Caller → kiểm tra → kết quả
+
+- **Đọc token:** AuthService/coordinator → [readAccessToken](auth/access-token.ts) → account ID, thời điểm hết hạn hoặc `null` khi dữ liệu sai → caller quyết định việc dùng phiên.
+- **So hạn token:** Caller cấp thông tin token và thời gian hiện tại → `isAccessTokenExpired` → boolean cho bước điều phối phiên.
+- **Giá trị bắt buộc:** Ví dụ helper điều hướng truyền segment và tên vị trí → [requireDefined](required-value.ts) → giá trị có kiểu hẹp hơn hoặc lỗi có nhãn để truy vết.

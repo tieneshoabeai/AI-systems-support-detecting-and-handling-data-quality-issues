@@ -64,3 +64,9 @@ Dung lượng thật phụ thuộc thiết bị và origin. Draft có thể còn
 ## 11. Hướng cải tiến
 
 Tích hợp luồng upload sau khi có hợp đồng ACK đã duyệt. Khi ghép, xác nhận cách xử lý lỗi dọn và khả năng tiếp tục ở phiên mới.
+
+## Từ runtime đến từng thao tác bản nháp
+
+[App runtime](../app/app-runtime.ts) tạo repository với database và quyền truy cập theo tài khoản từ coordinator. Caller đưa dữ liệu vào [upload draft repository](datasets/upload-draft.repository.ts) → repository kiểm tra quyền, dữ liệu và dung lượng → [Dexie](datasets/upload-draft.database.ts) ghi hoặc đọc IndexedDB → caller nhận bản nháp, danh sách, kết quả dọn hoặc lỗi.
+
+Đọc các phương thức trong repository theo ba nhóm: ghi (`save`), đọc metadata (`list`) và tệp (`readFile`), xóa bản nháp (`remove`), và dọn qua `cleanupUploaded` hoặc `confirmUploaded` với xác nhận hợp lệ. [Các test repository](../__tests__/auth/upload-draft.repository.test.ts) gọi trực tiếp các thao tác này. Wizard và project view gửi upload qua [management store](../services/management/management.store.ts).

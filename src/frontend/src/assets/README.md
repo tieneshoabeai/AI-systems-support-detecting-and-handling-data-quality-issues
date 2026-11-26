@@ -66,3 +66,10 @@ Test jsdom không xác nhận hình ảnh đã tải hoặc font đã render. C�
 ## 11. Hướng cải tiến
 
 Đề xuất kiểm kê caller, dung lượng và vai trò của ảnh trước khi tối ưu hoặc xóa asset.
+
+## Từ tài nguyên đến UI
+
+- **Logo và hình nền:** component branding, view hoặc CSS import ảnh → Vite cấp URL → DOM hoặc CSS hiển thị biểu trưng, nền và ảnh hero.
+- **Fonts:** stylesheet khai báo font và URL → trình duyệt tải → các màn hình dùng font theo style.
+- **Minh họa preview:** màn hình hoặc CSS của preview tham chiếu tài nguyên trong [preview](preview/README.md) → ảnh cho workspace, project và tài nguyên.
+- **Ảnh theo theme:** caller chọn ảnh nền sáng/tối theo theme đã resolve → giao diện render ảnh tương ứng.

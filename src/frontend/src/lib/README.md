@@ -53,3 +53,14 @@ src/lib/
 ## Kiểm thử
 
 Từ `src/frontend`, chạy `yarn test src/__tests__/foundation/api.test.ts src/__tests__/foundation/session.test.ts src/__tests__/foundation/startup.test.tsx`. Các suite dùng adapter, storage và môi trường trình duyệt mô phỏng.
+
+## Đầu vào và đầu ra của từng chức năng
+
+| Chức năng | Luồng |
+| --- | --- |
+| Request public hoặc theo phiên | Service → `request()` → chuẩn hóa path và tùy chọn, gắn Bearer cho chế độ session → Axios → HTTP. |
+| Đọc response | Axios → status và body → API client trả `data` trong envelope, `Blob`, dữ liệu kèm status hoặc `undefined` cho 204 theo tùy chọn. Ví dụ login nhận `data`, còn tải report cần status để phân biệt đang tạo và đã có tệp. |
+| Lỗi và kiểm tra object | Axios hoặc caller → [normalizeApiError/isRecord](api-error.ts) → lỗi chuẩn hóa hoặc kết quả kiểm tra → service/hook/UI xử lý. |
+| Lưu, đọc, dọn phiên | Coordinator → [session storage](session-storage.ts) → browser storage → trạng thái bản ghi hoặc token về caller. |
+| Query cache | Runtime → [query client](query-client.ts) → provider. Đổi phiên → hủy query → dọn cache theo vòng đời phiên. |
+| Hợp đồng kiểu | OpenAPI JSON chuẩn hóa → kiểu TypeScript sinh tự động → [types](../types/README.md) và service tham chiếu khi biên dịch. |

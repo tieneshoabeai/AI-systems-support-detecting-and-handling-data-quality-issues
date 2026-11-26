@@ -110,3 +110,17 @@ Test mô phỏng không xác nhận API thật, chất lượng WebGL hay hiệu
 ## 11. Hướng cải tiến
 
 Đối chiếu riêng các lỗi hình học và palette đang mở. Đề xuất bổ sung kiểm thử trên trình duyệt cho tương tác WebGL khi có tiêu chí acceptance.
+
+## Luồng được kiểm tra theo suite
+
+| Suite | Điểm vào → đầu ra được kiểm tra |
+| --- | --- |
+| Auth | Form/provider hoặc factory phiên → adapter và storage kiểm soát trong test → trạng thái form, điều hướng, vòng đời phiên và bản nháp. |
+| Foundation | Config, HTTP client, storage hoặc startup → cấu hình/dữ liệu test → kết quả chuẩn hóa, lỗi, trạng thái lưu hoặc bootstrap. |
+| Management | Màn hình/provider hoặc store → API mô phỏng → vùng tải/lỗi, snapshot và dữ liệu mutation. |
+| Navigation | Route entry và URL mô phỏng → router và guard → route/fallback hoặc đích chuyển hướng. |
+| Processing | Màn hình hoặc service → thao tác CSV, dataset, analysis và đánh giá → dữ liệu, trạng thái hoặc lỗi theo test. |
+| Components | Props và thao tác DOM → component → callback, semantics và hành vi tương tác. |
+| Dataset 3D, neon cube, Workspace 3D | Props/fixture → view, scene lifecycle hoặc helper tính toán → lựa chọn, cấu trúc, layout, giới hạn và cleanup được assert. |
+
+Assertion từ unit test hoặc jsdom phản ánh dữ liệu và transport mà test cấp. Kiểm tra end-to-end với trình duyệt và backend nằm trong các bộ kiểm thử tương ứng của frontend.

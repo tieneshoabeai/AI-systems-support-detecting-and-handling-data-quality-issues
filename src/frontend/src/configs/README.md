@@ -60,3 +60,10 @@ Từ thư mục frontend chạy `yarn test src/__tests__/foundation/api.test.ts 
 ## 11. Hướng cải tiến
 
 Đề xuất bổ sung ma trận cấu hình dev và deploy với origin giả nếu có thêm môi trường.
+
+## Từ cấu hình đến caller
+
+| Chức năng | Nguồn → xử lý → nơi dùng |
+| --- | --- |
+| Cấu hình kết nối | Tên biến Vite hoặc base URL từ caller → `getApiConfig`, `composeApiConfig` hoặc `parseApiConfig` → base URL và timeout cho bootstrap/Axios, hoặc lỗi `config` về điểm khởi tạo. |
+| Hạn mức bản nháp | `UPLOAD_DRAFT_LIMITS` → repository kiểm tra từng file, tổng theo tài khoản và toàn ứng dụng trước khi ghi → caller nhận kết quả lưu hoặc lỗi dung lượng. |

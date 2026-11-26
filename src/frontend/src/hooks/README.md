@@ -72,3 +72,16 @@ Chạy `yarn test src/__tests__/auth/auth-flow.test.tsx src/__tests__/management
 ## 11. Hướng cải tiến
 
 Đề xuất bổ sung kịch bản trình duyệt cho chuyển tab rồi quay lại nếu behavior animation hoặc lifecycle thay đổi.
+
+## Caller và kết quả theo nhóm hook
+
+| Nhóm | Caller → hook → kết quả |
+| --- | --- |
+| Auth | LoginView → [useLogin](auth/use-login.ts) → useAuth/context → signIn. Email, password, pending và lỗi trở về form. Các consumer khác dùng useAuth để đọc snapshot và thao tác phiên. |
+| Management | View/provider → context và [hook store](management/use-management-store.ts) → lấy snapshot hoặc trạng thái tải → render khi provider/store công bố thay đổi. |
+| Processing | Dialog → [useResultReview](processing/use-result-review.ts) → validation service và callback lưu → state nhập, lỗi và pending. |
+| Project | ProjectWizard → [useProjectCsvParser](project/use-project-csv-parser.ts) → parser CSV → dữ liệu xem trước hoặc lỗi về wizard. |
+| Resource | Card/menu/avatar → helper trong [resource](resource/index.ts) → nội dung thẻ, action và trạng thái ảnh cho UI. |
+| UI | Workbench và overlay → helper trong `ui/` → theme đã resolve hoặc trạng thái surface → shell/component cập nhật. |
+| Workbench | Shell và màn hình → session context, presentation và sidebar preference → lựa chọn, bố cục và thao tác điều hướng về view. |
+| Workspace 3D | Scene → [useSceneMotion](workspace-3d/use-scene-motion.ts) → xử lý cấu hình chuyển động → scene dùng giá trị khi render. |

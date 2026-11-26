@@ -56,3 +56,14 @@ form associations, password values, inline dialog focus/dismissal, surface clean
 toast undo, composition and pagination boundaries. jsdom does not verify CSS,
 WebGL or pixel equivalence. Use the existing workbench/auth suites and browser
 checks when changing adapters or scoped styling.
+
+## Luồng theo nhóm component
+
+| Nhóm | Caller → component → kết quả |
+| --- | --- |
+| Primitives | Form/màn hình → Button, IconButton, Input, Textarea, Checkbox, Badge, Icon → sự kiện DOM, trạng thái hiển thị hoặc callback của caller. |
+| Form | Caller → FormField cấp ID và ARIA, PasswordInput điều khiển hiển thị mật khẩu, Select hiển thị lựa chọn → control hoặc giá trị thay đổi quay về caller. |
+| Overlay | Caller → Dialog, Popover, ContextMenu hoặc Toast → mở/đóng, focus, chọn thao tác hoặc hoàn tác → callback và state của caller. |
+| Feedback | Caller → Alert, EmptyState, Skeleton → hiển thị lỗi, dữ liệu rỗng hoặc đang tải dựa trên props. |
+| Data display | Caller → Tabs/Pagination → chọn tab hoặc trang → caller quyết định nội dung hoặc nguồn dữ liệu tương ứng. |
+| Layout và brand | Caller → Panel, FullPageStatus hoặc BrandLockup → cấu trúc nội dung, trạng thái toàn trang hoặc biểu trưng. |

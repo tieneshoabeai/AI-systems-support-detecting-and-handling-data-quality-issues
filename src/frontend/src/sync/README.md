@@ -47,3 +47,7 @@ Chưa có tự động gửi lại bản nháp, hàng đợi hay bộ điều ph
 ## 11. Hướng cải tiến
 
 Phần đã dự kiến là coordinator sau khi contract backend đủ rõ. Khi đặc tả, cần chốt ACK, vòng đời theo tài khoản, retry và cách xử lý kết quả đến sau khi đổi phiên.
+
+## Vị trí trong các luồng hiện tại
+
+Runtime tạo repository bản nháp và cấp quyền truy cập theo phiên. Upload qua UI đi từ wizard hoặc project view đến management store, Axios và backend. Thư mục `sync` hiện giữ vị trí cho tầng đồng bộ dự kiến. Xem [repository bản nháp](../repositories/README.md) để lần theo các thao tác IndexedDB đang được triển khai.

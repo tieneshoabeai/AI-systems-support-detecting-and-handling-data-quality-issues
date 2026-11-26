@@ -25,7 +25,7 @@ Hiển thị màn hình và giữ state tương tác của màn hình. Gửi req
 
 ## 2. Vị trí & phụ thuộc
 
-`app/router/app-router.tsx` mở login và Dataset 3D. View ghép [hooks](../hooks/README.md), [services](../services/README.md), [graphics](../graphics/README.md), math và asset.
+`app/router/app-router.tsx` mở login và chuyển các đường dẫn workbench cho `WorkbenchRoutes`. Dataset 3D được nhúng trong trang chi tiết project. View ghép [hooks](../hooks/README.md), [services](../services/README.md), [graphics](../graphics/README.md), math và asset.
 
 ## 3. Public API
 
@@ -59,7 +59,7 @@ Processing và Home Management dùng chung `../components/project/list/universe-
 
 ### Auth, Dataset 3D và Workspace 3D
 
-- [auth/login/login.view.tsx](auth/login/login.view.tsx) — form login, panel đăng ký thử và nhánh review kính.
+- [auth/login/login.view.tsx](auth/login/login.view.tsx) — form login, đăng ký qua account service và nhánh review kính.
 - [auth/login-glass.css](auth/login-glass.css) — bố cục và nền login.
 - [dataset-3d/dataset-3d.view.tsx](dataset-3d/dataset-3d.view.tsx) — legend, focus cube, tách và chọn part.
 - [dataset-3d/dataset-3d.module.css](dataset-3d/dataset-3d.module.css) — canvas, overlay và bảng chi tiết part.
@@ -102,4 +102,24 @@ Management và Processing yêu cầu phiên trong dev lẫn production. `/proces
 
 ## 11. Hướng cải tiến
 
-Hoàn tất các luồng production theo contract đã duyệt và khôi phục guard Dataset 3D trước release. Đề xuất kiểm tra focus cube trên thiết bị cảm ứng thật.
+Kiểm tra focus cube trên thiết bị cảm ứng thật. Dataset 3D trong project dùng guard của route workbench.
+
+## Luồng theo màn hình và thao tác
+
+| Màn hình hoặc thao tác | Đường đi và trạng thái trả về |
+| --- | --- |
+| Đăng nhập email | [LoginView](auth/login/login.view.tsx) → useLogin → coordinator → AuthService → Axios → snapshot. UI hiển thị pending hoặc lỗi, guard điều hướng khi có phiên. |
+| Đăng nhập Google | Nút Google → helper sign-in → chuyển trình duyệt đến backend. Callback → AuthProvider → coordinator đọc hồ sơ và xác nhận phiên → guard điều hướng. |
+| Đăng ký | Form trong LoginView → account service → HTTP. Thành công điền email vào form đăng nhập, thất bại hiển thị lỗi đăng ký. |
+| Quên và đặt lại mật khẩu | [PasswordRecoveryDialog](auth/login/sections/password-recovery-dialog.tsx) → account service → HTTP → trạng thái gửi yêu cầu hoặc cập nhật mật khẩu, kèm lỗi khi thao tác thất bại. |
+| Khung ứng dụng và điều hướng | [ApplicationFrame](application/application-frame.tsx) → provider dữ liệu và workbench session → shell/topbar/breadcrumb. Menu, theme và điều hướng cập nhật cùng UI session. |
+| Home, danh sách project và workspace | [ManagementArea](management/management-area.tsx) chọn màn hình theo URL → provider/store và component danh sách → hiển thị overview, workspace, project, phân trang hoặc trạng thái vùng. |
+| Tạo, đổi tên, cập nhật, xóa, chuyển chủ, rời tài nguyên và thành viên | Màn hình management → wizard/dialog hoặc action tài nguyên → store → snapshot mới hoặc lỗi ở dialog. |
+| Thành viên quản trị, thông báo và cài đặt | Panel admin → admin service; thông báo → store đọc chi tiết và đánh dấu đã đọc; settings → store cập nhật hồ sơ, mật khẩu, phiên và tùy chọn thông báo, hoặc health service cho trạng thái hệ thống. |
+| Báo cáo sự cố và tệp đính kèm | Workbench UI → report component → store tạo/đọc/cập nhật issue, tải hoặc đính kèm tệp → thông tin kết quả và lỗi quay lại UI. |
+| Processing và upload | [ProcessingView](processing/processing.view.tsx) → danh sách gần đây/wizard; project detail nhận tệp từ vùng chọn → store upload → làm mới thông tin project/dataset. |
+| Records, schema, biểu đồ, thống kê, PII, tải và xóa dataset | [LiveDatasetPanel](processing/project/sections/live-dataset-panel.tsx) → dataset service → dữ liệu hoặc tệp trả về panel; thay đổi dataset thông báo cho caller cập nhật. |
+| Chạy analysis, xem kết quả, feedback và tải báo cáo | [LiveAnalysisPanel](processing/project/sections/live-analysis-panel.tsx) và các section dự án → analysis service/store → trạng thái job, kết quả và thao tác tiếp theo của panel. |
+| Focus cube, tách mô hình và chọn part | [Dataset3DView](dataset-3d/dataset-3d.view.tsx) → scene → callback về view → camera, legend và phần chi tiết cập nhật. |
+| Resource map và xem CSV cục bộ | [Workspace 3D](workspace-3d/workspace-3d.view.tsx) → math và resource scene → thay scope, camera, selection hoặc mở giao diện đọc CSV. |
+| Workspace tài khoản | Xem triển khai [WorkspaceView](workspace/workspace.view.tsx) và kiểm tra route đang mount trước khi dùng view làm điểm vào. |

@@ -74,3 +74,15 @@ Chạy từ `src/frontend`.
 | Vòng đời Workspace 3D và tương tác Dataset 3D | `yarn test src/__tests__/workspace-3d/scene-lifecycle.test.tsx src/__tests__/dataset-3d/dataset-3d-view.test.tsx` |
 
 Các suite trên kiểm tra hành vi giao diện trong môi trường mô phỏng. Kiểm tra render WebGL và thao tác bàn phím trên trình duyệt khi thay đổi scene hoặc dialog.
+
+## Từ sự kiện đến kết quả theo nhóm
+
+| Nhóm | Đường đi |
+| --- | --- |
+| Auth, branding, loading, navigation | App/provider → dialog gia hạn, logo, skeleton, trạng thái vùng hoặc 404. Quyết định gia hạn và thử lại đi ngược qua callback hoặc auth hook. |
+| Project | View → bảng/thẻ hoặc wizard → lọc/phân trang/chọn project hoặc hook đọc CSV → validation và callback tạo project → trạng thái tải, lỗi hoặc điều hướng. |
+| Workspace và resource | View → card/avatar/menu/dialog → action quyền, chỉnh sửa, thành viên, chuyển chủ hoặc rời tài nguyên → store hoặc callback → snapshot và UI. |
+| Notification và report | Workbench view → hiển thị danh sách/chi tiết, đánh dấu đọc, tạo và cập nhật issue, tải tệp đính kèm → store → trạng thái UI. |
+| Processing | Project detail → dialog đánh giá → hook validation → callback lưu → trạng thái form. |
+| Graphics | Login, Dataset 3D hoặc Workspace 3D view → scene canvas → graphics/math → renderer. Tương tác chọn đối tượng và hoàn tất focus quay về view qua callback. |
+| Design system | Caller → props → DOM và callback. Xem [luồng theo nhóm UI](ui/README.md). |

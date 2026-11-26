@@ -300,3 +300,14 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 7. Thêm automated tests, browser/API integration, accessibility, CI và deployment checks.
 
 Mọi thay đổi quan trọng theo workflow review và human confirmation của dự án. Quy định sử dụng AI: [AI-usage.md](AI-usage.md).
+
+## Luồng từ thao tác đến giao diện
+
+```text
+Người dùng → router/màn hình → component, hook hoặc provider
+  → service hoặc xử lý cục bộ
+  → nếu gọi API: api.request → Axios → HTTP request → backend → HTTP response
+  → dữ liệu hoặc lỗi → state của phiên, store hoặc màn hình → giao diện
+```
+
+Đăng nhập gửi `{ email, password }` tới `POST /api/v1/auth/login`. Axios nhận phản hồi, API client lấy `data` từ envelope, AuthService chuyển dữ liệu thành model phiên, coordinator lưu phiên và router điều hướng. CSV cục bộ và thao tác camera cập nhật giao diện qua state của màn hình. Xem [danh mục chức năng và đường đi](src/README.md).

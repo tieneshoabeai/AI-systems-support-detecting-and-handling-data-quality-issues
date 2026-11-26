@@ -121,3 +121,13 @@ Chạy `yarn test src/__tests__/dataset-3d src/__tests__/neon-cube src/__tests__
 ## 11. Hướng cải tiến
 
 Đối chiếu lại fingerprint/clearance với model đã được duyệt trước khi cập nhật baseline. Xác nhận palette kính, kết nối nguồn điểm thật và đo frame trên thiết bị đại diện ở đợt riêng.
+
+## Từ dữ liệu cảnh đến khung hình
+
+| Cảnh hoặc phần dùng chung | Luồng |
+| --- | --- |
+| Auth Glass | LoginView → canvas Auth Glass → artwork, geometry và vật liệu trong `auth-glass` → scene render và báo lỗi cho ranh giới fallback của view khi cần. |
+| Dataset 3D | Dataset3DView → HolographicCoreCanvas → mô hình và pass trong `holographic-core` → render. Focus, reveal và lựa chọn part quay về view qua callback. |
+| Workspace 3D | Workspace view → math tính layout và tuyến → ResourceScene → nhóm `workspace-3d` tạo đối tượng, nhãn và đường nối → render hoặc sự kiện chọn. |
+| Neon cube | Scene hoặc phần trình diễn dùng geometry, vật liệu và nhãn từ `neon-cube` → dữ liệu dựng khối và render. |
+| Kính và helper chung | Pass của login/project → cấu hình kính và GLSL trong `common` → uniforms/mẫu scene → hiệu ứng trong vùng được đo của giao diện. |

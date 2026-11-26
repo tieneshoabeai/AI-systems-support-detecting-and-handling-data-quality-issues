@@ -50,3 +50,12 @@ src/math/
 ## Kiểm thử
 
 Từ `src/frontend`, chạy `yarn test src/__tests__/workspace-3d`. Bắt đầu từ [test layout](../__tests__/workspace-3d/resource-layout.test.ts) hoặc [test nhãn](../__tests__/workspace-3d/resource-label-policy.test.ts) tùy phần đang sửa.
+
+## Điểm nối giữa math, view và scene
+
+| Chức năng | Đầu vào → hàm xử lý → đầu ra |
+| --- | --- |
+| Cây và phạm vi tài nguyên | Workspace view → `validateResources`, `layoutResources` → lỗi cấu trúc hoặc layout theo scope cho scene. |
+| Đường nối | Layout → [resource-routing](workspace-3d/resource-routing.ts) và [connection profile](workspace-3d/resource-connection-profile.ts) → tuyến và kích thước phù hợp để dựng đường nối. |
+| Camera | Node, bounds và kích thước viewport → [resource-camera](workspace-3d/resource-camera.ts) → góc nhìn, fit và giới hạn điều khiển dùng bởi scene. |
+| Nhãn | Node và trạng thái hiển thị → [resource-label-policy](workspace-3d/resource-label-policy.ts) → quyết định giữ/ẩn nhãn và ngân sách hiển thị. |

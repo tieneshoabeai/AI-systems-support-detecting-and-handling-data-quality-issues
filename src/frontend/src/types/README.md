@@ -32,6 +32,19 @@ import type { postDatasetsByDatasetIdQueryRecordsRequestBody } from './types/ser
 const firstPage: postDatasetsByDatasetIdQueryRecordsRequestBody = { limit: 50 }
 ```
 
+## Từ hợp đồng đến điểm dùng
+
+| Nhóm kiểu | Đường đi |
+| --- | --- |
+| `api`, `services-type` và `health` | OpenAPI/kiểu client → tham số request và response → HTTP client/service → kiểm tra giá trị thực tế và model trả về. |
+| `auth`, `users` | Response login hoặc hồ sơ → mapper/service → session/user → AuthProvider, guard và màn hình. |
+| `management`, `processing`, `datasets` | DTO hoặc dữ liệu CSV → store, service hoặc repository → model đọc bởi bảng, form, dataset và kết quả phân tích. |
+| `navigation`, `workbench` | Route và thao tác UI → helper điều hướng, context và lựa chọn của shell → props của màn hình. |
+| `dataset-3d`, `workspace-3d` | Dữ liệu scene và thao tác chọn → view/math/graphics → props và callback của canvas. |
+| `vite-env.d.ts` | Khai báo kiểu phía build → caller truy cập cấu hình Vite. |
+
+Kiểu TypeScript mô tả dữ liệu lúc biên dịch. Ví dụ ở runtime, `AuthService` kiểm tra response login rồi map `access_token` sang `accessToken` cho coordinator.
+
 TypeScript kiểm tra object `firstPage` lúc biên dịch. Khi request hoàn tất, [`dataset.service.ts`](../services/processing/dataset.service.ts) đọc dữ liệu từ client và kiểm tra các trường trước khi trả model của bảng. Nếu server gửi payload sai cấu trúc, việc kiểm tra trong service mới phát hiện lỗi lúc chạy.
 
 ## Khi backend đổi hợp đồng
