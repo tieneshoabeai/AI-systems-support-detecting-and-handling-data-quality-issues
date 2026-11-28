@@ -18,6 +18,6 @@ export const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     const state = snapshot.sessionEnded ? null : { returnTo: `${location.pathname}${location.search}${location.hash}` }
     return <Navigate to={LOGIN_PATH} replace state={state} />
   }
-  if (snapshot.phase !== 'authenticated' && snapshot.phase !== 'local-limited') return <SessionStatus />
+  if (snapshot.accountId === null) return <SessionStatus />
   return <>{children}</>
 }

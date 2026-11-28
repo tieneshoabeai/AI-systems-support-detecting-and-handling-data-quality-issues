@@ -157,6 +157,21 @@ export interface CellEvidenceRecord {
   valueMasked?: string | null;
 }
 
+export type CellEvidenceSampleKind = 'missing' | 'duplicate' | 'invalid_type' | 'outlier';
+
+export interface CellEvidenceSampleRecord extends CellEvidenceRecord {
+  id: string;
+  kind: CellEvidenceSampleKind;
+}
+
+export interface FindEvidenceSamplesParams {
+  runId: string;
+  kind?: CellEvidenceSampleKind;
+  column?: string;
+  afterId?: string;
+  limit: number;
+}
+
 export interface AnalysisRepositoryPort {
   create(data: Partial<AnalysisRunRecord> & Record<string, unknown> & { projectId: string; workspaceId: string; datasetId: string }): Promise<AnalysisRunRecord>;
   findById(id: string): Promise<AnalysisRunRecord | null>;
@@ -176,6 +191,7 @@ export interface AnalysisRepositoryPort {
   insertEvidences(docs: Partial<CellEvidenceRecord>[]): Promise<number>;
   countEvidencesByRun(runId: string): Promise<number>;
   findEvidencesByRun(runId: string, limit?: number): Promise<CellEvidenceRecord[]>;
+  findEvidenceSamples(params: FindEvidenceSamplesParams): Promise<CellEvidenceSampleRecord[]>;
   createSave(doc: Partial<ProjectSaveRecord> & Record<string, unknown> & { projectId: string }): Promise<ProjectSaveRecord>;
   findLatestSaveByProject(projectId: string): Promise<ProjectSaveRecord | null>;
   /** Tìm đúng bản Tổng kết theo id (worker PDF phải dùng bản đã yêu cầu). */

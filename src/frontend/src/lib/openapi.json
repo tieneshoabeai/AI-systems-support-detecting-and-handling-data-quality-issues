@@ -6009,6 +6009,174 @@
           "Overview"
         ]
       }
+    },
+    "/api/v1/analyses/{analysisRunId}/evidence-samples": {
+      "get": {
+        "operationId": "listAnalysisEvidenceSamples",
+        "parameters": [
+          {
+            "name": "analysisRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "missing",
+                "duplicate",
+                "invalid_type",
+                "outlier"
+              ]
+            }
+          },
+          {
+            "name": "column",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Samples already stored for the finding; rowIndex is zero-based.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "findingId",
+                          "kind",
+                          "column",
+                          "rowIndex",
+                          "reason",
+                          "valueMasked"
+                        ],
+                        "properties": {
+                          "findingId": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "missing",
+                              "duplicate",
+                              "invalid_type",
+                              "outlier"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "rowIndex": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Zero-based index into data records; the header row is excluded."
+                          },
+                          "reason": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "valueMasked": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "PII-masked value only; raw values are never returned."
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "limit",
+                        "hasMore",
+                        "nextCursor"
+                      ],
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query or findingId"
+          },
+          "403": {
+            "description": "Read access to Analysis is required"
+          },
+          "404": {
+            "description": "Analysis run not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ANALYSIS-04: View PII-masked evidence samples for a finding",
+        "tags": [
+          "Analysis"
+        ]
+      }
     }
   },
   "info": {

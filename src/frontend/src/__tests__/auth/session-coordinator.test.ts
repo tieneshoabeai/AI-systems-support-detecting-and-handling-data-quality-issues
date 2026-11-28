@@ -123,7 +123,7 @@ describe('session coordinator', () => {
     await work
     expect(s.coordinator.getSnapshot()).toMatchObject({ phase: 'authenticated', accountId: 'a', user: { source: 'profile' } })
     expect(s.bindSession).toHaveBeenCalledWith(token())
-    expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a', expiresAtMs: 20000 })
+    expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a', expiresAtMs: 604810000 })
   })
 
   it('uses login user without me or fabricated profile fields', async () => {
@@ -153,12 +153,13 @@ describe('session coordinator', () => {
     expect(s.login).toHaveBeenCalledTimes(1)
   })
 
-  it.each([401, 403, 404])('ends restored session for me HTTP %s', async status => {
+  it.each([[401, 'awaiting-consent'], [403, 'awaiting-consent'], [404, 'local-limited']] as const)(
+    'preserves restored credentials when me returns HTTP %s', async (status, phase) => {
     const s = setup(session())
     s.getMe.mockRejectedValueOnce(failure('http', status))
     await s.coordinator.restore()
-    expect(s.coordinator.getSnapshot()).toMatchObject({ phase: 'anonymous', error: { kind: 'http', status } })
-    expect(s.storage.read()).toEqual({ status: 'empty' })
+    expect(s.coordinator.getSnapshot()).toMatchObject({ phase, error: { kind: 'http', status } })
+    expect(s.storage.read()).toMatchObject({ status: 'valid', session: { accountId: 'a' } })
     expect(s.refresh).not.toHaveBeenCalled()
   })
 
@@ -169,11 +170,12 @@ describe('session coordinator', () => {
     expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
   })
 
-  it('clears malformed me and corrupt storage', async () => {
+  it('keeps credentials on malformed me response and clears only corrupt storage', async () => {
     const s = setup(session())
     s.getMe.mockRejectedValueOnce(failure('invalid-response'))
     await s.coordinator.restore()
-    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+    expect(s.coordinator.getSnapshot().phase).toBe('local-limited')
+    expect(s.storage.read()).toMatchObject({ status: 'valid', session: { accountId: 'a' } })
     const broken = setup()
     broken.records.set('data-quality.auth.v1', '{bad')
     await broken.coordinator.restore()
@@ -188,13 +190,13 @@ describe('session coordinator', () => {
     expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a' })
   })
 
-  it('treats exact expiry as blocked and coalesces health calls without refreshing', async () => {
+  it('treats access expiry as remote-auth blocked but keeps local draft access and coalesces health', async () => {
     const s = setup(session())
     await s.coordinator.restore()
     s.setTime(19999)
     expect(s.coordinator.draftAccess.read()).not.toBeNull()
     s.setTime(20000)
-    expect(s.coordinator.draftAccess.read()).toBeNull()
+    expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a', expiresAtMs: 604810000 })
     const pending = deferred<{ available: boolean }>()
     s.health.mockReturnValueOnce(pending.promise)
     const jobs = [s.coordinator.checkSession(), s.coordinator.checkSession(), s.coordinator.checkSession()]
@@ -213,7 +215,7 @@ describe('session coordinator', () => {
     s.refresh.mockReturnValueOnce(pending.promise)
     const work = s.coordinator.confirmRenewal(true)
     const duplicate = s.coordinator.confirmRenewal(true)
-    expect(s.coordinator.draftAccess.read()).toBeNull()
+    expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a', expiresAtMs: 604810000 })
     pending.resolve({ accessToken: token('a', 40), refreshToken: 'rotated-refresh', accountId: 'a', expiresAtMs: 40000 })
     await Promise.all([work, duplicate])
     expect(s.refresh).toHaveBeenCalledTimes(1)
@@ -244,24 +246,30 @@ describe('session coordinator', () => {
     expect(s.clearSessionCache).toHaveBeenCalled()
   })
 
-  it.each([false, 'network', 'payload'])('ends expired session when health is unavailable: %s', async state => {
+  it.each([false, 'network', 'payload'])('keeps expired-access session when health is unavailable: %s', async state => {
     const s = setup(session('a', 5))
     if (state === false) s.health.mockResolvedValueOnce({ available: false })
     else s.health.mockRejectedValueOnce(failure(state === 'network' ? 'network' : 'invalid-response'))
     await s.coordinator.restore()
-    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+    expect(s.coordinator.getSnapshot().phase).toBe('local-limited')
+    expect(s.storage.read()).toMatchObject({ status: 'expired', session: { accountId: 'a', refreshToken: 'test-refresh-a' } })
     expect(s.refresh).not.toHaveBeenCalled()
   })
 
-  it.each(['b', 'expired', 'network', 'me'])('ends failed renewal: %s', async state => {
+  it.each(['b', 'expired', 'network', 'me'])('handles failed renewal by auth vs outage result: %s', async state => {
     const s = setup(session('a', 5))
     await s.coordinator.restore()
     if (state === 'network') s.refresh.mockRejectedValueOnce(failure('network'))
     else if (state === 'me') s.getMe.mockRejectedValueOnce(failure('http', 500))
     else s.refresh.mockResolvedValueOnce({ accessToken: token(state === 'b' ? 'b' : 'a', 5), refreshToken: 'rotated-refresh', accountId: state === 'b' ? 'b' : 'a', expiresAtMs: 5000 })
     await expect(s.coordinator.confirmRenewal(true)).rejects.toBeDefined()
-    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
-    expect(s.storage.read()).toEqual({ status: 'empty' })
+    if (state === 'network' || state === 'me') {
+      expect(s.coordinator.getSnapshot().phase).toBe('local-limited')
+      expect(s.storage.read()).toMatchObject({ status: state === 'network' ? 'expired' : 'valid', session: { accountId: 'a' } })
+    } else {
+      expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+      expect(s.storage.read()).toEqual({ status: 'empty' })
+    }
   })
 
   it('rechecks expiry after a slow me response, including outage', async () => {
@@ -272,7 +280,8 @@ describe('session coordinator', () => {
     s.setTime(20000)
     pending.reject(failure('network'))
     await work
-    expect(s.coordinator.getSnapshot().phase).toBe('awaiting-consent')
+    expect(s.coordinator.getSnapshot().phase).toBe('local-limited')
+    expect(s.storage.read()).toMatchObject({ status: 'expired', session: { accountId: 'a' } })
   })
 
   it('does not accept an already expired login token', async () => {
@@ -283,7 +292,8 @@ describe('session coordinator', () => {
     expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
   })
 
-  it.each([401, 403, 404])('does not turn explicit me rejection %s into renewal when time crosses exp', async status => {
+  it.each([[401, 'awaiting-consent'], [403, 'awaiting-consent'], [404, 'local-limited']] as const)(
+    'retains session on me response %s after access token expires in flight', async (status, phase) => {
     const s = setup(session())
     const pending = deferred<CurrentUser>()
     s.getMe.mockReturnValueOnce(pending.promise)
@@ -291,7 +301,8 @@ describe('session coordinator', () => {
     s.setTime(20000)
     pending.reject(failure('http', status))
     await work
-    expect(s.coordinator.getSnapshot().phase).toBe('anonymous')
+    expect(s.coordinator.getSnapshot().phase).toBe(phase)
+    expect(s.storage.read()).toMatchObject({ status: 'expired', session: { accountId: 'a' } })
     expect(s.health).not.toHaveBeenCalled()
   })
 
@@ -307,13 +318,14 @@ describe('session coordinator', () => {
     expect(s.health).not.toHaveBeenCalled()
   })
 
-  it('clears credentials if persisting a renewed session fails', async () => {
+  it('keeps the renewed session locally limited if persistence temporarily fails', async () => {
     const s = setup(session('a', 5))
     await s.coordinator.restore()
     vi.spyOn(s.storage, 'write').mockImplementationOnce(() => { throw new ApiError({ kind: 'storage', message: 'write failed' }) })
     await expect(s.coordinator.confirmRenewal(true)).rejects.toMatchObject({ kind: 'storage' })
-    expect(s.coordinator.draftAccess.read()).toBeNull()
-    expect(s.storage.read()).toEqual({ status: 'empty' })
+    expect(s.coordinator.getSnapshot().phase).toBe('local-limited')
+    expect(s.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a' })
+    expect(s.storage.read()).toMatchObject({ status: 'expired', session: { accountId: 'a' } })
   })
 
   it('invalidates draft subscriptions synchronously on logout and binds revoke to old token', async () => {
@@ -497,11 +509,11 @@ describe('runtime connects services, session coordinator and IndexedDB', () => {
     const runtime = createAppRuntime({ client: { baseUrl: 'http://localhost:3000/api/v1', adapter }, database: db, storage: s.storage, clearSessionCache: vi.fn(), now: () => 10000 })
     try {
       await runtime.coordinator.restore()
-      expect(runtime.coordinator.draftAccess.read()).toBeNull()
+      expect(runtime.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a' })
       await runtime.coordinator.confirmRenewal(true)
       const meRequest = adapter.mock.calls.find(([config]) => config.url?.endsWith('/users/me'))![0]
       expect(meRequest.headers.get('Authorization')).toBe(`Bearer ${token('a', 40)}`)
-      expect(runtime.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a', expiresAtMs: 40000 })
+      expect(runtime.coordinator.draftAccess.read()).toMatchObject({ accountId: 'a', expiresAtMs: 604810000 })
     } finally { runtime.dispose(); await db.delete() }
   })
 })

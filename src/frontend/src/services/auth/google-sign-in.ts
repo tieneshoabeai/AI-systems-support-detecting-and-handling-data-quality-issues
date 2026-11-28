@@ -1,10 +1,10 @@
-import { getApiConfig } from '../../configs/api.config'
+import { getApiTargetManager } from '../../lib/api-target-manager'
 
 const attemptKey = 'dataverse.google-sign-in'
 const attemptLifetimeMs = 10 * 60 * 1000
 
 export function startGoogleSignIn(): void {
-  const { baseUrl } = getApiConfig()
+  const { baseUrl } = getApiTargetManager().getApiConfig()
   window.sessionStorage.setItem(attemptKey, String(Date.now()))
   window.location.assign(`${baseUrl}/auth/google?format=redirect`)
 }

@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import { parseManagementRoute, parseProjectRoute } from '../../services/navigation'
 import { previewNavigateEvent } from '../../services/navigation/legacy-workbench-route'
 import { usePreviewColorScheme } from '../../hooks/ui/use-workbench-color-scheme'
+import { OfflineNotice } from '../../app/provider/offline-notice'
 import { ManagementDataProvider, ProcessingDataProvider } from './management-data-provider'
 import { PreviewSessionProvider } from './workbench-session'
 import '../../styles/workbench/workbench.css'
@@ -21,6 +22,7 @@ export function ApplicationFrame() {
       ? management.workspaceId ?? '' : management.workspaceId }
     : { projectId }
   const frame = <PreviewSessionProvider routeIds={routeIds} appearance={appearance} navigateSection={path => { void Promise.resolve(navigate(path)).catch(error => { reportError(error) }) }}>
+    <OfflineNotice />
     <Outlet />
   </PreviewSessionProvider>
   const detailId = parseProjectRoute(location.pathname)

@@ -49,6 +49,7 @@ export const SessionRenewalDialog = () => {
         else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { event.preventDefault(); first.focus() }
       }}>
       <h2 id="renewal-title">PHIÊN LÀM VIỆC ĐÃ HẾT HẠN, BẠN CÓ MUỐN TIẾP TỤC KHÔNG</h2>
+      {snapshot.error && <p role="alert">{snapshot.error.message}</p>}
       <div className="dialog-actions">
         <button ref={cancel} className="button-secondary" disabled={pending} onClick={() => decide(false)}>Hủy</button>
         <button className="button-primary" disabled={pending} onClick={() => decide(true)}>{pending ? 'Đang gia hạn…' : 'Tiếp tục phiên'}</button>

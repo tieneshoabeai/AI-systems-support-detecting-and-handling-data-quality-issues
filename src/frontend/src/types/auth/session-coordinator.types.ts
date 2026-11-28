@@ -2,6 +2,7 @@ import type { AppError } from '../api'
 import type { LoginRequestDto, LoginResult, RefreshRequestDto, RefreshResult } from './auth.types'
 import type { SessionReadResult, StoredSession } from './session.types'
 import type { CurrentUser } from '../users'
+import type { ApiTarget } from '../api'
 
 export type SessionUser =
   | { readonly source: 'login'; readonly value: Readonly<LoginResult['user']> }
@@ -45,11 +46,11 @@ export type SessionCoordinatorOptions = {
   }
   auth: {
     login(input: LoginRequestDto, options?: CallOptions): Promise<LoginResult>
-    refresh(input: RefreshRequestDto, options?: CallOptions): Promise<RefreshResult>
+    refresh(input: RefreshRequestDto, options?: CallOptions, targetOverride?: ApiTarget): Promise<RefreshResult>
   }
   health: { check(options?: CallOptions): Promise<{ available: boolean }> }
   // Trusted composition tạo service với token cố định; không cấp port này cho UI.
-  bindSession(accessToken: string): {
+  bindSession(accessToken: string, targetOverride?: ApiTarget): {
     getMe(options?: CallOptions): Promise<CurrentUser>
     logout(options?: CallOptions): Promise<void>
     deleteMe?(options?: CallOptions): Promise<void>

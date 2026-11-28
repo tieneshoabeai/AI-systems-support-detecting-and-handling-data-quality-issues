@@ -13,13 +13,13 @@ vi.mock('../../views/dataset-3d/dataset-3d.view', () => ({
 beforeEach(() => { previewMockStore.reset(); window.localStorage.clear() })
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-it('opens local file selection only when the project has no dataset, without faking upload', () => {
+it('opens local file selection only when the project has no dataset, without faking upload', async () => {
   renderFrame(<ProjectWorkspaceView projectId="prj-empty" />)
   fireEvent.click(screen.getByRole('button', { name: 'Upload data' }))
   const dialog = screen.getByRole('dialog', { name: 'Upload data' })
   const file = new File(['id,value\n1,2'], 'sample.csv', { type: 'text/csv' })
   fireEvent.change(within(dialog).getByLabelText('Chọn tệp dữ liệu'), { target: { files: [file] } })
-  expect(within(dialog).getByRole('button', { name: 'Chọn tệp CSV', description: /tối đa 50 MB.*sample\.csv/ })).toBeDefined()
+  expect(await within(dialog).findByRole('button', { name: 'Chọn tệp CSV', description: /tối đa 50 MB.*sample\.csv/ })).toBeDefined()
   expect((within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Upload data' })).disabled).toBe(true)
   expect(previewMockStore.getState().projects.find(project => project.id === 'prj-empty')?.dataset).toBeNull()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }))

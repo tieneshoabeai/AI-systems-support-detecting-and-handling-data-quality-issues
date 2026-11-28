@@ -38,19 +38,21 @@ export const AuthProvider = ({ runtime, configurationError = null, children }: P
     if (!coordinator) return
     const onFocus = () => { void coordinator.checkSession() }
     const onVisibility = () => { if (document.visibilityState === 'visible') onFocus() }
+    const onOnline = () => onFocus()
     window.addEventListener('focus', onFocus)
     window.addEventListener('pageshow', onFocus)
+    window.addEventListener('online', onOnline)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.removeEventListener('focus', onFocus)
       window.removeEventListener('pageshow', onFocus)
+      window.removeEventListener('online', onOnline)
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [coordinator])
 
   useEffect(() => {
-    if (!coordinator || snapshot.expiresAtMs === null
-      || (snapshot.phase !== 'authenticated' && snapshot.phase !== 'local-limited')) return
+    if (!coordinator || snapshot.accountId === null || snapshot.expiresAtMs === null) return
     let timer: ReturnType<typeof setTimeout> | undefined
     const schedule = () => {
       const delay = snapshot.expiresAtMs - Date.now()
@@ -63,13 +65,28 @@ export const AuthProvider = ({ runtime, configurationError = null, children }: P
 
   const value = useMemo(() => {
     const missing = () => new ApiError(configurationError ?? { kind: 'config', message: 'Dịch vụ đăng nhập chưa khả dụng.' })
+    const retryConnection = async () => {
+      if (!runtime || !coordinator) throw missing()
+      const manager = runtime.apiTargetManager
+      const targetState = manager.getSnapshot()
+      if (targetState.phase === 'switching') return
+      if (targetState.phase === 'error') {
+        await manager.switchTarget(targetState.pendingTarget ?? targetState.target)
+      } else {
+        await coordinator.checkSession()
+      }
+      if (coordinator.getSnapshot().phase === 'authenticated') await runtime.offlineWrites.sync()
+    }
     return {
-      snapshot, configurationError,
+      snapshot, configurationError, localData: runtime?.localData ?? null, uploadDrafts: runtime?.drafts ?? null,
+      offlineWrites: runtime?.offlineWrites ?? null,
+      apiTargetManager: runtime?.apiTargetManager ?? null,
+      retryConnection,
       signIn: coordinator?.signIn ?? (() => Promise.reject(missing())),
       signOut: coordinator?.signOut ?? (() => Promise.reject(missing())),
       ...(coordinator ? { deleteAccount: coordinator.deleteAccount } : {}),
       confirmRenewal: coordinator?.confirmRenewal ?? (() => Promise.reject(missing())),
     }
-  }, [snapshot, configurationError, coordinator])
+  }, [snapshot, configurationError, coordinator, runtime])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

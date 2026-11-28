@@ -115,6 +115,10 @@ export const usePreviewSessionModel = (
   const applyMutation = useCallback((operation: Promise<PreviewMutationResult>, onError?: (message: string) => void) => {
     return operation
       .then(result => {
+        if (result.queued) {
+          pushToast(result.message, 'info')
+          return true
+        }
         const undoAction = (): boolean => {
           try {
             result.undo()

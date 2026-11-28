@@ -11,7 +11,7 @@ Là điểm lắp ráp ứng dụng. Tầng này chọn entry, tạo runtime, g�
 ## 3. Public API
 
 - `Application()`, `App()` (default) và `AppRouter()` trả về cây JSX. `AppRouter` cần React Router và Auth context.
-- `createAppRuntime(options: RuntimeOptions): AppRuntime` nhận `clearSessionCache` bắt buộc, tùy chọn `client`, `storage`, `database`, `now`. Trả `coordinator`, `drafts`, `retain()` và `dispose()`. Cấu hình API sai hoặc gọi `retain` sau khi đóng runtime có thể ném `ApiError`.
+- `createAppRuntime(options: RuntimeOptions): AppRuntime` nhận `clearSessionCache` bắt buộc, tùy chọn `client`, `storage`, `database`, `offlineDatabase`, `writeDatabase`, `now`. Trả `coordinator`, `apiTargetManager`, `localData`, các repository `drafts`, `offlineReads`, `offlineWrites`, `offlineNamespace`, `retain()` và `dispose()`. Cấu hình API sai hoặc gọi `retain` sau khi đóng runtime có thể ném `ApiError`.
 - `AppProviders({ queryClient, runtime, configurationError, children })` và `AuthProvider({ runtime, configurationError?, children })` trả về JSX. `AuthContext` có kiểu `AuthContextValue | null`.
 - `ProtectedRoute({ children })`, `PublicOnlyRoute({ children })` và `SessionStatus()` chọn nội dung hoặc chuyển hướng theo snapshot.
 - `validReturnTarget(value: unknown): string` chấp nhận route hợp lệ dưới `/management`, `/processing`; đích không hợp lệ rơi về `/processing`. Hai URL đã gỡ `/workspaces` và `/workspaces/3d-dataset` hiển thị 404 và không được dùng làm đích sau đăng nhập. Dataset 3D được nhúng trong trang project `/processing/projects/:projectId`.
@@ -35,7 +35,7 @@ Chạy trong ngữ cảnh TypeScript dưới `src`. Để đi từ entry thật,
 - [application-bootstrap.tsx](application-bootstrap.tsx) — lắp runtime, query client và router, giữ lỗi cấu hình để UI hiển thị.
 - [App.tsx](App.tsx) — component gốc ghép router ứng dụng.
 - [provider/app-providers.tsx](provider/app-providers.tsx) — ghép QueryClientProvider và AuthProvider.
-- [app-runtime.ts](app-runtime.ts) — ghép HTTP, phiên, draft, vòng đời retain/release.
+- [app-runtime.ts](app-runtime.ts) — ghép HTTP, phiên, ba database local, repository và vòng đời retain/release.
 - `pages/public/login-page.tsx`, `pages/public/not-found-page.tsx` — entry login và 404, tái sử dụng UI hiện có.
 - `pages/private/*-page.tsx` — entry Management, Processing, Project và Shopping Records; router áp guard trước khi render. Các entry workspace và Dataset 3D cũ không còn được đăng ký trong router.
 - `constants/routes.ts` — đường dẫn login; route helper nghiệp vụ vẫn ở services.
@@ -62,11 +62,12 @@ Các folder chuẩn được giữ theo trách nhiệm. Đặt file trong `pages
 | --- | --- | --- |
 | `import.meta.env.DEV` | Do Vite cấp | Cho phép công cụ preview Workspace 3D riêng; không bỏ auth cho Management/Processing/Dataset 3D |
 | `VITE_API_BASE_URL`, `VITE_API_PREFIX` | Bắt buộc với runtime mặc định | Tạo cấu hình HTTP cho luồng chính |
+| `VITE_API_ENVIRONMENT_ID` | `qa-main` khi dev, `production` khi build production | Namespace ổn định cho cache/queue khi hostname tunnel của cùng môi trường thay đổi |
 | `RuntimeOptions.now` | Đồng hồ hệ thống | Đồng hồ của phiên và draft |
 
 ## 8. Quy ước & bất biến
 
-Provider sở hữu vòng đời runtime, còn `dispose()` đóng tài nguyên. Giữ cache phiên và client đã gắn token theo đúng phiên khi đổi tài khoản. Unknown URL hiển thị 404 public; project không tồn tại trên route private chỉ được kiểm tra sau guard. `authenticated` và `local-limited` được phép vào private pages theo chính sách phiên hiện có.
+Provider sở hữu vòng đời runtime, còn `dispose()` đóng tài nguyên. Giữ cache phiên và client đã gắn token theo đúng phiên khi đổi tài khoản. Network, timeout hoặc 5xx giữ phiên trong `local-limited`; private pages vẫn hiển thị dữ liệu cục bộ trong thời hạn refresh session, còn Axios chặn access token đã hết hạn. Queue worker chỉ chạy khi session coordinator xác nhận `authenticated`. Unknown URL hiển thị 404 public; project không tồn tại trên route private chỉ được kiểm tra sau guard.
 
 ## 9. Test & debug
 
@@ -74,9 +75,9 @@ Chạy `yarn test src/__tests__/foundation/startup.test.tsx src/__tests__/auth/a
 
 ## 10. Giới hạn & lưu ý
 
-Management, Processing và Dataset 3D yêu cầu phiên cả dev lẫn production. `ApplicationFrame` gắn provider dữ liệu cho các route workbench. Route danh sách project gần đây và route chi tiết có phạm vi tải riêng. Với phiên trực tuyến, provider lấy dữ liệu từ API và hiển thị trạng thái tải hoặc lỗi. Workspace 3D preview riêng chạy trong dev. Test bootstrap/auth dùng transport và scene mô phỏng. Xem [bảng route](../../README.md#route-management-và-ai-data-processing).
+Management, Processing và Dataset 3D yêu cầu phiên cả dev lẫn production. `ApplicationFrame` gắn provider dữ liệu cho các route workbench. Route danh sách project gần đây và route chi tiết có phạm vi tải riêng. Provider bọc API client bằng offline data service: response allowlist được cache theo account + EnvironmentId và request key; khi network lỗi, timeout, 5xx hoặc session gate tạm khóa request, cache khớp được trả cho store. Banner hiển thị đường dẫn cùng thời điểm lưu và fallback. Cache miss báo rõ “Chưa có bản lưu offline”; HTTP 401/403/404 xóa cache theo phạm vi tương ứng. Workspace 3D preview riêng chạy trong dev. Xem [bảng route](../../README.md#route-management-và-ai-data-processing).
 
-`createAppRuntime` cấp client theo phiên và nối `getMe`, `logout`, `deleteMe` vào coordinator. `AuthProvider` đưa thao tác nhận phiên Google và xóa tài khoản tới UI.
+`createAppRuntime` cấp client theo phiên và nối `getMe`, `logout`, `deleteMe` vào coordinator. Runtime tạo ba database riêng: upload drafts, offline reads và offline writes. `localData` cùng `offlineWrites` được truyền qua AuthProvider/Context. ManagementDataProvider bọc API client bằng cache allowlist; cache fallback hiện thời điểm lưu trong `OfflineNotice`, đặt ở shell chung của Management và Processing. Notice cũng theo dõi kết nối mạng, xác thực phiên và chuyển API target, đồng thời liệt kê từng command queue với trạng thái, file upload, lần gửi và lỗi. Người dùng có thể kết nối lại, đối chiếu request chưa rõ/bị chặn, hủy request chưa gửi hoặc xóa lịch sử đã xác nhận. Hủy khỏi queue không hoàn tác thao tác mà backend có thể đã nhận. Upload queue-first hiện toast sau khi IndexedDB commit; mục vẫn nằm trong notice đến khi được xác nhận hoặc người dùng xử lý. Offline write service chạy replay tuần tự dưới Web Locks. Các client auth, health, theo phiên, ManagementDataProvider và worker cùng đọc target từ một `ApiTargetManager`. Trong dev, `api-target-hmr` chuyển đề nghị URL mới tới manager; manager pause worker đã đăng ký, hủy/đánh dấu request cũ, kiểm tra `/health/ready` và hồ sơ `/users/me`, rồi mới công bố target/revision. Nếu access token hết hạn, manager giữ lần chuyển URL chờ người dùng xác nhận; refresh và profile chạy qua URL mới. Worker chỉ resume sau khi phiên được xác nhận. Khi xác minh thất bại, target cũ và queue được giữ lại, UI hiện lỗi. Sau khi tab xác nhận thành công, query đang hoạt động được đánh dấu stale để tải lại từ API mới. `registerWorker` ghép pause/resume của queue với chuyển target; session gate chỉ cho replay khi tài khoản hiện tại đã được xác nhận. `AuthProvider` đưa thao tác nhận phiên Google và xóa tài khoản tới UI.
 
 ## 11. Hướng cải tiến
 

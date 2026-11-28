@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import type { FilterQuery } from 'mongoose';
 import { IAnalysisRun } from './analysis-run.schema';
 import { IAnalysisResult } from './analysis-result.schema';
 import { IAiJob } from './ai-job.schema';
@@ -15,6 +16,8 @@ import {
   type AnalysisResultRecord,
   type AnalysisRunRecord,
   type CellEvidenceRecord,
+  type CellEvidenceSampleRecord,
+  type FindEvidenceSamplesParams,
   type FewShotExampleRecord,
   type ProjectSaveRecord,
   type ReportJobRecord,
@@ -25,6 +28,7 @@ import {
   toAnalysisRunRecord,
   toAnalysisRunPersistence,
   toCellEvidenceRecord,
+  toCellEvidenceSampleRecord,
   toFewShotRecord,
   toProjectSaveRecord,
   toReportJobRecord,
@@ -289,6 +293,25 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     if (!isObjectIdHex(runId)) return [];
     const docs = await this.evidenceModel.find({ analysis_run_id: oid(runId), deleted_at: null }).sort({ column: 1, row_index: 1 }).limit(limit).exec();
     return docs.map(toCellEvidenceRecord);
+  }
+
+  async findEvidenceSamples(params: FindEvidenceSamplesParams): Promise<CellEvidenceSampleRecord[]> {
+    if (!isObjectIdHex(params.runId) || (params.afterId && !isObjectIdHex(params.afterId))) return [];
+    const filter: FilterQuery<ICellEvidence> = {
+      analysis_run_id: oid(params.runId),
+      deleted_at: null,
+      ...(params.kind ? { kind: params.kind } : {}),
+      ...(params.column ? { column: params.column } : {}),
+      ...(params.afterId ? { _id: { $gt: oid(params.afterId) } } : {}),
+    };
+    const limit = Number.isInteger(params.limit) ? Math.max(1, Math.min(params.limit, 101)) : 1;
+    const docs = await this.evidenceModel
+      .find(filter)
+      .select({ analysis_run_id: 1, column: 1, row_index: 1, kind: 1, reason: 1, value_masked: 1 })
+      .sort({ _id: 1 })
+      .limit(limit)
+      .exec();
+    return docs.map(toCellEvidenceSampleRecord);
   }
 
   // ---- Project save ----

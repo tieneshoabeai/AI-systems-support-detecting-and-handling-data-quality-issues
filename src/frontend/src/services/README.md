@@ -11,9 +11,10 @@
 | `users` | Đọc hồ sơ và xóa tài khoản qua `/users/me` | [`users.service.ts`](users/users.service.ts) |
 | `management` | Store workspace/project, mapping phiên, chức năng quản trị, đọc CSV xem trước và kiểm tra upload | [`management.store.ts`](management/management.store.ts), [`session.mapper.ts`](management/session.mapper.ts), [`admin.service.ts`](management/admin.service.ts) |
 | `processing` | Dataset và project gần đây, phân tích, feedback, báo cáo và kiểm tra đánh giá kết quả | [`dataset.service.ts`](processing/dataset.service.ts), [`analysis.service.ts`](processing/analysis.service.ts), [`recent-projects.service.ts`](processing/recent-projects.service.ts), [`result-review.ts`](processing/result-review.ts) |
+| `offline` | Cache response đọc allowlist và chạy queue-first write/replay cho các command được phép | [`offline-data.service.ts`](offline/offline-data.service.ts), [`offline-write.service.ts`](offline/offline-write.service.ts) |
 | `navigation` | Tạo và phân tích URL Management/Processing, chuyển hướng URL cũ | [`application-route.ts`](navigation/application-route.ts) |
 
-[`services/index.ts`](index.ts) export một số factory và helper, gồm `createAuthService`, `createSessionCoordinator`, `createHealthService`, `createUsersService` và `validateResultReview`. Factory dataset, factory admin và loader project gần đây được import từ file triển khai tương ứng. Kiểm tra `index.ts` của nhóm trước khi chọn đường dẫn import.
+[`services/index.ts`](index.ts) export một số factory và helper, gồm `createAuthService`, `createSessionCoordinator`, `createHealthService`, `createUsersService`, `createOfflineDataService`, `createOfflineWriteService` và `validateResultReview`. Factory dataset, factory admin và loader project gần đây được import từ file triển khai tương ứng. Kiểm tra `index.ts` của nhóm trước khi chọn đường dẫn import.
 
 ## Lần theo hai luồng thực tế
 
@@ -22,7 +23,11 @@
 1. [`app-runtime.ts`](../app/app-runtime.ts) ghép HTTP client, storage và các service để tạo coordinator.
 2. Coordinator nhận yêu cầu đăng nhập, chuyển sang `signing-in` và gọi auth service. Với callback Google, coordinator tạo phiên ứng viên từ token, gọi `getMe` và kiểm tra hồ sơ khớp tài khoản.
 3. Nếu tác vụ vẫn thuộc phiên hiện tại và dữ liệu hợp lệ, coordinator lưu phiên và phát snapshot. UI đọc snapshot qua AuthProvider. Kết quả từ tác vụ cũ bị bỏ qua nếu phiên đã thay đổi.
-4. Gia hạn đi qua health check và xác nhận người dùng khi đủ điều kiện. Khi đăng xuất, `SignOutResult` cho biết riêng kết quả thu hồi ở backend và lỗi dọn cục bộ nếu có.
+4. Access token hết hạn sẽ chạy health check rồi mở hộp thoại xác nhận. Network, timeout, 5xx hoặc backend chưa sẵn sàng chuyển phiên sang `local-limited`, giữ credential/IndexedDB và chặn replay worker; khi mạng trở lại, health cùng `/users/me` được kiểm tra lại. Chỉ refresh bị từ chối/hết hạn, tài khoản không hoạt động hoặc người dùng từ chối mới kết thúc phiên. Khi đang đổi tunnel mà access token đã hết hạn, hộp thoại vẫn chờ xác nhận; refresh và `/users/me` chạy qua URL mới, worker chỉ resume sau khi profile hợp lệ. Khi đăng xuất, `SignOutResult` cho biết riêng kết quả thu hồi ở backend và lỗi dọn cục bộ nếu có.
+
+### Ghi offline và replay queue
+
+API wrapper chỉ queue request có `deferIfOffline: true` và payload/path nằm trong allowlist. Upload project đã tồn tại cần `deferredDraftId` khớp draft account/project/hash; upload của wizard không được đưa vào queue. `OfflineWriteService` commit command vào IndexedDB trước khi trả receipt; Web Lock staging bảo đảm liên kết upload draft có trước command, còn Web Lock độc quyền tránh hai tab replay đồng thời. Queue replay theo sequence khi session gate mở. PATCH được gửi kèm `expectedVersion`; conflict chuyển `blocked`. Request có kết quả chưa rõ chuyển `uncertain`; upload ở trạng thái này chỉ được xác nhận bằng dataset/hash backend khớp, nếu không sẽ `blocked` và không retry tự động. `confirmed` chỉ được ghi sau ACK/đối chiếu và được lưu bền trước khi draft Blob được dọn.
 
 ### Đọc schema dataset
 
@@ -72,6 +77,8 @@ src/services/
 │   ├── application-route.ts
 │   ├── legacy-workbench-route.ts
 │   └── index.ts
+├── offline/
+│   └── offline-data.service.ts
 ├── processing/
 │   ├── analysis.service.ts
 │   ├── dataset.service.ts
@@ -118,6 +125,7 @@ Các thao tác HTTP bên dưới đi qua [API client](../lib/README.md). Service
 | Settings tài khoản | Settings → store map và cập nhật hồ sơ, đổi mật khẩu, tải/đọc chi tiết hoặc thu hồi phiên, cập nhật tùy chọn thông báo → dữ liệu trả về UI. |
 | Quản trị | AdminApiPanel → [admin service](management/admin.service.ts) lấy trang/danh sách và chi tiết user/issue, cập nhật trạng thái issue → kiểm tra dữ liệu rồi trả model hoặc lỗi. |
 | Dataset | LiveDatasetPanel → [dataset service](processing/dataset.service.ts) → chi tiết/schema/records, thống kê cột, dữ liệu biểu đồ, xóa hoặc tải CSV gốc → model, kết quả mutation hoặc Blob cho panel. |
+| Cache đọc offline | ManagementDataProvider → [offline data service](offline/offline-data.service.ts) bọc API client → lưu response online theo account/environment/request key, fallback khi network/timeout/5xx hoặc session gate, báo cache miss khi chưa có bản lưu → store và banner trạng thái cache. |
 | Analysis | Project panel/store → [analysis service](processing/analysis.service.ts) → chạy/đọc kết quả, đọc/thử lại job, đọc/tạo tổng kết, yêu cầu/tải report, đọc chỉ số AI. Tải report trả trạng thái pending hoặc PDF đã kiểm tra. |
 | Feedback và đánh giá | Panel feedback → analysis service đọc/tạo feedback cấp run hoặc finding, sửa/xóa feedback. Dialog đánh giá riêng → [validation](processing/result-review.ts) → callback caller nếu dữ liệu hợp lệ. |
 | URL hiện tại và URL cũ | App/router/workbench → helper [application route](navigation/application-route.ts) hoặc [legacy redirect](navigation/legacy-workbench-route.ts) → URL/phạm vi hợp lệ hoặc kết quả không khớp. |

@@ -57,14 +57,15 @@ const LocationProbe = () => {
   return <><output data-testid="location">{location.pathname}{location.search}{location.hash}</output><output data-testid="location-state">{JSON.stringify(location.state)}</output></>
 }
 
-const mount = async (options: { path?: string; storedExp?: number; rejectLogin?: boolean; pendingLogin?: Promise<unknown>; pendingRefresh?: Promise<unknown>; meFailure?: boolean; logoutFailure?: boolean } = {}) => {
+const mount = async (options: { path?: string; storedExp?: number; remember?: boolean; rejectLogin?: boolean; pendingLogin?: Promise<unknown>; pendingRefresh?: Promise<unknown>; meFailure?: boolean; logoutFailure?: boolean } = {}) => {
   const records = new Map<string, string>()
   const storage = createSessionStorage({ getStorage: () => ({
     getItem: key => records.get(key) ?? null,
     setItem: (key, value) => { records.set(key, value) },
     removeItem: key => { records.delete(key) },
   }) })
-  if (options.storedExp !== undefined) storage.write({ schemaVersion: 1, accountId: 'a', accessToken: token(options.storedExp), refreshToken: 'test-refresh' })
+  if (options.storedExp !== undefined) storage.write({ schemaVersion: 1, accountId: 'a', accessToken: token(options.storedExp), refreshToken: 'test-refresh',
+    ...(options.remember ? { rememberMe: true, refreshExpiresAtMs: Date.now() + 30 * 24 * 60 * 60 * 1000 } : {}) })
   const database = new UploadDraftDatabase(`react-test-${crypto.randomUUID()}`)
   const queryClient = createQueryClient()
   const adapter = vi.fn<AxiosAdapter>(async config => {
@@ -285,7 +286,7 @@ describe('provider timer/focus and consent dialog', () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     vi.setSystemTime(new Date('2026-10-28T10:00:00Z'))
     const exp = (Date.now() + 2_147_484_647) / 1000
-    const s = await mount({ storedExp: exp })
+    const s = await mount({ storedExp: exp, remember: true })
     await act(async () => { await vi.advanceTimersByTimeAsync(2_147_483_647) })
     expect(requests(s.adapter, '/health')).toHaveLength(0)
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })

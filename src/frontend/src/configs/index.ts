@@ -1,4 +1,5 @@
 export { UPLOAD_DRAFT_LIMITS } from './upload-draft.config'
 export { composeApiConfig } from './api.config'
+export { getApiEnvironmentId } from './api.config'
 export { getApiConfig } from './api.config'
 export { parseApiConfig } from './api.config'

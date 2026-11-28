@@ -9,6 +9,7 @@ import type { ApiClient, ApiRequestOptions } from '../../types/api/api.types'
 import { AdminApiPanel } from '../../views/management/members/admin-api-panel'
 import { LiveDatasetPanel } from '../../views/processing/project/sections/live-dataset-panel'
 import { AuthenticatedWorkbenchEntry } from '../support/authenticated-workbench-entry'
+import { renderFrameWithStore } from '../support/workbench-test-kit'
 
 beforeAll(async () => {
   await Promise.all([import('../../views/application/application-frame'), import('../../app/pages/private/management-page')])
@@ -64,7 +65,7 @@ it('shows server records and submits the chosen numeric filter', async () => {
     id: 'd1', fileName: 'ages.csv', format: 'CSV' as const, rows: 1, columns: 1, sizeMb: 0.01,
     importedAt: '2026-11-18', status: 'processed' as const,
   } }
-  render(<ManagementStoreContext.Provider value={store}><LiveDatasetPanel project={project} /></ManagementStoreContext.Provider>)
+  renderFrameWithStore(<LiveDatasetPanel project={project} />, store)
   expect(await screen.findByRole('cell', { name: '21' })).toBeDefined()
   expect(screen.queryByLabelText('Tên hiển thị mới')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Đổi tên cột' })).toBeNull()
@@ -93,7 +94,7 @@ it('shows a dataset error and recovers when the user retries', async () => {
     id: 'd1', fileName: 'ages.csv', format: 'CSV' as const, rows: 0, columns: 1, sizeMb: 0,
     importedAt: '2026-11-18', status: 'processed' as const,
   } }
-  render(<ManagementStoreContext.Provider value={store}><LiveDatasetPanel project={project} /></ManagementStoreContext.Provider>)
+  renderFrameWithStore(<LiveDatasetPanel project={project} />, store)
   expect((await screen.findByRole('alert')).textContent).toBe('Dataset unavailable')
   failed = false
   fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }))

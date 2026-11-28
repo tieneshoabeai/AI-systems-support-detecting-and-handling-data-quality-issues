@@ -2,7 +2,7 @@
 
 ## 1. Mục đích
 
-Kiểm tra cấu hình HTTP và tập trung các giới hạn dung lượng bản nháp. Lớp gửi request nằm ở [lib](../lib/README.md), còn lớp ghi bản nháp nằm ở [repositories](../repositories/README.md).
+Kiểm tra cấu hình HTTP, định danh môi trường API ổn định và tập trung các giới hạn dung lượng bản nháp. Lớp gửi request nằm ở [lib](../lib/README.md), còn các kho IndexedDB nằm ở [repositories](../repositories/README.md).
 
 ## 2. Vị trí & phụ thuộc
 
@@ -10,8 +10,9 @@ Kiểm tra cấu hình HTTP và tập trung các giới hạn dung lượng bả
 
 ## 3. Public API
 
+- `getApiEnvironmentId(): string` trả về `environment:<id>`; mặc định `qa-main` ở dev và `production` khi build production. Đặt `VITE_API_ENVIRONMENT_ID` khác nhau khi backend trỏ tới môi trường dữ liệu khác.
 - `parseApiConfig(value: unknown): ApiConfig` kiểm tra URL API đầy đủ và chuẩn hóa dấu `/` cuối.
-- `composeApiConfig(baseValue: unknown, prefixValue: unknown): ApiConfig` ghép origin và prefix. `getApiConfig(): ApiConfig` lấy hai đầu vào từ Vite. Cả ba ném `ApiError` loại `config` khi đầu vào sai.
+- `composeApiConfig(baseValue: unknown, prefixValue: unknown): ApiConfig` ghép origin và prefix. `getApiConfig(): ApiConfig` đọc cấu hình ban đầu từ Vite environment; target runtime thay đổi được giữ bởi [`ApiTargetManager`](../lib/api-target-manager.ts). Các hàm ném `ApiError` loại `config` khi đầu vào sai.
 - `DEFAULT_API_TIMEOUT_MS: number` và `UPLOAD_DRAFT_LIMITS` là hằng mặc định.
 
 ## 4. Cách dùng (ví dụ)
@@ -34,7 +35,7 @@ Ví dụ chỉ tạo object, không gửi request. Đặt đoạn gọi trong ng
 
 ## 6. Luồng hoạt động
 
-`getApiConfig()` → kiểm tra origin → kiểm tra prefix → ghép URL → trả `baseUrl` và `timeoutMs` cho client. Repository đọc hạn mức khi kiểm tra dung lượng trước khi ghi.
+`getApiConfig()` → kiểm tra cấu hình Vite ban đầu → tạo target ban đầu cho `ApiTargetManager`. Sau đó client đọc target/revision hiện hành từ manager tại đầu mỗi request. Repository đọc hạn mức khi kiểm tra dung lượng trước khi ghi.
 
 ## 7. Cấu hình
 
@@ -42,6 +43,7 @@ Ví dụ chỉ tạo object, không gửi request. Đặt đoạn gọi trong ng
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | Bắt buộc | Origin HTTP(S) của API |
 | `VITE_API_PREFIX` | Bắt buộc | Đường dẫn API, ví dụ `/api/v1` |
+| `VITE_API_ENVIRONMENT_ID` | `qa-main` ở dev; `production` ở production | ID ổn định cho namespace local; đổi ID khi đổi môi trường dữ liệu, không đổi khi chỉ xoay tunnel |
 | `DEFAULT_API_TIMEOUT_MS` | 30.000 ms | Hạn chờ HTTP mặc định |
 | `UPLOAD_DRAFT_LIMITS` | 50 MiB/file, 200 MiB/tài khoản, 500 MiB/toàn app | Ngưỡng nhận bản nháp |
 
@@ -55,7 +57,7 @@ Từ thư mục frontend chạy `yarn test src/__tests__/foundation/api.test.ts 
 
 ## 10. Giới hạn & lưu ý
 
-`getApiConfig()` ném lỗi `config` nếu frontend chạy HTTPS nhưng API dùng HTTP. Kiểm tra URL hoàn tất trước khi gửi request. Nếu URL hợp lệ mà vẫn lỗi mạng, kiểm tra backend và CORS theo origin đang chạy frontend. Dung lượng IndexedDB phụ thuộc trình duyệt.
+`getApiConfig()` ném lỗi `config` nếu frontend chạy HTTPS nhưng API dùng HTTP. `getApiEnvironmentId()` kiểm tra ID chỉ gồm chữ, số, dấu chấm, gạch dưới và gạch ngang, tối đa 64 ký tự. Khi đổi tunnel, manager giữ nguyên EnvironmentId/prefix và chỉ công bố URL mới sau readiness cùng xác minh tài khoản. Nếu URL hợp lệ mà vẫn lỗi mạng, kiểm tra backend và CORS theo origin đang chạy frontend. Dung lượng IndexedDB phụ thuộc trình duyệt.
 
 ## 11. Hướng cải tiến
 
@@ -65,5 +67,5 @@ Từ thư mục frontend chạy `yarn test src/__tests__/foundation/api.test.ts 
 
 | Chức năng | Nguồn → xử lý → nơi dùng |
 | --- | --- |
-| Cấu hình kết nối | Tên biến Vite hoặc base URL từ caller → `getApiConfig`, `composeApiConfig` hoặc `parseApiConfig` → base URL và timeout cho bootstrap/Axios, hoặc lỗi `config` về điểm khởi tạo. |
+| Cấu hình kết nối | Tên biến Vite → `getApiConfig` và `composeApiConfig` → target ban đầu; `ApiTargetManager` cấp target hiện hành cho Axios. Sai cấu hình trả lỗi `config` về điểm khởi tạo. |
 | Hạn mức bản nháp | `UPLOAD_DRAFT_LIMITS` → repository kiểm tra từng file, tổng theo tài khoản và toàn ứng dụng trước khi ghi → caller nhận kết quả lưu hoặc lỗi dung lượng. |

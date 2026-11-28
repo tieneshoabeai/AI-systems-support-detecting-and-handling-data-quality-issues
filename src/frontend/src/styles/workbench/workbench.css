@@ -18,8 +18,10 @@
   /* #6e869f đo ra 4.20:1 trên --pv-surface-2, dưới ngưỡng 4.5 (brand-guidelines mục 5.5).
      Nền đổi thì số này đổi theo: #8ea6c0 = 5.41:1 trên surface-2 mới. */
   --pv-faint: #8ea6c0;
-  --pv-brand: var(--color-brand);
+  --pv-brand: #00a878;
   --pv-brand-soft: color-mix(in srgb, var(--pv-brand) 22%, transparent);
+  --pv-floating-control-line: #b7d9ff55;
+  --pv-floating-control-bg: #132742;
   --pv-blue: #2f7cf6;
   /* Token _fill dùng cho nền đặc có chữ trắng. Đã đo WCAG tương phản với #fff:
      #2f7cf6 = 3.94 (HỎNG 4.5) · #2a6ee6 = 4.70 · #2563eb = 5.17 · #1f5fd0 = 5.82.
@@ -65,8 +67,56 @@
   --pv-panel-from: #0e1c31;
   --pv-hc-edge: #8fb3d9;              /* prefers-contrast: viền đặc thay surface trong suốt */
   --pv-hc-hover: #24455f;             /* prefers-contrast: nền hover đọc được trên nền đặc */
-  --pv-radius: 14px;
+  /* Presentation tokens shared by the management and processing workbenches.
+     Kept under this root so login and other app surfaces keep their own theme. */
+  --pv-font-family: var(--font-ui, 'Plus Jakarta Sans', system-ui, sans-serif);
+  --pv-type-xs: 11px;
+  --pv-type-sm: 12px;
+  --pv-type-button: 13px;
+  --pv-type-body: 14px;
+  --pv-type-subtitle: 16px;
+  --pv-type-title: 18px;
+  --pv-type-stat: 21px;
+  --pv-type-display: 30px;
+  --pv-leading-tight: 1.24;
+  --pv-leading-display: 1.16;
+  --pv-leading-heading: 1.3;
+  --pv-leading-subtitle: 1.35;
+  --pv-leading-body: 1.6;
+  --pv-leading-relaxed: 1.7;
+  --pv-tracking-body: -.004em;
+  --pv-tracking-heading: -.026em;
+  --pv-tracking-display: -.032em;
+  --pv-tracking-title: -.018em;
+  --pv-tracking-subtitle: -.012em;
+  --pv-weight-medium: 500;
+  --pv-weight-semibold: 600;
+  --pv-weight-bold: 700;
+  --pv-weight-extrabold: 750;
+  --pv-space-1: 4px;
+  --pv-space-2: 8px;
+  --pv-space-3: 12px;
+  --pv-space-3-5: 14px;
+  --pv-space-4: 16px;
+  --pv-space-5: 20px;
+  --pv-space-6: 24px;
+  --pv-space-7: 28px;
+  --pv-space-8: 32px;
+  --pv-space-10: 40px;
+  --pv-control-height: 40px;
+  --pv-control-height-compact: 44px;
+  --pv-border-width: 1px;
+  --pv-radius-sm: 8px;
+  --pv-radius-md: 14px;
   --pv-radius-lg: 20px;
+  --pv-radius: var(--pv-radius-md);
+  --pv-hover-surface: color-mix(in srgb, var(--pv-blue) 12%, transparent);
+  --pv-hover-surface-strong: color-mix(in srgb, var(--pv-blue) 16%, transparent);
+  --pv-disabled-surface: color-mix(in srgb, var(--pv-surface-2) 82%, var(--pv-bg-0));
+  --pv-disabled-opacity: .45;
+  --pv-loading-opacity: .65;
+  --pv-focus-ring: 2px solid var(--pv-ink-link);
+  --pv-focus-offset: 3px;
   /* Đường cong cũ cubic-bezier(.4,0,.2,1) KHỞI ĐỘNG CHẬM: 40% thời gian đầu gần như
      bất động, nên bấm nút là thấy "trễ" một cái rồi mới chạy. Mọi phản hồi do thao tác
      gây ra phải nhấc ngay lập tức → hai đường cong đầu dốc, đuôi đáp nhẹ.
@@ -80,7 +130,7 @@
   --pv-d-press: 80ms;
   /* Surface nổi (menu · popover · dialog · toast): đủ dài để thấy nó "đi tới", đủ ngắn
      để không chặn người dùng bấm tiếp (mọi surface đều interruptible). */
-  --pv-d-surface: 130ms;
+  --pv-d-surface: 105ms;
   --pv-sidebar-w: 240px;
   /* Chiều cao phần khung trên vùng cuộn: dải demo + topbar + dải lý do (~118px).
      Dùng để giới hạn panel chi tiết đúng bằng vùng nhìn thấy của .preview-content. */
@@ -149,7 +199,7 @@
 [data-preview='2d'] dl { margin: 0; }
 [data-preview='2d'] small { color: var(--pv-muted); font-size: 12px; }
 [data-preview='2d'] button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
-[data-preview='2d'] [disabled] { cursor: not-allowed; opacity: .45; }
+  [data-preview='2d'] [disabled] { cursor: not-allowed; opacity: var(--pv-disabled-opacity); }
 
 [data-preview='2d'] :focus-visible {
   outline: 2px solid var(--pv-cyan);

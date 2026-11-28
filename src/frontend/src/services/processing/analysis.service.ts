@@ -2,6 +2,7 @@ import type { ApiClient, ApiResponseWithStatus } from '../../types/api/api.types
 import { ApiError } from '../../lib/api-error'
 import type { SavedAnalysisResult } from '../management/management.types'
 import type {
+  getAnalysesByAnalysisRunIdEvidenceSamplesParamsQuery,
   postProjectsByProjectIdRunAnalysisRequestBody,
 } from '../../types/services-type/analysis'
 import type {
@@ -16,6 +17,22 @@ export type RunAnalysisInput = postProjectsByProjectIdRunAnalysisRequestBody
 export type CreateFeedbackInput = postAnalysesByAnalysisIdRunFeedbackRequestBody
 export type UpdateFeedbackInput = patchFeedbackByIdMineRequestBody
 export type FeedbackQuery = getAnalysesByAnalysisIdRunFeedbackParamsQuery
+export type EvidenceSamplesQuery = getAnalysesByAnalysisRunIdEvidenceSamplesParamsQuery
+
+export type EvidenceSampleKind = 'missing' | 'duplicate' | 'invalid_type' | 'outlier'
+export type EvidenceSample = {
+  findingId: string
+  kind: EvidenceSampleKind
+  column: string
+  /** Zero-based record index; the table header is not included. */
+  rowIndex: number
+  reason: string | null
+  valueMasked: string | null
+}
+export type EvidenceSamplesPage = {
+  items: EvidenceSample[]
+  meta: { limit: number; hasMore: boolean; nextCursor: string | null }
+}
 
 export type ReportDownload =
   | { status: 'ready'; file: Blob }
@@ -32,6 +49,10 @@ export function createAnalysisService(api: ApiClient) {
       request<SavedAnalysisResult>(projectPath(projectId, 'analysis'), { method: 'POST', data, ...(signal ? { signal } : {}) }),
     getResult: (projectId: string, signal?: AbortSignal) =>
       request<SavedAnalysisResult>(projectPath(projectId, 'analysis/result'), signal ? { signal } : {}),
+    listEvidenceSamples: (analysisRunId: string, query: EvidenceSamplesQuery = {}, signal?: AbortSignal) =>
+      request<EvidenceSamplesPage>(`/analyses/${encodeURIComponent(analysisRunId)}/evidence-samples`, {
+        params: { ...query }, ...(signal ? { signal } : {}),
+      }),
     getJob: (jobId: string, signal?: AbortSignal) =>
       request<unknown>(`/analysis/jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : {}),
     retryJob: (jobId: string, signal?: AbortSignal) =>

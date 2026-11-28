@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../../../components/ui/primitives/button'
 import styles from '../../../components/ui/diagnostics.module.css'
 import { createAxiosClient } from '../../../lib/axios-client'
+import { getApiTargetManager } from '../../../lib/api-target-manager'
 import { normalizeApiError } from '../../../lib/api-error'
 import { createHealthService } from '../../../services/health/health.service'
 
@@ -33,7 +34,7 @@ export function SystemStatus() {
       const timing = () => ({ at: new Date(), elapsedMs: Math.round(performance.now() - startedAt) })
       let next: Snapshot
       try {
-        const data = await createHealthService(createAxiosClient()).readiness(controller.signal)
+        const data = await createHealthService(createAxiosClient({ apiTargetManager: getApiTargetManager() })).readiness(controller.signal)
         next = { ...timing(), data }
       } catch (cause) {
         const error = normalizeApiError(cause)

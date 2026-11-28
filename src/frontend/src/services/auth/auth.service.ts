@@ -14,6 +14,8 @@ const isLoginResponse = (value: unknown): value is LoginResponseDto => {
     && isNonemptyString(value['refresh_token'])
     && typeof value['expires_in'] === 'number'
     && Number.isFinite(value['expires_in']) && value['expires_in'] > 0
+    && (value['remember_me'] === undefined || typeof value['remember_me'] === 'boolean')
+    && (value['expires_at'] === undefined || (typeof value['expires_at'] === 'string' && Number.isFinite(Date.parse(value['expires_at']))))
     && isNonemptyString(user['id']) && isNonemptyString(user['email'])
     && (user['role'] === 'admin' || user['role'] === 'analyst')
 }
@@ -33,6 +35,8 @@ const mapLoginResponse = (value: unknown): LoginResult => {
     session: {
       schemaVersion: 1, accessToken: value.access_token,
       refreshToken: value.refresh_token, accountId: value.user.id,
+      ...(value.expires_at === undefined ? {} : { refreshExpiresAtMs: Date.parse(value.expires_at) }),
+      ...(value.remember_me === undefined ? {} : { rememberMe: value.remember_me }),
     },
     expiresAtMs: info.expiresAtMs,
     user: {
@@ -55,13 +59,17 @@ export const createAuthService = (api: ApiClient) => ({
     if (!isRecord(response) || !isNonemptyString(response['access_token'])
       || !isNonemptyString(response['refresh_token'])
       || typeof response['expires_in'] !== 'number' || !Number.isFinite(response['expires_in'])
-      || response['expires_in'] <= 0) throw invalidResponse()
+      || response['expires_in'] <= 0
+      || (response['remember_me'] !== undefined && typeof response['remember_me'] !== 'boolean')
+      || (response['expires_at'] !== undefined && (typeof response['expires_at'] !== 'string' || !Number.isFinite(Date.parse(response['expires_at']))))) throw invalidResponse()
     const info = readAccessToken(response['access_token'])
     if (!info) throw invalidResponse()
     // Coordinator kiểm tra hạn, account và phiên hiện tại trước khi ghi.
     // Backend rotate refresh token; trả cả hai để coordinator lưu cùng một phiên.
     return { accessToken: response['access_token'], refreshToken: response['refresh_token'],
-      accountId: info.accountId, expiresAtMs: info.expiresAtMs }
+      accountId: info.accountId, expiresAtMs: info.expiresAtMs,
+      ...(typeof response['expires_at'] === 'string' ? { refreshExpiresAtMs: Date.parse(response['expires_at']) } : {}),
+      ...(typeof response['remember_me'] === 'boolean' ? { rememberMe: response['remember_me'] } : {}) }
   },
 
   async logout(options: { signal?: AbortSignal } = {}): Promise<void> {
@@ -78,11 +86,16 @@ export const createAuthService = (api: ApiClient) => ({
     // Chọn đúng field DTO; không gửi field lạ, không sửa/trim password.
     const data: LoginRequestDto = { email: input.email, password: input.password }
     if (input.device_name !== undefined) data.device_name = input.device_name
+    if (input.remember_me !== undefined) data.remember_me = input.remember_me
 
     const response = await api.request<unknown>({
       path: '/auth/login', method: 'POST', auth: 'public', data, ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
     // Client đã unwrap envelope đúng một lần. Service kiểm tra DTO cụ thể.
-    return mapLoginResponse(response)
+    const result = mapLoginResponse(response)
+    if (result.session.rememberMe === undefined && input.remember_me !== undefined) {
+      return { ...result, session: { ...result.session, rememberMe: input.remember_me } }
+    }
+    return result
   },
 })

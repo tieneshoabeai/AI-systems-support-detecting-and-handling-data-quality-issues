@@ -1153,6 +1153,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analyses/{analysisRunId}/evidence-samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ANALYSIS-04: View PII-masked evidence samples for a finding */
+        get: operations["listAnalysisEvidenceSamples"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4573,6 +4590,72 @@ export interface operations {
                 content?: never;
             };
             /** @description Không tìm thấy không gian làm việc */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listAnalysisEvidenceSamples: {
+        parameters: {
+            query?: {
+                findingId?: string;
+                kind?: "missing" | "duplicate" | "invalid_type" | "outlier";
+                column?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                analysisRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Samples already stored for the finding; rowIndex is zero-based. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            findingId: string;
+                            /** @enum {string} */
+                            kind: "missing" | "duplicate" | "invalid_type" | "outlier";
+                            column: string;
+                            /** @description Zero-based index into data records; the header row is excluded. */
+                            rowIndex: number;
+                            reason: string | null;
+                            /** @description PII-masked value only; raw values are never returned. */
+                            valueMasked: string | null;
+                        }[];
+                        meta: {
+                            limit: number;
+                            hasMore: boolean;
+                            nextCursor: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Invalid query or findingId */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Read access to Analysis is required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Analysis run not found */
             404: {
                 headers: {
                     [name: string]: unknown;

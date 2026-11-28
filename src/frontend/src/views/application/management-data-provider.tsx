@@ -3,11 +3,12 @@ import { AuthContext } from '../../hooks/auth/auth-context'
 import { ManagementStoreContext, type ManagementStore } from '../../hooks/management/use-management-store'
 import { ManagementLoadingContext, ManagementOverviewLoaderContext, ManagementPersonalLoadingContext, type ManagementLoading } from '../../hooks/management/management-loading-context'
 import { createAxiosClient } from '../../lib/axios-client'
+import { getApiTargetManager } from '../../lib/api-target-manager'
 import { createSessionStorage } from '../../lib/session-storage'
 import { createManagementStore } from '../../services/management/management.store'
 import type { SessionSnapshot } from '../../types/auth/session-coordinator.types'
 import { readAccessToken } from '../../utils/auth/access-token'
-import { normalizeApiError } from '../../lib/api-error'
+import { isRecord, normalizeApiError } from '../../lib/api-error'
 import { ProcessingDataContext } from './processing-data-context'
 import type { Person } from '../../types/management/management.types'
 
@@ -23,10 +24,15 @@ type LoadResult = {
   overviewLoader?: ManagementStore['getWorkspaceOverview']
 }
 
-const sessionAccount = (snapshot: SessionSnapshot | undefined): Person => {
+const sessionAccount = (snapshot: SessionSnapshot | undefined, cachedProfile?: unknown): Person => {
   const user = snapshot?.user?.value
-  const name = user ? ('firstName' in user ? `${user.firstName} ${user.lastName}`.trim() || user.email : user.email) : 'Tài khoản'
-  return { id: snapshot?.accountId ?? '', name, email: user?.email ?? '', role: user?.role ?? '', initials: name.slice(0, 2).toUpperCase() }
+  const profile = isRecord(cachedProfile) ? cachedProfile : null
+  const email = user?.email ?? (typeof profile?.['email'] === 'string' ? profile['email'] : '')
+  const profileName = [profile?.['firstName'], profile?.['lastName']].filter(value => typeof value === 'string').join(' ').trim()
+  const name = user ? ('firstName' in user ? `${user.firstName} ${user.lastName}`.trim() || user.email : user.email)
+    : profileName || email || 'Tài khoản'
+  const role = user?.role ?? (typeof profile?.['role'] === 'string' ? profile['role'] : '')
+  return { id: snapshot?.accountId ?? '', name, email, role, initials: name.slice(0, 2).toUpperCase() }
 }
 
 function SessionDataProvider({ children, projectId, recent = false, progressiveProjects = false }: {
@@ -34,6 +40,10 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
 }) {
   const auth = useContext(AuthContext)
   const snapshot = auth?.snapshot
+  const localData = auth?.localData
+  const uploadDrafts = auth?.uploadDrafts
+  const offlineWrites = auth?.offlineWrites
+  const apiTargetManager = auth?.apiTargetManager ?? getApiTargetManager()
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<LoadResult | null>(null)
   const pendingStore = useMemo(() => createManagementStore({
@@ -41,17 +51,26 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
   }, sessionAccount(snapshot)).store, [snapshot])
 
   useEffect(() => {
-    if (snapshot?.phase !== 'authenticated') return
+    if (!snapshot || snapshot.accountId === null) return
     let active = true
     let dispose: (() => void) | undefined
     const controller = new AbortController()
-    try {
+    const start = async () => {
       const storage = createSessionStorage()
       const session = storage.read()
-      if (session.status !== 'valid' || session.session.accountId !== snapshot.accountId) {
-        throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại.')
+      if ((session.status !== 'valid' && session.status !== 'expired') || session.session.accountId !== snapshot.accountId) {
+        throw new Error('Không có credential cục bộ khớp với tài khoản đang mở.')
       }
-      const api = createAxiosClient({
+      let cachedProfile: unknown
+      if (localData) {
+        try {
+          cachedProfile = (await localData.readCached<unknown>({ path: '/users/me', auth: 'session' }))?.value
+        } catch { /* A missing cache must not prevent trying the API. */ }
+      }
+      if (!active) return
+      const baseApi = createAxiosClient({
+        apiTargetManager,
+        ...(offlineWrites ? { deferredWrites: offlineWrites } : {}),
         readToken: () => {
           if (!active || controller.signal.aborted) return null
           const current = storage.read()
@@ -59,8 +78,11 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
             ? current.session.accessToken : null
         },
       })
-      const data = createManagementStore(api, sessionAccount(snapshot), {
+      const api = localData?.wrapClient(baseApi) ?? baseApi
+      const data = createManagementStore(api, sessionAccount(snapshot, cachedProfile), {
         progressiveProjects,
+        ...(uploadDrafts ? { uploadDrafts } : {}),
+        ...(localData?.invalidateResource ? { invalidateOfflineResource: path => localData.invalidateResource!(path) } : {}),
         ...(projectId === undefined ? {} : { projectId }),
         ...(recent ? { recent } : {}),
         signal: controller.signal,
@@ -69,7 +91,14 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
         return current.status === 'valid' && current.session.accountId === snapshot.accountId
           ? readAccessToken(current.session.accessToken)?.sessionId ?? null : null
       } })
-      dispose = data.dispose
+      const onOfflineWriteConfirmed = () => {
+        if (active) void data.load().catch(() => {})
+      }
+      window.addEventListener('offline-write-confirmed', onOfflineWriteConfirmed)
+      dispose = () => {
+        window.removeEventListener('offline-write-confirmed', onOfflineWriteConfirmed)
+        data.dispose()
+      }
       const scope = { ...(projectId === undefined ? {} : { projectId }), progressiveProjects }
       const overviewLoader = !recent && projectId === undefined ? data.store.getWorkspaceOverview : undefined
       if (overviewLoader) setResult({ snapshot, ...scope, overviewLoader })
@@ -99,19 +128,22 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
         const failure = normalizeApiError(error)
         setResult({ snapshot, ...scope, overviewLoader, error: error instanceof Error ? error.message : failure.message, missing: failure.status === 404 })
       })
-    } catch (error) {
+    }
+    void start().catch((error: unknown) => {
+      if (!active) return
       const message = error instanceof Error ? error.message : 'Không kết nối được máy chủ.'
       queueMicrotask(() => { if (active) setResult({ snapshot, progressiveProjects, ...(projectId === undefined ? {} : { projectId }), error: message }) })
-    }
+    })
     return () => { active = false; controller.abort(); dispose?.() }
-  }, [snapshot, attempt, projectId, recent, progressiveProjects])
+  }, [snapshot, attempt, projectId, recent, progressiveProjects, localData, uploadDrafts, offlineWrites, apiTargetManager])
 
   // Standalone mounts can supply their own ManagementStoreContext.
   if (!auth) return children
   const current = result?.snapshot === snapshot && result?.projectId === projectId && result?.progressiveProjects === progressiveProjects ? result : null
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
+  const hasSession = snapshot?.accountId !== null && snapshot?.accountId !== undefined
   if (projectId !== undefined) {
-    const error = snapshot?.phase === 'authenticated' ? current?.error : 'Cần phiên đăng nhập trực tuyến để mở project.'
+    const error = hasSession ? current?.error : 'Cần phiên đăng nhập để mở project.'
     const status = { loading: !current?.store && !error, permissionsPending: current?.projectPermissionsPending === true, ...(error ? { error } : {}),
       ...(current?.missing ? { missing: true } : {}), retry }
     return <ProcessingDataContext.Provider value={status}>
@@ -119,7 +151,7 @@ function SessionDataProvider({ children, projectId, recent = false, progressiveP
     </ProcessingDataContext.Provider>
   }
   let status: ManagementLoading | null = null
-  if (snapshot?.phase !== 'authenticated') status = { phase: 'error', message: 'Cần phiên đăng nhập trực tuyến để quản lý dữ liệu.' }
+  if (!hasSession) status = { phase: 'error', message: 'Cần phiên đăng nhập để quản lý dữ liệu.' }
   else if (current?.error) status = { phase: 'error', message: current.error, retry }
   else if (!current?.store) status = { phase: 'loading' }
 

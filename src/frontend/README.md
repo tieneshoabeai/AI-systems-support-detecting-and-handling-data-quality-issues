@@ -251,11 +251,21 @@ Không có credentials vẫn có thể chạy riêng `yarn test:e2e tests/e2e/au
 
 ### Quản lý phiên nền tảng
 
-Runtime ghép session storage và coordinator. AuthProvider theo dõi trạng thái phiên để cập nhật guard và UI. Coordinator điều phối khôi phục, gia hạn và kết thúc phiên. Xem [lib](src/lib/README.md) để tra cách lưu phiên và [services](src/services/README.md) để theo dõi điều kiện gia hạn.
+Runtime ghép session storage và coordinator. AuthProvider theo dõi trạng thái phiên để cập nhật guard và UI. Access token mặc định hết hạn sau 15 phút; backend quản lý refresh session 7 ngày mặc định hoặc 30 ngày khi bật **Ghi nhớ đăng nhập**. Frontend dùng thời điểm hết hạn từ JWT/`expires_at`; với session cũ chưa lưu refresh expiry, runtime đặt mặc định 7/30 ngày tương ứng. Network, timeout hoặc 5xx giữ credential trong sessionStorage, chuyển sang `local-limited` và không xóa IndexedDB. Khi access token hết hạn, request được chặn; dữ liệu cục bộ vẫn đọc được trong refresh session còn hiệu lực. Khi backend mới sẵn sàng, hộp thoại xác nhận hiện có cho phép refresh qua URL mới. Hết refresh session, refresh bị từ chối, tài khoản bị vô hiệu hoặc người dùng từ chối thì cần đăng nhập lại. Xem [lib](src/lib/README.md) để tra cách lưu phiên và [services](src/services/README.md) để theo dõi điều kiện gia hạn.
+
+ManagementDataProvider truyền response online từ allowlist vào kho IndexedDB theo account + EnvironmentId + request key ổn định. Network/timeout/5xx hoặc request bị session gate tạm dừng sẽ dùng response khớp cache; giao diện cho biết thời điểm lưu và lúc chuyển sang fallback. Cache miss hiển thị rõ dữ liệu chưa có bản lưu. HTTP 401 xóa cache của account/environment; 403/404 xóa dữ liệu liên quan tới tài nguyên. Cache đọc bao phủ workspace, project, dataset, issue, notification, profile, overview, schema, records, stats/chart, analysis, feedback và PDF report. Offline write queue không nhận mọi request: allowlist gồm upload CSV vào project đã tồn tại, PATCH tên/mô tả workspace/project có `expectedVersion`, và DELETE workspace/project/dataset. Tạo project, chạy analysis và các thao tác ghi khác không tự được queue. Command chỉ được trả receipt sau khi commit vào IndexedDB; replay tuần tự dưới Web Lock và hiển thị trạng thái trong bảng hàng đợi.
 
 ### Cấu hình địa chỉ API
 
-[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Luồng chính đọc cấu hình khi tạo runtime. Nếu cấu hình sai, bootstrap chuyển lỗi tới UI. Chỉ preview Workspace 3D dành cho dev được chọn trước khi nạp runtime chính.
+[configs](src/configs/README.md) mô tả `VITE_API_BASE_URL` và `VITE_API_PREFIX`. Runtime tạo `ApiTargetManager` từ cấu hình ban đầu; mọi client production lấy target mới nhất từ manager ở đầu mỗi request. Nếu cấu hình ban đầu sai, bootstrap chuyển lỗi tới UI. Chỉ preview Workspace 3D dành cho dev được chọn trước khi nạp runtime chính.
+
+Sau khi nạp plugin (cần khởi động lại một Vite server cũ một lần), đổi tunnel trong cùng phiên Vite bằng lệnh dưới đây từ thư mục `src/frontend`:
+
+~~~powershell
+.\scripts\dev-with-swagger.ps1 -SwaggerUrl "https://<tunnel-moi>.trycloudflare.com/api/v1/docs" -EnvironmentId "qa-main"
+~~~
+
+Nếu Vite của project chưa chạy, script khởi động Vite trên port 5180 và không tự mở tab. Nếu đã có Vite chạy với plugin này, chạy lệnh từ terminal thứ hai: script gửi cấu hình qua control endpoint loopback; tab đang mở nhận custom HMR event, còn Vite không restart. `ApiTargetManager` tạm dừng worker đã đăng ký, hủy/đánh dấu request cũ, kiểm tra `/health/ready` và hồ sơ `/users/me`, rồi mới công bố URL/revision mới. Nếu access token hết hạn, hộp thoại gia hạn chờ người dùng xác nhận; refresh và kiểm tra hồ sơ chạy trên URL mới. Worker chỉ resume sau khi phiên hợp lệ. Request bị hủy có thể cần người dùng gửi lại; manager không tự đưa mọi request vào queue. Khi xác minh thất bại, target cũ vẫn được giữ, queue vẫn pause và UI hiện lỗi để thử lại. `EnvironmentId` phải khớp với Vite đang chạy; đổi URL chỉ đổi origin, giữ prefix `/api/v1` và namespace. `PreviousSwaggerUrl` được chấp nhận tương thích với lệnh cũ; namespace ổn định làm migration theo hostname không cần thiết. Terminal chờ tab tối đa 210 giây; browser chỉ gửi ACK thành công sau kiểm tra backend và phiên. Endpoint chỉ bind `127.0.0.1`, yêu cầu token cục bộ, từ chối request có `Origin`, và chỉ nhận Swagger HTTPS đúng dạng `/api/v1/docs` hoặc `/api/v1/docs-json`.
 
 Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin FE. Không đưa token, API key, password hoặc secret backend vào cấu hình FE; không in nội dung **.env** vào chat/tài liệu. Xem [AI usage](AI-usage.md).
 
@@ -267,11 +277,11 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 
 **Kết quả theo source.** Người dùng chưa đăng nhập được chuyển qua luồng đăng nhập. Khi có phiên trực tuyến, provider tải workspace/project từ API. Thao tác ghi chờ server xác nhận; API lỗi không được thay bằng fixture.
 
-### Ví dụ luồng mục tiêu — chưa triển khai
+### Bản nháp upload và hàng đợi đồng bộ
 
-**Input:** chọn file dữ liệu trong project khi upload đã được triển khai và được backend hỗ trợ.
+**Input:** chọn CSV ở dialog upload của project hoặc wizard tạo project.
 
-**Output mục tiêu:** server xác nhận thì cập nhật dataset chính thức; nếu chỉ commit bản nháp IndexedDB trong phạm vi được duyệt thì UI ghi rõ “Đã lưu cục bộ — chờ đồng bộ”. Không tạo response JSON/định danh giả rồi mô tả như đã thực thi.
+**Output:** file và SHA-256 được commit vào IndexedDB trước khi UI cho upload; draft có thể khôi phục sau reload. Upload vào project đã tồn tại được ghi queue-first và giữ file đến khi ACK được lưu bền rồi đối chiếu dataset/account/project/tên/kích thước/hash. Wizard tạo project vẫn dùng luồng riêng, không queue upload khi lệnh tạo project chưa được xác nhận. PATCH tên/mô tả workspace/project giữ `expectedVersion`; delete workspace/project/dataset cũng vào allowlist. Queue giữ thứ tự, tự chạy khi online, backend hồi phục, đổi API target hoặc theo chu kỳ; tab dùng Web Locks để tránh gửi đồng thời. Upload mất phản hồi chuyển `uncertain`; chỉ xác nhận tự động khi backend mới cung cấp SHA-256 khớp, nếu không sẽ `blocked` để kiểm tra thay vì gửi lại.
 
 ## 8. Results
 
@@ -287,7 +297,7 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 - Preview 2D và Workspace 3D dùng dữ liệu mẫu. Dataset 3D đang phục vụ review hình ảnh.
 - Một số contract backend còn thiếu hoặc cần đối chiếu DTO/service và response thật; xem ngày/bằng chứng trong contract audit, không coi snapshot cũ là xác nhận server hiện tại.
 - Chưa chốt toàn bộ UX, permission presentation, data 3D mapping và tiêu chí hiệu năng.
-- Repository có schema và quota cục bộ. Luồng replay và đối soát server chờ contract đồng bộ.
+- Queue replay đã nối cho allowlist. Request `uncertain` không tự gửi lại; upload cần response dataset có SHA-256 để tự đối chiếu sau khi mất phản hồi. Nếu response hiện tại không có hash, queue chuyển sang `blocked` để người dùng kiểm tra. Queue cần Web Locks; trình duyệt không hỗ trợ Web Locks sẽ từ chối nhận command vào queue và giữ nguyên draft để người dùng không tưởng request đã được lưu.
 
 ## 10. Future Improvements
 
@@ -295,7 +305,7 @@ Khi tích hợp backend, cần chốt config/client và CORS theo đúng origin 
 2. Kiểm thử đăng nhập, gia hạn và đăng xuất với backend được phép.
 3. Tích hợp module có API thực tế, kèm validation, permission và error handling.
 4. Xác nhận data mapping và hiệu năng 3D với dữ liệu/thiết bị mục tiêu.
-5. Nối bản nháp IndexedDB vào luồng upload sau khi chốt contract chống trùng, đối soát và xử lý xung đột.
+5. Đối chiếu DTO dataset backend để xác nhận tên trường SHA-256 và giữ upload bất định ở trạng thái cần kiểm tra nếu backend không cung cấp hash; không retry mù.
 6. Bổ sung Transformation/Version/Export theo contract backend được xác nhận, không tự tạo endpoint.
 7. Thêm automated tests, browser/API integration, accessibility, CI và deployment checks.
 

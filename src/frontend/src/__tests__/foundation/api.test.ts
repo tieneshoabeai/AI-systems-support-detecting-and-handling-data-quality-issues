@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { composeApiConfig, getApiConfig, parseApiConfig } from '../../configs/api.config'
 import { normalizeApiError } from '../../lib/api-error'
 import { createAxiosClient } from '../../lib/axios-client'
+import { ApiTargetManager } from '../../lib/api-target-manager'
 
 const baseUrl = 'http://localhost:3000/api/v1'
 const response = (config: InternalAxiosRequestConfig, data: unknown) => ({
@@ -33,11 +34,15 @@ describe('API configuration', () => {
   it('uses both env variables when creating the client', async () => {
     vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:3000')
     vi.stubEnv('VITE_API_PREFIX', '/api/v1')
+    const config = getApiConfig()
+    const parsed = new URL(config.baseUrl)
+    const manager = new ApiTargetManager({ baseUrl: parsed.origin, prefix: parsed.pathname, environmentId: 'qa-main' })
+    await manager.setSessionReady(true)
     const adapter: AxiosAdapter = async config => {
       expect(config.url).toBe(`${baseUrl}/projects`)
       return Promise.resolve(response(config, { success: true, data: true }))
     }
-    await expect(createAxiosClient({ adapter, readToken: () => 'test-access' }).request({ path: '/projects', auth: 'session' }))
+    await expect(createAxiosClient({ apiTargetManager: manager, adapter, readToken: () => 'test-access' }).request({ path: '/projects', auth: 'session' }))
       .resolves.toBe(true)
   })
 

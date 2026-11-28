@@ -27,6 +27,10 @@ const metadata = (accountId: string, sizeBytes: number): UploadDraft => ({
   id: crypto.randomUUID(), accountId, sizeBytes, projectId: 'p', fileName: 'seed.csv',
   mimeType: 'text/csv', lastModified: 0, createdAtMs: 0, status: 'pending',
 })
+const confirmation = (draft: UploadDraft, accountId = draft.accountId) => ({
+  accountId, projectId: draft.projectId ?? '', datasetId: 'd', fileName: draft.fileName,
+  sizeBytes: draft.sizeBytes, fileHash: requireDefined(draft.fileHash, 'upload-draft.repository.test.ts:confirmation'),
+})
 
 describe('account-scoped upload drafts', () => {
   it('commits Blob and metadata and restores after reopening the database', async () => {
@@ -151,8 +155,8 @@ describe('account-scoped upload drafts', () => {
   it('requires matching backend confirmation before removing file and metadata', async () => {
     const s = setup()
     const draft = await s.repository.save({ projectId: 'p', file: file() })
-    await expect(s.repository.confirmUploaded(draft.id, { accountId: 'b', projectId: 'p', datasetId: 'd' })).rejects.toMatchObject({ code: 'DRAFT_CONFIRMATION_MISMATCH' })
-    expect(await s.repository.confirmUploaded(draft.id, { accountId: 'a', projectId: 'p', datasetId: 'd' })).toEqual({ cleaned: true })
+    await expect(s.repository.confirmUploaded(draft.id, confirmation(draft, 'b'))).rejects.toMatchObject({ code: 'DRAFT_CONFIRMATION_MISMATCH' })
+    expect(await s.repository.confirmUploaded(draft.id, confirmation(draft))).toEqual({ cleaned: true })
     expect(await s.db.drafts.count()).toBe(0)
     expect(await s.db.files.count()).toBe(0)
   })
@@ -161,7 +165,7 @@ describe('account-scoped upload drafts', () => {
     const s = setup()
     const draft = await s.repository.save({ projectId: 'p', file: file() })
     const failDelete = vi.spyOn(s.db.files, 'delete').mockRejectedValueOnce(new Error('disk failure'))
-    expect(await s.repository.confirmUploaded(draft.id, { accountId: 'a', projectId: 'p', datasetId: 'd' })).toEqual({ cleaned: false })
+    expect(await s.repository.confirmUploaded(draft.id, confirmation(draft))).toEqual({ cleaned: false })
     expect((await s.repository.list())[0]).toMatchObject({ status: 'uploaded', datasetId: 'd' })
     await expect(s.repository.readFile(draft.id)).rejects.toMatchObject({ code: 'DRAFT_ALREADY_UPLOADED' })
     failDelete.mockRestore()
@@ -174,7 +178,7 @@ describe('account-scoped upload drafts', () => {
     const s = setup()
     const draft = await s.repository.save({ projectId: 'p', file: file() })
     vi.spyOn(s.db.drafts, 'put').mockRejectedValueOnce(new Error('ACK journal failure'))
-    await expect(s.repository.confirmUploaded(draft.id, { accountId: 'a', projectId: 'p', datasetId: 'd' }))
+    await expect(s.repository.confirmUploaded(draft.id, confirmation(draft)))
       .rejects.toMatchObject({ kind: 'storage' })
     expect(requireDefined((await s.repository.list())[0], 'upload-draft.repository.test.ts:173').status).toBe('pending')
     expect(await s.db.files.get(draft.id)).toBeDefined()
@@ -184,7 +188,7 @@ describe('account-scoped upload drafts', () => {
     const s = setup()
     const draft = await s.repository.save({ projectId: 'p', file: file() })
     vi.spyOn(s.db.drafts, 'delete').mockRejectedValueOnce(new Error('metadata cleanup failure'))
-    expect(await s.repository.confirmUploaded(draft.id, { accountId: 'a', projectId: 'p', datasetId: 'd' }))
+    expect(await s.repository.confirmUploaded(draft.id, confirmation(draft)))
       .toEqual({ cleaned: false })
     expect(requireDefined((await s.repository.list())[0], 'upload-draft.repository.test.ts:183').status).toBe('uploaded')
     expect(await s.db.files.get(draft.id)).toBeDefined()

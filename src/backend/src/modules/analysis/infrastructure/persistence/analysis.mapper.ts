@@ -13,6 +13,7 @@ import type {
   AnalysisResultRecord,
   AnalysisRunRecord,
   CellEvidenceRecord,
+  CellEvidenceSampleRecord,
   FewShotExampleRecord,
   ProjectSaveRecord,
   ReportJobRecord,
@@ -174,5 +175,13 @@ export function toCellEvidenceRecord(doc: ICellEvidence): CellEvidenceRecord {
     reason: doc.reason ?? null,
     kind: doc.kind,
     valueMasked: doc.value_masked ?? null,
+  };
+}
+
+export function toCellEvidenceSampleRecord(doc: ICellEvidence): CellEvidenceSampleRecord {
+  return {
+    id: oid(doc._id),
+    ...toCellEvidenceRecord(doc),
+    kind: doc.kind,
   };
 }

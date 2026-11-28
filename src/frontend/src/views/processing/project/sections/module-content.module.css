@@ -81,6 +81,18 @@
 .qualityFinding { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .qualityFinding > p { margin: 0; overflow-wrap: anywhere; }
 .qualityFinding > details[open] { flex-basis: 100%; }
+.evidenceSamples { display: grid; flex-basis: 100%; gap: 7px; min-width: 0; }
+.evidenceToggle, .sampleRetry {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: max-content; max-width: 100%; min-height: 34px; padding: 6px 10px;
+  border: 1px solid var(--pv-line-strong); border-radius: 8px;
+  background: var(--pv-bg-2); color: var(--pv-ink-link); font: inherit; font-size: 12px; font-weight: 650;
+  cursor: pointer;
+}
+.evidenceToggle:hover, .sampleRetry:hover { background: var(--pv-blue-soft); border-color: var(--pv-blue); }
+.evidencePanel { display: grid; gap: 8px; min-width: 0; }
+.sampleHint { margin: 0; color: var(--pv-muted); font-size: 11px; line-height: 1.5; }
+.sampleRetry { min-height: 32px; }
 .response { margin: 0; padding: 2px; max-height: 250px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
 .columnChoices {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 6px;

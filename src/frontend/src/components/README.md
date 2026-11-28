@@ -34,7 +34,7 @@ Khi import qua thư mục, kiểm tra tên export trong `index.ts` của nhóm. 
 
 ### Gia hạn phiên
 
-[`App.tsx`](../app/App.tsx) gắn một [`SessionRenewalDialog`](auth/session-renewal-dialog.tsx). Dialog dùng `useAuth()` để đọc `snapshot.phase` và gọi `confirmRenewal`. Pha `awaiting-consent` mở hộp thoại. Nhấn Escape ở pha này gửi quyết định hủy. Pha `refreshing` giữ hộp thoại mở và khóa quyết định trong lúc xử lý. Ở các pha còn lại component trả `null`. [Session coordinator](../services/auth/session-coordinator.ts) xử lý quyết định và cập nhật snapshot.
+[`App.tsx`](../app/App.tsx) gắn một [`SessionRenewalDialog`](auth/session-renewal-dialog.tsx). Dialog dùng `useAuth()` để đọc `snapshot.phase` và gọi `confirmRenewal`. Pha `awaiting-consent` mở hộp thoại; lỗi kết nối được hiển thị bên trong để có thể thử lại. Nhấn Escape ở pha này gửi quyết định từ chối. Pha `refreshing` giữ hộp thoại mở và khóa quyết định trong lúc xử lý. Khi đổi tunnel với access token hết hạn, hộp thoại refresh qua URL mới; worker chỉ resume sau khi refresh và hồ sơ tài khoản được xác nhận. Ở các pha còn lại component trả `null`. [Session coordinator](../services/auth/session-coordinator.ts) xử lý quyết định và cập nhật snapshot.
 
 ### Tải dữ liệu theo vùng
 

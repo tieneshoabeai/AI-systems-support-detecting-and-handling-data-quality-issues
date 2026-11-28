@@ -27,6 +27,7 @@ import { StorageModule } from '../../shared/infrastructure/storage/storage.modul
 import { DatasetsModule } from '../datasets/datasets.module';
 import { BuildPromptForJobHandler } from './application/commands/build-prompt-for-job.handler';
 import { GetJobHandler } from './application/queries/get-job.handler';
+import { GetEvidenceSamplesHandler } from './application/queries/get-evidence-samples.handler';
 import { GetResultHandler } from './application/queries/get-result.handler';
 import { IngestAiResultHandler } from './application/commands/ingest-ai-result.handler';
 import { RetryJobHandler } from './application/commands/retry-job.handler';
@@ -67,6 +68,7 @@ import { RequestReportHandler } from './application/commands/request-report.hand
     RetryJobHandler,
     RunAnalysisHandler,
     GetJobHandler,
+    GetEvidenceSamplesHandler,
     GetResultHandler,
     CreateSummaryHandler,
     GetSummaryHandler,

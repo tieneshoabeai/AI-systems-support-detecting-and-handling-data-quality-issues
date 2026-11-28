@@ -2,6 +2,7 @@ import { isRecord } from '../../../../lib/api-error'
 import styles from './module-content.module.css'
 import { AnalysisCorrelationMatrix } from './analysis-correlation-matrix'
 import { AnalysisFeedbackPanel } from './analysis-feedback-panel'
+import { AnalysisEvidenceSamples } from './analysis-evidence-samples'
 import type { AnalysisService } from '../../../../services/processing/analysis.service'
 
 const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 })
@@ -55,7 +56,10 @@ export function AnalysisResultOverview({ result, runId, service }: {
       {runId && findings.length > 0 && <ul className={styles['qualityFindings']}>
         {findings.map(finding => <li key={finding.id} className={styles['qualityFinding']}>
           <p><strong>{finding.title}</strong> · {formatNumber(finding.count)} {finding.unit}</p>
-          {finding.id.length <= 200 && <AnalysisFeedbackPanel key={runId} runId={runId} service={service} finding={finding} />}
+          {finding.id.length <= 200 && <>
+            <AnalysisEvidenceSamples key={`${runId}:${finding.id}`} runId={runId} findingId={finding.id} service={service} />
+            <AnalysisFeedbackPanel key={runId} runId={runId} service={service} finding={finding} />
+          </>}
         </li>)}
       </ul>}
     </section>}

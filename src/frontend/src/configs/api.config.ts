@@ -1,7 +1,23 @@
 import { ApiError } from '../lib/api-error'
 import type { ApiConfig } from '../types'
+import type { ApiTargetInput } from '../types'
 
 export const DEFAULT_API_TIMEOUT_MS = 30_000
+
+const environmentIdPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/
+
+// Keep local QA data stable when a temporary tunnel hostname rotates. Set a
+// distinct VITE_API_ENVIRONMENT_ID for any other backend/data environment.
+export const getApiEnvironmentId = (): string => {
+  const configured = import.meta.env.VITE_API_ENVIRONMENT_ID?.trim()
+  if (configured && !environmentIdPattern.test(configured)) {
+    throw new ApiError({
+      kind: 'config',
+      message: 'VITE_API_ENVIRONMENT_ID chỉ được chứa chữ, số, dấu chấm, gạch dưới và gạch ngang (tối đa 64 ký tự).',
+    })
+  }
+  return `environment:${configured || (import.meta.env.DEV ? 'qa-main' : 'production')}`
+}
 
 export const parseApiConfig = (value: unknown): ApiConfig => {
   const invalidConfig = () => new ApiError({
@@ -81,4 +97,14 @@ export const getApiConfig = (): ApiConfig => {
     throw new ApiError({ kind: 'config', message: 'Frontend HTTPS cần API HTTPS để tránh bị trình duyệt chặn mixed content.' })
   }
   return config
+}
+
+export const getInitialApiTarget = (): ApiTargetInput => {
+  const config = getApiConfig()
+  const apiUrl = new URL(config.baseUrl)
+  return {
+    baseUrl: apiUrl.origin,
+    prefix: apiUrl.pathname.replace(/\/+$/, ''),
+    environmentId: getApiEnvironmentId().slice('environment:'.length),
+  }
 }

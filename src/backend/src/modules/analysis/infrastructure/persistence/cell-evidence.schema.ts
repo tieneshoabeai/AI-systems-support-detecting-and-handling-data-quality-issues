@@ -35,3 +35,4 @@ export const CellEvidenceSchema = new Schema<ICellEvidence>(
 );
 
 CellEvidenceSchema.index({ analysis_run_id: 1, column: 1, row_index: 1 });
+CellEvidenceSchema.index({ analysis_run_id: 1, kind: 1, column: 1, _id: 1 });

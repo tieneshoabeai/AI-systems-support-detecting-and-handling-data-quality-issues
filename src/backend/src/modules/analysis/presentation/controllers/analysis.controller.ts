@@ -4,6 +4,7 @@ import {
   Post,
   Param,
   Body,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -20,7 +21,7 @@ import {
   CurrentUserPayload,
 } from '../../../../shared/interfaces/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../../../shared/interfaces/pipes/zod-validation.pipe';
-import { ApiZodBody } from '../../../../shared/interfaces/swagger/api-zod.decorator';
+import { ApiZodBody, ApiZodQuery } from '../../../../shared/interfaces/swagger/api-zod.decorator';
 import { ProjectScopePolicyLoader } from '../../../projects';
 import { AnalysisJobPolicyLoader } from '../../application/policy-loaders/analysis-job-policy.loader';
 import { GetJobHandler } from '../../application/queries/get-job.handler';
@@ -28,6 +29,9 @@ import { GetResultHandler } from '../../application/queries/get-result.handler';
 import { IngestAiResultHandler } from '../../application/commands/ingest-ai-result.handler';
 import { RetryJobHandler } from '../../application/commands/retry-job.handler';
 import { RunAnalysisHandler } from '../../application/commands/run-analysis.handler';
+import { GetEvidenceSamplesHandler } from '../../application/queries/get-evidence-samples.handler';
+import { AnalysisRunPolicyLoader } from '../../application/policy-loaders/analysis-run-policy.loader';
+import { ListEvidenceSamplesQueryDto, ListEvidenceSamplesQuerySchema } from '../dtos/evidence-samples.dto';
 
 @ApiTags('Analysis')
 @ApiBearerAuth()
@@ -40,6 +44,7 @@ export class AnalysisController {
     private readonly runAnalysisHandler: RunAnalysisHandler,
     private readonly getJobHandler: GetJobHandler,
     private readonly getResultHandler: GetResultHandler,
+    private readonly getEvidenceSamplesHandler: GetEvidenceSamplesHandler,
   ) {}
 
   @Post('projects/:projectId/analysis')
@@ -72,6 +77,58 @@ export class AnalysisController {
   @ApiResponse({ status: 200, description: 'Thành công' })
   async getResult(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getResultHandler.execute(projectId);
+  }
+
+  @Get('analyses/:analysisRunId/evidence-samples')
+  @ApiOperation({
+    summary: 'ANALYSIS-04: Xem evidence samples đã che PII của một finding',
+    operationId: 'listAnalysisEvidenceSamples',
+  })
+  @ApiZodQuery(ListEvidenceSamplesQuerySchema)
+  @PolicyResource('Analysis', AnalysisRunPolicyLoader, 'analysisRunId')
+  @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
+  @ApiResponse({
+    status: 200,
+    description: 'Samples đã lưu; rowIndex bắt đầu từ 0 và không tính hàng tiêu đề.',
+    schema: {
+      type: 'object',
+      required: ['items', 'meta'],
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['findingId', 'kind', 'column', 'rowIndex', 'reason', 'valueMasked'],
+            properties: {
+              findingId: { type: 'string' },
+              kind: { type: 'string', enum: ['missing', 'duplicate', 'invalid_type', 'outlier'] },
+              column: { type: 'string' },
+              rowIndex: { type: 'integer', minimum: 0, description: 'Zero-based index của bản ghi dữ liệu, không tính hàng tiêu đề.' },
+              reason: { type: 'string', nullable: true },
+              valueMasked: { type: 'string', nullable: true, description: 'Giá trị đã che PII; không bao giờ trả raw value.' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          required: ['limit', 'hasMore', 'nextCursor'],
+          properties: {
+            limit: { type: 'integer' },
+            hasMore: { type: 'boolean' },
+            nextCursor: { type: 'string', nullable: true, description: 'Cursor dùng để lấy trang tiếp theo.' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Query hoặc findingId không hợp lệ' })
+  @ApiResponse({ status: 403, description: 'Không có quyền đọc Analysis' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy Analysis run' })
+  async listEvidenceSamples(
+    @Param('analysisRunId') analysisRunId: string,
+    @Query(new ZodValidationPipe(ListEvidenceSamplesQuerySchema)) query: ListEvidenceSamplesQueryDto,
+  ) {
+    return this.getEvidenceSamplesHandler.execute(analysisRunId, query);
   }
 
   @Get('analysis/jobs/:jobId')

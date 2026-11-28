@@ -13,6 +13,9 @@ export {
   type AnalysisResultRecord,
   type AnalysisRunRecord,
   type CellEvidenceRecord,
+  type CellEvidenceSampleKind,
+  type CellEvidenceSampleRecord,
+  type FindEvidenceSamplesParams,
   type CorrelationMatrixShape,
   type FewShotExampleRecord,
   type ProjectSaveRecord,
@@ -56,6 +59,7 @@ export { DownloadReportFileHandler } from './application/queries/download-report
 export { GetJobHandler } from './application/queries/get-job.handler';
 export { GetReportFileMetaHandler } from './application/queries/get-report-file-meta.handler';
 export { GetResultHandler } from './application/queries/get-result.handler';
+export { GetEvidenceSamplesHandler } from './application/queries/get-evidence-samples.handler';
 export { GetSummaryHandler } from './application/queries/get-summary.handler';
 
 // ── Commands (ghi) ─────────────────────────────────────────────

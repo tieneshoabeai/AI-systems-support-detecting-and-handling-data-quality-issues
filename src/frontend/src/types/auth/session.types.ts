@@ -3,6 +3,9 @@ export type StoredSession = {
   accessToken: string
   refreshToken: string
   accountId: string
+  /** Absolute backend refresh-session expiry (7 or 30 days), when supplied. */
+  refreshExpiresAtMs?: number
+  rememberMe?: boolean
 }
 
 export type AccessTokenInfo = {

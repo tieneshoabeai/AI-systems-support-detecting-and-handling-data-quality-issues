@@ -1,2 +1,6 @@
 export { UploadDraftDatabase } from './datasets'
 export { createUploadDraftRepository } from './datasets'
+export { OfflineReadDatabase } from './offline'
+export { createOfflineReadRepository } from './offline'
+export { OfflineWriteDatabase } from './offline'
+export { createOfflineWriteRepository } from './offline'

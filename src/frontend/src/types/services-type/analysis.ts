@@ -31,3 +31,11 @@ export type postAnalysisByJobIdIngestAiResultParams = postAnalysisByJobIdIngestA
 export type postAnalysisByJobIdIngestAiResultParamsPath = postAnalysisByJobIdIngestAiResultParams["path"]
 export type postAnalysisByJobIdIngestAiResultResponses = postAnalysisByJobIdIngestAiResultRequest["responses"]
 export type postAnalysisByJobIdIngestAiResultResponse200 = NonNullable<postAnalysisByJobIdIngestAiResultResponses["200"]>
+
+export type getAnalysesByAnalysisRunIdEvidenceSamplesRequest = paths["/api/v1/analyses/{analysisRunId}/evidence-samples"]["get"]
+export type getAnalysesByAnalysisRunIdEvidenceSamplesParams = getAnalysesByAnalysisRunIdEvidenceSamplesRequest["parameters"]
+export type getAnalysesByAnalysisRunIdEvidenceSamplesParamsQuery = getAnalysesByAnalysisRunIdEvidenceSamplesParams["query"]
+export type getAnalysesByAnalysisRunIdEvidenceSamplesParamsPath = getAnalysesByAnalysisRunIdEvidenceSamplesParams["path"]
+export type getAnalysesByAnalysisRunIdEvidenceSamplesResponses = getAnalysesByAnalysisRunIdEvidenceSamplesRequest["responses"]
+export type getAnalysesByAnalysisRunIdEvidenceSamplesResponse200 = NonNullable<getAnalysesByAnalysisRunIdEvidenceSamplesResponses["200"]>
+export type getAnalysesByAnalysisRunIdEvidenceSamplesResponse200Content = NonNullable<getAnalysesByAnalysisRunIdEvidenceSamplesResponse200["content"]>[keyof NonNullable<getAnalysesByAnalysisRunIdEvidenceSamplesResponse200["content"]>]

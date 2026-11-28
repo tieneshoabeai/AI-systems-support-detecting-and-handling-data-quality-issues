@@ -165,7 +165,11 @@ export const LoginView = () => {
                 </div>
               </div>
               <div className="auth-glass-sign-in-options">
-                <span>Phiên đăng nhập được giữ trong tab này.</span>
+                <label className="auth-glass-remember-me">
+                  <input type="checkbox" checked={form.rememberMe} disabled={disabled}
+                    onChange={event => form.setRememberMe(event.target.checked)} />
+                  <span>Ghi nhớ đăng nhập (30 ngày trong tab này)</span>
+                </label>
                 <button type="button" disabled={disabled} onClick={() => setRecovering(true)}>Quên mật khẩu</button>
               </div>
               <button className="button-primary login-submit" type="submit" disabled={disabled}>

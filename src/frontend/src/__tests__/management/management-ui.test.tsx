@@ -11,6 +11,7 @@ import { WorkspaceEditDialog } from '../../components/workspace/dialogs/workspac
 import { ProjectWizard } from '../../components/project/create/project-wizard'
 import { WorkspaceCreateDialog } from '../../components/workspace/dialogs/workspace-create-dialog'
 import { within } from '@testing-library/react'
+import { renderFrameWithStore } from '../support/workbench-test-kit'
 
 afterEach(cleanup)
 it('keeps an upload open on failure, prevents a second request, closes only after acknowledgment', async () => {
@@ -19,10 +20,11 @@ it('keeps an upload open on failure, prevents a second request, closes only afte
   const close = vi.fn()
   const snapshot = { ...previewMockStore.getState(), source: 'api' as const, selection: { workspaceId: 'w1', projectId: 'p1' } }
   const store: ManagementStore = { ...previewMockStore, getState: () => snapshot, uploadDataset }
-  render(<ManagementStoreContext.Provider value={store}><PreviewSessionProvider routeIds={{}}><ProjectUploadDialog onClose={close} /></PreviewSessionProvider></ManagementStoreContext.Provider>)
+  renderFrameWithStore(<ProjectUploadDialog onClose={close} />, store)
   fireEvent.change(screen.getByLabelText('Chọn tệp dữ liệu'), { target: { files: [new File(['id\n1'], 'data.csv', { type: 'text/csv' })] } })
   expect(uploadDataset).not.toHaveBeenCalled()
-  expect(screen.getByText('data.csv')).toBeDefined()
+  await screen.findByText('data.csv')
+  await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Upload data' }).disabled).toBe(false))
   fireEvent.click(screen.getByRole('button', { name: 'Upload data' }))
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Server unavailable')
   expect(close).not.toHaveBeenCalled()
@@ -42,7 +44,7 @@ it('selects dropped CSV without sending and locks retry if only the reload faile
   const close = vi.fn()
   const snapshot = { ...previewMockStore.getState(), selection: { workspaceId: 'w1', projectId: 'p1' } }
   const store: ManagementStore = { ...previewMockStore, getState: () => snapshot, uploadDataset }
-  render(<ManagementStoreContext.Provider value={store}><PreviewSessionProvider routeIds={{}}><ProjectUploadDialog onClose={close} /></PreviewSessionProvider></ManagementStoreContext.Provider>)
+  renderFrameWithStore(<ProjectUploadDialog onClose={close} />, store)
   const zone = screen.getByRole('button', { name: 'Chọn tệp CSV' })
   const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Upload data' })
   fireEvent.drop(zone, { dataTransfer: { types: ['Files'], files: [new File(['id'], 'data.txt')] } })
@@ -51,9 +53,10 @@ it('selects dropped CSV without sending and locks retry if only the reload faile
   const file = new File(['id\n1'], 'data.csv', { type: 'text/csv' })
   fireEvent.drop(zone, { dataTransfer: { types: ['Files'], files: [file] } })
   expect(uploadDataset).not.toHaveBeenCalled()
+  await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Upload data' }).disabled).toBe(false))
   fireEvent.click(submit)
   expect((await screen.findByRole('alert')).textContent).toBe('Đã lưu. Hãy tải lại trang.')
-  expect(uploadDataset).toHaveBeenCalledWith('p1', file)
+  expect(uploadDataset).toHaveBeenCalledWith('p1', file, expect.any(String))
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Upload data' }).disabled).toBe(true)
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng' }).disabled).toBe(false)
   expect(close).not.toHaveBeenCalled()
@@ -77,9 +80,7 @@ it('the migrated project wizard forwards the original file and waits for acknowl
   }))
   const store: ManagementStore = { ...previewMockStore, createProject }
   const workspace = store.getState().workspaces[0]!
-  render(<ManagementStoreContext.Provider value={store}><PreviewSessionProvider routeIds={{}}>
-    <ProjectWizard initialWorkspaceId={workspace.id} onClose={() => {}} />
-  </PreviewSessionProvider></ManagementStoreContext.Provider>)
+  renderFrameWithStore(<ProjectWizard initialWorkspaceId={workspace.id} onClose={() => {}} />, store)
   const dialog = screen.getByRole('dialog', { name: 'Tạo Project' })
   const steps = within(dialog).getByRole('list', { name: 'Các bước tạo project' })
   fireEvent.click(within(steps).getByRole('button', { name: 'Xác nhận' }))
@@ -90,10 +91,11 @@ it('the migrated project wizard forwards the original file and waits for acknowl
   const file = new File(['id|name\n1|Tai'], 'data.csv', { type: 'text/csv' })
   Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.resolve(new TextEncoder().encode('id|name\n1|Tai').buffer) })
   fireEvent.change(dialog.querySelector('input[type="file"]')!, { target: { files: [file] } })
-  await within(dialog).findByText(/data\.csv/)
+  await waitFor(() => expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Tiếp theo' }).disabled).toBe(false))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tiếp theo' }))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tiếp theo' }))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tạo Project' }))
+  await waitFor(() => expect(createProject).toHaveBeenCalledOnce())
   expect(createProject.mock.calls[0]?.[0].dataset.file).toBe(file)
   expect(within(dialog).queryByText('Tạo Project thành công!')).toBeNull()
   expect(within(dialog).queryByText('API migration test')).toBeNull()
@@ -135,9 +137,7 @@ it('selects an existing or newly created workspace without discarding the projec
     },
   }
   const existing = store.getState().workspaces.find(workspace => workspace.canManage !== false)!
-  render(<ManagementStoreContext.Provider value={store}><PreviewSessionProvider routeIds={{}}>
-    <ProjectWizard initialWorkspaceId={null} onClose={() => {}} />
-  </PreviewSessionProvider></ManagementStoreContext.Provider>)
+  renderFrameWithStore(<ProjectWizard initialWorkspaceId={null} onClose={() => {}} />, store)
 
   try {
     const project = () => within(screen.getByRole('dialog', { name: 'Tạo Project' }))

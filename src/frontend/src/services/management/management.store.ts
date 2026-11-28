@@ -15,6 +15,8 @@ import { listRecentProjects } from '../processing/recent-projects.service'
 import { ApiError, isRecord, normalizeApiError } from '../../lib/api-error'
 import { mapSessionDetail } from './session.mapper'
 import type { Person, PreviewStoreState, PreviewMutationResult, PreviewNotification, PreviewReport, Workspace, Project, DatasetSummary } from '../../types/management/management.types'
+import type { UploadDraftPort } from '../../types/datasets/upload-draft.types'
+import { sha256Blob } from '../../utils/sha256'
 
 // Hai dạng phân trang cùng tồn tại trong các bản backend: trang-số ({ items, total }) và con trỏ
 // ({ items, meta: { hasMore, nextCursor } }). Đọc được cả hai để một bản frontend chạy với cả hai.
@@ -74,9 +76,17 @@ const displayDate = (value: string): string => {
 }
 const unsupported = (): Promise<PreviewMutationResult> => Promise.reject(new Error('Chức năng này chưa được kết nối với máy chủ.'))
 const saved = (message: string): PreviewMutationResult => ({ message, persisted: true, undo: () => { throw new Error('Thao tác đã được lưu trên máy chủ.') } })
+const isDeferredReceipt = (value: unknown): value is { kind: 'offline-write-receipt'; queueId: string; state: string } =>
+  isRecord(value) && value['kind'] === 'offline-write-receipt' && typeof value['queueId'] === 'string' && typeof value['state'] === 'string'
+const queuedResult = (queueId: string, label: string): PreviewMutationResult => ({
+  queued: true, queueId, message: `${label} đã lưu vào hàng đợi trên thiết bị; backend chưa xác nhận.`,
+  undo: () => { throw new Error('Dùng bảng hàng đợi để bỏ request trước khi gửi hoặc kiểm tra trạng thái.') },
+})
 
 export function createManagementStore(api: ApiClient, account: Person, options: {
   readSessionId?: () => string | null; projectId?: string; signal?: AbortSignal; recent?: boolean; progressiveProjects?: boolean
+  uploadDrafts?: UploadDraftPort
+  invalidateOfflineResource?: (path: string) => Promise<void>
 } = {}) {
   let state: PreviewStoreState = {
     source: 'api', workspaces: [], projects: [], notifications: [], reports: [], sessions: [],
@@ -156,20 +166,57 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     if (!project.hasDataset) return null
     return requestProjectDataset(project.id, signal)
   }
-  async function requestProjectDataset(id: string, signal?: AbortSignal): Promise<DatasetSummary | null> {
+  type DatasetServerRecord = DatasetDto & { projectId?: string; accountId?: string; userId?: string; sha256?: string; fileHash?: string; checksum?: string }
+  async function requestProjectDatasetRecord(id: string, signal?: AbortSignal): Promise<DatasetServerRecord | null> {
     const response = await request<unknown>(`/projects/${encodeURIComponent(id)}/datasets`, signal ? { signal } : {})
     if (!isRecord(response)) throw new ApiError({ kind: 'invalid-response', message: 'Thông tin dataset từ máy chủ không hợp lệ.' })
     if (response['dataset'] === null) return null
     const dataset = response['dataset']
     if (!isRecord(dataset) || !['id', 'originalFileName', 'createdAt'].every(key => typeof dataset[key] === 'string')
       || !['rowCount', 'columnCount', 'fileSizeBytes'].every(key => typeof dataset[key] === 'number' && Number.isFinite(dataset[key]) && dataset[key] >= 0)
-      || !['INGESTING', 'READY', 'FAILED'].includes(String(dataset['status']))) {
+      || !['INGESTING', 'READY', 'FAILED'].includes(String(dataset['status']))
+      || (dataset['projectId'] !== undefined && typeof dataset['projectId'] !== 'string')
+      || (dataset['accountId'] !== undefined && typeof dataset['accountId'] !== 'string')
+      || (dataset['userId'] !== undefined && typeof dataset['userId'] !== 'string')) {
       throw new ApiError({ kind: 'invalid-response', message: 'Thông tin dataset từ máy chủ không hợp lệ.' })
     }
-    const checked = dataset as DatasetDto
+    return dataset as DatasetServerRecord
+  }
+  async function requestFreshProjectDatasetRecord(id: string): Promise<DatasetServerRecord | null> {
+    await options.invalidateOfflineResource?.(`/projects/${encodeURIComponent(id)}/datasets`)
+    try { return await requestProjectDatasetRecord(id) }
+    catch (error) {
+      // Some backend versions represent “project has no dataset yet” as 404.
+      if (normalizeApiError(error).status === 404) return null
+      throw error
+    }
+  }
+  async function requestProjectDataset(id: string, signal?: AbortSignal): Promise<DatasetSummary | null> {
+    const checked = await requestProjectDatasetRecord(id, signal)
+    if (!checked) return null
     return { id: checked.id, fileName: checked.originalFileName, format: 'CSV', rows: checked.rowCount, columns: checked.columnCount,
       sizeMb: checked.fileSizeBytes / 1048576, importedAt: checked.createdAt,
       status: checked.status === 'READY' ? 'processed' : checked.status === 'FAILED' ? 'failed' : 'processing' }
+  }
+  const serverHash = (dataset: DatasetServerRecord): string | undefined => {
+    const value = dataset.sha256 ?? dataset.fileHash ?? dataset.checksum
+    return typeof value === 'string' && /^[a-f\d]{64}$/i.test(value) ? value.toLowerCase() : undefined
+  }
+  const assertUploadMatches = (dataset: DatasetServerRecord, input: {
+    projectId: string; fileName: string; sizeBytes: number; fileHash: string; requireServerHash: boolean
+  }) => {
+    if ((dataset.projectId !== undefined && dataset.projectId !== input.projectId)
+      || ((dataset.accountId ?? dataset.userId) !== undefined && (dataset.accountId ?? dataset.userId) !== account.id)
+      || dataset.originalFileName !== input.fileName || dataset.fileSizeBytes !== input.sizeBytes) {
+      throw new ApiError({ kind: 'session', code: 'UPLOAD_RECONCILIATION_MISMATCH', message: 'Dataset trên máy chủ không khớp project, tài khoản, tên hoặc kích thước file của bản nháp. Bản nháp vẫn được giữ.' })
+    }
+    const actualHash = serverHash(dataset)
+    if (actualHash !== undefined && actualHash !== input.fileHash.toLowerCase()) {
+      throw new ApiError({ kind: 'session', code: 'UPLOAD_HASH_MISMATCH', message: 'Hash dataset trên máy chủ không khớp bản nháp. Bản nháp vẫn được giữ.' })
+    }
+    if (input.requireServerHash && actualHash === undefined) {
+      throw new ApiError({ kind: 'session', code: 'UPLOAD_HASH_UNAVAILABLE', message: 'Máy chủ chưa trả SHA-256 để đối chiếu lần upload chưa xác nhận. Bản nháp vẫn được giữ để tránh gắn nhầm dataset.' })
+    }
   }
   async function loadProject(id: string, onProjectSummary?: () => void) {
     const current = ++revision
@@ -453,8 +500,9 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     publish({ ...state, workspaces, projects, selection: { workspaceId, projectId } })
     return current
   }
-  async function mutate(path: string, method: NonNullable<ApiRequestOptions['method']>, data?: unknown) {
-    await request<void>(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}) })
+  async function mutate(path: string, method: NonNullable<ApiRequestOptions['method']>, data?: unknown, deferIfOffline = false) {
+    const response = await request<unknown>(path, { method, data, ...(data instanceof FormData ? { timeoutMs: 120000 } : {}), ...(deferIfOffline ? { deferIfOffline: true } : {}) })
+    if (isDeferredReceipt(response)) return queuedResult(response.queueId, method === 'DELETE' ? 'Yêu cầu xóa' : 'Yêu cầu cập nhật')
     if (options.progressiveProjects) {
       cardRevision.abort()
       const deletedId = method === 'DELETE' ? path.match(/^\/projects\/([^/]+)$/)?.[1] : undefined
@@ -707,15 +755,48 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
     transferOwner: (kind, id, email) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}/transfer-owner`, 'POST', { email, expectedVersion: version(id) } satisfies WorkspaceTransferBody & ProjectTransferBody),
     leaveWorkspace: id => mutate(`/workspaces/${id}/leave`, 'POST'),
     downloadAttachment: (id, attachmentId) => request<Blob>(`/issues/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`, { responseType: 'blob' }),
-    uploadDataset: async (id, file) => {
+    uploadDataset: async (id, file, draftId) => {
       validateCsvFile(file)
       const form = new FormData(); form.append('file', file)
+      if (options.uploadDrafts) {
+        if (!draftId) throw new ApiError({ kind: 'storage', code: 'UPLOAD_DRAFT_REQUIRED', message: 'Cần lưu draft vào thiết bị trước khi thêm upload vào hàng đợi.' })
+        const uploadDrafts = options.uploadDrafts
+        const draft = (await uploadDrafts.list()).find(item => item.id === draftId)
+        if (!draft || draft.accountId !== account.id || draft.kind === 'project-wizard' || draft.projectId !== id) {
+          throw new ApiError({ kind: 'session', code: 'UPLOAD_DRAFT_SCOPE_MISMATCH', message: 'Bản nháp không thuộc tài khoản hoặc project hiện tại.' })
+        }
+        const fileHash = await sha256Blob(file)
+        if (!draft.fileHash || draft.fileHash.toLowerCase() !== fileHash.toLowerCase()
+          || draft.fileName !== file.name || draft.sizeBytes !== file.size) {
+          throw new ApiError({ kind: 'storage', code: 'UPLOAD_DRAFT_FILE_MISMATCH', message: 'Tệp đang chọn không khớp bản nháp đã lưu.' })
+        }
+        if ((draft.status === 'uploading' || draft.status === 'acknowledged' || draft.status === 'uploaded') && !draft.queueId) {
+          // Migrate/recover drafts created by the pre-queue upload path without replaying blindly.
+          const existing = await requestFreshProjectDatasetRecord(id)
+          if (!existing) throw new ApiError({ kind: 'session', code: 'UPLOAD_ACK_NOT_VISIBLE', message: 'Lần upload trước chưa thể đối chiếu trên backend. Draft được giữ; không gửi lại để tránh dataset trùng.' })
+          const acknowledged = draft.status === 'acknowledged' || draft.status === 'uploaded'
+          assertUploadMatches(existing, { projectId: id, fileName: draft.fileName, sizeBytes: draft.sizeBytes, fileHash, requireServerHash: !acknowledged })
+          const cleanup = await uploadDrafts.confirmUploaded(draftId, {
+            accountId: account.id, projectId: id, datasetId: existing.id,
+            fileName: draft.fileName, sizeBytes: draft.sizeBytes, fileHash,
+            ...(serverHash(existing) ? { serverHash: serverHash(existing)! } : {}),
+          })
+          await load().catch(() => {})
+          return saved(cleanup.cleaned ? 'Dataset đã được máy chủ xác nhận và bản nháp cục bộ đã được dọn.' : 'Dataset đã được máy chủ xác nhận; file đã được dọn nhưng metadata bản nháp cần được dọn lại.')
+        }
+        const result = await request<unknown>(`/projects/${encodeURIComponent(id)}/datasets/upload`, {
+          method: 'POST', data: form, timeoutMs: 120000, deferIfOffline: true, deferredDraftId: draftId,
+        })
+        if (!isDeferredReceipt(result)) throw new ApiError({ kind: 'invalid-response', message: 'API wrapper không trả receipt cho upload queue-first.' })
+        if (result.state === 'confirmed') return saved('Backend đã xác nhận upload; IndexedDB sẽ tiếp tục dọn bản nháp nếu lần dọn trước bị gián đoạn.')
+        return queuedResult(result.queueId, `Upload ${file.name}`)
+      }
       return mutate(`/projects/${id}/datasets/upload`, 'POST', form)
     },
     toggleFavorite: id => { publish({ ...state, workspaces: state.workspaces.map(w => w.id === id ? { ...w, favorite: !w.favorite } : w) }); return Promise.resolve(saved('Đã đổi yêu thích trong phiên hiện tại.')) },
-    rename: (kind, id, name) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}`, 'PATCH', { name, expectedVersion: version(id) } satisfies UpdateWorkspaceBody & UpdateProjectBody),
-    updateWorkspace: (id, edit) => mutate(`/workspaces/${id}`, 'PATCH', { ...edit, expectedVersion: version(id) } satisfies UpdateWorkspaceBody),
-    remove: (kind, id) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}`, 'DELETE'),
+    rename: (kind, id, name) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}`, 'PATCH', { name, expectedVersion: version(id) } satisfies UpdateWorkspaceBody & UpdateProjectBody, true),
+    updateWorkspace: (id, edit) => mutate(`/workspaces/${id}`, 'PATCH', { ...edit, expectedVersion: version(id) } satisfies UpdateWorkspaceBody, true),
+    remove: (kind, id) => mutate(`/${kind === 'workspace' ? 'workspaces' : 'projects'}/${id}`, 'DELETE', undefined, true),
     addWorkspaceMember: async ({ workspaceId, person: p }) => mutate(`/workspaces/${workspaceId}/members`, 'POST', { email: email(p), role: 'member' } satisfies WorkspaceMemberBody),
     setWorkspaceMemberRole: unsupported,
     removeWorkspaceMember: (id, userId) => mutate(`/workspaces/${id}/members/${userId}`, 'DELETE'),
@@ -732,9 +813,118 @@ export function createManagementStore(api: ApiClient, account: Person, options: 
       return { ...saved('Đã tạo Workspace.'), workspaceId: workspace.id }
     },
     createProject: async input => {
+      input.members.forEach(p => { email(p); projectRole(p.role) })
+      if (input.uploadDraftId && options.uploadDrafts) {
+        const uploadDrafts = options.uploadDrafts
+        const draftId = input.uploadDraftId
+        const foundDraft = (await uploadDrafts.list()).find(item => item.id === draftId)
+        if (!foundDraft || foundDraft.accountId !== account.id || foundDraft.kind !== 'project-wizard'
+          || foundDraft.workspaceId !== input.workspaceId || foundDraft.projectName !== input.name.trim()) {
+          throw new ApiError({ kind: 'session', code: 'WIZARD_DRAFT_SCOPE_MISMATCH', message: 'Bản nháp wizard không khớp tài khoản, workspace hoặc tên project hiện tại.' })
+        }
+        let uploadDraft = foundDraft
+        const draftHash = uploadDraft.fileHash
+        if (!draftHash || uploadDraft.fileName !== input.dataset.fileName
+          || (input.dataset.fileHash !== undefined && draftHash.toLowerCase() !== input.dataset.fileHash.toLowerCase())
+          || (input.dataset.sizeBytes !== undefined && uploadDraft.sizeBytes !== input.dataset.sizeBytes)
+          || (input.dataset.file !== undefined && uploadDraft.sizeBytes !== input.dataset.file.size)) {
+          throw new ApiError({ kind: 'storage', code: 'WIZARD_DRAFT_FILE_MISMATCH', message: 'Metadata file không khớp bản nháp wizard.' })
+        }
+        let project: ProjectDto
+        if (uploadDraft.projectId) {
+          const response = await request<{ project: ProjectDto }>(`/projects/${encodeURIComponent(uploadDraft.projectId)}`)
+          validateProject(response.project)
+          if (response.project.id !== uploadDraft.projectId || response.project.workspaceId !== input.workspaceId || response.project.name !== input.name.trim()) {
+            throw new ApiError({ kind: 'session', code: 'WIZARD_PROJECT_MISMATCH', message: 'Project đã liên kết với bản nháp không khớp wizard; không tạo project khác.' })
+          }
+          project = response.project
+        } else {
+          // Gắn lại project vừa tạo nếu tab reload xảy ra giữa POST project và lưu projectId vào IndexedDB.
+          const matches = await pages<ProjectDto>(`/workspaces/${encodeURIComponent(input.workspaceId)}/projects`, lifecycle.signal)
+          const exactMatches = matches.filter(item => item.workspaceId === input.workspaceId
+            && item.name === input.name.trim() && item.createdBy === account.id)
+          if (exactMatches.length > 1) throw new ApiError({ kind: 'session', code: 'WIZARD_PROJECT_AMBIGUOUS', message: 'Có nhiều project cùng tên trong workspace; cần kiểm tra thủ công trước khi tiếp tục wizard.' })
+          const createdAfterDraft = exactMatches.filter(item => {
+            const createdAt = Date.parse(item.createdAt)
+            return Number.isFinite(createdAt) && createdAt >= uploadDraft.createdAtMs - 5000
+          })
+          if (createdAfterDraft.length > 1) throw new ApiError({ kind: 'session', code: 'WIZARD_PROJECT_AMBIGUOUS', message: 'Có nhiều project mới cùng tên trong workspace; cần kiểm tra thủ công trước khi tiếp tục wizard.' })
+          if (createdAfterDraft.length === 1) {
+            validateProject(createdAfterDraft[0])
+            project = createdAfterDraft[0]
+          } else {
+            const response = await request<{ project: ProjectDto }>(`/workspaces/${encodeURIComponent(input.workspaceId)}/projects`, {
+              method: 'POST', requireBody: true, data: { name: input.name.trim(), description: input.description.trim() } satisfies CreateProjectBody,
+            })
+            validateProject(response.project)
+            if (response.project.workspaceId !== input.workspaceId || response.project.name !== input.name.trim()) {
+              throw new ApiError({ kind: 'invalid-response', code: 'WIZARD_PROJECT_RESPONSE_MISMATCH', message: 'Project mới từ máy chủ không khớp yêu cầu wizard.' })
+            }
+            project = response.project
+          }
+          uploadDraft = await uploadDrafts.attachToProject(draftId, project.id)
+        }
+        versions.set(project.id, project.version)
+
+        let file = input.dataset.file
+        if (file) validateCsvFile(file)
+        else if (uploadDraft.status !== 'uploaded') file = new File([await uploadDrafts.readFile(draftId)], uploadDraft.fileName, { type: uploadDraft.mimeType, lastModified: uploadDraft.lastModified })
+        if (file && (await sha256Blob(file)).toLowerCase() !== draftHash.toLowerCase()) {
+          throw new ApiError({ kind: 'storage', code: 'WIZARD_DRAFT_HASH_MISMATCH', message: 'Hash file không khớp bản nháp đã lưu.' })
+        }
+
+        const existing = await requestFreshProjectDatasetRecord(project.id)
+        if (uploadDraft.status === 'uploaded') {
+          if (!existing || existing.id !== uploadDraft.datasetId) throw new ApiError({ kind: 'session', code: 'WIZARD_DATASET_ACK_MISSING', message: 'Dataset đã xác nhận trước đó nhưng không tìm thấy đúng dataset ID trên server. Bản nháp được giữ.' })
+          assertUploadMatches(existing, { projectId: project.id, fileName: uploadDraft.fileName, sizeBytes: uploadDraft.sizeBytes, fileHash: draftHash, requireServerHash: false })
+        } else if (existing) {
+          const acknowledged = uploadDraft.status === 'acknowledged'
+          assertUploadMatches(existing, { projectId: project.id, fileName: uploadDraft.fileName, sizeBytes: uploadDraft.sizeBytes, fileHash: draftHash, requireServerHash: !acknowledged })
+          if (!acknowledged && !serverHash(existing)) throw new ApiError({ kind: 'session', code: 'WIZARD_DATASET_ACK_UNCERTAIN', message: 'Project đã có dataset nhưng hash server chưa thể xác minh. Bản nháp được giữ để tránh upload trùng.' })
+        } else {
+          if (uploadDraft.status === 'acknowledged') throw new ApiError({ kind: 'session', code: 'WIZARD_DATASET_ACK_NOT_VISIBLE', message: 'Máy chủ đã xác nhận upload trước đó nhưng dataset chưa xuất hiện. Không gửi lại để tránh upload trùng.' })
+          if (uploadDraft.status === 'uploading' || uploadDraft.status === 'queued') throw new ApiError({ kind: 'session', code: 'WIZARD_UPLOAD_PENDING', message: 'Upload đang ở trạng thái chưa xác định hoặc chờ queue. Bản nháp được giữ; không gửi lại để tránh tạo dataset trùng.' })
+          if (!file) throw new ApiError({ kind: 'storage', code: 'WIZARD_DRAFT_FILE_MISSING', message: 'Không còn file trong bản nháp để tiếp tục upload.' })
+          await uploadDrafts.markUploadStarted(draftId)
+          const form = new FormData(); form.append('file', file)
+          await request(`/projects/${encodeURIComponent(project.id)}/datasets/upload`, { method: 'POST', data: form, timeoutMs: 120000 })
+          await uploadDrafts.markUploadAcknowledged(draftId)
+          const acknowledgedDataset = await requestFreshProjectDatasetRecord(project.id)
+          if (!acknowledgedDataset) throw new ApiError({ kind: 'session', code: 'WIZARD_DATASET_ACK_NOT_VISIBLE', message: 'Máy chủ đã nhận upload nhưng chưa trả dataset để xác minh. Bản nháp được giữ.' })
+          assertUploadMatches(acknowledgedDataset, { projectId: project.id, fileName: uploadDraft.fileName, sizeBytes: uploadDraft.sizeBytes, fileHash: draftHash, requireServerHash: false })
+        }
+        const dataset = await requestFreshProjectDatasetRecord(project.id)
+        if (!dataset) throw new ApiError({ kind: 'session', code: 'WIZARD_DATASET_MISSING', message: 'Project chưa có dataset để xác nhận wizard.' })
+        assertUploadMatches(dataset, { projectId: project.id, fileName: uploadDraft.fileName, sizeBytes: uploadDraft.sizeBytes, fileHash: draftHash, requireServerHash: false })
+        const finalServerHash = serverHash(dataset)
+        await uploadDrafts.confirmUploaded(draftId, {
+          accountId: account.id, projectId: project.id, datasetId: dataset.id,
+          fileName: uploadDraft.fileName, sizeBytes: uploadDraft.sizeBytes, fileHash: draftHash,
+          ...(uploadDraft.queueId ? { queueId: uploadDraft.queueId, queueHash: draftHash } : {}),
+          ...(finalServerHash ? { serverHash: finalServerHash } : {}), retainMetadata: true,
+        })
+
+        const currentMembers = await loadMembers(`/projects/${encodeURIComponent(project.id)}/members`, lifecycle.signal)
+        const desiredById = new Map(input.members.map(member => [member.id, member]))
+        for (const member of currentMembers) {
+          const desired = desiredById.get(member.userId)
+          if (desired && member.role.toLowerCase() !== projectRole(desired.role).toLowerCase()) {
+            throw new ApiError({ kind: 'session', code: 'WIZARD_MEMBER_ROLE_MISMATCH', message: `Thành viên ${email(desired)} đã có trong project với vai trò khác. Project đã được giữ; hãy kiểm tra thành viên rồi tiếp tục.` })
+          }
+        }
+        const currentIds = new Set(currentMembers.map(member => member.userId))
+        for (const member of input.members) {
+          if (currentIds.has(member.id)) continue
+          await request(`/projects/${encodeURIComponent(project.id)}/members`, {
+            method: 'POST', data: { email: email(member), role: projectRole(member.role) } satisfies ProjectMemberBody,
+          })
+        }
+        await uploadDrafts.remove(draftId)
+        try { await load(); store.selectProject(project.id) } catch { return saved(`Project “${input.name}” đã được tạo. Tải lại danh sách chưa thành công; mở project ${project.id} để kiểm tra.`) }
+        return { ...saved('Đã tạo Project, máy chủ xác nhận dataset và hoàn tất thành viên.'), projectId: project.id }
+      }
       if (!input.dataset.file) throw new Error('Hãy chọn lại tệp CSV để tải lên máy chủ.')
       validateCsvFile(input.dataset.file)
-      input.members.forEach(p => { email(p); projectRole(p.role) })
       const key = `${input.workspaceId}:${input.name.trim().toLowerCase()}`
       let draft = drafts.get(key)
       if (!draft) {

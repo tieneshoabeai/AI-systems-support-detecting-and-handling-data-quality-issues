@@ -3,6 +3,15 @@ export type ApiConfig = {
   readonly timeoutMs: number
 }
 
+export type ApiTarget = {
+  readonly baseUrl: string
+  readonly prefix: string
+  readonly environmentId: string
+  readonly revision: number
+}
+
+export type ApiTargetInput = Pick<ApiTarget, 'baseUrl' | 'prefix' | 'environmentId'>
+
 export type ApiEnvelope<T> = {
   success: true
   data: T
@@ -34,6 +43,10 @@ export type RequestOptions = {
   auth: 'public' | 'session'
   signal?: AbortSignal
   timeoutMs?: number
+  /** Persist an allowlisted write before any network attempt and return its queue receipt. */
+  deferIfOffline?: boolean
+  /** Local upload draft to retain until the queued server ACK is reconciled. */
+  deferredDraftId?: string
 }
 
 export type ApiRequestOptions = RequestOptions & (

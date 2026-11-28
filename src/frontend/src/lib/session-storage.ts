@@ -8,7 +8,10 @@ export const SESSION_STORAGE_KEY = 'data-quality.auth.v1'
 const validateSession = (value: unknown): { session: StoredSession; expiresAtMs: number } | null => {
   if (!isRecord(value) || value['schemaVersion'] !== 1
     || typeof value['accessToken'] !== 'string' || typeof value['refreshToken'] !== 'string'
-    || value['refreshToken'].trim().length === 0 || typeof value['accountId'] !== 'string') return null
+    || value['refreshToken'].trim().length === 0 || typeof value['accountId'] !== 'string'
+    || (value['refreshExpiresAtMs'] !== undefined
+      && (typeof value['refreshExpiresAtMs'] !== 'number' || !Number.isFinite(value['refreshExpiresAtMs']) || value['refreshExpiresAtMs'] <= 0))
+    || (value['rememberMe'] !== undefined && typeof value['rememberMe'] !== 'boolean')) return null
   const info = readAccessToken(value['accessToken'])
   if (!info || info.accountId !== value['accountId']) return null
   // Chỉ giữ các trường đã duyệt, không lưu password/role hoặc trường lạ từ caller.
@@ -16,6 +19,8 @@ const validateSession = (value: unknown): { session: StoredSession; expiresAtMs:
     session: {
       schemaVersion: 1, accessToken: value['accessToken'],
       refreshToken: value['refreshToken'], accountId: value['accountId'],
+      ...(typeof value['refreshExpiresAtMs'] === 'number' ? { refreshExpiresAtMs: value['refreshExpiresAtMs'] } : {}),
+      ...(typeof value['rememberMe'] === 'boolean' ? { rememberMe: value['rememberMe'] } : {}),
     },
     expiresAtMs: info.expiresAtMs,
   }
@@ -53,8 +58,11 @@ export const createSessionStorage = (options: SessionStorageOptions = {}) => {
       return { status: 'invalid' }
     }
     const { session, expiresAtMs } = validated
+    const time = now()
+    const accessExpired = isAccessTokenExpired({ accountId: session.accountId, expiresAtMs }, time)
+    const refreshExpired = session.refreshExpiresAtMs !== undefined && time >= session.refreshExpiresAtMs
     return {
-      status: isAccessTokenExpired({ accountId: session.accountId, expiresAtMs }, now()) ? 'expired' : 'valid',
+      status: accessExpired || refreshExpired ? 'expired' : 'valid',
       session, expiresAtMs,
     }
   }

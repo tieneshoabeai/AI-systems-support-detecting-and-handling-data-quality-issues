@@ -1,10 +1,78 @@
 import { ManagementStoreContext } from '../../hooks/management/use-management-store'
+import { AuthContext } from '../../hooks/auth/auth-context'
 import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import { expect } from 'vitest'
 import { PreviewSessionProvider } from '../../views/application/workbench-session'
 import { previewMockStore } from './management-mock-store'
 import type { PreviewRouteIds } from '../../types'
+import type { AuthContextValue, UploadDraft, UploadDraftPort } from '../../types'
+import type { ManagementStore } from '../../services/management/management.types'
+
+const createUploadDraftFixture = (): UploadDraftPort => {
+  const drafts: UploadDraft[] = []
+  const files = new Map<string, File>()
+  let sequence = 0
+  const get = (id: string) => {
+    const draft = drafts.find(item => item.id === id)
+    if (!draft) throw new Error('Test draft was not found.')
+    return draft
+  }
+  return {
+    async save(input) {
+      const id = `test-draft-${++sequence}`
+      const draft: UploadDraft = {
+        id, accountId: 'workbench-test', kind: input.projectId ? 'project-upload' : 'project-wizard',
+        projectId: input.projectId ?? null, ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+        ...(input.projectName ? { projectName: input.projectName } : {}),
+        ...(input.projectDescription === undefined ? {} : { projectDescription: input.projectDescription }),
+        ...(input.selectedMembers === undefined ? {} : { selectedMembers: input.selectedMembers.map(member => ({ ...member })) }),
+        fileName: input.file.name, mimeType: input.file.type, sizeBytes: input.file.size,
+        lastModified: input.file.lastModified, createdAtMs: Date.now(), fileHash: 'a'.repeat(64), status: 'pending',
+      }
+      drafts.push(draft)
+      files.set(id, input.file)
+      return draft
+    },
+    async list() { return drafts.map(draft => ({ ...draft })) },
+    async readFile(id) {
+      const file = files.get(id)
+      if (!file) throw new Error('Test draft file was not found.')
+      return file
+    },
+    async remove(id) { const index = drafts.findIndex(draft => draft.id === id); if (index >= 0) drafts.splice(index, 1); files.delete(id) },
+    async updateWizardMetadata(id, input) {
+      const draft = get(id)
+      Object.assign(draft, input, input.selectedMembers ? { selectedMembers: input.selectedMembers.map(member => ({ ...member })) } : {})
+      return { ...draft }
+    },
+    async attachToProject(id, projectId) { const draft = get(id); draft.projectId = projectId; return { ...draft } },
+    async markQueued(id, queueId) { const draft = get(id); draft.status = 'queued'; draft.queueId = queueId; return { ...draft } },
+    async markUnqueued(id, queueId) { const draft = get(id); if (draft.queueId === queueId) { draft.status = 'pending'; delete draft.queueId }; return { ...draft } },
+    async markUploadStarted(id) { const draft = get(id); draft.status = 'uploading'; return { ...draft } },
+    async markUploadAcknowledged(id) { const draft = get(id); draft.status = 'acknowledged'; return { ...draft } },
+    async confirmUploaded(id, confirmation) {
+      const draft = get(id)
+      draft.status = 'uploaded'
+      draft.datasetId = confirmation.datasetId
+      files.delete(id)
+      return confirmation.retainMetadata ? { cleaned: true, metadataRetained: true } : { cleaned: true }
+    },
+    async cleanupUploaded() { return 0 },
+  }
+}
+
+const createAuthFixture = (uploadDrafts: UploadDraftPort): AuthContextValue => ({
+  snapshot: {
+    phase: 'authenticated', generation: 1, sessionEnded: false, accountId: 'workbench-test',
+    expiresAtMs: Number.MAX_SAFE_INTEGER, user: { source: 'login', value: { id: 'workbench-test', email: 'test@example.test', role: 'analyst' } },
+    error: null, cleanupError: null,
+  },
+  configurationError: null, uploadDrafts,
+  signIn: async () => {},
+  signOut: async () => ({ serverRevoked: true, revokeError: null, cleanupError: null }),
+  confirmRenewal: async () => {},
+})
 
 // Khung test chung cho ba suite của batch 2D (shell · views · interactions).
 // File không có đuôi .test nên vitest không coi nó là một suite; tsc -b vẫn kiểm tra.
@@ -16,10 +84,15 @@ export const resetPreviewStore = (): void => { previewMockStore.reset() }
 
 // Mọi view (Home · Workspaces · Projects) và PreviewShell đều đọc usePreviewSession,
 // nên không render được chúng nếu thiếu provider — render trực tiếp sẽ throw.
+export const renderFrameWithStore = (children: ReactNode, store: ManagementStore, routeIds: PreviewRouteIds = {}): ReturnType<typeof render> =>
+  render(<AuthContext.Provider value={createAuthFixture(createUploadDraftFixture())}>
+    <ManagementStoreContext.Provider value={store}>
+      <PreviewSessionProvider routeIds={routeIds}>{children}</PreviewSessionProvider>
+    </ManagementStoreContext.Provider>
+  </AuthContext.Provider>)
+
 export const renderFrame = (children: ReactNode, routeIds: PreviewRouteIds = {}): ReturnType<typeof render> =>
-  render(<ManagementStoreContext.Provider value={previewMockStore}>
-    <PreviewSessionProvider routeIds={routeIds}>{children}</PreviewSessionProvider>
-  </ManagementStoreContext.Provider>)
+  renderFrameWithStore(children, previewMockStore, routeIds)
 
 // Bất biến shared-ui: "nút disabled cần lý do dễ tiếp cận trong text/context, không chỉ
 // tooltip". Test bắt TOÀN BỘ nút đã tắt, không chọn mẫu — thêm một nút chết im lặng là

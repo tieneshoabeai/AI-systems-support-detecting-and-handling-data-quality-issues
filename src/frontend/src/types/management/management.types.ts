@@ -77,6 +77,8 @@ export type WorkspaceEdit = { name: string; description: string }
 // đo thật — rows/columns/sizeMb — qua đây, service chỉ đóng gói thành DatasetSummary).
 export type NewProjectDatasetInput = {
   file?: File
+  fileHash?: string
+  sizeBytes?: number
   fileName: string
   format: DatasetSummary['format']
   rows: number
@@ -89,6 +91,7 @@ export type NewProjectInput = {
   name: string
   description: string
   members: Person[]
+  uploadDraftId?: string
   dataset: NewProjectDatasetInput
 }
 
@@ -477,7 +480,10 @@ export type PreviewStoreState = {
 // Kết quả mutation của mock service: undo là hàm đóng, không phải id bản ghi.
 export type PreviewMutationResult = {
   persisted?: boolean
+  queued?: boolean
+  queueId?: string
   workspaceId?: string
+  projectId?: string
   message: string
   undo: () => void
 }

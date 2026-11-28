@@ -10,6 +10,7 @@
 | [`auth`](auth/index.ts) | DTO đăng nhập/gia hạn, snapshot và port của phiên, AuthContext và kiểu Auth Glass. |
 | [`health`](health/index.ts), [`users`](users/index.ts) | Kết quả kiểm tra sức khỏe backend và hồ sơ người dùng hiện tại. |
 | [`datasets`](datasets/index.ts) | Kiểu điểm chất lượng dữ liệu, bản nháp upload và xác nhận upload. |
+| [`offline`](offline/index.ts) | Kiểu bản ghi cache đọc, trạng thái fallback/cache miss, command ghi ngoại tuyến và hợp đồng hàng đợi. |
 | [`processing`](processing/index.ts) | Các bước Processing và kiểu đánh giá kết quả. |
 | [`dataset-3d`](dataset-3d/index.ts), [`workspace-3d`](workspace-3d/index.ts) | Trạng thái chọn khối, camera, và sơ đồ tài nguyên dùng trong các scene. |
 | `management`, `navigation`, `workbench` | Kiểu dữ liệu nghiệp vụ, URL và trạng thái UI dùng chung. |
@@ -80,6 +81,10 @@ src/types/
 │   └── index.ts
 ├── management/management.types.ts
 ├── navigation/workbench-route.types.ts
+├── offline/
+│   ├── index.ts
+│   ├── offline-read.types.ts
+│   └── offline-write.types.ts
 ├── workbench/workbench-session.types.ts
 ├── processing/
 │   ├── index.ts

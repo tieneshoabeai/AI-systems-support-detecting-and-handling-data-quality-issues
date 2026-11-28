@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../hooks/auth/auth-context'
 import { usePreviewStore } from '../../hooks/management/use-management-store'
 import { createSessionStorage } from '../../lib/session-storage'
+import { ApiTargetManager } from '../../lib/api-target-manager'
 import { useContext, type ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 import { ManagementDataProvider, ProcessingDataProvider } from '../../views/application/management-data-provider'
@@ -31,6 +32,7 @@ vi.mock('../../lib/axios-client', () => ({
 vi.mock('../../components/graphics/workspace-3d/home-universe', () => ({ default: () => <div aria-hidden="true" /> }))
 
 const base = { generation: 1, sessionEnded: false, error: null, cleanupError: null }
+const apiTargetManager = new ApiTargetManager({ baseUrl: 'http://localhost:3000', prefix: '/api/v1', environmentId: 'qa-main' })
 const authenticated: SessionSnapshot = {
   ...base, phase: 'authenticated', accountId: 'u1', expiresAtMs: 4_000_000_000_000,
   user: { source: 'login', value: { id: 'u1', email: 'user@example.test', role: 'analyst' } },
@@ -48,6 +50,7 @@ function Probe() {
 function tree(snapshot: SessionSnapshot = authenticated, projectId?: string, children?: ReactNode, recent = false, progressiveProjects = false) {
   const value: AuthContextValue = {
     snapshot, configurationError: null,
+    apiTargetManager,
     signIn: () => Promise.resolve(), confirmRenewal: () => Promise.resolve(),
     signOut: () => Promise.resolve({ serverRevoked: true, revokeError: null, cleanupError: null }),
   }
@@ -376,12 +379,12 @@ it('does not reveal an old load after the session ends', async () => {
   view.rerender(tree({ ...base, generation: 2, phase: 'anonymous', accountId: null, expiresAtMs: null, user: null }))
   await act(() => { finish({ items: [], total: 0 }); return Promise.resolve() })
   expect(screen.queryByTestId('source')).toBeNull()
-  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
+  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập để quản lý dữ liệu')
 })
 
-it('does not substitute fixture data for a local-limited online session', () => {
+it('uses API data rather than fixtures when a locally retained session is available', async () => {
   render(tree({ ...base, phase: 'local-limited', accountId: 'u1', expiresAtMs: 4_000_000_000_000, user: null }))
-  expect(screen.getByRole('alert').textContent).toContain('Cần phiên đăng nhập trực tuyến')
-  expect(screen.queryByTestId('source')).toBeNull()
-  expect(transport.request).not.toHaveBeenCalled()
+  expect(await screen.findByTestId('source')).toHaveProperty('textContent', 'api:0')
+  expect(transport.request).toHaveBeenCalledWith(expect.objectContaining({ path: '/workspaces' }))
+  expect(screen.queryByText('fixture')).toBeNull()
 })

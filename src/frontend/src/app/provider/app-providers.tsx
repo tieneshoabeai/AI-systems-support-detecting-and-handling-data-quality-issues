@@ -9,6 +9,8 @@ type Props = { queryClient: QueryClient; runtime: AppRuntime | null; configurati
 
 export const AppProviders = ({ queryClient, runtime, configurationError = null, children }: Props) => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider runtime={runtime} configurationError={configurationError}>{children}</AuthProvider>
+    <AuthProvider runtime={runtime} configurationError={configurationError}>
+      {children}
+    </AuthProvider>
   </QueryClientProvider>
 )

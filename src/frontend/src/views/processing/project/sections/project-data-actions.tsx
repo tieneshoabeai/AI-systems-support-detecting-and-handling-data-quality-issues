@@ -2,8 +2,8 @@ import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useManagementStore } from '../../../../hooks/management/use-management-store'
 import { usePreviewSession } from '../../../../hooks/workbench/workbench-session-context'
 import { validateCsvFile } from '../../../../services/management/upload-validation'
-import { useEffect, useId, useRef, useState } from 'react'
-import type { ConfirmedProjectResult } from '../../../../types'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import type { ConfirmedProjectResult, OfflineWriteStatus } from '../../../../types'
 import { Panel } from '../../../../components/resource/presentation/resource-presentation'
 import { ResultReviewDialog } from '../../../../components/processing/result-review/result-review-dialog'
 import styles from './project-data-actions.module.css'
@@ -11,6 +11,10 @@ import { Icon as PreviewIcon } from '../../../../components/ui/primitives/icon'
 import { ProjectCsvDropZone } from './project-csv-drop-zone'
 import { ApiError } from '../../../../lib/api-error'
 import { mutationRefreshFailedCode } from '../../../../services/management/management.types'
+import { useUploadDraft } from '../../../../hooks/datasets/use-upload-draft'
+import { useAuth } from '../../../../hooks/auth/use-auth'
+
+const emptyQueueStatus: OfflineWriteStatus = Object.freeze({ entries: [], syncing: false, revision: 0, error: null })
 
 export function ProjectResultDownload({ result }: { result: ConfirmedProjectResult | null }) {
   const [busy, setBusy] = useState(false)
@@ -39,10 +43,18 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
   const store = useManagementStore()
   const session = usePreviewSession()
   const [file, setFile] = useState<File | null>(null)
-  const [phase, setPhase] = useState<'idle' | 'pending' | 'success' | 'refresh-failed'>('idle')
+  const [draftId, setDraftId] = useState<string | null>(null)
+  const [draftSaving, setDraftSaving] = useState(false)
+  const [queueId, setQueueId] = useState<string | null>(null)
+  const { offlineWrites } = useAuth()
+  const queueStatus = useSyncExternalStore(offlineWrites?.subscribe ?? (() => () => {}), offlineWrites?.getSnapshot ?? (() => emptyQueueStatus), () => emptyQueueStatus)
+  const uploadDrafts = useUploadDraft({ kind: 'project-upload', projectId: session.state.selection.projectId })
+  const [phase, setPhase] = useState<'idle' | 'pending' | 'queued' | 'success' | 'refresh-failed'>('idle')
   const [error, setError] = useState('')
   const inFlight = useRef(false)
   const projectId = session.state.selection.projectId
+  const activeDraft = draftId ? uploadDrafts.allDrafts.find(draft => draft.id === draftId) : undefined
+  const queuedEntry = queueId ? queueStatus.entries.find(entry => entry.id === queueId) : undefined
   const busy = phase === 'pending'
   const locked = phase !== 'idle'
   const id = useId()
@@ -53,48 +65,116 @@ export function ProjectUploadDialog({ onClose }: { onClose: () => void }) {
     return () => window.clearTimeout(timer)
   }, [onClose, phase])
 
-  const selectFile = (next: File | null) => {
+  useEffect(() => {
+    if (queuedEntry?.state !== 'confirmed' || phase === 'success') return
+    setFile(null)
+    setDraftId(null)
+    setPhase('success')
+    void uploadDrafts.refresh()
+    session.notify('Backend đã xác nhận upload; bản nháp cục bộ đang được dọn.', 'success')
+  }, [queuedEntry?.state, phase, session.notify, uploadDrafts.refresh])
+
+  useEffect(() => {
+    if (phase !== 'queued' || !queueId || queuedEntry) return
+    void uploadDrafts.refresh().then(drafts => {
+      const draft = drafts.find(item => item.id === draftId)
+      if (draft?.status !== 'pending' || draft.queueId !== undefined) return
+      setQueueId(null)
+      setPhase('idle')
+      setError('Yêu cầu đã được bỏ khỏi queue; draft vẫn còn và có thể upload lại.')
+    })
+  }, [phase, queueId, queuedEntry, draftId, uploadDrafts.refresh])
+
+  const selectFile = async (next: File | null) => {
+    if (draftSaving) return
     setError('')
+    if (!next) { setFile(null); setDraftId(null); return }
+    setDraftSaving(true)
     try {
-      if (next) validateCsvFile(next)
+      validateCsvFile(next)
+      // Save and hash before enabling upload. A device save is shown as a draft only, never as upload success.
+      const draft = await uploadDrafts.save({ projectId, file: next })
       setFile(next)
+      setDraftId(draft.id)
     } catch (error) {
       setFile(null)
+      setDraftId(null)
       setError(error instanceof Error ? error.message : 'Tệp không hợp lệ.')
-    }
+    } finally { setDraftSaving(false) }
+  }
+
+  const restoreDraft = async (id: string) => {
+    try {
+      const restored = await uploadDrafts.restoreFile(id)
+      validateCsvFile(restored)
+      setFile(restored)
+      setDraftId(id)
+      setError('')
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không khôi phục được bản nháp.') }
   }
 
   const upload = async () => {
-    if (!file || locked || inFlight.current || !store.uploadDataset) return
+    if (!file || locked || draftSaving || inFlight.current || !store.uploadDataset) return
     inFlight.current = true
     setPhase('pending')
     setError('')
     try {
       validateCsvFile(file)
-      const result = await store.uploadDataset(projectId, file)
+      if (!draftId) throw new Error('Hãy lưu lại bản nháp trên thiết bị trước khi tải lên.')
+      const result = await store.uploadDataset(projectId, file, draftId)
+      if (result.queued && result.queueId) {
+        setQueueId(result.queueId)
+        setPhase('queued')
+        await uploadDrafts.refresh()
+        session.notify(result.message, 'info')
+        return
+      }
+      setDraftId(null)
+      setFile(null)
+      await uploadDrafts.refresh()
       session.notify(result.message, 'success')
       if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) onClose()
       else setPhase('success')
     } catch (error) {
+      const latest = (await uploadDrafts.refresh()).find(draft => draft.id === draftId)
+      if (latest?.status === 'uploaded') { setDraftId(null); setFile(null) }
       setPhase(error instanceof ApiError && error.code === mutationRefreshFailedCode ? 'refresh-failed' : 'idle')
       setError(error instanceof Error ? error.message : 'Không tải được tệp.')
     } finally {
       inFlight.current = false
     }
   }
-  const closingLocked = busy || phase === 'success'
+  const closingLocked = busy || draftSaving || phase === 'success'
   return <Dialog open onClose={onClose} busy={closingLocked} className={styles['screen']} aria-labelledby={`${id}-title`}>
     <h2 id={`${id}-title`}>Upload data</h2>
-    <ProjectCsvDropZone file={file} phase={phase === 'refresh-failed' ? 'idle' : phase} disabled={locked}
+    {uploadDrafts.drafts.length > 0 && <section aria-label="Bản nháp upload đã lưu" className="action-note">
+      <strong>Bản nháp trên thiết bị</strong>
+      <ul>
+        {uploadDrafts.drafts.map(draft => <li key={draft.id}>
+          <span>{draft.fileName} · {Math.ceil(draft.sizeBytes / 1024)} KB · {draft.status === 'acknowledged' ? 'Đã nhận ACK, chờ xác minh' : draft.status === 'uploaded' ? 'Đã xác nhận trên server' : draft.status === 'uploading' ? 'Upload chưa rõ kết quả' : draft.status === 'queued' ? 'Đang chờ queue' : 'Chưa upload'}</span>{' '}
+          {draft.status !== 'uploaded' && <button type="button" className="button-secondary" disabled={busy} onClick={() => { void restoreDraft(draft.id) }}>Khôi phục</button>}{' '}
+          <button type="button" className="button-secondary" disabled={busy || ['queued', 'uploading', 'acknowledged'].includes(draft.status)} onClick={() => { void uploadDrafts.remove(draft.id).catch(reason => setError(reason instanceof Error ? reason.message : 'Không xóa được bản nháp.')) }}>Xóa</button>
+        </li>)}
+      </ul>
+      {uploadDrafts.error && <span role="alert">{uploadDrafts.error}</span>}
+    </section>}
+    <ProjectCsvDropZone file={file} phase={phase === 'pending' ? 'pending' : phase === 'success' ? 'success' : 'idle'} disabled={locked || draftSaving}
       descriptionId={`${id}-note`} onSelect={selectFile} />
-    <p id={`${id}-note`} className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset.</p>
+    <p id={`${id}-note`} className="action-note">CSV UTF-8, tối đa 50 MB. Mỗi project có một dataset. {queuedEntry?.state === 'blocked' || queuedEntry?.state === 'uncertain'
+      ? 'Request đang cần đối chiếu; bản nháp vẫn được giữ.'
+      : phase === 'queued' ? 'Request đã commit vào IndexedDB và đang chờ backend xác nhận.'
+      : activeDraft?.status === 'acknowledged'
+      ? 'Server đã ACK upload; đang chờ đối chiếu dataset trước khi dọn file.'
+      : activeDraft?.status === 'uploading' ? 'Kết quả request chưa rõ; bản nháp được giữ để tránh upload trùng.'
+        : activeDraft?.status === 'queued' ? 'Request đang ở queue; file bản nháp vẫn được giữ.'
+          : draftId ? 'Đã lưu bản nháp trên thiết bị; chưa tải lên server.' : 'Chọn tệp để lưu bản nháp trước khi upload.'}</p>
     {!store.uploadDataset && <p className="action-note">Chưa kết nối dịch vụ upload trong chế độ xem trước.</p>}
     {error && <p role="alert" className="form-error">{error}</p>}
     <div className="dialog-actions">
       <button type="button" className="button-secondary" disabled={closingLocked} onClick={onClose}>Đóng</button>
       <button type="button" className={`button-primary ${styles['uploadSubmit']}`} aria-busy={busy}
-        disabled={locked || !file || !store.uploadDataset} onClick={() => { void upload() }}>
-        {busy ? 'Đang tải lên…' : phase === 'success' ? 'Đã tải lên' : 'Upload data'}
+        disabled={locked || draftSaving || !draftId || !file || !store.uploadDataset} onClick={() => { void upload() }}>
+        {busy ? 'Đang tải lên…' : phase === 'queued' ? 'Đã lưu chờ đồng bộ' : phase === 'success' ? 'Đã tải lên' : 'Upload data'}
       </button>
     </div>
   </Dialog>

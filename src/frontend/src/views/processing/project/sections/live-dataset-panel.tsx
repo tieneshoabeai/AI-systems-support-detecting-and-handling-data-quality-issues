@@ -1,7 +1,7 @@
 import { Button } from '../../../../components/ui/primitives/button'
 import { Input } from '../../../../components/ui/primitives/input'
 import { Select } from '../../../../components/ui/form/select'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Dialog } from '../../../../components/ui/overlay/dialog'
 import { useManagementStore } from '../../../../hooks/management/use-management-store'
 import { firstRecordQuery, type RecordQuery } from '../../../../services/processing/dataset.service'
@@ -11,9 +11,13 @@ import { DatasetDistribution } from './dataset-distribution'
 import { Icon } from '../../../../components/ui/primitives/icon'
 import { ModuleNotice } from './module-notice'
 import styles from './module-content.module.css'
+import { useAuth } from '../../../../hooks/auth/use-auth'
+import type { OfflineWriteStatus } from '../../../../types/offline'
+import { isOfflineWriteReceipt } from '../../../../services/offline/offline-write.service'
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Không tải được dữ liệu.'
 const count = new Intl.NumberFormat('vi-VN')
+const emptyQueueStatus: OfflineWriteStatus = Object.freeze({ entries: [], syncing: false, revision: 0, error: null })
 const typeLabels: Record<string, string> = { number: 'Số', string: 'Văn bản', date: 'Ngày giờ', boolean: 'Đúng/Sai' }
 const labelForType = (type: string) => Object.hasOwn(typeLabels, type) ? typeLabels[type] : type
 
@@ -47,6 +51,8 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
 }) {
   const store = useManagementStore()
   const service = store.datasetService
+  const { offlineWrites } = useAuth()
+  const queueStatus = useSyncExternalStore(offlineWrites?.subscribe ?? (() => () => {}), offlineWrites?.getSnapshot ?? (() => emptyQueueStatus), () => emptyQueueStatus)
   const dataset = project.dataset
   const id = dataset?.id
   const [columns, setColumns] = useState<DatasetColumn[]>(initialPreview?.columns ?? [])
@@ -68,6 +74,8 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
   const [loading, setLoading] = useState(!initialPreview)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [queuedDeleteId, setQueuedDeleteId] = useState<string | null>(null)
+  const [actionMessage, setActionMessage] = useState('')
   const [detail, setDetail] = useState<Awaited<ReturnType<NonNullable<typeof service>['detail']>> | null>(null)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
@@ -80,6 +88,18 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
     })
     return () => controller.abort()
   }, [overview, id, service, attempt])
+  useEffect(() => {
+    if (!queuedDeleteId) return
+    const entry = queueStatus.entries.find(item => item.id === queuedDeleteId)
+    if (entry?.state === 'confirmed') {
+      onInvalidatePreview?.()
+      setActionMessage('Backend đã xác nhận xóa dataset.')
+      setQueuedDeleteId(null)
+    } else if (!entry && queueStatus.revision > 0) {
+      setActionMessage('Yêu cầu xóa không còn trong hàng đợi.')
+      setQueuedDeleteId(null)
+    }
+  }, [queuedDeleteId, queueStatus.entries, queueStatus.revision, onInvalidatePreview])
   useEffect(() => {
     if (!id || !service || (initialPreview && attempt === 0 && query === firstRecordQuery)) return
     const controller = new AbortController()
@@ -100,7 +120,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
   const selectedColumn = activeColumn?.key ?? ''
   const action = async (operation: () => Promise<void>) => {
     if (busy) return
-    setBusy(true); setActionError('')
+    setBusy(true); setActionError(''); setActionMessage('')
     try { await operation() } catch (cause) { setActionError(message(cause)) } finally { setBusy(false) }
   }
   const reload = () => { onInvalidatePreview?.(); setLoading(true); setError(''); setAttempt(value => value + 1) }
@@ -128,6 +148,7 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
         {project.canManage && store.refreshProject && <Button variant="plain" className="ghost-button" disabled={busy} onClick={() => setConfirmDelete(true)}><Icon name="trash" /> Xóa dataset</Button>}
       </div>
     </section>
+    {actionMessage && <ModuleNotice>{actionMessage}</ModuleNotice>}
     <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} busy={busy} aria-labelledby="delete-dataset-title">
       <h2 id="delete-dataset-title">Xóa dataset?</h2>
       <p>Dataset sẽ bị xóa mềm khỏi Project. Dữ liệu không thể dùng trong Data View sau thao tác này.</p>
@@ -136,7 +157,13 @@ export function LiveDatasetPanel({ project, overview = false, initialPreview, on
         <Button type="button" variant="secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>Hủy</Button>
         <Button type="button" variant="danger" disabled={busy} onClick={() => {
           void action(async () => {
-            await service.delete(id)
+            const result = await service.delete(id)
+            if (isOfflineWriteReceipt(result)) {
+              setQueuedDeleteId(result.queueId)
+              setActionMessage('Yêu cầu xóa đã được lưu vào hàng đợi; dataset vẫn hiện cho tới khi backend xác nhận.')
+              setConfirmDelete(false)
+              return
+            }
             onInvalidatePreview?.()
             try { await store.refreshProject?.(project.id, new AbortController().signal) } catch {
               setConfirmDelete(false)

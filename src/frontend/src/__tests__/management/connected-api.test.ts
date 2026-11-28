@@ -46,7 +46,7 @@ describe('connected dataset API', () => {
     const { api, request } = transport(() => { throw new Error('Forbidden') })
     const service = createDatasetService(api)
     await expect(service.delete('data/1')).rejects.toThrow('Forbidden')
-    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1', method: 'DELETE', auth: 'session' })
+    expect(request).toHaveBeenCalledExactlyOnceWith({ path: '/datasets/data%2F1', method: 'DELETE', auth: 'session', deferIfOffline: true })
   })
 
   it('keeps masked category values out of the chart output', async () => {
