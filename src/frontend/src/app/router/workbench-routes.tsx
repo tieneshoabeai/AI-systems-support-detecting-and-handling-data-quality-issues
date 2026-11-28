@@ -48,8 +48,8 @@ export function WorkbenchRoutes() {
             '/management/projects', '/management/members', '/management/notifications',
             '/management/notifications/:notificationId', '/management/settings', '/management/settings/:settingsSection']
             .map(path => <Route key={path} path={path} element={<ManagementPage />} />)}
-          {['/processing', '/processing/new']
-            .map(path => <Route key={path} path={path} element={<ProcessingPage />} />)}
+          <Route path="/processing" element={<ProcessingPage />} />
+          <Route path="/processing/new" element={<Navigate to="/processing" replace state={{ openProjectWizard: true }} />} />
           <Route path="/processing/projects/:projectId" element={<ProcessingProject />} />
           {['/processing/projects/:projectId/upload',
             '/processing/projects/:projectId/analysis', '/processing/projects/:projectId/review',

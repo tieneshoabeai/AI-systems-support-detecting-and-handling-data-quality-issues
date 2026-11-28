@@ -50,9 +50,10 @@ type PickedCsv = {
 const delimiterLabel = (delimiter: string): string =>
   delimiter === '|' ? 'Dấu gạch đứng' : delimiter === '\t' ? 'Tab' : delimiter === ';' ? 'Dấu chấm phẩy' : 'Dấu phẩy'
 
-export function ProjectWizard({ initialWorkspaceId, onClose }: {
+export function ProjectWizard({ initialWorkspaceId, onClose, onCreated }: {
   initialWorkspaceId: string | null
   onClose: () => void
+  onCreated?: () => void
 }) {
   const session = usePreviewSession()
   const { loadProjectWizardRoster } = useManagementStore()
@@ -184,6 +185,7 @@ export function ProjectWizard({ initialWorkspaceId, onClose }: {
     }, setError)
     setPending(false)
     if (!success) return
+    onCreated?.()
     setCreatedName(name.trim())
     setStep(steps.length)
   }

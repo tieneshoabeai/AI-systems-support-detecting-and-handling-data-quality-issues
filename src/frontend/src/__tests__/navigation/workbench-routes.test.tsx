@@ -1,9 +1,10 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import { Link } from 'react-router'
 import { AuthenticatedWorkbenchEntry as WorkbenchEntry } from '../support/authenticated-workbench-entry'
 import { legacyManagementRedirect, universePath } from '../../services/navigation/legacy-workbench-route'
 import { previewMockStore } from '../support/management-mock-store'
+import { ManagementLoadingContext } from '../../hooks/management/management-loading-context'
 
 vi.mock('../../views/management/home/home.view', () => ({ HomePreviewView: () => <><p>frame home</p><Link to="/management/projects">Projects</Link><Link to="/processing/projects/prj-sales/upload">Processing</Link></> }))
 vi.mock('../../views/management/workspaces/workspaces.view', () => ({ WorkspacesPreviewView: ({ workspaceId }: { workspaceId?: string }) => <p>{workspaceId ? `frame workspace ${workspaceId}` : 'frame workspaces'}</p> }))
@@ -58,28 +59,50 @@ it.each(['/management/unknown', '/management/settings/unknown', '/management/pro
   expect(await screen.findByText('404')).toBeDefined()
 })
 
-it('opens the shared project wizard from Processing and returns on close', async () => {
+it('opens and closes the shared project wizard without navigating away from Processing', async () => {
   openUrl('/processing')
   render(<WorkbenchEntry />)
   expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
   expect(screen.getByRole('heading', { name: 'Projects gần đây' })).toBeDefined()
   expect(screen.queryByRole('list', { name: 'Các bước xử lý dữ liệu' })).toBeNull()
-  fireEvent.click(await screen.findByRole('link', { name: 'Tạo Project' }))
+  const createButton = screen.getByRole('button', { name: 'Tạo Project' })
+  const historyLength = window.history.length
+  fireEvent.click(createButton)
   expect(await screen.findByRole('dialog', { name: 'Tạo Project' })).toBeDefined()
-  expect(window.location.pathname).toBe('/processing/new')
+  expect(window.location.pathname).toBe('/processing')
+  expect(screen.getByRole('heading', { name: 'Projects gần đây' })).toBeDefined()
   fireEvent.click(screen.getByRole('button', { name: 'Đóng hộp thoại' }))
   expect(await screen.findByRole('heading', { name: /Khám phá.*vũ trụ dữ liệu/ })).toBeDefined()
   expect(window.location.pathname).toBe('/processing')
+  expect(window.history.length).toBe(historyLength)
+  expect(document.activeElement).toBe(createButton)
 })
 
-it('offers a workspace selector when opening the creation URL directly', async () => {
+it('opens the workspace selector on Processing from a legacy creation URL', async () => {
   openUrl('/processing/new')
   render(<WorkbenchEntry />)
 
   const selector = await screen.findByRole('button', { name: 'Workspace' })
+  expect(window.location.pathname).toBe('/processing')
   expect(selector.textContent).toContain('Chọn Workspace')
   fireEvent.click(selector)
   expect(screen.getByRole('menuitem', { name: 'Tạo Workspace' })).toBeDefined()
+})
+
+it('shows the workspace loading state inside the dialog before showing the selector', async () => {
+  openUrl('/processing')
+  const { rerender } = render(<ManagementLoadingContext.Provider value={{ phase: 'loading' }}>
+    <WorkbenchEntry />
+  </ManagementLoadingContext.Provider>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Tạo Project' }))
+
+  const dialog = within(await screen.findByRole('dialog', { name: 'Tạo Project' }))
+  expect(dialog.getByRole('status', { name: 'Đang tải danh sách Workspace' })).toBeDefined()
+  expect(dialog.queryByRole('button', { name: 'Workspace' })).toBeNull()
+
+  rerender(<ManagementLoadingContext.Provider value={null}><WorkbenchEntry /></ManagementLoadingContext.Provider>)
+  expect(await screen.findByRole('button', { name: 'Workspace' })).toBeDefined()
+  expect(window.location.pathname).toBe('/processing')
 })
 
 it.each(['upload', 'analysis', 'review', 'results'])('redirects old step %s to the existing project page', async step => {
