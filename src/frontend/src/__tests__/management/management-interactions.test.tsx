@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { HomePreviewView } from '../../views/management/home/home.view'
 import { WorkspacesPreviewView } from '../../views/management/workspaces/workspaces.view'
 import { ProjectsPreviewView } from '../../views/management/projects/projects.view'
 import { previewMockStore } from '../support/management-mock-store'
 import {
   cardByTitle, everyDisabledButtonHasVisibleReason, menuFor, menuItem,
-  miniCardByTitle, renderFrame, resetPreviewStore,
+  miniCardByTitle, renderFrame, renderFrameWithStore, resetPreviewStore,
 } from '../support/workbench-test-kit'
 
 // Nghiệm lại bằng test đúng các quy tắc chuột nhóm trưởng chốt cho batch 2D:
@@ -575,21 +575,27 @@ it('chuông: "Đánh dấu tất cả đã đọc" trong dropdown là mutation t
   expect(screen.getByRole('button', { name: 'Thông báo · 5 chưa đọc' })).toBeDefined()
 })
 
-it('menu tài khoản: Hồ sơ/Cài đặt ĐIỀU HƯỚNG sang Settings, không còn mục tắt nào', () => {
+it('menu tài khoản: Hồ sơ/Cài đặt điều hướng sang Settings và vẫn có lối đăng xuất phiên', () => {
   renderFrame(<WorkspacesPreviewView />)
   fireEvent.click(screen.getByRole('button', { name: 'Tài khoản Nguyễn Minh Anh' }))
   const popover = screen.getByRole('dialog', { name: 'Tài khoản Nguyễn Minh Anh' })
-  // "Đăng xuất" đã RA KHỎI menu (chủ batch 03/11): frame này không có phiên đăng nhập thật nào để
-  // kết thúc nên nó là mục bấm không làm gì — nguyên tắc mới là bỏ hẳn thay vì tắt + giải thích.
-  // Vì vậy bất biến ở đây mạnh hơn các trang khác: KHÔNG có nút tắt nào trong popover.
+  // Giữ hai đường dẫn settings và thao tác đăng xuất gắn với session auth của ThuongFEAI.
   expect(within(popover).getAllByRole('button').filter(button => button.hasAttribute('disabled'))).toHaveLength(0)
-  expect(within(popover).queryByRole('button', { name: /Đăng xuất/ })).toBeNull()
+  expect(within(popover).getByRole('button', { name: 'Đăng xuất' })).toBeDefined()
   everyDisabledButtonHasVisibleReason()
 
   // Hai mục đầu nay điều hướng (khác chuông/báo cáo chạy "trong ô") → hash trỏ đúng mục con Accounts.
   fireEvent.click(within(popover).getByRole('button', { name: /Hồ sơ cá nhân/ }))
   expect(window.location.pathname).toBe('/management/settings/profile')
   expect(screen.queryByRole('dialog', { name: /Tài khoản/ })).toBeNull()
+})
+
+it('đăng xuất từ menu tài khoản gọi AuthContext của ThuongFEAI', () => {
+  const signOut = vi.fn(async () => ({ serverRevoked: true, revokeError: null, cleanupError: null }))
+  renderFrameWithStore(<WorkspacesPreviewView />, previewMockStore, {}, { signOut })
+  fireEvent.click(screen.getByRole('button', { name: 'Tài khoản Nguyễn Minh Anh' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }))
+  expect(signOut).toHaveBeenCalledTimes(1)
 })
 
 it('opens the account menu with the keyboard and restores focus on Escape', () => {
@@ -615,15 +621,16 @@ it('menu tài khoản (4.1): ĐÚNG HAI hàng điều hướng được, "Cài �
   renderFrame(<WorkspacesPreviewView />)
   fireEvent.click(screen.getByRole('button', { name: 'Tài khoản Nguyễn Minh Anh' }))
   const popover = screen.getByRole('dialog', { name: 'Tài khoản Nguyễn Minh Anh' })
-  // Ảnh 4.1 vẽ ba hàng; "Đăng xuất" đã bỏ theo chỉ đạo 03/11 và tiện ích dev "Khôi phục dữ liệu
-  // mẫu" đã bỏ để khớp ảnh (reset = F5). So CẢ danh sách hàng.
+  // Hai hàng điều hướng là destinations; đăng xuất là thao tác session riêng, không phải route.
   expect(within(popover).queryAllByRole('button', { name: /Khôi phục dữ liệu mẫu/ })).toHaveLength(0)
   // Chủ batch yêu cầu BỎ chữ "Settings" đứng cạnh hai mục điều hướng: ảnh 4.1 vẽ nó như một
   // nhãn nhóm, nhưng nó lặp lại tên một trang bên cạnh hai nhãn việc làm còn đích đến thì đã
   // hiện rõ khi bấm.
   const rows = within(within(popover).getByRole('list')).getAllByRole('button')
+    .filter(button => button.classList.contains('account-destination'))
   expect(rows.map(button => button.getAttribute('aria-label'))).toEqual(['Hồ sơ cá nhân', 'Cài đặt tài khoản'])
   expect(rows.every(button => !button.textContent?.includes('Settings'))).toBe(true)
+  expect(within(popover).getByRole('button', { name: 'Đăng xuất' })).toBeDefined()
   fireEvent.click(within(popover).getByRole('button', { name: /Cài đặt tài khoản/ }))
   // KHÔNG nhảy vào Bảo mật: hàng này đại diện cả NHÓM ba mục (Bảo mật · Đăng nhập & phiên ·
   // Thông báo), nên đích là route trần — nơi người dùng tự chọn mục. Chủ batch 03/11 hỏi đúng

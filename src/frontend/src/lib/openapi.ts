@@ -3883,12 +3883,27 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Thành công */
+            /** @description Kết quả phân tích mới nhất kèm mã job AI hiện hành nếu đã tạo. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        analysisId?: string;
+                        analysisRunId?: string;
+                        inputFingerprint?: string;
+                        /** @description Mã AI job mới nhất để đọc trạng thái hoặc retry. */
+                        jobId?: string;
+                        /** @description Đường dẫn hiện có để polling AI job. */
+                        pollUrl?: string;
+                        aiCorrelationAssessment?: {
+                            [key: string]: unknown;
+                        };
+                    } & {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -4630,7 +4645,7 @@ export interface operations {
                             /** @description Zero-based index into data records; the header row is excluded. */
                             rowIndex: number;
                             reason: string | null;
-                            /** @description PII-masked value only; raw values are never returned. */
+                            /** @description PII-masked or shape-only value; raw values are never returned. */
                             valueMasked: string | null;
                         }[];
                         meta: {

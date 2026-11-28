@@ -3,6 +3,7 @@ import { ApiError } from '../../lib/api-error'
 import type { SavedAnalysisResult } from '../management/management.types'
 import type {
   getAnalysesByAnalysisRunIdEvidenceSamplesParamsQuery,
+  getAnalysesByAnalysisRunIdEvidenceSamplesResponse200Content,
   postProjectsByProjectIdRunAnalysisRequestBody,
 } from '../../types/services-type/analysis'
 import type {
@@ -18,21 +19,9 @@ export type CreateFeedbackInput = postAnalysesByAnalysisIdRunFeedbackRequestBody
 export type UpdateFeedbackInput = patchFeedbackByIdMineRequestBody
 export type FeedbackQuery = getAnalysesByAnalysisIdRunFeedbackParamsQuery
 export type EvidenceSamplesQuery = getAnalysesByAnalysisRunIdEvidenceSamplesParamsQuery
-
-export type EvidenceSampleKind = 'missing' | 'duplicate' | 'invalid_type' | 'outlier'
-export type EvidenceSample = {
-  findingId: string
-  kind: EvidenceSampleKind
-  column: string
-  /** Zero-based record index; the table header is not included. */
-  rowIndex: number
-  reason: string | null
-  valueMasked: string | null
-}
-export type EvidenceSamplesPage = {
-  items: EvidenceSample[]
-  meta: { limit: number; hasMore: boolean; nextCursor: string | null }
-}
+export type EvidenceSamplesPage = getAnalysesByAnalysisRunIdEvidenceSamplesResponse200Content
+export type EvidenceSample = EvidenceSamplesPage['items'][number]
+export type EvidenceSampleKind = EvidenceSample['kind']
 
 export type ReportDownload =
   | { status: 'ready'; file: Blob }

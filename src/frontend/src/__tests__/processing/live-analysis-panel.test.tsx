@@ -55,7 +55,9 @@ it('runs analysis on demand and follows the returned job until success', async (
   }))
   expect(request.mock.calls.filter(([options]) => options.path === `/analysis/jobs/${jobId}`)).toHaveLength(1)
   expect(screen.getByText('Dòng đã quét')).toBeDefined()
-  expect(screen.queryByText('Tiến trình phân tích AI')).toBeNull()
+  const jobPanel = screen.getByRole('region', { name: 'Tiến trình phân tích AI' })
+  expect(within(jobPanel).getByText('Đã có kết quả')).toBeDefined()
+  expect(within(jobPanel).getByRole('button', { name: 'Tải lại kết quả' })).toBeDefined()
 })
 
 it('shows an empty result when the project has no analysis run', async () => {
@@ -118,8 +120,13 @@ it('shows a persisted feedback check before opening a finding on a fresh page', 
 
 it('posts feedback for the selected data quality finding and refreshes only that finding', async () => {
   const findingPath = `/analyses/${analysisRunId}/findings/${encodeURIComponent('DQ-01:Email')}/feedback`
+  const evidencePath = `/analyses/${analysisRunId}/evidence-samples`
   let created = false
   const { request } = renderPanel(options => {
+    if (options.path === evidencePath) return {
+      items: [{ findingId: 'DQ-01:Email', kind: 'missing', column: 'Email', rowIndex: 0, reason: 'DQ01_MISSING', valueMasked: null }],
+      meta: { limit: 20, hasMore: false, nextCursor: null },
+    }
     if (options.path === '/feedback/finding-feedback-1' && options.method === 'DELETE') {
       created = false
       return { deleted: true }
@@ -141,6 +148,13 @@ it('posts feedback for the selected data quality finding and refreshes only that
   if (!finding) throw new Error('Expected Email finding')
   await waitFor(() => expect(request).toHaveBeenCalledWith(expect.objectContaining({ path: findingPath, params: { limit: 1 } })))
   expect(request).not.toHaveBeenCalledWith(expect.objectContaining({ path: findingPath, params: { limit: 20 } }))
+
+  fireEvent.click(within(finding).getByRole('button', { name: 'Xem samples' }))
+  expect(await within(finding).findByRole('table')).toBeDefined()
+  expect(request).toHaveBeenCalledWith(expect.objectContaining({
+    path: evidencePath,
+    params: expect.objectContaining({ findingId: 'DQ-01:Email' }),
+  }))
 
   fireEvent.click(within(finding).getByText('Feedback'))
   const form = within(finding)

@@ -4640,7 +4640,23 @@
         ],
         "responses": {
           "200": {
-            "description": "Thành công"
+            "description": "Kết quả phân tích mới nhất kèm mã job AI hiện hành nếu đã tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "analysisId": { "type": "string" },
+                    "analysisRunId": { "type": "string" },
+                    "inputFingerprint": { "type": "string" },
+                    "jobId": { "type": "string", "description": "Mã AI job mới nhất để đọc trạng thái hoặc retry." },
+                    "pollUrl": { "type": "string", "description": "Đường dẫn hiện có để polling AI job." },
+                    "aiCorrelationAssessment": { "type": "object", "additionalProperties": true }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6127,7 +6143,7 @@
                           "valueMasked": {
                             "type": "string",
                             "nullable": true,
-                            "description": "PII-masked value only; raw values are never returned."
+                            "description": "PII-masked or shape-only value; raw values are never returned."
                           }
                         }
                       }

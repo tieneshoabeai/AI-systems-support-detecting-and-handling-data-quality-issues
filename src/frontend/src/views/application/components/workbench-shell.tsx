@@ -125,7 +125,7 @@ export function PreviewShell({
   return <div className={`preview-root${!processing && compact ? ' is-compact' : ''}`} data-section={processing ? 'processing' : active}>
     {!processing && <aside className="preview-sidebar" aria-label="Điều hướng chính">
       <div className="sidebar-brand">
-        <span className="brand-mark" aria-hidden="true"><PreviewIcon name="datasets" /></span>
+        <DataVerseMark className="brand-mark" />
         <span className="brand-text"><strong>DataVerse</strong><small>Your Data. Our Universe.</small></span>
       </div>
       <nav className="sidebar-nav">

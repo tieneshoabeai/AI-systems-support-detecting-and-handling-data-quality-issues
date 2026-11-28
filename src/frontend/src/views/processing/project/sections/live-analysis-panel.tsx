@@ -7,6 +7,8 @@ import { AnalysisFeedbackPanel } from './analysis-feedback-panel'
 import { ApiError } from '../../../../lib/api-error'
 import { ModuleNotice } from './module-notice'
 import { AnalysisResultOverview } from './analysis-result-overview'
+import { AnalysisJobPanel } from './analysis-job-panel'
+import type { AnalysisService } from '../../../../services/processing/analysis.service'
 import { Button } from '../../../../components/ui/primitives/button'
 import { Input } from '../../../../components/ui/primitives/input'
 import { Select } from '../../../../components/ui/form/select'
@@ -26,6 +28,14 @@ const maxJobChecks = 30
 const formatResponse = (value: unknown): string => JSON.stringify(value, null, 2) ?? String(value)
 const message = (error: unknown) => error instanceof Error ? error.message : 'Yêu cầu không thành công.'
 
+async function readJobRecord(service: AnalysisService, jobId: string, analysisId: string, signal?: AbortSignal): Promise<RecordValue> {
+  const record = asRecord(await service.getJob(jobId, signal))
+  if (record?.['jobId'] !== jobId || record['analysisRunId'] !== analysisId) {
+    throw new Error('Máy chủ trả về tác vụ không khớp với lần phân tích hiện tại.')
+  }
+  return record
+}
+
 export function LiveAnalysisPanel({ project, canExecute }: {
   project: Project
   canExecute: boolean
@@ -42,6 +52,12 @@ export function LiveAnalysisPanel({ project, canExecute }: {
   const [resultError, setResultError] = useState('')
   const analysisId = objectId(latestResult?.['analysisRunId'])
   const [jobId, setJobId] = useState('')
+  const [jobRecord, setJobRecord] = useState<RecordValue | null>(null)
+  const [jobError, setJobError] = useState('')
+  const [jobOperation, setJobOperation] = useState<'check' | 'retry' | null>(null)
+  const [jobPolling, setJobPolling] = useState(false)
+  const [jobCheckedAt, setJobCheckedAt] = useState<Date | null>(null)
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine)
   const mutationActive = useRef(false)
   const [reportId, setReportId] = useState('')
   const [response, setResponse] = useState<unknown>(null)
@@ -50,10 +66,23 @@ export function LiveAnalysisPanel({ project, canExecute }: {
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
+    const updateConnection = () => setOffline(!navigator.onLine)
+    window.addEventListener('online', updateConnection)
+    window.addEventListener('offline', updateConnection)
+    return () => {
+      window.removeEventListener('online', updateConnection)
+      window.removeEventListener('offline', updateConnection)
+    }
+  }, [])
+  useEffect(() => {
     if (!service || !datasetId) return
     const controller = new AbortController()
     void service.getResult(project.id, controller.signal).then(result => {
-      if (!controller.signal.aborted) setLatestResult(asRecord(result))
+      if (!controller.signal.aborted) {
+        const record = asRecord(result)
+        setLatestResult(record)
+        setJobId(jobFromResult(record))
+      }
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted && !missingResult(cause)) setResultError(message(cause))
     }).finally(() => {
@@ -63,35 +92,41 @@ export function LiveAnalysisPanel({ project, canExecute }: {
   }, [datasetId, project.id, service])
 
   useEffect(() => {
-    if (!service || !jobId || !analysisId) return
+    setJobPolling(false)
+    if (!service || !jobId || !analysisId || offline) return
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let checks = 0
-    const serviceForJob = service
 
     const check = async () => {
+      setJobPolling(true)
+      let continuePolling = false
       try {
-        const payload = await serviceForJob.getJob(jobId, controller.signal)
+        const record = await readJobRecord(service, jobId, analysisId, controller.signal)
         if (controller.signal.aborted) return
-        const record = asRecord(payload)
-        if (record?.['jobId'] !== jobId || record['analysisRunId'] !== analysisId) {
-          throw new Error('Máy chủ trả về tác vụ không khớp với lần phân tích hiện tại.')
-        }
+        setJobRecord(record)
+        setJobCheckedAt(new Date())
+        setJobError('')
         const jobStatus = record['status']
         if (jobStatus === 'pending' || jobStatus === 'running') {
           checks += 1
           if (checks < maxJobChecks) {
             timer = setTimeout(() => { void check() }, pollIntervalMs)
+            continuePolling = true
             return
           }
+          setJobError('Đã tạm dừng theo dõi tự động. Bạn có thể kiểm tra lại trạng thái.')
         } else if (jobStatus === 'succeeded') {
-          const result = asRecord(await serviceForJob.getResult(project.id, controller.signal))
+          const result = asRecord(await service.getResult(project.id, controller.signal))
           if (!controller.signal.aborted && result?.['analysisRunId'] === analysisId) {
             setLatestResult(result)
+            setResultError('')
           }
         }
       } catch (cause) {
-        if (!controller.signal.aborted) setError(message(cause))
+        if (!controller.signal.aborted) setJobError(message(cause))
+      } finally {
+        if (!controller.signal.aborted) setJobPolling(continuePolling)
       }
     }
 
@@ -100,7 +135,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
       controller.abort()
       clearTimeout(timer)
     }
-  }, [analysisId, jobId, project.id, service])
+  }, [analysisId, jobId, offline, project.id, service])
 
   const action = async (operation: () => Promise<void>) => {
     if (mutationActive.current) return
@@ -120,22 +155,75 @@ export function LiveAnalysisPanel({ project, canExecute }: {
     setResultError('')
     setReportId('')
     setJobId(jobFromResult(record))
+    setJobRecord(null)
+    setJobError('')
+    setJobCheckedAt(null)
     setResponse(null); setStatus('Đã nhận kết quả chạy phân tích.')
   })
   const loadResult = () => action(async () => {
     const result = await service!.getResult(project.id)
     const record = asRecord(result)
-    if (objectId(record?.['analysisRunId']) !== analysisId) {
-      setReportId('')
-      setJobId('')
-    }
+    const nextJobId = jobFromResult(record)
+    if (objectId(record?.['analysisRunId']) !== analysisId) setReportId('')
     setLatestResult(record)
+    if (nextJobId !== jobId) {
+      setJobId(nextJobId)
+      setJobRecord(null)
+      setJobCheckedAt(null)
+      setJobError('')
+    }
     setResultError('')
     setResponse(null)
   })
 
-  if (!service) return <p>Analysis API chỉ khả dụng trong chế độ đăng nhập trực tuyến.</p>
-  if (!project.dataset) return <p>Project cần có dataset trước khi chạy phân tích.</p>
+  const checkJob = async () => {
+    if (!service || !jobId || !analysisId || jobOperation || offline) return
+    setJobOperation('check')
+    setJobError('')
+    try {
+      const record = await readJobRecord(service, jobId, analysisId)
+      setJobRecord(record)
+      setJobCheckedAt(new Date())
+      if (record['status'] === 'succeeded') {
+        const result = asRecord(await service.getResult(project.id))
+        if (result?.['analysisRunId'] === analysisId) {
+          setLatestResult(result)
+          setResultError('')
+        }
+      }
+    } catch (cause) {
+      setJobError(message(cause))
+    } finally {
+      setJobOperation(null)
+    }
+  }
+
+  const retryJob = async () => {
+    if (!service || !jobId || !canExecute || offline || mutationActive.current) return
+    mutationActive.current = true
+    setBusy(true)
+    setJobOperation('retry')
+    setJobError('')
+    setError('')
+    try {
+      const response = asRecord(await service.retryJob(jobId))
+      const nextJobId = objectId(response?.['jobId'])
+      if (!nextJobId) throw new Error('Máy chủ không trả mã job mới để theo dõi.')
+      setJobId(nextJobId)
+      setJobRecord(null)
+      setJobCheckedAt(null)
+      setStatus('Đã gửi yêu cầu chạy lại phân tích AI.')
+    } catch (cause) {
+      setJobError(message(cause))
+    } finally {
+      setJobOperation(null)
+      mutationActive.current = false
+      setBusy(false)
+    }
+  }
+
+  if (!service) return <ModuleNotice>Analysis API chỉ khả dụng trong chế độ đăng nhập trực tuyến.</ModuleNotice>
+  if (!project.dataset) return <ModuleNotice>Project cần có dataset trước khi chạy phân tích.</ModuleNotice>
 
   const validOptions = Number.isInteger(topN) && topN >= 1 && topN <= 100
     && Number.isInteger(chartTopN) && chartTopN >= 1 && chartTopN <= 20
@@ -144,7 +232,7 @@ export function LiveAnalysisPanel({ project, canExecute }: {
       : !validOptions ? 'Top N cần từ 1–100 và Top N biểu đồ từ 1–20.' : ''
 
   return <section className={styles['stack']} aria-label="Phân tích dữ liệu trực tuyến">
-    {error && <p role="alert">{error}</p>}
+    {error && <ModuleNotice tone="error">{error}</ModuleNotice>}
     {status && <p role="status">{status}</p>}
 
     <section className={styles['card']}>
@@ -173,6 +261,12 @@ export function LiveAnalysisPanel({ project, canExecute }: {
         </div>
       </details>
     </section>
+
+    {(jobId || asRecord(latestResult?.['aiCorrelationAssessment'])) && <AnalysisJobPanel
+      jobId={jobId} job={jobRecord} assessment={latestResult?.['aiCorrelationAssessment'] ?? null}
+      busy={busy} operation={jobOperation} polling={jobPolling} offline={offline} checkedAt={jobCheckedAt}
+      error={jobError} canRetry={canExecute} onCheck={() => { void checkJob() }} onRetry={() => { void retryJob() }}
+      onResult={() => { void loadResult() }} />}
 
     <section className={styles['card']} aria-label="Kết quả phân tích">
       <div className={styles['cardHeading']}>

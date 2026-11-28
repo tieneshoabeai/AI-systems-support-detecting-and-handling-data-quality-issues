@@ -184,6 +184,7 @@ export interface AnalysisRepositoryPort {
   markResultsStale(projectId: string, keepRunId: string, reason: string): Promise<unknown>;
   createJob(doc: Partial<AiJobRecord> & Record<string, unknown>): Promise<AiJobRecord>;
   findJobById(id: string): Promise<AiJobRecord | null>;
+  findLatestJobByRun(runId: string): Promise<AiJobRecord | null>;
   updateJobById(id: string, update: Record<string, unknown>): Promise<AiJobRecord | null>;
   claimPendingJob(leaseMs?: number): Promise<AiJobRecord | null>;
   skipStaleJobs(leaseMs?: number): Promise<unknown>;

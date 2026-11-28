@@ -36,6 +36,7 @@ export class GetResultHandler {
       analysisId: resultId,
       analysisRunId: runId,
       inputFingerprint: fingerprint,
+      jobId: jobId ?? undefined,
       dq05: result.dq05,
       dqSummary: (result as unknown as { dq_summary?: unknown }).dq_summary ?? null,
       descriptive: (result as unknown as { descriptive?: unknown }).descriptive ?? null,
@@ -63,6 +64,7 @@ export class GetResultHandler {
     if (!result) {
       throw new NotFoundError('Chưa có kết quả phân tích cho lần chạy mới nhất');
     }
-    return this.toApiShape(result.id, run.id, result.inputFingerprint, null, null);
+    const latestJob = await this.analysisRepository.findLatestJobByRun(run.id);
+    return this.toApiShape(result.id, run.id, result.inputFingerprint, latestJob?.id ?? null, null);
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import type { FilterQuery } from 'mongoose';
 import { IAnalysisRun } from './analysis-run.schema';
 import { IAnalysisResult } from './analysis-result.schema';
 import { IAiJob } from './ai-job.schema';
@@ -211,6 +210,15 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
     return doc ? toAiJobRecord(doc) : null;
   }
 
+  async findLatestJobByRun(runId: string): Promise<AiJobRecord | null> {
+    if (!isObjectIdHex(runId)) return null;
+    const doc = await this.jobModel
+      .findOne({ analysis_run_id: oid(runId), deleted_at: null })
+      .sort({ attempt: -1, created_at: -1 })
+      .exec();
+    return doc ? toAiJobRecord(doc) : null;
+  }
+
   async updateJobById(id: string, update: Record<string, unknown>): Promise<AiJobRecord | null> {
     if (!isObjectIdHex(id)) return null;
     const set = (update as Record<string, unknown>).$set && typeof (update as Record<string, unknown>).$set === 'object'
@@ -297,7 +305,7 @@ export class AnalysisRepository implements AnalysisRepositoryPort {
 
   async findEvidenceSamples(params: FindEvidenceSamplesParams): Promise<CellEvidenceSampleRecord[]> {
     if (!isObjectIdHex(params.runId) || (params.afterId && !isObjectIdHex(params.afterId))) return [];
-    const filter: FilterQuery<ICellEvidence> = {
+    const filter = {
       analysis_run_id: oid(params.runId),
       deleted_at: null,
       ...(params.kind ? { kind: params.kind } : {}),

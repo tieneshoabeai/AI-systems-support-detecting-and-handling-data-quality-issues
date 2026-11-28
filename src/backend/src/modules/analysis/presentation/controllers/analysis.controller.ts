@@ -74,7 +74,21 @@ export class AnalysisController {
   })
   @PolicyResource('Analysis', ProjectScopePolicyLoader, 'projectId')
   @CheckPolicies((ability) => ability.can(Action.Read, 'Analysis'))
-  @ApiResponse({ status: 200, description: 'Thành công' })
+  @ApiResponse({
+    status: 200,
+    description: 'Kết quả phân tích mới nhất kèm mã job AI hiện hành nếu đã tạo.',
+    schema: {
+      type: 'object',
+      properties: {
+        analysisId: { type: 'string' },
+        analysisRunId: { type: 'string' },
+        inputFingerprint: { type: 'string' },
+        jobId: { type: 'string', description: 'Mã AI job mới nhất để đọc trạng thái hoặc retry.' },
+        pollUrl: { type: 'string', description: 'Đường dẫn hiện có để polling AI job.' },
+      },
+      additionalProperties: true,
+    },
+  })
   async getResult(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
     return this.getResultHandler.execute(projectId);
   }
@@ -105,7 +119,7 @@ export class AnalysisController {
               column: { type: 'string' },
               rowIndex: { type: 'integer', minimum: 0, description: 'Zero-based index của bản ghi dữ liệu, không tính hàng tiêu đề.' },
               reason: { type: 'string', nullable: true },
-              valueMasked: { type: 'string', nullable: true, description: 'Giá trị đã che PII; không bao giờ trả raw value.' },
+              valueMasked: { type: 'string', nullable: true, description: 'Giá trị đã che PII hoặc chuyển thành dạng mẫu; không bao giờ trả raw value.' },
             },
           },
         },

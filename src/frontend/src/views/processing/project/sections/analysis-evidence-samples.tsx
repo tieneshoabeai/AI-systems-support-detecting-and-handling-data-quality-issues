@@ -12,6 +12,10 @@ const kindLabel: Record<EvidenceSampleKind, string> = {
   invalid_type: 'Sai kiểu hoặc định dạng',
   outlier: 'Giá trị ngoại lệ',
 }
+const isSafeMaskedValue = (value: unknown): value is string | null => value === null
+  || value === '' || value === '***'
+  || (typeof value === 'string' && value.startsWith('Mẫu: ')
+    && /^[Aad *]*$/.test(value.slice('Mẫu: '.length)))
 
 function readPage(value: unknown, expectedFindingId: string): EvidenceSamplesPage {
   if (!isRecord(value) || !Array.isArray(value['items']) || !isRecord(value['meta'])) {
@@ -31,7 +35,7 @@ function readPage(value: unknown, expectedFindingId: string): EvidenceSamplesPag
       || typeof item['column'] !== 'string'
       || typeof item['rowIndex'] !== 'number' || !Number.isInteger(item['rowIndex']) || item['rowIndex'] < 0
       || (item['reason'] !== null && typeof item['reason'] !== 'string')
-      || (item['valueMasked'] !== null && typeof item['valueMasked'] !== 'string')) return null
+      || !isSafeMaskedValue(item['valueMasked'])) return null
     return {
       findingId: item['findingId'],
       kind: item['kind'] as EvidenceSampleKind,

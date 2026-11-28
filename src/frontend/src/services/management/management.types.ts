@@ -39,7 +39,15 @@ export type SessionDetail = {
   rememberMe: boolean
 }
 
-export type SavedAnalysisResult = { dq05?: { status?: string; violations?: unknown[] } }
+export type SavedAnalysisResult = {
+  analysisId?: string
+  analysisRunId?: string
+  inputFingerprint?: string
+  jobId?: string
+  pollUrl?: string
+  aiCorrelationAssessment?: unknown
+  dq05?: { status?: string; violations?: unknown[] }
+}
 
 export type ManagementStore = {
   subscribe: (listener: () => void) => () => void

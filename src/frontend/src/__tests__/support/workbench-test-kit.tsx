@@ -84,8 +84,13 @@ export const resetPreviewStore = (): void => { previewMockStore.reset() }
 
 // Mọi view (Home · Workspaces · Projects) và PreviewShell đều đọc usePreviewSession,
 // nên không render được chúng nếu thiếu provider — render trực tiếp sẽ throw.
-export const renderFrameWithStore = (children: ReactNode, store: ManagementStore, routeIds: PreviewRouteIds = {}): ReturnType<typeof render> =>
-  render(<AuthContext.Provider value={createAuthFixture(createUploadDraftFixture())}>
+export const renderFrameWithStore = (
+  children: ReactNode,
+  store: ManagementStore,
+  routeIds: PreviewRouteIds = {},
+  authOverrides: Partial<AuthContextValue> = {},
+): ReturnType<typeof render> =>
+  render(<AuthContext.Provider value={{ ...createAuthFixture(createUploadDraftFixture()), ...authOverrides }}>
     <ManagementStoreContext.Provider value={store}>
       <PreviewSessionProvider routeIds={routeIds}>{children}</PreviewSessionProvider>
     </ManagementStoreContext.Provider>

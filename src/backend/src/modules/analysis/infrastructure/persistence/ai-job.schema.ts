@@ -55,3 +55,4 @@ export const AiJobSchema = new Schema<IAiJob>(
 
 AiJobSchema.index({ input_fingerprint: 1, status: 1 });
 AiJobSchema.index({ project_id: 1, created_at: -1 });
+AiJobSchema.index({ analysis_run_id: 1, attempt: -1, created_at: -1 });

@@ -4,6 +4,7 @@ import {
   type AnalysisRepositoryPort,
   type CellEvidenceSampleKind,
 } from '../../domain/ports/analysis.repository.port';
+import { truncateChars } from '../../domain/pii-mask.util';
 import { isObjectIdHex } from '../../../../shared/domain/utils/object-id.util';
 import { ValidationError } from '../../../../shared/domain/errors';
 
@@ -22,7 +23,7 @@ export interface EvidenceSampleItem {
   /** Zero-based index into data records; the header row is not included. */
   rowIndex: number;
   reason: string | null;
-  /** Only the persisted PII-masked value is exposed. */
+  /** PII-masked or shape-only value; the raw sample string is never exposed. */
   valueMasked: string | null;
 }
 
@@ -64,6 +65,22 @@ function toFindingId(kind: CellEvidenceSampleKind, column: string): string {
   }
 }
 
+function safeValueForResponse(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  if (value === '' || value === '***') return value;
+  // Older evidence rows may contain a non-PII value in `value_masked` because that
+  // field was also used for AI-safe numeric samples. Shape it again at the API
+  // boundary so neither legacy nor newly stored values can expose raw text.
+  const shape = Array.from(value, (character) => {
+    if (/\p{Lu}/u.test(character)) return 'A';
+    if (/\p{L}/u.test(character)) return 'a';
+    if (/\p{N}/u.test(character)) return 'd';
+    if (/\s/u.test(character)) return ' ';
+    return '*';
+  }).join('');
+  return `Mẫu: ${truncateChars(shape)}`;
+}
+
 @Injectable()
 export class GetEvidenceSamplesHandler {
   constructor(
@@ -103,7 +120,7 @@ export class GetEvidenceSamplesHandler {
         column: row.column,
         rowIndex: row.rowIndex,
         reason: row.reason ?? null,
-        valueMasked: row.valueMasked ?? null,
+        valueMasked: safeValueForResponse(row.valueMasked),
       })),
       meta: {
         limit: query.limit,
